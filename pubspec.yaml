@@ -1,5 +1,5 @@
 name: azhi_main
-description: "A new Flutter project."
+description: "The FOSS Matrix client with a focus on professional usage."
 
 # Prevent accidental publishing to pub.dev.
 publish_to: 'none'
@@ -14,6 +14,9 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  fluent_ui: ^4.4.0
+  matrix: ^0.25.12
+  
 
 dev_dependencies:
   flutter_test:
