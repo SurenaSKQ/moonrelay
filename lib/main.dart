@@ -15,23 +15,69 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <http://www.gnu.org/licenses/>.
 
+// This is the application entry point. It servers the purpose of intializing vital data.
+
+// TODO[epic=very_logterm] Use fluent UI
+
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:logger/logger.dart';
+import 'package:matrix/encryption/utils/key_verification.dart';
 import 'src/app.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
+import 'package:matrix/matrix.dart';
+import 'package:path_provider/path_provider.dart';
+import 'src/init_logger.dart';
 
 void main() async {
-  // Set up the SettingsController, which will glue user settings to multiple
-  // Flutter Widgets.
-  final settingsController = SettingsController(SettingsService());
+  // TODO: Better error handling (application-wide item)
+  // TODO: Deffered loading, loading screen, etc.
+  Logger log = await initializeLog();
+  // Initialize the SDK Client object and do necessary initializations.
+  // Using HiveDatabase in "support directory" for all user data
+  // TODO[epic=longterm] use Isar? https://isar.dev/
+  // Support Emoji and Number sequence verification (future: QR code)
+  // Definitely use isolates to offload compute from main thread
+  final sdkClient = Client(
+    'Project Azhi',
+    databaseBuilder: (_) async {
+      try {
+        final dbpath = await getApplicationSupportDirectory();
+        final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
+        await dbobj.open();
+        return dbobj;
+      } catch (e) {
+        log.f(
+          "Failed to initialize database",
+          error: e,
+          stackTrace: StackTrace.current,
+          time: DateTime.now(),
+        );
+        exit(-1);
+      }
+    },
+    verificationMethods: {
+      KeyVerificationMethod.numbers,
+      KeyVerificationMethod.emoji,
+      // TODO[epic=longterm] QRCode
+      //KeyVerificationMethod.qrScan
+    },
+    nativeImplementations: NativeImplementationsIsolate(compute),
+  );
 
+  await sdkClient.init();
+  // Set up the SettingsController, which will glue user settings to multiple widgets.
+  final settingsController = SettingsController(SettingsService());
   // Load the user's preferred theme while the splash screen is displayed.
   // This prevents a sudden theme change when the app is first displayed.
   await settingsController.loadSettings();
-
-  // Run the app and pass in the SettingsController. The app listens to the
-  // SettingsController for changes, then passes it further down to the
-  // SettingsView.
-  runApp(MyApp(settingsController: settingsController));
+  runApp(
+    AzhiStartApp(
+      settingsController: settingsController,
+      client: sdkClient,
+    ),
+  );
 }

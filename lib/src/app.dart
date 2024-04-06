@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:matrix/matrix.dart';
 
 import 'sample_feature/sample_item_details_view.dart';
 import 'sample_feature/sample_item_list_view.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
+import 'screens/loading_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/chat_screen.dart';
 
-/// The Widget that configures your application.
-class MyApp extends StatelessWidget {
-  const MyApp({
+/// The base starting widget of the application.
+class AzhiStartApp extends StatelessWidget {
+  const AzhiStartApp({
     super.key,
     required this.settingsController,
+    required this.client,
   });
 
   final SettingsController settingsController;
+  final Client client;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +36,7 @@ class MyApp extends StatelessWidget {
           // MaterialApp to restore the navigation stack when a user leaves and
           // returns to the app after it has been killed while running in the
           // background.
-          restorationScopeId: 'app',
+          restorationScopeId: 'AZH',
 
           // Provide the generated AppLocalizations to the MaterialApp. This
           // allows descendant Widgets to display the correct translations
@@ -43,6 +49,7 @@ class MyApp extends StatelessWidget {
           ],
           supportedLocales: const [
             Locale('en', ''), // English, no country code
+            Locale('fa', 'IR'),
           ],
 
           // Use AppLocalizations to configure the correct application title
@@ -56,8 +63,24 @@ class MyApp extends StatelessWidget {
           // Define a light and dark color theme. Then, read the user's
           // preferred ThemeMode (light, dark, or system default) from the
           // SettingsController to display the correct theme.
-          theme: ThemeData(),
-          darkTheme: ThemeData.dark(),
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSwatch(
+              primarySwatch: Colors.blue,
+              backgroundColor: Colors.white70,
+              errorColor: Colors.red,
+              brightness: Brightness.light,
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSwatch(
+              primarySwatch: Colors.blue,
+              backgroundColor: Colors.black,
+              errorColor: Colors.red,
+              brightness: Brightness.dark,
+            ),
+          ),
           themeMode: settingsController.themeMode,
 
           // Define a function to handle named routes in order to support
