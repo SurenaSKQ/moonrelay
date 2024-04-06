@@ -2,5 +2,10 @@
   "appTitle": "azhi_main",
   "@appTitle": {
     "description": "The title of the application"
-  }
+  },
+  "author": "Surena Karimpour Ghannadi",
+  "loginButton": "Login",
+  "usernameText": "Username",
+  "passwordText": "Password",
+  "homeserverText": "Homeserver"
 }
