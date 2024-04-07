@@ -61,6 +61,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       log.e("Login error with",
           error: e, time: DateTime.now(), stackTrace: StackTrace.current);
+      // FIXME: Better error and localization
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
@@ -195,6 +196,10 @@ class _LoginPageState extends State<LoginPage> {
                                     AppLocalizations.of(context)!.loginButton),
                           ),
                         ),
+                      ),
+                      Container(
+                        child: Text(
+                            AppLocalizations.of(context)!.appLicenseNotice),
                       ),
                     ],
                   ),
