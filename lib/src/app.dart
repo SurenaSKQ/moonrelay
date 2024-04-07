@@ -8,7 +8,7 @@ import 'sample_feature/sample_item_list_view.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
 import 'screens/loading_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/loginPage.dart';
 import 'screens/chat_screen.dart';
 
 /// The base starting widget of the application.
@@ -36,7 +36,7 @@ class AzhiStartApp extends StatelessWidget {
           // MaterialApp to restore the navigation stack when a user leaves and
           // returns to the app after it has been killed while running in the
           // background.
-          restorationScopeId: 'AZH',
+          restorationScopeId: 'AppRoot',
 
           // Provide the generated AppLocalizations to the MaterialApp. This
           // allows descendant Widgets to display the correct translations
@@ -71,6 +71,7 @@ class AzhiStartApp extends StatelessWidget {
               errorColor: Colors.red,
               brightness: Brightness.light,
             ),
+            textTheme: Typography.blackRedmond,
           ),
           darkTheme: ThemeData(
             useMaterial3: true,
@@ -95,6 +96,8 @@ class AzhiStartApp extends StatelessWidget {
                   case SampleItemDetailsView.routeName:
                     return const SampleItemDetailsView();
                   case SampleItemListView.routeName:
+                  case LoginPage.routeName:
+                    return const LoginPage();
                   default:
                     return const SampleItemListView();
                 }
