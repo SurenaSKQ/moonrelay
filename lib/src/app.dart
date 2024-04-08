@@ -93,13 +93,12 @@ class AzhiStartApp extends StatelessWidget {
                 switch (routeSettings.name) {
                   case SettingsView.routeName:
                     return SettingsView(controller: settingsController);
-                  case SampleItemDetailsView.routeName:
-                    return const SampleItemDetailsView();
-                  case SampleItemListView.routeName:
                   case LoginPage.routeName:
                     return const LoginPage();
+                  case ChatScreen.routeName:
+                    return const ChatScreen();
                   default:
-                    return const SampleItemListView();
+                    return const LoginPage();
                 }
               },
             );

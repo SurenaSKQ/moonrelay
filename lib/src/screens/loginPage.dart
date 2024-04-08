@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/screens/chat_screen.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -51,16 +52,16 @@ class _LoginPageState extends State<LoginPage> {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const Placeholder()),
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(
+            context, ChatScreen.routeName, (route) => false);
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }
     } catch (e) {
-      log.e("Login error with",
-          error: e, time: DateTime.now(), stackTrace: StackTrace.current);
+      log.e(
+        "Login error",
+        error: e,
+      );
       // FIXME: Better error and localization
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
