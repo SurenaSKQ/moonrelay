@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:logger/logger.dart';
 import 'package:azhi_main/src/screens/chat_screen.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:flutter/material.dart';
@@ -22,12 +23,13 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:logger/logger.dart';
 import 'package:azhi_main/src/widgets/themedLogoAndText.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.client, required this.log});
   static const routeName = "/loginScreen";
+  final Client client;
+  final Logger log;
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -39,12 +41,11 @@ class _LoginPageState extends State<LoginPage> {
       TextEditingController(text: 'matrix.org');
 
   bool _textActive = true;
-
   void _login() async {
     setState(() => _textActive = false);
-    final log = Provider.of<Logger>(context, listen: false);
+    final client = widget.client;
+    final log = widget.log;
     try {
-      final client = Provider.of<Client>(context, listen: false);
       await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
       await client.login(
         LoginType.mLoginPassword,
@@ -52,8 +53,7 @@ class _LoginPageState extends State<LoginPage> {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-            context, ChatScreen.routeName, (route) => false);
+        Navigator.pushNamed(context, ChatScreen.routeName);
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }
@@ -176,6 +176,7 @@ class _LoginPageState extends State<LoginPage> {
                           readOnly: !_textActive,
                           enabled: true,
                           autocorrect: false,
+                          obscureText: true,
                           decoration: InputDecoration(
                             border: const OutlineInputBorder(),
                             labelText:
@@ -192,7 +193,9 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: !_textActive ? null : _login,
                           child: Center(
                             child: !_textActive
-                                ? SpinKitChasingDots()
+                                ? const SpinKitChasingDots(
+                                    color: Colors.white,
+                                  )
                                 : Text(
                                     AppLocalizations.of(context)!.loginButton),
                           ),

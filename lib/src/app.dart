@@ -1,13 +1,13 @@
+import 'package:azhi_main/src/init_logger.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:matrix/matrix.dart';
+import 'package:logger/logger.dart';
 
-import 'sample_feature/sample_item_details_view.dart';
-import 'sample_feature/sample_item_list_view.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
-import 'screens/loading_screen.dart';
 import 'screens/loginPage.dart';
 import 'screens/chat_screen.dart';
 
@@ -17,10 +17,12 @@ class AzhiStartApp extends StatelessWidget {
     super.key,
     required this.settingsController,
     required this.client,
+    required this.log,
   });
 
   final SettingsController settingsController;
   final Client client;
+  final Logger log;
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +96,11 @@ class AzhiStartApp extends StatelessWidget {
                   case SettingsView.routeName:
                     return SettingsView(controller: settingsController);
                   case LoginPage.routeName:
-                    return const LoginPage();
+                    return LoginPage(client: client, log: log);
                   case ChatScreen.routeName:
-                    return const ChatScreen();
+                    return ChatScreen(client: client, log: log);
                   default:
-                    return const LoginPage();
+                    return LoginPage(client: client, log: log);
                 }
               },
             );

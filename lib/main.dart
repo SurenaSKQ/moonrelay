@@ -76,8 +76,6 @@ void main() async {
   await settingsController.loadSettings();
   runApp(
     AzhiStartApp(
-      settingsController: settingsController,
-      client: sdkClient,
-    ),
+        settingsController: settingsController, client: sdkClient, log: log),
   );
 }

@@ -23,8 +23,10 @@ import 'package:logger/logger.dart';
 import 'roomPage.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({super.key, required this.client, required this.log});
   static const routeName = '/chatScreen';
+  final Client client;
+  final Logger log;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -32,13 +34,15 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   void _logout() async {
-    final log = Provider.of<Logger>(context, listen: false);
+    final log = widget.log;
     try {
-      final client = Provider.of<Client>(context, listen: false);
+      final client = widget.client;
       await client.logout();
       mounted
           ? Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginPage()),
+              MaterialPageRoute(
+                builder: (_) => LoginPage(client: client, log: log),
+              ),
               (route) => false,
             )
           : throw "Build context async failure widget not mounted";
