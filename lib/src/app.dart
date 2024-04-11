@@ -69,7 +69,7 @@ class AzhiStartApp extends StatelessWidget {
             useMaterial3: true,
             colorScheme: ColorScheme.fromSwatch(
               primarySwatch: Colors.blue,
-              backgroundColor: Colors.white70,
+              backgroundColor: Colors.white,
               errorColor: Colors.red,
               brightness: Brightness.light,
             ),
@@ -86,6 +86,13 @@ class AzhiStartApp extends StatelessWidget {
           ),
           themeMode: settingsController.themeMode,
 
+          builder: (context, child) => Provider<Client>(
+              create: (context) => client,
+              child: Provider<Logger>(
+                create: (context) => log,
+                child: child,
+              )),
+
           // Define a function to handle named routes in order to support
           // Flutter web url navigation and deep linking.
           onGenerateRoute: (RouteSettings routeSettings) {
@@ -96,11 +103,11 @@ class AzhiStartApp extends StatelessWidget {
                   case SettingsView.routeName:
                     return SettingsView(controller: settingsController);
                   case LoginPage.routeName:
-                    return LoginPage(client: client, log: log);
+                    return const LoginPage();
                   case ChatScreen.routeName:
-                    return ChatScreen(client: client, log: log);
+                    return const ChatScreen();
                   default:
-                    return LoginPage(client: client, log: log);
+                    return const LoginPage();
                 }
               },
             );

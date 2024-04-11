@@ -23,10 +23,8 @@ import 'package:logger/logger.dart';
 import 'roomPage.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.client, required this.log});
+  const ChatScreen({super.key});
   static const routeName = '/chatScreen';
-  final Client client;
-  final Logger log;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -34,14 +32,14 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   void _logout() async {
-    final log = widget.log;
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
     try {
-      final client = widget.client;
       await client.logout();
       mounted
           ? Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => LoginPage(client: client, log: log),
+                builder: (_) => LoginPage(),
               ),
               (route) => false,
             )
@@ -121,13 +119,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(client.rooms[i].getLocalizedDisplayname())),
                 if (client.rooms[i].notificationCount > 0)
                   Material(
-                      borderRadius: BorderRadius.circular(99),
-                      color: Colors.red,
-                      child: Padding(
-                        padding: const EdgeInsets.all(2.0),
-                        child:
-                            Text(client.rooms[i].notificationCount.toString()),
-                      ))
+                    borderRadius: BorderRadius.circular(99),
+                    color: Colors.red,
+                    child: Padding(
+                      padding: const EdgeInsets.all(2.0),
+                      child: Text(client.rooms[i].notificationCount.toString()),
+                    ),
+                  )
               ],
             ),
             subtitle: Text(

@@ -26,10 +26,8 @@ import 'package:provider/provider.dart';
 import 'package:azhi_main/src/widgets/themedLogoAndText.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.client, required this.log});
+  const LoginPage({super.key});
   static const routeName = "/loginScreen";
-  final Client client;
-  final Logger log;
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -43,9 +41,12 @@ class _LoginPageState extends State<LoginPage> {
   bool _textActive = true;
   void _login() async {
     setState(() => _textActive = false);
-    final client = widget.client;
-    final log = widget.log;
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
     try {
+      if (client.isLogged()) {
+        Navigator.pushNamed(context, ChatScreen.routeName);
+      }
       await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
       await client.login(
         LoginType.mLoginPassword,
