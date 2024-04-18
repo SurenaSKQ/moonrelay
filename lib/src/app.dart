@@ -1,11 +1,10 @@
-import 'package:azhi_main/src/init_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:matrix/matrix.dart';
 import 'package:logger/logger.dart';
-
+import 'helpers/theme_provider.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
 import 'screens/loginPage.dart';
@@ -65,25 +64,8 @@ class AzhiStartApp extends StatelessWidget {
           // Define a light and dark color theme. Then, read the user's
           // preferred ThemeMode (light, dark, or system default) from the
           // SettingsController to display the correct theme.
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSwatch(
-              primarySwatch: Colors.blue,
-              backgroundColor: Colors.white,
-              errorColor: Colors.red,
-              brightness: Brightness.light,
-            ),
-            textTheme: Typography.blackRedmond,
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSwatch(
-              primarySwatch: Colors.blue,
-              backgroundColor: Colors.black,
-              errorColor: Colors.red,
-              brightness: Brightness.dark,
-            ),
-          ),
+          theme: AppThemeProvider().lightTheme(),
+          darkTheme: AppThemeProvider().darkTheme(),
           themeMode: settingsController.themeMode,
 
           builder: (context, child) => Provider<Client>(

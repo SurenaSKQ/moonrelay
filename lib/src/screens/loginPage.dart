@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:ui';
+
 import 'package:logger/logger.dart';
 import 'package:azhi_main/src/screens/chat_screen.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
@@ -77,29 +79,41 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () =>
-              Navigator.restorablePushNamed(context, SettingsView.routeName),
-          icon: const Icon(Icons.settings),
-        ),
+        leading: Builder(builder: (BuildContext context) {
+          return IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu_rounded));
+        }),
+        actions: [
+          IconButton(
+            onPressed: () =>
+                Navigator.restorablePushNamed(context, SettingsView.routeName),
+            icon: const Icon(Icons.settings),
+          )
+        ],
         title: Text(AppLocalizations.of(context)!.appTitle),
       ),
       backgroundColor: Theme.of(context).colorScheme.background,
       primary: true,
-      drawer: Drawer(
-        child: Column(
-          children: [
-            TextButton(
-              onPressed: () {},
-              child: Text(AppLocalizations.of(context)!.thirdPartyLicense),
-            ),
-            TextButton(
-              onPressed: () {},
-              child: Text(AppLocalizations.of(context)!.privacyPolicy),
-            )
-          ],
-        ),
-      ),
+      drawer: Builder(builder: (BuildContext context) {
+        return Drawer(
+          child: Column(
+            children: [
+              IconButton(
+                  onPressed: () => Scaffold.of(context).closeDrawer(),
+                  icon: const Icon(Icons.menu_open_outlined)),
+              TextButton(
+                onPressed: () {},
+                child: Text(AppLocalizations.of(context)!.thirdPartyLicense),
+              ),
+              TextButton(
+                onPressed: () {},
+                child: Text(AppLocalizations.of(context)!.privacyPolicy),
+              )
+            ],
+          ),
+        );
+      }),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(10.0),
@@ -148,7 +162,13 @@ class _LoginPageState extends State<LoginPage> {
                           enabled: true,
                           autocorrect: false,
                           decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Theme.of(context).highlightColor,
                             labelText:
                                 AppLocalizations.of(context)!.homeserverText,
                           ),
@@ -163,7 +183,11 @@ class _LoginPageState extends State<LoginPage> {
                           enabled: true,
                           autocorrect: false,
                           decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
                             labelText:
                                 AppLocalizations.of(context)!.usernameText,
                           ),
@@ -179,7 +203,11 @@ class _LoginPageState extends State<LoginPage> {
                           autocorrect: false,
                           obscureText: true,
                           decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
                             labelText:
                                 AppLocalizations.of(context)!.passwordText,
                           ),
@@ -194,8 +222,12 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: !_textActive ? null : _login,
                           child: Center(
                             child: !_textActive
-                                ? const SpinKitChasingDots(
-                                    color: Colors.white,
+                                ? SpinKitWave(
+                                    size: 50,
+                                    color: (Theme.of(context).brightness ==
+                                            Brightness.dark)
+                                        ? Colors.white
+                                        : Colors.black,
                                   )
                                 : Text(
                                     AppLocalizations.of(context)!.loginButton),

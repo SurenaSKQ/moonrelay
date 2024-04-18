@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:matrix/matrix.dart';
 import 'package:logger/logger.dart';
-import 'roomPage.dart';
+import 'room_page.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -39,7 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
       mounted
           ? Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => LoginPage(),
+                builder: (_) => const LoginPage(),
               ),
               (route) => false,
             )

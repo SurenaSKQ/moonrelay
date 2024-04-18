@@ -1,5 +1,6 @@
 {
-  "appTitle": "Project Azhi",
+  "projectName": "ChatSphere",
+  "appTitle": "chatsphere protoype",
   "author": "Surena Karimpour Ghannadi",
   "loginButton": "Login",
   "usernameText": "Username",

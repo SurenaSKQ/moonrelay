@@ -17,6 +17,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LogoWithTextThemed extends StatelessWidget {
   const LogoWithTextThemed({super.key});
@@ -36,14 +37,14 @@ class LogoWithTextThemed extends StatelessWidget {
           ),
           Center(
             child: Text(
-              'Project Azhi',
+              AppLocalizations.of(context)!.projectName,
               style: TextStyle(
                 color: (Theme.of(context).brightness == Brightness.dark)
                     ? Colors.white
                     : Colors.black,
                 fontSize: 32,
-                fontFamily: 'assets/fonts/variable/JetBrainsMono[wght].ttf',
-                fontWeight: FontWeight.w400,
+                fontFamily: 'JetBrainsMono',
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
