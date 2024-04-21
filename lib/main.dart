@@ -17,20 +17,31 @@
 
 // This is the application entry point. It servers the purpose of intializing vital data.
 
-// TODO[epic=very_logterm] Use fluent UI
-
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
-import 'src/app.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
 import 'package:path_provider/path_provider.dart';
 import 'src/init_logger.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
+import 'package:system_theme/system_theme.dart';
+import 'package:window_manager/window_manager.dart';
+import 'src/fluent_app.dart';
+
+/// Checks if the current environment is a desktop environment.
+bool get isDesktop {
+  if (kIsWeb) return false;
+  return [
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+  ].contains(defaultTargetPlatform);
+}
 
 void main() async {
   // TODO: Better error handling (application-wide item)
@@ -68,6 +79,35 @@ void main() async {
     nativeImplementations: NativeImplementationsIsolate(compute),
   );
 
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // if it's not on the web, if on windows or android, load the accent color
+  if (!kIsWeb &&
+      [
+        TargetPlatform.windows,
+        TargetPlatform.android,
+      ].contains(defaultTargetPlatform)) {
+    SystemTheme.accentColor.load();
+  }
+
+  if (isDesktop) {
+    await flutter_acrylic.Window.initialize();
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      await flutter_acrylic.Window.hideWindowControls();
+    }
+    await WindowManager.instance.ensureInitialized();
+    windowManager.waitUntilReadyToShow().then((_) async {
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: false,
+      );
+      await windowManager.setMinimumSize(const Size(500, 600));
+      await windowManager.show();
+      await windowManager.setPreventClose(true);
+      await windowManager.setSkipTaskbar(false);
+    });
+  }
+
   await sdkClient.init();
   // Set up the SettingsController, which will glue user settings to multiple widgets.
   final settingsController = SettingsController(SettingsService());
@@ -75,7 +115,7 @@ void main() async {
   // This prevents a sudden theme change when the app is first displayed.
   await settingsController.loadSettings();
   runApp(
-    AzhiStartApp(
+    ChatSpacesApp(
         settingsController: settingsController, client: sdkClient, log: log),
   );
 }

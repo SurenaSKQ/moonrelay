@@ -1,6 +1,6 @@
 {
-  "projectName": "ChatSphere",
-  "appTitle": "chatsphere protoype",
+  "projectName": "ChatSpaces",
+  "appTitle": "ChatSpaces",
   "author": "Surena Karimpour Ghannadi",
   "loginButton": "Login",
   "usernameText": "Username",
@@ -8,5 +8,14 @@
   "homeserverText": "Homeserver",
   "thirdPartyLicense": "Licenses",
   "privacyPolicy": "Privacy and Your Data",
-  "appLicenseNotice": "This application is provided to you under the GNU General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the Project Azhi Website for more information."
+  "appLicenseNotice": "This application is provided to you under the GNU General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the Project Azhi Website for more information.",
+  "darkMode": "Dark Mode",
+  "lightMode": "Light Mode",
+  "warning": "Warning!",
+  "error": "Error!",
+  "confirmClose": "Confirm Exit",
+  "areYouSureExit": "Are you sure you want to exit the application?",
+  "yesOrAffirmitive": "Yes",
+  "noOrCancellation": "No",
+  "home": "Home"
 }

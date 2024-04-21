@@ -15,27 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 
-class AppThemeProvider {
-  lightTheme() => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: Colors.blue,
-          backgroundColor: Colors.white,
-          errorColor: Colors.red,
-          brightness: Brightness.light,
-        ),
-        textTheme: Typography.blackRedmond,
-      );
-  darkTheme() => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: Colors.blue,
-          backgroundColor: Colors.black,
-          errorColor: Colors.red,
-          brightness: Brightness.dark,
-        ),
-        textTheme: Typography.whiteRedmond,
-      );
+class FluentMainPage extends StatefulWidget {
+  const FluentMainPage({super.key});
+
+  @override
+  State<FluentMainPage> createState() => _FluentMainPageState();
+}
+
+class _FluentMainPageState extends State<FluentMainPage> {
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
+  }
 }

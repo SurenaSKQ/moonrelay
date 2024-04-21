@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -30,7 +30,7 @@ class LogoWithTextThemed extends StatelessWidget {
           SvgPicture.asset(
             'assets/images/azhi_logo.svg',
             colorFilter: ColorFilter.mode(
-                (Theme.of(context).brightness == Brightness.dark)
+                (FluentTheme.of(context).brightness == Brightness.dark)
                     ? Colors.white
                     : Colors.black,
                 BlendMode.srcIn),
@@ -39,7 +39,7 @@ class LogoWithTextThemed extends StatelessWidget {
             child: Text(
               AppLocalizations.of(context)!.projectName,
               style: TextStyle(
-                color: (Theme.of(context).brightness == Brightness.dark)
+                color: (FluentTheme.of(context).brightness == Brightness.dark)
                     ? Colors.white
                     : Colors.black,
                 fontSize: 32,

@@ -25,7 +25,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:azhi_main/src/widgets/themedLogoAndText.dart';
+import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

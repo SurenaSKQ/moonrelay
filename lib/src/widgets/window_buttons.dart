@@ -14,15 +14,23 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
-
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
+import 'package:window_manager/window_manager.dart';
 
-class Empty extends StatelessWidget {
-  const Empty({super.key});
+class WindowButtons extends StatelessWidget {
+  const WindowButtons({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage.withPadding(content: const LogoWithTextThemed());
+    final FluentThemeData theme = FluentTheme.of(context);
+
+    return SizedBox(
+      width: 138,
+      height: 50,
+      child: WindowCaption(
+        brightness: theme.brightness,
+        backgroundColor: Colors.transparent,
+      ),
+    );
   }
 }
