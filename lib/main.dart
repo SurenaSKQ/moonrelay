@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
+import 'package:provider/provider.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
@@ -44,6 +45,8 @@ bool get isDesktop {
 }
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Provider.debugCheckInvalidValueType = null;
   // TODO: Better error handling (application-wide item)
   // TODO: Deffered loading, loading screen, etc.
   Logger log = await initializeLog();
@@ -78,8 +81,6 @@ void main() async {
     },
     nativeImplementations: NativeImplementationsIsolate(compute),
   );
-
-  WidgetsFlutterBinding.ensureInitialized();
 
   // if it's not on the web, if on windows or android, load the accent color
   if (!kIsWeb &&

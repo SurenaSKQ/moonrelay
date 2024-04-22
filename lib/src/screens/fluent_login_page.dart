@@ -15,18 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/layouts/fluent_main_page.dart';
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
-import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
-import 'fluent_chat_main.dart';
-import 'package:azhi_main/src/widgets/window_buttons.dart';
 
 class FluentLoginPage extends StatefulWidget {
   const FluentLoginPage({super.key, required this.settingsController});
@@ -50,9 +49,6 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
     final log = Provider.of<Logger>(context, listen: false);
     setState(() => _textActive = false);
     try {
-      if (client.isLogged()) {
-        Navigator.pushNamed(context, FluentChatMain.routeName);
-      }
       await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
       await client.login(
         LoginType.mLoginPassword,
@@ -60,7 +56,7 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        Navigator.pushNamed(context, FluentChatMain.routeName);
+        context.go("/chat");
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }
@@ -102,185 +98,144 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return NavigationView(
-      appBar: NavigationAppBar(
-        automaticallyImplyLeading: false,
-        title: () {
-          return DragToMoveArea(
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                AppLocalizations.of(context)!.appTitle,
-                style: const TextStyle(fontFamily: 'JetBrainsMono'),
-              ),
-            ),
-          );
-        }(),
-        actions: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8.0),
-              child: ToggleSwitch(
-                content: Text(AppLocalizations.of(context)!.darkMode),
-                checked: FluentTheme.of(context).brightness.isDark,
-                onChanged: (v) {
-                  if (v) {
-                    widget.settingsController.updateThemeMode(ThemeMode.dark);
-                  } else {
-                    widget.settingsController.updateThemeMode(ThemeMode.light);
-                  }
-                },
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(FluentIcons.settings),
-            onPressed: () {
-              Navigator.restorablePushNamed(context, SettingsView.routeName);
-            },
-          ),
-          const WindowButtons(),
-        ]),
-      ),
-      content: ScaffoldPage(
-        content: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Wrap(
-              direction: Axis.horizontal,
-              alignment: WrapAlignment.spaceAround,
-              children: [
-                const LogoWithTextThemed(),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.fromBorderSide(
-                      BorderSide(
-                        style: BorderStyle.solid,
-                        width: 5,
-                        color: FluentTheme.of(context).accentColor,
-                        strokeAlign: BorderSide.strokeAlignInside,
+    return ScaffoldPage(
+      content: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Wrap(
+            direction: Axis.horizontal,
+            alignment: WrapAlignment.spaceAround,
+            children: [
+              const LogoWithTextThemed(),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.fromBorderSide(
+                    BorderSide(
+                      style: BorderStyle.solid,
+                      width: 5,
+                      color: FluentTheme.of(context).accentColor,
+                      strokeAlign: BorderSide.strokeAlignInside,
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.homeserverText,
+                            child: TextBox(
+                              controller: _homeserverBox,
+                              expands: false,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.usernameText,
+                            child: TextBox(
+                              controller: _usernameBox,
+                              expands: false,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.passwordText,
+                            child: TextBox(
+                              controller: _passwordBox,
+                              expands: false,
+                              obscureText: _hidePassword,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          ToggleButton(
+                            checked: !_hidePassword,
+                            onChanged: (_) => setState(
+                              () {
+                                _hidePassword = !_hidePassword;
+                              },
+                            ),
+                            child: const Icon(FluentIcons.password_field),
+                          )
+                        ],
                       ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
+                    Center(
+                      child: FilledButton(
+                        onPressed: !_textActive ? null : _login,
+                        child: !_textActive
+                            ? const ProgressBar()
+                            : Text(AppLocalizations.of(context)!.loginButton),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.fromBorderSide(
+                            BorderSide(
+                              color: FluentTheme.of(context).cardColor,
+                              width: 4,
+                            ),
+                          ),
+                          color: FluentTheme.of(context).accentColor,
+                          backgroundBlendMode: BlendMode.color,
+                        ),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            InfoLabel(
-                              label:
-                                  AppLocalizations.of(context)!.homeserverText,
-                              child: TextBox(
-                                controller: _homeserverBox,
-                                expands: false,
+                            Text(
+                              AppLocalizations.of(context)!.appLicenseNotice,
+                              style: const TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 14,
                               ),
                             ),
                             const SizedBox(
                               height: 8,
                             ),
-                            InfoLabel(
-                              label: AppLocalizations.of(context)!.usernameText,
-                              child: TextBox(
-                                controller: _usernameBox,
-                                expands: false,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Button(
+                                  child: Text(AppLocalizations.of(context)!
+                                      .privacyPolicy),
+                                  onPressed: () {},
+                                ),
+                                Button(
+                                  child: Text(AppLocalizations.of(context)!
+                                      .thirdPartyLicense),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          const LicensesScreen(),
+                                      barrierColor: Colors.black,
+                                    );
+                                  },
+                                )
+                              ],
                             ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            InfoLabel(
-                              label: AppLocalizations.of(context)!.passwordText,
-                              child: TextBox(
-                                controller: _passwordBox,
-                                expands: false,
-                                obscureText: _hidePassword,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            ToggleButton(
-                              checked: !_hidePassword,
-                              onChanged: (_) => setState(
-                                () {
-                                  _hidePassword = !_hidePassword;
-                                },
-                              ),
-                              child: const Icon(FluentIcons.password_field),
-                            )
                           ],
                         ),
                       ),
-                      Center(
-                        child: FilledButton(
-                          onPressed: !_textActive ? null : _login,
-                          child: !_textActive
-                              ? const ProgressBar()
-                              : Text(AppLocalizations.of(context)!.loginButton),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            border: Border.fromBorderSide(
-                              BorderSide(
-                                color: FluentTheme.of(context).cardColor,
-                                width: 4,
-                              ),
-                            ),
-                            color: FluentTheme.of(context).accentColor,
-                            backgroundBlendMode: BlendMode.color,
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                AppLocalizations.of(context)!.appLicenseNotice,
-                                style: const TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 8,
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  Button(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .privacyPolicy),
-                                    onPressed: () {},
-                                  ),
-                                  Button(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .thirdPartyLicense),
-                                    onPressed: () {
-                                      FluentPageRoute(
-                                        builder: (context) => LicensesScreen(),
-                                      );
-                                    },
-                                  )
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

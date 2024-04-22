@@ -15,8 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/layouts/empty_space.dart';
+import 'package:azhi_main/src/layouts/fluent_main_page.dart';
 import 'package:azhi_main/src/screens/fluent_chat_main.dart';
+import 'package:azhi_main/src/screens/fluent_home_screen.dart';
+import 'package:azhi_main/src/screens/fluent_room_page.dart';
+import 'package:azhi_main/src/settings/settings_service.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -44,7 +50,7 @@ class ChatSpacesApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
-        return FluentApp(
+        return FluentApp.router(
           restorationScopeId: "approot",
           localizationsDelegates: const [
             AppLocalizations.delegate,
@@ -93,28 +99,90 @@ class ChatSpacesApp extends StatelessWidget {
               ),
             ),
           ),
-          // TODO: new routing system!
-          onGenerateRoute: (RouteSettings rtsettings) => FluentPageRoute(
-            settings: rtsettings,
-            builder: (BuildContext context) {
-              switch (rtsettings.name) {
-                case SettingsView.routeName:
-                  return SettingsView(controller: settingsController);
-                case FluentLoginPage.routeName:
-                  return FluentLoginPage(
-                    settingsController: settingsController,
-                  );
-                case FluentChatMain.routeName:
-                  return FluentChatMain(settingsController: settingsController);
-                default:
-                  return FluentLoginPage(
-                    settingsController: settingsController,
-                  );
-              }
-            },
-          ),
+          routeInformationParser: router.routeInformationParser,
+          routerDelegate: router.routerDelegate,
+          routeInformationProvider: router.routeInformationProvider,
         );
       },
     );
   }
 }
+
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
+final router = GoRouter(
+  navigatorKey: rootNavigatorKey,
+  routes: [
+    ShellRoute(
+      navigatorKey: _shellNavigatorKey,
+      builder: (context, state, child) {
+        SettingsController settingsController =
+            context.watch<SettingsController>();
+        return FluentMainPage(
+          settingsController: settingsController,
+          shellContext: context,
+          child: child,
+        );
+      },
+      routes: [
+        GoRoute(
+          path: "/",
+          builder: (context, state) {
+            SettingsController settingsController =
+                context.watch<SettingsController>();
+            return FluentHomePage(
+              settingsController: settingsController,
+            );
+          },
+        ),
+        GoRoute(
+          path: "/settings",
+          builder: (context, state) {
+            SettingsController settingsController =
+                context.watch<SettingsController>();
+            return SettingsView(controller: settingsController);
+          },
+        ),
+        GoRoute(
+          path: "/login",
+          builder: (context, state) {
+            SettingsController stcontrol = state.extra as SettingsController;
+            return FluentLoginPage(
+              settingsController: stcontrol,
+            );
+          },
+        ),
+        GoRoute(
+          path: "/chat",
+          builder: (context, state) {
+            SettingsController stcontrol = state.extra as SettingsController;
+            return FluentChatMain(
+              settingsController: stcontrol,
+            );
+          },
+          routes: [
+            GoRoute(
+              path: "uncategorized",
+              builder: (context, state) {
+                SettingsController stcontrol =
+                    state.extra as SettingsController;
+                return ChatsUncategorized();
+              },
+            ),
+            GoRoute(
+              path: "empty",
+              builder: (context, state) => const EmptySpace(),
+            ),
+            GoRoute(
+              path: "rooms",
+              builder: (context, state) {
+                Room room = state.extra as Room;
+                return FluentRoomPage(room: room);
+              },
+            )
+          ],
+        ),
+      ],
+    )
+  ],
+);

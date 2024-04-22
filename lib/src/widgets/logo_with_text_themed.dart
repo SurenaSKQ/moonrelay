@@ -24,32 +24,30 @@ class LogoWithTextThemed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        children: [
-          SvgPicture.asset(
-            'assets/images/azhi_logo.svg',
-            colorFilter: ColorFilter.mode(
-                (FluentTheme.of(context).brightness == Brightness.dark)
-                    ? Colors.white
-                    : Colors.black,
-                BlendMode.srcIn),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SvgPicture.asset(
+          'assets/images/azhi_logo.svg',
+          colorFilter: ColorFilter.mode(
+              (FluentTheme.of(context).brightness == Brightness.dark)
+                  ? Colors.white
+                  : Colors.black,
+              BlendMode.srcIn),
+        ),
+        Text(
+          AppLocalizations.of(context)!.projectName,
+          style: TextStyle(
+            color: (FluentTheme.of(context).brightness == Brightness.dark)
+                ? Colors.white
+                : Colors.black,
+            fontSize: 32,
+            fontFamily: 'JetBrainsMono',
+            fontWeight: FontWeight.w700,
           ),
-          Center(
-            child: Text(
-              AppLocalizations.of(context)!.projectName,
-              style: TextStyle(
-                color: (FluentTheme.of(context).brightness == Brightness.dark)
-                    ? Colors.white
-                    : Colors.black,
-                fontSize: 32,
-                fontFamily: 'JetBrainsMono',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

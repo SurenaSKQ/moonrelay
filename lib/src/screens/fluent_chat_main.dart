@@ -15,22 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/layouts/empty_space.dart';
+import 'package:azhi_main/src/layouts/fluent_main_page.dart';
+import 'package:azhi_main/src/screens/fluent_room_page.dart';
 import 'package:azhi_main/src/settings/theme.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'fluent_login_page.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:azhi_main/src/widgets/window_buttons.dart';
+import 'package:badges/badges.dart' as badges;
 
 class FluentChatMain extends StatefulWidget {
   const FluentChatMain({super.key, required this.settingsController});
-  static const routeName = "/chatMain";
   final SettingsController settingsController;
   @override
   State<FluentChatMain> createState() => _FluentChatMainState();
@@ -39,15 +41,15 @@ class FluentChatMain extends StatefulWidget {
 class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
   late final List<NavigationPaneItem> paneItems = [
     PaneItem(
-      key: const ValueKey("home"),
+      key: const ValueKey("/chat/empty"),
       title: Text(AppLocalizations.of(context)!.home),
       icon: const Icon(FluentIcons.home),
       body: const SizedBox.shrink(),
     ),
     PaneItem(
       //TODO - AppLocalization
-      key: const ValueKey("spaces"),
-      title: const Text("Spaces"),
+      key: const ValueKey("/chat/uncategorized"),
+      title: const Text("All"),
       icon: const Icon(FluentIcons.chat),
       body: const SizedBox.shrink(),
     )
@@ -60,9 +62,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
         body: item.body,
         onTap: () {
           final path = (item.key as ValueKey).value;
-          // FIXME: Navigation
-          // if ( ) {
-          // }
+          context.go(path, extra: widget.settingsController);
           item.onTap?.call();
         },
       );
@@ -92,9 +92,15 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
       title: const Text('Settings'),
       body: const SizedBox.shrink(),
       onTap: () {
-        Navigator.pushNamed(context, SettingsView.routeName);
+        context.go("/settings", extra: widget.settingsController);
       },
     ),
+    PaneItem(
+      icon: const Icon(FluentIcons.back),
+      title: const Text("Logout"),
+      body: const SizedBox.shrink(),
+      onTap: _logout,
+    )
   ];
 
   void _logout() async {
@@ -103,13 +109,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
     try {
       await client.logout();
       mounted
-          ? Navigator.of(context).pushAndRemoveUntil(
-              FluentPageRoute(
-                builder: (_) => FluentLoginPage(
-                    settingsController: widget.settingsController),
-              ),
-              (route) => false,
-            )
+          ? context.go("/", extra: widget.settingsController)
           : throw "Build context async failure widget not mounted";
     } catch (e) {
       log.e("Logout error",
@@ -130,99 +130,13 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
     }
   }
 
-  @override
-  void initState() {
-    windowManager.addListener(this);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    windowManager.removeListener(this);
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
     final _appTheme = AppTheme();
     final client = Provider.of<Client>(context, listen: false);
-    final TextEditingController searchController = TextEditingController();
-
-    void _join(Room room) async {
-      try {
-        if (room.membership != Membership.join) {
-          await room.join();
-        }
-        Navigator.of(context).push(
-          FluentPageRoute(
-            // TODO:
-            builder: (_) => const Placeholder(),
-          ),
-        );
-      } catch (e) {
-        Provider.of<Logger>(context).f(
-          "Failed to join",
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        // FIXME: Better error and localization
-        await displayInfoBar(context, builder: (context, close) {
-          return InfoBar(
-            title: Text(AppLocalizations.of(context)!.error),
-            content: Text(e.toString()),
-            action: IconButton(
-              icon: const Icon(FluentIcons.clear),
-              onPressed: close,
-            ),
-            severity: InfoBarSeverity.error,
-          );
-        });
-      }
-    }
+    Widget windowChild = const EmptySpace();
 
     return NavigationView(
-      appBar: NavigationAppBar(
-        automaticallyImplyLeading: false,
-        title: () {
-          return DragToMoveArea(
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                AppLocalizations.of(context)!.appTitle,
-                style: const TextStyle(fontFamily: 'JetBrainsMono'),
-              ),
-            ),
-          );
-        }(),
-        actions: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8.0),
-              child: ToggleSwitch(
-                content: Text(AppLocalizations.of(context)!.darkMode),
-                checked: FluentTheme.of(context).brightness.isDark,
-                onChanged: (v) {
-                  if (v) {
-                    widget.settingsController.updateThemeMode(ThemeMode.dark);
-                  } else {
-                    widget.settingsController.updateThemeMode(ThemeMode.light);
-                  }
-                },
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(FluentIcons.settings),
-            onPressed: () {
-              Navigator.restorablePushNamed(context, SettingsView.routeName);
-            },
-          ),
-          const WindowButtons(),
-        ]),
-      ),
       pane: NavigationPane(
         header: SizedBox(
           height: kOneLineTileHeight,
@@ -241,10 +155,9 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
             child: SvgPicture.asset(
               'assets/images/azhi_logo.svg',
               colorFilter: ColorFilter.mode(
-                  (FluentTheme.of(context).brightness == Brightness.dark)
-                      ? Colors.white
-                      : Colors.black,
-                  BlendMode.srcIn),
+                FluentTheme.of(context).accentColor,
+                BlendMode.srcIn,
+              ),
             ),
           ),
         ),
@@ -263,35 +176,101 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
       ),
     );
   }
+}
+
+class ChatsUncategorized extends StatefulWidget {
+  const ChatsUncategorized({super.key});
 
   @override
-  void onWindowClose() async {
-    bool isPreventClose = await windowManager.isPreventClose();
-    if (isPreventClose && mounted) {
-      showDialog(
-        context: context,
-        builder: (_) {
-          return ContentDialog(
-            title: Text(AppLocalizations.of(context)!.confirmClose),
-            content: Text(AppLocalizations.of(context)!.areYouSureExit),
-            actions: [
-              FilledButton(
-                child: Text(AppLocalizations.of(context)!.yesOrAffirmitive),
-                onPressed: () {
-                  Navigator.pop(context);
-                  windowManager.destroy();
-                },
+  State<ChatsUncategorized> createState() => _ChatsUncategorizedState();
+}
+
+class _ChatsUncategorizedState extends State<ChatsUncategorized> {
+  @override
+  Widget build(BuildContext context) {
+    final Client client = Provider.of<Client>(context);
+    void _join(Room room) async {
+      try {
+        if (room.membership != Membership.join) {
+          await room.join();
+        }
+        context.go("rooms", extra: room);
+      } catch (e) {
+        Provider.of<Logger>(context).f(
+          "Failed to join",
+          error: e,
+          stackTrace: StackTrace.current,
+          time: DateTime.now(),
+        );
+        // FIXME: Better error and localization
+        await displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text(AppLocalizations.of(context)!.error),
+              content: Text(e.toString()),
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
               ),
-              Button(
-                child: Text(AppLocalizations.of(context)!.noOrCancellation),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          );
-        },
-      );
+              severity: InfoBarSeverity.error,
+            );
+          },
+        );
+      }
     }
+
+    return ScaffoldPage(
+      content: Flex(
+        direction: Axis.horizontal,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                StreamBuilder(
+                  stream: client.onSync.stream,
+                  builder: (context, _) => ListView.builder(
+                    itemCount: client.rooms.length,
+                    itemBuilder: (context, index) => ListTile.selectable(
+                      leading: CircleAvatar(
+                        foregroundImage: client.rooms[index].avatar == null
+                            ? null
+                            : NetworkImage(
+                                client.rooms[index].avatar.toString(),
+                              ),
+                      ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              client.rooms[index].getLocalizedDisplayname(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        client.rooms[index].lastEvent?.body ?? 'No messages',
+                        maxLines: 1,
+                      ),
+                      trailing: (client.rooms[index].notificationCount > 0)
+                          ? badges.Badge(
+                              child: Text(
+                                client.rooms[index].notificationCount
+                                    .toString(),
+                              ),
+                            )
+                          : null,
+                      onPressed: () => _join(client.rooms[index]),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    ;
   }
 }

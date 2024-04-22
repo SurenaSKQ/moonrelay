@@ -135,9 +135,11 @@ class _RoomPageState extends State<RoomPage> {
                                           ),
                                         ],
                                       ),
-                                      subtitle: Text(timeline.events[i]
-                                          .getDisplayEvent(timeline)
-                                          .body),
+                                      subtitle: Text(
+                                        timeline.events[i]
+                                            .getDisplayEvent(timeline)
+                                            .body,
+                                      ),
                                     ),
                                   ),
                                 ),

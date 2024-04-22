@@ -18,11 +18,11 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 
-class Empty extends StatelessWidget {
-  const Empty({super.key});
+class EmptySpace extends StatelessWidget {
+  const EmptySpace({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage.withPadding(content: const LogoWithTextThemed());
+    return const ScaffoldPage(content: LogoWithTextThemed());
   }
 }
