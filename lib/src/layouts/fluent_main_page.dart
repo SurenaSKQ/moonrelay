@@ -16,7 +16,6 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/settings/settings_controller.dart';
-import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -25,11 +24,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
 import 'package:provider/provider.dart';
 import 'package:azhi_main/src/settings/theme.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:logger/logger.dart';
 
-class FluentMainPage extends StatefulWidget {
-  const FluentMainPage({
+class FluentMainFrame extends StatefulWidget {
+  const FluentMainFrame({
     super.key,
     required this.child,
     required this.shellContext,
@@ -39,10 +36,10 @@ class FluentMainPage extends StatefulWidget {
   final BuildContext? shellContext;
   final SettingsController settingsController;
   @override
-  State<FluentMainPage> createState() => _FluentMainPageState();
+  State<FluentMainFrame> createState() => _FluentMainFrameState();
 }
 
-class _FluentMainPageState extends State<FluentMainPage> with WindowListener {
+class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
   @override
   void initState() {
     windowManager.addListener(this);
@@ -58,7 +55,7 @@ class _FluentMainPageState extends State<FluentMainPage> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
-    final _appTheme = AppTheme();
+    final appTheme = AppTheme();
     final client = Provider.of<Client>(context, listen: false);
     //STUB - For future!
     final TextEditingController searchController = TextEditingController();
@@ -100,7 +97,7 @@ class _FluentMainPageState extends State<FluentMainPage> with WindowListener {
             IconButton(
               icon: const Icon(FluentIcons.settings),
               onPressed: () {
-                context.go("/settings", extra: widget.settingsController);
+                context.push("/settings", extra: widget.settingsController);
               },
             ),
             const WindowButtons(),
@@ -111,6 +108,7 @@ class _FluentMainPageState extends State<FluentMainPage> with WindowListener {
     );
   }
 
+  @override
   void onWindowClose() async {
     bool isPreventClose = await windowManager.isPreventClose();
     if (isPreventClose && mounted) {

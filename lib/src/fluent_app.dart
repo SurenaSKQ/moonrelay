@@ -20,7 +20,6 @@ import 'package:azhi_main/src/layouts/fluent_main_page.dart';
 import 'package:azhi_main/src/screens/fluent_chat_main.dart';
 import 'package:azhi_main/src/screens/fluent_home_screen.dart';
 import 'package:azhi_main/src/screens/fluent_room_page.dart';
-import 'package:azhi_main/src/settings/settings_service.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -78,24 +77,28 @@ class ChatSpacesApp extends StatelessWidget {
             ),
           ),
           themeMode: settingsController.themeMode,
-          builder: (context, child) => Provider(
-            create: (context) => client,
-            child: Provider(
-              create: (context) => log,
-              child: Provider(
+          builder: (context, child) => MultiProvider(
+            providers: [
+              Provider(
+                create: (context) => client,
+              ),
+              Provider(
+                create: (context) => log,
+              ),
+              Provider(
                 create: (context) => settingsController,
-                child: Directionality(
-                  textDirection: _appTheme.textDirection,
-                  child: NavigationPaneTheme(
-                    data: NavigationPaneThemeData(
-                      backgroundColor: _appTheme.windowEffect !=
-                              flutter_acrylic.WindowEffect.disabled
-                          ? Colors.transparent
-                          : null,
-                    ),
-                    child: child!,
-                  ),
+              )
+            ],
+            child: Directionality(
+              textDirection: _appTheme.textDirection,
+              child: NavigationPaneTheme(
+                data: NavigationPaneThemeData(
+                  backgroundColor: _appTheme.windowEffect !=
+                          flutter_acrylic.WindowEffect.disabled
+                      ? Colors.transparent
+                      : null,
                 ),
+                child: child!,
               ),
             ),
           ),
@@ -118,7 +121,7 @@ final router = GoRouter(
       builder: (context, state, child) {
         SettingsController settingsController =
             context.watch<SettingsController>();
-        return FluentMainPage(
+        return FluentMainFrame(
           settingsController: settingsController,
           shellContext: context,
           child: child,
@@ -128,11 +131,7 @@ final router = GoRouter(
         GoRoute(
           path: "/",
           builder: (context, state) {
-            SettingsController settingsController =
-                context.watch<SettingsController>();
-            return FluentHomePage(
-              settingsController: settingsController,
-            );
+            return FluentHomePage();
           },
         ),
         GoRoute(
@@ -155,17 +154,12 @@ final router = GoRouter(
         GoRoute(
           path: "/chat",
           builder: (context, state) {
-            SettingsController stcontrol = state.extra as SettingsController;
-            return FluentChatMain(
-              settingsController: stcontrol,
-            );
+            return FluentChatMain();
           },
           routes: [
             GoRoute(
               path: "uncategorized",
               builder: (context, state) {
-                SettingsController stcontrol =
-                    state.extra as SettingsController;
                 return ChatsUncategorized();
               },
             ),
