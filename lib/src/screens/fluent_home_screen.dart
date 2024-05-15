@@ -22,11 +22,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class FluentHomePage extends StatelessWidget {
-  const FluentHomePage({super.key, required this.settingsController});
-  final SettingsController settingsController;
+  const FluentHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    SettingsController settingsController =
+        Provider.of<SettingsController>(context);
     return ScaffoldPage(
       content: Center(
         child: Column(

@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/fluent_main_page.dart';
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -48,6 +47,9 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
     setState(() => _textActive = false);
+    if (client.isLogged()) {
+      context.go("/chat");
+    }
     try {
       await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
       await client.login(

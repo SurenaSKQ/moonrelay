@@ -16,13 +16,9 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/layouts/empty_space.dart';
-import 'package:azhi_main/src/layouts/fluent_main_page.dart';
-import 'package:azhi_main/src/screens/fluent_room_page.dart';
 import 'package:azhi_main/src/settings/theme.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:azhi_main/src/settings/settings_controller.dart';
-import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
@@ -32,20 +28,19 @@ import 'package:window_manager/window_manager.dart';
 import 'package:badges/badges.dart' as badges;
 
 class FluentChatMain extends StatefulWidget {
-  const FluentChatMain({super.key, required this.settingsController});
-  final SettingsController settingsController;
+  const FluentChatMain({super.key});
   @override
   State<FluentChatMain> createState() => _FluentChatMainState();
 }
 
 class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
   late final List<NavigationPaneItem> paneItems = [
-    PaneItem(
-      key: const ValueKey("/chat/empty"),
-      title: Text(AppLocalizations.of(context)!.home),
-      icon: const Icon(FluentIcons.home),
-      body: const SizedBox.shrink(),
-    ),
+    // PaneItem(
+    //   key: const ValueKey(""),
+    //   title: Text(AppLocalizations.of(context)!.home),
+    //   icon: const Icon(FluentIcons.home),
+    //   body: const SizedBox.shrink(),
+    // ),
     PaneItem(
       //TODO - AppLocalization
       key: const ValueKey("/chat/uncategorized"),
@@ -62,7 +57,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
         body: item.body,
         onTap: () {
           final path = (item.key as ValueKey).value;
-          context.go(path, extra: widget.settingsController);
+          context.go(path);
           item.onTap?.call();
         },
       );
@@ -87,15 +82,6 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
   late final List<NavigationPaneItem> footerItems = [
     PaneItemSeparator(),
     PaneItem(
-      key: const ValueKey(SettingsView.routeName),
-      icon: const Icon(FluentIcons.settings),
-      title: const Text('Settings'),
-      body: const SizedBox.shrink(),
-      onTap: () {
-        context.go("/settings", extra: widget.settingsController);
-      },
-    ),
-    PaneItem(
       icon: const Icon(FluentIcons.back),
       title: const Text("Logout"),
       body: const SizedBox.shrink(),
@@ -109,7 +95,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
     try {
       await client.logout();
       mounted
-          ? context.go("/", extra: widget.settingsController)
+          ? context.go("/")
           : throw "Build context async failure widget not mounted";
     } catch (e) {
       log.e("Logout error",

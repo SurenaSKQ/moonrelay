@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 
 import 'settings_controller.dart';
 
@@ -15,34 +15,58 @@ class SettingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
+    return ScaffoldPage(
+      header: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(FluentIcons.back),
+              onPressed: () => Navigator.of(context).pop(),
+              style: ButtonStyle(
+                backgroundColor:
+                    ButtonState.all(FluentTheme.of(context).accentColor),
+              ),
+            ),
+            const SizedBox(
+              width: 16,
+            ),
+            const Text(
+              "Settings",
+              style: TextStyle(fontSize: 18),
+            )
+          ],
+        ),
       ),
-      body: Padding(
+      content: Padding(
         padding: const EdgeInsets.all(16),
         // Glue the SettingsController to the theme selection DropdownButton.
         //
         // When a user selects a theme from the dropdown list, the
         // SettingsController is updated, which rebuilds the MaterialApp.
-        child: DropdownButton<ThemeMode>(
-          // Read the selected themeMode from the controller
-          value: controller.themeMode,
-          // Call the updateThemeMode method any time the user selects a theme.
-          onChanged: controller.updateThemeMode,
-          items: const [
-            DropdownMenuItem(
-              value: ThemeMode.system,
-              child: Text('System Theme'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropDownButton(
+              leading: const Text("Application Theme"),
+              // Call the updateThemeMode method any time the user selects a theme.
+
+              items: [
+                MenuFlyoutItem(
+                  text: const Text("System Theme"),
+                  onPressed: () => controller.updateThemeMode(ThemeMode.system),
+                ),
+                MenuFlyoutItem(
+                    text: const Text("Light Theme"),
+                    onPressed: () =>
+                        controller.updateThemeMode(ThemeMode.light)),
+                MenuFlyoutItem(
+                    text: const Text("Dark Theme"),
+                    onPressed: () =>
+                        controller.updateThemeMode(ThemeMode.dark)),
+              ],
             ),
-            DropdownMenuItem(
-              value: ThemeMode.light,
-              child: Text('Light Theme'),
-            ),
-            DropdownMenuItem(
-              value: ThemeMode.dark,
-              child: Text('Dark Theme'),
-            )
           ],
         ),
       ),
