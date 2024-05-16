@@ -17,22 +17,14 @@ class SettingsView extends StatelessWidget {
     final SettingsController controller =
         Provider.of<SettingsController>(context);
     return ScaffoldPage(
-      header: Padding(
-        padding: const EdgeInsets.all(8.0),
+      header: const Padding(
+        padding: EdgeInsets.all(8.0),
         child: Row(
           children: [
-            IconButton(
-              icon: const Icon(FluentIcons.back),
-              onPressed: () => Navigator.of(context).pop(),
-              style: ButtonStyle(
-                backgroundColor:
-                    ButtonState.all(FluentTheme.of(context).accentColor),
-              ),
-            ),
-            const SizedBox(
+            SizedBox(
               width: 16,
             ),
-            const Text(
+            Text(
               "Settings",
               style: TextStyle(fontSize: 18),
             )
