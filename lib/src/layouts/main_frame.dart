@@ -61,12 +61,24 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
         automaticallyImplyLeading: false,
         title: () {
           return DragToMoveArea(
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                AppLocalizations.of(context)!.appTitle,
-                style: const TextStyle(fontFamily: 'JetBrainsMono'),
-              ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(FluentIcons.back),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    }
+                  },
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    AppLocalizations.of(context)!.appTitle,
+                    style: const TextStyle(fontFamily: 'JetBrainsMono'),
+                  ),
+                ),
+              ],
             ),
           );
         }(),
