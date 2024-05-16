@@ -53,7 +53,7 @@ void main() async {
 
   Logger log = await initializeLog();
 
-// Initialize the SDK Client object and do necessary initializations.
+  // Initialize the SDK Client object and do necessary initializations.
   // Using HiveDatabase in "support directory" for all user data
   // TODO[epic=longterm] use Isar? https://isar.dev/
   // Support Emoji and Number sequence verification (future: QR code)
