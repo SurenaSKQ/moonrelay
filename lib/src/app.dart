@@ -15,21 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/empty_space.dart';
-import 'package:azhi_main/src/layouts/fluent_main_page.dart';
-import 'package:azhi_main/src/screens/fluent_chat_main.dart';
-import 'package:azhi_main/src/screens/fluent_home_screen.dart';
-import 'package:azhi_main/src/screens/fluent_room_page.dart';
+import 'package:azhi_main/src/layouts/main_frame.dart';
+import 'package:azhi_main/src/screens/chat_main.dart';
+import 'package:azhi_main/src/screens/home_screen.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:matrix/matrix.dart';
-import 'package:logger/logger.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
-import 'screens/fluent_login_page.dart';
+import 'screens/login_page.dart';
 import 'settings/theme.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
@@ -42,8 +39,6 @@ class ChatSpacesApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final SettingsController settingsController =
         Provider.of<SettingsController>(context, listen: true);
-    final Client client = Provider.of<Client>(context);
-    final Logger log = Provider.of<Logger>(context);
     return ListenableBuilder(
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
@@ -100,6 +95,14 @@ class ChatSpacesApp extends StatelessWidget {
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final router = GoRouter(
+  redirect: (context, state) {
+    Client client = Provider.of<Client>(context);
+    if (client.isLogged()) {
+      return '/login';
+    } else {
+      return null;
+    }
+  },
   navigatorKey: rootNavigatorKey,
   routes: [
     ShellRoute(

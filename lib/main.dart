@@ -32,7 +32,7 @@ import 'src/init_logger.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
-import 'src/fluent_app.dart';
+import 'src/app.dart';
 
 /// Checks if the current environment is a desktop environment.
 bool get isDesktop {
