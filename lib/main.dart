@@ -53,6 +53,39 @@ void main() async {
 
   Logger log = await initializeLog();
 
+// Initialize the SDK Client object and do necessary initializations.
+  // Using HiveDatabase in "support directory" for all user data
+  // TODO[epic=longterm] use Isar? https://isar.dev/
+  // Support Emoji and Number sequence verification (future: QR code)
+  // Definitely use isolates to offload compute from main thread
+  final sdk = Client(
+    'Project Azhi',
+    databaseBuilder: (_) async {
+      try {
+        final dbpath = await getApplicationSupportDirectory();
+        final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
+        await dbobj.open();
+        return dbobj;
+      } catch (e) {
+        log.f(
+          "Failed to initialize database",
+          error: e,
+          stackTrace: StackTrace.current,
+          time: DateTime.now(),
+        );
+        exit(-1);
+      }
+    },
+    verificationMethods: {
+      KeyVerificationMethod.numbers,
+      KeyVerificationMethod.emoji,
+      // TODO[epic=longterm] QRCode
+      //KeyVerificationMethod.qrScan
+    },
+    nativeImplementations: NativeImplementationsIsolate(compute),
+  );
+  await sdk.init();
+
   // if it's not on the web (=if on desktop or mobile), load the accent color
   if (!kIsWeb &&
       [
@@ -89,41 +122,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider(
-          // Initialize the SDK Client object and do necessary initializations.
-          // Using HiveDatabase in "support directory" for all user data
-          // TODO[epic=longterm] use Isar? https://isar.dev/
-          // Support Emoji and Number sequence verification (future: QR code)
-          // Definitely use isolates to offload compute from main thread
-          create: (_) async {
-            final sdk = Client(
-              'Project Azhi',
-              databaseBuilder: (_) async {
-                try {
-                  final dbpath = await getApplicationSupportDirectory();
-                  final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
-                  await dbobj.open();
-                  return dbobj;
-                } catch (e) {
-                  log.f(
-                    "Failed to initialize database",
-                    error: e,
-                    stackTrace: StackTrace.current,
-                    time: DateTime.now(),
-                  );
-                  exit(-1);
-                }
-              },
-              verificationMethods: {
-                KeyVerificationMethod.numbers,
-                KeyVerificationMethod.emoji,
-                // TODO[epic=longterm] QRCode
-                //KeyVerificationMethod.qrScan
-              },
-              nativeImplementations: NativeImplementationsIsolate(compute),
-            );
-            await sdk.init();
-            return sdk;
-          },
+          create: (context) => sdk,
         ),
         Provider(
           create: (_) => log,
@@ -132,9 +131,7 @@ void main() async {
           create: (context) => settingsController,
         )
       ],
-      child: Builder(
-        builder: (context) => const ChatSpacesApp(),
-      ),
+      child: ChatSpacesApp(),
     ),
   );
 }
