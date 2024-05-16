@@ -47,42 +47,13 @@ bool get isDesktop {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Provider.debugCheckInvalidValueType = null;
+
   // TODO: Better error handling (application-wide item)
   // TODO: Deffered loading, loading screen, etc.
-  Logger log = await initializeLog();
-  // Initialize the SDK Client object and do necessary initializations.
-  // Using HiveDatabase in "support directory" for all user data
-  // TODO[epic=longterm] use Isar? https://isar.dev/
-  // Support Emoji and Number sequence verification (future: QR code)
-  // Definitely use isolates to offload compute from main thread
-  final sdkClient = Client(
-    'Project Azhi',
-    databaseBuilder: (_) async {
-      try {
-        final dbpath = await getApplicationSupportDirectory();
-        final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
-        await dbobj.open();
-        return dbobj;
-      } catch (e) {
-        log.f(
-          "Failed to initialize database",
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        exit(-1);
-      }
-    },
-    verificationMethods: {
-      KeyVerificationMethod.numbers,
-      KeyVerificationMethod.emoji,
-      // TODO[epic=longterm] QRCode
-      //KeyVerificationMethod.qrScan
-    },
-    nativeImplementations: NativeImplementationsIsolate(compute),
-  );
 
-  // if it's not on the web, if on windows or android, load the accent color
+  Logger log = await initializeLog();
+
+  // if it's not on the web (=if on desktop or mobile), load the accent color
   if (!kIsWeb &&
       [
         TargetPlatform.windows,
@@ -109,14 +80,61 @@ void main() async {
     });
   }
 
-  await sdkClient.init();
   // Set up the SettingsController, which will glue user settings to multiple widgets.
   final settingsController = SettingsController(SettingsService());
   // Load the user's preferred theme while the splash screen is displayed.
   // This prevents a sudden theme change when the app is first displayed.
   await settingsController.loadSettings();
   runApp(
-    ChatSpacesApp(
-        settingsController: settingsController, client: sdkClient, log: log),
+    MultiProvider(
+      providers: [
+        Provider(
+          // Initialize the SDK Client object and do necessary initializations.
+          // Using HiveDatabase in "support directory" for all user data
+          // TODO[epic=longterm] use Isar? https://isar.dev/
+          // Support Emoji and Number sequence verification (future: QR code)
+          // Definitely use isolates to offload compute from main thread
+          create: (_) async {
+            final sdk = Client(
+              'Project Azhi',
+              databaseBuilder: (_) async {
+                try {
+                  final dbpath = await getApplicationSupportDirectory();
+                  final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
+                  await dbobj.open();
+                  return dbobj;
+                } catch (e) {
+                  log.f(
+                    "Failed to initialize database",
+                    error: e,
+                    stackTrace: StackTrace.current,
+                    time: DateTime.now(),
+                  );
+                  exit(-1);
+                }
+              },
+              verificationMethods: {
+                KeyVerificationMethod.numbers,
+                KeyVerificationMethod.emoji,
+                // TODO[epic=longterm] QRCode
+                //KeyVerificationMethod.qrScan
+              },
+              nativeImplementations: NativeImplementationsIsolate(compute),
+            );
+            await sdk.init();
+            return sdk;
+          },
+        ),
+        Provider(
+          create: (_) => log,
+        ),
+        Provider(
+          create: (context) => settingsController,
+        )
+      ],
+      child: Builder(
+        builder: (context) => const ChatSpacesApp(),
+      ),
+    ),
   );
 }

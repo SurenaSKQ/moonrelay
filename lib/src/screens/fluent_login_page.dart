@@ -27,9 +27,8 @@ import 'package:logger/logger.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 
 class FluentLoginPage extends StatefulWidget {
-  const FluentLoginPage({super.key, required this.settingsController});
+  const FluentLoginPage({super.key});
   static const routeName = "/login";
-  final SettingsController settingsController;
 
   @override
   State<FluentLoginPage> createState() => _FluentLoginPageState();

@@ -34,21 +34,8 @@ class FluentChatMain extends StatefulWidget {
 }
 
 class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
-  late final List<NavigationPaneItem> paneItems = [
-    // PaneItem(
-    //   key: const ValueKey(""),
-    //   title: Text(AppLocalizations.of(context)!.home),
-    //   icon: const Icon(FluentIcons.home),
-    //   body: const SizedBox.shrink(),
-    // ),
-    PaneItem(
-      //TODO - AppLocalization
-      key: const ValueKey("/chat/uncategorized"),
-      title: const Text("All"),
-      icon: const Icon(FluentIcons.chat),
-      body: const SizedBox.shrink(),
-    )
-  ].map<NavigationPaneItem>((e) {
+  late final List<NavigationPaneItem> paneItems =
+      [].map<NavigationPaneItem>((e) {
     PaneItem buildPaneItem(PaneItem item) {
       return PaneItem(
         key: item.key,
@@ -124,29 +111,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
 
     return NavigationView(
       pane: NavigationPane(
-        header: SizedBox(
-          height: kOneLineTileHeight,
-          child: ShaderMask(
-            shaderCallback: (rect) {
-              final color = _appTheme.color.defaultBrushFor(
-                theme.brightness,
-              );
-              return LinearGradient(
-                colors: [
-                  color,
-                  color,
-                ],
-              ).createShader(rect);
-            },
-            child: SvgPicture.asset(
-              'assets/images/azhi_logo.svg',
-              colorFilter: ColorFilter.mode(
-                FluentTheme.of(context).accentColor,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-        ),
+        // FIXME: Add header?
         displayMode: _appTheme.displayMode,
         indicator: () {
           switch (_appTheme.indicator) {

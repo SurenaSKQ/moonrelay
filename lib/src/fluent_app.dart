@@ -36,16 +36,14 @@ import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 final _appTheme = AppTheme();
 
 class ChatSpacesApp extends StatelessWidget {
-  const ChatSpacesApp(
-      {super.key,
-      required this.settingsController,
-      required this.client,
-      required this.log});
-  final SettingsController settingsController;
-  final Client client;
-  final Logger log;
+  const ChatSpacesApp({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final SettingsController settingsController =
+        Provider.of<SettingsController>(context, listen: true);
+    final Client client = Provider.of<Client>(context);
+    final Logger log = Provider.of<Logger>(context);
     return ListenableBuilder(
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
@@ -77,31 +75,19 @@ class ChatSpacesApp extends StatelessWidget {
             ),
           ),
           themeMode: settingsController.themeMode,
-          builder: (context, child) => MultiProvider(
-            providers: [
-              Provider(
-                create: (context) => client,
+          builder: (context, child) => Directionality(
+            textDirection: _appTheme.textDirection,
+            child: NavigationPaneTheme(
+              data: NavigationPaneThemeData(
+                backgroundColor: _appTheme.windowEffect !=
+                        flutter_acrylic.WindowEffect.disabled
+                    ? Colors.transparent
+                    : null,
               ),
-              Provider(
-                create: (context) => log,
-              ),
-              Provider(
-                create: (context) => settingsController,
-              )
-            ],
-            child: Directionality(
-              textDirection: _appTheme.textDirection,
-              child: NavigationPaneTheme(
-                data: NavigationPaneThemeData(
-                  backgroundColor: _appTheme.windowEffect !=
-                          flutter_acrylic.WindowEffect.disabled
-                      ? Colors.transparent
-                      : null,
-                ),
-                child: child!,
-              ),
+              child: child!,
             ),
           ),
+
           routeInformationParser: router.routeInformationParser,
           routerDelegate: router.routerDelegate,
           routeInformationProvider: router.routeInformationProvider,
@@ -119,10 +105,7 @@ final router = GoRouter(
     ShellRoute(
       navigatorKey: _shellNavigatorKey,
       builder: (context, state, child) {
-        SettingsController settingsController =
-            context.watch<SettingsController>();
         return FluentMainFrame(
-          settingsController: settingsController,
           shellContext: context,
           child: child,
         );
@@ -131,50 +114,26 @@ final router = GoRouter(
         GoRoute(
           path: "/",
           builder: (context, state) {
-            return FluentHomePage();
+            return const FluentHomePage();
           },
         ),
         GoRoute(
           path: "/settings",
           builder: (context, state) {
-            SettingsController settingsController =
-                context.watch<SettingsController>();
-            return SettingsView(controller: settingsController);
+            return const SettingsView();
           },
         ),
         GoRoute(
           path: "/login",
           builder: (context, state) {
-            SettingsController stcontrol = state.extra as SettingsController;
-            return FluentLoginPage(
-              settingsController: stcontrol,
-            );
+            return const FluentLoginPage();
           },
         ),
         GoRoute(
           path: "/chat",
           builder: (context, state) {
-            return FluentChatMain();
+            return const FluentChatMain();
           },
-          routes: [
-            GoRoute(
-              path: "uncategorized",
-              builder: (context, state) {
-                return ChatsUncategorized();
-              },
-            ),
-            GoRoute(
-              path: "empty",
-              builder: (context, state) => const EmptySpace(),
-            ),
-            GoRoute(
-              path: "rooms",
-              builder: (context, state) {
-                Room room = state.extra as Room;
-                return FluentRoomPage(room: room);
-              },
-            )
-          ],
         ),
       ],
     )

@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:provider/provider.dart';
 
 import 'settings_controller.dart';
 
@@ -7,14 +8,14 @@ import 'settings_controller.dart';
 /// When a user changes a setting, the SettingsController is updated and
 /// Widgets that listen to the SettingsController are rebuilt.
 class SettingsView extends StatelessWidget {
-  const SettingsView({super.key, required this.controller});
+  const SettingsView({super.key});
 
   static const routeName = '/settings';
 
-  final SettingsController controller;
-
   @override
   Widget build(BuildContext context) {
+    final SettingsController controller =
+        Provider.of<SettingsController>(context);
     return ScaffoldPage(
       header: Padding(
         padding: const EdgeInsets.all(8.0),

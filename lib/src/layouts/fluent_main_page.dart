@@ -30,11 +30,9 @@ class FluentMainFrame extends StatefulWidget {
     super.key,
     required this.child,
     required this.shellContext,
-    required this.settingsController,
   });
   final Widget child;
   final BuildContext? shellContext;
-  final SettingsController settingsController;
   @override
   State<FluentMainFrame> createState() => _FluentMainFrameState();
 }
@@ -54,9 +52,8 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
-    final appTheme = AppTheme();
     final client = Provider.of<Client>(context, listen: false);
+    final settingsController = Provider.of<SettingsController>(context);
     //STUB - For future!
     final TextEditingController searchController = TextEditingController();
     return NavigationView(
@@ -85,19 +82,19 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
                   checked: FluentTheme.of(context).brightness.isDark,
                   onChanged: (v) {
                     if (v) {
-                      widget.settingsController.updateThemeMode(ThemeMode.dark);
+                      settingsController.updateThemeMode(ThemeMode.dark);
                     } else {
-                      widget.settingsController
-                          .updateThemeMode(ThemeMode.light);
+                      settingsController.updateThemeMode(ThemeMode.light);
                     }
                   },
                 ),
               ),
             ),
             IconButton(
+              key: UniqueKey(),
               icon: const Icon(FluentIcons.settings),
               onPressed: () {
-                context.push("/settings", extra: widget.settingsController);
+                context.push("/settings", extra: settingsController);
               },
             ),
             const WindowButtons(),
