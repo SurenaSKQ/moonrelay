@@ -97,7 +97,7 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final router = GoRouter(
   redirect: (context, state) {
     Client client = Provider.of<Client>(context);
-    if (client.isLogged()) {
+    if (!client.isLogged()) {
       return '/login';
     } else {
       return null;
