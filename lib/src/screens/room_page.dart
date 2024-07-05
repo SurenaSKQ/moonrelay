@@ -28,7 +28,7 @@ class FluentRoomPage extends StatefulWidget {
 class _FluentRoomPageState extends State<FluentRoomPage> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  // ignore: unused_field
+  // Counts events
   int _count = 0;
 
   @override

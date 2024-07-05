@@ -15,24 +15,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/locations.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:go_router/go_router.dart';
-import 'package:matrix/matrix.dart';
+import 'package:beamer/beamer.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
 import 'package:provider/provider.dart';
-import 'package:azhi_main/src/settings/theme.dart';
 
 class FluentMainFrame extends StatefulWidget {
   const FluentMainFrame({
     super.key,
-    required this.child,
-    required this.shellContext,
+    // required this.child,
+    // required this.shellContext,
   });
-  final Widget child;
-  final BuildContext? shellContext;
+
+  // final Widget child;
+  // final BuildContext? shellContext;
   @override
   State<FluentMainFrame> createState() => _FluentMainFrameState();
 }
@@ -52,10 +53,10 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final client = Provider.of<Client>(context, listen: false);
+    // final client = Provider.of<Client>(context, listen: false);
     final settingsController = Provider.of<SettingsController>(context);
     //STUB - For future!
-    final TextEditingController searchController = TextEditingController();
+    // final TextEditingController searchController = TextEditingController();
     return NavigationView(
       appBar: NavigationAppBar(
         automaticallyImplyLeading: false,
@@ -63,13 +64,16 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
           return DragToMoveArea(
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(FluentIcons.back),
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    }
-                  },
+                SvgPicture.asset(
+                  'assets/images/azhi_logo.svg',
+                  colorFilter: ColorFilter.mode(
+                      (FluentTheme.of(context).brightness == Brightness.dark)
+                          ? Colors.white
+                          : Colors.black,
+                      BlendMode.srcIn),
+                  fit: BoxFit.contain,
+                  height: 8,
+                  width: 8,
                 ),
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -102,18 +106,24 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
                 ),
               ),
             ),
+            //FIXME: This button should only work once
             IconButton(
               key: UniqueKey(),
               icon: const Icon(FluentIcons.settings),
               onPressed: () {
-                context.push("/settings", extra: settingsController);
+                context.beamToNamed("/settings");
               },
             ),
             const WindowButtons(),
           ],
         ),
       ),
-      content: widget.child,
+      content: Beamer(
+        routerDelegate: BeamerDelegate(
+          locationBuilder: (routeInformation, _) =>
+              MetaLocation(routeInformation),
+        ),
+      ),
     );
   }
 

@@ -18,8 +18,8 @@
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
+import 'package:beamer/beamer.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -28,8 +28,8 @@ class FluentHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    SettingsController settingsController =
-        Provider.of<SettingsController>(context);
+    // SettingsController settingsController =
+    //     Provider.of<SettingsController>(context);
     return ScaffoldPage.scrollable(
       children: [
         Center(
@@ -68,8 +68,8 @@ class FluentHomePage extends StatelessWidget {
                                 fontSize: 16,
                               ),
                             ),
-                            onPressed: () => context.push("/login",
-                                extra: settingsController),
+                            onPressed: () =>
+                                Beamer.of(context).beamToNamed("/login"),
                           ),
                           Button(
                               child: const Text(

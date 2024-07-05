@@ -41,6 +41,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  beamer:
+    dependency: "direct main"
+    description:
+      name: beamer
+      sha256: c32c5dea11c178fca271f2cce8f3bce4bc0ad761a2b69978573c4e75e991abf9
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.1"
   blurhash_dart:
     dependency: transitive
     description:
@@ -171,6 +179,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_olm:
+    dependency: "direct main"
+    description:
+      name: flutter_olm
+      sha256: f98cafb434b3858d46446a93eb269a8e97eb38ccc5f8e0281b167d66d95c15dc
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.1"
+  flutter_openssl_crypto:
+    dependency: "direct main"
+    description:
+      name: flutter_openssl_crypto
+      sha256: "6dcecf6f7c1804ae6f5d73ee05df8af72ea8133bf2447d25979d739503186c96"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.0"
   flutter_spinkit:
     dependency: "direct main"
     description:
@@ -197,14 +221,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  go_router:
-    dependency: "direct main"
-    description:
-      name: go_router
-      sha256: "771c8feb40ad0ef639973d7ecf1b43d55ffcedb2207fd43fab030f5639e40446"
-      url: "https://pub.dev"
-    source: hosted
-    version: "13.2.4"
   hive:
     dependency: transitive
     description:
@@ -309,14 +325,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  logging:
-    dependency: transitive
-    description:
-      name: logging
-      sha256: "623a88c9594aa774443aa3eb2d41807a48486b5613e67599fb4c41c0ad47c340"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.0"
   macos_window_utils:
     dependency: transitive
     description:
@@ -764,4 +772,4 @@ packages:
     version: "6.5.0"
 sdks:
   dart: ">=3.3.0 <4.0.0"
-  flutter: ">=3.16.0"
+  flutter: ">=3.10.0"

@@ -15,18 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/main_frame.dart';
-import 'package:azhi_main/src/screens/chat_main.dart';
-import 'package:azhi_main/src/screens/home_screen.dart';
+import 'package:azhi_main/src/locations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:go_router/go_router.dart';
+import 'package:beamer/beamer.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:matrix/matrix.dart';
 import 'settings/settings_controller.dart';
-import 'settings/settings_view.dart';
-import 'screens/login_page.dart';
 import 'settings/theme.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
@@ -43,6 +38,9 @@ class ChatSpacesApp extends StatelessWidget {
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
         return FluentApp.router(
+          routeInformationParser: BeamerParser(),
+          routerDelegate: routerDelegate,
+          debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
           localizationsDelegates: const [
             AppLocalizations.delegate,
@@ -82,63 +80,13 @@ class ChatSpacesApp extends StatelessWidget {
               child: child!,
             ),
           ),
-
-          routeInformationParser: router.routeInformationParser,
-          routerDelegate: router.routerDelegate,
-          routeInformationProvider: router.routeInformationProvider,
         );
       },
     );
   }
 }
 
-final rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
-final router = GoRouter(
-  redirect: (context, state) {
-    Client client = Provider.of<Client>(context);
-    if (!client.isLogged()) {
-      return '/login';
-    } else {
-      return null;
-    }
-  },
-  navigatorKey: rootNavigatorKey,
-  routes: [
-    ShellRoute(
-      navigatorKey: _shellNavigatorKey,
-      builder: (context, state, child) {
-        return FluentMainFrame(
-          shellContext: context,
-          child: child,
-        );
-      },
-      routes: [
-        GoRoute(
-          path: "/",
-          builder: (context, state) {
-            return const FluentHomePage();
-          },
-        ),
-        GoRoute(
-          path: "/settings",
-          builder: (context, state) {
-            return const SettingsView();
-          },
-        ),
-        GoRoute(
-          path: "/login",
-          builder: (context, state) {
-            return const FluentLoginPage();
-          },
-        ),
-        GoRoute(
-          path: "/chat",
-          builder: (context, state) {
-            return const FluentChatMain();
-          },
-        ),
-      ],
-    )
-  ],
+final routerDelegate = BeamerDelegate(
+  locationBuilder: (routeInformation, _) => AppRootLocation(routeInformation),
+  transitionDelegate: const DefaultTransitionDelegate(),
 );

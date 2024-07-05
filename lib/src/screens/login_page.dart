@@ -17,9 +17,9 @@
 
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
+import 'package:beamer/beamer.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
@@ -46,9 +46,6 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
     setState(() => _textActive = false);
-    if (client.isLogged()) {
-      context.go("/chat");
-    }
     try {
       await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
       await client.login(
@@ -57,7 +54,7 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        context.go("/chat");
+        Beamer.of(context).beamToNamed("/chat");
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }

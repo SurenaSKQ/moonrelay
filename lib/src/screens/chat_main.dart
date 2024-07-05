@@ -16,10 +16,11 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/layouts/empty_space.dart';
+import 'package:azhi_main/src/layouts/three_pane_layout.dart';
+import 'package:azhi_main/src/locations.dart';
 import 'package:azhi_main/src/settings/theme.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:go_router/go_router.dart';
+import 'package:beamer/beamer.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -34,56 +35,13 @@ class FluentChatMain extends StatefulWidget {
 }
 
 class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
-  late final List<NavigationPaneItem> paneItems =
-      [].map<NavigationPaneItem>((e) {
-    PaneItem buildPaneItem(PaneItem item) {
-      return PaneItem(
-        key: item.key,
-        icon: item.icon,
-        title: item.title,
-        body: item.body,
-        onTap: () {
-          final path = (item.key as ValueKey).value;
-          context.go(path);
-          item.onTap?.call();
-        },
-      );
-    }
-
-    if (e is PaneItemExpander) {
-      return PaneItemExpander(
-        key: e.key,
-        icon: e.icon,
-        title: e.title,
-        body: e.body,
-        items: e.items.map((item) {
-          if (item is PaneItem) return buildPaneItem(item);
-          return item;
-        }).toList(),
-      );
-    }
-    if (e is PaneItem) return buildPaneItem(e);
-    return e;
-  }).toList();
-
-  late final List<NavigationPaneItem> footerItems = [
-    PaneItemSeparator(),
-    PaneItem(
-      icon: const Icon(FluentIcons.back),
-      title: const Text("Logout"),
-      body: const SizedBox.shrink(),
-      onTap: _logout,
-    )
-  ];
-
+  // FIXME: Move to settings controller
   void _logout() async {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
     try {
       await client.logout();
-      mounted
-          ? context.go("/")
-          : throw "Build context async failure widget not mounted";
+      Beamer.of(context).beamToNamed("/");
     } catch (e) {
       log.e("Logout error",
           error: e, time: DateTime.now(), stackTrace: StackTrace.current);
@@ -104,48 +62,13 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
   }
 
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
-    final _appTheme = AppTheme();
-    final client = Provider.of<Client>(context, listen: false);
-    Widget windowChild = const EmptySpace();
-
-    return NavigationView(
-      pane: NavigationPane(
-        // FIXME: Add header?
-        displayMode: _appTheme.displayMode,
-        indicator: () {
-          switch (_appTheme.indicator) {
-            case NavigationIndicators.end:
-              return const EndNavigationIndicator();
-            case NavigationIndicators.sticky:
-            default:
-              return const StickyNavigationIndicator();
-          }
-        }(),
-        items: paneItems,
-        footerItems: footerItems,
-      ),
-    );
-  }
-}
-
-class ChatsUncategorized extends StatefulWidget {
-  const ChatsUncategorized({super.key});
-
-  @override
-  State<ChatsUncategorized> createState() => _ChatsUncategorizedState();
-}
-
-class _ChatsUncategorizedState extends State<ChatsUncategorized> {
-  @override
-  Widget build(BuildContext context) {
-    final Client client = Provider.of<Client>(context);
+    Client client = Provider.of<Client>(context);
     void _join(Room room) async {
       try {
         if (room.membership != Membership.join) {
           await room.join();
         }
-        context.go("rooms", extra: room);
+        context.beamToNamed("/main/chat/room/${room.id}");
       } catch (e) {
         Provider.of<Logger>(context).f(
           "Failed to join",
@@ -171,57 +94,86 @@ class _ChatsUncategorizedState extends State<ChatsUncategorized> {
       }
     }
 
-    return ScaffoldPage(
-      content: Flex(
-        direction: Axis.horizontal,
-        children: [
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                StreamBuilder(
-                  stream: client.onSync.stream,
-                  builder: (context, _) => ListView.builder(
-                    itemCount: client.rooms.length,
-                    itemBuilder: (context, index) => ListTile.selectable(
-                      leading: CircleAvatar(
-                        foregroundImage: client.rooms[index].avatar == null
-                            ? null
-                            : NetworkImage(
-                                client.rooms[index].avatar.toString(),
-                              ),
-                      ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              client.rooms[index].getLocalizedDisplayname(),
-                            ),
-                          ),
-                        ],
-                      ),
-                      subtitle: Text(
-                        client.rooms[index].lastEvent?.body ?? 'No messages',
-                        maxLines: 1,
-                      ),
-                      trailing: (client.rooms[index].notificationCount > 0)
-                          ? badges.Badge(
-                              child: Text(
-                                client.rooms[index].notificationCount
-                                    .toString(),
-                              ),
-                            )
-                          : null,
-                      onPressed: () => _join(client.rooms[index]),
+    return Row(
+      children: [
+        SizedBox(
+          width: 64,
+          child: Column(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                    backgroundBlendMode: BlendMode.darken, color: Colors.grey),
+                child: Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(FluentIcons.profile_search),
+                      onPressed: () {},
                     ),
-                  ),
-                )
-              ],
+                    IconButton(
+                      icon: const Icon(FluentIcons.chat),
+                      onPressed: () {},
+                    ),
+                    const SizedBox(
+                      height: 6,
+                    ),
+                    StreamBuilder(
+                      stream: client.onSync.stream,
+                      builder: (context, _) => ListView.builder(
+                        itemCount: client.rooms.length,
+                        itemBuilder: (context, index) => ListTile.selectable(
+                          leading: CircleAvatar(
+                            foregroundImage: client.rooms[index].avatar == null
+                                ? null
+                                : NetworkImage(
+                                    client.rooms[index].avatar.toString(),
+                                  ),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  client.rooms[index].getLocalizedDisplayname(),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            client.rooms[index].lastEvent?.body ??
+                                'No messages',
+                            maxLines: 1,
+                          ),
+                          trailing: (client.rooms[index].notificationCount > 0)
+                              ? badges.Badge(
+                                  child: Text(
+                                    client.rooms[index].notificationCount
+                                        .toString(),
+                                  ),
+                                )
+                              : null,
+                          onPressed: () => _join(client.rooms[index]),
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if ((context.currentBeamLocation.state as BeamState).uri.path.isEmpty)
+          const EmptySpace()
+        else
+          Expanded(
+            child: ClipRRect(
+              child: Beamer(
+                routerDelegate: BeamerDelegate(
+                  locationBuilder: (routeInformation, _) =>
+                      RoomBeamer(routeInformation),
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
-    ;
   }
 }
