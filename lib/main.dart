@@ -131,7 +131,7 @@ void main() async {
           create: (context) => settingsController,
         )
       ],
-      child: ChatSpacesApp(),
+      child: const ChatSpacesApp(),
     ),
   );
 }
