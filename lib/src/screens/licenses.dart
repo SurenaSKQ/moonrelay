@@ -27,6 +27,7 @@ class _Licenses {
   late String licenseText;
 }
 
+// ignore: unused_element
 Future<_Licenses> _createLicense(name, assetName) async {
   String licenseTxt = await rootBundle.loadString('assets/$assetName');
   return _Licenses(name: name, assetName: assetName, licenseText: licenseTxt);
@@ -69,7 +70,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
                           header: Text(_usedLicenses[index].name),
                           content: SizedBox(
                             height: 300,
-                            child: Text(_usedLicenses[index].licenseText ?? ''),
+                            child: Text(_usedLicenses[index].licenseText),
                           ),
                         ),
                       );

@@ -112,16 +112,18 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                                                     .avatarUrl ==
                                                 null
                                             ? null
-                                            : NetworkImage(timeline
-                                                .events[index]
-                                                .senderFromMemoryOrFallback
-                                                .avatarUrl!
-                                                .getThumbnail(
-                                                  widget.room.client,
-                                                  width: 56,
-                                                  height: 56,
-                                                )
-                                                .toString()),
+                                            : NetworkImage(
+                                                timeline
+                                                    .events[index]
+                                                    .senderFromMemoryOrFallback
+                                                    .avatarUrl!
+                                                    .getThumbnail(
+                                                      widget.room.client,
+                                                      width: 56,
+                                                      height: 56,
+                                                    )
+                                                    .toString(),
+                                              ),
                                       ),
                                       title: Row(
                                         children: [

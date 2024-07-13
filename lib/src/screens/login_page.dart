@@ -15,9 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/screens/licenses.dart';
-import 'package:azhi_main/src/settings/settings_controller.dart';
-import 'package:beamer/beamer.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:matrix/matrix.dart';
@@ -28,7 +26,6 @@ import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 
 class FluentLoginPage extends StatefulWidget {
   const FluentLoginPage({super.key});
-  static const routeName = "/login";
 
   @override
   State<FluentLoginPage> createState() => _FluentLoginPageState();
@@ -54,7 +51,7 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        Beamer.of(context).beamToNamed("/chat");
+        context.go('/rooms');
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }

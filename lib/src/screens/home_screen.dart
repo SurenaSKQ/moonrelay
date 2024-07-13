@@ -16,11 +16,9 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/screens/licenses.dart';
-import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
-import 'package:beamer/beamer.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class FluentHomePage extends StatelessWidget {
@@ -68,8 +66,7 @@ class FluentHomePage extends StatelessWidget {
                                 fontSize: 16,
                               ),
                             ),
-                            onPressed: () =>
-                                Beamer.of(context).beamToNamed("/login"),
+                            onPressed: () => context.go('/welcome/login'),
                           ),
                           Button(
                               child: const Text(

@@ -15,15 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/empty_space.dart';
-import 'package:azhi_main/src/screens/room_page.dart';
-import 'package:beamer/beamer.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:logger/logger.dart';
-import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
-import 'package:badges/badges.dart' as badges;
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+import '../widgets/spaces_pane.dart';
 
 class ThreePaneLayout extends StatefulWidget {
   const ThreePaneLayout({super.key});
@@ -37,112 +31,6 @@ class _ThreePaneLayoutState extends State<ThreePaneLayout> {
   Widget build(BuildContext context) {
     return const Row(
       children: [SpacesPane()],
-    );
-  }
-}
-
-class SpacesPane extends StatelessWidget {
-  const SpacesPane({
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    void _join(Room room) async {
-      try {
-        if (room.membership != Membership.join) {
-          await room.join();
-        }
-        // FIXME: Beam to room page
-        // context.beamTo();
-      } catch (e) {
-        Provider.of<Logger>(context).f(
-          "Failed to join",
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        // FIXME: Better error and localization
-        await displayInfoBar(
-          context,
-          builder: (context, close) {
-            return InfoBar(
-              title: Text(AppLocalizations.of(context)!.error),
-              content: Text(e.toString()),
-              action: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: close,
-              ),
-              severity: InfoBarSeverity.error,
-            );
-          },
-        );
-      }
-    }
-
-    Client client = Provider.of<Client>(context);
-    return SizedBox(
-      width: 64,
-      child: Column(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-                backgroundBlendMode: BlendMode.darken, color: Colors.grey),
-            child: Column(
-              children: [
-                IconButton(
-                  icon: const Icon(FluentIcons.profile_search),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(FluentIcons.chat),
-                  onPressed: () {},
-                ),
-                const SizedBox(
-                  height: 6,
-                ),
-                StreamBuilder(
-                  stream: client.onSync.stream,
-                  builder: (context, _) => ListView.builder(
-                    itemCount: client.rooms.length,
-                    itemBuilder: (context, index) => ListTile.selectable(
-                      leading: CircleAvatar(
-                        foregroundImage: client.rooms[index].avatar == null
-                            ? null
-                            : NetworkImage(
-                                client.rooms[index].avatar.toString(),
-                              ),
-                      ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              client.rooms[index].getLocalizedDisplayname(),
-                            ),
-                          ),
-                        ],
-                      ),
-                      subtitle: Text(
-                        client.rooms[index].lastEvent?.body ?? 'No messages',
-                        maxLines: 1,
-                      ),
-                      trailing: (client.rooms[index].notificationCount > 0)
-                          ? badges.Badge(
-                              child: Text(
-                                client.rooms[index].notificationCount
-                                    .toString(),
-                              ),
-                            )
-                          : null,
-                      onPressed: () => _join(client.rooms[index]),
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
