@@ -17,7 +17,7 @@
 
 import 'package:azhi_main/src/locations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:beamer/beamer.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -30,6 +30,9 @@ final _appTheme = AppTheme();
 class ChatSpacesApp extends StatelessWidget {
   const ChatSpacesApp({super.key});
 
+  static final GoRouter azhirouter =
+      GoRouter(routes: AppLocationsHandler.routes);
+
   @override
   Widget build(BuildContext context) {
     final SettingsController settingsController =
@@ -38,8 +41,7 @@ class ChatSpacesApp extends StatelessWidget {
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
         return FluentApp.router(
-          routeInformationParser: BeamerParser(),
-          routerDelegate: routerDelegate,
+          routerConfig: azhirouter,
           debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
           localizationsDelegates: const [
@@ -85,8 +87,3 @@ class ChatSpacesApp extends StatelessWidget {
     );
   }
 }
-
-final routerDelegate = BeamerDelegate(
-  locationBuilder: (routeInformation, _) => AppRootLocation(routeInformation),
-  transitionDelegate: const DefaultTransitionDelegate(),
-);

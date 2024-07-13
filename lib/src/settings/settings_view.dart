@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'settings_controller.dart';
@@ -17,14 +18,18 @@ class SettingsView extends StatelessWidget {
     final SettingsController controller =
         Provider.of<SettingsController>(context);
     return ScaffoldPage(
-      header: const Padding(
-        padding: EdgeInsets.all(8.0),
+      header: Padding(
+        padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            SizedBox(
+            IconButton(
+              icon: const Icon(FluentIcons.back),
+              onPressed: () => context.canPop() ? context.pop() : null,
+            ),
+            const SizedBox(
               width: 16,
             ),
-            Text(
+            const Text(
               "Settings",
               style: TextStyle(fontSize: 18),
             )

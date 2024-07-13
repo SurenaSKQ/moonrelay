@@ -15,11 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/locations.dart';
 import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:beamer/beamer.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
@@ -28,12 +27,12 @@ import 'package:provider/provider.dart';
 class FluentMainFrame extends StatefulWidget {
   const FluentMainFrame({
     super.key,
-    // required this.child,
-    // required this.shellContext,
+    required this.child,
+    required this.shellContext,
   });
 
-  // final Widget child;
-  // final BuildContext? shellContext;
+  final Widget child;
+  final BuildContext? shellContext;
   @override
   State<FluentMainFrame> createState() => _FluentMainFrameState();
 }
@@ -53,78 +52,74 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    // final client = Provider.of<Client>(context, listen: false);
     final settingsController = Provider.of<SettingsController>(context);
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
     return NavigationView(
-      appBar: NavigationAppBar(
-        automaticallyImplyLeading: false,
-        title: () {
-          return DragToMoveArea(
-            child: Row(
-              children: [
-                SvgPicture.asset(
-                  'assets/images/azhi_logo.svg',
-                  colorFilter: ColorFilter.mode(
-                      (FluentTheme.of(context).brightness == Brightness.dark)
-                          ? Colors.white
-                          : Colors.black,
-                      BlendMode.srcIn),
-                  fit: BoxFit.contain,
-                  height: 8,
-                  width: 8,
-                ),
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text(
-                    AppLocalizations.of(context)!.appTitle,
-                    style: const TextStyle(fontFamily: 'JetBrainsMono'),
+        appBar: NavigationAppBar(
+          automaticallyImplyLeading: false,
+          title: () {
+            return DragToMoveArea(
+              child: Row(
+                children: [
+                  SvgPicture.asset(
+                    'assets/images/azhi_logo.svg',
+                    colorFilter: ColorFilter.mode(
+                        (FluentTheme.of(context).brightness == Brightness.dark)
+                            ? Colors.white
+                            : Colors.black,
+                        BlendMode.srcIn),
+                    fit: BoxFit.contain,
+                    height: 8,
+                    width: 8,
+                  ),
+                  const SizedBox(
+                    width: 6,
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      AppLocalizations.of(context)!.appTitle,
+                      style: const TextStyle(fontFamily: 'JetBrainsMono'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }(),
+          actions: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 8.0),
+                  child: ToggleSwitch(
+                    content: Text(AppLocalizations.of(context)!.darkMode),
+                    checked: FluentTheme.of(context).brightness.isDark,
+                    onChanged: (v) {
+                      if (v) {
+                        settingsController.updateThemeMode(ThemeMode.dark);
+                      } else {
+                        settingsController.updateThemeMode(ThemeMode.light);
+                      }
+                    },
                   ),
                 ),
-              ],
-            ),
-          );
-        }(),
-        actions: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(end: 8.0),
-                child: ToggleSwitch(
-                  content: Text(AppLocalizations.of(context)!.darkMode),
-                  checked: FluentTheme.of(context).brightness.isDark,
-                  onChanged: (v) {
-                    if (v) {
-                      settingsController.updateThemeMode(ThemeMode.dark);
-                    } else {
-                      settingsController.updateThemeMode(ThemeMode.light);
-                    }
-                  },
-                ),
               ),
-            ),
-            //FIXME: This button should only work once
-            IconButton(
-              key: UniqueKey(),
-              icon: const Icon(FluentIcons.settings),
-              onPressed: () {
-                context.beamToNamed("/settings");
-              },
-            ),
-            const WindowButtons(),
-          ],
+              //FIXME: This button should only work once
+              IconButton(
+                key: UniqueKey(),
+                icon: const Icon(FluentIcons.settings),
+                onPressed: () {
+                  context.push("/settings");
+                },
+              ),
+              const WindowButtons(),
+            ],
+          ),
         ),
-      ),
-      content: Beamer(
-        routerDelegate: BeamerDelegate(
-          locationBuilder: (routeInformation, _) =>
-              MetaLocation(routeInformation),
-        ),
-      ),
-    );
+        content: widget.child);
   }
 
   @override

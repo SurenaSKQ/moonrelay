@@ -15,97 +15,132 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/empty_space.dart';
+import 'dart:async';
+
 import 'package:azhi_main/src/layouts/main_frame.dart';
-import 'package:azhi_main/src/screens/chat_main.dart';
+import 'package:azhi_main/src/layouts/two_column_layout.dart';
 import 'package:azhi_main/src/screens/home_screen.dart';
 import 'package:azhi_main/src/screens/login_page.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
-import 'package:azhi_main/src/widgets/room_delegate.dart';
-import 'package:beamer/beamer.dart';
+import 'package:azhi_main/src/helpers/room_delegate.dart';
+import 'package:azhi_main/src/widgets/spaces_pane.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
-class AppRootLocation extends BeamLocation<BeamState> {
-  AppRootLocation(RouteInformation routeInformation) : super(routeInformation);
-  @override
-  List<String> get pathPatterns => ['/*'];
+class AppLocationsHandler {
+  static FutureOr<String?> loggedInRedirect(
+    BuildContext context,
+    GoRouterState state,
+  ) =>
+      Provider.of<Client>(context, listen: false).isLogged() ? '/rooms' : null;
 
-  @override
-  List<BeamPage> buildPages(BuildContext context, BeamState state) => [
-        BeamPage(
-          key: ValueKey('home-${DateTime.now()}'),
-          title: 'mainframe',
-          child: const FluentMainFrame(),
-        )
-      ];
-}
+  static FutureOr<String?> loggedOutRedirect(
+    BuildContext context,
+    GoRouterState state,
+  ) =>
+      Provider.of<Client>(context, listen: false).isLogged()
+          ? null
+          : '/welcome';
 
-class MetaLocation extends BeamLocation<BeamState> {
-  MetaLocation(RouteInformation routeInformation) : super(routeInformation);
-  @override
-  List<String> get pathPatterns => ['/main/*'];
+  AppLocationsHandler();
 
-  @override
-  List<BeamPage> buildPages(BuildContext context, BeamState state) => [
-        const BeamPage(
-          key: ValueKey('/chat'),
-          child: FluentChatMain(),
-        ),
-        const BeamPage(
-          key: ValueKey('/login'),
-          title: 'Login',
-          child: FluentLoginPage(),
-        ),
-        const BeamPage(
-          key: ValueKey('/welcome'),
-          title: 'Welcome',
-          child: FluentHomePage(),
-        ),
-        const BeamPage(
-          key: ValueKey('/settings'),
-          title: 'Settings',
-          child: SettingsView(),
-        ),
-      ];
+  static final List<RouteBase> routes = [
+    ShellRoute(
+        pageBuilder: (context, state, child) => azhiPageBuilder(
+              context,
+              state,
+              FluentMainFrame(
+                shellContext: context,
+                child: child,
+              ),
+            ),
+        routes: [
+          GoRoute(
+            path: '/',
+            redirect: (context, state) =>
+                Provider.of<Client>(context, listen: false).isLogged()
+                    ? '/rooms'
+                    : '/welcome',
+          ),
+          GoRoute(
+            path: '/welcome',
+            pageBuilder: (context, state) =>
+                azhiPageBuilder(context, state, const FluentHomePage()),
+            redirect: loggedInRedirect,
+            routes: [
+              GoRoute(
+                path: 'login',
+                pageBuilder: (context, state) => azhiPageBuilder(
+                  context,
+                  state,
+                  const FluentLoginPage(),
+                ),
+              ),
+              GoRoute(
+                path: 'register',
+                redirect: (context, state) => '/welcome/login',
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/settings',
+            pageBuilder: (context, state) => azhiPageBuilder(
+              context,
+              state,
+              const SettingsView(),
+            ),
+          ),
+          ShellRoute(
+            pageBuilder: (context, state, child) => azhiPageBuilder(
+              context,
+              state,
+              TwoColumnLayout(
+                mainView: const SpacesPane(),
+                sideView: child,
+              ),
+            ),
+            routes: [
+              GoRoute(
+                path: '/rooms',
+                redirect: loggedOutRedirect,
+                pageBuilder: (context, state) => azhiPageBuilder(
+                  context,
+                  state,
+                  RoomDelegate(
+                    roomID: state.pathParameters['roomid'],
+                  ),
+                ),
+                routes: [
+                  GoRoute(
+                    path: ':roomid',
+                    pageBuilder: (context, state) => azhiPageBuilder(
+                      context,
+                      state,
+                      RoomDelegate(
+                        roomID: state.pathParameters['roomid']!,
+                      ),
+                    ),
+                    redirect: loggedOutRedirect,
+                  ),
+                ],
+              ),
+            ],
+          )
+        ]),
+  ];
 
-  @override
-  List<BeamGuard> get guards => [
-        BeamGuard(
-          pathPatterns: ['*'],
-          check: (context, location) =>
-              !(Provider.of<Client>(context, listen: false).isLogged()),
-          beamToNamed: (origin, target) => "/welcome",
-        ),
-        BeamGuard(
-          pathPatterns: ['*'],
-          check: (context, location) =>
-              (Provider.of<Client>(context, listen: false).isLogged()),
-          beamToNamed: (origin, target) => "/chat",
-        ),
-      ];
-}
-
-class RoomBeamer extends BeamLocation<BeamState> {
-  RoomBeamer(RouteInformation routeInformation) : super(routeInformation);
-
-  @override
-  List<String> get pathPatterns => ['/main/chat/room/:roomID'];
-
-  @override
-  List<BeamPage> buildPages(BuildContext context, BeamState state) {
-    if ((state.pathParameters['roomID']) != null) {
-      return [
-        BeamPage(
-          key: ValueKey("Room-${state.pathParameters['roomID']}"),
-          child: RoomDelegate(roomID: state.pathParameters['roomID']!),
-        ),
-      ];
-    } else {
-      return [
-        const BeamPage(key: ValueKey("placeholder"), child: EmptySpace())
-      ];
-    }
-  }
+  static Page azhiPageBuilder(
+    BuildContext context,
+    GoRouterState state,
+    Widget child,
+  ) =>
+      CustomTransitionPage(
+        key: state.pageKey,
+        restorationId: state.pageKey.value,
+        child: child,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
+      );
 }
