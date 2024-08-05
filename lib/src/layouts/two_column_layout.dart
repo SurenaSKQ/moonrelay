@@ -21,8 +21,8 @@ class TwoColumnLayout extends StatelessWidget {
             child: mainView,
           ),
           Container(
-            width: 1.0,
-            color: FluentTheme.of(context).accentColor,
+            width: 5.0,
+            decoration: FluentTheme.of(context).dividerTheme.decoration,
           ),
           Expanded(
             child: ClipRRect(
