@@ -24,26 +24,27 @@ class LargeBarButton extends StatelessWidget {
     required this.title,
     this.subTitle,
     required this.icon,
+    this.decoration,
   });
   final Icon icon;
   final String title;
   final String? subTitle;
   final Function onTap;
+  final BoxDecoration? decoration;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => onTap,
       child: Container(
-        decoration:
-            BoxDecoration(color: FluentTheme.of(context).micaBackgroundColor),
-        padding: const EdgeInsets.all(6.0),
+        decoration: decoration,
+        padding: const EdgeInsets.all(8.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CircleAvatar(
               child: icon,
             ),
-            SizedBox(
+            const SizedBox(
               width: 8.0,
             ),
             Column(
@@ -51,15 +52,7 @@ class LargeBarButton extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color:
-                        (FluentTheme.of(context).brightness == Brightness.dark)
-                            ? Colors.white
-                            : Colors.black,
-                    fontSize: 16,
-                    fontFamily: 'JetBrainsMono',
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: FluentTheme.of(context).typography.title,
                 ),
                 const SizedBox(
                   height: 2.0,
@@ -67,15 +60,9 @@ class LargeBarButton extends StatelessWidget {
                 if (subTitle != null)
                   Text(
                     subTitle ?? "",
-                    style: TextStyle(
-                      color: (FluentTheme.of(context).brightness ==
-                              Brightness.dark)
-                          ? Colors.white
-                          : Colors.black,
-                      fontSize: 12,
-                      fontFamily: 'JetBrainsMono',
-                      fontWeight: FontWeight.normal,
-                    ),
+                    style: FluentTheme.of(context).typography.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             )

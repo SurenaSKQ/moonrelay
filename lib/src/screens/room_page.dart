@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/widgets/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -60,9 +61,7 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
-      header: Text(
-        widget.room.getLocalizedDisplayname(),
-      ),
+      header: RoomInfoCard(room: widget.room),
       content: Column(
         children: [
           Expanded(
@@ -94,8 +93,8 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                         reverse: true,
                         initialItemCount: timeline.events.length,
                         itemBuilder: (context, index, animation) {
-                          return timeline.events[index].relationshipEventId !=
-                                  null
+                          return (timeline.events[index].relationshipEventId !=
+                                  null)
                               ? Container()
                               : ScaleTransition(
                                   scale: animation,
@@ -132,21 +131,47 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                                               timeline.events[index]
                                                   .senderFromMemoryOrFallback
                                                   .calcDisplayname(),
+                                              style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold),
                                             ),
                                           ),
                                           Text(
                                             timeline
                                                 .events[index].originServerTs
                                                 .toIso8601String(),
-                                            style:
-                                                const TextStyle(fontSize: 10),
+                                            style: const TextStyle(
+                                                fontSize: 8,
+                                                fontFamily: 'JetBrainsMono'),
                                           ),
                                         ],
                                       ),
-                                      subtitle: Text(
-                                        timeline.events[index]
-                                            .getDisplayEvent(timeline)
-                                            .body,
+                                      subtitle: Container(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: FluentTheme.of(context)
+                                                .accentColor,
+                                            width: 1,
+                                            strokeAlign:
+                                                BorderSide.strokeAlignOutside,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          color: FluentTheme.of(context)
+                                              .acrylicBackgroundColor,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Text(
+                                            timeline.events[index]
+                                                .getDisplayEvent(timeline)
+                                                .body,
+                                            style: const TextStyle(
+                                                fontFamily: 'JetBrainsMono',
+                                                fontSize: 14),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
