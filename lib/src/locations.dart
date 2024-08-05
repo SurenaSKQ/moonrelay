@@ -23,7 +23,7 @@ import 'package:azhi_main/src/screens/home_screen.dart';
 import 'package:azhi_main/src/screens/login_page.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:azhi_main/src/helpers/room_delegate.dart';
-import 'package:azhi_main/src/widgets/spaces_pane.dart';
+import 'package:azhi_main/src/widgets/rooms_pane.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
@@ -97,7 +97,7 @@ class AppLocationsHandler {
               context,
               state,
               TwoColumnLayout(
-                mainView: const SpacesPane(),
+                mainView: const RoomsPane(),
                 sideView: child,
               ),
             ),
