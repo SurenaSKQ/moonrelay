@@ -56,70 +56,73 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
     return NavigationView(
-        appBar: NavigationAppBar(
-          automaticallyImplyLeading: false,
-          title: () {
-            return DragToMoveArea(
-              child: Row(
-                children: [
-                  SvgPicture.asset(
-                    'assets/images/azhi_logo.svg',
-                    colorFilter: ColorFilter.mode(
-                        (FluentTheme.of(context).brightness == Brightness.dark)
-                            ? Colors.white
-                            : Colors.black,
-                        BlendMode.srcIn),
-                    fit: BoxFit.contain,
-                    height: 8,
-                    width: 8,
-                  ),
-                  const SizedBox(
-                    width: 6,
-                  ),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      AppLocalizations.of(context)!.appTitle,
-                      style: const TextStyle(fontFamily: 'JetBrainsMono'),
+      appBar: NavigationAppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: FluentTheme.of(context).accentColor,
+        title: () {
+          return DragToMoveArea(
+            child: Row(
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    AppLocalizations.of(context)!.appTitle,
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                ],
-              ),
-            );
-          }(),
-          actions: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 8.0),
-                  child: ToggleSwitch(
-                    content: Text(AppLocalizations.of(context)!.darkMode),
-                    checked: FluentTheme.of(context).brightness.isDark,
-                    onChanged: (v) {
-                      if (v) {
-                        settingsController.updateThemeMode(ThemeMode.dark);
-                      } else {
-                        settingsController.updateThemeMode(ThemeMode.light);
-                      }
-                    },
+                ),
+                const SizedBox(
+                  width: 8.0,
+                ),
+                Text(
+                  "(URI: ${GoRouterState.of(context).uri.toString()})",
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontWeight: FontWeight.normal,
+                    fontSize: 14,
                   ),
                 ),
+              ],
+            ),
+          );
+        }(),
+        actions: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8.0),
+                child: ToggleSwitch(
+                  content: Text(AppLocalizations.of(context)!.darkMode),
+                  checked: FluentTheme.of(context).brightness.isDark,
+                  onChanged: (v) {
+                    if (v) {
+                      settingsController.updateThemeMode(ThemeMode.dark);
+                    } else {
+                      settingsController.updateThemeMode(ThemeMode.light);
+                    }
+                  },
+                ),
               ),
-              //FIXME: This button should only work once
-              IconButton(
-                key: UniqueKey(),
-                icon: const Icon(FluentIcons.settings),
-                onPressed: () {
-                  context.push("/settings");
-                },
-              ),
-              const WindowButtons(),
-            ],
-          ),
+            ),
+            //FIXME: This button should only work once
+            IconButton(
+              key: UniqueKey(),
+              icon: const Icon(FluentIcons.settings),
+              onPressed: () {
+                context.push("/settings");
+              },
+            ),
+            const WindowButtons(),
+          ],
         ),
-        content: widget.child);
+      ),
+      content: widget.child,
+    );
   }
 
   @override
