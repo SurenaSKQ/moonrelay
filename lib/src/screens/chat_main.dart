@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/layouts/empty_space.dart';
-import 'package:azhi_main/src/layouts/three_pane_layout.dart';
-import 'package:azhi_main/src/locations.dart';
-import 'package:azhi_main/src/settings/theme.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:beamer/beamer.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -35,13 +31,14 @@ class FluentChatMain extends StatefulWidget {
 }
 
 class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
+  //FIXME: Needs rewrite
   // FIXME: Move to settings controller
   void _logout() async {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
     try {
       await client.logout();
-      Beamer.of(context).beamToNamed("/");
+      context.go('/');
     } catch (e) {
       log.e("Logout error",
           error: e, time: DateTime.now(), stackTrace: StackTrace.current);
@@ -61,14 +58,16 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
-    void _join(Room room) async {
+    void join(Room room) async {
       try {
         if (room.membership != Membership.join) {
           await room.join();
         }
-        context.beamToNamed("/main/chat/room/${room.id}");
+        //FIXME: routing
+        // context.beamToNamed("/main/chat/room/${room.id}");
       } catch (e) {
         Provider.of<Logger>(context).f(
           "Failed to join",
@@ -150,7 +149,7 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
                                   ),
                                 )
                               : null,
-                          onPressed: () => _join(client.rooms[index]),
+                          onPressed: () => join(client.rooms[index]),
                         ),
                       ),
                     )
@@ -160,19 +159,6 @@ class _FluentChatMainState extends State<FluentChatMain> with WindowListener {
             ],
           ),
         ),
-        if ((context.currentBeamLocation.state as BeamState).uri.path.isEmpty)
-          const EmptySpace()
-        else
-          Expanded(
-            child: ClipRRect(
-              child: Beamer(
-                routerDelegate: BeamerDelegate(
-                  locationBuilder: (routeInformation, _) =>
-                      RoomBeamer(routeInformation),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
