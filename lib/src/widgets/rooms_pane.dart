@@ -72,28 +72,27 @@ class RoomsPane extends StatelessWidget {
     return Flexible(
       child: Container(
         constraints: BoxConstraints.loose(const Size.fromWidth(64)),
-        decoration: BoxDecoration(color: FluentTheme.of(context).cardColor),
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                backgroundBlendMode: BlendMode.darken,
-                color: FluentTheme.of(context).acrylicBackgroundColor,
-              ),
-              child: Column(
-                children: [
-                  LargeBarButton(
-                    onTap: () {},
-                    title: ownDisplayName ?? "Your Profile",
-                    icon: const Icon(material.Icons.person_outline_sharp),
-                  ),
-                  LargeBarButton(
-                    onTap: () {},
-                    title: "Direct Messages",
-                    icon: const Icon(material.Icons.messenger_outline_sharp),
-                  )
-                ],
-              ),
+            Column(
+              children: [
+                LargeBarButton(
+                  onTap: () {},
+                  title: ownDisplayName ?? "Your Profile",
+                  icon: const Icon(material.Icons.person_outline_sharp),
+                ),
+                const Divider(
+                  direction: Axis.horizontal,
+                ),
+                LargeBarButton(
+                  onTap: () {},
+                  title: "Direct Messages",
+                  icon: const Icon(material.Icons.messenger_outline_sharp),
+                ),
+                const Divider(
+                  direction: Axis.horizontal,
+                ),
+              ],
             ),
             const SizedBox(
               height: 6,
