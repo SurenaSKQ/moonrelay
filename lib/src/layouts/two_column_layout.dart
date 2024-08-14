@@ -1,4 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
+import 'package:flutter/widgets.dart';
 
 class TwoColumnLayout extends StatelessWidget {
   final Widget mainView;
@@ -11,18 +13,17 @@ class TwoColumnLayout extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage(
-      content: Row(
+    return mt.Scaffold(
+      body: Row(
         children: [
           Container(
             clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(),
+            decoration: BoxDecoration(),
             width: 420,
-            child: mainView,
+            child: Mica(child: mainView),
           ),
-          Container(
-            width: 5.0,
-            decoration: FluentTheme.of(context).dividerTheme.decoration,
+          const Divider(
+            direction: Axis.vertical,
           ),
           Expanded(
             child: ClipRRect(

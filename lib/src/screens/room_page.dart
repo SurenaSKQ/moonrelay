@@ -17,6 +17,7 @@
 
 import 'package:azhi_main/src/widgets/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:matrix/matrix.dart';
 
 class FluentRoomPage extends StatefulWidget {
@@ -60,10 +61,11 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage(
-      header: RoomInfoCard(room: widget.room),
-      content: Column(
+    return mt.Scaffold(
+      backgroundColor: FluentTheme.of(context).scaffoldBackgroundColor,
+      body: Column(
         children: [
+          RoomInfoCard(room: widget.room),
           Expanded(
             child: FutureBuilder<Timeline>(
               future: _timelineFuture,
@@ -84,7 +86,7 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                       ),
                     ),
                     const Divider(
-                      direction: Axis.vertical,
+                      direction: Axis.horizontal,
                       size: 2,
                     ),
                     Expanded(
