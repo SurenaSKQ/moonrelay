@@ -19,7 +19,6 @@ import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
 import 'package:provider/provider.dart';
@@ -58,7 +57,10 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
     return NavigationView(
       appBar: NavigationAppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: FluentTheme.of(context).accentColor,
+        backgroundColor:
+            (FluentTheme.of(context).brightness == Brightness.light)
+                ? FluentTheme.of(context).accentColor.lightest
+                : FluentTheme.of(context).accentColor.darkest,
         title: () {
           return DragToMoveArea(
             child: Row(
