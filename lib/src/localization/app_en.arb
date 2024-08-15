@@ -17,5 +17,6 @@
   "areYouSureExit": "Are you sure you want to exit the application?",
   "yesOrAffirmitive": "Yes",
   "noOrCancellation": "No",
-  "home": "Home"
+  "home": "Home",
+  "userProfilePageBanner": "{username}'s profile"
 }
