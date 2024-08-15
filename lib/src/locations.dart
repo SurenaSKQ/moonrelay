@@ -24,8 +24,8 @@ import 'package:azhi_main/src/screens/login_page.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:azhi_main/src/helpers/room_delegate.dart';
 import 'package:azhi_main/src/widgets/rooms_pane.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -51,9 +51,11 @@ class AppLocationsHandler {
         pageBuilder: (context, state, child) => azhiPageBuilder(
               context,
               state,
-              FluentMainFrame(
-                shellContext: context,
-                child: child,
+              Mica(
+                child: FluentMainFrame(
+                  shellContext: context,
+                  child: child,
+                ),
               ),
             ),
         routes: [
