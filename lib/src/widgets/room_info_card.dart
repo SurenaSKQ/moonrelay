@@ -35,24 +35,28 @@ class RoomInfoCard extends StatelessWidget {
           // TODO: Fallback image
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: CircleAvatar(
-              child: Text(
-                room
-                    .getLocalizedDisplayname()
-                    .toUpperCase()
-                    .split(RegExp(' +'))
-                    .map((s) => s[0])
-                    .take(2)
-                    .join(),
-              ),
-              // (room.avatar != null)
-              //     ? Image.network(room.avatar.toString())
-              //     : Text(
-              //         room.getLocalizedDisplayname()
-              //           ..toUpperCase()
-              //           ..split(RegExp(' +')).map((s) => s[0]).take(2).join(),
-              //       ),
-            ),
+            child: room.avatar == null
+                ? Text(
+                    room
+                        .getLocalizedDisplayname()
+                        .toUpperCase()
+                        .split(RegExp(' +'))
+                        .map((s) => s[0])
+                        .take(2)
+                        .join(),
+                  )
+                : CircleAvatar(
+                    foregroundImage: NetworkImage(
+                      room.avatar!
+                          .getThumbnail(
+                            room.client,
+                            animated: true,
+                            height: 56,
+                            width: 56,
+                          )
+                          .toString(),
+                    ),
+                  ),
           ),
           const SizedBox(
             width: 8.0,
