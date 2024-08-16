@@ -35,6 +35,7 @@ class LogoWithTextThemed extends StatelessWidget {
                   ? Colors.white
                   : Colors.black,
               BlendMode.srcIn),
+          fit: BoxFit.scaleDown,
         ),
         Text(
           AppLocalizations.of(context)!.projectName,
@@ -44,8 +45,9 @@ class LogoWithTextThemed extends StatelessWidget {
                 : Colors.black,
             fontSize: 32,
             fontFamily: 'JetBrainsMono',
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.bold,
           ),
+          overflow: TextOverflow.clip,
         ),
       ],
     );
