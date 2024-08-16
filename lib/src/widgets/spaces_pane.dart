@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/widgets/large_bar_button.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as material;
@@ -71,27 +70,6 @@ class SpacesPane extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          decoration: const BoxDecoration(
-              backgroundBlendMode: BlendMode.darken, color: Colors.grey),
-          child: Column(
-            children: [
-              LargeBarButton(
-                onTap: () {},
-                title: ownDisplayName ?? "Your Profile",
-                icon: const Icon(material.Icons.person_outline_sharp),
-              ),
-              LargeBarButton(
-                onTap: () {},
-                title: "Direct Messages",
-                icon: const Icon(material.Icons.messenger_outline_sharp),
-              )
-            ],
-          ),
-        ),
-        const SizedBox(
-          height: 6,
-        ),
         Expanded(
           child: StreamBuilder(
             stream: client.onSync.stream,
