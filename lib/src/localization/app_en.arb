@@ -1,4 +1,6 @@
 {
+  "@@locale": "en",
+  "@@author": "Surena",
   "projectName": "ChatSpaces",
   "appTitle": "ChatSpaces",
   "author": "Surena Karimpour Ghannadi",
@@ -18,5 +20,7 @@
   "yesOrAffirmitive": "Yes",
   "noOrCancellation": "No",
   "home": "Home",
-  "userProfilePageBanner": "{username}'s profile"
+  "userProfilePageBanner": "{username}'s Profile",
+  "ownProfileDescriptor": "Your Profile",
+  "directMessages": "Direct Messages"
 }
