@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:go_router/go_router.dart';
 import 'package:azhi_main/src/widgets/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
@@ -106,25 +107,29 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                                             ? 1
                                             : 0.5,
                                     child: ListTile(
-                                      leading: CircleAvatar(
-                                        foregroundImage: timeline
-                                                    .events[index]
-                                                    .senderFromMemoryOrFallback
-                                                    .avatarUrl ==
-                                                null
-                                            ? null
-                                            : NetworkImage(
-                                                timeline
-                                                    .events[index]
-                                                    .senderFromMemoryOrFallback
-                                                    .avatarUrl!
-                                                    .getThumbnail(
-                                                      widget.room.client,
-                                                      width: 56,
-                                                      height: 56,
-                                                    )
-                                                    .toString(),
-                                              ),
+                                      leading: OutlinedButton(
+                                        child: CircleAvatar(
+                                          foregroundImage: timeline
+                                                      .events[index]
+                                                      .senderFromMemoryOrFallback
+                                                      .avatarUrl ==
+                                                  null
+                                              ? null
+                                              : NetworkImage(
+                                                  timeline
+                                                      .events[index]
+                                                      .senderFromMemoryOrFallback
+                                                      .avatarUrl!
+                                                      .getThumbnail(
+                                                        widget.room.client,
+                                                        width: 56,
+                                                        height: 56,
+                                                      )
+                                                      .toString(),
+                                                ),
+                                        ),
+                                        onPressed: () => context.push(
+                                            '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}'),
                                       ),
                                       title: Row(
                                         children: [

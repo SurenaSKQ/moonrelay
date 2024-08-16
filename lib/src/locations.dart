@@ -17,6 +17,7 @@
 
 import 'dart:async';
 
+import 'package:azhi_main/src/helpers/profile_delegate.dart';
 import 'package:azhi_main/src/layouts/main_frame.dart';
 import 'package:azhi_main/src/layouts/two_column_layout.dart';
 import 'package:azhi_main/src/screens/home_screen.dart';
@@ -24,6 +25,7 @@ import 'package:azhi_main/src/screens/login_page.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:azhi_main/src/helpers/room_delegate.dart';
 import 'package:azhi_main/src/widgets/rooms_pane.dart';
+import 'package:azhi_main/src/widgets/side_pane_handler.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -45,7 +47,6 @@ class AppLocationsHandler {
           : '/welcome';
 
   AppLocationsHandler();
-
   static final List<RouteBase> routes = [
     ShellRoute(
         pageBuilder: (context, state, child) => azhiPageBuilder(
@@ -63,7 +64,7 @@ class AppLocationsHandler {
             path: '/',
             redirect: (context, state) =>
                 Provider.of<Client>(context, listen: false).isLogged()
-                    ? '/rooms'
+                    ? '/main/rooms'
                     : '/welcome',
           ),
           GoRoute(
@@ -99,13 +100,13 @@ class AppLocationsHandler {
               context,
               state,
               TwoColumnLayout(
-                mainView: const RoomsPane(),
+                mainView: const SidePaneHandler(child: RoomsPane()),
                 sideView: child,
               ),
             ),
             routes: [
               GoRoute(
-                path: '/rooms',
+                path: '/main/rooms',
                 redirect: loggedOutRedirect,
                 pageBuilder: (context, state) => azhiPageBuilder(
                   context,
@@ -125,6 +126,30 @@ class AppLocationsHandler {
                       ),
                     ),
                     redirect: loggedOutRedirect,
+                    routes: [
+                      GoRoute(
+                        path: 'profile',
+                        pageBuilder: (context, state) => azhiPageBuilder(
+                          context,
+                          state,
+                          ProfileDelegate(
+                            userid: state.pathParameters['userid'],
+                          ),
+                        ),
+                        routes: [
+                          GoRoute(
+                            path: ':userid',
+                            pageBuilder: (context, state) => azhiPageBuilder(
+                              context,
+                              state,
+                              ProfileDelegate(
+                                userid: state.pathParameters['userid'],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -132,6 +157,32 @@ class AppLocationsHandler {
           )
         ]),
   ];
+
+  static final Router panelRouter = Router.withConfig(
+    config: GoRouter(
+      routes: [
+        ShellRoute(
+          pageBuilder: (context, state, child) => azhiPageBuilder(
+            context,
+            state,
+            SidePaneHandler(
+              child: child,
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: '/',
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                const RoomsPane(),
+              ),
+            )
+          ],
+        ),
+      ],
+    ),
+  );
 
   static Page azhiPageBuilder(
     BuildContext context,
