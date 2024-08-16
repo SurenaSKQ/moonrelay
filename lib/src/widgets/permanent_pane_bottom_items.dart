@@ -72,7 +72,7 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
                   preferredMode: FlyoutPlacementMode.topCenter,
                 ),
                 barrierDismissible: true,
-                dismissOnPointerMoveAway: true,
+                dismissOnPointerMoveAway: false,
                 dismissWithEsc: true,
                 builder: (context) {
                   return MenuFlyout(
