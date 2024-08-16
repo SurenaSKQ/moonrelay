@@ -15,9 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:azhi_main/src/layouts/empty_space.dart';
 import 'package:azhi_main/src/screens/room_page.dart';
-import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -27,13 +27,12 @@ class RoomDelegate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // listen could trigger a fault?
     Client client = Provider.of<Client>(context);
     if (roomID != null) {
-      if (client.getRoomById(roomID!) != null) {
-        return FluentRoomPage(room: client.getRoomById(roomID!)!);
-      } else {
-        return const EmptySpace();
-      }
+      return (client.getRoomById(roomID!) != null)
+          ? FluentRoomPage(room: client.getRoomById(roomID!)!)
+          : const EmptySpace();
     } else {
       return const EmptySpace();
     }
