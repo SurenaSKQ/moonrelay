@@ -91,35 +91,10 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
             ),
           );
         }(),
-        actions: Row(
+        actions: const Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(end: 8.0),
-                child: ToggleSwitch(
-                  content: Text(AppLocalizations.of(context)!.darkMode),
-                  checked: FluentTheme.of(context).brightness.isDark,
-                  onChanged: (v) {
-                    if (v) {
-                      settingsController.updateThemeMode(ThemeMode.dark);
-                    } else {
-                      settingsController.updateThemeMode(ThemeMode.light);
-                    }
-                  },
-                ),
-              ),
-            ),
-            //FIXME: This button should only work once
-            IconButton(
-              key: UniqueKey(),
-              icon: const Icon(FluentIcons.settings),
-              onPressed: () {
-                context.push("/settings");
-              },
-            ),
-            const WindowButtons(),
+            WindowButtons(),
           ],
         ),
       ),
