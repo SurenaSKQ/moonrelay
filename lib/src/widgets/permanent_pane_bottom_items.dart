@@ -90,7 +90,7 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
                       MenuFlyoutItem(
                         text: const Text("Logout"),
                         onPressed: () {
-                          Provider.of<Client>(context).logout();
+                          Provider.of<Client>(context, listen: false).logout();
                         },
                       )
                     ],
