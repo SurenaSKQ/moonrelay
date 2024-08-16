@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/layouts/empty_space.dart';
+import 'package:azhi_main/src/screens/loading_screen.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -61,13 +62,13 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     } catch (e) {
       final Logger log = Provider.of<Logger>(context, listen: false);
-      log.f(
-        "Method \'client.getProfileFromuserId\' has failed!",
+      log.w(
+        "Method \'client.getProfileFromuserId\' has failed! Probably loading data",
         error: e,
         stackTrace: StackTrace.current,
         time: DateTime.now(),
       );
-      return const EmptySpace();
+      return const LoadingAndTransitionScreen();
     }
   }
 }
@@ -132,6 +133,9 @@ class ProfilePageContents extends StatelessWidget {
                               width: 64, height: 64, animated: true)
                           .toString()),
                     ),
+              const SizedBox(
+                width: 16,
+              ),
               Text(
                 userProfile.displayName ?? userProfile.userId,
                 style: FluentTheme.of(context).typography.titleLarge,
