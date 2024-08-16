@@ -15,10 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/widgets/large_bar_button.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material;
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -37,7 +35,7 @@ class RoomsPane extends StatelessWidget {
         if (room.membership != Membership.join) {
           await room.join();
         }
-        context.push('/rooms/${room.id}');
+        context.push('/main/rooms/${room.id}');
       } catch (e) {
         Provider.of<Logger>(context).f(
           "Failed to join",
@@ -64,92 +62,61 @@ class RoomsPane extends StatelessWidget {
     }
 
     Client client = Provider.of<Client>(context);
-    String? ownDisplayName;
-    Future<void> getOwnDisplayName() async {
-      ownDisplayName = await client.getDisplayName(client.userID!);
-    }
-
-    return Flexible(
-      child: Container(
-        constraints: BoxConstraints.loose(const Size.fromWidth(64)),
-        child: Column(
-          children: [
-            Column(
-              children: [
-                LargeBarButton(
-                  onTap: () {},
-                  title: ownDisplayName ?? "Your Profile",
-                  icon: const Icon(material.Icons.person_outline_sharp),
-                ),
-                const Divider(
-                  direction: Axis.horizontal,
-                ),
-                LargeBarButton(
-                  onTap: () {},
-                  title: "Direct Messages",
-                  icon: const Icon(material.Icons.messenger_outline_sharp),
-                ),
-                const Divider(
-                  direction: Axis.horizontal,
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 6,
-            ),
-            Expanded(
-              child: StreamBuilder(
-                stream: client.onSync.stream,
-                builder: (context, _) => ListView.builder(
-                  itemCount: client.rooms.length,
-                  itemBuilder: (context, index) => ListTile.selectable(
-                    // FIXME: Avatar!
-                    leading: CircleAvatar(
-                      child: Text(
-                        client.rooms[index]
-                            .getLocalizedDisplayname()
-                            .toUpperCase()
-                            .split(RegExp(' +'))
-                            .map((s) => s[0])
-                            .take(2)
-                            .join(),
-                      ),
-                    ),
-                    title: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            client.rooms[index].getLocalizedDisplayname(),
-                            style: const TextStyle(
-                                fontFamily: 'JetBrainsMono',
-                                fontWeight: FontWeight.w300,
-                                fontSize: 18),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Text(
-                      client.rooms[index].lastEvent?.body ?? 'No messages',
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontWeight: FontWeight.w300,
-                        fontSize: 14,
-                      ),
-                    ),
-                    trailing: (client.rooms[index].notificationCount > 0)
-                        ? badges.Badge(
-                            child: Text(
-                              client.rooms[index].notificationCount.toString(),
-                            ),
-                          )
-                        : null,
-                    onPressed: () => join(client.rooms[index]),
+    return StreamBuilder(
+      stream: client.onSync.stream,
+      builder: (context, _) => ListView.builder(
+        itemCount: client.rooms.length,
+        itemBuilder: (context, index) => ListTile.selectable(
+          // FIXME: Avatar!
+          leading: (client.rooms[index].avatar == null)
+              ? CircleAvatar(
+                  child: Text(
+                    client.rooms[index]
+                        .getLocalizedDisplayname()
+                        .toUpperCase()
+                        .split(RegExp(' +'))
+                        .map((s) => s[0])
+                        .take(2)
+                        .join(),
+                  ),
+                )
+              : CircleAvatar(
+                  foregroundImage: NetworkImage(
+                    client.rooms[index].avatar!
+                        .getThumbnail(client, width: 56, height: 56)
+                        .toString(),
                   ),
                 ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  client.rooms[index].getLocalizedDisplayname(),
+                  style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontWeight: FontWeight.w300,
+                      fontSize: 18),
+                ),
               ),
+            ],
+          ),
+          subtitle: Text(
+            client.rooms[index].lastEvent?.body ?? 'No messages',
+            maxLines: 1,
+            style: const TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontWeight: FontWeight.w300,
+              fontSize: 14,
             ),
-          ],
+          ),
+          trailing: (client.rooms[index].notificationCount > 0)
+              ? badges.Badge(
+                  child: Text(
+                    client.rooms[index].notificationCount.toString(),
+                  ),
+                )
+              : null,
+          onPressed: () => join(client.rooms[index]),
         ),
       ),
     );
