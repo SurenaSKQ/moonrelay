@@ -16,7 +16,6 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
 
 class RoomInfoCard extends StatelessWidget {
