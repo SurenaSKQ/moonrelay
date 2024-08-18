@@ -20,7 +20,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LogoWithTextThemed extends StatelessWidget {
-  const LogoWithTextThemed({super.key});
+  const LogoWithTextThemed({super.key, this.themeModeOverride});
+  final Brightness? themeModeOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class LogoWithTextThemed extends StatelessWidget {
         SvgPicture.asset(
           'assets/images/azhi_logo.svg',
           colorFilter: ColorFilter.mode(
-              (FluentTheme.of(context).brightness == Brightness.dark)
+              ((themeModeOverride ?? FluentTheme.of(context).brightness) == Brightness.dark)
                   ? Colors.white
                   : Colors.black,
               BlendMode.srcIn),
@@ -40,7 +41,7 @@ class LogoWithTextThemed extends StatelessWidget {
         Text(
           AppLocalizations.of(context)!.projectName,
           style: TextStyle(
-            color: (FluentTheme.of(context).brightness == Brightness.dark)
+            color: ((themeModeOverride ??  FluentTheme.of(context).brightness) == Brightness.dark)
                 ? Colors.white
                 : Colors.black,
             fontSize: 32,
