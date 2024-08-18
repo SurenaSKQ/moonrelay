@@ -15,13 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
-import 'package:provider/provider.dart';
 
 class FluentMainFrame extends StatefulWidget {
   const FluentMainFrame({
@@ -51,9 +49,10 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final settingsController = Provider.of<SettingsController>(context);
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
+    // final settingsController = Provider.of<SettingsController>(context);
+
     return NavigationView(
       appBar: NavigationAppBar(
         automaticallyImplyLeading: false,
