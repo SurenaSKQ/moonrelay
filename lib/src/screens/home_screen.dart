@@ -15,10 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:ui';
+
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class FluentHomePage extends StatelessWidget {
@@ -26,123 +29,133 @@ class FluentHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // SettingsController settingsController =
-    //     Provider.of<SettingsController>(context);
-    return ScaffoldPage.scrollable(
-      children: [
-        Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const LogoWithTextThemed(),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "The Public Benefit Messaging System, Built on the Matrix Protocol",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 28,
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+            image: AssetImage('assets/images/abstract_bg.jpg'),
+            fit: BoxFit.cover),
+      ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const LogoWithTextThemed(),
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "The Public Benefit Messaging System,\nBuilt on the Matrix Protocol",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 28,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.fade,
+                    ),
+                    const SizedBox(
+                      height: 16.0,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FilledButton(
+                          child: const Text(
+                            "Login",
+                            style: TextStyle(
+                              fontFamily: 'JetBrainsMono',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          onPressed: () => context.push('/welcome/login'),
                         ),
-                      ),
-                      const SizedBox(
-                        height: 16.0,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          FilledButton(
+                        const SizedBox(
+                          width: 24,
+                        ),
+                        Button(
                             child: const Text(
-                              "Login",
+                              "Sign Up!",
                               style: TextStyle(
                                 fontFamily: 'JetBrainsMono',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
-                            onPressed: () => context.go('/welcome/login'),
-                          ),
-                          Button(
-                              child: const Text(
-                                "Sign Up!",
-                                style: TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                            onPressed: () {})
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Acrylic(
+                        child: Column(
+                          children: [
+                            Text(
+                              AppLocalizations.of(context)!.appLicenseNotice,
+                              textAlign: TextAlign.justify,
+                              style: const TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 14,
+                              ),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(
+                              height: 16.0,
+                            ),
+                            const Text(
+                              "The ChatSpaces team cannot and will not moderate or honour DMCA requests on content that is posted on the Matrix protocol network.",
+                              textAlign: TextAlign.justify,
+                              style: TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 14,
+                              ),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(
+                              height: 8.0,
+                            ),
+                            Wrap(
+                              children: [
+                                Button(
+                                  child: Text(AppLocalizations.of(context)!
+                                      .privacyPolicy),
+                                  onPressed: () {},
                                 ),
-                              ),
-                              onPressed: () {})
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        child: Card(
-                          child: Column(
-                            children: [
-                              Text(
-                                AppLocalizations.of(context)!.appLicenseNotice,
-                                textAlign: TextAlign.justify,
-                                style: const TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontSize: 14,
+                                const SizedBox(
+                                  width: 32,
                                 ),
-                              ),
-                              const SizedBox(
-                                height: 16.0,
-                              ),
-                              const Text(
-                                "The ChatSpaces team cannot and will not moderate or honour DMCA requests on content that is posted on the Matrix protocol network.",
-                                textAlign: TextAlign.justify,
-                                style: TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 8.0,
-                              ),
-                              Wrap(
-                                children: [
-                                  Button(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .privacyPolicy),
-                                    onPressed: () {},
-                                  ),
-                                  const SizedBox(
-                                    width: 8.0,
-                                  ),
-                                  Button(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .thirdPartyLicense),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) =>
-                                            const LicensesScreen(),
-                                        barrierColor: Colors.black,
-                                      );
-                                    },
-                                  )
-                                ],
-                              ),
-                            ],
-                          ),
+                                Button(
+                                  child: Text(AppLocalizations.of(context)!
+                                      .thirdPartyLicense),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          const LicensesScreen(),
+                                      barrierColor: Colors.black,
+                                    );
+                                  },
+                                )
+                              ],
+                            ),
+                          ],
                         ),
-                      )
-                    ],
-                  ),
+                      ),
+                    )
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
