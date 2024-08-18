@@ -17,7 +17,6 @@
 
 import 'package:badges/badges.dart' as badges;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material;
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -63,10 +62,6 @@ class SpacesPane extends StatelessWidget {
     }
 
     Client client = Provider.of<Client>(context);
-    String? ownDisplayName;
-    Future<void> getOwnDisplayName() async {
-      ownDisplayName = await client.getDisplayName(client.userID!);
-    }
 
     return Column(
       children: [

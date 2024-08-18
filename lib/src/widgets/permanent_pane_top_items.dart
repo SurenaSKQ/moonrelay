@@ -16,8 +16,6 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class PermanentPaneTopItems extends StatefulWidget {
   const PermanentPaneTopItems({super.key});

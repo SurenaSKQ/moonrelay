@@ -62,7 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       final Logger log = Provider.of<Logger>(context, listen: false);
       log.w(
-        "Method \'client.getProfileFromuserId\' has failed! Probably loading data",
+        "Method 'client.getProfileFromuserId' has failed! Probably loading data",
         error: e,
         stackTrace: StackTrace.current,
         time: DateTime.now(),
