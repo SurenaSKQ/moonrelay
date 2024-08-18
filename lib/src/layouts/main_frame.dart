@@ -80,7 +80,7 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
                   width: 8.0,
                 ),
                 Text(
-                  "(URI: ${GoRouterState.of(context).uri.toString()})",
+                  "{${GoRouterState.of(context).uri.toString()}}",
                   style: const TextStyle(
                     fontFamily: 'JetBrainsMono',
                     fontWeight: FontWeight.normal,
