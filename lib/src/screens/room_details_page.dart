@@ -15,6 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-///Shows the complete list of room participants
-
-
+///The information screen of a page
