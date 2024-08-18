@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async' show Future;
+import 'package:blurrycontainer/blurrycontainer.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:fluent_ui/fluent_ui.dart';
 
@@ -50,32 +51,34 @@ class _LicensesScreenState extends State<LicensesScreen> {
   ];
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage(
-        header: IconButton(
-          icon: const Icon(FluentIcons.back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        content: Flex(
-          direction: Axis.horizontal,
-          children: [
-            Expanded(
-                child: ListView.builder(
-                    itemCount: _usedLicenses.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Expander(
-                          header: Text(_usedLicenses[index].name),
-                          content: SizedBox(
-                            height: 300,
-                            child: Text(_usedLicenses[index].licenseText),
+    return BlurryContainer.expand(
+      child: ScaffoldPage(
+          header: IconButton(
+            icon: const Icon(FluentIcons.back),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+          content: Flex(
+            direction: Axis.horizontal,
+            children: [
+              Expanded(
+                  child: ListView.builder(
+                      itemCount: _usedLicenses.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Expander(
+                            header: Text(_usedLicenses[index].name),
+                            content: SizedBox(
+                              height: 300,
+                              child: Text(_usedLicenses[index].licenseText),
+                            ),
                           ),
-                        ),
-                      );
-                    }))
-          ],
-        ));
+                        );
+                      }))
+            ],
+          )),
+    );
   }
 }

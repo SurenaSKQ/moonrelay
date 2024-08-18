@@ -20,6 +20,7 @@ import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:blurrycontainer/blurrycontainer.dart';
 
 class FluentHomePage extends StatelessWidget {
   const FluentHomePage({super.key});
@@ -37,59 +38,67 @@ class FluentHomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const LogoWithTextThemed(),
+            const Flexible(
+              flex: 4,
+              child: LogoWithTextThemed(
+                themeModeOverride: Brightness.dark,
+              ),
+            ),
             Flexible(
+              flex: 6,
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "The Public Benefit Messaging System,\nBuilt on the Matrix Protocol",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 28,
+                padding: const EdgeInsets.all(18.0),
+                child: BlurryContainer.expand(
+                  blur: 4,
+                  elevation: 6,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "The Public Benefit Messenger",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          color: Colors.white,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.fade,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.fade,
-                    ),
-                    const SizedBox(
-                      height: 16.0,
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FilledButton(
-                          child: const Text(
-                            "Login",
-                            style: TextStyle(
-                              fontFamily: 'JetBrainsMono',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          onPressed: () => context.push('/welcome/login'),
-                        ),
-                        const SizedBox(
-                          width: 24,
-                        ),
-                        Button(
+                      const SizedBox(
+                        height: 16.0,
+                      ),
+                      Wrap(
+                        children: [
+                          FilledButton(
                             child: const Text(
-                              "Sign Up!",
+                              "Login",
                               style: TextStyle(
                                 fontFamily: 'JetBrainsMono',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
-                            onPressed: () {})
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Acrylic(
+                            onPressed: () => context.push('/welcome/login'),
+                          ),
+                          const SizedBox(
+                            width: 24,
+                          ),
+                          Button(
+                              child: const Text(
+                                "Sign Up!",
+                                style: TextStyle(
+                                  fontFamily: 'JetBrainsMono',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              onPressed: () {})
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
                             Text(
@@ -97,7 +106,8 @@ class FluentHomePage extends StatelessWidget {
                               textAlign: TextAlign.justify,
                               style: const TextStyle(
                                 fontFamily: 'JetBrainsMono',
-                                fontSize: 14,
+                                fontSize: 12,
+                                color: Colors.white,
                               ),
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
@@ -110,7 +120,8 @@ class FluentHomePage extends StatelessWidget {
                               textAlign: TextAlign.justify,
                               style: TextStyle(
                                 fontFamily: 'JetBrainsMono',
-                                fontSize: 14,
+                                fontSize: 12,
+                                color: Colors.white,
                               ),
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
@@ -136,7 +147,8 @@ class FluentHomePage extends StatelessWidget {
                                       context: context,
                                       builder: (context) =>
                                           const LicensesScreen(),
-                                      barrierColor: Colors.black,
+                                      barrierColor:
+                                          Colors.black.withOpacity(0.9),
                                     );
                                   },
                                 )
@@ -144,9 +156,9 @@ class FluentHomePage extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
-                    )
-                  ],
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),

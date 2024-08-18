@@ -23,6 +23,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
+import 'package:blurrycontainer/blurrycontainer.dart';
 
 class FluentLoginPage extends StatefulWidget {
   const FluentLoginPage({super.key});
@@ -94,89 +95,96 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         image: DecorationImage(
             image: AssetImage('assets/images/abstract_bg.jpg'),
             fit: BoxFit.cover),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Flexible(child: LogoWithTextThemed()),
-          const SizedBox(
-            width: 18,
-          ),
-          Flexible(
-            child: Acrylic(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        InfoLabel(
-                          label: AppLocalizations.of(context)!.homeserverText,
-                          child: TextBox(
-                            controller: _homeserverBox,
-                            expands: false,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        InfoLabel(
-                          label: AppLocalizations.of(context)!.usernameText,
-                          child: TextBox(
-                            controller: _usernameBox,
-                            expands: false,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        InfoLabel(
-                          label: AppLocalizations.of(context)!.passwordText,
-                          child: PasswordBox(
-                            controller: _passwordBox,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Center(
-                    child: FilledButton(
-                      onPressed: !_textActive ? null : _login,
-                      child: !_textActive
-                          ? const ProgressBar()
-                          : Text(AppLocalizations.of(context)!.loginButton),
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 8.0,
-                  ),
-                  OutlinedButton(
-                    child: const Row(
-                      children: [
-                        Icon(FluentIcons.back),
-                        SizedBox(
-                          width: 8,
-                        ),
-                        Text("Go back")
-                      ],
-                    ),
-                    onPressed: () => context.pop(),
-                  ),
-                ],
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Flexible(
+              flex: 4,
+              child: LogoWithTextThemed(
+                themeModeOverride: Brightness.dark,
               ),
             ),
-          ),
-        ],
+            Flexible(
+              flex: 6,
+              child: BlurryContainer.expand(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  FluentIcons.back,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () => context.pop(),
+                              ),
+                            ],
+                          ),
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.homeserverText,
+                            labelStyle: const TextStyle(color: Colors.white),
+                            child: TextBox(
+                              controller: _homeserverBox,
+                              expands: false,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.usernameText,
+                            labelStyle: const TextStyle(color: Colors.white),
+                            child: TextBox(
+                              controller: _usernameBox,
+                              expands: false,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          InfoLabel(
+                            label: AppLocalizations.of(context)!.passwordText,
+                            labelStyle: const TextStyle(color: Colors.white),
+                            child: PasswordBox(
+                              controller: _passwordBox,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Center(
+                      child: FilledButton(
+                        onPressed: !_textActive ? null : _login,
+                        child: !_textActive
+                            ? const ProgressBar()
+                            : Text(AppLocalizations.of(context)!.loginButton),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 8.0,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
