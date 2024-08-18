@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/widgets/chat_box.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azhi_main/src/widgets/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -33,27 +34,35 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   // Counts events
+  // ignore: unused_field
   int _count = 0;
 
   @override
   void initState() {
     _timelineFuture = widget.room.getTimeline(onChange: (i) {
-      print('on change! $i');
+      if (kDebugMode) {
+        print('on change! $i');
+      }
       _listKey.currentState?.setState(() {});
     }, onInsert: (i) {
-      print('on insert! $i');
+      if (kDebugMode) {
+        print('on insert! $i');
+      }
       _listKey.currentState?.insertItem(i);
       _count++;
     }, onRemove: (i) {
-      print('On remove $i');
+      if (kDebugMode) {
+        print('On remove $i');
+      }
       _count--;
       _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
     }, onUpdate: () {
-      print('On update');
+      if (kDebugMode) {
+        print('On update');
+      }
     });
     super.initState();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +71,12 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
       body: Column(
         children: [
           RoomInfoCard(room: widget.room),
+          const SizedBox(
+            height: 4,
+          ),
+          const Divider(
+            direction: Axis.horizontal,
+          ),
           Expanded(
             child: FutureBuilder<Timeline>(
               future: _timelineFuture,
