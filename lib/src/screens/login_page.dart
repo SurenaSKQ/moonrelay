@@ -51,7 +51,7 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
         identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
       );
       if (mounted) {
-        context.go('/rooms');
+        context.go('/main/rooms');
       } else {
         throw 'Widget not mounted in async context (internal error)';
       }
@@ -93,35 +93,32 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage.scrollable(children: [
-      Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Wrap(
-          direction: Axis.horizontal,
-          alignment: WrapAlignment.spaceAround,
-          children: [
-            const LogoWithTextThemed(),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.fromBorderSide(
-                  BorderSide(
-                    style: BorderStyle.solid,
-                    width: 5,
-                    color: FluentTheme.of(context).accentColor,
-                    strokeAlign: BorderSide.strokeAlignInside,
-                  ),
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+            image: AssetImage('assets/images/abstract_bg.jpg'),
+            fit: BoxFit.cover),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Flexible(child: LogoWithTextThemed()),
+          const SizedBox(
+            width: 18,
+          ),
+          Flexible(
+            child: Acrylic(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(18),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         InfoLabel(
                           label: AppLocalizations.of(context)!.homeserverText,
@@ -162,18 +159,25 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
                   ),
                   const SizedBox(
                     height: 8.0,
-                  )
+                  ),
+                  OutlinedButton(
+                    child: const Row(
+                      children: [
+                        Icon(FluentIcons.back),
+                        SizedBox(
+                          width: 8,
+                        ),
+                        Text("Go back")
+                      ],
+                    ),
+                    onPressed: () => context.pop(),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ]);
-  }
-
-  @override
-  void onWindowClose() async {
-    windowManager.destroy();
+    );
   }
 }
