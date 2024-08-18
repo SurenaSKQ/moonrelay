@@ -18,6 +18,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -30,6 +31,31 @@ class PermanentPaneBottomItems extends StatefulWidget {
 }
 
 class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
+  void _logout() async {
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
+    try {
+      await client.logout();
+      context.go('/');
+    } catch (e) {
+      log.e("Logout error",
+          error: e, time: DateTime.now(), stackTrace: StackTrace.current);
+      mounted
+          ? await displayInfoBar(context, builder: (context, close) {
+              return InfoBar(
+                title: Text(AppLocalizations.of(context)!.error),
+                content: Text(e.toString()),
+                action: IconButton(
+                  icon: const Icon(FluentIcons.clear),
+                  onPressed: close,
+                ),
+                severity: InfoBarSeverity.error,
+              );
+            })
+          : throw "Build context async failure widget not mounted";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
@@ -90,7 +116,7 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
                       MenuFlyoutItem(
                         text: const Text("Logout"),
                         onPressed: () {
-                          Provider.of<Client>(context, listen: false).logout();
+                          _logout();
                         },
                       )
                     ],
