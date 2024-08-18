@@ -22,5 +22,6 @@
   "home": "Home",
   "userProfilePageBanner": "{username}'s Profile",
   "ownProfileDescriptor": "Your Profile",
-  "directMessages": "Direct Messages"
+  "directMessages": "Direct Messages",
+  "chatBoxSendMessage": "Send a message!"
 }

@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/widgets/chat_box.dart';
 import 'package:go_router/go_router.dart';
 import 'package:azhi_main/src/widgets/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -53,12 +54,6 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
     super.initState();
   }
 
-  final TextEditingController _sendController = TextEditingController();
-
-  void _send() {
-    widget.room.sendTextEvent(_sendController.text.trim());
-    _sendController.clear();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -195,21 +190,7 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
             direction: Axis.vertical,
             size: 1,
           ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextBox(
-                    controller: _sendController,
-                    placeholder: "Send a message!",
-                  ),
-                ),
-                IconButton(
-                    icon: const Icon(FluentIcons.send), onPressed: _send),
-              ],
-            ),
-          ),
+          ChatBox(room: widget.room),
         ],
       ),
     );
