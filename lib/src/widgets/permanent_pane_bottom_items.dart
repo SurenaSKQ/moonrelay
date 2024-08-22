@@ -104,16 +104,19 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
                   return MenuFlyout(
                     items: [
                       MenuFlyoutItem(
+                        leading: const Icon(FluentIcons.account_management),
                         text: const Text("Account"),
                         onPressed: () {},
                       ),
                       MenuFlyoutItem(
+                        leading: const Icon(FluentIcons.settings),
                         text: const Text("Settings"),
                         onPressed: () {
                           context.push('/settings');
                         },
                       ),
                       MenuFlyoutItem(
+                        leading: const Icon(FluentIcons.leave_user),
                         text: const Text("Logout"),
                         onPressed: () {
                           _logout();
