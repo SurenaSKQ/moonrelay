@@ -30,18 +30,22 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Card(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              foregroundImage:
-                  thumbnailURL.isEmpty ? null : NetworkImage(thumbnailURL),
-            ),
-            Text(name),
-            Text(subtitle),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            foregroundImage:
+                thumbnailURL.isEmpty ? null : NetworkImage(thumbnailURL),
+          ),
+          Text(
+            name,
+            style: FluentTheme.of(context).typography.bodyStrong,
+          ),
+          Text(
+            subtitle,
+            style: FluentTheme.of(context).typography.caption,
+          ),
+        ],
       ),
     );
   }
