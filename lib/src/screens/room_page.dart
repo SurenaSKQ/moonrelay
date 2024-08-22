@@ -117,7 +117,9 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                                             ? 1
                                             : 0.5,
                                     child: ListTile(
-                                      leading: OutlinedButton(
+                                      leading: GestureDetector(
+                                        onTap: () => context.push(
+                                            '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}'),
                                         child: CircleAvatar(
                                           foregroundImage: timeline
                                                       .events[index]
@@ -138,8 +140,6 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
                                                       .toString(),
                                                 ),
                                         ),
-                                        onPressed: () => context.push(
-                                            '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}'),
                                       ),
                                       title: Row(
                                         children: [
