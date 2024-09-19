@@ -3,5 +3,8 @@
     "licenser.projectName": "Prject Azhi",
     "licenser.author": "Surena Karimpour Ghannadi",
     "editor.formatOnSave": true,
-    "editor.formatOnPaste": true
+    "editor.formatOnPaste": true,
+    "conventionalCommits.scopes": [
+        "dependecy changes"
+    ]
 }
