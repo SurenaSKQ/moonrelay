@@ -16,16 +16,17 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/chat/chat_box.dart';
-import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
 import 'package:azhi_main/src/chat/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' as mt;
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 class FluentRoomPage extends StatefulWidget {
-  const FluentRoomPage({super.key, required this.room});
   final Room room;
+  const FluentRoomPage({super.key, required this.room});
   @override
   State<FluentRoomPage> createState() => _FluentRoomPageState();
 }
@@ -33,36 +34,10 @@ class FluentRoomPage extends StatefulWidget {
 class _FluentRoomPageState extends State<FluentRoomPage> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  final ScrollController _scrollController = ScrollController();
   // Counts events
   // ignore: unused_field
   int _count = 0;
-
-  @override
-  void initState() {
-    _timelineFuture = widget.room.getTimeline(onChange: (i) {
-      if (kDebugMode) {
-        print('on change! $i');
-      }
-      _listKey.currentState?.setState(() {});
-    }, onInsert: (i) {
-      if (kDebugMode) {
-        print('on insert! $i');
-      }
-      _listKey.currentState?.insertItem(i);
-      _count++;
-    }, onRemove: (i) {
-      if (kDebugMode) {
-        print('On remove $i');
-      }
-      _count--;
-      _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
-    }, onUpdate: () {
-      if (kDebugMode) {
-        print('On update');
-      }
-    });
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,25 +58,32 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
               builder: (context, snapshot) {
                 final timeline = snapshot.data;
                 if (timeline == null) {
-                  return const Center(
-                    child: ProgressRing(),
+                  return Center(
+                    child: SpinKitCubeGrid(
+                      color: FluentTheme.of(context).accentColor,
+                    ),
                   );
                 }
+                // Add a listener to the scroll controller
+                _scrollController.addListener(
+                  () {
+                    if (_scrollController.position.pixels ==
+                        _scrollController.position.maxScrollExtent) {
+                      // User has scrolled to the bottom, request more data
+                      timeline.requestHistory();
+                    }
+                  },
+                );
                 _count = timeline.events.length;
                 return Column(
                   children: [
-                    Center(
-                      child: Button(
-                        onPressed: () => timeline.requestHistory(),
-                        child: const Text("Load more"),
-                      ),
-                    ),
                     const Divider(
                       direction: Axis.horizontal,
                       size: 2,
                     ),
                     Expanded(
                       child: AnimatedList(
+                        controller: _scrollController,
                         key: _listKey,
                         reverse: true,
                         initialItemCount: timeline.events.length,
@@ -209,5 +191,43 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _timelineFuture = widget.room.getTimeline(
+      onChange: (i) {
+        if (kDebugMode) {
+          print('on change! $i');
+        }
+        _listKey.currentState?.setState(() {});
+      },
+      onInsert: (i) {
+        if (kDebugMode) {
+          print('on insert! $i');
+        }
+        _listKey.currentState?.insertItem(i);
+        _count++;
+      },
+      onRemove: (i) {
+        if (kDebugMode) {
+          print('On remove $i');
+        }
+        _count--;
+        _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
+      },
+      onUpdate: () {
+        if (kDebugMode) {
+          print('On update');
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose(); // Dispose the controller
+    super.dispose();
   }
 }
