@@ -15,8 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:blurrycontainer/blurrycontainer.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -64,35 +66,15 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
       children: [
         FlyoutTarget(
           controller: ownProfileFlyoutsController,
-          child: OutlinedButton(
-            child: Row(
+          child: GestureDetector(
+            child: Stack(
               children: [
-                const CircleAvatar(),
-                const SizedBox(
-                  width: 8.0,
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "[username will show here]",
-                      style: TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      client.userID!,
-                      style: const TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
-                    )
-                  ],
+                BlurryContainer(
+                  child: OwnProfileBar(client: client),
                 ),
               ],
             ),
-            onPressed: () {
+            onTap: () {
               ownProfileFlyoutsController.showFlyout(
                 autoModeConfiguration: FlyoutAutoConfiguration(
                   preferredMode: FlyoutPlacementMode.topCenter,
@@ -106,7 +88,9 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
                       MenuFlyoutItem(
                         leading: const Icon(FluentIcons.account_management),
                         text: const Text("Account"),
-                        onPressed: () {},
+                        onPressed: () {
+                          context.push('/main/myprofile');
+                        },
                       ),
                       MenuFlyoutItem(
                         leading: const Icon(FluentIcons.settings),
@@ -130,6 +114,88 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class OwnProfileBar extends StatefulWidget {
+  const OwnProfileBar({
+    super.key,
+    required this.client,
+  });
+  final Client client;
+  @override
+  State<OwnProfileBar> createState() => _OwnProfileBarState();
+}
+
+class _OwnProfileBarState extends State<OwnProfileBar> {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: widget.client.getProfileFromUserId(widget.client.userID!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Builder(
+            builder: (context) => SpinKitCubeGrid(
+              color: FluentTheme.of(context).accentColor,
+            ),
+          );
+        }
+        final profile = snapshot.data;
+        return Builder(
+          builder: (context) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: profile?.avatarUrl == null
+                      ? Text(
+                          profile?.displayName == null
+                              ? "You"
+                              : profile!.displayName!
+                                  .toUpperCase()
+                                  .split(RegExp(' +'))
+                                  .map((s) => s[0])
+                                  .take(2)
+                                  .join(),
+                        )
+                      : CircleAvatar(
+                          foregroundImage: NetworkImage(
+                            profile!.avatarUrl!
+                                .getThumbnail(
+                                  widget.client,
+                                  animated: true,
+                                  height: 56,
+                                  width: 56,
+                                )
+                                .toString(),
+                          ),
+                          backgroundColor: FluentTheme.of(context).accentColor,
+                        ),
+                ),
+                const SizedBox(
+                  width: 18.0,
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile?.displayName ?? "View your profile",
+                      style: const TextStyle(
+                          fontSize: 18, fontFamily: 'JetBrainsMono'),
+                    ),
+                    Text(
+                      profile!.userId,
+                      style: FluentTheme.of(context).typography.bodyStrong,
+                    )
+                  ],
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
