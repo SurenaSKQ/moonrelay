@@ -30,7 +30,7 @@ class AddRoomFromID extends StatefulWidget {
 class _AddRoomFromIDState extends State<AddRoomFromID> {
   final TextEditingController _roomIdController = TextEditingController();
   final TextEditingController _serverController = TextEditingController();
-  bool _loading = false;
+  final bool _loading = false;
 
   Future<void> _addRoomFromID(
       Client client, String roomidOrAlias, String? server) async {

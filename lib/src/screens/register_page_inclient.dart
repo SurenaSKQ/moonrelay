@@ -53,9 +53,9 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController _usernameController = TextEditingController();
-    final TextEditingController _passwordController = TextEditingController();
-    final TextEditingController _homeserverController = TextEditingController();
+    final TextEditingController usernameController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController homeserverController = TextEditingController();
 
     return Container(
       decoration: const BoxDecoration(
@@ -87,13 +87,13 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                 content: Column(
                   children: [
                     TextBox(
-                      controller: _homeserverController,
+                      controller: homeserverController,
                     ),
                     TextBox(
-                      controller: _usernameController,
+                      controller: usernameController,
                     ),
                     TextBox(
-                      controller: _passwordController,
+                      controller: passwordController,
                     ),
                   ],
                 ),
