@@ -13,5 +13,46 @@
 // GNU General Public License for more details.
 // 
 // You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:matrix/matrix.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+
+class ChatBox extends StatefulWidget {
+  const ChatBox({super.key, required this.room});
+
+  final Room room;
+
+  @override
+  State<ChatBox> createState() => _ChatBoxState();
+}
+
+class _ChatBoxState extends State<ChatBox> {
+  final TextEditingController _sendController = TextEditingController();
+
+  void _send() {
+    widget.room.sendTextEvent(_sendController.text.trim());
+    _sendController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+            padding: const EdgeInsets.all(6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextBox(
+                    controller: _sendController,
+                    placeholder: AppLocalizations.of(context)?.chatBoxSendMessage,
+                  ),
+                ),
+                IconButton(
+                    icon: const Icon(FluentIcons.send), onPressed: _send),
+              ],
+            ),
+          );
+  }
+}

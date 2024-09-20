@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/widgets/permanent_pane_bottom_items.dart';
+import 'package:azhi_main/src/widgets/permanent_pane_top_items.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
 class SidePaneHandler extends StatelessWidget {
@@ -28,6 +29,7 @@ class SidePaneHandler extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        const PermanentPaneTopItems(),
         Expanded(child: child),
         const PermanentPaneBottomItems(),
       ],
