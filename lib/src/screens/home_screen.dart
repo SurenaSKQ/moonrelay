@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/screens/licenses.dart';
+import 'package:azhi_main/src/screens/privacy_policy.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -86,15 +87,16 @@ class FluentHomePage extends StatelessWidget {
                             width: 24,
                           ),
                           Button(
-                              child: const Text(
-                                "Sign Up!",
-                                style: TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                            child: const Text(
+                              "Sign Up!",
+                              style: TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
-                              onPressed: () {})
+                            ),
+                            onPressed: () => context.push('/welcome/register'),
+                          )
                         ],
                       ),
                       Container(
@@ -134,7 +136,15 @@ class FluentHomePage extends StatelessWidget {
                                 Button(
                                   child: Text(AppLocalizations.of(context)!
                                       .privacyPolicy),
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          const PrivacyPolicyPopupScreen(),
+                                      barrierColor:
+                                          Colors.black.withOpacity(0.9),
+                                    );
+                                  },
                                 ),
                                 const SizedBox(
                                   width: 32,
