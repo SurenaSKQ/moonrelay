@@ -116,7 +116,7 @@ class FluentHomePage extends StatelessWidget {
                               height: 16.0,
                             ),
                             const Text(
-                              "The ChatSpaces team cannot and will not moderate or honour DMCA requests on content that is posted on the Matrix protocol network.",
+                              "The ChatSpaces team cannot moderate or honour DMCA requests on content that is posted on the Matrix protocol network. Contact room administrators or homeserver owners.",
                               textAlign: TextAlign.justify,
                               style: TextStyle(
                                 fontFamily: 'JetBrainsMono',
