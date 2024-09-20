@@ -35,7 +35,7 @@ class RoomsPane extends StatelessWidget {
         if (room.membership != Membership.join) {
           await room.join();
         }
-        context.push('/main/rooms/${room.id}');
+        context.pushReplacement('/main/rooms/${room.id}');
       } catch (e) {
         Provider.of<Logger>(context).f(
           "Failed to join",
