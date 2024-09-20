@@ -114,72 +114,70 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
             Flexible(
               flex: 6,
               child: BlurryContainer.expand(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  FluentIcons.back,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () => context.pop(),
+                child: ScaffoldPage(
+                  header: IconButton(
+                    icon: const Icon(
+                      FluentIcons.back,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => context.pop(),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            InfoLabel(
+                              label:
+                                  AppLocalizations.of(context)!.homeserverText,
+                              labelStyle: const TextStyle(color: Colors.white),
+                              child: TextBox(
+                                controller: _homeserverBox,
+                                expands: false,
                               ),
-                            ],
-                          ),
-                          InfoLabel(
-                            label: AppLocalizations.of(context)!.homeserverText,
-                            labelStyle: const TextStyle(color: Colors.white),
-                            child: TextBox(
-                              controller: _homeserverBox,
-                              expands: false,
                             ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          ),
-                          InfoLabel(
-                            label: AppLocalizations.of(context)!.usernameText,
-                            labelStyle: const TextStyle(color: Colors.white),
-                            child: TextBox(
-                              controller: _usernameBox,
-                              expands: false,
+                            const SizedBox(
+                              height: 8,
                             ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          ),
-                          InfoLabel(
-                            label: AppLocalizations.of(context)!.passwordText,
-                            labelStyle: const TextStyle(color: Colors.white),
-                            child: PasswordBox(
-                              controller: _passwordBox,
+                            InfoLabel(
+                              label: AppLocalizations.of(context)!.usernameText,
+                              labelStyle: const TextStyle(color: Colors.white),
+                              child: TextBox(
+                                controller: _usernameBox,
+                                expands: false,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            InfoLabel(
+                              label: AppLocalizations.of(context)!.passwordText,
+                              labelStyle: const TextStyle(color: Colors.white),
+                              child: PasswordBox(
+                                controller: _passwordBox,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Center(
-                      child: FilledButton(
-                        onPressed: !_textActive ? null : _login,
-                        child: !_textActive
-                            ? const ProgressBar()
-                            : Text(AppLocalizations.of(context)!.loginButton),
+                      Center(
+                        child: FilledButton(
+                          onPressed: !_textActive ? null : _login,
+                          child: !_textActive
+                              ? const ProgressBar()
+                              : Text(AppLocalizations.of(context)!.loginButton),
+                        ),
                       ),
-                    ),
-                    const SizedBox(
-                      height: 8.0,
-                    ),
-                  ],
+                      const SizedBox(
+                        height: 8.0,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
