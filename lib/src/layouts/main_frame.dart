@@ -63,6 +63,7 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
         title: () {
           return DragToMoveArea(
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -75,27 +76,31 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 8.0,
-                ),
-                Text(
-                  "{${GoRouterState.of(context).uri.toString()}}",
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontWeight: FontWeight.normal,
-                    fontSize: 14,
+                Flexible(
+                  child: Text(
+                    "{${GoRouterState.of(context).uri.toString()}}",
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontWeight: FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(FluentIcons.settings),
+                      onPressed: () => context.push('/settings'),
+                    ),
+                    const WindowButtons(),
+                  ],
+                )
               ],
             ),
           );
         }(),
-        actions: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            WindowButtons(),
-          ],
-        ),
       ),
       content: widget.child,
     );

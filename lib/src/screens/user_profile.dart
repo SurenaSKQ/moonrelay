@@ -135,9 +135,13 @@ class ProfilePageContents extends StatelessWidget {
               const SizedBox(
                 width: 16,
               ),
-              Text(
-                userProfile.displayName ?? userProfile.userId,
-                style: FluentTheme.of(context).typography.titleLarge,
+              Flexible(
+                child: Text(
+                  userProfile.displayName ?? userProfile.userId,
+                  style: FluentTheme.of(context).typography.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
