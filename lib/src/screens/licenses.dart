@@ -47,7 +47,12 @@ class _LicensesScreenState extends State<LicensesScreen> {
     _Licenses(
         name: "GNU GPL v3",
         assetName: "gpl-v3.0.txt",
-        licenseText: "to be added")
+        licenseText: "to be added"),
+    _Licenses(
+        name: "GNU Affero GPL v3",
+        assetName: "gpl-v3.0.txt",
+        licenseText: "to be added"),
+    _Licenses(name: "MIT License", assetName: "", licenseText: "to be added"),
   ];
   @override
   Widget build(BuildContext context) {
