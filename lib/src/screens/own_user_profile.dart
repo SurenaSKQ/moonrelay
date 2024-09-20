@@ -25,8 +25,7 @@ import 'package:azhi_main/src/helpers/show_error_infobar.dart';
 import 'package:provider/provider.dart';
 
 class OwnProfilePage extends StatefulWidget {
-  const OwnProfilePage({super.key, required this.client, required this.userID});
-  final String userID;
+  const OwnProfilePage({super.key, required this.client});
   final Client client;
   @override
   State<OwnProfilePage> createState() => _OwnProfilePageState();
@@ -35,7 +34,7 @@ class OwnProfilePage extends StatefulWidget {
 class _OwnProfilePageState extends State<OwnProfilePage> {
   late Profile uprofile;
   Future<void> _getUserProfile() async {
-    uprofile = await widget.client.getProfileFromUserId(widget.userID);
+    uprofile = await widget.client.getProfileFromUserId(widget.client.userID!);
     setState(() {});
   }
 
