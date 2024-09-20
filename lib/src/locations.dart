@@ -22,8 +22,12 @@ import 'package:azhi_main/src/layouts/main_frame.dart';
 import 'package:azhi_main/src/layouts/two_column_layout.dart';
 import 'package:azhi_main/src/screens/home_screen.dart';
 import 'package:azhi_main/src/screens/login_page.dart';
+import 'package:azhi_main/src/screens/own_user_profile.dart';
+import 'package:azhi_main/src/screens/register_page.dart';
+import 'package:azhi_main/src/screens/room_details_page.dart';
 import 'package:azhi_main/src/settings/settings_view.dart';
 import 'package:azhi_main/src/helpers/room_delegate.dart';
+import 'package:azhi_main/src/widgets/friend_chats_pane.dart';
 import 'package:azhi_main/src/widgets/rooms_pane.dart';
 import 'package:azhi_main/src/widgets/side_pane_handler.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -49,113 +53,326 @@ class AppLocationsHandler {
   AppLocationsHandler();
   static final List<RouteBase> routes = [
     ShellRoute(
-        pageBuilder: (context, state, child) => azhiPageBuilder(
-              context,
-              state,
-              Mica(
-                child: FluentMainFrame(
-                  shellContext: context,
-                  child: child,
-                ),
+      pageBuilder: (context, state, child) => azhiPageBuilder(
+        context,
+        state,
+        Mica(
+          child: FluentMainFrame(
+            shellContext: context,
+            child: child,
+          ),
+        ),
+      ),
+      routes: [
+        GoRoute(
+          path: '/',
+          redirect: (context, state) =>
+              Provider.of<Client>(context, listen: false).isLogged()
+                  ? '/main/rooms'
+                  : '/welcome',
+        ),
+        GoRoute(
+          path: '/welcome',
+          pageBuilder: (context, state) =>
+              azhiPageBuilder(context, state, const FluentHomePage()),
+          redirect: loggedInRedirect,
+          routes: [
+            GoRoute(
+              path: 'login',
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                const FluentLoginPage(),
               ),
             ),
-        routes: [
-          GoRoute(
-            path: '/',
-            redirect: (context, state) =>
-                Provider.of<Client>(context, listen: false).isLogged()
-                    ? '/main/rooms'
-                    : '/welcome',
+            GoRoute(
+              path: 'register',
+              pageBuilder: (context, state) => azhiPageBuilder(
+                  context, state, const RegisterNewUserAccountGuidancePage()),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/settings',
+          pageBuilder: (context, state) => azhiPageBuilder(
+            context,
+            state,
+            const SettingsView(),
           ),
-          GoRoute(
-            path: '/welcome',
-            pageBuilder: (context, state) =>
-                azhiPageBuilder(context, state, const FluentHomePage()),
-            redirect: loggedInRedirect,
-            routes: [
-              GoRoute(
-                path: 'login',
-                pageBuilder: (context, state) => azhiPageBuilder(
-                  context,
-                  state,
-                  const FluentLoginPage(),
-                ),
-              ),
-              GoRoute(
-                path: 'register',
-                redirect: (context, state) => '/welcome/login',
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/settings',
-            pageBuilder: (context, state) => azhiPageBuilder(
-              context,
-              state,
-              const SettingsView(),
+        ),
+        ShellRoute(
+          pageBuilder: (context, state, child) => azhiPageBuilder(
+            context,
+            state,
+            TwoColumnLayout(
+              mainView: const SidePaneHandler(child: RoomsPane()),
+              sideView: child,
             ),
           ),
-          ShellRoute(
-            pageBuilder: (context, state, child) => azhiPageBuilder(
-              context,
-              state,
-              TwoColumnLayout(
-                mainView: const SidePaneHandler(child: RoomsPane()),
-                sideView: child,
-              ),
-            ),
-            routes: [
-              GoRoute(
-                path: '/main/rooms',
-                redirect: loggedOutRedirect,
-                pageBuilder: (context, state) => azhiPageBuilder(
-                  context,
-                  state,
-                  RoomDelegate(
-                    roomID: state.pathParameters['roomid'],
-                  ),
+          routes: [
+            GoRoute(
+              path: '/main/rooms',
+              redirect: loggedOutRedirect,
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                RoomDelegate(
+                  roomID: state.pathParameters['roomid'],
                 ),
-                routes: [
-                  GoRoute(
-                    path: ':roomid',
-                    pageBuilder: (context, state) => azhiPageBuilder(
-                      context,
-                      state,
-                      RoomDelegate(
-                        roomID: state.pathParameters['roomid']!,
-                      ),
+              ),
+              routes: [
+                GoRoute(
+                  path: ':roomid',
+                  pageBuilder: (context, state) => azhiPageBuilder(
+                    context,
+                    state,
+                    RoomDelegate(
+                      roomID: state.pathParameters['roomid']!,
                     ),
-                    redirect: loggedOutRedirect,
-                    routes: [
-                      GoRoute(
-                        path: 'profile',
-                        pageBuilder: (context, state) => azhiPageBuilder(
-                          context,
-                          state,
-                          ProfileDelegate(
-                            userid: state.pathParameters['userid'],
-                          ),
+                  ),
+                  redirect: loggedOutRedirect,
+                  routes: [
+                    GoRoute(
+                      path: 'profile',
+                      pageBuilder: (context, state) => azhiPageBuilder(
+                        context,
+                        state,
+                        ProfileDelegate(
+                          userid: state.pathParameters['userid'],
                         ),
-                        routes: [
-                          GoRoute(
-                            path: ':userid',
-                            pageBuilder: (context, state) => azhiPageBuilder(
-                              context,
-                              state,
-                              ProfileDelegate(
-                                userid: state.pathParameters['userid'],
-                              ),
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: ':userid',
+                          pageBuilder: (context, state) => azhiPageBuilder(
+                            context,
+                            state,
+                            ProfileDelegate(
+                              userid: state.pathParameters['userid'],
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            GoRoute(
+              path: '/main/myprofile',
+              pageBuilder: (context, state) {
+                final Client client =
+                    Provider.of<Client>(context, listen: false);
+                return azhiPageBuilder(
+                    context, state, OwnProfilePage(client: client));
+              },
+            )
+          ],
+        )
+      ],
+    ),
+    ShellRoute(
+      pageBuilder: (context, state, child) => azhiPageBuilder(
+        context,
+        state,
+        Mica(
+          child: FluentMainFrame(
+            shellContext: context,
+            child: child,
+          ),
+        ),
+      ),
+      routes: [
+        GoRoute(
+          path: '/',
+          redirect: (context, state) =>
+              Provider.of<Client>(context, listen: false).isLogged()
+                  ? '/main/rooms'
+                  : '/welcome',
+        ),
+        GoRoute(
+          path: '/welcome',
+          pageBuilder: (context, state) =>
+              azhiPageBuilder(context, state, const FluentHomePage()),
+          redirect: loggedInRedirect,
+          routes: [
+            GoRoute(
+              path: 'login',
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                const FluentLoginPage(),
               ),
-            ],
-          )
-        ]),
+            ),
+            GoRoute(
+              path: 'register',
+              pageBuilder: (context, state) => azhiPageBuilder(
+                  context, state, const RegisterNewUserAccountGuidancePage()),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/settings',
+          pageBuilder: (context, state) => azhiPageBuilder(
+            context,
+            state,
+            const SettingsView(),
+          ),
+        ),
+        ShellRoute(
+          pageBuilder: (context, state, child) => azhiPageBuilder(
+            context,
+            state,
+            TwoColumnLayout(
+              mainView: const SidePaneHandler(child: RoomsPane()),
+              sideView: child,
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: '/main/rooms',
+              redirect: loggedOutRedirect,
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                RoomDelegate(
+                  roomID: state.pathParameters['roomid'],
+                ),
+              ),
+              routes: [
+                GoRoute(
+                  path: ':roomid',
+                  pageBuilder: (context, state) => azhiPageBuilder(
+                    context,
+                    state,
+                    RoomDelegate(
+                      roomID: state.pathParameters['roomid']!,
+                    ),
+                  ),
+                  redirect: loggedOutRedirect,
+                  routes: [
+                    GoRoute(
+                      path: 'profile',
+                      pageBuilder: (context, state) => azhiPageBuilder(
+                        context,
+                        state,
+                        ProfileDelegate(
+                          userid: state.pathParameters['userid'],
+                        ),
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: ':userid',
+                          pageBuilder: (context, state) => azhiPageBuilder(
+                            context,
+                            state,
+                            ProfileDelegate(
+                              userid: state.pathParameters['userid'],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    GoRoute(
+                      path: 'roomDetails',
+                      pageBuilder: (context, state) {
+                        String roomid = state.pathParameters['roomid']!;
+                        Client client = Provider.of<Client>(context);
+                        return azhiPageBuilder(
+                          context,
+                          state,
+                          RoomInformations(
+                            room: client.getRoomById(roomid)!,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            GoRoute(
+              path: '/main/myprofile',
+              pageBuilder: (context, state) {
+                final Client client =
+                    Provider.of<Client>(context, listen: false);
+                return azhiPageBuilder(
+                    context, state, OwnProfilePage(client: client));
+              },
+            )
+          ],
+        ),
+        ShellRoute(
+          pageBuilder: (context, state, child) => azhiPageBuilder(
+            context,
+            state,
+            TwoColumnLayout(
+              mainView: const SidePaneHandler(child: FriendsChatsPane()),
+              sideView: child,
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: '/friends/chats',
+              redirect: loggedOutRedirect,
+              pageBuilder: (context, state) => azhiPageBuilder(
+                context,
+                state,
+                RoomDelegate(
+                  roomID: state.pathParameters['roomid'],
+                ),
+              ),
+              routes: [
+                GoRoute(
+                  path: ':roomid',
+                  pageBuilder: (context, state) => azhiPageBuilder(
+                    context,
+                    state,
+                    RoomDelegate(
+                      roomID: state.pathParameters['roomid']!,
+                    ),
+                  ),
+                  redirect: loggedOutRedirect,
+                  routes: [
+                    GoRoute(
+                      path: 'profile',
+                      pageBuilder: (context, state) => azhiPageBuilder(
+                        context,
+                        state,
+                        ProfileDelegate(
+                          userid: state.pathParameters['userid'],
+                        ),
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: ':userid',
+                          pageBuilder: (context, state) => azhiPageBuilder(
+                            context,
+                            state,
+                            ProfileDelegate(
+                              userid: state.pathParameters['userid'],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            GoRoute(
+              path: '/main/myprofile',
+              pageBuilder: (context, state) {
+                final Client client =
+                    Provider.of<Client>(context, listen: false);
+                return azhiPageBuilder(
+                    context, state, OwnProfilePage(client: client));
+              },
+            )
+          ],
+        )
+      ],
+    ),
   ];
 
   static final Router panelRouter = Router.withConfig(
