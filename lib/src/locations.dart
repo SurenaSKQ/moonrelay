@@ -18,6 +18,7 @@
 import 'dart:async';
 
 import 'package:azhi_main/src/helpers/profile_delegate.dart';
+import 'package:azhi_main/src/layouts/desktop_app_frame.dart';
 import 'package:azhi_main/src/layouts/main_frame.dart';
 import 'package:azhi_main/src/layouts/two_column_layout.dart';
 import 'package:azhi_main/src/screens/home_screen.dart';
@@ -51,17 +52,13 @@ class AppLocationsHandler {
           : '/welcome';
 
   AppLocationsHandler();
+  // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
   static final List<RouteBase> routes = [
     ShellRoute(
       pageBuilder: (context, state, child) => azhiPageBuilder(
         context,
         state,
-        Mica(
-          child: FluentMainFrame(
-            shellContext: context,
-            child: child,
-          ),
-        ),
+        AzhiAppFrame(child: child, shellContext: context),
       ),
       routes: [
         GoRoute(
