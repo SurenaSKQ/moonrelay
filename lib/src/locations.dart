@@ -58,7 +58,7 @@ class AppLocationsHandler {
       pageBuilder: (context, state, child) => azhiPageBuilder(
         context,
         state,
-        AzhiAppFrame(child: child, shellContext: context),
+        AzhiAppFrame(shellContext: context, child: child),
       ),
       routes: [
         GoRoute(
