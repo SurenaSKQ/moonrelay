@@ -85,7 +85,10 @@ class AppLocationsHandler {
             GoRoute(
               path: 'register',
               pageBuilder: (context, state) => azhiPageBuilder(
-                  context, state, const RegisterNewUserAccountGuidancePage()),
+                context,
+                state,
+                const RegisterNewUserAccountGuidancePage(),
+              ),
             ),
           ],
         ),

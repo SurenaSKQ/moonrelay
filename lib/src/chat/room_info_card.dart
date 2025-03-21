@@ -31,8 +31,7 @@ class RoomInfoCard extends StatelessWidget {
         context: context,
         barrierDismissible: true,
         builder: (context) => BlurryContainer(
-          blur: 16,
-          elevation: 5,
+          blur: 24,
           child: RoomInformations(room: room),
         ),
       ),

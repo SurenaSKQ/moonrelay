@@ -16,12 +16,10 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/chat/chat_box.dart';
+import 'package:azhi_main/src/chat/chat_timeline.dart';
 import 'package:azhi_main/src/chat/room_info_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' as mt;
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 class FluentRoomPage extends StatefulWidget {
@@ -32,13 +30,6 @@ class FluentRoomPage extends StatefulWidget {
 }
 
 class _FluentRoomPageState extends State<FluentRoomPage> {
-  late final Future<Timeline> _timelineFuture;
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  final ScrollController _scrollController = ScrollController();
-  // Counts events
-  // ignore: unused_field
-  int _count = 0;
-
   @override
   Widget build(BuildContext context) {
     return mt.Scaffold(
@@ -53,135 +44,7 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
             direction: Axis.horizontal,
           ),
           Expanded(
-            child: FutureBuilder<Timeline>(
-              future: _timelineFuture,
-              builder: (context, snapshot) {
-                final timeline = snapshot.data;
-                if (timeline == null) {
-                  return Center(
-                    child: SpinKitCubeGrid(
-                      color: FluentTheme.of(context).accentColor,
-                    ),
-                  );
-                }
-                // Add a listener to the scroll controller
-                _scrollController.addListener(
-                  () {
-                    if (_scrollController.position.pixels ==
-                        _scrollController.position.maxScrollExtent) {
-                      // User has scrolled to the bottom, request more data
-                      timeline.requestHistory();
-                    }
-                  },
-                );
-                _count = timeline.events.length;
-                return Column(
-                  children: [
-                    const Divider(
-                      direction: Axis.horizontal,
-                      size: 2,
-                    ),
-                    Expanded(
-                      child: AnimatedList(
-                        controller: _scrollController,
-                        key: _listKey,
-                        reverse: true,
-                        initialItemCount: timeline.events.length,
-                        itemBuilder: (context, index, animation) {
-                          return (timeline.events[index].relationshipEventId !=
-                                  null)
-                              ? Container()
-                              : ScaleTransition(
-                                  scale: animation,
-                                  child: Opacity(
-                                    opacity:
-                                        timeline.events[index].status.isSent
-                                            ? 1
-                                            : 0.5,
-                                    child: ListTile(
-                                      leading: GestureDetector(
-                                        onTap: () => context.push(
-                                            '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}'),
-                                        child: CircleAvatar(
-                                          foregroundImage: timeline
-                                                      .events[index]
-                                                      .senderFromMemoryOrFallback
-                                                      .avatarUrl ==
-                                                  null
-                                              ? null
-                                              : NetworkImage(
-                                                  timeline
-                                                      .events[index]
-                                                      .senderFromMemoryOrFallback
-                                                      .avatarUrl!
-                                                      .getThumbnail(
-                                                        widget.room.client,
-                                                        width: 56,
-                                                        height: 56,
-                                                      )
-                                                      .toString(),
-                                                ),
-                                        ),
-                                      ),
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              timeline.events[index]
-                                                  .senderFromMemoryOrFallback
-                                                  .calcDisplayname(),
-                                              style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                          Text(
-                                            timeline
-                                                .events[index].originServerTs
-                                                .toIso8601String(),
-                                            style: const TextStyle(
-                                                fontSize: 8,
-                                                fontFamily: 'JetBrainsMono'),
-                                          ),
-                                        ],
-                                      ),
-                                      subtitle: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: FluentTheme.of(context)
-                                                .accentColor,
-                                            width: 1,
-                                            strokeAlign:
-                                                BorderSide.strokeAlignOutside,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          color: FluentTheme.of(context)
-                                              .acrylicBackgroundColor,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                            timeline.events[index]
-                                                .getDisplayEvent(timeline)
-                                                .body,
-                                            style: const TextStyle(
-                                                fontFamily: 'JetBrainsMono',
-                                                fontSize: 14),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                        },
-                      ),
-                    )
-                  ],
-                );
-              },
-            ),
+            child: AzhiChatTimeline(room: widget.room),
           ),
           const Divider(
             direction: Axis.vertical,
@@ -191,43 +54,5 @@ class _FluentRoomPageState extends State<FluentRoomPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _timelineFuture = widget.room.getTimeline(
-      onChange: (i) {
-        if (kDebugMode) {
-          print('on change! $i');
-        }
-        _listKey.currentState?.setState(() {});
-      },
-      onInsert: (i) {
-        if (kDebugMode) {
-          print('on insert! $i');
-        }
-        _listKey.currentState?.insertItem(i);
-        _count++;
-      },
-      onRemove: (i) {
-        if (kDebugMode) {
-          print('On remove $i');
-        }
-        _count--;
-        _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
-      },
-      onUpdate: () {
-        if (kDebugMode) {
-          print('On update');
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose(); // Dispose the controller
-    super.dispose();
   }
 }

@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:blurrycontainer/blurrycontainer.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
@@ -56,18 +55,13 @@ class _AzhiAppFrameState extends State<AzhiAppFrame> with WindowListener {
     return Stack(
       children: [
         DragToResizeArea(
-          child: Container(
-            decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor,
-            ),
-          ),
+          child: Container(),
         ),
         ScaffoldPage.withPadding(
-          padding: const EdgeInsets.all(1.5),
+          padding: const EdgeInsets.all(1),
           header: DragToMoveArea(
-            child: BlurryContainer(
-              color: FluentTheme.of(context).accentColor,
-              borderRadius: const BorderRadius.all(Radius.zero),
+            child: Container(
+              color: FluentTheme.of(context).accentColor.darker,
               padding: const EdgeInsets.only(left: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
