@@ -29,7 +29,7 @@ Future<Logger> initializeLog() async {
     return Logger(
       printer: PrettyPrinter(
         colors: (Platform.isMacOS ? false : true),
-        printTime: true,
+        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
         printEmojis: true,
         methodCount: 5,
       ),
