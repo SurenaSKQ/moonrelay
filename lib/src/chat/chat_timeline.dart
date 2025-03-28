@@ -15,13 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/chat/chat_event.dart';
-import 'package:azhi_main/src/helpers/date_time_extension.dart';
-import 'package:azhi_main/src/widgets/dynamic_avatar.dart';
+import 'package:azhi_main/src/chat/timeline_item.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 class AzhiChatTimeline extends StatefulWidget {
@@ -58,7 +55,7 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
           () {
             if (_scrollController.position.pixels ==
                 _scrollController.position.maxScrollExtent) {
-              // User has scrolled to the bottom, request more data
+              // User has scrolled to the top (not bottom lol), request more data
               timeline.requestHistory();
             }
           },
@@ -77,40 +74,11 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
                       scale: animation,
                       child: Opacity(
                         opacity: timeline.events[index].status.isSent ? 1 : 0.5,
-                        child: ListTile(
-                          leading: DynamicAvatarWidget(
-                            client: widget.room.client,
-                            avatarUri: timeline.events[index]
-                                .senderFromMemoryOrFallback.avatarUrl,
-                            onTap: () => context.push(
-                              '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}',
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  timeline
-                                      .events[index].senderFromMemoryOrFallback
-                                      .calcDisplayname(),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              Text(
-                                timeline.events[index].originServerTs
-                                    .localizedTimeShort(context),
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  fontFamily: 'JetBrainsMono',
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: AzhiChatEvent(
-                            event: timeline.events[index],
-                          ),
+                        child: TimelineItem(
+                          event: timeline.events[index],
+                          previousEvent:
+                              (index >= 1 ? timeline.events[index - 1] : null),
+                          room: widget.room,
                         ),
                       ),
                     );

@@ -15,38 +15,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/chat/events/matrix_events/Message/basic_text_event.dart';
+import 'package:azhi_main/src/chat/events/unsupported_event.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
-class AzhiChatEvent extends StatefulWidget {
-  const AzhiChatEvent({super.key, required this.event});
+class MessageEventHandler extends StatefulWidget {
+  const MessageEventHandler({super.key, required this.event});
   final Event event;
   @override
-  State<AzhiChatEvent> createState() => _AzhiChatEventState();
+  State<MessageEventHandler> createState() => _MessageEventHandlerState();
 }
 
-class _AzhiChatEventState extends State<AzhiChatEvent> {
+class _MessageEventHandlerState extends State<MessageEventHandler> {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: FluentTheme.of(context).accentColor,
-          width: 1,
-          strokeAlign: BorderSide.strokeAlignOutside,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        color: FluentTheme.of(context).acrylicBackgroundColor,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          widget.event.body,
-          style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 14),
-        ),
-      ),
-    );
+    switch (widget.event.type) {
+      case EventTypes.Message:
+        // TODO: Stickers, emotes; event relationships
+        switch (widget.event.messageType) {
+          case MessageTypes.Text:
+            return BasicTextEvent(event: widget.event);
+          case MessageTypes.Image:
+            return const Placeholder();
+          case MessageTypes.Audio:
+            return const Placeholder();
+
+          default:
+            return UnsupportedEventType(event: widget.event);
+        }
+      case 'm.room.name':
+        return const Placeholder();
+      case 'm.room.topic':
+        return const Placeholder();
+      case 'm.room.avatar':
+        return const Placeholder();
+      case 'm.room.pinned_events':
+        return const Placeholder();
+      default:
+        return Center(
+          child: Text(
+            "${widget.event.type}, ${widget.event.messageType.toString()}",
+          ),
+        );
+    }
   }
 }

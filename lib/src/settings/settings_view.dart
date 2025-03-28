@@ -1,3 +1,4 @@
+import 'package:azhi_main/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -63,6 +64,29 @@ class SettingsView extends StatelessWidget {
                     text: const Text("Dark Theme"),
                     onPressed: () =>
                         controller.updateThemeMode(ThemeMode.dark)),
+              ],
+            ),
+            const SizedBox(
+              height: 8.0,
+            ),
+            DropDownButton(
+              leading: const Text("Chat display type"),
+              items: [
+                MenuFlyoutItem(
+                  text: Text(DisplayType.modern.label),
+                  onPressed: () =>
+                      controller.updateDisplayType(DisplayType.modern),
+                ),
+                MenuFlyoutItem(
+                  text: Text(DisplayType.irc.label),
+                  onPressed: () =>
+                      controller.updateDisplayType(DisplayType.irc),
+                ),
+                MenuFlyoutItem(
+                  text: Text(DisplayType.bubbles.label),
+                  onPressed: () =>
+                      controller.updateDisplayType(DisplayType.bubbles),
+                ),
               ],
             ),
           ],

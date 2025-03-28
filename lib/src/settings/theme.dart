@@ -1,3 +1,4 @@
+import 'package:azhi_main/src/helpers/string_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:system_theme/system_theme.dart';
@@ -85,4 +86,43 @@ AccentColor get systemAccentColor {
     });
   }
   return Colors.blue;
+}
+
+class AzhiTheme {
+  // Colors
+  final Color primaryColor =
+      Color(0xFF2A2E31); // Example dark color for primary theme
+  final Color secondaryColor =
+      Color(0xFF46494C); // Example darker shade of the primary color
+  final corporateDarkColor = Color(0x20272F);
+  final Color accentColor = Color(0xFF58A6FF); // Example accent color
+
+  // Font settings
+  final String fontFamily = 'JetBrainsMono';
+  final double baseFontSize = 16.0; // Base font size
+
+  // Font sizes based on the base font size
+  double get titleFontSize => baseFontSize * 1.5;
+  double get subtitleFontSize => baseFontSize * 1.2;
+  double get bodyTextFontSize => baseFontSize;
+
+  // Method to get color for a given string
+  Color getColorFromString(String text) {
+    return text.color;
+  }
+
+  // Method to get dark color for a given string
+  Color getDarkColorFromString(String text) {
+    return text.darkColor;
+  }
+
+  // Method to get light color for text based on a given string
+  Color getLightColorTextFromString(String text) {
+    return text.lightColorText;
+  }
+
+  // Method to get light color for avatar based on a given string
+  Color getLightColorAvatarFromString(String text) {
+    return text.lightColorAvatar;
+  }
 }
