@@ -20,29 +20,28 @@ import 'package:azhi_main/src/chat/events/unsupported_event.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
-class MessageEventHandler extends StatefulWidget {
+class MessageEventHandler extends StatelessWidget {
   const MessageEventHandler({super.key, required this.event});
-  final Event event;
-  @override
-  State<MessageEventHandler> createState() => _MessageEventHandlerState();
-}
 
-class _MessageEventHandlerState extends State<MessageEventHandler> {
+  final Event event;
+
   @override
   Widget build(BuildContext context) {
-    switch (widget.event.type) {
+    switch (event.type) {
       case EventTypes.Message:
         // TODO: Stickers, emotes; event relationships
-        switch (widget.event.messageType) {
+        switch (event.messageType) {
           case MessageTypes.Text:
-            return BasicTextEvent(event: widget.event);
+            return BasicTextEvent(event: event);
           case MessageTypes.Image:
             return const Placeholder();
           case MessageTypes.Audio:
             return const Placeholder();
+          case MessageTypes.File:
+            return Placeholder();
 
           default:
-            return UnsupportedEventType(event: widget.event);
+            return UnsupportedEventType(event: event);
         }
       case 'm.room.name':
         return const Placeholder();
@@ -55,7 +54,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
       default:
         return Center(
           child: Text(
-            "${widget.event.type}, ${widget.event.messageType.toString()}",
+            "${event.type}, ${event.messageType.toString()}",
           ),
         );
     }
