@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -32,18 +33,20 @@ class LogoWithTextThemed extends StatelessWidget {
         SvgPicture.asset(
           'assets/images/azhi_logo.svg',
           colorFilter: ColorFilter.mode(
-              ((themeModeOverride ?? FluentTheme.of(context).brightness) == Brightness.dark)
-                  ? Colors.white
-                  : Colors.black,
+              ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
+                      Brightness.dark)
+                  ? AzhiColorPalette.cpgWhite
+                  : AzhiColorPalette.cpgDark,
               BlendMode.srcIn),
           fit: BoxFit.scaleDown,
         ),
         Text(
           AppLocalizations.of(context)!.projectName,
           style: TextStyle(
-            color: ((themeModeOverride ??  FluentTheme.of(context).brightness) == Brightness.dark)
-                ? Colors.white
-                : Colors.black,
+            color: ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
+                    Brightness.dark)
+                ? AzhiColorPalette.cpgWhite
+                : AzhiColorPalette.cpgDark,
             fontSize: 32,
             fontFamily: 'JetBrainsMono',
             fontWeight: FontWeight.bold,
