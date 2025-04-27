@@ -45,6 +45,8 @@ class TimelineItem extends StatelessWidget {
         ? false
         : (event.senderId.equals(previousEvent!.senderId) ? true : false);
 
+    // NOTE - Possible optimization? Is this really a good way to handle settings in here?
+    // NOTE - Design rework : Avatar must be at top
     return Consumer<SettingsController>(
       builder: (context, value, child) => ListTile(
         leading: switch (value.displayType) {
@@ -63,18 +65,18 @@ class TimelineItem extends StatelessWidget {
             event: event, omitSender: isEventFromSameSender),
         subtitle: switch (value.displayType) {
           DisplayType.bubbles => Container(
-            decoration: BoxDecoration(
-              color: AzhiColorPalette.cpgDarker,
-              border: Border.all(
-                  color: AzhiColorPalette.britishRacingGreen, width: 0.7),
+              decoration: BoxDecoration(
+                color: AzhiColorPalette.cpgDarker,
+                border: Border.all(
+                    color: AzhiColorPalette.britishRacingGreen, width: 0.7),
+              ),
+              child: isEventFromSameSender
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(56, 8, 0, 0),
+                      child: MessageEventHandler(event: event),
+                    )
+                  : MessageEventHandler(event: event),
             ),
-            child: isEventFromSameSender
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(56, 8, 0, 0),
-                    child: MessageEventHandler(event: event),
-                  )
-                : MessageEventHandler(event: event),
-          ),
           DisplayType.modern => isEventFromSameSender
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(56, 0, 0, 0),

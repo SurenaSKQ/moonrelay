@@ -142,7 +142,7 @@ class FluentHomePage extends StatelessWidget {
                                       builder: (context) =>
                                           const PrivacyPolicyPopupScreen(),
                                       barrierColor:
-                                          Colors.black.withOpacity(0.9),
+                                          Colors.black.withValues(alpha: 0.9),
                                     );
                                   },
                                 ),
@@ -158,7 +158,7 @@ class FluentHomePage extends StatelessWidget {
                                       builder: (context) =>
                                           const LicensesScreen(),
                                       barrierColor:
-                                          Colors.black.withOpacity(0.9),
+                                          Colors.black.withValues(alpha: 0.9),
                                     );
                                   },
                                 )

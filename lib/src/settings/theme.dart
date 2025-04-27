@@ -90,12 +90,12 @@ AccentColor get systemAccentColor {
 
 class AzhiTheme {
   // Colors
-  final Color primaryColor =
+  static const Color primaryColor =
       Color(0xFF2A2E31); // Example dark color for primary theme
-  final Color secondaryColor =
+  static const Color secondaryColor =
       Color(0xFF46494C); // Example darker shade of the primary color
-  final corporateDarkColor = Color(0x20272F);
-  final Color accentColor = Color(0xFF58A6FF); // Example accent color
+  static const corporateDarkColor = Color(0x0020272f);
+  static const Color accentColor = Color(0xFF58A6FF); // Example accent color
 
   // Font settings
   final String fontFamily = 'JetBrainsMono';

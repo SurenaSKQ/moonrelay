@@ -20,6 +20,8 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 ///The information screen of a page
+/// Needs a complete redesign: Use the room header widget as a hero widget to do an animation
+/// Also needs a new widget for user list; needs to show room controls; some additional information about the room
 class RoomInformations extends StatefulWidget {
   const RoomInformations({super.key, required this.room});
   final Room room;
@@ -105,6 +107,8 @@ class RoomParticipantsList extends StatelessWidget {
   const RoomParticipantsList({super.key, required this.room});
   final Room room;
 
+  // Disclaimer: This is a stub widget with a lot of code copied from FluffyChat
+  // DEFINITELY needs a complete rewrite
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
