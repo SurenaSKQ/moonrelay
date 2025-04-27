@@ -20,25 +20,25 @@ import 'dart:ui';
 /// Use this as a reference color palette. Probably mostly useful for making new themes.
 class AzhiColorPalette {
   // Black/Grey
-  static const Color blackChocolate = Color.fromRGBO(24, 17, 0, 0.106);
-  static const Color blackCoral = Color.fromRGBO(98, 111, 0, 0.329);
+  static const Color blackChocolate = Color.fromRGBO(24, 17, 0, 1);
+  static const Color blackCoral = Color.fromRGBO(98, 111, 0, 1);
   static const Color ordinaryDarkGrey = Color.fromRGBO(33, 33, 33, 1);
   static const Color ordinaryMediumGrey = Color.fromRGBO(117, 117, 117, 1);
   // Red
   static const Color ordinaryRed = Color.fromRGBO(244, 67, 54, 1);
   static const Color brightMaroon = Color.fromRGBO(195, 33, 72, 1);
-  static const Color the90sBrick = Color.fromRGBO(255, 110, 97, 0);
+  static const Color the90sBrick = Color.fromRGBO(255, 110, 97, 1);
   // Green
   static const Color ordinaryLimeGreen = Color.fromRGBO(205, 220, 57, 1);
-  static const Color brunswickGreen = Color(0x1B4D3E00);
-  static const Color britishRacingGreen = Color(0x00004225);
+  static const Color brunswickGreen = Color.fromRGBO(77, 62, 0, 1);
+  static const Color britishRacingGreen = Color.fromRGBO(0, 66, 37, 1);
   // Blue
   static const Color ordinaryBlue = Color.fromRGBO(13, 71, 161, 1);
   static const Color ordinaryOrange = Color.fromRGBO(255, 152, 0, 1);
   // CPG = Color Palette Generator
-  static const Color cpgDarkest = Color.fromRGBO(26, 26, 46, 0);
-  static const Color cpgDarker = Color.fromRGBO(21, 32, 60, 0);
-  static const Color cpgDark = Color.fromRGBO(15, 52, 97, 0);
-  static const Color cpgRed = Color.fromRGBO(233, 68, 95, 0);
-  static const Color cpgWhite = Color.fromRGBO(250, 250, 250, 0);
+  static const Color cpgDarkest = Color.fromRGBO(26, 26, 46, 1);
+  static const Color cpgDarker = Color.fromRGBO(21, 32, 60, 1);
+  static const Color cpgDark = Color.fromRGBO(15, 52, 97, 1);
+  static const Color cpgRed = Color.fromRGBO(233, 68, 95, 1);
+  static const Color cpgWhite = Color.fromRGBO(250, 250, 250, 1);
 }
