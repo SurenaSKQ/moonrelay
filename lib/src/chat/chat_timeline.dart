@@ -70,8 +70,8 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
             itemBuilder: (context, index, animation) {
               return (timeline.events[index].relationshipEventId != null)
                   ? Container()
-                  : ScaleTransition(
-                      scale: animation,
+                  : FadeTransition(
+                      opacity: animation,
                       child: Opacity(
                         opacity: timeline.events[index].status.isSent ? 1 : 0.5,
                         child: TimelineItem(
@@ -94,30 +94,17 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
     super.initState();
     _timelineFuture = widget.room.getTimeline(
       onChange: (i) {
-        if (kDebugMode) {
-          print('on change! $i');
-        }
         _listKey.currentState?.setState(() {});
       },
       onInsert: (i) {
-        if (kDebugMode) {
-          print('on insert! $i');
-        }
         _listKey.currentState?.insertItem(i);
         _count++;
       },
       onRemove: (i) {
-        if (kDebugMode) {
-          print('On remove $i');
-        }
         _count--;
         _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
       },
-      onUpdate: () {
-        if (kDebugMode) {
-          print('On update');
-        }
-      },
+      onUpdate: () {},
     );
   }
 
