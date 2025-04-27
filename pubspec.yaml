@@ -37,6 +37,9 @@ dependencies:
   future_loading_dialog: ^0.3.0
   linkify_text: ^0.0.9
   shared_preferences: ^2.5.3
+  scroll_to_index: ^3.0.1
+  cross_file: ^0.3.4+2
+  file_picker: ^10.0.0
 
 dev_dependencies:
   flutter_test:
