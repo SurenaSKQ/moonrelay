@@ -34,7 +34,7 @@ class DynamicAvatarWidget extends StatefulWidget {
   });
   final Client client;
   final Uri? avatarUri;
-  final Function? onTap;
+  final VoidCallback? onTap;
   final AvatarStates avatarState = AvatarStates.active;
   final ImageProvider? fallbackImage;
   @override
@@ -45,7 +45,7 @@ class _DynamicAvatarWidgetState extends State<DynamicAvatarWidget> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => widget.onTap,
+      onTap: widget.onTap,
       child: CircleAvatar(
         foregroundImage: widget.avatarUri == null
             // TODO: Default Icon!
