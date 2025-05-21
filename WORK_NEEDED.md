@@ -47,8 +47,11 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
   - Rework settings
     - Or more accurately, make settingsview as it is only a stub
   - Rework sidebar
+- Login & Registeration Flow
+  - Support third party sign in
+  - Support registeration
 - UI revamp v2
-  - New UI frameworl
+  - New UI framework
     - Custom sidebar widget
     - Custom frame widget
     - Custom input widget
