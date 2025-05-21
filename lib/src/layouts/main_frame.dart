@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
@@ -70,7 +70,7 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
                   child: Text(
                     AppLocalizations.of(context)!.appTitle,
                     style: const TextStyle(
-                      fontFamily: 'JetBrainsMono',
+                      fontFamily: 'Rubik',
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),

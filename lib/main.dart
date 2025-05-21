@@ -24,6 +24,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart' as sql;
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
@@ -33,6 +34,7 @@ import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
+import 'package:path/path.dart' as p;
 
 /// Checks if the current environment is a desktop environment.
 bool get isDesktop {
@@ -46,24 +48,23 @@ bool get isDesktop {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Provider.debugCheckInvalidValueType = null;
-
   // TODO: Better error handling (application-wide item)
   // TODO: Deffered loading, loading screen, etc.
 
   Logger log = await initializeLog();
 
+  // TODO: This will need rework for multiplatform.
   // Initialize the SDK Client object and do necessary initializations.
-  // Using HiveDatabase in "support directory" for all user data
-  // TODO[epic=longterm] use Isar? https://isar.dev/
   // Support Emoji and Number sequence verification (future: QR code)
   // Definitely use isolates to offload compute from main thread
   final sdk = Client(
     'Project Azhi',
     databaseBuilder: (_) async {
       try {
-        final dbpath = await getApplicationSupportDirectory();
-        final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
+        final dbdir = await getApplicationSupportDirectory();
+        const String dbname = 'azhiDB.db';
+        final database = await sql.openDatabase(p.join(dbdir.path, dbname));
+        final dbobj = MatrixSdkDatabase('azhi', database: database);
         await dbobj.open();
         return dbobj;
       } catch (e) {

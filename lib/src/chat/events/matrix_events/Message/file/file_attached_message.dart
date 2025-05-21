@@ -18,7 +18,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'dart:io';
 
 class DownloadButton extends StatelessWidget {
   const DownloadButton({Key? key, required this.event}) : super(key: key);

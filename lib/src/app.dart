@@ -15,17 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:azhi_main/src/locations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
-final _appTheme = AppTheme();
+final _appTheme = AzhiAppTheme();
 
 class ChatSpacesApp extends StatelessWidget {
   const ChatSpacesApp({super.key});
@@ -44,14 +43,9 @@ class ChatSpacesApp extends StatelessWidget {
           routerConfig: azhirouter,
           debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate
-          ],
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           // TODO: Support persian
-          supportedLocales: const [
-            Locale('en', ''),
-          ],
+          supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           // TODO: theme builder, user settings theme management
           theme: FluentThemeData(

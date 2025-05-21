@@ -16,9 +16,9 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
+import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LogoWithTextThemed extends StatelessWidget {
   const LogoWithTextThemed({super.key, this.themeModeOverride});
@@ -43,14 +43,15 @@ class LogoWithTextThemed extends StatelessWidget {
         Text(
           AppLocalizations.of(context)!.projectName,
           style: TextStyle(
-            color: ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
-                    Brightness.dark)
-                ? AzhiColorPalette.cpgWhite
-                : AzhiColorPalette.cpgDark,
-            fontSize: 32,
-            fontFamily: 'JetBrainsMono',
-            fontWeight: FontWeight.bold,
-          ),
+              color:
+                  ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
+                          Brightness.dark)
+                      ? AzhiColorPalette.cpgWhite
+                      : AzhiColorPalette.cpgDark,
+              fontSize: 32,
+              fontFamily: 'Oxanium',
+              fontWeight: FontWeight.bold,
+              backgroundColor: Colors.grey.withAlpha(125)),
           overflow: TextOverflow.clip,
         ),
       ],

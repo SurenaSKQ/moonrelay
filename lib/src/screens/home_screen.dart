@@ -15,12 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:azhi_main/src/screens/licenses.dart';
 import 'package:azhi_main/src/screens/privacy_policy.dart';
 import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:blurrycontainer/blurrycontainer.dart';
 
 class FluentHomePage extends StatelessWidget {
@@ -59,7 +59,7 @@ class FluentHomePage extends StatelessWidget {
                         "The Public Benefit Messenger",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'JetBrainsMono',
+                          fontFamily: 'Oxanium',
                           fontWeight: FontWeight.bold,
                           fontSize: 24,
                           color: Colors.white,
@@ -76,7 +76,7 @@ class FluentHomePage extends StatelessWidget {
                             child: const Text(
                               "Login",
                               style: TextStyle(
-                                fontFamily: 'JetBrainsMono',
+                                fontFamily: 'Rubik',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -90,7 +90,7 @@ class FluentHomePage extends StatelessWidget {
                             child: const Text(
                               "Sign Up!",
                               style: TextStyle(
-                                fontFamily: 'JetBrainsMono',
+                                fontFamily: 'Rubik',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -107,8 +107,8 @@ class FluentHomePage extends StatelessWidget {
                               AppLocalizations.of(context)!.appLicenseNotice,
                               textAlign: TextAlign.justify,
                               style: const TextStyle(
-                                fontFamily: 'JetBrainsMono',
-                                fontSize: 12,
+                                fontFamily: 'Rubik',
+                                fontSize: 16,
                                 color: Colors.white,
                               ),
                               maxLines: 4,
@@ -121,8 +121,8 @@ class FluentHomePage extends StatelessWidget {
                               "The ChatSpaces team cannot moderate or honour DMCA requests on content that is posted on the Matrix protocol network. Contact room administrators or homeserver owners.",
                               textAlign: TextAlign.justify,
                               style: TextStyle(
-                                fontFamily: 'JetBrainsMono',
-                                fontSize: 12,
+                                fontFamily: 'Rubik',
+                                fontSize: 16,
                                 color: Colors.white,
                               ),
                               maxLines: 4,
@@ -134,8 +134,11 @@ class FluentHomePage extends StatelessWidget {
                             Wrap(
                               children: [
                                 Button(
-                                  child: Text(AppLocalizations.of(context)!
-                                      .privacyPolicy),
+                                  child: Text(
+                                      AppLocalizations.of(context)!
+                                          .privacyPolicy,
+                                      style:
+                                          const TextStyle(fontFamily: 'Rubik')),
                                   onPressed: () {
                                     showDialog(
                                       context: context,
@@ -150,8 +153,11 @@ class FluentHomePage extends StatelessWidget {
                                   width: 32,
                                 ),
                                 Button(
-                                  child: Text(AppLocalizations.of(context)!
-                                      .thirdPartyLicense),
+                                  child: Text(
+                                    AppLocalizations.of(context)!
+                                        .thirdPartyLicense,
+                                    style: const TextStyle(fontFamily: 'Rubik'),
+                                  ),
                                   onPressed: () {
                                     showDialog(
                                       context: context,

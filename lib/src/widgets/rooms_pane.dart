@@ -15,9 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -93,7 +93,7 @@ class RoomsPane extends StatelessWidget {
                 child: Text(
                   client.rooms[index].getLocalizedDisplayname(),
                   style: const TextStyle(
-                      fontFamily: 'JetBrainsMono',
+                      fontFamily: 'Rubik',
                       fontWeight: FontWeight.w300,
                       fontSize: 18),
                 ),
@@ -104,9 +104,9 @@ class RoomsPane extends StatelessWidget {
             client.rooms[index].lastEvent?.body ?? 'No messages',
             maxLines: 1,
             style: const TextStyle(
-              fontFamily: 'JetBrainsMono',
+              fontFamily: 'Rubic',
               fontWeight: FontWeight.w300,
-              fontSize: 14,
+              fontSize: 16,
             ),
           ),
           trailing: (client.rooms[index].notificationCount > 0)

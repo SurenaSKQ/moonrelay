@@ -57,10 +57,10 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
                   content: Column(
                     children: [
                       const Text(
-                        "In order to register an account, you need to first choose a homeserver.",
+                        "Choose a Homeserver.",
                         style: TextStyle(
                           color: Colors.white,
-                          fontFamily: 'JetBrainsMono',
+                          fontFamily: 'Rubic',
                           fontWeight: FontWeight.bold,
                           fontSize: 22,
                         ),
@@ -68,6 +68,7 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
                       const Text(
                         "What is a homeserver?",
                         style: TextStyle(
+                          fontFamily: 'Rubik',
                           color: Colors.white,
                           fontSize: 16,
                         ),
@@ -75,6 +76,7 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
                       const Text(
                         "A homserver is your gateway into the Matrix network. It is a place where you create an account on, and then you use that account to login to the network.\nIn order to create an account, you need to go into a homeserver's website, and create an account there.\nFor your convenience, a brief list of popular homeservers is presented below\nWe will add the option to register inside the client in later versions.",
                         style: TextStyle(
+                          fontFamily: 'Rubik',
                           color: Colors.white,
                           fontSize: 16,
                         ),

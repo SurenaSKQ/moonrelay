@@ -7,7 +7,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 enum NavigationIndicators { sticky, end }
 
-class AppTheme extends ChangeNotifier {
+class AzhiAppTheme extends ChangeNotifier {
   AccentColor? _color;
   AccentColor get color => _color ?? systemAccentColor;
   set color(AccentColor color) {
@@ -36,7 +36,7 @@ class AppTheme extends ChangeNotifier {
     notifyListeners();
   }
 
-  WindowEffect _windowEffect = WindowEffect.mica;
+  WindowEffect _windowEffect = WindowEffect.transparent;
   WindowEffect get windowEffect => _windowEffect;
   set windowEffect(WindowEffect windowEffect) {
     _windowEffect = windowEffect;
@@ -48,7 +48,7 @@ class AppTheme extends ChangeNotifier {
       effect: effect,
       color: [
         WindowEffect.solid,
-        WindowEffect.acrylic,
+        WindowEffect.transparent,
       ].contains(effect)
           ? FluentTheme.of(context).micaBackgroundColor.withOpacity(0.05)
           : Colors.transparent,
@@ -88,7 +88,7 @@ AccentColor get systemAccentColor {
   return Colors.blue;
 }
 
-class AzhiTheme {
+class AzhiThemeColors {
   // Colors
   static const Color primaryColor =
       Color(0xFF2A2E31); // Example dark color for primary theme
@@ -96,15 +96,6 @@ class AzhiTheme {
       Color(0xFF46494C); // Example darker shade of the primary color
   static const corporateDarkColor = Color(0x0020272f);
   static const Color accentColor = Color(0xFF58A6FF); // Example accent color
-
-  // Font settings
-  final String fontFamily = 'JetBrainsMono';
-  final double baseFontSize = 16.0; // Base font size
-
-  // Font sizes based on the base font size
-  double get titleFontSize => baseFontSize * 1.5;
-  double get subtitleFontSize => baseFontSize * 1.2;
-  double get bodyTextFontSize => baseFontSize;
 
   // Method to get color for a given string
   Color getColorFromString(String text) {
@@ -125,4 +116,15 @@ class AzhiTheme {
   Color getLightColorAvatarFromString(String text) {
     return text.lightColorAvatar;
   }
+}
+
+class AzhiThemeFonts {
+  // Font settings
+  final String fontFamily = 'Rubik';
+  final double baseFontSize = 16.0; // Base font size
+
+  // Font sizes based on the base font size
+  double get titleFontSize => baseFontSize * 1.5;
+  double get subtitleFontSize => baseFontSize * 1.2;
+  double get bodyTextFontSize => baseFontSize;
 }

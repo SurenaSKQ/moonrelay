@@ -20,12 +20,14 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
 Future<Logger> initializeLog() async {
   try {
     Directory cache = await getApplicationCacheDirectory();
-    Directory logDir = await Directory('${cache.path}/log').create();
+    Directory logDir =
+        await Directory(join(cache.path, 'azhilog.log')).create();
     return Logger(
       printer: PrettyPrinter(
         colors: (Platform.isMacOS ? false : true),
@@ -42,8 +44,7 @@ Future<Logger> initializeLog() async {
       filter: DevelopmentFilter(),
     );
   } catch (e) {
-    debugPrint(
-        "Log initialization failed at ${StackTrace.current.toString()} ${e.toString()}");
+    debugPrint("Log initialization failed at ${StackTrace.current.toString()}");
     exit(-1);
   }
 }
