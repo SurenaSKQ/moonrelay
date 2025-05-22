@@ -25,6 +25,7 @@ import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart' as sql;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
@@ -53,6 +54,19 @@ void main() async {
 
   Logger log = await initializeLog();
 
+  try {
+    sqfliteFfiInit();
+  } catch (e) {
+    log.f('SQFLite FFi has caused an exception. Report this on our CodeBerg.',
+        error: e);
+    if (kDebugMode) {
+      print(
+          'SQFLite FFi has caused an exception. Report this on our CodeBerg.');
+    }
+  }
+
+  databaseFactory = databaseFactoryFfi;
+
   // TODO: This will need rework for multiplatform.
   // Initialize the SDK Client object and do necessary initializations.
   // Support Emoji and Number sequence verification (future: QR code)
@@ -64,10 +78,14 @@ void main() async {
         final dbdir = await getApplicationSupportDirectory();
         const String dbname = 'azhiDB.db';
         final database = await sql.openDatabase(p.join(dbdir.path, dbname));
-        final dbobj = MatrixSdkDatabase('azhi', database: database);
+        final dbobj = MatrixSdkDatabase('azhi',
+            database: database, sqfliteFactory: databaseFactoryFfi);
         await dbobj.open();
         return dbobj;
       } catch (e) {
+        if (kDebugMode) {
+          print(e);
+        }
         log.f(
           "Failed to initialize database",
           error: e,
@@ -128,7 +146,7 @@ void main() async {
         Provider(
           create: (_) => log,
         ),
-        Provider(
+        ChangeNotifierProvider(
           create: (context) => settingsController,
         )
       ],
