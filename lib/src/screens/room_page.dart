@@ -22,14 +22,14 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:matrix/matrix.dart';
 
-class FluentRoomPage extends StatefulWidget {
+class AzhiRoomPage extends StatefulWidget {
   final Room room;
-  const FluentRoomPage({super.key, required this.room});
+  const AzhiRoomPage({super.key, required this.room});
   @override
-  State<FluentRoomPage> createState() => _FluentRoomPageState();
+  State<AzhiRoomPage> createState() => _AzhiRoomPageState();
 }
 
-class _FluentRoomPageState extends State<FluentRoomPage> {
+class _AzhiRoomPageState extends State<AzhiRoomPage> {
   @override
   Widget build(BuildContext context) {
     return mt.Scaffold(

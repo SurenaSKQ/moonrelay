@@ -49,7 +49,6 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
             ),
           );
         }
-        // Add a listener to the scroll controller
         _scrollController.addListener(
           () {
             if (_scrollController.position.pixels ==
@@ -109,7 +108,7 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
 
   @override
   void dispose() {
-    _scrollController.dispose(); // Dispose the controller
+    _scrollController.dispose();
     super.dispose();
   }
 }

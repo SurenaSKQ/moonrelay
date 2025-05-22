@@ -16,6 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/chat/events/matrix_events/Message/basic_text_event.dart';
+import 'package:azhi_main/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
 import 'package:azhi_main/src/chat/events/unsupported_event.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -34,11 +35,11 @@ class MessageEventHandler extends StatelessWidget {
           case MessageTypes.Text:
             return BasicTextEvent(event: event);
           case MessageTypes.Image:
-            return const Placeholder();
+            return FileAttachedMessage(event: event);
           case MessageTypes.Audio:
             return const Placeholder();
           case MessageTypes.File:
-            return Placeholder();
+            return FileAttachedMessage(event: event);
 
           default:
             return UnsupportedEventType(event: event);

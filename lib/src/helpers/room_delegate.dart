@@ -31,7 +31,7 @@ class RoomDelegate extends StatelessWidget {
     Client client = Provider.of<Client>(context);
     if (roomID != null) {
       return (client.getRoomById(roomID!) != null)
-          ? FluentRoomPage(room: client.getRoomById(roomID!)!)
+          ? AzhiRoomPage(room: client.getRoomById(roomID!)!)
           : const EmptySpace();
     } else {
       return const EmptySpace();
