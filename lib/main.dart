@@ -119,6 +119,10 @@ void main() async {
     if (defaultTargetPlatform == TargetPlatform.windows) {
       await flutter_acrylic.Window.hideWindowControls();
     }
+
+    await flutter_acrylic.Window.setEffect(
+        effect: flutter_acrylic.WindowEffect.transparent);
+
     await WindowManager.instance.ensureInitialized();
     windowManager.waitUntilReadyToShow().then((_) async {
       await windowManager.setTitleBarStyle(
