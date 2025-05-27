@@ -94,95 +94,17 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
-  /// No description provided for @projectName.
+  /// Inform the user of the license and means of it's obtainment.
   ///
   /// In en, this message translates to:
-  /// **'ChatSpaces'**
-  String get projectName;
+  /// **'This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the moonrelay Website for more information.'**
+  String get appLicenseNotice;
 
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'ChatSpaces'**
+  /// **'moonrelay'**
   String get appTitle;
-
-  /// No description provided for @author.
-  ///
-  /// In en, this message translates to:
-  /// **'Surena Karimpour Ghannadi'**
-  String get author;
-
-  /// No description provided for @loginButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Login'**
-  String get loginButton;
-
-  /// No description provided for @usernameText.
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get usernameText;
-
-  /// No description provided for @passwordText.
-  ///
-  /// In en, this message translates to:
-  /// **'Password'**
-  String get passwordText;
-
-  /// No description provided for @homeserverText.
-  ///
-  /// In en, this message translates to:
-  /// **'Homeserver'**
-  String get homeserverText;
-
-  /// No description provided for @thirdPartyLicense.
-  ///
-  /// In en, this message translates to:
-  /// **'Licenses'**
-  String get thirdPartyLicense;
-
-  /// No description provided for @privacyPolicy.
-  ///
-  /// In en, this message translates to:
-  /// **'Privacy and Your Data'**
-  String get privacyPolicy;
-
-  /// No description provided for @appLicenseNotice.
-  ///
-  /// In en, this message translates to:
-  /// **'This application is provided to you under the GNU General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the ChatSpaces Website for more information.'**
-  String get appLicenseNotice;
-
-  /// No description provided for @darkMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Dark Mode'**
-  String get darkMode;
-
-  /// No description provided for @lightMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Light Mode'**
-  String get lightMode;
-
-  /// No description provided for @warning.
-  ///
-  /// In en, this message translates to:
-  /// **'Warning!'**
-  String get warning;
-
-  /// No description provided for @error.
-  ///
-  /// In en, this message translates to:
-  /// **'Error!'**
-  String get error;
-
-  /// No description provided for @confirmClose.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm Exit'**
-  String get confirmClose;
 
   /// No description provided for @areYouSureExit.
   ///
@@ -190,35 +112,29 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to exit the application?'**
   String get areYouSureExit;
 
-  /// No description provided for @yesOrAffirmitive.
+  /// No description provided for @author.
   ///
   /// In en, this message translates to:
-  /// **'Yes'**
-  String get yesOrAffirmitive;
+  /// **'Surena Karimpour Ghannadi'**
+  String get author;
 
-  /// No description provided for @noOrCancellation.
+  /// No description provided for @chatBoxSendMessage.
   ///
   /// In en, this message translates to:
-  /// **'No'**
-  String get noOrCancellation;
+  /// **'Send a message!'**
+  String get chatBoxSendMessage;
 
-  /// No description provided for @home.
+  /// No description provided for @confirmClose.
   ///
   /// In en, this message translates to:
-  /// **'Home'**
-  String get home;
+  /// **'Confirm Exit'**
+  String get confirmClose;
 
-  /// No description provided for @userProfilePageBanner.
+  /// No description provided for @darkMode.
   ///
   /// In en, this message translates to:
-  /// **'{username}\'s Profile'**
-  String userProfilePageBanner(Object username);
-
-  /// No description provided for @ownProfileDescriptor.
-  ///
-  /// In en, this message translates to:
-  /// **'Your Profile'**
-  String get ownProfileDescriptor;
+  /// **'Dark Mode'**
+  String get darkMode;
 
   /// No description provided for @directMessages.
   ///
@@ -226,11 +142,95 @@ abstract class AppLocalizations {
   /// **'Direct Messages'**
   String get directMessages;
 
-  /// No description provided for @chatBoxSendMessage.
+  /// No description provided for @error.
   ///
   /// In en, this message translates to:
-  /// **'Send a message!'**
-  String get chatBoxSendMessage;
+  /// **'Error!'**
+  String get error;
+
+  /// No description provided for @home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get home;
+
+  /// No description provided for @homeserverText.
+  ///
+  /// In en, this message translates to:
+  /// **'Homeserver'**
+  String get homeserverText;
+
+  /// No description provided for @lightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Mode'**
+  String get lightMode;
+
+  /// No description provided for @loginButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get loginButton;
+
+  /// No description provided for @noOrCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get noOrCancellation;
+
+  /// No description provided for @ownProfileDescriptor.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Profile'**
+  String get ownProfileDescriptor;
+
+  /// No description provided for @passwordText.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordText;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and Your Data'**
+  String get privacyPolicy;
+
+  /// No description provided for @projectName.
+  ///
+  /// In en, this message translates to:
+  /// **'Moonrelay'**
+  String get projectName;
+
+  /// No description provided for @thirdPartyLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'Licenses'**
+  String get thirdPartyLicense;
+
+  /// No description provided for @usernameText.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get usernameText;
+
+  /// No description provided for @userProfilePageBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{username}\'s Profile'**
+  String userProfilePageBanner(String username);
+
+  /// No description provided for @warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning!'**
+  String get warning;
+
+  /// No description provided for @yesOrAffirmitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yesOrAffirmitive;
 }
 
 class _AppLocalizationsDelegate
