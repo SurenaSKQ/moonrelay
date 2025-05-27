@@ -17,6 +17,7 @@
 
 import 'package:fluent_ui/fluent_ui.dart';
 
+// FIXME: Bug with setting state in build when user profile is not returned!
 Future<void> showErrorInfobar(
   BuildContext context,
   String title,
