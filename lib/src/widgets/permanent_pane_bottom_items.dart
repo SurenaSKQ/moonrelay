@@ -16,7 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/localization/app_localizations.dart';
-import 'package:blurrycontainer/blurrycontainer.dart';
+import 'package:azhi_main/src/widgets/blur_background.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
@@ -34,27 +34,31 @@ class PermanentPaneBottomItems extends StatefulWidget {
 
 class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
   void _logout() async {
-    final client = Provider.of<Client>(context, listen: false);
-    final log = Provider.of<Logger>(context, listen: false);
-    try {
-      await client.logout();
-      context.go('/');
-    } catch (e) {
-      log.e("Logout error",
-          error: e, time: DateTime.now(), stackTrace: StackTrace.current);
-      mounted
-          ? await displayInfoBar(context, builder: (context, close) {
-              return InfoBar(
-                title: Text(AppLocalizations.of(context)!.error),
-                content: Text(e.toString()),
-                action: IconButton(
-                  icon: const Icon(FluentIcons.clear),
-                  onPressed: close,
-                ),
-                severity: InfoBarSeverity.error,
-              );
-            })
-          : throw "Build context async failure widget not mounted";
+    if (context.mounted) {
+      final client = Provider.of<Client>(context, listen: false);
+      final log = Provider.of<Logger>(context, listen: false);
+      try {
+        await client.logout();
+        // NOTE - Ignored because this problem is handled with the global key.
+        // ignore: use_build_context_synchronously
+        context.go('/');
+      } catch (e) {
+        log.e("Logout error, maybe network failure",
+            error: e, time: DateTime.now(), stackTrace: StackTrace.current);
+        // ignore: use_build_context_synchronously
+        // FIXME This can cause build exception
+        await displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: Text(AppLocalizations.of(context)!.error),
+            content: Text(e.toString()),
+            action: IconButton(
+              icon: const Icon(FluentIcons.clear),
+              onPressed: close,
+            ),
+            severity: InfoBarSeverity.error,
+          );
+        });
+      }
     }
   }
 
@@ -67,12 +71,11 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
         FlyoutTarget(
           controller: ownProfileFlyoutsController,
           child: GestureDetector(
-            child: Stack(
-              children: [
-                BlurryContainer(
-                  child: OwnProfileBar(client: client),
-                ),
-              ],
+            child: BlurBackground(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: OwnProfileBar(client: client),
+              ),
             ),
             onTap: () {
               ownProfileFlyoutsController.showFlyout(
@@ -141,19 +144,19 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
             ),
           );
         }
-        final profile = snapshot.data;
         return Builder(
           builder: (context) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(2),
-                  child: profile?.avatarUrl == null
+                  child: snapshot.data?.avatarUrl == null
                       ? Text(
-                          profile?.displayName == null
+                          snapshot.data?.displayName == null
                               ? "You"
-                              : profile!.displayName!
+                              : snapshot.data!.displayName!
                                   .toUpperCase()
                                   .split(RegExp(' +'))
                                   .map((s) => s[0])
@@ -162,8 +165,8 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                         )
                       : CircleAvatar(
                           foregroundImage: NetworkImage(
-                            profile!.avatarUrl!
-                                .getThumbnail(
+                            snapshot.data!.avatarUrl!
+                                .getThumbnailUri(
                                   widget.client,
                                   animated: true,
                                   height: 56,
@@ -175,19 +178,18 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                         ),
                 ),
                 const SizedBox(
-                  width: 18.0,
+                  width: 69.0,
                 ),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Text(
-                      profile?.displayName ?? "View your profile",
-                      style: const TextStyle(
-                          fontSize: 18, fontFamily: 'JetBrainsMono'),
+                      snapshot.data?.displayName ?? "View your profile",
+                      style: const TextStyle(fontSize: 18, fontFamily: 'Rubik'),
                     ),
                     Text(
-                      profile!.userId,
-                      style: FluentTheme.of(context).typography.bodyStrong,
+                      snapshot.data!.userId,
+                      style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
                     )
                   ],
                 )
