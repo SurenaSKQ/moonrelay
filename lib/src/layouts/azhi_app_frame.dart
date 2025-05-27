@@ -15,14 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
 import 'package:azhi_main/src/localization/app_localizations.dart';
+import 'package:azhi_main/src/settings/settings_controller.dart';
+import 'package:azhi_main/src/widgets/blur_background.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
 
-class FluentMainFrame extends StatefulWidget {
-  const FluentMainFrame({
+class AzhiAppFrame extends StatefulWidget {
+  const AzhiAppFrame({
     super.key,
     required this.child,
     required this.shellContext,
@@ -31,10 +35,10 @@ class FluentMainFrame extends StatefulWidget {
   final Widget child;
   final BuildContext? shellContext;
   @override
-  State<FluentMainFrame> createState() => _FluentMainFrameState();
+  State<AzhiAppFrame> createState() => _AzhiAppFrameState();
 }
 
-class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
+class _AzhiAppFrameState extends State<AzhiAppFrame> with WindowListener {
   @override
   void initState() {
     windowManager.addListener(this);
@@ -53,56 +57,25 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
     // final TextEditingController searchController = TextEditingController();
     // final settingsController = Provider.of<SettingsController>(context);
 
-    return NavigationView(
-      appBar: NavigationAppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor:
-            (FluentTheme.of(context).brightness == Brightness.light)
-                ? FluentTheme.of(context).accentColor.lightest
-                : FluentTheme.of(context).accentColor.darkest,
-        title: () {
-          return DragToMoveArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text(
-                    AppLocalizations.of(context)!.appTitle,
-                    style: const TextStyle(
-                      fontFamily: 'Rubik',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: Text(
-                    "{${GoRouterState.of(context).uri.toString()}}",
-                    style: const TextStyle(
-                      fontFamily: 'JetBrainsMono',
-                      fontWeight: FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(FluentIcons.settings),
-                      onPressed: () => context.push('/settings'),
-                    ),
-                    const WindowButtons(),
-                  ],
-                )
-              ],
-            ),
-          );
-        }(),
-      ),
-      content: widget.child,
+    return Stack(
+      children: [
+        // DragToResizeArea(
+        //   child: Container(),
+        // ),
+
+        // FIXME - Style this from settings controller
+        Consumer<SettingsController>(
+          builder: (context, value, child) => AzhiCustomScaffold(
+            backgroundColor: (MediaQuery.platformBrightnessOf(context).isDark)
+                ? AzhiColorPalette.cpgDarkest
+                    .withAlpha(value.backgroundTransparencyScalar)
+                : AzhiColorPalette.cpgWhite
+                    .withAlpha(value.backgroundTransparencyScalar),
+            topBar: BlurBackground(child: AzhiTitleBar()),
+            content: widget.child,
+          ),
+        ),
+      ],
     );
   }
 
@@ -135,5 +108,34 @@ class _FluentMainFrameState extends State<FluentMainFrame> with WindowListener {
         },
       );
     }
+  }
+}
+
+class AzhiTitleBar extends StatelessWidget {
+  const AzhiTitleBar({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DragToMoveArea(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              AppLocalizations.of(context)!.appTitle,
+              style: const TextStyle(
+                fontFamily: 'Oxanium',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const WindowButtons(),
+        ],
+      ),
+    );
   }
 }

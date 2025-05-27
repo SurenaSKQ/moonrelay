@@ -1,5 +1,5 @@
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
 
 class TwoColumnLayout extends StatelessWidget {
   final Widget mainView;
@@ -12,8 +12,8 @@ class TwoColumnLayout extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return mt.Scaffold(
-      body: Row(
+    return AzhiCustomScaffold(
+      content: Row(
         children: [
           Container(
             decoration: const BoxDecoration(),

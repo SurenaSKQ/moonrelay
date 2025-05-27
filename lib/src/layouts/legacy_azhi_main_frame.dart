@@ -17,11 +17,13 @@
 
 import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:azhi_main/src/widgets/window_buttons.dart';
 
-class AzhiAppFrame extends StatefulWidget {
-  const AzhiAppFrame({
+/// this should NOT be used anywhere! Que for removal
+class LegacyAzhiMainFrame extends StatefulWidget {
+  const LegacyAzhiMainFrame({
     super.key,
     required this.child,
     required this.shellContext,
@@ -30,10 +32,11 @@ class AzhiAppFrame extends StatefulWidget {
   final Widget child;
   final BuildContext? shellContext;
   @override
-  State<AzhiAppFrame> createState() => _AzhiAppFrameState();
+  State<LegacyAzhiMainFrame> createState() => _LegacyAzhiMainFrameState();
 }
 
-class _AzhiAppFrameState extends State<AzhiAppFrame> with WindowListener {
+class _LegacyAzhiMainFrameState extends State<LegacyAzhiMainFrame>
+    with WindowListener {
   @override
   void initState() {
     windowManager.addListener(this);
@@ -52,39 +55,56 @@ class _AzhiAppFrameState extends State<AzhiAppFrame> with WindowListener {
     // final TextEditingController searchController = TextEditingController();
     // final settingsController = Provider.of<SettingsController>(context);
 
-    return Stack(
-      children: [
-        DragToResizeArea(
-          child: Container(),
-        ),
-        ScaffoldPage.withPadding(
-          padding: const EdgeInsets.all(1),
-          header: DragToMoveArea(
-            child: Container(
-              color: FluentTheme.of(context).accentColor.darker,
-              padding: const EdgeInsets.only(left: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      AppLocalizations.of(context)!.appTitle,
-                      style: const TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+    return NavigationView(
+      appBar: NavigationAppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor:
+            (FluentTheme.of(context).brightness == Brightness.light)
+                ? FluentTheme.of(context).accentColor.lightest
+                : FluentTheme.of(context).accentColor.darkest,
+        title: () {
+          return DragToMoveArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    AppLocalizations.of(context)!.appTitle,
+                    style: const TextStyle(
+                      fontFamily: 'Rubik',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                  const WindowButtons(),
-                ],
-              ),
+                ),
+                Flexible(
+                  child: Text(
+                    "{${GoRouterState.of(context).uri.toString()}}",
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontWeight: FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(FluentIcons.settings),
+                      onPressed: () => context.push('/settings'),
+                    ),
+                    const WindowButtons(),
+                  ],
+                )
+              ],
             ),
-          ),
-          content: widget.child,
-        ),
-      ],
+          );
+        }(),
+      ),
+      content: widget.child,
     );
   }
 
