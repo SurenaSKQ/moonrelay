@@ -8,6 +8,8 @@ class SettingsService {
   static const _themeModeKey = 'theme_mode';
   static const _windowEffectKey = 'window_effect';
   static const _displayTypeKey = 'display_type';
+  static const _backgroundTransparencyScalarKey =
+      'background_transparency_scalar';
 
   Future<ThemeMode> themeMode() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,7 +27,7 @@ class SettingsService {
     final int? effectIndex = prefs.getInt(_windowEffectKey);
     return effectIndex != null
         ? WindowEffect.values[effectIndex]
-        : WindowEffect.mica;
+        : WindowEffect.solid;
   }
 
   Future<void> updateWindowEffect(WindowEffect effect) async {
@@ -44,5 +46,17 @@ class SettingsService {
   Future<void> updateDisplayType(DisplayType displayType) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_displayTypeKey, displayType.index);
+  }
+
+  Future<int> backgroundTransparencyScalar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? transparencyScalar =
+        prefs.getInt(_backgroundTransparencyScalarKey);
+    return transparencyScalar ?? 250;
+  }
+
+  Future<void> updateBackgroundTransparencyScalar(int scalar) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_backgroundTransparencyScalarKey, scalar);
   }
 }

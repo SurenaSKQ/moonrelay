@@ -7,6 +7,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 enum NavigationIndicators { sticky, end }
 
+// FIXME - This whole thing should go inside the settings system.
 class AzhiAppTheme extends ChangeNotifier {
   AccentColor? _color;
   AccentColor get color => _color ?? systemAccentColor;
