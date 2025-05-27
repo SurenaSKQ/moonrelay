@@ -27,7 +27,7 @@ Future<Logger> initializeLog() async {
   try {
     Directory cache = await getApplicationCacheDirectory();
     Directory logDir =
-        await Directory(join(cache.path, 'azhilog.log')).create();
+        await Directory(join(cache.path, 'MoonrelayLogs')).create();
     return Logger(
       printer: PrettyPrinter(
         colors: (Platform.isMacOS ? false : true),
@@ -38,7 +38,7 @@ Future<Logger> initializeLog() async {
       output: AdvancedFileOutput(
         path: logDir.path,
         encoding: utf8,
-        maxFileSizeKB: 8192,
+        maxFileSizeKB: 32768,
         maxDelay: const Duration(minutes: 2),
       ),
       filter: DevelopmentFilter(),
