@@ -17,6 +17,7 @@
 
 // TODO: Loading animations, handle different states, theming?
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:matrix/matrix.dart';
 
 enum AvatarStates {
@@ -24,8 +25,8 @@ enum AvatarStates {
   active,
 }
 
-class DynamicAvatarWidget extends StatefulWidget {
-  const DynamicAvatarWidget({
+class AvatarFromUriOrFallbackImage extends StatefulWidget {
+  const AvatarFromUriOrFallbackImage({
     super.key,
     required this.client,
     this.avatarUri,
@@ -38,28 +39,37 @@ class DynamicAvatarWidget extends StatefulWidget {
   final AvatarStates avatarState = AvatarStates.active;
   final ImageProvider? fallbackImage;
   @override
-  State<DynamicAvatarWidget> createState() => _DynamicAvatarWidgetState();
+  State<AvatarFromUriOrFallbackImage> createState() =>
+      _AvatarFromUriOrFallbackImageState();
 }
 
-class _DynamicAvatarWidgetState extends State<DynamicAvatarWidget> {
+class _AvatarFromUriOrFallbackImageState
+    extends State<AvatarFromUriOrFallbackImage> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      child: CircleAvatar(
-        foregroundImage: widget.avatarUri == null
-            // TODO: Default Icon!
-            ? widget.fallbackImage
-            : NetworkImage(
-                widget.avatarUri!
-                    .getThumbnail(
-                      widget.client,
-                      width: 56,
-                      height: 56,
-                    )
-                    .toString(),
-              ),
-      ),
+      child: (widget.avatarUri == null)
+          ? CircleAvatar(
+              foregroundImage: AssetImage('assets/images/fallbackAvatar.png'))
+          : FutureBuilder(
+              future: widget.avatarUri!
+                  .getThumbnailUri(widget.client, width: 56, height: 56),
+              builder: (context, asyncSnapshot) {
+                if (asyncSnapshot.connectionState != ConnectionState.done) {
+                  return Builder(
+                    builder: (context) => SpinKitCubeGrid(
+                      color: FluentTheme.of(context).accentColor,
+                    ),
+                  );
+                }
+                return CircleAvatar(
+                  foregroundImage: NetworkImage(asyncSnapshot.data.toString(),
+                      headers: {
+                        "authorization": "Bearer ${widget.client.accessToken}"
+                      }),
+                );
+              }),
     );
   }
 }
