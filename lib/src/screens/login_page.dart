@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
 import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -22,17 +23,15 @@ import 'package:matrix/matrix.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
-import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
-import 'package:blurrycontainer/blurrycontainer.dart';
 
-class FluentLoginPage extends StatefulWidget {
-  const FluentLoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<FluentLoginPage> createState() => _FluentLoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
+class _LoginPageState extends State<LoginPage> with WindowListener {
   final TextEditingController _usernameBox = TextEditingController();
   final TextEditingController _passwordBox = TextEditingController();
   final TextEditingController _homeserverBox =
@@ -41,40 +40,40 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
   bool _textActive = true;
 
   void _login() async {
-    final client = Provider.of<Client>(context, listen: false);
-    final log = Provider.of<Logger>(context, listen: false);
-    setState(() => _textActive = false);
-    try {
-      await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
-      await client.login(
-        LoginType.mLoginPassword,
-        password: _passwordBox.text,
-        identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
-      );
-      if (mounted) {
-        context.go('/main/rooms');
-      } else {
-        throw 'Widget not mounted in async context (internal error)';
-      }
-    } catch (e) {
-      log.e(
-        "Login error",
-        error: e,
-      );
-      // FIXME: Better error and localization
-      await displayInfoBar(context, builder: (context, close) {
-        return InfoBar(
-          title: Text(AppLocalizations.of(context)!.error),
-          content: Text(e.toString()),
-          action: IconButton(
-            icon: const Icon(FluentIcons.clear),
-            onPressed: close,
-          ),
-          severity: InfoBarSeverity.error,
+    if (context.mounted) {
+      final client = Provider.of<Client>(context, listen: false);
+      final log = Provider.of<Logger>(context, listen: false);
+      setState(() => _textActive = false);
+      try {
+        await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
+        await client.login(
+          LoginType.mLoginPassword,
+          password: _passwordBox.text,
+          identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
         );
-      });
+        // ignore: use_build_context_synchronously
+        context.go('/main/rooms');
+      } catch (e) {
+        log.e(
+          "Login error",
+          error: e,
+        );
+        // FIXME: Better error and localization
+        // ignore: use_build_context_synchronously
+        await displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: Text(AppLocalizations.of(context)!.error),
+            content: Text(e.toString()),
+            action: IconButton(
+              icon: const Icon(FluentIcons.clear),
+              onPressed: close,
+            ),
+            severity: InfoBarSeverity.error,
+          );
+        });
+      }
+      setState(() => _textActive = true);
     }
-    setState(() => _textActive = true);
   }
 
   @override
@@ -94,95 +93,68 @@ class _FluentLoginPageState extends State<FluentLoginPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-            image: AssetImage('assets/images/abstract_bg.jpg'),
-            fit: BoxFit.cover),
+    return AzhiCustomScaffold(
+      topBar: IconButton(
+        icon: const Icon(
+          FluentIcons.back,
+          color: Colors.white,
+        ),
+        onPressed: () => context.pop(),
       ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Flexible(
-              flex: 4,
-              child: LogoWithTextThemed(
-                themeModeOverride: Brightness.dark,
-              ),
-            ),
-            Flexible(
-              flex: 6,
-              child: BlurryContainer.expand(
-                child: ScaffoldPage(
-                  header: IconButton(
-                    icon: const Icon(
-                      FluentIcons.back,
-                      color: Colors.white,
-                    ),
-                    onPressed: () => context.pop(),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            InfoLabel(
-                              label:
-                                  AppLocalizations.of(context)!.homeserverText,
-                              labelStyle: const TextStyle(color: Colors.white),
-                              child: TextBox(
-                                controller: _homeserverBox,
-                                expands: false,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            InfoLabel(
-                              label: AppLocalizations.of(context)!.usernameText,
-                              labelStyle: const TextStyle(color: Colors.white),
-                              child: TextBox(
-                                controller: _usernameBox,
-                                expands: false,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            InfoLabel(
-                              label: AppLocalizations.of(context)!.passwordText,
-                              labelStyle: const TextStyle(color: Colors.white),
-                              child: PasswordBox(
-                                controller: _passwordBox,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Center(
-                        child: FilledButton(
-                          onPressed: !_textActive ? null : _login,
-                          child: !_textActive
-                              ? const ProgressBar()
-                              : Text(AppLocalizations.of(context)!.loginButton),
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 8.0,
-                      ),
-                    ],
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                InfoLabel(
+                  label: AppLocalizations.of(context)!.homeserverText,
+                  labelStyle: const TextStyle(color: Colors.white),
+                  child: TextBox(
+                    controller: _homeserverBox,
+                    expands: false,
                   ),
                 ),
-              ),
+                const SizedBox(
+                  height: 8,
+                ),
+                InfoLabel(
+                  label: AppLocalizations.of(context)!.usernameText,
+                  labelStyle: const TextStyle(color: Colors.white),
+                  child: TextBox(
+                    controller: _usernameBox,
+                    expands: false,
+                  ),
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                InfoLabel(
+                  label: AppLocalizations.of(context)!.passwordText,
+                  labelStyle: const TextStyle(color: Colors.white),
+                  child: PasswordBox(
+                    controller: _passwordBox,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Center(
+            child: FilledButton(
+              onPressed: !_textActive ? null : _login,
+              child: !_textActive
+                  ? const ProgressBar()
+                  : Text(AppLocalizations.of(context)!.loginButton),
+            ),
+          ),
+          const SizedBox(
+            height: 8.0,
+          ),
+        ],
       ),
     );
   }
