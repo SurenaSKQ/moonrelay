@@ -24,45 +24,12 @@ class PermanentPaneTopItems extends StatefulWidget {
   State<PermanentPaneTopItems> createState() => _PermanentPaneTopItemsState();
 }
 
+// Unused for now
 class _PermanentPaneTopItemsState extends State<PermanentPaneTopItems> {
-  final _menuController = FlyoutController();
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        FlyoutTarget(
-          controller: _menuController,
-          child: OutlinedButton(
-            child: const Row(
-              children: [
-                Icon(FluentIcons.expand_menu),
-                Text("Actions"),
-              ],
-            ),
-            onPressed: () {
-              _menuController.showFlyout(
-                autoModeConfiguration: FlyoutAutoConfiguration(
-                    preferredMode: FlyoutPlacementMode.topLeft),
-                barrierDismissible: true,
-                dismissOnPointerMoveAway: false,
-                dismissWithEsc: true,
-                builder: (context) => MenuFlyout(
-                  items: [
-                    MenuFlyoutItem(
-                        leading: const Icon(FluentIcons.add),
-                        text: const Text("New room"),
-                        onPressed: () {}),
-                    MenuFlyoutItem(
-                        leading: const Icon(FluentIcons.accounts),
-                        text: const Text("Join room from ID"),
-                        onPressed: () {}),
-                  ],
-                ),
-              );
-            },
-          ),
-        )
-      ],
+      children: [],
     );
   }
 }
