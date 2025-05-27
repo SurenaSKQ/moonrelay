@@ -19,12 +19,10 @@ import 'package:azhi_main/src/chat/chat_event.dart';
 import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
 import 'package:azhi_main/src/helpers/date_time_extension.dart';
 import 'package:azhi_main/src/settings/display_type.dart';
-import 'package:azhi_main/src/settings/settings_controller.dart';
-import 'package:azhi_main/src/widgets/dynamic_avatar.dart';
-import 'package:flutter/material.dart';
+import 'package:azhi_main/src/widgets/avatar_from_uri.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
 
 //FIXME - Display time only when there is significant deviation between two events
 //FIXME - Constraint on chat bubbles
@@ -34,10 +32,12 @@ class TimelineItem extends StatelessWidget {
     required this.event,
     required this.room,
     this.previousEvent,
+    required this.displayType,
   });
   final Event event;
   final Event? previousEvent;
   final Room room;
+  final DisplayType displayType;
 
   @override
   Widget build(BuildContext context) {
@@ -47,45 +47,46 @@ class TimelineItem extends StatelessWidget {
 
     // NOTE - Possible optimization? Is this really a good way to handle settings in here?
     // NOTE - Design rework : Avatar must be at top
-    return Consumer<SettingsController>(
-      builder: (context, value, child) => ListTile(
-        leading: switch (value.displayType) {
-          DisplayType.modern || DisplayType.bubbles => isEventFromSameSender
-              ? null
-              : DynamicAvatarWidget(
-                  client: room.client,
-                  avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-                  onTap: () => context.push(
-                    '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
-                  ),
+    return ListTile(
+      leading: switch (displayType) {
+        DisplayType.modern || DisplayType.bubbles => isEventFromSameSender
+            ? null
+            : AvatarFromUriOrFallbackImage(
+                client: room.client,
+                avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                onTap: () => context.push(
+                  '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
                 ),
-          DisplayType.irc => null
-        },
-        title: TimelineItemSenderNameAndTimestamp(
-            event: event, omitSender: isEventFromSameSender),
-        subtitle: switch (value.displayType) {
-          DisplayType.bubbles => Container(
-              decoration: BoxDecoration(
-                color: AzhiColorPalette.cpgDarker,
-                border: Border.all(
-                    color: AzhiColorPalette.britishRacingGreen, width: 0.7),
               ),
-              child: isEventFromSameSender
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(56, 8, 0, 0),
-                      child: MessageEventHandler(event: event),
-                    )
-                  : MessageEventHandler(event: event),
+        DisplayType.irc => null
+      },
+      // FIXME - Sometimes the damn thing puts messages out of order????
+      // FIXME - This needs optimization and proper styling
+      // FIXME - This needs a new custom widget instead of a generic List Tile
+      title: TimelineItemSenderNameAndTimestamp(
+          event: event, omitSender: isEventFromSameSender),
+      subtitle: switch (displayType) {
+        DisplayType.bubbles => Container(
+            decoration: BoxDecoration(
+              color: AzhiColorPalette.cpgDarker,
+              border: Border.all(
+                  color: AzhiColorPalette.britishRacingGreen, width: 0.7),
             ),
-          DisplayType.modern => isEventFromSameSender
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(56, 0, 0, 0),
-                  child: MessageEventHandler(event: event),
-                )
-              : MessageEventHandler(event: event),
-          DisplayType.irc => MessageEventHandler(event: event),
-        },
-      ),
+            child: isEventFromSameSender
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(56, 8, 0, 0),
+                    child: MessageEventHandler(event: event),
+                  )
+                : MessageEventHandler(event: event),
+          ),
+        DisplayType.modern => isEventFromSameSender
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(56, 0, 0, 0),
+                child: MessageEventHandler(event: event),
+              )
+            : MessageEventHandler(event: event),
+        DisplayType.irc => MessageEventHandler(event: event),
+      },
     );
   }
 }
@@ -130,7 +131,7 @@ class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
           event.originServerTs.localizedTimeShort(context),
           style: const TextStyle(
             fontSize: 12,
-            fontFamily: 'JetBrainsMono',
+            fontFamily: 'Rubik',
             fontWeight: FontWeight.bold,
           ),
         ),

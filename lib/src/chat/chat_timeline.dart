@@ -16,9 +16,11 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/chat/timeline_item.dart';
+import 'package:azhi_main/src/screens/loading_screen.dart';
+import 'package:azhi_main/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 class AzhiChatTimeline extends StatefulWidget {
   const AzhiChatTimeline({super.key, required this.room});
@@ -36,54 +38,54 @@ class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
   // Counts events
   // ignore: unused_field
   int _count = 0;
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Timeline>(
-      future: _timelineFuture,
-      builder: (context, snapshot) {
-        final timeline = snapshot.data;
-        if (timeline == null) {
-          return Center(
-            child: SpinKitCubeGrid(
-              color: FluentTheme.of(context).accentColor,
+    return Consumer<SettingsController>(
+      builder: (context, value, child) => FutureBuilder<Timeline>(
+        future: _timelineFuture,
+        builder: (context, snapshot) {
+          final timeline = snapshot.data;
+          if (snapshot.connectionState != ConnectionState.done ||
+              timeline == null) {
+            return LoadingAndTransitionScreen();
+          }
+          _scrollController.addListener(
+            () {
+              if (_scrollController.position.pixels ==
+                  _scrollController.position.maxScrollExtent) {
+                // User has scrolled to the top (not bottom lol), request more data
+                timeline.requestHistory();
+              }
+            },
+          );
+          _count = timeline.events.length;
+          return Expanded(
+            child: AnimatedList(
+              controller: _scrollController,
+              key: _listKey,
+              reverse: true,
+              initialItemCount: timeline.events.length,
+              itemBuilder: (context, index, animation) {
+                if ((timeline.events[index].relationshipEventId != null)) {
+                  return Container();
+                } else {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: TimelineItem(
+                      event: timeline.events[index],
+                      previousEvent:
+                          (index >= 1 ? timeline.events[index - 1] : null),
+                      room: widget.room,
+                      displayType: value.displayType,
+                    ),
+                  );
+                }
+              },
             ),
           );
-        }
-        _scrollController.addListener(
-          () {
-            if (_scrollController.position.pixels ==
-                _scrollController.position.maxScrollExtent) {
-              // User has scrolled to the top (not bottom lol), request more data
-              timeline.requestHistory();
-            }
-          },
-        );
-        _count = timeline.events.length;
-        return Expanded(
-          child: AnimatedList(
-            controller: _scrollController,
-            key: _listKey,
-            reverse: true,
-            initialItemCount: timeline.events.length,
-            itemBuilder: (context, index, animation) {
-              return (timeline.events[index].relationshipEventId != null)
-                  ? Container()
-                  : FadeTransition(
-                      opacity: animation,
-                      child: Opacity(
-                        opacity: timeline.events[index].status.isSent ? 1 : 0.5,
-                        child: TimelineItem(
-                          event: timeline.events[index],
-                          previousEvent:
-                              (index >= 1 ? timeline.events[index - 1] : null),
-                          room: widget.room,
-                        ),
-                      ),
-                    );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 
