@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+// ignore_for_file: unused_import
+
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -35,6 +37,7 @@ class FileAttachedMessage extends StatelessWidget {
           fileName: FileUtilities(event: event).getFileName(),
           bytes: attFile.bytes);
     }
+    return null;
   }
 
   @override

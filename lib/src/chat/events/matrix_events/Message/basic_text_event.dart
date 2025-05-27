@@ -31,7 +31,7 @@ class _BasicTextEventState extends State<BasicTextEvent> {
   Widget build(BuildContext context) {
     return Text(
       widget.event.body,
-      style: FluentTheme.of(context).typography.bodyLarge,
+      style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
     );
   }
 }
