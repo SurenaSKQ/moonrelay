@@ -18,8 +18,9 @@
 import 'package:azhi_main/src/chat/chat_box.dart';
 import 'package:azhi_main/src/chat/chat_timeline.dart';
 import 'package:azhi_main/src/chat/room_info_card.dart';
+import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
 import 'package:matrix/matrix.dart';
 
 class AzhiRoomPage extends StatefulWidget {
@@ -32,27 +33,23 @@ class AzhiRoomPage extends StatefulWidget {
 class _AzhiRoomPageState extends State<AzhiRoomPage> {
   @override
   Widget build(BuildContext context) {
-    return mt.Scaffold(
-      backgroundColor: FluentTheme.of(context).scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          RoomInfoCard(room: widget.room),
-          const SizedBox(
-            height: 4,
-          ),
-          const Divider(
-            direction: Axis.horizontal,
-          ),
-          Expanded(
-            child: AzhiChatTimeline(room: widget.room),
-          ),
-          const Divider(
-            direction: Axis.vertical,
-            size: 1,
-          ),
-          ChatBox(room: widget.room),
-        ],
-      ),
+    return AzhiCustomScaffold(
+      backgroundColor: AzhiColorPalette.ordinaryDarkGrey,
+      content: Stack(children: [
+        Column(
+          children: [
+            Expanded(
+              child: AzhiChatTimeline(room: widget.room),
+            ),
+            const Divider(
+              direction: Axis.vertical,
+              size: 1,
+            ),
+            ChatBox(room: widget.room),
+          ],
+        ),
+        RoomInfoCard(room: widget.room),
+      ]),
     );
   }
 }
