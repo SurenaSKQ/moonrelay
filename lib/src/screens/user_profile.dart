@@ -17,6 +17,7 @@
 
 import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:azhi_main/src/screens/loading_screen.dart';
+import 'package:azhi_main/src/widgets/avatar_from_uri.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -34,6 +35,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Profile uprofile;
+
   Future<void> _getUserProfile() async {
     uprofile = await widget.client.getProfileFromUserId(widget.userID);
     setState(() {});
@@ -116,22 +118,10 @@ class ProfilePageContents extends StatelessWidget {
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              userProfile.avatarUrl == null
-                  ? Text(
-                      userProfile.displayName!
-                          .toUpperCase()
-                          .split(RegExp(' +'))
-                          .map((s) => s[0])
-                          .take(2)
-                          .join(),
-                      style: FluentTheme.of(context).typography.titleLarge,
-                    )
-                  : CircleAvatar(
-                      foregroundImage: NetworkImage(userProfile.avatarUrl!
-                          .getThumbnail(client,
-                              width: 64, height: 64, animated: true)
-                          .toString()),
-                    ),
+              AvatarFromUriOrFallbackImage(
+                client: client,
+                avatarUri: userProfile.avatarUrl,
+              ),
               const SizedBox(
                 width: 16,
               ),

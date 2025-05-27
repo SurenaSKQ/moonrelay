@@ -17,6 +17,7 @@
 
 import 'package:azhi_main/src/localization/app_localizations.dart';
 import 'package:azhi_main/src/screens/loading_screen.dart';
+import 'package:azhi_main/src/widgets/avatar_from_uri.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -123,11 +124,9 @@ class OwnProfilePageContent extends StatelessWidget {
                           .join(),
                       style: FluentTheme.of(context).typography.titleLarge,
                     )
-                  : CircleAvatar(
-                      foregroundImage: NetworkImage(userProfile.avatarUrl!
-                          .getThumbnail(client,
-                              width: 64, height: 64, animated: true)
-                          .toString()),
+                  : AvatarFromUriOrFallbackImage(
+                      client: client,
+                      avatarUri: userProfile.avatarUrl,
                     ),
               const SizedBox(
                 width: 16,

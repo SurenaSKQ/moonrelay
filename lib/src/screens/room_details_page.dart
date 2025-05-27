@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:azhi_main/src/widgets/avatar_from_uri.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -48,29 +49,11 @@ class _RoomInformationsState extends State<RoomInformations> {
                 const SizedBox(
                   width: 24,
                 ),
-                widget.room.avatar == null
-                    ? Text(
-                        widget.room
-                            .getLocalizedDisplayname()
-                            .toUpperCase()
-                            .split(RegExp(' +'))
-                            .map((s) => s[0])
-                            .take(2)
-                            .join(),
-                      )
-                    : CircleAvatar(
-                        maxRadius: 32,
-                        foregroundImage: NetworkImage(
-                          widget.room.avatar!
-                              .getThumbnail(
-                                widget.room.client,
-                                animated: true,
-                                width: 128,
-                                height: 128,
-                              )
-                              .toString(),
-                        ),
-                      ),
+                // FIXME Add a fallback image for rooms
+                AvatarFromUriOrFallbackImage(
+                  client: widget.room.client,
+                  avatarUri: widget.room.avatar,
+                ),
                 const SizedBox(
                   width: 32,
                 ),
@@ -184,19 +167,9 @@ class RoomParticipantsList extends StatelessWidget {
                 ],
               ),
               subtitle: Text(members[index].id),
-              leading: CircleAvatar(
-                foregroundImage: members[index].avatarUrl == null
-                    ? null
-                    : NetworkImage(
-                        members[index]
-                            .avatarUrl!
-                            .getThumbnail(
-                              room.client,
-                              width: 56,
-                              height: 56,
-                            )
-                            .toString(),
-                      ),
+              leading: AvatarFromUriOrFallbackImage(
+                client: room.client,
+                avatarUri: members[index].avatarUrl,
               ),
             );
           },
