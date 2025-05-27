@@ -14,7 +14,9 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
-import 'package:flutter/material.dart';
+
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class LoadingAndTransitionScreen extends StatefulWidget {
@@ -30,18 +32,16 @@ class _LoadingAndTransitionScreenState
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            gradient: LinearGradient(
-              colors: [Colors.black, Colors.white30],
-            ),
+      child: AzhiCustomScaffold(
+        backgroundDecoration: const BoxDecoration(
+          color: Colors.transparent,
+          gradient: LinearGradient(
+            colors: [Colors.black, Colors.white],
           ),
-          child: const Center(
-            child: SpinKitCubeGrid(
-              color: Colors.indigo,
-            ),
+        ),
+        content: Center(
+          child: SpinKitCubeGrid(
+            color: FluentTheme.of(context).accentColor,
           ),
         ),
       ),

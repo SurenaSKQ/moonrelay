@@ -15,8 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:azhi_main/src/widgets/logo_with_text_themed.dart';
-import 'package:blurrycontainer/blurrycontainer.dart';
+import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -57,48 +56,24 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final TextEditingController passwordController = TextEditingController();
     final TextEditingController homeserverController = TextEditingController();
 
-    return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-            image: AssetImage('assets/images/abstract_bg.jpg'),
-            fit: BoxFit.cover),
+    return AzhiCustomScaffold(
+      topBar: IconButton(
+        icon: const Icon(
+          FluentIcons.back,
+          color: Colors.white,
+        ),
+        onPressed: () => context.pop(),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      content: Column(
         children: [
-          const Flexible(
-            flex: 4,
-            child: LogoWithTextThemed(
-              themeModeOverride: Brightness.dark,
-            ),
+          TextBox(
+            controller: homeserverController,
           ),
-          Flexible(
-            flex: 6,
-            child: BlurryContainer.expand(
-              child: ScaffoldPage(
-                header: IconButton(
-                  icon: const Icon(
-                    FluentIcons.back,
-                    color: Colors.white,
-                  ),
-                  onPressed: () => context.pop(),
-                ),
-                content: Column(
-                  children: [
-                    TextBox(
-                      controller: homeserverController,
-                    ),
-                    TextBox(
-                      controller: usernameController,
-                    ),
-                    TextBox(
-                      controller: passwordController,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          TextBox(
+            controller: usernameController,
+          ),
+          TextBox(
+            controller: passwordController,
           ),
         ],
       ),
