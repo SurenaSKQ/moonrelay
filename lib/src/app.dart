@@ -16,7 +16,7 @@
 // along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:azhi_main/src/localization/app_localizations.dart';
-import 'package:azhi_main/src/locations.dart';
+import 'package:azhi_main/src/router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -29,8 +29,7 @@ final _appTheme = AzhiAppTheme();
 class ChatSpacesApp extends StatelessWidget {
   const ChatSpacesApp({super.key});
 
-  static final GoRouter azhirouter =
-      GoRouter(routes: AppLocationsHandler.routes);
+  static final GoRouter azhirouter = GoRouter(routes: MoonRouter.routes);
 
   @override
   Widget build(BuildContext context) {
