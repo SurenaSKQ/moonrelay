@@ -38,6 +38,7 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
   - Settings controller and service integration
   - More configurable UI values
   - Full integration with internationalization (this is particularly embarassing for a non-english project)
+  - State management rework
 - UI revamp v1
   - Overall increase the dynamic scaling potential of the UI and fix scaling
   - Chat screen rework v1
@@ -82,3 +83,20 @@ to remain flexible in the face of the inescapable temporal burden we carry.
   - who can trully proclaim to know where Matrix will go, especially with the strong disdain certain communities
   - show towards the Matrix protocol.
   - I have forked matrix-sdk-lite from Famedly; just in case
+
+# Bad Design
+
+This category is the underlying work that needs to be done to fix the terrible design I accumulated over the past 2 years.
+
+- FutureBuilders
+  - There is a LOT of code that need to use FutureBuilders with placeholders to get data.
+- New Chat Timeline
+  - That whole thing is a mess
+- Skeletonized loading
+  - Better UX
+  - Without proper loading animations; the app shows a blank screen on Linux until loaded
+  - Currently there is a long delay when logging in
+- Own blur widget
+- Potential global key issue?
+- Use CustomMultiChildLayout
+- FIXME Handle cases where user profile response is invalid!

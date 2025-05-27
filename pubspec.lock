@@ -49,14 +49,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
-  blurrycontainer:
-    dependency: "direct main"
-    description:
-      name: blurrycontainer
-      sha256: ceb51f5bf0c746509a64fec43988a482adbcdf8bc5e0a11f3cc49b9ed35ff230
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -165,10 +157,10 @@ packages:
     dependency: "direct main"
     description:
       name: fluent_ui
-      sha256: "76c4ba700bb26ac9894b9c6b16cae40f36f78266b2281c995d814b01a7c75356"
+      sha256: "8645eabacb46bfc9632fadc6e106756cdc6f2a4efb5a4fed4410bd3131306fe8"
       url: "https://pub.dev"
     source: hosted
-    version: "4.11.5"
+    version: "4.12.0"
   fluentui_system_icons:
     dependency: "direct main"
     description:
@@ -409,10 +401,10 @@ packages:
     dependency: transitive
     description:
       name: macos_window_utils
-      sha256: "997d84f148c0e5a2bdb93997425a4289432984b135646c3f6134c697ef82ce3e"
+      sha256: b5832b9a9df1741d78b76ea77811803fbcc944599b3b41950a9f19e822731023
       url: "https://pub.dev"
     source: hosted
-    version: "1.8.0"
+    version: "1.8.1"
   markdown:
     dependency: transitive
     description:
@@ -478,7 +470,7 @@ packages:
     source: hosted
     version: "1.0.0"
   olm:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: olm
       sha256: "6a3fe1e5170b954dd9e4ba3b27513e6aa9b7591eb7bb0d7f6f32140b7f140c6f"
@@ -806,18 +798,18 @@ packages:
     dependency: transitive
     description:
       name: sqlite3
-      sha256: "310af39c40dd0bb2058538333c9d9840a2725ae0b9f77e4fd09ad6696aa8f66e"
+      sha256: c0503c69b44d5714e6abbf4c1f51a3c3cc42b75ce785f44404765e4635481d38
       url: "https://pub.dev"
     source: hosted
-    version: "2.7.5"
+    version: "2.7.6"
   sqlite3_flutter_libs:
     dependency: "direct main"
     description:
       name: sqlite3_flutter_libs
-      sha256: "1a96b59227828d9eb1463191d684b37a27d66ee5ed7597fcf42eee6452c88a14"
+      sha256: "7986c26234c0a5cf4fd83ff4ee39d4195b1f47cdb50a949ec7987ede4dcbdc2a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.32"
+    version: "0.5.33"
   stack_trace:
     dependency: transitive
     description:
@@ -1052,4 +1044,4 @@ packages:
     version: "6.5.0"
 sdks:
   dart: ">=3.7.0 <4.0.0"
-  flutter: ">=3.27.0"
+  flutter: ">=3.32.0"
