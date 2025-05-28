@@ -93,7 +93,7 @@ class StartupScreen extends StatelessWidget {
                 height: 16.0,
               ),
               const Text(
-                "The ChatSpaces team cannot moderate or honour DMCA requests on content that is posted on the Matrix protocol network. Contact room administrators or homeserver owners.",
+                "The Moonrelay team cannot moderate or honour DMCA requests on content that is posted on the Matrix protocol network. Contact room administrators or homeserver owners.",
                 textAlign: TextAlign.justify,
                 style: TextStyle(
                   fontFamily: 'Rubik',
