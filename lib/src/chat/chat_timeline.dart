@@ -1,37 +1,36 @@
+// Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/chat/timeline_item.dart';
-import 'package:azhi_main/src/screens/loading_screen.dart';
-import 'package:azhi_main/src/settings/settings_controller.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/chat/timeline_item.dart';
+import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
-class AzhiChatTimeline extends StatefulWidget {
-  const AzhiChatTimeline({super.key, required this.room});
+class ChatTimeline extends StatefulWidget {
+  const ChatTimeline({super.key, required this.room});
   final Room room;
 
   @override
-  State<AzhiChatTimeline> createState() => _AzhiChatTimelineState();
+  State<ChatTimeline> createState() => _ChatTimelineState();
 }
 
 //TODO: This needs settingsController styling.
-class _AzhiChatTimelineState extends State<AzhiChatTimeline> {
+class _ChatTimelineState extends State<ChatTimeline> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final ScrollController _scrollController = ScrollController();

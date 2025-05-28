@@ -1,4 +1,4 @@
-import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
+import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
 class TwoColumnLayout extends StatelessWidget {
@@ -12,7 +12,7 @@ class TwoColumnLayout extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return AzhiCustomScaffold(
+    return CustomScaffold(
       content: Row(
         children: [
           Container(

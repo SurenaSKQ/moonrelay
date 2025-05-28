@@ -1,35 +1,34 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
 
-import 'package:azhi_main/src/helpers/profile_delegate.dart';
-import 'package:azhi_main/src/layouts/azhi_app_frame.dart';
-import 'package:azhi_main/src/layouts/two_column_layout.dart';
-import 'package:azhi_main/src/screens/startup_home_frame.dart';
-import 'package:azhi_main/src/screens/login_page.dart';
-import 'package:azhi_main/src/screens/own_user_profile.dart';
-import 'package:azhi_main/src/screens/register_page.dart';
-import 'package:azhi_main/src/screens/room_details_page.dart';
-import 'package:azhi_main/src/screens/startup_screen.dart';
-import 'package:azhi_main/src/settings/settings_view.dart';
-import 'package:azhi_main/src/helpers/room_delegate.dart';
-import 'package:azhi_main/src/widgets/rooms_pane.dart';
-import 'package:azhi_main/src/widgets/side_pane_handler.dart';
+import 'package:moonrelay/src/helpers/profile_delegate.dart';
+import 'package:moonrelay/src/layouts/app_frame.dart';
+import 'package:moonrelay/src/layouts/two_column_layout.dart';
+import 'package:moonrelay/src/screens/startup_home_frame.dart';
+import 'package:moonrelay/src/screens/login_page.dart';
+import 'package:moonrelay/src/screens/own_user_profile.dart';
+import 'package:moonrelay/src/screens/register_page.dart';
+import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/screens/startup_screen.dart';
+import 'package:moonrelay/src/settings/settings_view.dart';
+import 'package:moonrelay/src/helpers/room_delegate.dart';
+import 'package:moonrelay/src/widgets/rooms_pane.dart';
+import 'package:moonrelay/src/widgets/side_pane_handler.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -54,10 +53,10 @@ class MoonRouter {
   // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
   static final List<RouteBase> routes = [
     ShellRoute(
-      pageBuilder: (context, state, child) => azhiPageBuilder(
+      pageBuilder: (context, state, child) => genericPageBuilder(
         context,
         state,
-        AzhiAppFrame(shellContext: context, child: child),
+        AppFrame(shellContext: context, child: child),
       ),
       routes: [
         GoRoute(
@@ -68,7 +67,7 @@ class MoonRouter {
                   : '/welcome',
         ),
         ShellRoute(
-          pageBuilder: (context, state, child) => azhiPageBuilder(
+          pageBuilder: (context, state, child) => genericPageBuilder(
             context,
             state,
             StartupHomeFrame(
@@ -80,11 +79,11 @@ class MoonRouter {
             GoRoute(
                 path: '/welcome',
                 pageBuilder: (context, state) =>
-                    azhiPageBuilder(context, state, StartupScreen()),
+                    genericPageBuilder(context, state, StartupScreen()),
                 routes: [
                   GoRoute(
                     path: 'login',
-                    pageBuilder: (context, state) => azhiPageBuilder(
+                    pageBuilder: (context, state) => genericPageBuilder(
                       context,
                       state,
                       const LoginPage(),
@@ -92,7 +91,7 @@ class MoonRouter {
                   ),
                   GoRoute(
                     path: 'register',
-                    pageBuilder: (context, state) => azhiPageBuilder(
+                    pageBuilder: (context, state) => genericPageBuilder(
                       context,
                       state,
                       const RegisterNewUserAccountGuidancePage(),
@@ -103,14 +102,14 @@ class MoonRouter {
         ),
         GoRoute(
           path: '/settings',
-          pageBuilder: (context, state) => azhiPageBuilder(
+          pageBuilder: (context, state) => genericPageBuilder(
             context,
             state,
             const SettingsView(),
           ),
         ),
         ShellRoute(
-          pageBuilder: (context, state, child) => azhiPageBuilder(
+          pageBuilder: (context, state, child) => genericPageBuilder(
             context,
             state,
             TwoColumnLayout(
@@ -122,7 +121,7 @@ class MoonRouter {
             GoRoute(
               path: '/main/rooms',
               redirect: loggedOutRedirect,
-              pageBuilder: (context, state) => azhiPageBuilder(
+              pageBuilder: (context, state) => genericPageBuilder(
                 context,
                 state,
                 RoomDelegate(
@@ -132,7 +131,7 @@ class MoonRouter {
               routes: [
                 GoRoute(
                   path: ':roomid',
-                  pageBuilder: (context, state) => azhiPageBuilder(
+                  pageBuilder: (context, state) => genericPageBuilder(
                     context,
                     state,
                     RoomDelegate(
@@ -143,7 +142,7 @@ class MoonRouter {
                   routes: [
                     GoRoute(
                       path: 'profile',
-                      pageBuilder: (context, state) => azhiPageBuilder(
+                      pageBuilder: (context, state) => genericPageBuilder(
                         context,
                         state,
                         ProfileDelegate(
@@ -153,7 +152,7 @@ class MoonRouter {
                       routes: [
                         GoRoute(
                           path: ':userid',
-                          pageBuilder: (context, state) => azhiPageBuilder(
+                          pageBuilder: (context, state) => genericPageBuilder(
                             context,
                             state,
                             ProfileDelegate(
@@ -166,7 +165,7 @@ class MoonRouter {
                           pageBuilder: (context, state) {
                             String roomid = state.pathParameters['roomid']!;
                             Client client = Provider.of<Client>(context);
-                            return azhiPageBuilder(
+                            return genericPageBuilder(
                               context,
                               state,
                               RoomInformations(
@@ -186,7 +185,7 @@ class MoonRouter {
               pageBuilder: (context, state) {
                 final Client client =
                     Provider.of<Client>(context, listen: false);
-                return azhiPageBuilder(
+                return genericPageBuilder(
                     context, state, OwnProfilePage(client: client));
               },
             )
@@ -200,7 +199,7 @@ class MoonRouter {
     config: GoRouter(
       routes: [
         ShellRoute(
-          pageBuilder: (context, state, child) => azhiPageBuilder(
+          pageBuilder: (context, state, child) => genericPageBuilder(
             context,
             state,
             SidePaneHandler(
@@ -210,7 +209,7 @@ class MoonRouter {
           routes: [
             GoRoute(
               path: '/',
-              pageBuilder: (context, state) => azhiPageBuilder(
+              pageBuilder: (context, state) => genericPageBuilder(
                 context,
                 state,
                 const RoomsPane(),
@@ -222,7 +221,7 @@ class MoonRouter {
     ),
   );
 
-  static Page azhiPageBuilder(
+  static Page genericPageBuilder(
     BuildContext context,
     GoRouterState state,
     Widget child,

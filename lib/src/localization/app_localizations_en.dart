@@ -13,7 +13,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the moonrelay Website for more information.';
 
   @override
-  String get appTitle => 'moonrelay';
+  String get appTitle => 'MOONRELAY';
 
   @override
   String get areYouSureExit => 'Are you sure you want to exit the application?';

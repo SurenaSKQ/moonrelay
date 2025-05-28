@@ -1,6 +1,6 @@
 {
-    "name": "azhi_main",
-    "short_name": "azhi_main",
+    "name": "moonrelay",
+    "short_name": "moonrelay",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,25 +1,24 @@
+// Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/chat/chat_event.dart';
-import 'package:azhi_main/src/helpers/azhi_color_palette.dart';
-import 'package:azhi_main/src/helpers/date_time_extension.dart';
-import 'package:azhi_main/src/settings/display_type.dart';
-import 'package:azhi_main/src/widgets/avatar_from_uri.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/helpers/color_palette.dart';
+import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -68,9 +67,9 @@ class TimelineItem extends StatelessWidget {
       subtitle: switch (displayType) {
         DisplayType.bubbles => Container(
             decoration: BoxDecoration(
-              color: AzhiColorPalette.cpgDarker,
+              color: MoonrelayColorPalette.cpgDarker,
               border: Border.all(
-                  color: AzhiColorPalette.britishRacingGreen, width: 0.7),
+                  color: MoonrelayColorPalette.britishRacingGreen, width: 0.7),
             ),
             child: isEventFromSameSender
                 ? Padding(

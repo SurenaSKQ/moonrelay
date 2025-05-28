@@ -1,4 +1,4 @@
-import 'package:azhi_main/src/helpers/string_color.dart';
+import 'package:moonrelay/src/helpers/string_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:system_theme/system_theme.dart';
@@ -8,7 +8,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 enum NavigationIndicators { sticky, end }
 
 // FIXME - This whole thing should go inside the settings system.
-class AzhiAppTheme extends ChangeNotifier {
+class MoonrelayAppTheme extends ChangeNotifier {
   AccentColor? _color;
   AccentColor get color => _color ?? systemAccentColor;
   set color(AccentColor color) {
@@ -89,7 +89,7 @@ AccentColor get systemAccentColor {
   return Colors.blue;
 }
 
-class AzhiThemeColors {
+class ThemeColors {
   // Colors
   static const Color primaryColor =
       Color(0xFF2A2E31); // Example dark color for primary theme
@@ -119,7 +119,7 @@ class AzhiThemeColors {
   }
 }
 
-class AzhiThemeFonts {
+class ThemeFonts {
   // Font settings
   final String fontFamily = 'Rubik';
   final double baseFontSize = 16.0; // Base font size

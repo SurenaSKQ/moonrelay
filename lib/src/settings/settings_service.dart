@@ -1,4 +1,4 @@
-import 'package:azhi_main/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_acrylic/window_effect.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -1,20 +1,19 @@
 <!--
+ Part of Moonrelay, a matrix protocol client.
  Copyright (C) 2025 Surena Karimpour Ghannadi
 
- This file is part of Prject Azhi.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
 
- Prject Azhi is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- Prject Azhi is distributed in the hope that it will be useful,
+ This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 
 # Current work
@@ -63,7 +62,7 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
 
 Expected timeline: 2026 and beyound
 
-- Custom Azhi events (events v3)
+- Custom events (events v3)
   - Git events
   - Map events
   - Realtime audio and video chat
@@ -76,9 +75,9 @@ Expected timeline: 2026 and beyound
 Extremely long term wishlist that may or may not come to fruitition; only introduced here for gathering options
 to remain flexible in the face of the inescapable temporal burden we carry.
 
-- Azhi Server SDK v1
+- Server SDK v1
   - Server-side SDK for Matrix protocol
-- Azhi Client SDK v1
+- Client SDK v1
   - Potentially explore new chat protocols as time moves onwards; XMPP was here once and how it is no more
   - who can trully proclaim to know where Matrix will go, especially with the strong disdain certain communities
   - show towards the Matrix protocol.

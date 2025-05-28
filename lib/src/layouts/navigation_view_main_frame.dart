@@ -1,29 +1,28 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/localization/app_localizations.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:azhi_main/src/widgets/window_buttons.dart';
+import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// this should NOT be used anywhere! Que for removal
-class LegacyAzhiMainFrame extends StatefulWidget {
-  const LegacyAzhiMainFrame({
+class NavigationViewMainFrame extends StatefulWidget {
+  const NavigationViewMainFrame({
     super.key,
     required this.child,
     required this.shellContext,
@@ -32,10 +31,10 @@ class LegacyAzhiMainFrame extends StatefulWidget {
   final Widget child;
   final BuildContext? shellContext;
   @override
-  State<LegacyAzhiMainFrame> createState() => _LegacyAzhiMainFrameState();
+  State<NavigationViewMainFrame> createState() => _NavigationViewMainFrameState();
 }
 
-class _LegacyAzhiMainFrameState extends State<LegacyAzhiMainFrame>
+class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
     with WindowListener {
   @override
   void initState() {

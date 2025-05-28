@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "azhi_main",
+            "name": "moonrelay",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "azhi_main (profile mode)",
+            "name": "moonrelay (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "azhi_main (release mode)",
+            "name": "moonrelay (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

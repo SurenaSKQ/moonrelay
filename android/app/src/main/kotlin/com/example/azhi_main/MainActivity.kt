@@ -1,4 +1,4 @@
-package com.example.azhi_main
+package com.example.moonrelay
 
 import io.flutter.embedding.android.FlutterActivity
 

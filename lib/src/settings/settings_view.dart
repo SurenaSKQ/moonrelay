@@ -1,6 +1,6 @@
-import 'package:azhi_main/src/layouts/azhi_app_frame.dart';
-import 'package:azhi_main/src/layouts/azhi_custom_scaffold.dart';
-import 'package:azhi_main/src/settings/display_type.dart';
+import 'package:moonrelay/src/layouts/app_frame.dart';
+import 'package:moonrelay/src/layouts/custom_scaffold.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:go_router/go_router.dart';
@@ -27,7 +27,7 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, child) {
-        return AzhiCustomScaffold(
+        return CustomScaffold(
           topBar: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
