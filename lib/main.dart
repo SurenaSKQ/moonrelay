@@ -1,19 +1,18 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <http://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // This is the application entry point. It servers the purpose of intializing vital data.
 
@@ -24,6 +23,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart' as sql;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
@@ -33,6 +34,7 @@ import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
+import 'package:path/path.dart' as p;
 
 /// Checks if the current environment is a desktop environment.
 bool get isDesktop {
@@ -46,27 +48,43 @@ bool get isDesktop {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Provider.debugCheckInvalidValueType = null;
-
   // TODO: Better error handling (application-wide item)
   // TODO: Deffered loading, loading screen, etc.
 
   Logger log = await initializeLog();
 
+  try {
+    sqfliteFfiInit();
+  } catch (e) {
+    log.f('SQFLite FFi has caused an exception. Report this on our CodeBerg.',
+        error: e);
+    if (kDebugMode) {
+      print(
+          'SQFLite FFi has caused an exception. Report this on our CodeBerg.');
+    }
+  }
+
+  databaseFactory = databaseFactoryFfi;
+
+  // TODO: This will need rework for multiplatform.
   // Initialize the SDK Client object and do necessary initializations.
-  // Using HiveDatabase in "support directory" for all user data
-  // TODO[epic=longterm] use Isar? https://isar.dev/
   // Support Emoji and Number sequence verification (future: QR code)
   // Definitely use isolates to offload compute from main thread
   final sdk = Client(
-    'Project Azhi',
+    'Moonrelay',
     databaseBuilder: (_) async {
       try {
-        final dbpath = await getApplicationSupportDirectory();
-        final dbobj = HiveCollectionsDatabase('azhiDB', dbpath.path);
+        final dbdir = await getApplicationSupportDirectory();
+        const String dbname = 'moonrelay.db';
+        final database = await sql.openDatabase(p.join(dbdir.path, dbname));
+        final dbobj = MatrixSdkDatabase('moonrelay',
+            database: database, sqfliteFactory: databaseFactoryFfi);
         await dbobj.open();
         return dbobj;
       } catch (e) {
+        if (kDebugMode) {
+          print(e);
+        }
         log.f(
           "Failed to initialize database",
           error: e,
@@ -100,10 +118,14 @@ void main() async {
     if (defaultTargetPlatform == TargetPlatform.windows) {
       await flutter_acrylic.Window.hideWindowControls();
     }
+
+    await flutter_acrylic.Window.setEffect(
+        effect: flutter_acrylic.WindowEffect.transparent);
+
     await WindowManager.instance.ensureInitialized();
     windowManager.waitUntilReadyToShow().then((_) async {
       await windowManager.setTitleBarStyle(
-        TitleBarStyle.normal,
+        TitleBarStyle.hidden,
         windowButtonVisibility: false,
       );
       await windowManager.setMinimumSize(const Size(500, 600));
@@ -127,11 +149,11 @@ void main() async {
         Provider(
           create: (_) => log,
         ),
-        Provider(
+        ChangeNotifierProvider(
           create: (context) => settingsController,
         )
       ],
-      child: const ChatSpacesApp(),
+      child: const MoonrelayApp(),
     ),
   );
 }

@@ -1,4 +1,7 @@
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'package:flutter_acrylic/window_effect.dart';
 
 import 'settings_service.dart';
 
@@ -8,43 +11,64 @@ import 'settings_service.dart';
 /// Controllers glue Data Services to Flutter Widgets. The SettingsController
 /// uses the SettingsService to store and retrieve user settings.
 class SettingsController with ChangeNotifier {
-  SettingsController(this._settingsService);
-
-  // Make SettingsService a private variable so it is not used directly.
   final SettingsService _settingsService;
-
-  // Make ThemeMode a private variable so it is not updated directly without
-  // also persisting the changes with the SettingsService.
   late ThemeMode _themeMode;
+  late WindowEffect _windowEffect;
+  late DisplayType _displayType;
+  late int _backgroundTransparencyScalar;
 
-  // Allow Widgets to read the user's preferred ThemeMode.
+  SettingsController(this._settingsService) {
+    loadSettings();
+  }
+
   ThemeMode get themeMode => _themeMode;
+  WindowEffect get windowEffect => _windowEffect;
+  DisplayType get displayType => _displayType;
+  int get backgroundTransparencyScalar => _backgroundTransparencyScalar;
 
-  /// Load the user's settings from the SettingsService. It may load from a
-  /// local database or the internet. The controller only knows it can load the
-  /// settings from the service.
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
+    _windowEffect = await _settingsService.windowEffect();
+    _displayType = await _settingsService.displayType();
+    _backgroundTransparencyScalar =
+        await _settingsService.backgroundTransparencyScalar();
 
-    // Important! Inform listeners a change has occurred.
     notifyListeners();
   }
 
-  /// Update and persist the ThemeMode based on the user's selection.
-  Future<void> updateThemeMode(ThemeMode? newThemeMode) async {
-    if (newThemeMode == null) return;
+  Future<void> updateThemeMode(ThemeMode newThemeMode) async {
+    if (newThemeMode != _themeMode) {
+      _themeMode = newThemeMode;
+      notifyListeners();
+      await _settingsService.updateThemeMode(newThemeMode);
+    }
+  }
 
-    // Do not perform any work if new and old ThemeMode are identical
-    if (newThemeMode == _themeMode) return;
+  Future<void> updateWindowEffect(WindowEffect newWindowEffect) async {
+    if (newWindowEffect != _windowEffect) {
+      _windowEffect = newWindowEffect;
+      await Window.setEffect(
+        effect: _windowEffect,
+        dark: true,
+      );
+      notifyListeners();
+      await _settingsService.updateWindowEffect(newWindowEffect);
+    }
+  }
 
-    // Otherwise, store the new ThemeMode in memory
-    _themeMode = newThemeMode;
+  Future<void> updateDisplayType(DisplayType newDisplayType) async {
+    if (newDisplayType != _displayType) {
+      _displayType = newDisplayType;
+      notifyListeners();
+      await _settingsService.updateDisplayType(newDisplayType);
+    }
+  }
 
-    // Important! Inform listeners a change has occurred.
-    notifyListeners();
-
-    // Persist the changes to a local database or the internet using the
-    // SettingService.
-    await _settingsService.updateThemeMode(newThemeMode);
+  Future<void> updateBackgroundTransparencyScalar(int newScalar) async {
+    if (newScalar != _backgroundTransparencyScalar) {
+      _backgroundTransparencyScalar = newScalar;
+      notifyListeners();
+      await _settingsService.updateBackgroundTransparencyScalar(newScalar);
+    }
   }
 }

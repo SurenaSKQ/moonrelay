@@ -1,27 +1,27 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/screens/loading_screen.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:azhi_main/src/helpers/show_error_infobar.dart';
+import 'package:moonrelay/src/helpers/show_error_infobar.dart';
 import 'package:provider/provider.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -34,6 +34,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Profile uprofile;
+
   Future<void> _getUserProfile() async {
     uprofile = await widget.client.getProfileFromUserId(widget.userID);
     setState(() {});
@@ -116,28 +117,20 @@ class ProfilePageContents extends StatelessWidget {
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              userProfile.avatarUrl == null
-                  ? Text(
-                      userProfile.displayName!
-                          .toUpperCase()
-                          .split(RegExp(' +'))
-                          .map((s) => s[0])
-                          .take(2)
-                          .join(),
-                      style: FluentTheme.of(context).typography.titleLarge,
-                    )
-                  : CircleAvatar(
-                      foregroundImage: NetworkImage(userProfile.avatarUrl!
-                          .getThumbnail(client,
-                              width: 64, height: 64, animated: true)
-                          .toString()),
-                    ),
+              AvatarFromUriOrFallbackImage(
+                client: client,
+                avatarUri: userProfile.avatarUrl,
+              ),
               const SizedBox(
                 width: 16,
               ),
-              Text(
-                userProfile.displayName ?? userProfile.userId,
-                style: FluentTheme.of(context).typography.titleLarge,
+              Flexible(
+                child: Text(
+                  userProfile.displayName ?? userProfile.userId,
+                  style: FluentTheme.of(context).typography.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

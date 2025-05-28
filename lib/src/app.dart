@@ -1,37 +1,34 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/locations.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
-final _appTheme = AppTheme();
+final _appTheme = MoonrelayAppTheme();
 
-class ChatSpacesApp extends StatelessWidget {
-  const ChatSpacesApp({super.key});
+class MoonrelayApp extends StatelessWidget {
+  const MoonrelayApp({super.key});
 
-  static final GoRouter azhirouter =
-      GoRouter(routes: AppLocationsHandler.routes);
+  static final GoRouter moonrouter = GoRouter(routes: MoonRouter.routes);
 
   @override
   Widget build(BuildContext context) {
@@ -41,17 +38,12 @@ class ChatSpacesApp extends StatelessWidget {
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
         return FluentApp.router(
-          routerConfig: azhirouter,
+          routerConfig: moonrouter,
           debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate
-          ],
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           // TODO: Support persian
-          supportedLocales: const [
-            Locale('en', ''),
-          ],
+          supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           // TODO: theme builder, user settings theme management
           theme: FluentThemeData(

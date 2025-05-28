@@ -1,3 +1,4 @@
+import 'package:moonrelay/src/helpers/string_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:system_theme/system_theme.dart';
@@ -6,7 +7,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 enum NavigationIndicators { sticky, end }
 
-class AppTheme extends ChangeNotifier {
+// FIXME - This whole thing should go inside the settings system.
+class MoonrelayAppTheme extends ChangeNotifier {
   AccentColor? _color;
   AccentColor get color => _color ?? systemAccentColor;
   set color(AccentColor color) {
@@ -35,7 +37,7 @@ class AppTheme extends ChangeNotifier {
     notifyListeners();
   }
 
-  WindowEffect _windowEffect = WindowEffect.mica;
+  WindowEffect _windowEffect = WindowEffect.transparent;
   WindowEffect get windowEffect => _windowEffect;
   set windowEffect(WindowEffect windowEffect) {
     _windowEffect = windowEffect;
@@ -47,7 +49,7 @@ class AppTheme extends ChangeNotifier {
       effect: effect,
       color: [
         WindowEffect.solid,
-        WindowEffect.acrylic,
+        WindowEffect.transparent,
       ].contains(effect)
           ? FluentTheme.of(context).micaBackgroundColor.withOpacity(0.05)
           : Colors.transparent,
@@ -85,4 +87,45 @@ AccentColor get systemAccentColor {
     });
   }
   return Colors.blue;
+}
+
+class ThemeColors {
+  // Colors
+  static const Color primaryColor =
+      Color(0xFF2A2E31); // Example dark color for primary theme
+  static const Color secondaryColor =
+      Color(0xFF46494C); // Example darker shade of the primary color
+  static const corporateDarkColor = Color(0x0020272f);
+  static const Color accentColor = Color(0xFF58A6FF); // Example accent color
+
+  // Method to get color for a given string
+  Color getColorFromString(String text) {
+    return text.color;
+  }
+
+  // Method to get dark color for a given string
+  Color getDarkColorFromString(String text) {
+    return text.darkColor;
+  }
+
+  // Method to get light color for text based on a given string
+  Color getLightColorTextFromString(String text) {
+    return text.lightColorText;
+  }
+
+  // Method to get light color for avatar based on a given string
+  Color getLightColorAvatarFromString(String text) {
+    return text.lightColorAvatar;
+  }
+}
+
+class ThemeFonts {
+  // Font settings
+  final String fontFamily = 'Rubik';
+  final double baseFontSize = 16.0; // Base font size
+
+  // Font sizes based on the base font size
+  double get titleFontSize => baseFontSize * 1.5;
+  double get subtitleFontSize => baseFontSize * 1.2;
+  double get bodyTextFontSize => baseFontSize;
 }

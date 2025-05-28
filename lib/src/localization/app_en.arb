@@ -1,27 +1,37 @@
 {
   "@@locale": "en",
-  "@@author": "Surena",
-  "projectName": "ChatSpaces",
-  "appTitle": "ChatSpaces",
-  "author": "Surena Karimpour Ghannadi",
-  "loginButton": "Login",
-  "usernameText": "Username",
-  "passwordText": "Password",
-  "homeserverText": "Homeserver",
-  "thirdPartyLicense": "Licenses",
-  "privacyPolicy": "Privacy and Your Data",
-  "appLicenseNotice": "This application is provided to you under the GNU General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the ChatSpaces Website for more information.",
-  "darkMode": "Dark Mode",
-  "lightMode": "Light Mode",
-  "warning": "Warning!",
-  "error": "Error!",
-  "confirmClose": "Confirm Exit",
+  "@@author": "Surena Karimpour Ghannadi",
+  "appLicenseNotice": "This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the moonrelay Website for more information.",
+  "@appLicenseNotice": {
+    "description": "Inform the user of the license and means of it's obtainment."
+  },
+  "appTitle": "MOONRELAY",
   "areYouSureExit": "Are you sure you want to exit the application?",
-  "yesOrAffirmitive": "Yes",
-  "noOrCancellation": "No",
-  "home": "Home",
-  "userProfilePageBanner": "{username}'s Profile",
-  "ownProfileDescriptor": "Your Profile",
+  "author": "Surena Karimpour Ghannadi",
+  "chatBoxSendMessage": "Send a message!",
+  "confirmClose": "Confirm Exit",
+  "darkMode": "Dark Mode",
   "directMessages": "Direct Messages",
-  "chatBoxSendMessage": "Send a message!"
+  "error": "Error!",
+  "home": "Home",
+  "homeserverText": "Homeserver",
+  "lightMode": "Light Mode",
+  "loginButton": "Login",
+  "noOrCancellation": "No",
+  "ownProfileDescriptor": "Your Profile",
+  "passwordText": "Password",
+  "privacyPolicy": "Privacy and Your Data",
+  "projectName": "Moonrelay",
+  "thirdPartyLicense": "Licenses",
+  "usernameText": "Username",
+  "userProfilePageBanner": "{username}'s Profile",
+  "@userProfilePageBanner": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "warning": "Warning!",
+  "yesOrAffirmitive": "Yes"
 }

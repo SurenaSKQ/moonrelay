@@ -1,10 +1,8 @@
 {
-    "licenser.license": "GPLv3",
-    "licenser.projectName": "Prject Azhi",
-    "licenser.author": "Surena Karimpour Ghannadi",
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     "conventionalCommits.scopes": [
         "dependecy changes"
-    ]
+    ],
+    "license.author": "Surena Karimpour Ghannadi"
 }

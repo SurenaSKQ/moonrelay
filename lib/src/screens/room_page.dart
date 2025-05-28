@@ -1,213 +1,54 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
-import 'package:azhi_main/src/chat/chat_box.dart';
-import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
-import 'package:azhi_main/src/chat/room_info_card.dart';
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/chat/chat_box.dart';
+import 'package:moonrelay/src/chat/chat_timeline.dart';
+import 'package:moonrelay/src/chat/room_info_card.dart';
+import 'package:moonrelay/src/helpers/color_palette.dart';
+import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
 import 'package:matrix/matrix.dart';
 
-class FluentRoomPage extends StatefulWidget {
-  const FluentRoomPage({super.key, required this.room});
+class RoomPage extends StatefulWidget {
   final Room room;
+  const RoomPage({super.key, required this.room});
   @override
-  State<FluentRoomPage> createState() => _FluentRoomPageState();
+  State<RoomPage> createState() => _RoomPageState();
 }
 
-class _FluentRoomPageState extends State<FluentRoomPage> {
-  late final Future<Timeline> _timelineFuture;
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  // Counts events
-  // ignore: unused_field
-  int _count = 0;
-
-  @override
-  void initState() {
-    _timelineFuture = widget.room.getTimeline(onChange: (i) {
-      if (kDebugMode) {
-        print('on change! $i');
-      }
-      _listKey.currentState?.setState(() {});
-    }, onInsert: (i) {
-      if (kDebugMode) {
-        print('on insert! $i');
-      }
-      _listKey.currentState?.insertItem(i);
-      _count++;
-    }, onRemove: (i) {
-      if (kDebugMode) {
-        print('On remove $i');
-      }
-      _count--;
-      _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
-    }, onUpdate: () {
-      if (kDebugMode) {
-        print('On update');
-      }
-    });
-    super.initState();
-  }
-
+class _RoomPageState extends State<RoomPage> {
   @override
   Widget build(BuildContext context) {
-    return mt.Scaffold(
-      backgroundColor: FluentTheme.of(context).scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          RoomInfoCard(room: widget.room),
-          const SizedBox(
-            height: 4,
-          ),
-          const Divider(
-            direction: Axis.horizontal,
-          ),
-          Expanded(
-            child: FutureBuilder<Timeline>(
-              future: _timelineFuture,
-              builder: (context, snapshot) {
-                final timeline = snapshot.data;
-                if (timeline == null) {
-                  return const Center(
-                    child: ProgressRing(),
-                  );
-                }
-                _count = timeline.events.length;
-                return Column(
-                  children: [
-                    Center(
-                      child: Button(
-                        onPressed: () => timeline.requestHistory(),
-                        child: const Text("Load more"),
-                      ),
-                    ),
-                    const Divider(
-                      direction: Axis.horizontal,
-                      size: 2,
-                    ),
-                    Expanded(
-                      child: AnimatedList(
-                        key: _listKey,
-                        reverse: true,
-                        initialItemCount: timeline.events.length,
-                        itemBuilder: (context, index, animation) {
-                          return (timeline.events[index].relationshipEventId !=
-                                  null)
-                              ? Container()
-                              : ScaleTransition(
-                                  scale: animation,
-                                  child: Opacity(
-                                    opacity:
-                                        timeline.events[index].status.isSent
-                                            ? 1
-                                            : 0.5,
-                                    child: ListTile(
-                                      leading: GestureDetector(
-                                        onTap: () => context.push(
-                                            '${GoRouterState.of(context).uri}/profile/${timeline.events[index].senderFromMemoryOrFallback.id}'),
-                                        child: CircleAvatar(
-                                          foregroundImage: timeline
-                                                      .events[index]
-                                                      .senderFromMemoryOrFallback
-                                                      .avatarUrl ==
-                                                  null
-                                              ? null
-                                              : NetworkImage(
-                                                  timeline
-                                                      .events[index]
-                                                      .senderFromMemoryOrFallback
-                                                      .avatarUrl!
-                                                      .getThumbnail(
-                                                        widget.room.client,
-                                                        width: 56,
-                                                        height: 56,
-                                                      )
-                                                      .toString(),
-                                                ),
-                                        ),
-                                      ),
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              timeline.events[index]
-                                                  .senderFromMemoryOrFallback
-                                                  .calcDisplayname(),
-                                              style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                          Text(
-                                            timeline
-                                                .events[index].originServerTs
-                                                .toIso8601String(),
-                                            style: const TextStyle(
-                                                fontSize: 8,
-                                                fontFamily: 'JetBrainsMono'),
-                                          ),
-                                        ],
-                                      ),
-                                      subtitle: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: FluentTheme.of(context)
-                                                .accentColor,
-                                            width: 1,
-                                            strokeAlign:
-                                                BorderSide.strokeAlignOutside,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          color: FluentTheme.of(context)
-                                              .acrylicBackgroundColor,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                            timeline.events[index]
-                                                .getDisplayEvent(timeline)
-                                                .body,
-                                            style: const TextStyle(
-                                                fontFamily: 'JetBrainsMono',
-                                                fontSize: 14),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                        },
-                      ),
-                    )
-                  ],
-                );
-              },
+    return CustomScaffold(
+      backgroundColor: MoonrelayColorPalette.ordinaryDarkGrey,
+      content: Stack(children: [
+        Column(
+          children: [
+            Expanded(
+              child: ChatTimeline(room: widget.room),
             ),
-          ),
-          const Divider(
-            direction: Axis.vertical,
-            size: 1,
-          ),
-          ChatBox(room: widget.room),
-        ],
-      ),
+            const Divider(
+              direction: Axis.vertical,
+              size: 1,
+            ),
+            ChatBox(room: widget.room),
+          ],
+        ),
+        RoomInfoCard(room: widget.room),
+      ]),
     );
   }
 }

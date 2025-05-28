@@ -1,20 +1,23 @@
-// Copyright (C) 2024 Surena Karimpour Ghannadi
-//
-// This file is part of Prject Azhi.
-//
-// Prject Azhi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Prject Azhi is distributed in the hope that it will be useful,
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Prject Azhi.  If not, see <https://www.gnu.org/licenses/>.
+// GNU Affero General Public License for more details.
 
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:moonrelay/src/helpers/color_palette.dart';
+import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -24,67 +27,57 @@ class RoomInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints.loose(const Size.fromHeight(70)),
-      decoration: BoxDecoration(
-        color: FluentTheme.of(context).cardColor,
+    return GestureDetector(
+      onTap: () => showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => BlurBackground(
+          child: RoomInformations(room: room),
+        ),
       ),
-      child: Row(
-        children: [
-          // TODO: Fallback image
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: room.avatar == null
-                ? Text(
-                    room
-                        .getLocalizedDisplayname()
-                        .toUpperCase()
-                        .split(RegExp(' +'))
-                        .map((s) => s[0])
-                        .take(2)
-                        .join(),
-                  )
-                : CircleAvatar(
-                    foregroundImage: NetworkImage(
-                      room.avatar!
-                          .getThumbnail(
-                            room.client,
-                            animated: true,
-                            height: 56,
-                            width: 56,
-                          )
-                          .toString(),
+      child: Container(
+        constraints: BoxConstraints.loose(const Size.fromHeight(80)),
+        color: MoonrelayColorPalette.cpgDarker.withAlpha(180),
+        child: BlurBackground(
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: AvatarFromUriOrFallbackImage(
+                  client: room.client,
+                  avatarUri: room.avatar,
+                ),
+              ),
+              const SizedBox(
+                width: 8.0,
+              ),
+              Flexible(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      room.getLocalizedDisplayname(),
+                      style: const TextStyle(fontSize: 18, fontFamily: 'Rubik'),
                     ),
-                  ),
-          ),
-          const SizedBox(
-            width: 8.0,
-          ),
-          Flexible(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              // TODO: Configurable text size
-              children: [
-                Text(
-                  room.getLocalizedDisplayname(),
-                  style: FluentTheme.of(context).typography.bodyLarge,
+                    const SizedBox(
+                      height: 4.0,
+                    ),
+                    Flexible(
+                      child: Text(
+                        room.topic,
+                        style:
+                            const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    )
+                  ],
                 ),
-                const SizedBox(
-                  height: 4.0,
-                ),
-                Flexible(
-                  child: Text(
-                    room.topic,
-                    style: FluentTheme.of(context).typography.bodyStrong,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                )
-              ],
-            ),
-          )
-        ],
+              )
+            ],
+          ),
+        ),
       ),
     );
   }
