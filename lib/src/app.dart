@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
+// ignore: unused_import
 import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
 final _appTheme = MoonrelayAppTheme();
@@ -47,7 +48,7 @@ class MoonrelayApp extends StatelessWidget {
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           // TODO: theme builder, user settings theme management
           theme: FluentThemeData(
-            accentColor: _appTheme.color,
+            accentColor: settingsController.accentColor,
             visualDensity: VisualDensity.standard,
             focusTheme: FocusThemeData(
               glowFactor: is10footScreen(context) ? 2.0 : 0.0,
@@ -55,7 +56,7 @@ class MoonrelayApp extends StatelessWidget {
           ),
           darkTheme: FluentThemeData(
             brightness: Brightness.dark,
-            accentColor: _appTheme.color,
+            accentColor: settingsController.accentColor,
             visualDensity: VisualDensity.standard,
             focusTheme: FocusThemeData(
               glowFactor: is10footScreen(context) ? 2.0 : 0.0,
@@ -64,15 +65,7 @@ class MoonrelayApp extends StatelessWidget {
           themeMode: settingsController.themeMode,
           builder: (context, child) => Directionality(
             textDirection: _appTheme.textDirection,
-            child: NavigationPaneTheme(
-              data: NavigationPaneThemeData(
-                backgroundColor: _appTheme.windowEffect !=
-                        flutter_acrylic.WindowEffect.disabled
-                    ? Colors.transparent
-                    : null,
-              ),
-              child: child!,
-            ),
+            child: child!,
           ),
         );
       },
