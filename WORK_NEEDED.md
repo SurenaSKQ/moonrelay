@@ -22,10 +22,11 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
 
 - Support chat event types v1
   - Chat timeline needs rework.
-  - Text Messages
+  - Text Messages **[Partial]**
   - Images
   - Audio
   - Video
+  - Files **[Initial]**
 - Chat events v2
   - Dynamically built text with inline images
   - Code blocks support
@@ -53,10 +54,10 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
 - UI revamp v2
   - New UI framework
     - Custom sidebar widget
-    - Custom frame widget
+    - Custom frame widget **[•]**
     - Custom input widget
     - Custom header v2
-    - Custom scaffold
+    - Custom scaffold **[•]**
 
 # Future work
 
@@ -95,7 +96,7 @@ This category is the underlying work that needs to be done to fix the terrible d
   - Better UX
   - Without proper loading animations; the app shows a blank screen on Linux until loaded
   - Currently there is a long delay when logging in
-- Own blur widget
+- Own blur widget **[•]**
 - Potential global key issue?
 - Use CustomMultiChildLayout
 - FIXME Handle cases where user profile response is invalid!
