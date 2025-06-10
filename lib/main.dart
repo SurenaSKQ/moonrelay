@@ -113,21 +113,31 @@ void main() async {
     SystemTheme.accentColor.load();
   }
 
+  // Set up the SettingsController, which will glue user settings to multiple widgets.
+  final settingsController = SettingsController(SettingsService());
+  // Load the user's preferred theme while the splash screen is displayed.
+  // This prevents a sudden theme change when the app is first displayed.
+  await settingsController.loadSettings();
+
   if (isDesktop) {
     await flutter_acrylic.Window.initialize();
-    if (defaultTargetPlatform == TargetPlatform.windows) {
+    if (defaultTargetPlatform == TargetPlatform.windows &&
+        !settingsController.useSystemTitlebar) {
       await flutter_acrylic.Window.hideWindowControls();
     }
 
     await flutter_acrylic.Window.setEffect(
-        effect: flutter_acrylic.WindowEffect.transparent);
+        effect: settingsController.windowEffect);
 
     await WindowManager.instance.ensureInitialized();
     windowManager.waitUntilReadyToShow().then((_) async {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: false,
-      );
+      if (!settingsController.useSystemTitlebar) {
+        await windowManager.setTitleBarStyle(
+          TitleBarStyle.hidden,
+          windowButtonVisibility: false,
+        );
+      }
+
       await windowManager.setMinimumSize(const Size(500, 600));
       await windowManager.show();
       await windowManager.setPreventClose(true);
@@ -135,11 +145,6 @@ void main() async {
     });
   }
 
-  // Set up the SettingsController, which will glue user settings to multiple widgets.
-  final settingsController = SettingsController(SettingsService());
-  // Load the user's preferred theme while the splash screen is displayed.
-  // This prevents a sudden theme change when the app is first displayed.
-  await settingsController.loadSettings();
   runApp(
     MultiProvider(
       providers: [
