@@ -1,7 +1,7 @@
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
-import 'package:flutter_acrylic/window_effect.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'settings_service.dart';
 
@@ -10,12 +10,14 @@ import 'settings_service.dart';
 ///
 /// Controllers glue Data Services to Flutter Widgets. The SettingsController
 /// uses the SettingsService to store and retrieve user settings.
-class SettingsController with ChangeNotifier {
+class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   late ThemeMode _themeMode;
   late WindowEffect _windowEffect;
   late DisplayType _displayType;
   late int _backgroundTransparencyScalar;
+  late AccentColor _accentColor;
+  late bool _useSystemTitlebar;
 
   SettingsController(this._settingsService) {
     loadSettings();
@@ -25,6 +27,8 @@ class SettingsController with ChangeNotifier {
   WindowEffect get windowEffect => _windowEffect;
   DisplayType get displayType => _displayType;
   int get backgroundTransparencyScalar => _backgroundTransparencyScalar;
+  AccentColor get accentColor => _accentColor;
+  bool get useSystemTitlebar => _useSystemTitlebar;
 
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
@@ -32,8 +36,33 @@ class SettingsController with ChangeNotifier {
     _displayType = await _settingsService.displayType();
     _backgroundTransparencyScalar =
         await _settingsService.backgroundTransparencyScalar();
+    _accentColor = await _settingsService.accentColor();
+    _useSystemTitlebar = await _settingsService.useSystemTitlebar();
 
     notifyListeners();
+  }
+
+  Future<void> updateUseOfSystemTitlebar(bool useSystemTitlebar) async {
+    if (useSystemTitlebar != _useSystemTitlebar) {
+      _useSystemTitlebar = useSystemTitlebar;
+      notifyListeners();
+      if (useSystemTitlebar) {
+        windowManager.setTitleBarStyle(TitleBarStyle.normal);
+        Window.showWindowControls();
+      } else {
+        windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+        Window.hideWindowControls();
+      }
+      await _settingsService.updateTitlebarStatus(useSystemTitlebar);
+    }
+  }
+
+  Future<void> updateAccentColor(AccentColor newAccentColor) async {
+    if (newAccentColor != _accentColor) {
+      _accentColor = newAccentColor;
+      notifyListeners();
+      await _settingsService.updateAccentColor(newAccentColor);
+    }
   }
 
   Future<void> updateThemeMode(ThemeMode newThemeMode) async {
