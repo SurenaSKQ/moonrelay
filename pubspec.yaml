@@ -32,7 +32,6 @@ dependencies:
   go_router: ^15.1.2
   intl: any
   google_fonts: ^6.2.1
-  font_awesome_flutter: ^10.7.0
   future_loading_dialog: ^0.3.0
   linkify_text: ^0.0.9
   shared_preferences: ^2.5.3
@@ -44,6 +43,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.32
   sqflite_common_ffi: ^2.3.5
   olm: ^3.1.0
+  lucide_icons_flutter: ^3.0.4
 
 dev_dependencies:
   flutter_test:
