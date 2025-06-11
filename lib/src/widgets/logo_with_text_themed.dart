@@ -17,42 +17,55 @@
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 class LogoWithTextThemed extends StatelessWidget {
-  const LogoWithTextThemed({super.key, this.themeModeOverride});
-  final Brightness? themeModeOverride;
+  const LogoWithTextThemed({super.key, this.themeMode});
+  final Brightness? themeMode;
 
   @override
   Widget build(BuildContext context) {
+    SettingsController settings = Provider.of<SettingsController>(context);
+    bool isLightMode = (settings.themeMode == ThemeMode.light ? true : false);
+    if (themeMode != null) isLightMode = themeMode!.isLight;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SvgPicture.asset(
-          'assets/images/azhi_logo.svg',
-          colorFilter: ColorFilter.mode(
-              ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
-                      Brightness.dark)
-                  ? MoonrelayColorPalette.cpgWhite
-                  : MoonrelayColorPalette.cpgDark,
-              BlendMode.srcIn),
-          fit: BoxFit.scaleDown,
+        ColorFiltered(
+          colorFilter: isLightMode
+              ? const ColorFilter.matrix(<double>[
+                  -1.0, 0.0, 0.0, 0.0, 255.0, //
+                  0.0, -1.0, 0.0, 0.0, 255.0, //
+                  0.0, 0.0, -1.0, 0.0, 255.0, //
+                  0.0, 0.0, 0.0, 1.0, 0.0, //
+                ])
+              : const ColorFilter.matrix(<double>[
+                  1.0, 0.0, 0.0, 0.0, 0.0, //
+                  0.0, 1.0, 0.0, 0.0, 0.0, //
+                  0.0, 0.0, 1.0, 0.0, 0.0, //
+                  0.0, 0.0, 0.0, 1.0, 0.0, //
+                ]),
+          child: Image(
+            image: AssetImage('assets/images/moonrelay_logo.png'),
+          ),
         ),
-        Text(
-          AppLocalizations.of(context)!.projectName,
-          style: TextStyle(
-              color:
-                  ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
-                          Brightness.dark)
-                      ? MoonrelayColorPalette.cpgWhite
-                      : MoonrelayColorPalette.cpgDark,
-              fontSize: 32,
-              fontFamily: 'Oxanium',
-              fontWeight: FontWeight.bold,
-              backgroundColor: Colors.grey.withAlpha(125)),
-          overflow: TextOverflow.clip,
+        SizedBox(
+          height: 8.0,
         ),
+        // Text(
+        //   AppLocalizations.of(context)!.projectName,
+        //   style: TextStyle(
+        //       color: isLightMode
+        //           ? MoonrelayColorPalette.cpgDark
+        //           : MoonrelayColorPalette.cpgWhite,
+        //       fontSize: 32,
+        //       fontFamily: 'Oxanium',
+        //       fontWeight: FontWeight.bold,
+        //       backgroundColor: Colors.grey.withAlpha(125)),
+        //   overflow: TextOverflow.clip,
+        // ),
       ],
     );
   }
