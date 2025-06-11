@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -42,16 +43,20 @@ class StartupHomeFrame extends StatelessWidget {
             const Flexible(
               flex: 4,
               child: LogoWithTextThemed(
-                themeModeOverride: Brightness.dark,
+                themeMode: Brightness.dark,
               ),
             ),
             Flexible(
               flex: 6,
               child: Padding(
                 padding: const EdgeInsets.all(18.0),
-                child: BlurBackground(
-                  child: SizedBox.expand(
-                    child: child,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                      color: MoonrelayColorPalette.cpgDarkest.withAlpha(90)),
+                  child: BlurBackground(
+                    child: SizedBox.expand(
+                      child: child,
+                    ),
                   ),
                 ),
               ),
