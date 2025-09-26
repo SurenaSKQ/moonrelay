@@ -30,6 +30,15 @@ class ChatTimeline extends StatefulWidget {
 }
 
 //TODO: This needs settingsController styling.
+
+// FIXME Work needed 2025 - get a complete chat timeline by EOY 2025
+// FIXME Need following featrues for 'Chat Timeline v1':
+// Fix scrolling
+// Drag and Drop
+// Replies
+// Stickers
+// ALL events need to be finished including misc. ones
+
 class _ChatTimelineState extends State<ChatTimeline> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
@@ -40,6 +49,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
 
   @override
   Widget build(BuildContext context) {
+    // FIXME There is a really bad crash bug here that causes the index to overflow
     return Consumer<SettingsController>(
       builder: (context, value, child) => FutureBuilder<Timeline>(
         future: _timelineFuture,
@@ -51,7 +61,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           }
           _scrollController.addListener(
             () {
-              if (_scrollController.position.pixels ==
+              if (_scrollController.position.pixels <=
                   _scrollController.position.maxScrollExtent) {
                 // User has scrolled to the top (not bottom lol), request more data
                 timeline.requestHistory();

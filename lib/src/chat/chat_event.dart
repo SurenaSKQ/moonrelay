@@ -16,6 +16,7 @@
 
 import 'package:moonrelay/src/chat/events/matrix_events/Message/basic_text_event.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
+import 'package:moonrelay/src/chat/events/state_events.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -44,19 +45,15 @@ class MessageEventHandler extends StatelessWidget {
             return UnsupportedEventType(event: event);
         }
       case 'm.room.name':
-        return const Placeholder();
+        return StateEventsStub(event: event);
       case 'm.room.topic':
-        return const Placeholder();
+        return StateEventsStub(event: event);
       case 'm.room.avatar':
-        return const Placeholder();
+        return StateEventsStub(event: event);
       case 'm.room.pinned_events':
-        return const Placeholder();
+        return StateEventsStub(event: event);
       default:
-        return Center(
-          child: Text(
-            "${event.type}, ${event.messageType.toString()}",
-          ),
-        );
+        return StateEventsStub(event: event);
     }
   }
 }

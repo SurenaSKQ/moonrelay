@@ -23,7 +23,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
 class FileAttachedMessage extends StatelessWidget {
-  const FileAttachedMessage({Key? key, required this.event}) : super(key: key);
+  const FileAttachedMessage({super.key, required this.event});
   final Event event;
 
   // TODO: Multiple file download; split download utility; (future work) bind FFI to windows defender / ClamAV

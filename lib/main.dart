@@ -16,10 +16,9 @@
 
 // This is the application entry point. It servers the purpose of intializing vital data.
 
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
 import 'package:provider/provider.dart';
@@ -52,6 +51,14 @@ void main() async {
   // TODO: Deffered loading, loading screen, etc.
 
   Logger log = await initializeLog();
+  try {
+    await vdz.init();
+  } catch (e) {
+    log.f("Vodozemac failed", error: e);
+    if (kDebugMode) {
+      print(e);
+    }
+  }
 
   try {
     sqfliteFfiInit();
@@ -59,8 +66,7 @@ void main() async {
     log.f('SQFLite FFi has caused an exception. Report this on our CodeBerg.',
         error: e);
     if (kDebugMode) {
-      print(
-          'SQFLite FFi has caused an exception. Report this on our CodeBerg.');
+      print(e);
     }
   }
 
@@ -70,30 +76,17 @@ void main() async {
   // Initialize the SDK Client object and do necessary initializations.
   // Support Emoji and Number sequence verification (future: QR code)
   // Definitely use isolates to offload compute from main thread
+
+  final dbdir = await getApplicationSupportDirectory();
+  const String dbname = 'moonrelay.db';
+  final database = await sql.openDatabase(p.join(dbdir.path, dbname));
+  final dbobj = await MatrixSdkDatabase.init('moonrelay',
+      database: database, sqfliteFactory: databaseFactoryFfi);
+  await dbobj.open();
+
   final sdk = Client(
     'Moonrelay',
-    databaseBuilder: (_) async {
-      try {
-        final dbdir = await getApplicationSupportDirectory();
-        const String dbname = 'moonrelay.db';
-        final database = await sql.openDatabase(p.join(dbdir.path, dbname));
-        final dbobj = MatrixSdkDatabase('moonrelay',
-            database: database, sqfliteFactory: databaseFactoryFfi);
-        await dbobj.open();
-        return dbobj;
-      } catch (e) {
-        if (kDebugMode) {
-          print(e);
-        }
-        log.f(
-          "Failed to initialize database",
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        exit(-1);
-      }
-    },
+    database: dbobj,
     verificationMethods: {
       KeyVerificationMethod.numbers,
       KeyVerificationMethod.emoji,
