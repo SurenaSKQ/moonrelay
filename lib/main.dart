@@ -18,6 +18,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
 import 'package:provider/provider.dart';
@@ -50,6 +51,14 @@ void main() async {
   // TODO: Deffered loading, loading screen, etc.
 
   Logger log = await initializeLog();
+  try {
+    await vdz.init();
+  } catch (e) {
+    log.f("Vodozemac failed", error: e);
+    if (kDebugMode) {
+      print(e);
+    }
+  }
 
   try {
     sqfliteFfiInit();
@@ -57,8 +66,7 @@ void main() async {
     log.f('SQFLite FFi has caused an exception. Report this on our CodeBerg.',
         error: e);
     if (kDebugMode) {
-      print(
-          'SQFLite FFi has caused an exception. Report this on our CodeBerg.');
+      print(e);
     }
   }
 
