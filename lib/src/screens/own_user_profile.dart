@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/show_error_infobar.dart';
-import 'package:provider/provider.dart';
 
+// FIXME this entire widget is a disaster
 class OwnProfilePage extends StatefulWidget {
   const OwnProfilePage({super.key, required this.client});
   final Client client;
@@ -32,59 +32,42 @@ class OwnProfilePage extends StatefulWidget {
 }
 
 class _OwnProfilePageState extends State<OwnProfilePage> {
-  late Profile uprofile;
-  Future<void> _getUserProfile() async {
-    uprofile = await widget.client.getProfileFromUserId(widget.client.userID!);
-    setState(() {});
-  }
-
-  @override
-  void initState() {
-    _getUserProfile();
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
-    try {
-      return Acrylic(
-        child: ScaffoldPage(
-          header: OwnProfileHeaderBar(
-            username: uprofile.displayName,
-          ),
-          content: OwnProfilePageContent(
-            client: widget.client,
-            userProfile: uprofile,
-          ),
-        ),
-      );
-    } catch (e) {
-      final Logger log = Provider.of<Logger>(context, listen: false);
-      log.w(
-        "Method 'client.getProfileFromuserId' has failed! Probably loading data",
-        error: e,
-        stackTrace: StackTrace.current,
-        time: DateTime.now(),
-      );
-      return const LoadingAndTransitionScreen();
-    }
-  }
-}
-
-class OwnProfileHeaderBar extends StatelessWidget {
-  const OwnProfileHeaderBar({super.key, required this.username});
-  final String? username;
-  @override
-  Widget build(BuildContext context) {
-    return PageHeader(
-      leading: IconButton(
-        icon: const Icon(FluentIcons.back),
-        onPressed: () => context.pop(),
-      ),
-      title: Text(
-        AppLocalizations.of(context)?.ownProfileDescriptor ?? "Your Profile",
-        style: FluentTheme.of(context).typography.bodyLarge,
-      ),
+    return FutureBuilder(
+      future: widget.client.getProfileFromUserId(widget.client.userID!),
+      builder: (context, asyncSnapshot) {
+        if (asyncSnapshot.hasError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                asyncSnapshot.error.toString(),
+              ),
+            ),
+          );
+        }
+        if (asyncSnapshot.hasData) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(LucideIcons.arrowLeft),
+                onPressed: () => context.pop(),
+              ),
+              title: Text(
+                AppLocalizations.of(context)?.ownProfileDescriptor ??
+                    "Your Profile",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              ),
+            ),
+            body: OwnProfilePageContent(
+              client: widget.client,
+              userProfile: asyncSnapshot.data!,
+            ),
+          );
+        } else {
+          return LoadingAndTransitionScreen();
+        }
+      },
     );
   }
 }
@@ -121,7 +104,8 @@ class OwnProfilePageContent extends StatelessWidget {
                           .map((s) => s[0])
                           .take(2)
                           .join(),
-                      style: FluentTheme.of(context).typography.titleLarge,
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                     )
                   : AvatarFromUriOrFallbackImage(
                       client: client,
@@ -132,17 +116,15 @@ class OwnProfilePageContent extends StatelessWidget {
               ),
               Text(
                 userProfile.displayName ?? userProfile.userId,
-                style: FluentTheme.of(context).typography.titleLarge,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
         ),
-        const Divider(
-          direction: Axis.horizontal,
-        ),
+        const Divider(),
         Text(
           "(${userProfile.userId})",
-          style: FluentTheme.of(context).typography.subtitle,
+          style: TextStyle(fontSize: 14),
         ),
       ],
     );

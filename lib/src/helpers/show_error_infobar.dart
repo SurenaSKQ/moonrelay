@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 // FIXME: Bug with setting state in build when user profile is not returned!
 Future<void> showErrorInfobar(
@@ -22,15 +22,15 @@ Future<void> showErrorInfobar(
   String title,
   String content,
 ) async {
-  await displayInfoBar(context, builder: (context, close) {
-    return InfoBar(
-      title: Text(title),
-      content: Text(content),
-      action: IconButton(
-        icon: const Icon(FluentIcons.clear),
-        onPressed: close,
-      ),
-      severity: InfoBarSeverity.error,
-    );
-  });
+  // await displayInfoBar(context, builder: (context, close) {
+  //   return InfoBar(
+  //     title: Text(title),
+  //     content: Text(content),
+  //     action: IconButton(
+  //       icon: const Icon(FluentIcons.clear),
+  //       onPressed: close,
+  //     ),
+  //     severity: InfoBarSeverity.error,
+  //   );
+  // });
 }

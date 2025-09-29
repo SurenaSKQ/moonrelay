@@ -19,7 +19,8 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 
 class FileAttachedMessage extends StatelessWidget {
@@ -53,7 +54,7 @@ class FileAttachedMessage extends StatelessWidget {
                 child: GestureDetector(
               onTap: () => _downloadFile(),
               child: const Icon(
-                FluentIcons.download_document,
+                LucideIcons.download,
                 size: 24,
               ),
             )),

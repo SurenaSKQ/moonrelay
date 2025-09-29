@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 class BlurBackground extends StatelessWidget {
   final Widget child;

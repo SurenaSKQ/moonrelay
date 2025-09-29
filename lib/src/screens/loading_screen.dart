@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class LoadingAndTransitionScreen extends StatefulWidget {
@@ -40,7 +40,7 @@ class _LoadingAndTransitionScreenState
         ),
         content: Center(
           child: SpinKitCubeGrid(
-            color: FluentTheme.of(context).accentColor,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),

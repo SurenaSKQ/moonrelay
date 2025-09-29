@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 class ChatBox extends StatefulWidget {
@@ -42,12 +43,14 @@ class _ChatBoxState extends State<ChatBox> {
       child: Row(
         children: [
           Expanded(
-            child: TextBox(
+            child: TextField(
               controller: _sendController,
-              placeholder: AppLocalizations.of(context)?.chatBoxSendMessage,
+              decoration: InputDecoration(
+                  hint: Text(
+                      AppLocalizations.of(context)?.chatBoxSendMessage ?? "")),
             ),
           ),
-          IconButton(icon: const Icon(FluentIcons.send), onPressed: _send),
+          IconButton(icon: const Icon(LucideIcons.send), onPressed: _send),
         ],
       ),
     );

@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
@@ -33,51 +34,54 @@ class RoomInformations extends StatefulWidget {
 class _RoomInformationsState extends State<RoomInformations> {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(FluentIcons.back),
-                  onPressed: () => context.pop(),
-                ),
-                const SizedBox(
-                  width: 24,
-                ),
-                // FIXME Add a fallback image for rooms
-                AvatarFromUriOrFallbackImage(
-                  client: widget.room.client,
-                  avatarUri: widget.room.avatar,
-                ),
-                const SizedBox(
-                  width: 32,
-                ),
-                Column(
-                  children: [
-                    Text(
-                      widget.room.getLocalizedDisplayname(),
-                      style: FluentTheme.of(context).typography.title,
-                    ),
-                    const SizedBox(
-                      height: 6.0,
-                    ),
-                    Text(
-                      "Room ID: ${widget.room.id}",
-                      style: FluentTheme.of(context).typography.subtitle,
-                    ),
-                  ],
-                )
-              ],
-            ),
-            const SizedBox(
-              height: 24,
-            ),
-            Flexible(flex: 4, child: RoomParticipantsList(room: widget.room))
-          ],
+    return Material(
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(LucideIcons.arrowLeft),
+                    onPressed: () => context.pop(),
+                  ),
+                  const SizedBox(
+                    width: 24,
+                  ),
+                  // FIXME Add a fallback image for rooms
+                  AvatarFromUriOrFallbackImage(
+                    client: widget.room.client,
+                    avatarUri: widget.room.avatar,
+                  ),
+                  const SizedBox(
+                    width: 32,
+                  ),
+                  Column(
+                    children: [
+                      Text(
+                        widget.room.getLocalizedDisplayname(),
+                        style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(
+                        height: 6.0,
+                      ),
+                      Text(
+                        "Room ID: ${widget.room.id}",
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+              const SizedBox(
+                height: 24,
+              ),
+              Flexible(flex: 4, child: RoomParticipantsList(room: widget.room))
+            ],
+          ),
         ),
       ),
     );
@@ -104,7 +108,7 @@ class RoomParticipantsList extends StatelessWidget {
         final actualMembersCount = (room.summary.mInvitedMemberCount ?? 0) +
             (room.summary.mJoinedMemberCount ?? 0);
         final canRequestMoreMembers = members.length < actualMembersCount;
-        final iconColor = FluentTheme.of(context).accentColor;
+        final iconColor = Theme.of(context).colorScheme.primary;
         final displayName = room.getLocalizedDisplayname();
         return ListView.builder(
           itemCount: members.length,
@@ -138,17 +142,17 @@ class RoomParticipantsList extends StatelessWidget {
                       ),
                       margin: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        color: FluentTheme.of(context).cardColor,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: FluentTheme.of(context).accentColor,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       child: Text(
                         permissionBatch,
                         style: TextStyle(
                           fontSize: 14,
-                          color: FluentTheme.of(context).accentColor,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),

@@ -16,7 +16,7 @@
 
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
@@ -28,7 +28,8 @@ class LogoWithTextThemed extends StatelessWidget {
   Widget build(BuildContext context) {
     SettingsController settings = Provider.of<SettingsController>(context);
     bool isLightMode = (settings.themeMode == ThemeMode.light ? true : false);
-    if (themeMode != null) isLightMode = themeMode!.isLight;
+    // TODO what even is the following code?
+    // if (themeMode != null) isLightMode = themeMode!.isLight;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,

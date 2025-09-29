@@ -1,7 +1,7 @@
 // Credits: This file was originally taken from FluffyChat by Famedly
 // It is redistributed with appropriate AGPLv3 license and it's copyright is with it's respective owner.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// Provides extra functionality for formatting the time.

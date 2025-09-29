@@ -1,6 +1,7 @@
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
+// TODO Use layoutbuilder instead of all this
 class TwoColumnLayout extends StatelessWidget {
   final Widget mainView;
   final Widget sideView;
@@ -12,8 +13,8 @@ class TwoColumnLayout extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      content: Row(
+    return Scaffold(
+      body: Row(
         children: [
           Container(
             decoration: const BoxDecoration(),
@@ -21,9 +22,7 @@ class TwoColumnLayout extends StatelessWidget {
             width: 420,
             child: mainView,
           ),
-          const Divider(
-            direction: Axis.vertical,
-          ),
+          const VerticalDivider(),
           Expanded(
             child: ClipRRect(
               child: sideView,

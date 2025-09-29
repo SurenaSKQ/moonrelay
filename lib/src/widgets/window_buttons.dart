@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 class WindowButtons extends StatelessWidget {
@@ -21,7 +21,7 @@ class WindowButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final FluentThemeData theme = FluentTheme.of(context);
+    final ThemeData theme = Theme.of(context);
 
     return SizedBox(
       width: 138,

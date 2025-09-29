@@ -29,7 +29,7 @@ import 'package:moonrelay/src/settings/settings_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/side_pane_handler.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';

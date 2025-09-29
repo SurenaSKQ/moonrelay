@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 class SpaceCard extends StatelessWidget {
   const SpaceCard(
@@ -26,6 +26,7 @@ class SpaceCard extends StatelessWidget {
   final String name;
   final String subtitle;
 
+// FIXME Text styling, app wide!
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -38,11 +39,11 @@ class SpaceCard extends StatelessWidget {
           ),
           Text(
             name,
-            style: FluentTheme.of(context).typography.bodyStrong,
+            // style: ,
           ),
           Text(
             subtitle,
-            style: FluentTheme.of(context).typography.caption,
+            // style:,
           ),
         ],
       ),

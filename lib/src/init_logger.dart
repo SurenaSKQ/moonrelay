@@ -24,7 +24,8 @@ import 'package:path_provider/path_provider.dart';
 
 Future<Logger> initializeLog() async {
   try {
-    Directory cache = await getApplicationCacheDirectory();
+    // FIXME working on this shiet
+    Directory cache = Directory.current;
     Directory logDir =
         await Directory(join(cache.path, 'MoonrelayLogs')).create();
     return Logger(
@@ -40,7 +41,8 @@ Future<Logger> initializeLog() async {
         maxFileSizeKB: 32768,
         maxDelay: const Duration(minutes: 2),
       ),
-      filter: DevelopmentFilter(),
+      filter: ProductionFilter(),
+      level: Level.all,
     );
   } catch (e) {
     debugPrint("Log initialization failed at ${StackTrace.current.toString()}");

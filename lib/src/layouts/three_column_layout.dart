@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../widgets/spaces_pane.dart';
 
-class ThreePaneLayout extends StatefulWidget {
-  const ThreePaneLayout({super.key});
+class ThreeColumnLayout extends StatefulWidget {
+  const ThreeColumnLayout({super.key});
 
   @override
-  State<ThreePaneLayout> createState() => _ThreePaneLayoutState();
+  State<ThreeColumnLayout> createState() => _ThreeColumnLayoutState();
 }
 
-class _ThreePaneLayoutState extends State<ThreePaneLayout> {
+class _ThreeColumnLayoutState extends State<ThreeColumnLayout> {
   @override
   Widget build(BuildContext context) {
     return const Row(

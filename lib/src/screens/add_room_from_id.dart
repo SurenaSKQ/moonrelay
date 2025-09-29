@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/layouts/custom_scaffold.dart';
+import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
 
+// FIXME Text Styling
 class AddRoomFromID extends StatefulWidget {
   const AddRoomFromID({super.key});
 
@@ -39,9 +43,9 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
   @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
-    return ScaffoldPage(
-      header: IconButton(
-        icon: const Icon(FluentIcons.back),
+    return CustomScaffold(
+      topBar: IconButton(
+        icon: const Icon(LucideIcons.arrowLeft),
         onPressed: () => context.pop(),
       ),
       content: Padding(
@@ -50,14 +54,14 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
           children: [
             Text(
               "Search for the room you wish to join:",
-              style: FluentTheme.of(context).typography.bodyLarge,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
             const SizedBox(
               height: 8.0,
             ),
-            InfoLabel(
+            Label(
               label: "Room ID or Alias",
-              child: TextBox(
+              child: TextField(
                 controller: _roomIdController,
               ),
             ),
@@ -66,24 +70,24 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
             ),
             Text(
               "Enter the server to join through:",
-              style: FluentTheme.of(context).typography.bodyLarge,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
             Text(
               "If left empty, your own homeserver will be used.",
-              style: FluentTheme.of(context).typography.bodyStrong,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(
               height: 8.0,
             ),
-            InfoLabel(
+            Label(
               label: "Server",
-              child: TextBox(
+              child: TextField(
                 controller: _serverController,
               ),
             ),
             OutlinedButton(
               child: const Row(
-                children: [Icon(FluentIcons.add), Text("Add Room")],
+                children: [Icon(LucideIcons.plus), Text("Add Room")],
               ),
               onPressed: () => _addRoomFromID(
                   client, _roomIdController.text, _serverController.text),

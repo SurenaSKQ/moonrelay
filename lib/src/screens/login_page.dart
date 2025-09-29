@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/widgets/label.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
@@ -58,18 +60,16 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
           error: e,
         );
         // FIXME: Better error and localization
-        // ignore: use_build_context_synchronously
-        await displayInfoBar(context, builder: (context, close) {
-          return InfoBar(
-            title: Text(AppLocalizations.of(context)!.error),
-            content: Text(e.toString()),
-            action: IconButton(
-              icon: const Icon(FluentIcons.clear),
-              onPressed: close,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.error),
+                Text(e.toString())
+              ],
             ),
-            severity: InfoBarSeverity.error,
-          );
-        });
+          ),
+        );
       }
       setState(() => _textActive = true);
     }
@@ -95,7 +95,7 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
     return CustomScaffold(
       topBar: IconButton(
         icon: const Icon(
-          FluentIcons.back,
+          LucideIcons.arrowLeft,
           color: Colors.white,
         ),
         onPressed: () => context.pop(),
@@ -110,10 +110,10 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                InfoLabel(
+                Label(
                   label: AppLocalizations.of(context)!.homeserverText,
                   labelStyle: const TextStyle(color: Colors.white),
-                  child: TextBox(
+                  child: TextField(
                     controller: _homeserverBox,
                     expands: false,
                   ),
@@ -121,10 +121,10 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
                 const SizedBox(
                   height: 8,
                 ),
-                InfoLabel(
+                Label(
                   label: AppLocalizations.of(context)!.usernameText,
                   labelStyle: const TextStyle(color: Colors.white),
-                  child: TextBox(
+                  child: TextField(
                     controller: _usernameBox,
                     expands: false,
                   ),
@@ -132,10 +132,11 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
                 const SizedBox(
                   height: 8,
                 ),
-                InfoLabel(
+                Label(
                   label: AppLocalizations.of(context)!.passwordText,
                   labelStyle: const TextStyle(color: Colors.white),
-                  child: PasswordBox(
+                  child: TextField(
+                    obscureText: true,
                     controller: _passwordBox,
                   ),
                 ),
@@ -146,7 +147,7 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
             child: FilledButton(
               onPressed: !_textActive ? null : _login,
               child: !_textActive
-                  ? const ProgressBar()
+                  ? const LinearProgressIndicator()
                   : Text(AppLocalizations.of(context)!.loginButton),
             ),
           ),

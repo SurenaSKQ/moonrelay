@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/show_error_infobar.dart';
-import 'package:provider/provider.dart';
+
+// TODO Text Styles
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.client, required this.userID});
@@ -33,62 +34,43 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  late Profile uprofile;
-
-  Future<void> _getUserProfile() async {
-    uprofile = await widget.client.getProfileFromUserId(widget.userID);
-    setState(() {});
-  }
-
-  @override
-  void initState() {
-    _getUserProfile();
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
-    try {
-      return Acrylic(
-        child: ScaffoldPage(
-          header: ProfilePageheaderBar(
-            username: uprofile.displayName,
-          ),
-          content: ProfilePageContents(
-            client: widget.client,
-            userProfile: uprofile,
-          ),
-        ),
-      );
-    } catch (e) {
-      final Logger log = Provider.of<Logger>(context, listen: false);
-      log.w(
-        "Method 'client.getProfileFromuserId' has failed! Probably loading data",
-        error: e,
-        stackTrace: StackTrace.current,
-        time: DateTime.now(),
-      );
-      return const LoadingAndTransitionScreen();
-    }
-  }
-}
-
-class ProfilePageheaderBar extends StatelessWidget {
-  const ProfilePageheaderBar({super.key, required this.username});
-  final String? username;
-  @override
-  Widget build(BuildContext context) {
-    return PageHeader(
-      leading: IconButton(
-        icon: const Icon(FluentIcons.back),
-        onPressed: () => context.pop(),
-      ),
-      title: Text(
-        AppLocalizations.of(context)
-                ?.userProfilePageBanner(username ?? "User") ??
-            "Profile View",
-        style: FluentTheme.of(context).typography.bodyLarge,
-      ),
+    return FutureBuilder(
+      future: widget.client.getProfileFromUserId(widget.userID),
+      builder: (context, asyncSnapshot) {
+        if (asyncSnapshot.hasError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                asyncSnapshot.error.toString(),
+              ),
+            ),
+          );
+        }
+        if (asyncSnapshot.hasData) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(LucideIcons.arrowLeft),
+                onPressed: () => context.pop(),
+              ),
+              title: Text(
+                AppLocalizations.of(context)?.userProfilePageBanner(
+                        asyncSnapshot.data?.displayName ?? "User") ??
+                    "Profile View",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+            body: ProfilePageContents(
+              client: widget.client,
+              userProfile: asyncSnapshot.data!,
+            ),
+          );
+        } else {
+          return LoadingAndTransitionScreen();
+        }
+      },
     );
   }
 }
@@ -127,7 +109,7 @@ class ProfilePageContents extends StatelessWidget {
               Flexible(
                 child: Text(
                   userProfile.displayName ?? userProfile.userId,
-                  style: FluentTheme.of(context).typography.titleLarge,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -135,12 +117,10 @@ class ProfilePageContents extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(
-          direction: Axis.horizontal,
-        ),
+        const Divider(),
         Text(
           "(${userProfile.userId})",
-          style: FluentTheme.of(context).typography.subtitle,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
         ),
       ],
     );

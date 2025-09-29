@@ -1,6 +1,5 @@
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'settings_service.dart';
@@ -13,10 +12,8 @@ import 'settings_service.dart';
 class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   late ThemeMode _themeMode;
-  late WindowEffect _windowEffect;
   late DisplayType _displayType;
-  late int _backgroundTransparencyScalar;
-  late AccentColor _accentColor;
+  // late AccentColor _accentColor;
   late bool _useSystemTitlebar;
 
   SettingsController(this._settingsService) {
@@ -24,19 +21,14 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   ThemeMode get themeMode => _themeMode;
-  WindowEffect get windowEffect => _windowEffect;
   DisplayType get displayType => _displayType;
-  int get backgroundTransparencyScalar => _backgroundTransparencyScalar;
-  AccentColor get accentColor => _accentColor;
+  // AccentColor get accentColor => _accentColor;
   bool get useSystemTitlebar => _useSystemTitlebar;
 
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
-    _windowEffect = await _settingsService.windowEffect();
     _displayType = await _settingsService.displayType();
-    _backgroundTransparencyScalar =
-        await _settingsService.backgroundTransparencyScalar();
-    _accentColor = await _settingsService.accentColor();
+    // _accentColor = await _settingsService.accentColor();
     _useSystemTitlebar = await _settingsService.useSystemTitlebar();
 
     notifyListeners();
@@ -48,22 +40,20 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       if (useSystemTitlebar) {
         windowManager.setTitleBarStyle(TitleBarStyle.normal);
-        Window.showWindowControls();
       } else {
         windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-        Window.hideWindowControls();
       }
       await _settingsService.updateTitlebarStatus(useSystemTitlebar);
     }
   }
 
-  Future<void> updateAccentColor(AccentColor newAccentColor) async {
-    if (newAccentColor != _accentColor) {
-      _accentColor = newAccentColor;
-      notifyListeners();
-      await _settingsService.updateAccentColor(newAccentColor);
-    }
-  }
+  // Future<void> updateAccentColor(AccentColor newAccentColor) async {
+  //   if (newAccentColor != _accentColor) {
+  //     _accentColor = newAccentColor;
+  //     notifyListeners();
+  //     await _settingsService.updateAccentColor(newAccentColor);
+  //   }
+  // }
 
   Future<void> updateThemeMode(ThemeMode newThemeMode) async {
     if (newThemeMode != _themeMode) {
@@ -73,31 +63,11 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  Future<void> updateWindowEffect(WindowEffect newWindowEffect) async {
-    if (newWindowEffect != _windowEffect) {
-      _windowEffect = newWindowEffect;
-      await Window.setEffect(
-        effect: _windowEffect,
-        dark: true,
-      );
-      notifyListeners();
-      await _settingsService.updateWindowEffect(newWindowEffect);
-    }
-  }
-
   Future<void> updateDisplayType(DisplayType newDisplayType) async {
     if (newDisplayType != _displayType) {
       _displayType = newDisplayType;
       notifyListeners();
       await _settingsService.updateDisplayType(newDisplayType);
-    }
-  }
-
-  Future<void> updateBackgroundTransparencyScalar(int newScalar) async {
-    if (newScalar != _backgroundTransparencyScalar) {
-      _backgroundTransparencyScalar = newScalar;
-      notifyListeners();
-      await _settingsService.updateBackgroundTransparencyScalar(newScalar);
     }
   }
 }

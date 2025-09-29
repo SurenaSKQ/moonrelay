@@ -17,7 +17,7 @@
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class StartupScreen extends StatelessWidget {
@@ -61,7 +61,7 @@ class StartupScreen extends StatelessWidget {
             const SizedBox(
               width: 24,
             ),
-            Button(
+            TextButton(
               child: const Text(
                 "Sign Up!",
                 style: TextStyle(
@@ -108,7 +108,7 @@ class StartupScreen extends StatelessWidget {
               ),
               Wrap(
                 children: [
-                  Button(
+                  TextButton(
                     child: Text(AppLocalizations.of(context)!.privacyPolicy,
                         style: const TextStyle(fontFamily: 'Rubik')),
                     onPressed: () {
@@ -122,7 +122,7 @@ class StartupScreen extends StatelessWidget {
                   const SizedBox(
                     width: 32,
                   ),
-                  Button(
+                  TextButton(
                     child: Text(
                       AppLocalizations.of(context)!.thirdPartyLicense,
                       style: const TextStyle(fontFamily: 'Rubik'),

@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/blur_background.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -38,25 +37,23 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
       final log = Provider.of<Logger>(context, listen: false);
       try {
         await client.logout();
-        // NOTE - Ignored because this problem is handled with the global key.
-        // ignore: use_build_context_synchronously
         context.go('/');
       } catch (e) {
         log.e("Logout error, maybe network failure",
             error: e, time: DateTime.now(), stackTrace: StackTrace.current);
         // ignore: use_build_context_synchronously
         // FIXME This can cause build exception
-        await displayInfoBar(context, builder: (context, close) {
-          return InfoBar(
-            title: Text(AppLocalizations.of(context)!.error),
-            content: Text(e.toString()),
-            action: IconButton(
-              icon: const Icon(FluentIcons.clear),
-              onPressed: close,
-            ),
-            severity: InfoBarSeverity.error,
-          );
-        });
+        // await displayInfoBar(context, builder: (context, close) {
+        //   return InfoBar(
+        //     title: Text(AppLocalizations.of(context)!.error),
+        //     content: Text(e.toString()),
+        //     action: IconButton(
+        //       icon: const Icon(FluentIcons.clear),
+        //       onPressed: close,
+        //     ),
+        //     severity: InfoBarSeverity.error,
+        //   );
+        // });
       }
     }
   }
@@ -64,58 +61,38 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
   @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
-    final FlyoutController ownProfileFlyoutsController = FlyoutController();
-    return Column(
-      children: [
-        FlyoutTarget(
-          controller: ownProfileFlyoutsController,
-          child: GestureDetector(
-            child: BlurBackground(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: OwnProfileBar(client: client),
-              ),
-            ),
-            onTap: () {
-              ownProfileFlyoutsController.showFlyout(
-                autoModeConfiguration: FlyoutAutoConfiguration(
-                  preferredMode: FlyoutPlacementMode.topCenter,
-                ),
-                barrierDismissible: true,
-                dismissOnPointerMoveAway: false,
-                dismissWithEsc: true,
-                builder: (context) {
-                  return MenuFlyout(
-                    items: [
-                      MenuFlyoutItem(
-                        leading: const Icon(FluentIcons.account_management),
-                        text: const Text("Account"),
-                        onPressed: () {
-                          context.push('/main/myprofile');
-                        },
-                      ),
-                      MenuFlyoutItem(
-                        leading: const Icon(FluentIcons.settings),
-                        text: const Text("Settings"),
-                        onPressed: () {
-                          context.push('/settings');
-                        },
-                      ),
-                      MenuFlyoutItem(
-                        leading: const Icon(FluentIcons.leave_user),
-                        text: const Text("Logout"),
-                        onPressed: () {
-                          _logout();
-                        },
-                      )
-                    ],
-                  );
-                },
-              );
-            },
-          ),
+    final MenuController ownProfileMenuController = MenuController();
+    return MenuAnchor(
+      controller: ownProfileMenuController,
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon: Icon(LucideIcons.user),
+          onPressed: () => context.push('/main/myprofile'),
+          child: Text("Your Profile"),
         ),
+        MenuItemButton(
+          leadingIcon: const Icon(LucideIcons.settings),
+          onPressed: () => context.push('/settings'),
+          child: Text("Settings"),
+        ),
+        MenuItemButton(
+          leadingIcon: Icon(LucideIcons.logOut),
+          onPressed: () => _logout(),
+          child: Text("Log Out"),
+        )
       ],
+      builder: (context, controller, child) {
+        return GestureDetector(
+          child: OwnProfileBar(client: client),
+          onSecondaryTap: () {
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
+        );
+      },
     );
   }
 }
@@ -139,7 +116,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
         if (snapshot.connectionState != ConnectionState.done) {
           return Builder(
             builder: (context) => SpinKitCubeGrid(
-              color: FluentTheme.of(context).accentColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
           );
         }
@@ -173,7 +150,8 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                                 )
                                 .toString(),
                           ),
-                          backgroundColor: FluentTheme.of(context).accentColor,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
                         ),
                 ),
                 const SizedBox(

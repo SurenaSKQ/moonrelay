@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 class PrivacyPolicyPopupScreen extends StatelessWidget {
   const PrivacyPolicyPopupScreen({super.key});
@@ -24,7 +25,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScaffold(
         topBar: IconButton(
-          icon: const Icon(FluentIcons.back),
+          icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () {
             Navigator.pop(context);
           },

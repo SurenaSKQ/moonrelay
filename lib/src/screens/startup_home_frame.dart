@@ -17,7 +17,7 @@
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 class StartupHomeFrame extends StatelessWidget {
   const StartupHomeFrame({super.key, required this.child});

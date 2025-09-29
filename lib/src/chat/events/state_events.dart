@@ -7,9 +7,6 @@ class StateEventsStub extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(border: Border.all()),
-      child: Text(event.body),
-    );
+    return Text(event.body);
   }
 }

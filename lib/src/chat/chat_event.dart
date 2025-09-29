@@ -18,7 +18,7 @@ import 'package:moonrelay/src/chat/events/matrix_events/Message/basic_text_event
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
 import 'package:moonrelay/src/chat/events/state_events.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 class MessageEventHandler extends StatelessWidget {

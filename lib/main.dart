@@ -16,8 +16,10 @@
 
 // This is the application entry point. It servers the purpose of intializing vital data.
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption/utils/key_verification.dart';
@@ -29,7 +31,6 @@ import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
 import 'package:path_provider/path_provider.dart';
 import 'src/init_logger.dart';
-import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
@@ -50,7 +51,11 @@ void main() async {
   // TODO: Better error handling (application-wide item)
   // TODO: Deffered loading, loading screen, etc.
 
+  // ignore: avoid_print
+  print("Starting log.");
   Logger log = await initializeLog();
+
+  log.t("Now awaiting vodozemac initialization");
   try {
     await vdz.init();
   } catch (e) {
@@ -58,16 +63,20 @@ void main() async {
     if (kDebugMode) {
       print(e);
     }
+    exit(-2);
   }
+
+  log.t("Now awaiting sqflite initialization");
 
   try {
     sqfliteFfiInit();
   } catch (e) {
-    log.f('SQFLite FFi has caused an exception. Report this on our CodeBerg.',
+    log.f('SQFLite FFi has caused an exception. Please report this issue.',
         error: e);
     if (kDebugMode) {
       print(e);
     }
+    exit(-1);
   }
 
   databaseFactory = databaseFactoryFfi;
@@ -78,12 +87,20 @@ void main() async {
   // Definitely use isolates to offload compute from main thread
 
   final dbdir = await getApplicationSupportDirectory();
+  log.t("Database directory recieved as ${dbdir.toString()}");
   const String dbname = 'moonrelay.db';
+  log.t("Now awaiting sql database opening");
   final database = await sql.openDatabase(p.join(dbdir.path, dbname));
+  log.t("Database opened as ${database.toString()}");
+  log.t("Now awaiting Matrix SDK Database initialization");
   final dbobj = await MatrixSdkDatabase.init('moonrelay',
       database: database, sqfliteFactory: databaseFactoryFfi);
+  log.i("Matrix SDK database initialized");
+  log.t("awaiting opening Matrix SDK Database");
   await dbobj.open();
+  log.t("Matrix SDK Database opened");
 
+  log.t("Initiating client");
   final sdk = Client(
     'Moonrelay',
     database: dbobj,
@@ -113,15 +130,6 @@ void main() async {
   await settingsController.loadSettings();
 
   if (isDesktop) {
-    await flutter_acrylic.Window.initialize();
-    if (defaultTargetPlatform == TargetPlatform.windows &&
-        !settingsController.useSystemTitlebar) {
-      await flutter_acrylic.Window.hideWindowControls();
-    }
-
-    await flutter_acrylic.Window.setEffect(
-        effect: settingsController.windowEffect);
-
     await WindowManager.instance.ensureInitialized();
     windowManager.waitUntilReadyToShow().then((_) async {
       if (!settingsController.useSystemTitlebar) {

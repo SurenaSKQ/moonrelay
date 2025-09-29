@@ -15,9 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async' show Future;
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 class _Licenses {
   _Licenses(
@@ -55,27 +55,26 @@ class _LicensesScreenState extends State<LicensesScreen> {
   ];
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(FluentIcons.back),
-        onPressed: () {
-          Navigator.pop(context);
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: ListView.builder(
+        itemCount: _usedLicenses.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListTile(
+              title: Text(_usedLicenses[index].name),
+            ),
+          );
         },
       ),
-      content: ListView.builder(
-          itemCount: _usedLicenses.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Expander(
-                header: Text(_usedLicenses[index].name),
-                content: SizedBox(
-                  height: 300,
-                  child: Text(_usedLicenses[index].licenseText),
-                ),
-              ),
-            );
-          }),
     );
   }
 }

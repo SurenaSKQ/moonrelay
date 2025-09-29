@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:badges/badges.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' hide Badge;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -43,82 +42,84 @@ class RoomsPane extends StatelessWidget {
           time: DateTime.now(),
         );
         // FIXME: Better error and localization
-        await displayInfoBar(
-          context,
-          builder: (context, close) {
-            return InfoBar(
-              title: Text(AppLocalizations.of(context)!.error),
-              content: Text(e.toString()),
-              action: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: close,
-              ),
-              severity: InfoBarSeverity.error,
-            );
-          },
-        );
+        // await displayInfoBar(
+        //   context,
+        //   builder: (context, close) {
+        //     return InfoBar(
+        //       title: Text(AppLocalizations.of(context)!.error),
+        //       content: Text(e.toString()),
+        //       action: IconButton(
+        //         icon: const Icon(FluentIcons.clear),
+        //         onPressed: close,
+        //       ),
+        //       severity: InfoBarSeverity.error,
+        //     );
+        //   },
+        // );
       }
     }
 
     Client client = Provider.of<Client>(context);
-    return StreamBuilder(
-      stream: client.onSync.stream,
-      builder: (context, _) => ListView.builder(
-        itemCount: client.rooms.length,
-        itemBuilder: (context, index) => ListTile.selectable(
-          // FIXME: Avatar & Badge
-          leading: Badge(
-            showBadge: (client.rooms[index].notificationCount > 0),
-            position: BadgePosition.bottomStart(),
-            badgeStyle: BadgeStyle(shape: BadgeShape.square),
-            badgeAnimation: BadgeAnimation.slide(),
-            badgeContent: Text(
-              client.rooms[index].notificationCount.toString(),
-            ),
-            child: (client.rooms[index].avatar == null)
-                ? CircleAvatar(
-                    child: Text(
-                      client.rooms[index]
-                          .getLocalizedDisplayname()
-                          .toUpperCase()
-                          .split(RegExp(' +'))
-                          .map((s) => s[0])
-                          .take(2)
-                          .join(),
-                    ),
-                  )
-                : CircleAvatar(
-                    foregroundImage: NetworkImage(
-                      client.rooms[index].avatar!
-                          .getThumbnail(client, width: 56, height: 56)
-                          .toString(),
-                    ),
-                  ),
-          ),
-
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  client.rooms[index].getLocalizedDisplayname(),
-                  style: const TextStyle(
-                      fontFamily: 'Rubik',
-                      fontWeight: FontWeight.w300,
-                      fontSize: 18),
-                ),
+    return Material(
+      child: StreamBuilder(
+        stream: client.onSync.stream,
+        builder: (context, _) => ListView.builder(
+          itemCount: client.rooms.length,
+          itemBuilder: (context, index) => ListTile(
+            // FIXME: Avatar & Badge
+            leading: Badge(
+              showBadge: (client.rooms[index].notificationCount > 0),
+              position: BadgePosition.bottomStart(),
+              badgeStyle: BadgeStyle(shape: BadgeShape.square),
+              badgeAnimation: BadgeAnimation.slide(),
+              badgeContent: Text(
+                client.rooms[index].notificationCount.toString(),
               ),
-            ],
-          ),
-          subtitle: Text(
-            client.rooms[index].lastEvent?.body ?? 'No messages',
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: 'Rubic',
-              fontWeight: FontWeight.w300,
-              fontSize: 16,
+              child: (client.rooms[index].avatar == null)
+                  ? CircleAvatar(
+                      child: Text(
+                        client.rooms[index]
+                            .getLocalizedDisplayname()
+                            .toUpperCase()
+                            .split(RegExp(' +'))
+                            .map((s) => s[0])
+                            .take(2)
+                            .join(),
+                      ),
+                    )
+                  : CircleAvatar(
+                      foregroundImage: NetworkImage(
+                        client.rooms[index].avatar!
+                            .getThumbnail(client, width: 56, height: 56)
+                            .toString(),
+                      ),
+                    ),
             ),
+
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    client.rooms[index].getLocalizedDisplayname(),
+                    style: const TextStyle(
+                        fontFamily: 'Rubik',
+                        fontWeight: FontWeight.w300,
+                        fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Text(
+              client.rooms[index].lastEvent?.body ?? 'No messages',
+              maxLines: 1,
+              style: const TextStyle(
+                fontFamily: 'Rubic',
+                fontWeight: FontWeight.w300,
+                fontSize: 16,
+              ),
+            ),
+            onTap: () => join(client.rooms[index]),
           ),
-          onPressed: () => join(client.rooms[index]),
         ),
       ),
     );

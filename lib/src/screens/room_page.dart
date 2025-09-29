@@ -19,7 +19,7 @@ import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 class RoomPage extends StatefulWidget {
@@ -32,23 +32,20 @@ class RoomPage extends StatefulWidget {
 class _RoomPageState extends State<RoomPage> {
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      backgroundColor: MoonrelayColorPalette.ordinaryDarkGrey,
-      content: Stack(children: [
-        Column(
-          children: [
-            Expanded(
-              child: ChatTimeline(room: widget.room),
-            ),
-            const Divider(
-              direction: Axis.vertical,
-              size: 1,
-            ),
-            ChatBox(room: widget.room),
-          ],
-        ),
-        RoomInfoCard(room: widget.room),
-      ]),
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Column(
+        children: [
+          RoomInfoCard(room: widget.room),
+          Expanded(
+            child: ChatTimeline(room: widget.room),
+          ),
+          const Divider(
+            thickness: 1,
+          ),
+          ChatBox(room: widget.room),
+        ],
+      ),
     );
   }
 }

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // TODO: Loading animations, handle different states, theming?
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:matrix/matrix.dart';
 
@@ -58,7 +58,7 @@ class _AvatarFromUriOrFallbackImageState
                 if (asyncSnapshot.connectionState != ConnectionState.done) {
                   return Builder(
                     builder: (context) => SpinKitCubeGrid(
-                      color: FluentTheme.of(context).accentColor,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   );
                 }

@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -58,20 +59,20 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     return CustomScaffold(
       topBar: IconButton(
         icon: const Icon(
-          FluentIcons.back,
+          LucideIcons.arrowLeft,
           color: Colors.white,
         ),
         onPressed: () => context.pop(),
       ),
       content: Column(
         children: [
-          TextBox(
+          TextField(
             controller: homeserverController,
           ),
-          TextBox(
+          TextField(
             controller: usernameController,
           ),
-          TextBox(
+          TextField(
             controller: passwordController,
           ),
         ],
