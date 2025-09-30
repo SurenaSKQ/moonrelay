@@ -52,12 +52,12 @@ Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thi
   - Support third party sign in
   - Support registeration
 - UI revamp v2
-  - New UI framework
+  - New UI framework **[in progress]**
     - Custom sidebar widget
     - Custom frame widget **[•]**
     - Custom input widget
-    - Custom header v2
-    - Custom scaffold **[•]**
+    - Custom header v2 **[•]**
+    - ~~Custom scaffold **[•]**~~ No longer a good idea
 
 # Future work
 
@@ -88,7 +88,7 @@ to remain flexible in the face of the inescapable temporal burden we carry.
 
 This category is the underlying work that needs to be done to fix the terrible design I accumulated over the past 2 years.
 
-- FutureBuilders
+- FutureBuilders **[in progress]**
   - There is a LOT of code that need to use FutureBuilders with placeholders to get data.
 - New Chat Timeline
   - That whole thing is a mess
@@ -98,5 +98,6 @@ This category is the underlying work that needs to be done to fix the terrible d
   - Currently there is a long delay when logging in
 - Own blur widget **[•]**
 - Potential global key issue?
-- Use CustomMultiChildLayout
+- Use layout building instead of static layout widgets **[in progress]**
 - FIXME Handle cases where user profile response is invalid!
+- FIXME List tiles are not adaptive, causing an exception when the list tile becomes smaller than title widget
