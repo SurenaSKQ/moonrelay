@@ -26,6 +26,11 @@ Future<Logger> initializeLog() async {
   try {
     // FIXME working on this shiet
     Directory cache = Directory.current;
+    try {
+      cache = await getApplicationCacheDirectory();
+    } catch (e) {
+      cache = Directory.current;
+    }
     Directory logDir =
         await Directory(join(cache.path, 'MoonrelayLogs')).create();
     return Logger(
