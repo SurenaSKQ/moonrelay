@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:adwaita_icons/adwaita_icons.dart';
 import 'package:badges/badges.dart';
 import 'package:flutter/material.dart' hide Badge;
 import 'package:go_router/go_router.dart';
+import 'package:libadwaita/libadwaita.dart';
 import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class RoomsPane extends StatelessWidget {
@@ -42,20 +46,16 @@ class RoomsPane extends StatelessWidget {
           time: DateTime.now(),
         );
         // FIXME: Better error and localization
-        // await displayInfoBar(
-        //   context,
-        //   builder: (context, close) {
-        //     return InfoBar(
-        //       title: Text(AppLocalizations.of(context)!.error),
-        //       content: Text(e.toString()),
-        //       action: IconButton(
-        //         icon: const Icon(FluentIcons.clear),
-        //         onPressed: close,
-        //       ),
-        //       severity: InfoBarSeverity.error,
-        //     );
-        //   },
-        // );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.error),
+                Text(e.toString()),
+              ],
+            ),
+          ),
+        );
       }
     }
 
@@ -68,15 +68,17 @@ class RoomsPane extends StatelessWidget {
           itemBuilder: (context, index) => ListTile(
             // FIXME: Avatar & Badge
             leading: Badge(
-              showBadge: (client.rooms[index].notificationCount > 0),
-              position: BadgePosition.bottomStart(),
-              badgeStyle: BadgeStyle(shape: BadgeShape.square),
-              badgeAnimation: BadgeAnimation.slide(),
-              badgeContent: Text(
-                client.rooms[index].notificationCount.toString(),
+              showBadge: client.rooms[index].hasNewMessages,
+              badgeStyle: BadgeStyle(
+                badgeColor: Theme.of(context).primaryColor,
+                shape: BadgeShape.circle,
+              ),
+              badgeContent: Icon(
+                Icons.notifications,
+                size: 8,
               ),
               child: (client.rooms[index].avatar == null)
-                  ? CircleAvatar(
+                  ? AdwAvatar(
                       child: Text(
                         client.rooms[index]
                             .getLocalizedDisplayname()
@@ -87,12 +89,40 @@ class RoomsPane extends StatelessWidget {
                             .join(),
                       ),
                     )
-                  : CircleAvatar(
-                      foregroundImage: NetworkImage(
-                        client.rooms[index].avatar!
-                            .getThumbnail(client, width: 56, height: 56)
-                            .toString(),
-                      ),
+                  : FutureBuilder(
+                      future: client.rooms[index].avatar!.getThumbnailUri(
+                          client,
+                          method: ThumbnailMethod.scale,
+                          height: 56,
+                          width: 56),
+                      builder: (context, asyncSnapshot) {
+                        if (asyncSnapshot.hasError) {
+                          return AdwAvatar(
+                            child: Text(
+                              client.rooms[index]
+                                  .getLocalizedDisplayname()
+                                  .toUpperCase()
+                                  .split(RegExp(' +'))
+                                  .map((s) => s[0])
+                                  .take(2)
+                                  .join(),
+                            ),
+                          );
+                        }
+                        if (asyncSnapshot.hasData) {
+                          return AdwAvatar(
+                            backgroundImage: NetworkImage(
+                              asyncSnapshot.data.toString(),
+                              headers: {
+                                "authorization": "Bearer ${client.accessToken}"
+                              },
+                            ),
+                            child: const Text(''),
+                          );
+                        } else {
+                          return CircularProgressIndicator();
+                        }
+                      },
                     ),
             ),
 
