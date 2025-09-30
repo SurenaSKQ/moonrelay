@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:adwaita/adwaita.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:yaru/yaru.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
 
@@ -46,8 +46,8 @@ class MoonrelayApp extends StatelessWidget {
           supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           // TODO: theme builder, user settings theme management
-          theme: yaruLight,
-          darkTheme: yaruDark,
+          theme: AdwaitaThemeData.light(),
+          darkTheme: AdwaitaThemeData.dark(),
           themeMode: settingsController.themeMode,
           builder: (context, child) => Directionality(
             textDirection: _appTheme.textDirection,

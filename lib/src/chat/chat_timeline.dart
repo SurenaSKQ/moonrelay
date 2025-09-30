@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/scheduler.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -33,7 +34,7 @@ class ChatTimeline extends StatefulWidget {
 
 // FIXME Work needed 2025 - get a complete chat timeline by EOY 2025
 // FIXME Need following featrues for 'Chat Timeline v1':
-// Fix scrolling
+// Fix scrolling DONE
 // Drag and Drop
 // Replies
 // Stickers
@@ -50,6 +51,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
   @override
   Widget build(BuildContext context) {
     // FIXME There is a really bad crash bug here that causes the index to overflow
+    // Cannot replicate again :(
     return Consumer<SettingsController>(
       builder: (context, value, child) => FutureBuilder<Timeline>(
         future: _timelineFuture,
@@ -57,17 +59,25 @@ class _ChatTimelineState extends State<ChatTimeline> {
           final timeline = snapshot.data;
           if (snapshot.connectionState != ConnectionState.done ||
               timeline == null) {
-            return LoadingAndTransitionScreen();
+            return LoadingScreen();
           }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.position.maxScrollExtent == 0 &&
+                timeline.canRequestHistory) {
+              timeline.requestHistory();
+            }
+          });
+
           _scrollController.addListener(
             () {
-              if (_scrollController.position.pixels <=
-                  _scrollController.position.maxScrollExtent) {
-                // User has scrolled to the top (not bottom lol), request more data
+              if (_scrollController.position.pixels ==
+                      _scrollController.position.maxScrollExtent &&
+                  timeline.canRequestHistory) {
                 timeline.requestHistory();
               }
             },
           );
+
           _count = timeline.events.length;
           return Expanded(
             child: AnimatedList(
@@ -101,6 +111,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
   @override
   void initState() {
     super.initState();
+
     _timelineFuture = widget.room.getTimeline(
       onChange: (i) {
         _listKey.currentState?.setState(() {});
@@ -113,7 +124,6 @@ class _ChatTimelineState extends State<ChatTimeline> {
         _count--;
         _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
       },
-      onUpdate: () {},
     );
   }
 

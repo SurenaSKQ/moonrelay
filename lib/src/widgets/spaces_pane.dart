@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class SpacesPane extends StatelessWidget {
@@ -42,20 +43,16 @@ class SpacesPane extends StatelessWidget {
           time: DateTime.now(),
         );
         // FIXME: Better error and localization
-        // await displayInfoBar(
-        //   context,
-        //   builder: (context, close) {
-        //     return InfoBar(
-        //       title: Text(AppLocalizations.of(context)!.error),
-        //       content: Text(e.toString()),
-        //       action: IconButton(
-        //         icon: const Icon(FluentIcons.clear),
-        //         onPressed: close,
-        //       ),
-        //       severity: InfoBarSeverity.error,
-        //     );
-        //   },
-        // );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.error),
+                Text(e.toString()),
+              ],
+            ),
+          ),
+        );
       }
     }
 

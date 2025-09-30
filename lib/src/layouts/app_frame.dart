@@ -15,8 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:libadwaita/libadwaita.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
+import 'package:libadwaita_window_manager/libadwaita_window_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
@@ -51,53 +50,20 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark
-        ? true
-        : false;
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
     // final settingsController = Provider.of<SettingsController>(context);
     // FIXME Rework titlebar widget
     return Consumer<SettingsController>(
-      builder: (context, value, child) => Scaffold(
-        backgroundColor: (value.themeMode == ThemeMode.dark)
-            ? MoonrelayColorPalette.cpgDarkest
-            : MoonrelayColorPalette.cpgWhite,
-        appBar: AppBar(
-          title: Text(
-            AppLocalizations.of(context)!.appTitle,
-            style: const TextStyle(
-              fontFamily: 'Oxanium',
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+      builder: (context, value, child) => AdwScaffold(
+        actions: AdwActions().windowManager,
+        title: Text(
+          AppLocalizations.of(context)!.appTitle,
+          style: const TextStyle(
+            fontFamily: 'Oxanium',
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-          actions: [
-            IconButton(
-              icon: Icon(size: 16, LucideIcons.minimize2),
-              onPressed: () => windowManager.minimize(),
-            ),
-            FutureBuilder<bool>(
-              future: windowManager.isMaximized(),
-              builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-                if (snapshot.data == true) {
-                  return IconButton(
-                    icon: Icon(size: 16, LucideIcons.minimize),
-                    onPressed: () => windowManager.unmaximize(),
-                  );
-                } else {
-                  return IconButton(
-                    icon: Icon(size: 16, LucideIcons.maximize),
-                    onPressed: () => windowManager.maximize(),
-                  );
-                }
-              },
-            ),
-            IconButton(
-              icon: Icon(size: 16, LucideIcons.squareX),
-              onPressed: () => windowManager.close(),
-            )
-          ],
         ),
         body: widget.child,
       ),

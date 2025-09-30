@@ -17,8 +17,6 @@
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 

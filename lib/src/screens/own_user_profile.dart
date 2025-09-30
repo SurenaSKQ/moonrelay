@@ -21,7 +21,6 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/show_error_infobar.dart';
 
 // FIXME this entire widget is a disaster
 class OwnProfilePage extends StatefulWidget {
@@ -65,7 +64,7 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
             ),
           );
         } else {
-          return LoadingAndTransitionScreen();
+          return LoadingScreen();
         }
       },
     );
@@ -85,7 +84,11 @@ class OwnProfilePageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (userProfile.displayName == null) {
-      showErrorInfobar(context, "You have not set a display name yet!", "");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("You have not set a display name!"),
+        ),
+      );
     }
 
     return Column(

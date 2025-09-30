@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:flutter/material.dart';
 
 class PrivacyPolicyPopupScreen extends StatelessWidget {
@@ -23,14 +22,16 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-        topBar: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+    return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(LucideIcons.arrowLeft),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
         ),
-        content: const Padding(
+        body: const Padding(
           padding: EdgeInsets.all(18.0),
           child: Text(
             "Moonrelay app does not transmit any information other than what is necessary for the application's operation. We do not conduct data gathering or telemetry, and we do not operate an advertisement service. \n Any content shared on the Matrix network is outside of the scope of this privacy policy and will reside on Matrix homeservers, and as such is subject to the privacy policies of each respective partner.",

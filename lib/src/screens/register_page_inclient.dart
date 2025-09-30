@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -56,15 +55,17 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final TextEditingController passwordController = TextEditingController();
     final TextEditingController homeserverController = TextEditingController();
 
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(
-          LucideIcons.arrowLeft,
-          color: Colors.white,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: Colors.white,
+          ),
+          onPressed: () => context.pop(),
         ),
-        onPressed: () => context.pop(),
       ),
-      content: Column(
+      body: Column(
         children: [
           TextField(
             controller: homeserverController,

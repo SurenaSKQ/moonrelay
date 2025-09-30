@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
@@ -92,15 +91,17 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(
-          LucideIcons.arrowLeft,
-          color: Colors.white,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: Colors.white,
+          ),
+          onPressed: () => context.pop(),
         ),
-        onPressed: () => context.pop(),
       ),
-      content: Column(
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,

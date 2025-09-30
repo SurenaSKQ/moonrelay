@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/two_column_layout.dart';
+import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/own_user_profile.dart';
@@ -94,7 +95,7 @@ class MoonRouter {
                     pageBuilder: (context, state) => genericPageBuilder(
                       context,
                       state,
-                      const RegisterNewUserAccountGuidancePage(),
+                      const RegisterInClientPage(),
                     ),
                   ),
                 ]),

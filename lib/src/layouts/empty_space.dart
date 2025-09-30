@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/widgets.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
+import 'package:flutter/material.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
 
 class EmptySpace extends StatelessWidget {
@@ -23,6 +22,7 @@ class EmptySpace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CustomScaffold(content: LogoWithTextThemed());
+    return const Scaffold(
+        body: FittedBox(fit: BoxFit.fitHeight, child: LogoWithTextThemed()));
   }
 }

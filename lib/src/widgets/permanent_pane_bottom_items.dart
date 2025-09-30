@@ -20,6 +20,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class PermanentPaneBottomItems extends StatefulWidget {
@@ -43,17 +44,16 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
             error: e, time: DateTime.now(), stackTrace: StackTrace.current);
         // ignore: use_build_context_synchronously
         // FIXME This can cause build exception
-        // await displayInfoBar(context, builder: (context, close) {
-        //   return InfoBar(
-        //     title: Text(AppLocalizations.of(context)!.error),
-        //     content: Text(e.toString()),
-        //     action: IconButton(
-        //       icon: const Icon(FluentIcons.clear),
-        //       onPressed: close,
-        //     ),
-        //     severity: InfoBarSeverity.error,
-        //   );
-        // });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.error),
+                Text(e.toString()),
+              ],
+            ),
+          ),
+        );
       }
     }
   }

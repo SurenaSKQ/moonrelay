@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:linkify_text/linkify_text.dart';
@@ -25,15 +24,17 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(
-          LucideIcons.arrowLeft,
-          color: Colors.white,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: Colors.white,
+          ),
+          onPressed: () => context.pop(),
         ),
-        onPressed: () => context.pop(),
       ),
-      content: Column(
+      body: Column(
         children: [
           const Text(
             "Choose a Homeserver.",

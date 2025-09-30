@@ -14,35 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
-class LoadingAndTransitionScreen extends StatefulWidget {
-  const LoadingAndTransitionScreen({super.key});
+class LoadingScreen extends StatefulWidget {
+  const LoadingScreen({super.key});
 
   @override
-  State<LoadingAndTransitionScreen> createState() =>
-      _LoadingAndTransitionScreenState();
+  State<LoadingScreen> createState() => _LoadingScreenState();
 }
 
-class _LoadingAndTransitionScreenState
-    extends State<LoadingAndTransitionScreen> {
+class _LoadingScreenState extends State<LoadingScreen> {
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: CustomScaffold(
-        backgroundDecoration: const BoxDecoration(
-          color: Colors.transparent,
-          gradient: LinearGradient(
-            colors: [Colors.black, Colors.white],
-          ),
-        ),
-        content: Center(
-          child: SpinKitCubeGrid(
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
+    return Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }

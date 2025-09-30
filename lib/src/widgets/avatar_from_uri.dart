@@ -15,8 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // TODO: Loading animations, handle different states, theming?
+import 'package:adwaita_icons/adwaita_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:libadwaita/libadwaita.dart';
 import 'package:matrix/matrix.dart';
 
 enum AvatarStates {
@@ -49,26 +50,27 @@ class _AvatarFromUriOrFallbackImageState
     return GestureDetector(
       onTap: widget.onTap,
       child: (widget.avatarUri == null)
-          ? CircleAvatar(
-              foregroundImage: AssetImage('assets/images/fallbackAvatar.png'))
+          ? AdwAvatar(child: AdwaitaIcon(AdwaitaIcons.person))
           : FutureBuilder(
               future: widget.avatarUri!
                   .getThumbnailUri(widget.client, width: 56, height: 56),
               builder: (context, asyncSnapshot) {
                 if (asyncSnapshot.connectionState != ConnectionState.done) {
                   return Builder(
-                    builder: (context) => SpinKitCubeGrid(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    builder: (context) => CircularProgressIndicator(),
                   );
                 }
-                return CircleAvatar(
-                  foregroundImage: NetworkImage(asyncSnapshot.data.toString(),
-                      headers: {
-                        "authorization": "Bearer ${widget.client.accessToken}"
-                      }),
+                return AdwAvatar(
+                  backgroundImage: NetworkImage(
+                    asyncSnapshot.data.toString(),
+                    headers: {
+                      "authorization": "Bearer ${widget.client.accessToken}"
+                    },
+                  ),
+                  child: const Text(''),
                 );
-              }),
+              },
+            ),
     );
   }
 }

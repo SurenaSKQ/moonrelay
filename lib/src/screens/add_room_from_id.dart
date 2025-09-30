@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
 
@@ -43,12 +42,14 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
   @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(LucideIcons.arrowLeft),
-        onPressed: () => context.pop(),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(LucideIcons.arrowLeft),
+        ),
       ),
-      content: Padding(
+      body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
