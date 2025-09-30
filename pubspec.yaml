@@ -44,6 +44,15 @@ dependencies:
   flutter_vodozemac: ^0.2.2
   libadwaita: ^2.0.2
   yaru: ^8.3.0
+  libadwaita_window_manager: ^0.5.4+1
+  libadwaita_searchbar_ac: ^0.5.8
+  libadwaita_searchbar: ^0.5.7
+  adwaita:
+    git:
+      url: https://github.com/SurenaSKQ/adwaita.git
+  adwaita_icons:
+    git:
+      url: https://github.com/SurenaSKQ/adwaita_icons.git
 
 dev_dependencies:
   flutter_test:

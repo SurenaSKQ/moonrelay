@@ -9,6 +9,24 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "85.0.0"
+  adwaita:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: HEAD
+      resolved-ref: "2ae03d4364cb9206bc56061765997b61fe310a9f"
+      url: "https://github.com/SurenaSKQ/adwaita.git"
+    source: git
+    version: "1.1.0"
+  adwaita_icons:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: HEAD
+      resolved-ref: ab9b44ba40c2096976adb7b6778f74504979028c
+      url: "https://github.com/SurenaSKQ/adwaita_icons.git"
+    source: git
+    version: "0.2.1"
   analyzer:
     dependency: transitive
     description:
@@ -193,6 +211,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
+  easy_autocomplete:
+    dependency: transitive
+    description:
+      name: easy_autocomplete
+      sha256: e7ded95deb010daec41caf25f553b450fbdaa6769e7a6fdb7b8dce6764318406
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
   enhanced_enum:
     dependency: transitive
     description:
@@ -485,6 +511,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.5.4"
+  libadwaita_searchbar:
+    dependency: "direct main"
+    description:
+      name: libadwaita_searchbar
+      sha256: fc8c85e984dd6f01cdc0fb21846899e04959973319105cddc315af53d281b2ae
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.7"
+  libadwaita_searchbar_ac:
+    dependency: "direct main"
+    description:
+      name: libadwaita_searchbar_ac
+      sha256: bbbfc2ca08c2ab59e675d8106717d1cb3426ff610fb934bf29d17bd4f7df0e86
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.8"
+  libadwaita_window_manager:
+    dependency: "direct main"
+    description:
+      name: libadwaita_window_manager
+      sha256: "196b705b9683d2979740e9bfd46bbe1ce69fc16af217215d80df7c84ff8fe30f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.4+1"
   linkify_text:
     dependency: "direct main"
     description:
