@@ -18,12 +18,12 @@ import 'dart:async';
 
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
+import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/layouts/two_column_layout.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/own_user_profile.dart';
-import 'package:moonrelay/src/screens/register_page.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/settings/settings_view.dart';
@@ -57,16 +57,9 @@ class MoonRouter {
       pageBuilder: (context, state, child) => genericPageBuilder(
         context,
         state,
-        AppFrame(shellContext: context, child: child),
+        StartscreenFrame(shellContext: context, child: child),
       ),
       routes: [
-        GoRoute(
-          path: '/',
-          redirect: (context, state) =>
-              Provider.of<Client>(context, listen: false).isLogged()
-                  ? '/main/rooms'
-                  : '/welcome',
-        ),
         ShellRoute(
           pageBuilder: (context, state, child) => genericPageBuilder(
             context,
@@ -78,28 +71,45 @@ class MoonRouter {
           redirect: loggedInRedirect,
           routes: [
             GoRoute(
-                path: '/welcome',
-                pageBuilder: (context, state) =>
-                    genericPageBuilder(context, state, StartupScreen()),
-                routes: [
-                  GoRoute(
-                    path: 'login',
-                    pageBuilder: (context, state) => genericPageBuilder(
-                      context,
-                      state,
-                      const LoginPage(),
-                    ),
+              path: '/welcome',
+              pageBuilder: (context, state) =>
+                  genericPageBuilder(context, state, StartupScreen()),
+              routes: [
+                GoRoute(
+                  path: 'login',
+                  pageBuilder: (context, state) => genericPageBuilder(
+                    context,
+                    state,
+                    const LoginPage(),
                   ),
-                  GoRoute(
-                    path: 'register',
-                    pageBuilder: (context, state) => genericPageBuilder(
-                      context,
-                      state,
-                      const RegisterInClientPage(),
-                    ),
+                ),
+                GoRoute(
+                  path: 'register',
+                  pageBuilder: (context, state) => genericPageBuilder(
+                    context,
+                    state,
+                    const RegisterInClientPage(),
                   ),
-                ]),
+                ),
+              ],
+            ),
           ],
+        ),
+      ],
+    ),
+    ShellRoute(
+      pageBuilder: (context, state, child) => genericPageBuilder(
+        context,
+        state,
+        AppFrame(shellContext: context, child: child),
+      ),
+      routes: [
+        GoRoute(
+          path: '/',
+          redirect: (context, state) =>
+              Provider.of<Client>(context, listen: false).isLogged()
+                  ? '/main/rooms'
+                  : '/welcome',
         ),
         GoRoute(
           path: '/settings',

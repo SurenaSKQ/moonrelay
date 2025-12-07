@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:libadwaita/libadwaita.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
@@ -47,7 +48,7 @@ class StartupScreen extends StatelessWidget {
         ),
         Wrap(
           children: [
-            FilledButton(
+            AdwButton.pill(
               child: const Text(
                 "Login",
                 style: TextStyle(
@@ -61,7 +62,7 @@ class StartupScreen extends StatelessWidget {
             const SizedBox(
               width: 24,
             ),
-            TextButton(
+            AdwButton.pill(
               child: const Text(
                 "Sign Up!",
                 style: TextStyle(
@@ -108,7 +109,7 @@ class StartupScreen extends StatelessWidget {
               ),
               Wrap(
                 children: [
-                  TextButton(
+                  AdwButton.flat(
                     child: Text(AppLocalizations.of(context)!.privacyPolicy,
                         style: const TextStyle(fontFamily: 'Rubik')),
                     onPressed: () {
@@ -122,7 +123,7 @@ class StartupScreen extends StatelessWidget {
                   const SizedBox(
                     width: 32,
                   ),
-                  TextButton(
+                  AdwButton.flat(
                     child: Text(
                       AppLocalizations.of(context)!.thirdPartyLicense,
                       style: const TextStyle(fontFamily: 'Rubik'),

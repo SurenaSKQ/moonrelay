@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:libadwaita/libadwaita.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -114,9 +115,8 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
                 Label(
                   label: AppLocalizations.of(context)!.homeserverText,
                   labelStyle: const TextStyle(color: Colors.white),
-                  child: TextField(
+                  child: AdwTextField(
                     controller: _homeserverBox,
-                    expands: false,
                   ),
                 ),
                 const SizedBox(
@@ -125,9 +125,8 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
                 Label(
                   label: AppLocalizations.of(context)!.usernameText,
                   labelStyle: const TextStyle(color: Colors.white),
-                  child: TextField(
+                  child: AdwTextField(
                     controller: _usernameBox,
-                    expands: false,
                   ),
                 ),
                 const SizedBox(
@@ -145,7 +144,7 @@ class _LoginPageState extends State<LoginPage> with WindowListener {
             ),
           ),
           Center(
-            child: FilledButton(
+            child: AdwButton.pill(
               onPressed: !_textActive ? null : _login,
               child: !_textActive
                   ? const LinearProgressIndicator()

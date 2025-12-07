@@ -53,15 +53,14 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
     // final settingsController = Provider.of<SettingsController>(context);
-    // FIXME Rework titlebar widget
     return Consumer<SettingsController>(
       builder: (context, value, child) => AdwScaffold(
         actions: AdwActions().windowManager,
         title: Text(
           AppLocalizations.of(context)!.appTitle,
           style: const TextStyle(
-            fontFamily: 'Oxanium',
-            fontWeight: FontWeight.bold,
+            fontFamily: 'Rubik',
+            fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
         ),

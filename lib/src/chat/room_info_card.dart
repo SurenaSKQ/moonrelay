@@ -31,8 +31,9 @@ class RoomInfoCard extends StatelessWidget {
         barrierDismissible: true,
         builder: (context) => RoomInformations(room: room),
       ),
-      child: ConstrainedBox(
+      child: Container(
         constraints: BoxConstraints.loose(const Size.fromHeight(80)),
+        color: Theme.of(context).cardColor,
         child: Row(
           children: [
             Padding(
