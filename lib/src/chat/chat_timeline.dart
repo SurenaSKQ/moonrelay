@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/scheduler.dart';
-import 'package:moonrelay/src/chat/timeline_item.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/bubble_message_item.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/i_r_c_message_item.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/message_event_base.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/modern_message_item.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
@@ -34,7 +37,6 @@ class ChatTimeline extends StatefulWidget {
 
 // FIXME Work needed 2025 - get a complete chat timeline by EOY 2025
 // FIXME Need following featrues for 'Chat Timeline v1':
-// Fix scrolling DONE
 // Drag and Drop
 // Replies
 // Stickers
@@ -44,16 +46,13 @@ class _ChatTimelineState extends State<ChatTimeline> {
   late final Future<Timeline> _timelineFuture;
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final ScrollController _scrollController = ScrollController();
-  // Counts events
-  // ignore: unused_field
-  int _count = 0;
 
   @override
   Widget build(BuildContext context) {
     // FIXME There is a really bad crash bug here that causes the index to overflow
     // Cannot replicate again :(
     return Consumer<SettingsController>(
-      builder: (context, value, child) => FutureBuilder<Timeline>(
+      builder: (context, settings, child) => FutureBuilder<Timeline>(
         future: _timelineFuture,
         builder: (context, snapshot) {
           final timeline = snapshot.data;
@@ -61,6 +60,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
               timeline == null) {
             return LoadingScreen();
           }
+
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollController.position.maxScrollExtent == 0 &&
                 timeline.canRequestHistory) {
@@ -77,8 +77,12 @@ class _ChatTimelineState extends State<ChatTimeline> {
               }
             },
           );
+          // NOTE - Possible optimization? Is this really a good way to handle settings in here?
+          // NOTE - Design rework : Avatar must be at top
 
-          _count = timeline.events.length;
+          // FIXME - Sometimes the damn thing puts messages out of order????
+          // FIXME - This needs optimization and proper styling
+          // FIXME - This possibly needs a new custom widget instead of a generic List Tile
           return Expanded(
             child: AnimatedList(
               controller: _scrollController,
@@ -86,17 +90,24 @@ class _ChatTimelineState extends State<ChatTimeline> {
               reverse: true,
               initialItemCount: timeline.events.length,
               itemBuilder: (context, index, animation) {
+                MessageItemBase messageView = switch (settings.displayType) {
+                  DisplayType.irc => IRCMessageItem(
+                      event: timeline.events[index], room: widget.room),
+                  DisplayType.modern => ModernMessageItem(
+                      event: timeline.events[index], room: widget.room),
+                  DisplayType.bubbles => BubbleMessageItem(
+                      event: timeline.events[index], room: widget.room),
+                };
+
                 if ((timeline.events[index].relationshipEventId != null)) {
                   return Container();
                 } else {
                   return FadeTransition(
                     opacity: animation,
-                    child: TimelineItem(
-                      event: timeline.events[index],
-                      previousEvent:
-                          (index >= 1 ? timeline.events[index - 1] : null),
-                      room: widget.room,
-                      displayType: value.displayType,
+                    child: ListTile(
+                      leading: messageView.buildAvatar(context),
+                      title: messageView.buildTitle(context),
+                      subtitle: messageView.buildSubtitle(context),
                     ),
                   );
                 }
@@ -118,10 +129,8 @@ class _ChatTimelineState extends State<ChatTimeline> {
       },
       onInsert: (i) {
         _listKey.currentState?.insertItem(i);
-        _count++;
       },
       onRemove: (i) {
-        _count--;
         _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
       },
     );
