@@ -14,13 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/chat/events/matrix_events/Message/basic_text_event.dart';
+import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/state_events.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 
+/// Routes each [Event] to the appropriate rendering widget based on its type
+/// and message type.
+///
+/// This is the central dispatch point for the entire event-rendering tree.
+/// Extend this when adding support for new event or message types (stickers,
+/// polls, location sharing, etc.).
 class MessageEventHandler extends StatelessWidget {
   const MessageEventHandler({super.key, required this.event});
 
@@ -30,30 +39,36 @@ class MessageEventHandler extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (event.type) {
       case EventTypes.Message:
-        // TODO: Stickers, emotes; event relationships
+        // TODO: Stickers, emotes; event relationships (replies, reactions, edits)
         switch (event.messageType) {
           case MessageTypes.Text:
-            return BasicTextEvent(event: event);
+          case MessageTypes.Emote:
+          case MessageTypes.Notice:
+            return FormattedTextWidget(event: event);
           case MessageTypes.Image:
-            return FileAttachedMessage(event: event);
+            return ImageMessageType(event: event);
           case MessageTypes.Audio:
-            return const Placeholder();
+            return AudioMessageType(event: event);
+          case MessageTypes.Video:
+            return VideoMessageType(event: event);
           case MessageTypes.File:
             return FileAttachedMessage(event: event);
-
           default:
             return UnsupportedEventType(event: event);
         }
+      case 'm.room.member':
       case 'm.room.name':
-        return StateEventsStub(event: event);
       case 'm.room.topic':
-        return StateEventsStub(event: event);
       case 'm.room.avatar':
-        return StateEventsStub(event: event);
+      case 'm.room.create':
+      case 'm.room.encryption':
       case 'm.room.pinned_events':
-        return StateEventsStub(event: event);
+      case 'm.room.canonical_alias':
+      case 'm.room.power_levels':
+      case 'm.room.tombstone':
+        return StateEvents(event: event);
       default:
-        return StateEventsStub(event: event);
+        return StateEvents(event: event);
     }
   }
 }

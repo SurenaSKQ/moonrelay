@@ -23,8 +23,20 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
-//FIXME - Display time only when there is significant deviation between two events
-//FIXME - Constraint on chat bubbles
+/// Renders a single event in the chat timeline with proper sender grouping,
+/// avatar placement, and display-type-specific styling.
+///
+/// **Sender grouping logic:**
+/// - Consecutive events from the same sender within ~10 minutes are grouped:
+///   the avatar and sender name appear only on the first event of the group.
+/// - The timestamp is shown on every event by default, but hidden for
+///   grouped events (the first event of the group still shows the time).
+///
+/// **Display types:**
+/// - [DisplayType.modern]: avatar left, sender name above, content indented
+///   for grouped messages.
+/// - [DisplayType.bubbles]: bubble container with avatar, content inside.
+/// - [DisplayType.irc]: compact format with sender prefix on each line.
 class TimelineItem extends StatelessWidget {
   const TimelineItem({
     super.key,
@@ -32,109 +44,333 @@ class TimelineItem extends StatelessWidget {
     required this.room,
     this.previousEvent,
     required this.displayType,
+    this.isGroupStart = true,
+    this.isGroupContinuation = false,
   });
+
   final Event event;
   final Event? previousEvent;
   final Room room;
   final DisplayType displayType;
 
+  /// True when this event is the first in a group from the same sender.
+  /// Grouped events from the same sender within ~10 min share a single
+  /// avatar/name header.
+  final bool isGroupStart;
+
+  /// True when this event is a continuation of a group (same sender, close
+  /// in time). In this case the avatar and name header are hidden.
+  final bool isGroupContinuation;
+
+  /// Whether the event was redacted (deleted).
+  bool get _isRedacted => event.redacted;
+
+  /// Navigates to the sender's profile page.
+  void _openProfile(BuildContext context) {
+    context.push(
+      '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool isEventFromSameSender = previousEvent == null
-        ? false
-        : (event.senderId.equals(previousEvent!.senderId) ? true : false);
+    if (_isRedacted) {
+      return _RedactedEvent(
+        event: event,
+        isGroupContinuation: isGroupContinuation,
+      );
+    }
 
-    // NOTE - Possible optimization? Is this really a good way to handle settings in here?
-    // NOTE - Design rework : Avatar must be at top
-    return ListTile(
-      leading: switch (displayType) {
-        DisplayType.modern || DisplayType.bubbles => isEventFromSameSender
-            ? null
-            : AvatarFromUriOrFallbackImage(
-                client: room.client,
-                avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-                onTap: () => context.push(
-                  '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
-                ),
-              ),
-        DisplayType.irc => null
-      },
-      // FIXME - Sometimes the damn thing puts messages out of order????
-      // FIXME - This needs optimization and proper styling
-      // FIXME - This needs a new custom widget instead of a generic List Tile
-      title: TimelineItemSenderNameAndTimestamp(
-          event: event, omitSender: isEventFromSameSender),
-      subtitle: switch (displayType) {
-        DisplayType.bubbles => Container(
-            decoration: BoxDecoration(
-              color: MoonrelayColorPalette.cpgDarker,
-              border: Border.all(
-                  color: MoonrelayColorPalette.britishRacingGreen, width: 0.7),
+    switch (displayType) {
+      case DisplayType.modern:
+        return _buildModern(context);
+      case DisplayType.bubbles:
+        return _buildBubbles(context);
+      case DisplayType.irc:
+        return _buildIrc(context);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Modern display
+  // ---------------------------------------------------------------------------
+
+  Widget _buildModern(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final showAvatar = isGroupStart && !isGroupContinuation;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Avatar column
+            SizedBox(
+              width: 48,
+              child: showAvatar
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: AvatarFromUriOrFallbackImage(
+                        client: room.client,
+                        avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                        onTap: () => _openProfile(context),
+                      ),
+                    )
+                  : null,
             ),
-            child: isEventFromSameSender
+            const SizedBox(width: 8),
+            // Content column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Sender name + timestamp (only for group-start)
+                  if (isGroupStart)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              event.senderFromMemoryOrFallback
+                                  .calcDisplayname(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Rubik',
+                                color: theme.resources.textFillColorPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            event.originServerTs.localizedTimeShort(context),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'Rubik',
+                              fontWeight: FontWeight.w500,
+                              color: theme.resources.textFillColorPrimary
+                                  .withOpacity(0.45),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Timestamp-only for continuation
+                  if (isGroupContinuation)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: SizedBox(
+                        height: 14,
+                        child: Row(
+                          children: [
+                            Text(
+                              event.originServerTs.localizedTimeShort(context),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'Rubik',
+                                fontWeight: FontWeight.w500,
+                                color: theme.resources.textFillColorPrimary
+                                    .withOpacity(0.35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Message body
+                  MessageEventHandler(event: event),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bubbles display
+  // ---------------------------------------------------------------------------
+
+  Widget _buildBubbles(BuildContext context) {
+    final showAvatar = isGroupStart && !isGroupContinuation;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar column
+          SizedBox(
+            width: 48,
+            child: showAvatar
                 ? Padding(
-                    padding: const EdgeInsets.fromLTRB(56, 8, 0, 0),
-                    child: MessageEventHandler(event: event),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: AvatarFromUriOrFallbackImage(
+                      client: room.client,
+                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                      onTap: () => _openProfile(context),
+                    ),
                   )
-                : MessageEventHandler(event: event),
+                : null,
           ),
-        DisplayType.modern => isEventFromSameSender
-            ? Padding(
-                padding: const EdgeInsets.fromLTRB(56, 0, 0, 0),
-                child: MessageEventHandler(event: event),
-              )
-            : MessageEventHandler(event: event),
-        DisplayType.irc => MessageEventHandler(event: event),
-      },
+          const SizedBox(width: 8),
+          // Bubble content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isGroupStart)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4, left: 4),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            event.senderFromMemoryOrFallback.calcDisplayname(),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Rubik',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          event.originServerTs.localizedTimeShort(context),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'Rubik',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: MoonrelayColorPalette.cpgDarker,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: MoonrelayColorPalette.britishRacingGreen,
+                      width: 0.7,
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MessageEventHandler(event: event),
+                      if (isGroupContinuation)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            event.originServerTs.localizedTimeShort(context),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'Rubik',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // IRC display
+  // ---------------------------------------------------------------------------
+
+  Widget _buildIrc(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sender prefix
+          SizedBox(
+            width: 120,
+            child: Text(
+              isGroupStart
+                  ? '<${event.senderFromMemoryOrFallback.calcDisplayname()}>'
+                  : '',
+              style: const TextStyle(
+                fontSize: 14,
+                fontFamily: 'Rubik',
+                fontWeight: FontWeight.w700,
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Timestamp
+          Text(
+            event.originServerTs.localizedTimeShort(context),
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'Rubik',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Message body
+          Expanded(child: MessageEventHandler(event: event)),
+        ],
+      ),
     );
   }
 }
 
-// What follows is quite possibly some of the jankiest code I've ever written
-class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
-  const TimelineItemSenderNameAndTimestamp({
-    super.key,
+// ---------------------------------------------------------------------------
+// Redacted event indicator
+// ---------------------------------------------------------------------------
+
+/// Renders a compact placeholder for redacted (deleted) messages.
+class _RedactedEvent extends StatelessWidget {
+  const _RedactedEvent({
     required this.event,
-    required this.omitSender,
+    required this.isGroupContinuation,
   });
 
   final Event event;
-  final bool omitSender;
+  final bool isGroupContinuation;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      // So get this
-      // I can't just solve this the peaceful way when ommitting the name widget
-      // So instead I make a SizedBox of size 0 and instead shove the alignment to the end
-      // Visually it looks the same; so I'm going to keep this for now
-      // NOTE: Rework this and add proper styling
-      mainAxisAlignment:
-          omitSender ? MainAxisAlignment.end : MainAxisAlignment.start,
-      children: [
-        omitSender
-            ? const SizedBox(
-                width: 0.0,
-                height: 0.0,
-              )
-            : Expanded(
-                child: Text(
-                  event.senderFromMemoryOrFallback.calcDisplayname(),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-        Text(
-          event.originServerTs.localizedTimeShort(context),
-          style: const TextStyle(
-            fontSize: 12,
-            fontFamily: 'Rubik',
-            fontWeight: FontWeight.bold,
+    final theme = FluentTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            FluentIcons.delete,
+            size: 14,
+            color: theme.resources.textFillColorPrimary.withOpacity(0.35),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Text(
+            'Message deleted',
+            style: TextStyle(
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              fontFamily: 'Rubik',
+              color: theme.resources.textFillColorPrimary.withOpacity(0.45),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
