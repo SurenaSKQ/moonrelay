@@ -1,4 +1,3 @@
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';

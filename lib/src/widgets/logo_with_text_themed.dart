@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
