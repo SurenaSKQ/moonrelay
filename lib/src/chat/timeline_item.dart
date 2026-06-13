@@ -101,50 +101,70 @@ class TimelineItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Avatar column
-            SizedBox(
-              width: 48,
-              child: showAvatar
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: AvatarFromUriOrFallbackImage(
-                        client: room.client,
-                        avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-                        onTap: () => _openProfile(context),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            // Content column
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sender name + timestamp (only for group-start)
-                  if (isGroupStart)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar column
+          SizedBox(
+            width: 48,
+            child: showAvatar
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: AvatarFromUriOrFallbackImage(
+                      client: room.client,
+                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                      onTap: () => _openProfile(context),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 8),
+          // Content column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Sender name + timestamp (only for group-start)
+                if (isGroupStart)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            event.senderFromMemoryOrFallback.calcDisplayname(),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Rubik',
+                              color: theme.resources.textFillColorPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          event.originServerTs.localizedTimeShort(context),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'Rubik',
+                            fontWeight: FontWeight.w500,
+                            color: theme.resources.textFillColorPrimary
+                                .withOpacity(0.45),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Timestamp-only for continuation
+                if (isGroupContinuation)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: SizedBox(
+                      height: 14,
                       child: Row(
                         children: [
-                          Flexible(
-                            child: Text(
-                              event.senderFromMemoryOrFallback
-                                  .calcDisplayname(),
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'Rubik',
-                                color: theme.resources.textFillColorPrimary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           Text(
                             event.originServerTs.localizedTimeShort(context),
                             style: TextStyle(
@@ -152,41 +172,19 @@ class TimelineItem extends StatelessWidget {
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w500,
                               color: theme.resources.textFillColorPrimary
-                                  .withOpacity(0.45),
+                                  .withOpacity(0.35),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  // Timestamp-only for continuation
-                  if (isGroupContinuation)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: SizedBox(
-                        height: 14,
-                        child: Row(
-                          children: [
-                            Text(
-                              event.originServerTs.localizedTimeShort(context),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontFamily: 'Rubik',
-                                fontWeight: FontWeight.w500,
-                                color: theme.resources.textFillColorPrimary
-                                    .withOpacity(0.35),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Message body
-                  MessageEventHandler(event: event),
-                ],
-              ),
+                  ),
+                // Message body
+                MessageEventHandler(event: event),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -24,25 +24,16 @@ import 'package:matrix/matrix.dart';
 /// Renders the list of timeline events with event-type filtering, sender
 /// grouping, and date separators.
 ///
+/// The Matrix SDK stores [Timeline.events] in **newest-first** order
+/// (`events[0]` is the most recent).  We render them with
+/// `ListView.builder(reverse: true)` so that the newest event sits at the
+/// bottom of the viewport and older events are reached by scrolling **up**.
+///
 /// ## Event filtering
 ///
-/// Events that have a [relationshipEventId] (replies, reactions, edits,
-/// threads, etc.) are excluded from the visible list because they are
-/// rendered inline with their parent event rather than as separate entries.
-///
-/// ## Sender grouping
-///
-/// Consecutive events from the same sender within ~10 minutes are visually
-/// grouped: the avatar and sender name header appear only on the first event
-/// of the group.
-///
-/// ## Date separators
-///
-/// A [DateSeparator] is inserted between events that fall on different days.
-///
-/// This widget is rebuilt from scratch whenever [ChatTimeline] increments
-/// its version counter, keeping the view in sync with the underlying
-/// [Timeline] data without the complexity of incremental index tracking.
+/// Events with a non-null [relationshipEventId] (replies, reactions, edits,
+/// threads) are excluded from the visible list because they are rendered
+/// inline with their parent event.
 class TimelineView extends StatelessWidget {
   const TimelineView({
     super.key,
@@ -50,6 +41,7 @@ class TimelineView extends StatelessWidget {
     required this.room,
     required this.displayType,
     required this.scrollController,
+    this.timelineVersion,
   });
 
   final Timeline timeline;
@@ -57,61 +49,61 @@ class TimelineView extends StatelessWidget {
   final DisplayType displayType;
   final ScrollController scrollController;
 
-  /// Returns the raw-event-list indices of events that should appear as
-  /// standalone items in the timeline.
-  ///
-  /// Events with a [relationshipEventId] (replies, reactions, edits,
-  /// threads, etc.) are excluded because they are rendered inline with
-  /// their parent event rather than as separate entries.
+  /// Included so the parent can signal data changes without tearing down
+  /// the ListView (no [ValueKey] used).
+  final int? timelineVersion;
+
+  // ---------------------------------------------------------------------------
+  // Index helpers
+  // ---------------------------------------------------------------------------
+
+  /// Indices (into `timeline.events`) of events that should appear as
+  /// standalone items.  Events are in SDK order (newest → oldest).
   List<int> _visibleIndices() {
     final indices = List<int>.generate(timeline.events.length, (i) => i);
-    indices.removeWhere((i) {
-      final event = timeline.events[i];
-      // Exclude events that are relationships (replies, reactions, edits)
-      return event.relationshipEventId != null;
-    });
+    indices.removeWhere((i) => timeline.events[i].relationshipEventId != null);
     return indices;
   }
 
-  /// Returns true if [current] and [previous] are from the same sender
-  /// and fall within the same ~10-minute time window, meaning they should
-  /// share a visual group (single avatar/name header).
-  bool _isContinuation(Event current, Event previous) {
-    if (current.senderId != previous.senderId) return false;
-    // Same environment = within ~10 minutes
-    return current.originServerTs.sameEnvironment(previous.originServerTs);
+  /// True when [newer] and [older] belong to the same sender and fall within
+  /// the same ~10‑minute environment, i.e. they should share a visual group.
+  bool _isContinuation(Event newer, Event older) {
+    if (newer.senderId != older.senderId) return false;
+    return newer.originServerTs.sameEnvironment(older.originServerTs);
   }
 
-  /// Returns true when [current] and [previous] are on different calendar
-  /// days, meaning a [DateSeparator] should be inserted between them.
-  bool _isDifferentDay(Event current, Event previous) {
-    final c = current.originServerTs;
-    final p = previous.originServerTs;
-    return c.year != p.year || c.month != p.month || c.day != p.day;
+  /// True when [newer] and [older] fall on different calendar days.
+  bool _isDifferentDay(Event newer, Event older) {
+    final n = newer.originServerTs;
+    final o = older.originServerTs;
+    return n.year != o.year || n.month != o.month || n.day != o.day;
   }
 
-  /// Produces the flat list of widgets to render, interleaving
-  /// [DateSeparator] widgets between day boundaries.
+  // ---------------------------------------------------------------------------
+  // Build the flat item list
+  // ---------------------------------------------------------------------------
+
+  /// Produces the list of widgets in **newest-first** order so that the
+  /// `reverse: true` ListView places the newest item at the bottom.
   ///
-  /// The list is built in chronological order (oldest first) and displayed
-  /// in reverse by [ListView.builder].
+  /// [DateSeparator] widgets are interleaved before events that start a new
+  /// calendar day.
   List<Widget> _buildItemList(BuildContext context) {
-    final visibleIndices = _visibleIndices();
+    final visibleIndices = _visibleIndices(); // newest → oldest
     final items = <Widget>[];
-    Event? previousVisible;
+    Event? previousVisible; // the *newer* neighbour
 
     for (int i = 0; i < visibleIndices.length; i++) {
       final eventIndex = visibleIndices[i];
-      final event = timeline.events[eventIndex];
+      final event = timeline.events[eventIndex]; // newest first
 
-      // Date separator
-      if (previousVisible != null && _isDifferentDay(event, previousVisible)) {
+      // Insert separator when stepping from one day to an older day.
+      if (previousVisible != null && _isDifferentDay(previousVisible, event)) {
         items.add(DateSeparator(dateTime: event.originServerTs));
       }
 
-      // Determine grouping
       final isContinuation =
-          previousVisible != null && _isContinuation(event, previousVisible);
+          previousVisible != null && _isContinuation(previousVisible, event);
 
       items.add(TimelineItem(
         event: event,
@@ -124,24 +116,25 @@ class TimelineView extends StatelessWidget {
 
       previousVisible = event;
     }
-
     return items;
   }
 
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    // Items are already newest-first; `reverse: true` puts index 0 at the
+    // bottom so the newest event appears at the bottom of the viewport.
     final items = _buildItemList(context);
-
-    // Reverse the list so the most recent item scrolls into view at the
-    // bottom of the viewport, matching the reversed ListView.
-    final reversedItems = items.reversed.toList();
 
     return Expanded(
       child: ListView.builder(
         controller: scrollController,
         reverse: true,
-        itemCount: reversedItems.length,
-        itemBuilder: (context, index) => reversedItems[index],
+        itemCount: items.length,
+        itemBuilder: (context, index) => items[index],
       ),
     );
   }

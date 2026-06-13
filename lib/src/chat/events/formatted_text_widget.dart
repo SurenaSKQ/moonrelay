@@ -130,15 +130,30 @@ class FormattedTextWidget extends StatelessWidget {
 /// - Void: `br`
 /// - Entities: `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;`, numeric
 class _HtmlTagParser {
-  _HtmlTagParser(this.source, this.context) : _pos = 0;
+  _HtmlTagParser(this.source, this.context)
+      : _pos = 0,
+        _depth = 0;
 
   final String source;
   final BuildContext context;
   int _pos;
+  int _depth;
+
+  static const int _maxParseDepth = 64;
 
   List<TextSpan> parse() => _parseNodes(isTopLevel: true);
 
   List<TextSpan> _parseNodes({bool isTopLevel = false}) {
+    _depth++;
+    if (_depth > _maxParseDepth) {
+      _depth--;
+      return [
+        TextSpan(
+          text: source.substring(_pos),
+          style: const TextStyle(fontFamily: 'Rubik', fontSize: 16),
+        )
+      ];
+    }
     final spans = <TextSpan>[];
     final buffer = StringBuffer();
 
@@ -158,6 +173,7 @@ class _HtmlTagParser {
         if (rawTag.startsWith('/')) {
           _flushBuffer(buffer, spans);
           // Return so the caller can close its own span.
+          _depth--;
           return spans;
         }
 
@@ -186,6 +202,7 @@ class _HtmlTagParser {
     }
 
     _flushBuffer(buffer, spans);
+    _depth--;
     return spans;
   }
 
@@ -201,7 +218,16 @@ class _HtmlTagParser {
 
   // ---- Block content ----------------------------------------------------
 
-  List<TextSpan> _parseBlockContent(String tag) {
+  List<TextSpan> _parseBlockContent(String tag, {int depth = 0}) {
+    if (depth > _maxParseDepth) {
+      _pos = source.length;
+      return [
+        const TextSpan(
+          text: '…',
+          style: TextStyle(fontFamily: 'Rubik', fontSize: 16),
+        )
+      ];
+    }
     final spans = <TextSpan>[];
     final buffer = StringBuffer();
 
@@ -237,9 +263,11 @@ class _HtmlTagParser {
         final attrs = _parseAttrs(parts);
 
         if (_isBlock(nested)) {
-          spans.addAll(_wrapBlock(nested, _parseBlockContent(nested), attrs));
+          spans.addAll(_wrapBlock(
+              nested, _parseBlockContent(nested, depth: depth + 1), attrs));
         } else {
-          spans.add(_wrapInline(nested, _parseInlineContent(nested), attrs));
+          spans.add(_wrapInline(
+              nested, _parseInlineContent(nested, depth: depth + 1), attrs));
         }
       } else if (source[_pos] == '&') {
         buffer.write(_entity());
@@ -255,7 +283,16 @@ class _HtmlTagParser {
 
   // ---- Inline content ---------------------------------------------------
 
-  List<TextSpan> _parseInlineContent(String tag) {
+  List<TextSpan> _parseInlineContent(String tag, {int depth = 0}) {
+    if (depth > _maxParseDepth) {
+      _pos = source.length;
+      return [
+        const TextSpan(
+          text: '…',
+          style: TextStyle(fontFamily: 'Rubik', fontSize: 16),
+        )
+      ];
+    }
     final spans = <TextSpan>[];
     final buffer = StringBuffer();
 
@@ -294,7 +331,8 @@ class _HtmlTagParser {
           return spans;
         }
 
-        spans.add(_wrapInline(nested, _parseInlineContent(nested), attrs));
+        spans.add(_wrapInline(
+            nested, _parseInlineContent(nested, depth: depth + 1), attrs));
       } else if (source[_pos] == '&') {
         buffer.write(_entity());
       } else {
