@@ -31,7 +31,7 @@ class FileAttachedMessage extends StatelessWidget {
   Future<String?> _downloadFile() async {
     if (event.hasAttachment) {
       MatrixFile attFile = await event.downloadAndDecryptAttachment();
-      return await FilePicker.platform.saveFile(
+      return await FilePicker.saveFile(
           dialogTitle: 'Select download target',
           fileName: FileUtilities(event: event).getFileName(),
           bytes: attFile.bytes);

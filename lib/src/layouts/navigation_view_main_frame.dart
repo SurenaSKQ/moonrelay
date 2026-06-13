@@ -31,7 +31,8 @@ class NavigationViewMainFrame extends StatefulWidget {
   final Widget child;
   final BuildContext? shellContext;
   @override
-  State<NavigationViewMainFrame> createState() => _NavigationViewMainFrameState();
+  State<NavigationViewMainFrame> createState() =>
+      _NavigationViewMainFrameState();
 }
 
 class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
@@ -55,53 +56,49 @@ class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
     // final settingsController = Provider.of<SettingsController>(context);
 
     return NavigationView(
-      appBar: NavigationAppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor:
-            (FluentTheme.of(context).brightness == Brightness.light)
-                ? FluentTheme.of(context).accentColor.lightest
-                : FluentTheme.of(context).accentColor.darkest,
-        title: () {
-          return DragToMoveArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text(
-                    AppLocalizations.of(context)!.appTitle,
-                    style: const TextStyle(
-                      fontFamily: 'Rubik',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+      titleBar: Container(
+        color: (FluentTheme.of(context).brightness == Brightness.light)
+            ? FluentTheme.of(context).accentColor.lightest
+            : FluentTheme.of(context).accentColor.darkest,
+        child: DragToMoveArea(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  AppLocalizations.of(context)!.appTitle,
+                  style: const TextStyle(
+                    fontFamily: 'Rubik',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-                Flexible(
-                  child: Text(
-                    "{${GoRouterState.of(context).uri.toString()}}",
-                    style: const TextStyle(
-                      fontFamily: 'JetBrainsMono',
-                      fontWeight: FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+              ),
+              Flexible(
+                child: Text(
+                  "{${GoRouterState.of(context).uri.toString()}}",
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontWeight: FontWeight.normal,
+                    fontSize: 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(FluentIcons.settings),
-                      onPressed: () => context.push('/settings'),
-                    ),
-                    const WindowButtons(),
-                  ],
-                )
-              ],
-            ),
-          );
-        }(),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(FluentIcons.settings),
+                    onPressed: () => context.push('/settings'),
+                  ),
+                  const WindowButtons(),
+                ],
+              )
+            ],
+          ),
+        ),
       ),
       content: widget.child,
     );

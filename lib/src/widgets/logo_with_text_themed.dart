@@ -26,7 +26,7 @@ class LogoWithTextThemed extends StatelessWidget {
   Widget build(BuildContext context) {
     SettingsController settings = Provider.of<SettingsController>(context);
     bool isLightMode = (settings.themeMode == ThemeMode.light ? true : false);
-    if (themeMode != null) isLightMode = themeMode!.isLight;
+    if (themeMode != null) isLightMode = themeMode! == Brightness.light;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,

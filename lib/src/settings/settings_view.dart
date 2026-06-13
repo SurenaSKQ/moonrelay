@@ -26,25 +26,16 @@ class _SettingsViewState extends State<SettingsView> {
     return Consumer<SettingsController>(
       builder: (context, controller, child) {
         return NavigationView(
-          appBar: NavigationAppBar(
-              leading: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(FluentIcons.back),
-                  onPressed: () => context.canPop() ? context.pop() : null,
-                ),
-                const SizedBox(
-                  width: 16,
-                ),
-                const Text(
-                  "Settings",
-                  style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
-                )
-              ],
+          titleBar: TitleBar(
+            icon: IconButton(
+              icon: const Icon(FluentIcons.back),
+              onPressed: () => context.canPop() ? context.pop() : null,
             ),
-          )),
+            title: const Text(
+              "Settings",
+              style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
+            ),
+          ),
           content: Padding(
             padding: const EdgeInsets.all(16),
             // Glue the SettingsController to the theme selection DropdownButton.
