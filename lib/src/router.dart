@@ -22,8 +22,8 @@ import 'package:moonrelay/src/layouts/dashboard_layout.dart';
 import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
+import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
-import 'package:moonrelay/src/screens/own_user_profile.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/settings/settings_view.dart';
@@ -197,7 +197,7 @@ class MoonRouter {
                 final Client client =
                     Provider.of<Client>(context, listen: false);
                 return genericPageBuilder(
-                    context, state, OwnProfilePage(client: client));
+                    context, state, HubScreen(client: client));
               },
             )
           ],

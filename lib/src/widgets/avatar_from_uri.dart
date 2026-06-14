@@ -30,12 +30,14 @@ class AvatarFromUriOrFallbackImage extends StatefulWidget {
     this.avatarUri,
     this.onTap,
     this.fallbackImage,
+    this.radius,
   });
   final Client client;
   final Uri? avatarUri;
   final VoidCallback? onTap;
   final AvatarStates avatarState = AvatarStates.active;
   final ImageProvider? fallbackImage;
+  final double? radius;
   @override
   State<AvatarFromUriOrFallbackImage> createState() =>
       _AvatarFromUriOrFallbackImageState();
@@ -57,6 +59,7 @@ class _AvatarFromUriOrFallbackImageState
                   return const CircularProgressIndicator();
                 }
                 return CircleAvatar(
+                  radius: widget.radius,
                   backgroundImage: NetworkImage(
                     asyncSnapshot.data.toString(),
                     headers: {
