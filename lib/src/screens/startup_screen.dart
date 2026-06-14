@@ -46,7 +46,7 @@ class StartupScreen extends StatelessWidget {
         final bool isWide = constraints.maxWidth > 880;
 
         if (isWide) {
-          return SingleChildScrollView(
+          return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
             child: SizedBox(
               // Fill the viewport so the left column can use spacers to
@@ -69,10 +69,12 @@ class StartupScreen extends StatelessWidget {
                   const SizedBox(width: 48),
                   SizedBox(
                     width: 400,
-                    child: _buildRightPane(
-                      context,
-                      colors,
-                      l10n,
+                    child: SingleChildScrollView(
+                      child: _buildRightPane(
+                        context,
+                        colors,
+                        l10n,
+                      ),
                     ),
                   ),
                 ],
