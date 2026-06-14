@@ -28,6 +28,15 @@ class RoomPage extends StatefulWidget {
 }
 
 class _RoomPageState extends State<RoomPage> {
+  /// The event the user is currently replying to (or null).
+  final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _replyTarget.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,12 +45,16 @@ class _RoomPageState extends State<RoomPage> {
         children: [
           ChatRoomHeader(room: widget.room),
           Expanded(
-            child: ChatTimeline(room: widget.room),
+            child: ChatTimeline(
+              room: widget.room,
+              onReply: (event) => _replyTarget.value = event,
+            ),
           ),
-          const Divider(
-            thickness: 1,
+          const Divider(thickness: 1),
+          ChatBox(
+            room: widget.room,
+            replyTarget: _replyTarget,
           ),
-          ChatBox(room: widget.room),
         ],
       ),
     );

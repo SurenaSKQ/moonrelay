@@ -37,5 +37,15 @@
   "chatBoxAttach": "Attach file",
   "chatBoxSend": "Send",
   "chatBoxExpand": "Expand editor",
-  "chatBoxCollapse": "Collapse"
+  "chatBoxCollapse": "Collapse",
+  "chatBoxReplyingTo": "Replying to {sender}",
+  "@chatBoxReplyingTo": {
+    "description": "Label shown in the reply preview banner.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "chatBoxCancelReply": "Cancel reply"
 }

@@ -42,6 +42,7 @@ class TimelineView extends StatelessWidget {
     required this.displayType,
     required this.scrollController,
     this.timelineVersion,
+    this.onReply,
   });
 
   final Timeline timeline;
@@ -52,6 +53,9 @@ class TimelineView extends StatelessWidget {
   /// Included so the parent can signal data changes without tearing down
   /// the ListView (no [ValueKey] used).
   final int? timelineVersion;
+
+  /// Called when the user replies to a specific event.
+  final void Function(Event event)? onReply;
 
   // ---------------------------------------------------------------------------
   // Index helpers
@@ -112,6 +116,8 @@ class TimelineView extends StatelessWidget {
         displayType: displayType,
         isGroupStart: !isContinuation,
         isGroupContinuation: isContinuation,
+        timeline: timeline,
+        onReply: onReply != null ? () => onReply!(event) : null,
       ));
 
       previousVisible = event;

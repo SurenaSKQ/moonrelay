@@ -15,6 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/chat/message_actions.dart';
+import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -46,12 +48,15 @@ class TimelineItem extends StatelessWidget {
     required this.displayType,
     this.isGroupStart = true,
     this.isGroupContinuation = false,
+    this.timeline,
+    this.onReply,
   });
 
   final Event event;
   final Event? previousEvent;
   final Room room;
   final DisplayType displayType;
+  final Timeline? timeline;
 
   /// True when this event is the first in a group from the same sender.
   /// Grouped events from the same sender within ~10 min share a single
@@ -61,6 +66,9 @@ class TimelineItem extends StatelessWidget {
   /// True when this event is a continuation of a group (same sender, close
   /// in time). In this case the avatar and name header are hidden.
   final bool isGroupContinuation;
+
+  /// Called when the user wants to reply to this event.
+  final VoidCallback? onReply;
 
   /// Whether the event was redacted (deleted).
   bool get _isRedacted => event.redacted;
@@ -89,6 +97,44 @@ class TimelineItem extends StatelessWidget {
       case DisplayType.irc:
         return _buildIrc(context);
     }
+  }
+
+  /// Common content wrapper: message body + reactions bar.
+  Widget _messageContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MessageEventHandler(event: event),
+        if (timeline != null)
+          ReactionsBar(
+            event: event,
+            timeline: timeline!,
+            room: room,
+          ),
+      ],
+    );
+  }
+
+  /// Wraps the content area with a hover-revealed actions row.
+  Widget _withActions(Widget content) {
+    if (onReply == null) return content;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        content,
+        Positioned(
+          top: -4,
+          right: 0,
+          child: MessageActions(
+            event: event,
+            room: room,
+            onReply: onReply!,
+          ),
+        ),
+      ],
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -150,8 +196,8 @@ class TimelineItem extends StatelessWidget {
                             fontSize: 11,
                             fontFamily: 'Rubik',
                             fontWeight: FontWeight.w500,
-                            color:
-                                theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.45),
                           ),
                         ),
                       ],
@@ -171,16 +217,16 @@ class TimelineItem extends StatelessWidget {
                               fontSize: 11,
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w500,
-                              color:
-                                  theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.35),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                // Message body
-                MessageEventHandler(event: event),
+                // Message body with reactions and hover actions
+                _withActions(_messageContent(context)),
               ],
             ),
           ),
@@ -249,33 +295,35 @@ class TimelineItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: MoonrelayColorPalette.cpgDarker,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: MoonrelayColorPalette.britishRacingGreen,
-                      width: 0.7,
+                _withActions(
+                  Container(
+                    decoration: BoxDecoration(
+                      color: MoonrelayColorPalette.cpgDarker,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: MoonrelayColorPalette.britishRacingGreen,
+                        width: 0.7,
+                      ),
                     ),
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      MessageEventHandler(event: event),
-                      if (isGroupContinuation)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            event.originServerTs.localizedTimeShort(context),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'Rubik',
-                              fontWeight: FontWeight.w500,
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _messageContent(context),
+                        if (isGroupContinuation)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              event.originServerTs.localizedTimeShort(context),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'Rubik',
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -323,8 +371,24 @@ class TimelineItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Message body
-          Expanded(child: MessageEventHandler(event: event)),
+          // Message body with actions and reactions
+          Expanded(
+            child: _withActions(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MessageEventHandler(event: event),
+                  if (timeline != null)
+                    ReactionsBar(
+                      event: event,
+                      timeline: timeline!,
+                      room: room,
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

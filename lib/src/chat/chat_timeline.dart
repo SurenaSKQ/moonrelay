@@ -47,8 +47,12 @@ import 'package:provider/provider.dart';
 /// for two frames while the list stabilises, stopping the "load → layout
 /// change → scroll event → load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline({super.key, required this.room});
+  const ChatTimeline({super.key, required this.room, this.onReply});
+
   final Room room;
+
+  /// Called when the user wants to reply to a specific timeline event.
+  final void Function(Event event)? onReply;
 
   @override
   State<ChatTimeline> createState() => _ChatTimelineState();
@@ -174,7 +178,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
     if (_autoFillRetries >= _maxAutoFillRetries) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    // Still too short → request more.
+    // Still too short -> request more.
     if (maxScroll <= 50.0) {
       _autoFillRetries++;
       _isFillingViewport = true;
@@ -209,6 +213,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           displayType: settings.displayType,
           scrollController: _scrollController,
           timelineVersion: _timelineVersion,
+          onReply: widget.onReply,
         );
       },
     );

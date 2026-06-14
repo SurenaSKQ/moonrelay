@@ -91,4 +91,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatBoxCollapse => 'Collapse';
+
+  @override
+  String chatBoxReplyingTo(String sender) {
+    return 'Replying to $sender';
+  }
+
+  @override
+  String get chatBoxCancelReply => 'Cancel reply';
 }

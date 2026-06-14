@@ -33,9 +33,13 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 /// (bold, italic, strikethrough, inline code, blockquote, heading,
 /// unordered list, link), an attach button, and a send button.
 class ChatBox extends StatefulWidget {
-  const ChatBox({super.key, required this.room});
+  const ChatBox({super.key, required this.room, this.replyTarget});
 
   final Room room;
+
+  /// A notifier that signals which event (if any) the user is currently
+  /// replying to.  Set to `null` to clear the reply preview.
+  final ValueNotifier<Event?>? replyTarget;
 
   @override
   State<ChatBox> createState() => _ChatBoxState();
@@ -49,6 +53,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
   bool _isExpanded = false;
   bool _isEmpty = true;
+  Event? _replyEvent;
 
   @override
   void initState() {
@@ -64,15 +69,34 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
     _controller.addListener(_onTextChanged);
+    widget.replyTarget?.addListener(_onReplyTargetChanged);
+  }
+
+  @override
+  void didUpdateWidget(ChatBox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.replyTarget != widget.replyTarget) {
+      oldWidget.replyTarget?.removeListener(_onReplyTargetChanged);
+      widget.replyTarget?.addListener(_onReplyTargetChanged);
+    }
   }
 
   @override
   void dispose() {
+    widget.replyTarget?.removeListener(_onReplyTargetChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
     _expandController.dispose();
     super.dispose();
+  }
+
+  void _onReplyTargetChanged() {
+    if (!mounted) return;
+    setState(() => _replyEvent = widget.replyTarget?.value);
+    if (widget.replyTarget?.value != null) {
+      _focusNode.requestFocus();
+    }
   }
 
   void _onTextChanged() {
@@ -90,8 +114,16 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    final replyTo = _replyEvent;
     final html = MarkdownToHtml.convert(text);
-    if (html == text || html.isEmpty) {
+
+    if (replyTo != null) {
+      // Send as a reply.
+      widget.room.sendTextEvent(
+        text,
+        inReplyTo: replyTo,
+      );
+    } else if (html == text || html.isEmpty) {
       widget.room.sendTextEvent(text);
     } else {
       widget.room.sendEvent({
@@ -103,6 +135,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     }
 
     _controller.clear();
+    _clearReply();
+  }
+
+  void _clearReply() {
+    widget.replyTarget?.value = null;
+    setState(() => _replyEvent = null);
   }
 
   Future<void> _attachFile() async {
@@ -251,6 +289,9 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
             child: _buildFormattingToolbar(colorScheme),
           ),
 
+          // Reply preview banner
+          if (_replyEvent != null) _buildReplyPreview(colorScheme, l10n),
+
           // Main input row
           Padding(
             padding: EdgeInsets.only(
@@ -344,6 +385,100 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   enabled: !_isEmpty,
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reply preview banner
+  // ---------------------------------------------------------------------------
+
+  /// Builds a banner showing which message the user is replying to, with a
+  /// dismiss button to cancel the reply.
+  Widget _buildReplyPreview(ColorScheme colorScheme, AppLocalizations? l10n) {
+    final replyTo = _replyEvent;
+    if (replyTo == null) return const SizedBox.shrink();
+
+    final senderName = replyTo.senderFromMemoryOrFallback.calcDisplayname();
+    final preview = replyTo.body.length > 80
+        ? '${replyTo.body.substring(0, 80)}…'
+        : replyTo.body;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 2),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 32,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.reply_rounded,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n?.chatBoxReplyingTo(senderName) ??
+                      'Replying to $senderName',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
+                    fontFamily: 'Rubik',
+                  ),
+                ),
+                Text(
+                  preview,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontFamily: 'Rubik',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          Tooltip(
+            message: l10n?.chatBoxCancelReply ?? 'Cancel reply',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: _clearReply,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

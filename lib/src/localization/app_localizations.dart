@@ -255,6 +255,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse'**
   String get chatBoxCollapse;
+
+  /// Label shown in the reply preview banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Replying to {sender}'**
+  String chatBoxReplyingTo(String sender);
+
+  /// No description provided for @chatBoxCancelReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel reply'**
+  String get chatBoxCancelReply;
 }
 
 class _AppLocalizationsDelegate
