@@ -177,18 +177,40 @@ class DecryptionFailedWidget extends StatelessWidget {
               icon: Icon(LucideIcons.refreshCw, color: scheme.error),
               tooltip: loc.encryptionRequestKeys,
               onPressed: () {
-                // The SDK can request keys automatically, but calling
-                // keyManager.maybeAutoRequest() would be needed here.
-                // For now, this is a placeholder that informs the user.
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(loc.encryptionKeysRequested),
-                  ),
-                );
+                _requestMissingKeys(context, event);
               },
             ),
         ],
       ),
     );
+  }
+
+  void _requestMissingKeys(BuildContext context, Event event) {
+    final client = event.room.client;
+    final enc = client.encryption;
+    if (enc == null) return;
+
+    try {
+      final content = event.parsedRoomEncryptedContent;
+      final sessionId = content.sessionId;
+      if (sessionId == null) return;
+
+      enc.keyManager.maybeAutoRequest(
+        event.room.id,
+        sessionId,
+        content.senderKey,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.encryptionKeysRequested,
+          ),
+        ),
+      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.error)),
+      );
+    }
   }
 }

@@ -91,6 +91,15 @@ class MessageEventHandler extends StatelessWidget {
   }
 
   Widget _renderContent() {
+    // Failed decryption — show the decryption-failed placeholder
+    // with a manual key-request button.
+    if (event.type == EventTypes.Encrypted) {
+      return DecryptionFailedWidget(
+        event: event,
+        canRequestSession: event.content['can_request_session'] == true,
+      );
+    }
+
     switch (event.type) {
       case EventTypes.Message:
         // TODO: Stickers, emotes; event relationships (replies, reactions, edits)
