@@ -111,7 +111,10 @@ void main() async {
       // TODO[epic=longterm] QRCode
       //KeyVerificationMethod.qrScan
     },
-    nativeImplementations: NativeImplementations.dummy,
+    nativeImplementations: NativeImplementationsIsolate(
+      compute,
+      vodozemacInit: vdz.init,
+    ),
   );
   await sdk.init();
 
@@ -147,6 +150,17 @@ void main() async {
     });
   }
 
+  // ── Create encryption service eagerly ───────────────────────────
+  // When a returning user already has a session in the database (restored
+  // by sdk.init() above), we must initialise the encryption subsystem
+  // here so that cross-signing status, key backup, and device lists are
+  // populated before the UI first renders.  If the user is not logged in
+  // yet, init() will be called later during the login flow.
+  final encryptionService = EncryptionService(client: sdk, logger: log);
+  if (sdk.isLogged()) {
+    await encryptionService.init();
+  }
+
   runApp(
     MultiProvider(
       providers: [
@@ -162,11 +176,8 @@ void main() async {
         ChangeNotifierProvider(
           create: (context) => NavigationState(),
         ),
-        ChangeNotifierProvider(
-          create: (context) => EncryptionService(
-            client: sdk,
-            logger: log,
-          ),
+        ChangeNotifierProvider.value(
+          value: encryptionService,
         ),
       ],
       child: const MoonrelayApp(),

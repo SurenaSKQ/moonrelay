@@ -129,9 +129,14 @@ class EncryptionService extends ChangeNotifier {
     // ── miss a sync event that fires concurrently.                ──
     _syncSubscription = _client.onSync.stream.listen((_) {
       _cachedUnverified = null;
-      _refreshCrossSigningStatus();
-      _refreshBackupState();
-      _refreshMyDevices();
+      Future.wait([
+        _refreshCrossSigningStatus(),
+        _refreshBackupState(),
+        _refreshMyDevices(),
+      ]).catchError((e, s) {
+        _log.w('encryption refresh after sync failed',
+            error: e, stackTrace: s);
+      });
     });
 
     try {
@@ -187,8 +192,14 @@ class EncryptionService extends ChangeNotifier {
 
     final bootstrap = enc.bootstrap(
       onUpdate: (_) {
-        _refreshCrossSigningStatus();
-        _refreshBackupState();
+        _refreshCrossSigningStatus().catchError((e, s) {
+          _log.w('bootstrap: could not refresh cross-signing status',
+              error: e, stackTrace: s);
+        });
+        _refreshBackupState().catchError((e, s) {
+          _log.w('bootstrap: could not refresh backup state',
+              error: e, stackTrace: s);
+        });
         notifyListeners();
       },
     );

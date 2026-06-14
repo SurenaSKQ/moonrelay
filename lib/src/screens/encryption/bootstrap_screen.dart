@@ -50,6 +50,24 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
     _bootstrap = widget.bootstrap;
     _bootstrap.onUpdate = (_) {
       if (mounted) setState(() {});
+      // When the SDK opens an existing SSSS key (e.g. the default key was
+      // valid and didn't need passphrase unlocking), it transitions to
+      // [BootstrapState.openExistingSsss].  We must then call
+      // [Bootstrap.openExistingSsss()] to cache secrets and advance the
+      // state machine; otherwise the UI sits on a spinner forever.
+      if (_bootstrap.state == BootstrapState.openExistingSsss) {
+        // Schedule for the next frame so the spinner is shown briefly
+        // before the potentially-async openExistingSsss() call.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _bootstrap.openExistingSsss().catchError((e, s) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$e')),
+            );
+          });
+        });
+      }
     };
   }
 
@@ -105,14 +123,30 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: () => _bootstrap.wipeSsss(true),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeSsss(true);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionWipeExisting),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _bootstrap.wipeSsss(false),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeSsss(false);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionKeepExisting),
                     ),
                   ),
@@ -130,12 +164,28 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
             children: [
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => _bootstrap.useExistingSsss(true),
+                onPressed: () {
+                  try {
+                    _bootstrap.useExistingSsss(true);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.yesOrAffirmitive),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: () => _bootstrap.useExistingSsss(false),
+                onPressed: () {
+                  try {
+                    _bootstrap.useExistingSsss(false);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.noOrCancellation),
               ),
             ],
@@ -150,12 +200,28 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
             children: [
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => _bootstrap.ignoreBadSecrets(true),
+                onPressed: () {
+                  try {
+                    _bootstrap.ignoreBadSecrets(true);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.encryptionContinueAnyway),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: () => _bootstrap.ignoreBadSecrets(false),
+                onPressed: () {
+                  try {
+                    _bootstrap.ignoreBadSecrets(false);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.cancel),
               ),
             ],
@@ -192,14 +258,35 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                   onPressed: () async {
                     for (final entry in _bootstrap.oldSsssKeys?.entries ??
                         <MapEntry<String, OpenSSSS>>[]) {
-                      await entry.value.unlock(
-                        passphrase: _passphraseCtl.text.isEmpty
-                            ? null
-                            : _passphraseCtl.text,
-                        recoveryKey: _passphraseCtl.text.isEmpty
-                            ? null
-                            : _passphraseCtl.text,
-                      );
+                      if (_passphraseCtl.text.isEmpty) {
+                        try {
+                          await entry.value.unlock();
+                        } catch (_) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(loc.encryptionCouldNotUnlock),
+                            ),
+                          );
+                          return;
+                        }
+                      } else {
+                        // Use keyOrPassphrase which auto-detects whether the
+                        // input is a recovery key (base58) or a passphrase.
+                        try {
+                          await entry.value.unlock(
+                            keyOrPassphrase: _passphraseCtl.text,
+                          );
+                        } catch (_) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(loc.encryptionCouldNotUnlock),
+                            ),
+                          );
+                          return;
+                        }
+                      }
                       if (!entry.value.isUnlocked) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -239,9 +326,17 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () {
-                  _bootstrap.newSsss(
-                    _passphraseCtl.text.isNotEmpty ? _passphraseCtl.text : null,
-                  );
+                  try {
+                    _bootstrap.newSsss(
+                      _passphraseCtl.text.isNotEmpty
+                          ? _passphraseCtl.text
+                          : null,
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
                 },
                 child: Text(loc.encryptionSetPassphrase),
               ),
@@ -267,14 +362,30 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: () => _bootstrap.wipeCrossSigning(true),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeCrossSigning(true);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionRecreateKeys),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _bootstrap.wipeCrossSigning(false),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeCrossSigning(false);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionKeepKeys),
                     ),
                   ),
@@ -293,16 +404,32 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
             children: [
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => _bootstrap.askSetupCrossSigning(
-                  setupMasterKey: true,
-                  setupSelfSigningKey: true,
-                  setupUserSigningKey: true,
-                ),
+                onPressed: () {
+                  try {
+                    _bootstrap.askSetupCrossSigning(
+                      setupMasterKey: true,
+                      setupSelfSigningKey: true,
+                      setupUserSigningKey: true,
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.encryptionSetupAllKeys),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: () => _bootstrap.askSetupCrossSigning(),
+                onPressed: () {
+                  try {
+                    _bootstrap.askSetupCrossSigning();
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.encryptionSkipKeySetup),
               ),
             ],
@@ -320,14 +447,30 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: () => _bootstrap.wipeOnlineKeyBackup(true),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeOnlineKeyBackup(true);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionRecreateBackup),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _bootstrap.wipeOnlineKeyBackup(false),
+                      onPressed: () {
+                        try {
+                          _bootstrap.wipeOnlineKeyBackup(false);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      },
                       child: Text(loc.encryptionKeepBackup),
                     ),
                   ),
@@ -346,12 +489,28 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
             children: [
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => _bootstrap.askSetupOnlineKeyBackup(true),
+                onPressed: () {
+                  try {
+                    _bootstrap.askSetupOnlineKeyBackup(true);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.encryptionEnableBackup),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: () => _bootstrap.askSetupOnlineKeyBackup(false),
+                onPressed: () {
+                  try {
+                    _bootstrap.askSetupOnlineKeyBackup(false);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                },
                 child: Text(loc.encryptionSkipBackup),
               ),
             ],

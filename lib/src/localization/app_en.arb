@@ -409,6 +409,7 @@
   "showStateEventsDescription": "Display join/leave/room changes in the timeline",
   "hub": "Hub",
   "logOut": "Log Out",
+  "sessions": "Sessions",
 
   "ownProfileDescriptor": "Your Profile",
   "profileLoadError": "Could not load profile: {error}",

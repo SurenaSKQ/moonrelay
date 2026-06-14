@@ -18,15 +18,18 @@
 
 # Current work
 
-Expected timeline: Mid 2026 (This will eventually become a lesson in wishful thinking)
+Expected timeline: ~~Mid 2026 (This will eventually become a lesson in wishful thinking)~~ lmao, it sure did
 
 - Support chat event types v1
   - Chat timeline needs rework.
-  - Text Messages **[Partial]**
-  - Images
-  - Audio
+  - Text Messages **[DONE]**
+  - Images **[DONE]**
+    - Still needs some work tbh, we need a dedicated image view screen
+  - Audio **[DONE]**
+    - No in-app player right now
   - Video
-  - Files **[Initial]**
+  - Files **[DONE]**
+    - Needs some work on the widget
 - Chat events v2
   - Dynamically built text with inline images
   - Code blocks support
