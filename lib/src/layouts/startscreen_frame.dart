@@ -14,10 +14,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
+import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/window_buttons.dart';
+
+/// Whether the current platform is a desktop OS.
+bool get _isDesktop {
+  if (kIsWeb) return false;
+  return [
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+  ].contains(defaultTargetPlatform);
+}
+
+/// Start screen frame shown before authentication.
+///
+/// Provides a custom header bar with:
+/// - Platform-native window management buttons (minimize, maximize, close)
+/// - Right-click context menu with window actions and a "System menu" entry
+/// - Reversible layout (buttons left / title right) via [SettingsController]
 class StartscreenFrame extends StatefulWidget {
   const StartscreenFrame({
     super.key,
@@ -47,22 +69,197 @@ class _StartscreenFrameState extends State<StartscreenFrame>
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
-        title: Text(
-          AppLocalizations.of(context)!.appTitle,
-          style: const TextStyle(
-            fontFamily: 'Rubik',
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
+      appBar: _buildAppBar(context, l10n),
+      body: widget.child,
+    );
+  }
+
+  /// Build the custom header bar.
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final SettingsController settings =
+        Provider.of<SettingsController>(context, listen: true);
+    final ThemeData theme = Theme.of(context);
+    final bool reversed = settings.headerReversed;
+    final bool showButtons = _isDesktop && !settings.useSystemTitlebar;
+
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(kToolbarHeight),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (event) {
+          if (event.kind == PointerDeviceKind.mouse &&
+              // kSecondaryMouseButton (2) = right mouse button
+              (event.buttons & 0x02) != 0) {
+            _showContextMenu(context, event.position);
+          }
+        },
+        child: Container(
+          height: kToolbarHeight,
+          color: theme.colorScheme.surface,
+          child: Row(
+            children: [
+              // ── Leading slot ──────────────────────────────────
+              if (reversed && showButtons)
+                const WindowButtons()
+              else if (!reversed)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: () {},
+                      ),
+                      const SizedBox(width: 8),
+                      _HeaderTitle(l10n: l10n),
+                    ],
+                  ),
+                ),
+
+              const Spacer(),
+
+              // ── Trailing slot ─────────────────────────────────
+              if (reversed)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _HeaderTitle(l10n: l10n),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                )
+              else if (showButtons)
+                const WindowButtons(),
+            ],
           ),
         ),
       ),
-      body: widget.child,
+    );
+  }
+
+  /// Show a custom context menu when the user right-clicks the header.
+  Future<void> _showContextMenu(
+    BuildContext context,
+    Offset globalPosition,
+  ) async {
+    final bool isMaxed = await windowManager.isMaximized();
+
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
+      const PopupMenuItem<String>(
+        value: 'minimize',
+        child: _MenuRow(
+          icon: Icons.minimize,
+          label: 'Minimize',
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'maximize',
+        child: _MenuRow(
+          icon: isMaxed ? Icons.filter_none : Icons.check_box_outline_blank,
+          label: isMaxed ? 'Restore' : 'Maximize',
+        ),
+      ),
+      const PopupMenuItem<String>(
+        value: 'close',
+        child: _MenuRow(
+          icon: Icons.close,
+          label: 'Close',
+        ),
+      ),
+      const PopupMenuDivider(),
+      const PopupMenuItem<String>(
+        value: 'system',
+        child: _MenuRow(
+          icon: Icons.more_horiz,
+          label: 'Show system menu',
+        ),
+      ),
+    ];
+
+    final String? result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx + 1,
+        globalPosition.dy + 1,
+      ),
+      items: items,
+    );
+
+    if (result == null || !mounted) return;
+
+    switch (result) {
+      case 'minimize':
+        await windowManager.minimize();
+      case 'maximize':
+        if (await windowManager.isMaximized()) {
+          await windowManager.unmaximize();
+        } else {
+          await windowManager.maximize();
+        }
+      case 'close':
+        await windowManager.close();
+      case 'system':
+        try {
+          await windowManager.popUpWindowMenu();
+        } catch (_) {
+          // popUpWindowMenu may not be available on all platforms.
+        }
+    }
+  }
+}
+
+/// Title text used in the custom header.
+class _HeaderTitle extends StatelessWidget {
+  const _HeaderTitle({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      l10n.appTitle,
+      style: const TextStyle(
+        fontFamily: 'Rubik',
+        fontWeight: FontWeight.w600,
+        fontSize: 16,
+      ),
+    );
+  }
+}
+
+/// A single row in the context menu with an icon and a label.
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MenuRow({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 18),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
     );
   }
 }

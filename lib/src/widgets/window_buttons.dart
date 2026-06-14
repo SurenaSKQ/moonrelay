@@ -16,6 +16,11 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// Platform-native window caption buttons (minimize, maximize/restore, close).
+///
+/// Uses [WindowCaption] from the window_manager package to render the
+/// appropriate buttons for the current platform — traffic lights on macOS,
+/// standard caption buttons on Windows/Linux.
 class WindowButtons extends StatelessWidget {
   const WindowButtons({super.key});
 

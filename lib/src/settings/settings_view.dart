@@ -263,6 +263,21 @@ class _SettingsViewState extends State<SettingsView> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // ── Header ────────────────────────────────────────────────
+        Label(
+          label: 'Header',
+          child: SwitchListTile(
+            title: const Text('Reversed header'),
+            subtitle: const Text(
+              'Window buttons on the left, title on the right',
+            ),
+            value: controller.headerReversed,
+            onChanged: (value) => controller.updateHeaderReversed(value),
+            secondary: const Icon(LucideIcons.arrowLeftRight),
+          ),
+        ),
       ],
     );
   }
