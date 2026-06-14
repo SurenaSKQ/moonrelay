@@ -252,6 +252,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           scrollController: _scrollController,
           timelineVersion: _timelineVersion,
           onReply: widget.onReply,
+          showStateEvents: settings.showStateEvents,
         );
       },
     );

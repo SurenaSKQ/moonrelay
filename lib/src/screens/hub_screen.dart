@@ -127,6 +127,10 @@ class _HubScreenState extends State<HubScreen> {
             label: 'Encryption & Security',
             icon: LucideIcons.shield,
           ),
+          _HubNavigationItem(
+            label: 'Chat',
+            icon: LucideIcons.messageSquare,
+          ),
         ],
       ),
     ];
@@ -276,6 +280,8 @@ class _HubScreenState extends State<HubScreen> {
           return _AppearanceSettings();
         case 1:
           return _LayoutSettings();
+        case 3:
+          return _ChatSettings();
         default:
           return const SizedBox.shrink();
       }
@@ -1116,6 +1122,59 @@ class _LayoutSettings extends StatelessWidget {
                     value: controller.headerReversed,
                     onChanged: (v) => controller.updateHeaderReversed(v),
                     secondary: const Icon(LucideIcons.arrowLeftRight),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ChatSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chat',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Timeline and message display options',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SettingsSection(
+                title: 'State events',
+                children: [
+                  SwitchListTile(
+                    title: const Text('Show state events'),
+                    subtitle: const Text(
+                      'Display join/leave/room changes in the timeline',
+                    ),
+                    value: controller.showStateEvents,
+                    onChanged: (v) => controller.updateShowStateEvents(v),
+                    secondary: const Icon(Icons.info_outline),
                   ),
                 ],
               ),

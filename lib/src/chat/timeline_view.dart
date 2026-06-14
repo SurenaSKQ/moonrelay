@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/chat/events/date_separator.dart';
+import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -43,6 +44,7 @@ class TimelineView extends StatelessWidget {
     required this.scrollController,
     this.timelineVersion,
     this.onReply,
+    this.showStateEvents = true,
   });
 
   final Timeline timeline;
@@ -57,6 +59,10 @@ class TimelineView extends StatelessWidget {
   /// Called when the user replies to a specific event.
   final void Function(Event event)? onReply;
 
+  /// Whether to render state events (join/leave/room metadata changes).
+  /// When false, state events are hidden from the timeline.
+  final bool showStateEvents;
+
   // ---------------------------------------------------------------------------
   // Index helpers
   // ---------------------------------------------------------------------------
@@ -68,6 +74,9 @@ class TimelineView extends StatelessWidget {
     indices.removeWhere((i) => timeline.events[i].relationshipEventId != null);
     return indices;
   }
+
+  /// True when [event] is a state event (not a regular message).
+  bool _isStateEvent(Event event) => event.type != EventTypes.Message;
 
   /// True when [newer] and [older] belong to the same sender and fall within
   /// the same ~10‑minute environment, i.e. they should share a visual group.
@@ -91,36 +100,69 @@ class TimelineView extends StatelessWidget {
   /// `reverse: true` ListView places the newest item at the bottom.
   ///
   /// [DateSeparator] widgets are interleaved before events that start a new
-  /// calendar day.
+  /// calendar day.  Consecutive state events are grouped into a single
+  /// [StateEventTile] widget when [showStateEvents] is true, or filtered out
+  /// when it is false.
   List<Widget> _buildItemList(BuildContext context) {
     final visibleIndices = _visibleIndices(); // newest → oldest
     final items = <Widget>[];
-    Event? previousVisible; // the *newer* neighbour
+    Event? previousVisible; // the *newer* neighbour (non-state events only)
+    int i = 0;
 
-    for (int i = 0; i < visibleIndices.length; i++) {
+    while (i < visibleIndices.length) {
       final eventIndex = visibleIndices[i];
-      final event = timeline.events[eventIndex]; // newest first
+      final event = timeline.events[eventIndex];
 
-      // Insert separator when stepping from one day to an older day.
-      if (previousVisible != null && _isDifferentDay(previousVisible, event)) {
-        items.add(DateSeparator(dateTime: event.originServerTs));
+      if (_isStateEvent(event)) {
+        if (showStateEvents) {
+          // Collect a run of consecutive state events.
+          final batch = <Event>[event];
+          i++;
+          while (i < visibleIndices.length &&
+              _isStateEvent(timeline.events[visibleIndices[i]])) {
+            batch.add(timeline.events[visibleIndices[i]]);
+            i++;
+          }
+
+          // Insert a date boundary before the batch if needed (using the
+          // oldest event in the batch for the comparison).
+          if (previousVisible != null &&
+              _isDifferentDay(previousVisible, batch.last)) {
+            items.add(DateSeparator(dateTime: batch.last.originServerTs));
+          }
+
+          items.add(StateEventTile(events: batch));
+          // Do NOT update previousVisible — state events don't participate
+          // in regular message grouping/continuation.
+        } else {
+          // Skip state events entirely.
+          i++;
+        }
+      } else {
+        // Regular message event.
+        if (previousVisible != null &&
+            _isDifferentDay(previousVisible, event)) {
+          items.add(DateSeparator(dateTime: event.originServerTs));
+        }
+
+        final isContinuation =
+            previousVisible != null && _isContinuation(previousVisible, event);
+
+        items.add(TimelineItem(
+          event: event,
+          room: room,
+          previousEvent:
+              eventIndex >= 1 ? timeline.events[eventIndex - 1] : null,
+          displayType: displayType,
+          isGroupStart: !isContinuation,
+          isGroupContinuation: isContinuation,
+          timeline: timeline,
+          onReply: onReply != null ? () => onReply!(event) : null,
+        ));
+
+        previousVisible = event;
+        i++;
       }
-
-      final isContinuation =
-          previousVisible != null && _isContinuation(previousVisible, event);
-
-      items.add(TimelineItem(
-        event: event,
-        room: room,
-        previousEvent: eventIndex >= 1 ? timeline.events[eventIndex - 1] : null,
-        displayType: displayType,
-        isGroupStart: !isContinuation,
-        isGroupContinuation: isContinuation,
-        timeline: timeline,
-        onReply: onReply != null ? () => onReply!(event) : null,
-      ));
-
-      previousVisible = event;
     }
     return items;
   }

@@ -27,6 +27,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   late double _rightSidebarWidth;
   late RightPaneChoice _rightPaneChoice;
   late bool _headerReversed;
+  late bool _showStateEvents;
 
   SettingsController(this._settingsService) {
     loadSettings();
@@ -46,6 +47,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   double get rightSidebarWidth => _rightSidebarWidth;
   RightPaneChoice get rightPaneChoice => _rightPaneChoice;
   bool get headerReversed => _headerReversed;
+  bool get showStateEvents => _showStateEvents;
 
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
@@ -62,6 +64,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _rightSidebarWidth = await _settingsService.rightSidebarWidth();
     _rightPaneChoice = await _settingsService.rightPaneChoice();
     _headerReversed = await _settingsService.headerReversed();
+    _showStateEvents = await _settingsService.showStateEvents();
 
     notifyListeners();
   }
@@ -193,6 +196,14 @@ class SettingsController with ChangeNotifier, WindowListener {
       _headerReversed = reversed;
       notifyListeners();
       await _settingsService.updateHeaderReversed(reversed);
+    }
+  }
+
+  Future<void> updateShowStateEvents(bool value) async {
+    if (value != _showStateEvents) {
+      _showStateEvents = value;
+      notifyListeners();
+      await _settingsService.updateShowStateEvents(value);
     }
   }
 }

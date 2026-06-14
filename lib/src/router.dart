@@ -26,7 +26,6 @@ import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
-import 'package:moonrelay/src/settings/settings_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -110,14 +109,6 @@ class MoonRouter {
               Provider.of<Client>(context, listen: false).isLogged()
                   ? '/main/rooms'
                   : '/welcome',
-        ),
-        GoRoute(
-          path: '/settings',
-          pageBuilder: (context, state) => genericPageBuilder(
-            context,
-            state,
-            const SettingsView(),
-          ),
         ),
         ShellRoute(
           pageBuilder: (context, state, child) => genericPageBuilder(

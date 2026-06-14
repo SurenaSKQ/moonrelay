@@ -16,170 +16,109 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/date_time_extension.dart';
 
-/// Renders Matrix state events (membership changes, room metadata updates,
-/// encryption toggles, etc.) as centred, muted timeline items with suitable
-/// icons per event type.
+/// Renders a Matrix state event as a centred, muted timeline item.
+///
+/// The description focuses on the event type and includes the user display
+/// name for membership changes (e.g. "Alice joined").  Optionally displays
+/// the event timestamp to the right of the description.
 class StateEvents extends StatelessWidget {
-  const StateEvents({super.key, required this.event});
+  const StateEvents({
+    super.key,
+    required this.event,
+    this.time,
+    this.showTimestamp = true,
+  });
 
+  /// The state event to render.
   final Event event;
+
+  /// An optional explicit timestamp.  Defaults to [event.originServerTs].
+  final DateTime? time;
+
+  /// Whether to show a formatted timestamp next to the description.
+  final bool showTimestamp;
+
+  DateTime get _effectiveTime => time ?? event.originServerTs;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final mutedColor =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
 
-    // Resolve the display name of the sender.
-    final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
+    final description = _description(event.type);
+    final timeStr =
+        showTimestamp ? '  ${_effectiveTime.localizedTimeShort(context)}' : '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _iconForType(event.type),
-            size: 14,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      child: Center(
+        child: Text(
+          '$description$timeStr',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
             color: mutedColor,
           ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              _description(event.type, senderName),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: mutedColor,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  /// Returns a suitable Fluent icon for the given Matrix event type.
-  IconData _iconForType(String type) {
-    switch (type) {
-      case 'm.room.member':
-        return Icons.people;
-      case 'm.room.name':
-        return Icons.edit;
-      case 'm.room.topic':
-        return Icons.info;
-      case 'm.room.avatar':
-        return Icons.camera_alt;
-      case 'm.room.create':
-        return Icons.add;
-      case 'm.room.encryption':
-        return Icons.lock;
-      case 'm.room.pinned_events':
-        return Icons.push_pin;
-      case 'm.room.canonical_alias':
-        return Icons.link;
-      case 'm.room.power_levels':
-        return Icons.shield;
-      case 'm.room.tombstone':
-        return Icons.arrow_upward;
-      default:
-        return Icons.info;
-    }
-  }
-
-  /// Builds a human-readable description for common state events.
-  String _description(String type, String senderName) {
+  /// Builds a description for common state event types, including the
+  /// user display name for membership changes.
+  String _description(String type) {
     try {
       switch (type) {
         case 'm.room.member':
           final membership = event.content['membership']?.toString() ?? '';
-          final displayName =
-              event.content['displayname']?.toString() ?? 'Unknown';
-          final prevContent = event.unsigned?['prev_content'] as Map?;
-          final prevMembership = prevContent?['membership']?.toString();
-
+          final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
           switch (membership) {
             case 'join':
-              if (prevMembership == 'invite') {
-                return '$senderName accepted the invitation';
-              }
-              return '$senderName joined the room';
+              return '$senderName joined';
             case 'leave':
-              if (prevMembership == 'ban') {
-                return '$senderName was unbanned';
-              }
-              return '$senderName left the room';
+              return '$senderName left';
             case 'ban':
-              return '$senderName was banned';
+              final targetDisplayName =
+                  event.content['displayname']?.toString();
+              if (targetDisplayName != null &&
+                  targetDisplayName != senderName) {
+                return '$senderName banned $targetDisplayName';
+              }
+              return '$senderName banned';
             case 'invite':
-              return '$senderName invited $displayName';
+              final invited =
+                  event.content['displayname']?.toString() ?? 'a user';
+              return '$senderName invited $invited';
             case 'knock':
               return '$senderName knocked';
             default:
               return '$senderName membership changed: $membership';
           }
-
         case 'm.room.name':
-          final newName = event.content['name']?.toString() ?? '';
-          if (newName.isEmpty) {
-            return '$senderName removed the room name';
-          }
-          return '$senderName changed the room name to "$newName"';
-
+          return 'Room name changed';
         case 'm.room.topic':
-          final newTopic = event.content['topic']?.toString() ?? '';
-          if (newTopic.isEmpty) {
-            return '$senderName removed the room topic';
-          }
-          return '$senderName changed the topic to "$newTopic"';
-
+          return 'Room topic changed';
         case 'm.room.avatar':
-          final hasUrl = event.content['url'] != null ||
-              event.content['avatar_url'] != null;
-          if (hasUrl) {
-            return '$senderName changed the room avatar';
-          }
-          return '$senderName removed the room avatar';
-
+          return 'Room avatar changed';
         case 'm.room.create':
-          final creator = event.content['creator']?.toString() ?? senderName;
-          return '$creator created this room';
-
+          return 'Room created';
         case 'm.room.encryption':
-          return '$senderName enabled encryption';
-
+          return 'Encryption enabled';
         case 'm.room.pinned_events':
-          final pinned = event.content['pinned'] is List
-              ? (event.content['pinned'] as List).length
-              : 0;
-          if (pinned == 0) {
-            return '$senderName unpinned all messages';
-          }
-          return '$senderName pinned $pinned message${pinned == 1 ? "" : "s"}';
-
+          return 'Pinned messages changed';
         case 'm.room.canonical_alias':
-          final alias = event.content['alias']?.toString() ?? '';
-          if (alias.isEmpty) {
-            return '$senderName removed the main address';
-          }
-          return '$senderName set the main address to $alias';
-
+          return 'Main address changed';
         case 'm.room.power_levels':
-          return '$senderName changed the power levels';
-
+          return 'Power levels changed';
         case 'm.room.tombstone':
-          final newRoom = event.content['replacement_room']?.toString() ?? '';
-          if (newRoom.isNotEmpty) {
-            return '$senderName upgraded the room';
-          }
-          return '$senderName shut down the room';
-
+          return 'Room upgraded';
         default:
-          return '${event.type} changed by $senderName';
+          return type;
       }
     } catch (_) {
-      return '${event.type} changed by $senderName';
+      return type;
     }
   }
 }
