@@ -46,7 +46,7 @@ class MessageEventHandler extends StatelessWidget {
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
       final enc = context.watch<EncryptionService>();
-      final isVerified = enc.isUserVerifiedById(event.senderId);
+      final isVerified = _isDeviceVerified(enc);
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -66,7 +66,7 @@ class MessageEventHandler extends StatelessWidget {
     // Decrypted or non-encrypted events: show verification status inline.
     if (event.type == EventTypes.Message) {
       final enc = context.watch<EncryptionService>();
-      final isVerified = enc.isUserVerifiedById(event.senderId);
+      final isVerified = _isDeviceVerified(enc);
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -88,6 +88,21 @@ class MessageEventHandler extends StatelessWidget {
     }
 
     return _renderContent();
+  }
+
+  /// Checks whether the device that sent this event is verified via
+  /// cross-signing.
+  ///
+  /// Falls back to user-level verification if the sender's device ID is
+  /// not available in the event metadata (e.g. non-encrypted events).
+  bool _isDeviceVerified(EncryptionService enc) {
+    final deviceId =
+        event.originalSource?.content['device_id'] as String?;
+    if (deviceId != null) {
+      return enc.isDeviceVerifiedById(event.senderId, deviceId);
+    }
+    // Fall back to user-level verification when device ID is unknown.
+    return enc.isUserVerifiedById(event.senderId);
   }
 
   Widget _renderContent() {

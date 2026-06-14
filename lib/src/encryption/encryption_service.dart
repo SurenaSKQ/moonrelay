@@ -234,6 +234,31 @@ class EncryptionService extends ChangeNotifier {
     }
   }
 
+  /// Whether a specific device belonging to [userId] is verified via
+  /// cross-signing.
+  ///
+  /// This checks the device-level trust (whether the device key is signed
+  /// by the user's self-signing key, which is signed by their master key).
+  /// This is more accurate than [isUserVerifiedById] for per-message trust
+  /// because a user may have a verified master key but send from a device
+  /// that was never cross-signed (e.g. a new session before old device
+  /// dehydration completed).
+  ///
+  /// [deviceId] can be obtained from the original encrypted event content
+  /// via `event.originalSource?.content['device_id']` for decrypted events.
+  bool isDeviceVerifiedById(String userId, String deviceId) {
+    try {
+      final enc = _enc;
+      if (enc == null) return false;
+      return _client.userDeviceKeys[userId]
+              ?.deviceKeys[deviceId]
+              ?.verified ==
+          true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Key backup
   // -----------------------------------------------------------------------
