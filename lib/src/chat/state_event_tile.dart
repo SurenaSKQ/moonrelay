@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Groups one or more consecutive state events into a single timeline tile.
 ///
@@ -78,7 +79,8 @@ class _MultiStateEventTileState extends State<_MultiStateEventTile> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${widget.events.length} state events',
+                  AppLocalizations.of(context)!
+                      .stateEventCount(widget.events.length),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

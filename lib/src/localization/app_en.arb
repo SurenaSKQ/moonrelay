@@ -1,58 +1,419 @@
 {
   "@@locale": "en",
   "@@author": "Surena Karimpour Ghannadi",
-  "appLicenseNotice": "This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not recieved the license alognside the program, please consult the moonrelay Website for more information.",
+
+  "appLicenseNotice": "This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not received the license alongside the program, please consult the Moonrelay website for more information.",
   "@appLicenseNotice": {
-    "description": "Inform the user of the license and means of it's obtainment."
+    "description": "Inform the user of the license and how to obtain it."
   },
-  "appTitle": "MOONRELAY",
-  "areYouSureExit": "Are you sure you want to exit the application?",
-  "author": "Surena Karimpour Ghannadi",
-  "chatBoxSendMessage": "Send a message!",
-  "confirmClose": "Confirm Exit",
-  "darkMode": "Dark Mode",
-  "directMessages": "Direct Messages",
-  "error": "Error!",
-  "home": "Home",
-  "homeserverText": "Homeserver",
-  "lightMode": "Light Mode",
-  "loginButton": "Login",
-  "noOrCancellation": "No",
-  "ownProfileDescriptor": "Your Profile",
-  "passwordText": "Password",
-  "privacyPolicy": "Privacy and Your Data",
+
+  "appTitle": "Moonrelay",
+  "@appTitle": {
+    "description": "The main application title shown in the window header."
+  },
+
   "projectName": "Moonrelay",
+  "@projectName": {
+    "description": "The brand name of the application."
+  },
+
+  "author": "Surena Karimpour Ghannadi",
+  "@author": {
+    "description": "The application author's name."
+  },
+
+  "loading": "Loading…",
+  "done": "Done",
+  "close": "Close",
+  "cancel": "Cancel",
+  "ok": "OK",
+  "retry": "Retry",
+  "back": "Back",
+  "error": "Error",
+  "warning": "Warning",
+  "unknown": "Unknown",
+  "notSet": "Not set",
+
+  "homeserverText": "Homeserver",
+
+  "confirmClose": "Confirm Exit",
+  "areYouSureExit": "Are you sure you want to exit the application?",
+  "yesOrAffirmitive": "Yes",
+  "noOrCancellation": "No",
+  "collapseSidebar": "Collapse sidebar",
+  "expandSidebar": "Expand sidebar",
+  "minimize": "Minimize",
+  "maximize": "Maximize",
+  "restore": "Restore",
+  "closeWindow": "Close window",
+  "showSystemMenu": "Show system menu",
+
+  "lightMode": "Light Mode",
+  "darkMode": "Dark Mode",
+  "home": "Home",
+  "directMessages": "Direct Messages",
+
   "thirdPartyLicense": "Licenses",
-  "usernameText": "Username",
-  "userProfilePageBanner": "{username}'s Profile",
-  "@userProfilePageBanner": {
+  "privacyPolicy": "Privacy and Your Data",
+
+  "startupTagline": "The Public Benefit Messenger",
+  "@startupTagline": {
+    "description": "Tagline displayed on the welcome screen below the app name."
+  },
+  "startupDescription": "A secure, decentralised Matrix client focused on professional communication.",
+  "@startupDescription": {
+    "description": "Brief description of the app on the welcome screen."
+  },
+  "getStarted": "Get Started",
+  "signInDescription": "Sign in to your existing account or create a new one.",
+  "signIn": "Sign In",
+  "createAccount": "Create Account",
+  "signInWithSso": "Sign in with Single Sign-On",
+  "welcomeToApp": "Welcome to Moonrelay",
+  "syncingYourAccount": "Syncing your account…",
+  "fetchingRooms": "Fetching your rooms and messages…",
+
+  "loginButton": "Sign In",
+  "signInTitle": "Sign In",
+  "ssoTitle": "Single Sign-On",
+  "tokenLoginTitle": "Token Login",
+  "usernameOrEmail": "Username or email",
+  "usernameHint": "@user:matrix.org",
+  "passwordText": "Password",
+  "passwordHint": "Enter your password",
+  "ssoUrlLabel": "SSO Login URL",
+  "ssoStartingHint": "Click \"Open in Browser\" to start.",
+  "tokenLabel": "Login Token",
+  "tokenHint": "Paste your login token here…",
+  "signingIn": "Signing in…",
+  "openInBrowser": "Open in Browser",
+  "preparing": "Preparing…",
+  "completeLogin": "Complete Login",
+  "signInWithToken": "Sign in with Token",
+  "useSsoInstead": "Use Single Sign-On instead",
+  "usePasswordInstead": "Use password instead",
+  "useTokenInstead": "Use login token instead",
+  "backToPasswordLogin": "Back to password login",
+
+  "loginHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
+  "loginHomeserverError": "Could not connect to homeserver: {error}",
+  "@loginHomeserverError": {
     "placeholders": {
-      "username": {
-        "type": "String"
-      }
+      "error": { "type": "String" }
     }
   },
-  "warning": "Warning!",
-  "yesOrAffirmitive": "Yes",
-  "chatBoxAttach": "Attach file",
+  "passwordLoginNotSupported": "This homeserver does not support password login.",
+  "ssoNotSupported": "This homeserver does not support SSO login.",
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "loginTimedOut": "Login timed out. The server may be overloaded. Please try again.",
+  "tokenLoginFailed": "Token login failed: {error}",
+  "@tokenLoginFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "pleaseEnterToken": "Please enter a login token.",
+  "pleasePasteToken": "Please paste the login token from your browser.",
+  "couldNotOpenBrowser": "Could not open browser. Use the URL above.",
+
+  "registerTitle": "Create Account",
+  "registerHomeserverHint": "matrix.org",
+  "usernameText": "Username",
+  "usernameHint": "Choose a username",
+  "confirmPasswordLabel": "Confirm password",
+  "agreeToTerms": "I agree to the Terms of Service of this homeserver",
+  "creatingAccount": "Creating account…",
+  "alreadyHaveAccount": "Already have an account? Sign in",
+
+  "usernameRequired": "Please enter a username.",
+  "usernameNoAt": "Enter just the local part (e.g. \"alice\"), not your full Matrix ID.",
+  "usernameTooShort": "Username must be at least 3 characters.",
+  "passwordRequired": "Please enter a password.",
+  "passwordTooShort": "Password must be at least 8 characters.",
+  "passwordsDoNotMatch": "Passwords do not match.",
+  "mustAgreeToTerms": "You must agree to the Terms of Service.",
+
+  "registerHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
+  "registerHomeserverError": "Could not connect to homeserver: {error}",
+  "@registerHomeserverError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "registerRequiresAdditionalSteps": "This homeserver requires additional steps to register (e.g. email verification or CAPTCHA). Please create an account on the homeserver's website instead.",
+  "registerTimedOut": "Registration timed out. The server may be overloaded. Please try again.",
+  "registerFailed": "Registration failed: {error}",
+  "@registerFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "chatBoxSendMessage": "Send a message…",
   "chatBoxSend": "Send",
+  "chatBoxAttach": "Attach file",
   "chatBoxExpand": "Expand editor",
   "chatBoxCollapse": "Collapse",
   "chatBoxReplyingTo": "Replying to {sender}",
   "@chatBoxReplyingTo": {
     "description": "Label shown in the reply preview banner.",
     "placeholders": {
-      "sender": {
-        "type": "String"
-      }
+      "sender": { "type": "String" }
     }
   },
   "chatBoxCancelReply": "Cancel reply",
 
-  "loading": "Loading…",
-  "done": "Done",
-  "close": "Close",
-  "cancel": "Cancel",
+  "formatBold": "Bold",
+  "formatItalic": "Italic",
+  "formatStrikethrough": "Strikethrough",
+  "formatInlineCode": "Inline code",
+  "formatCodeBlock": "Code block",
+  "formatBlockquote": "Blockquote",
+  "formatHeading": "Heading",
+  "formatUnorderedList": "Unordered list",
+  "formatOrderedList": "Ordered list",
+  "formatLink": "Link",
+
+  "sendFailed": "Failed to send message.",
+  "sendTimedOut": "The request timed out.",
+  "uploadTimedOut": "Upload timed out.",
+
+  "reactTooltip": "React",
+  "replyTooltip": "Reply",
+  "forwardTooltip": "Forward",
+  "detailsTooltip": "Details",
+  "deleteTooltip": "Delete",
+  "messageCopiedToClipboard": "Message copied to clipboard",
+  "deleteMessage": "Delete message",
+  "areYouSureDeleteMessage": "Are you sure you want to delete this message?",
+  "delete": "Delete",
+  "failedToDelete": "Failed to delete: {error}",
+  "@failedToDelete": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "failedToSendReaction": "Failed to send reaction: {error}",
+  "@failedToSendReaction": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "couldNotLoadMessages": "Could not load messages",
+  "serverMayBeUnreachable": "The server may be unreachable. Pull down to retry.",
+  "messageDeleted": "Message deleted",
+  "unsupportedEvent": "{sender} has sent an unsupported event of type {type} with messageType {messageType}",
+  "@unsupportedEvent": {
+    "placeholders": {
+      "sender": { "type": "String" },
+      "type": { "type": "String" },
+      "messageType": { "type": "String" }
+    }
+  },
+  "noTopicSet": "No topic set",
+  "stateEventCount": "{count} state events",
+  "@stateEventCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "roomInfoTitle": "Room Info",
+  "copyRoomIdTooltip": "Copy Room ID",
+  "actionsSection": "Actions",
+  "leaveRoom": "Leave Room",
+  "leaveRoomDescription": "Remove yourself from this room",
+  "copyRoomId": "Copy Room ID",
+  "detailsSection": "Details",
+  "typeLabel": "Type",
+  "encryptionLabel": "Encryption",
+  "addressLabel": "Address",
+  "createdLabel": "Created",
+  "endToEndEncrypted": "End-to-end encrypted",
+  "notEncrypted": "Not encrypted",
+  "securitySection": "Security",
+  "notEnabled": "Not enabled",
+  "membersSection": "Members",
+  "directMessage": "Direct Message",
+  "spaceType": "Space",
+  "publicRoom": "Public Room",
+  "privateRoom": "Private Room",
+  "unknownDate": "Unknown",
+  "leaveRoomTitle": "Leave Room",
+  "leaveRoomConfirm": "Are you sure you want to leave \"{roomName}\"?",
+  "@leaveRoomConfirm": {
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "leave": "Leave",
+  "failedToLeaveRoom": "Failed to leave room: {error}",
+  "@failedToLeaveRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "roomIdCopied": "Room ID copied to clipboard",
+  "showAllMembers": "Show all members ({count})",
+  "@showAllMembers": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "viewProfile": "View Profile",
+  "sendMessage": "Send Message",
+  "couldNotOpenChat": "Could not open chat: {error}",
+  "@couldNotOpenChat": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "userIsVerified": "User is verified",
+  "userIsNotVerified": "User is not verified",
+  "adminBadge": "Admin",
+  "moderatorBadge": "Moderator",
+  "bannedBadge": "Banned",
+  "invitedBadge": "Invited",
+  "knockingBadge": "Knocking",
+  "leftBadge": "Left",
+
+  "membersCount": "Members ({count})",
+  "@membersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchMembers": "Search members…",
+  "noMembersMatchSearch": "No members match your search",
+  "noMembersFound": "No members found",
+  "couldNotStartChatTimeout": "Could not start chat: The server did not respond in time.",
+  "couldNotStartChat": "Could not start chat: {error}",
+  "@couldNotStartChat": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "messageDetails": "Message Details",
+  "senderSection": "Sender",
+  "displayNameLabel": "Display name",
+  "userIdLabel": "User ID",
+  "timestampsSection": "Timestamps",
+  "sentAt": "Sent at",
+  "eventInfo": "Event Info",
+  "eventType": "Event type",
+  "eventId": "Event ID",
+  "roomId": "Room ID",
+  "statusLabel": "Status",
+  "redactedStatus": "Redacted (deleted)",
+  "activeStatus": "Active",
+  "relationshipLabel": "Relationship",
+  "relatedEventId": "Related event ID",
+  "replyToEventId": "Reply to event ID",
+  "rawContent": "Raw Content",
+
+  "joinRoomInstructions": "Search for the room you wish to join:",
+  "roomIdOrAlias": "Room ID or Alias",
+  "serverInstructions": "Enter the server to join through:",
+  "serverOptionalHint": "If left empty, your own homeserver will be used.",
+  "serverLabel": "Server",
+  "joining": "Joining…",
+  "addRoom": "Add Room",
+  "joiningTimedOut": "Joining room timed out. The server may be unreachable.",
+  "couldNotJoinRoom": "Could not join room: {error}",
+  "@couldNotJoinRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "createNewRoom": "Create New Room",
+  "createRoom": "Create Room",
+  "creatingRoomTimedOut": "Creating room timed out. The server may be unreachable.",
+  "couldNotCreateRoom": "Could not create room: {error}",
+  "@couldNotCreateRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "loadingRooms": "Loading rooms…",
+  "noRoomsYet": "No rooms yet",
+  "noMessages": "No messages",
+  "couldNotJoinRoomTimeout": "Could not join room: The server did not respond in time.",
+
+  "accounts": "Accounts",
+  "manageAccounts": "Manage your connected Matrix accounts",
+  "myProfile": "My Profile",
+  "appSettings": "App Settings",
+  "customizeExperience": "Customize your experience",
+  "appearance": "Appearance",
+  "controlLookAndFeel": "Control the look and feel of the app",
+  "layout": "Layout",
+  "customizeLayout": "Customize the arrangement of UI panels",
+  "encryptionAndSecurity": "Encryption & Security",
+  "chatSettings": "Chat",
+  "timelineAndMessages": "Timeline and message display options",
+  "selectCategory": "Select a category",
+
+  "themeMode": "Theme mode",
+  "system": "System",
+  "light": "Light",
+  "dark": "Dark",
+  "colourTheme": "Colour theme",
+  "useSystemTitlebar": "Use system titlebar",
+  "enable": "Enable",
+  "useNativeTitlebar": "Use the native window title bar instead of the custom one",
+  "chatDisplayType": "Chat display type",
+
+  "leftSidebar": "Left sidebar",
+  "visible": "Visible",
+  "showOrHideLeftSidebar": "Show or hide the left sidebar",
+  "content": "Content",
+  "widthLabel": "Width",
+  "rooms": "Rooms",
+  "spaces": "Spaces",
+  "friends": "Friends",
+  "hidden": "Hidden",
+  "rightSidebar": "Right sidebar (experimental)",
+  "showOrHideRightSidebar": "Show or hide the right sidebar (hidden on medium screens)",
+  "none": "None",
+  "roomInfo": "Room Info",
+  "members": "Members",
+  "header": "Header",
+  "reversedHeader": "Reversed header",
+  "reversedHeaderDescription": "Window buttons on the left, title on the right",
+  "stateEventsSection": "State events",
+  "showStateEvents": "Show state events",
+  "showStateEventsDescription": "Display join/leave/room changes in the timeline",
+  "hub": "Hub",
+  "logOut": "Log Out",
+
+  "ownProfileDescriptor": "Your Profile",
+  "profileLoadError": "Could not load profile: {error}",
+  "@profileLoadError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "profileLoadTimeout": "Could not load profile: The server did not respond in time.",
+  "noDisplayNameSet": "You have not set a display name!",
+
+  "profilePageTitle": "Profile View",
+  "userProfilePageBanner": "{username}'s Profile",
+  "@userProfilePageBanner": {
+    "placeholders": {
+      "username": { "type": "String" }
+    }
+  },
+  "userNoDisplayNameSet": "The user has not set a display name!",
 
   "encryptionSecurity": "Encryption & Security",
   "encryptionSetupTitle": "Encryption Setup",
@@ -139,5 +500,146 @@
   "encryptionWaitingForSas": "Waiting for the emoji/number comparison…",
   "encryptionDone": "Encryption Setup Complete!",
   "encryptionVerificationDone": "Verification Complete!",
-  "encryptionVerificationFailed": "Verification Failed"
+  "encryptionVerificationFailed": "Verification Failed",
+
+  "encryptionVerified": "Verified",
+  "encryptionUnverified": "Unverified",
+  "encryptionFailedAction": "Failed: {error}",
+  "@encryptionFailedAction": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "encryptionUnknownError": "Unknown error",
+
+  "failedToLoadImage": "Failed to load image",
+  "failedToLoadImageWithError": "Failed to load image: {error}",
+  "@failedToLoadImageWithError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "saveAudio": "Save audio",
+  "audioFileName": "audio_file",
+  "downloadAudio": "Download audio",
+  "saveVideo": "Save video",
+  "videoFileName": "video_file",
+  "unknownType": "Unknown type",
+  "downloadVideo": "Download video",
+  "selectDownloadTarget": "Select download target",
+  "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
+  "@fileInfo": {
+    "description": "Information about an attached file.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "mimeType": { "type": "String" },
+      "ext": { "type": "String" }
+    }
+  },
+
+  "stateJoined": "{sender} joined",
+  "@stateJoined": {
+    "description": "State event: a user joined a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateLeft": "{sender} left",
+  "@stateLeft": {
+    "description": "State event: a user left a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateBanned": "{sender} banned {target}",
+  "@stateBanned": {
+    "description": "State event: a user was banned.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "target": { "type": "String" }
+    }
+  },
+  "stateBannedSimple": "{sender} banned someone",
+  "@stateBannedSimple": {
+    "description": "State event: a ban with no target name available.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateInvited": "{sender} invited {user}",
+  "@stateInvited": {
+    "description": "State event: a user was invited.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "user": { "type": "String" }
+    }
+  },
+  "stateKnocked": "{sender} knocked",
+  "@stateKnocked": {
+    "description": "State event: a user knocked on a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateMembershipChanged": "{sender} membership changed: {membership}",
+  "@stateMembershipChanged": {
+    "description": "State event: membership change with unknown state.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "membership": { "type": "String" }
+    }
+  },
+  "stateRoomNameChanged": "Room name changed",
+  "stateRoomTopicChanged": "Room topic changed",
+  "stateRoomAvatarChanged": "Room avatar changed",
+  "stateRoomCreated": "Room created",
+  "stateEncryptionEnabled": "Encryption enabled",
+  "statePinnedMessagesChanged": "Pinned messages changed",
+  "stateMainAddressChanged": "Main address changed",
+  "statePowerLevelsChanged": "Power levels changed",
+  "stateRoomUpgraded": "Room upgraded",
+
+  "today": "Today",
+  "yesterday": "Yesterday",
+
+  "themeDefault": "Default (Indigo)",
+  "themeOceanBlue": "Ocean Blue",
+  "themeMidnightSlate": "Midnight Slate",
+  "themeCrimson": "Crimson",
+  "themeAmber": "Amber",
+  "themeSteel": "Steel",
+  "themeSky": "Sky",
+
+  "displayModern": "Modern",
+  "displayIrc": "IRC",
+  "displayBubbles": "Bubbles",
+
+  "paneRooms": "Rooms",
+  "paneSpaces": "Spaces",
+  "paneFriends": "Friends",
+  "paneHidden": "Hidden",
+  "paneNone": "None",
+  "paneRoomInfo": "Room Info",
+  "paneMembers": "Members",
+
+  "displayName": "Display Name",
+  "displayNameLabel": "Display name",
+  "userIDLabel": "User ID",
+
+  "logoutError": "Logout error: {error}",
+  "@logoutError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "privacyPolicyText": "Moonrelay does not transmit any information beyond what is necessary for the application's operation. We do not collect data, run telemetry, or serve advertisements. Any content shared through the Matrix network falls outside this privacy policy; it resides on Matrix homeservers and is subject to their respective policies.",
+
+  "encryptedTooltip": "Encrypted",
+  "notEncryptedTooltip": "Not encrypted",
+  "verifiedTooltip": "Verified",
+  "unverifiedTooltip": "Unverified",
+
+  "navigationHome": "Home",
+  "navigationAll": "All"
 }

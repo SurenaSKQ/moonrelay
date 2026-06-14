@@ -21,6 +21,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -269,12 +270,12 @@ class _ChatTimelineState extends State<ChatTimeline> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Could not load messages',
+              AppLocalizations.of(context)!.couldNotLoadMessages,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
-              'The server may be unreachable. Pull down to retry.',
+              AppLocalizations.of(context)!.serverMayBeUnreachable,
               style: TextStyle(
                 fontSize: 13,
                 color: scheme.onSurfaceVariant.withValues(alpha: 0.7),

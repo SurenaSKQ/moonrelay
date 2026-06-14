@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -52,10 +53,11 @@ class _RoomInformationsState extends State<RoomInformations> {
 
   /// Human-friendly room type label.
   String _roomTypeLabel(Room room) {
-    if (room.isDirectChat) return 'Direct Message';
-    if (room.isSpace) return 'Space';
-    if (room.joinRules == JoinRules.public) return 'Public Room';
-    return 'Private Room';
+    final l10n = AppLocalizations.of(context)!;
+    if (room.isDirectChat) return l10n.directMessage;
+    if (room.isSpace) return l10n.spaceType;
+    if (room.joinRules == JoinRules.public) return l10n.publicRoom;
+    return l10n.privateRoom;
   }
 
   /// Whether the room is encrypted.
@@ -77,28 +79,29 @@ class _RoomInformationsState extends State<RoomInformations> {
         return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
       }
     }
-    return 'Unknown';
+    return AppLocalizations.of(context)!.unknownDate;
   }
 
   void _leaveRoom() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Leave Room'),
+        title: Text(AppLocalizations.of(context)!.leaveRoomTitle),
         content: Text(
-          'Are you sure you want to leave "${widget.room.getLocalizedDisplayname()}"?',
+          AppLocalizations.of(context)!
+              .leaveRoomConfirm(widget.room.getLocalizedDisplayname()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Leave'),
+            child: Text(AppLocalizations.of(context)!.leave),
           ),
         ],
       ),
@@ -110,7 +113,9 @@ class _RoomInformationsState extends State<RoomInformations> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to leave room: $e')),
+            SnackBar(
+                content: Text(
+                    AppLocalizations.of(context)!.failedToLeaveRoom('$e'))),
           );
         }
       }
@@ -120,9 +125,9 @@ class _RoomInformationsState extends State<RoomInformations> {
   void _copyRoomId() {
     Clipboard.setData(ClipboardData(text: widget.room.id));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Room ID copied to clipboard'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.roomIdCopied),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -146,6 +151,8 @@ class _RoomInformationsState extends State<RoomInformations> {
     final totalMembers = (room.summary.mInvitedMemberCount ?? 0) +
         (room.summary.mJoinedMemberCount ?? 0);
 
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -153,13 +160,13 @@ class _RoomInformationsState extends State<RoomInformations> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Room Info',
+          l10n.roomInfoTitle,
           style: textTheme.titleLarge,
         ),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.copy),
-            tooltip: 'Copy Room ID',
+            tooltip: l10n.copyRoomIdTooltip,
             onPressed: _copyRoomId,
           ),
         ],
@@ -178,19 +185,19 @@ class _RoomInformationsState extends State<RoomInformations> {
           const SizedBox(height: 16),
 
           // ── Room actions ─────────────────────────────────────────────
-          _SectionHeader(title: 'Actions', scheme: scheme),
+          _SectionHeader(title: l10n.actionsSection, scheme: scheme),
           const SizedBox(height: 8),
           _ActionTile(
             icon: LucideIcons.logOut,
-            label: 'Leave Room',
-            description: 'Remove yourself from this room',
+            label: l10n.leaveRoom,
+            description: l10n.leaveRoomDescription,
             color: scheme.error,
             onTap: _leaveRoom,
             scheme: scheme,
           ),
           _ActionTile(
             icon: LucideIcons.copy,
-            label: 'Copy Room ID',
+            label: l10n.copyRoomId,
             description: room.id,
             onTap: _copyRoomId,
             scheme: scheme,
@@ -198,45 +205,45 @@ class _RoomInformationsState extends State<RoomInformations> {
           const SizedBox(height: 16),
 
           // ── Room details ─────────────────────────────────────────────
-          _SectionHeader(title: 'Details', scheme: scheme),
+          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
           const SizedBox(height: 8),
           _DetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
                 : LucideIcons.lock,
-            label: 'Type',
+            label: l10n.typeLabel,
             value: roomType,
             scheme: scheme,
           ),
           _DetailRow(
             icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
-            label: 'Encryption',
-            value: isEncrypted ? 'End-to-end encrypted' : 'Not encrypted',
+            label: l10n.encryptionLabel,
+            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
           if (canonicalAlias != null)
             _DetailRow(
               icon: LucideIcons.hash,
-              label: 'Address',
+              label: l10n.addressLabel,
               value: canonicalAlias,
               scheme: scheme,
             ),
           _DetailRow(
             icon: LucideIcons.calendar,
-            label: 'Created',
+            label: l10n.createdLabel,
             value: creationDate,
             scheme: scheme,
           ),
           const SizedBox(height: 16),
 
           // ── Security ─────────────────────────────────────────────────
-          _SectionHeader(title: 'Security', scheme: scheme),
+          _SectionHeader(title: l10n.securitySection, scheme: scheme),
           const SizedBox(height: 8),
           _buildSecuritySection(context, scheme, room, isEncrypted),
           const SizedBox(height: 16),
 
           // ── Top members ──────────────────────────────────────────────
-          _SectionHeader(title: 'Members', scheme: scheme),
+          _SectionHeader(title: l10n.membersSection, scheme: scheme),
           const SizedBox(height: 8),
           _TopMembersSection(
             room: room,
@@ -255,11 +262,12 @@ class _RoomInformationsState extends State<RoomInformations> {
     Room room,
     bool isEncrypted,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     if (!isEncrypted) {
       return _DetailRow(
         icon: LucideIcons.lockOpen,
-        label: 'Encryption',
-        value: 'Not enabled',
+        label: l10n.encryptionLabel,
+        value: l10n.notEnabled,
         scheme: scheme,
       );
     }
@@ -269,7 +277,7 @@ class _RoomInformationsState extends State<RoomInformations> {
       children: [
         _DetailRow(
           icon: LucideIcons.shieldCheck,
-          label: 'Encryption',
+          label: l10n.encryptionLabel,
           value: room.encryptionAlgorithm ?? 'Megolm',
           scheme: scheme,
         ),
@@ -309,6 +317,7 @@ class VerificationIconButton extends StatelessWidget {
     final enc = context.watch<EncryptionService>();
     final isUserVerified = enc.isUserVerifiedById(userId);
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return IconButton(
       icon: Icon(
@@ -316,7 +325,7 @@ class VerificationIconButton extends StatelessWidget {
         size: 18,
         color: isUserVerified ? scheme.primary : scheme.error,
       ),
-      tooltip: isUserVerified ? 'User is verified' : 'User is not verified',
+      tooltip: isUserVerified ? l10n.userIsVerified : l10n.userIsNotVerified,
       onPressed: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -349,6 +358,7 @@ class _RoomIdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final displayName = room.getLocalizedDisplayname();
     final topic = room.topic;
     final hasTopic = topic.isNotEmpty;
@@ -418,7 +428,7 @@ class _RoomIdentityCard extends StatelessWidget {
                 ),
                 _InfoChip(
                   icon: Icons.people_rounded,
-                  label: '$totalMembers members',
+                  label: '$totalMembers ${l10n.members}',
                   scheme: scheme,
                 ),
                 if (room.isDirectChat)
@@ -613,6 +623,7 @@ class _TopMembersSection extends StatelessWidget {
 
   /// Build the list of top member tiles (up to 10, sorted by power level).
   List<Widget> _buildTopMemberTiles(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final members = room.getParticipants().toList()
       ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
     final top = members.take(10).toList();
@@ -620,9 +631,9 @@ class _TopMembersSection extends StatelessWidget {
     return top.map((member) {
       final displayName = member.calcDisplayname();
       final permissionLabel = member.powerLevel.level >= 100
-          ? 'Admin'
+          ? l10n.adminBadge
           : member.powerLevel.level >= 50
-              ? 'Moderator'
+              ? l10n.moderatorBadge
               : null;
 
       return _MemberTile(
@@ -636,6 +647,7 @@ class _TopMembersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return StreamBuilder(
       stream: room.client.onRoomState.stream
           .where((event) => event.roomId == room.id),
@@ -654,7 +666,7 @@ class _TopMembersSection extends StatelessWidget {
                   child: OutlinedButton.icon(
                     icon: const Icon(LucideIcons.users, size: 18),
                     label: Text(
-                      'Show all members ($totalMembers)',
+                      l10n.showAllMembers(totalMembers),
                     ),
                     onPressed: () => _openFullMemberList(context),
                     style: OutlinedButton.styleFrom(
@@ -706,12 +718,13 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final membershipLabel = switch (member.membership) {
-      Membership.ban => 'Banned',
-      Membership.invite => 'Invited',
+      Membership.ban => l10n.bannedBadge,
+      Membership.invite => l10n.invitedBadge,
       Membership.join => null,
-      Membership.knock => 'Knocking',
-      Membership.leave => 'Left',
+      Membership.knock => l10n.knockingBadge,
+      Membership.leave => l10n.leftBadge,
     };
 
     return GestureDetector(
@@ -838,20 +851,20 @@ class _MemberTile extends StatelessWidget {
         offset.dy + 60,
       ),
       items: [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'profile',
           child: ListTile(
             leading: Icon(Icons.person_rounded),
-            title: Text('View Profile'),
+            title: Text(AppLocalizations.of(context)!.viewProfile),
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'message',
           child: ListTile(
             leading: Icon(Icons.chat_rounded),
-            title: Text('Send Message'),
+            title: Text(AppLocalizations.of(context)!.sendMessage),
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),
@@ -891,7 +904,7 @@ class _MemberTile extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not open chat: $e'),
+            content: Text(AppLocalizations.of(context)!.couldNotOpenChat('$e')),
           ),
         );
       }

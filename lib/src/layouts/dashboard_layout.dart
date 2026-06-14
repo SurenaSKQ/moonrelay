@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
@@ -179,23 +180,24 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
   /// Build the right pane widget based on the user's choice.
   Widget _buildRightPane(RightPaneChoice choice) {
+    final l10n = AppLocalizations.of(context)!;
     switch (choice) {
       case RightPaneChoice.none:
         return const SizedBox.shrink();
       case RightPaneChoice.roomInfo:
         // TODO: Wire up room info panel when implemented
-        return const Center(
+        return Center(
           child: Text(
-            'Room Info',
-            style: TextStyle(),
+            l10n.roomInfo,
+            style: const TextStyle(),
           ),
         );
       case RightPaneChoice.members:
         // TODO: Wire up members panel when implemented
-        return const Center(
+        return Center(
           child: Text(
-            'Members',
-            style: TextStyle(),
+            l10n.members,
+            style: const TextStyle(),
           ),
         );
     }

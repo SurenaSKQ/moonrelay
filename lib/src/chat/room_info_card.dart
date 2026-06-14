@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
@@ -89,7 +90,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             _displayName.isNotEmpty ? _displayName : widget.room.id;
         final topic = _topic.isNotEmpty
             ? _topic
-            : 'No topic set'; // Fallback when topic is missing
+            : AppLocalizations.of(context)!.noTopicSet;
 
         return GestureDetector(
           onTap: _openRoomInfo,

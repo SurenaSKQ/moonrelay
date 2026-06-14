@@ -98,37 +98,37 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   void _buildCategories() {
+    final l10n = AppLocalizations.of(context)!;
     _categories = [
       _HubCategory(
-        label: 'Accounts',
+        label: l10n.accounts,
         icon: LucideIcons.users,
         isExpandable: false,
       ),
       _HubCategory(
-        label:
-            AppLocalizations.of(context)?.ownProfileDescriptor ?? 'My Profile',
+        label: l10n.ownProfileDescriptor,
         icon: LucideIcons.user,
         isExpandable: false,
       ),
       _HubCategory(
-        label: 'App Settings',
+        label: l10n.appSettings,
         icon: LucideIcons.settings,
         isExpandable: true,
-        items: const [
+        items: [
           _HubNavigationItem(
-            label: 'Appearance',
+            label: l10n.appearance,
             icon: LucideIcons.palette,
           ),
           _HubNavigationItem(
-            label: 'Layout',
+            label: l10n.layout,
             icon: LucideIcons.layoutDashboard,
           ),
           _HubNavigationItem(
-            label: 'Encryption & Security',
+            label: l10n.encryptionAndSecurity,
             icon: LucideIcons.shield,
           ),
           _HubNavigationItem(
-            label: 'Chat',
+            label: l10n.chatSettings,
             icon: LucideIcons.messageSquare,
           ),
         ],
@@ -140,6 +140,7 @@ class _HubScreenState extends State<HubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -147,7 +148,7 @@ class _HubScreenState extends State<HubScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Hub',
+          l10n.hub,
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -236,6 +237,7 @@ class _HubScreenState extends State<HubScreen> {
   // ── Content routing ─────────────────────────────────────────────────────
 
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context)!;
     final cat = _categories[_selectedCategoryIndex];
 
     if (cat.isExpandable && _selectedSubItemIndex >= 0) {
@@ -268,7 +270,7 @@ class _HubScreenState extends State<HubScreen> {
           ),
         );
       default:
-        return const Center(child: Text('Select a category'));
+        return Center(child: Text(l10n.selectCategory));
     }
   }
 
@@ -515,6 +517,7 @@ class _AccountsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final client = Provider.of<Client>(context, listen: false);
     final theme = Theme.of(context);
 
@@ -535,7 +538,7 @@ class _AccountsPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Accounts',
+                l10n.accounts,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -544,7 +547,7 @@ class _AccountsPage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Manage your connected Matrix accounts',
+                l10n.manageAccounts,
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onSurfaceVariant,
@@ -582,7 +585,7 @@ class _AccountsPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              profile?.displayName ?? 'Unknown',
+                              profile?.displayName ?? l10n.unknown,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -626,6 +629,7 @@ class _MyProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return FutureBuilder<Profile>(
       future: client.getProfileFromUserId(client.userID!),
       builder: (context, snapshot) {
@@ -672,7 +676,7 @@ class _MyProfilePage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          profile?.displayName ?? 'You',
+                          profile?.displayName ?? l10n.unknown,
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -698,7 +702,7 @@ class _MyProfilePage extends StatelessWidget {
 
               // ── Display Name ──────────────────────────────────────
               Text(
-                'Display Name',
+                l10n.displayName,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -714,7 +718,7 @@ class _MyProfilePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  profile?.displayName ?? 'Not set',
+                  profile?.displayName ?? l10n.notSet,
                   style: TextStyle(
                     fontSize: 16,
                     color: theme.colorScheme.onSurface,
@@ -726,7 +730,7 @@ class _MyProfilePage extends StatelessWidget {
 
               // ── User ID (read-only) ──────────────────────────────
               Text(
-                'User ID',
+                l10n.userIDLabel,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -773,12 +777,13 @@ class _AppSettingsOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
         Text(
-          'App Settings',
+          l10n.appSettings,
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -787,7 +792,7 @@ class _AppSettingsOverview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Customize your experience',
+          l10n.customizeExperience,
           style: TextStyle(
             fontSize: 13,
             color: theme.colorScheme.onSurfaceVariant,
@@ -829,13 +834,14 @@ class _AppearanceSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Appearance',
+                l10n.appearance,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -844,7 +850,7 @@ class _AppearanceSettings extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Control the look and feel of the app',
+                l10n.controlLookAndFeel,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -854,7 +860,7 @@ class _AppearanceSettings extends StatelessWidget {
 
               // Theme mode
               _SettingsSection(
-                title: 'Theme mode',
+                title: l10n.themeMode,
                 children: [
                   RadioGroup<ThemeMode>(
                     groupValue: controller.themeMode,
@@ -863,15 +869,15 @@ class _AppearanceSettings extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         RadioListTile<ThemeMode>(
-                          title: const Text('System'),
+                          title: Text(l10n.system),
                           value: ThemeMode.system,
                         ),
                         RadioListTile<ThemeMode>(
-                          title: const Text('Light'),
+                          title: Text(l10n.light),
                           value: ThemeMode.light,
                         ),
                         RadioListTile<ThemeMode>(
-                          title: const Text('Dark'),
+                          title: Text(l10n.dark),
                           value: ThemeMode.dark,
                         ),
                       ],
@@ -883,7 +889,7 @@ class _AppearanceSettings extends StatelessWidget {
 
               // Colour theme
               _SettingsSection(
-                title: 'Colour theme',
+                title: l10n.colourTheme,
                 children: [
                   RadioGroup<MoonrelayThemeOption>(
                     groupValue: controller.themeOption,
@@ -906,7 +912,7 @@ class _AppearanceSettings extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(option.label),
+                                Text(_localizedThemeOption(option, l10n)),
                               ],
                             ),
                             value: option,
@@ -921,12 +927,12 @@ class _AppearanceSettings extends StatelessWidget {
 
               // Use system titlebar
               _SettingsSection(
-                title: 'Use system titlebar',
+                title: l10n.useSystemTitlebar,
                 children: [
                   SwitchListTile(
-                    title: const Text('Enable'),
-                    subtitle: const Text(
-                      'Use the native window title bar instead of the custom one',
+                    title: Text(l10n.enable),
+                    subtitle: Text(
+                      l10n.useNativeTitlebar,
                     ),
                     value: controller.useSystemTitlebar,
                     onChanged: (v) => controller.updateUseOfSystemTitlebar(v),
@@ -938,7 +944,7 @@ class _AppearanceSettings extends StatelessWidget {
 
               // Chat display type
               _SettingsSection(
-                title: 'Chat display type',
+                title: l10n.chatDisplayType,
                 children: [
                   RadioGroup<DisplayType>(
                     groupValue: controller.displayType,
@@ -947,15 +953,15 @@ class _AppearanceSettings extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         RadioListTile<DisplayType>(
-                          title: Text(DisplayType.modern.label),
+                          title: Text(l10n.displayModern),
                           value: DisplayType.modern,
                         ),
                         RadioListTile<DisplayType>(
-                          title: Text(DisplayType.irc.label),
+                          title: Text(l10n.displayIrc),
                           value: DisplayType.irc,
                         ),
                         RadioListTile<DisplayType>(
-                          title: Text(DisplayType.bubbles.label),
+                          title: Text(l10n.displayBubbles),
                           value: DisplayType.bubbles,
                         ),
                       ],
@@ -980,13 +986,14 @@ class _LayoutSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Layout',
+                l10n.layout,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -995,7 +1002,7 @@ class _LayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Customize the arrangement of UI panels',
+                l10n.customizeLayout,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1005,12 +1012,12 @@ class _LayoutSettings extends StatelessWidget {
 
               // Left sidebar
               _SettingsSection(
-                title: 'Left sidebar',
+                title: l10n.leftSidebar,
                 children: [
                   SwitchListTile(
-                    title: const Text('Visible'),
-                    subtitle: const Text(
-                      'Show or hide the left sidebar',
+                    title: Text(l10n.visible),
+                    subtitle: Text(
+                      l10n.showOrHideLeftSidebar,
                     ),
                     value: controller.leftSidebarVisible,
                     onChanged: (v) => controller.setLeftSidebarVisible(v),
@@ -1018,9 +1025,10 @@ class _LayoutSettings extends StatelessWidget {
                   ),
                   if (controller.leftSidebarVisible) ...[
                     ListTile(
-                      title: const Text('Content'),
+                      title: Text(l10n.content),
                       subtitle: Text(
-                        controller.leftPaneChoice.label,
+                        _localizedLeftPaneChoice(
+                            controller.leftPaneChoice, l10n),
                       ),
                       leading: const Icon(LucideIcons.layoutList),
                       trailing: DropdownButton<LeftPaneChoice>(
@@ -1034,14 +1042,14 @@ class _LayoutSettings extends StatelessWidget {
                             .map(
                               (c) => DropdownMenuItem(
                                 value: c,
-                                child: Text(c.label),
+                                child: Text(_localizedLeftPaneChoice(c, l10n)),
                               ),
                             )
                             .toList(),
                       ),
                     ),
                     ListTile(
-                      title: const Text('Width'),
+                      title: Text(l10n.widthLabel),
                       subtitle: Text(
                         '${controller.leftSidebarWidth.round()} px',
                       ),
@@ -1078,9 +1086,10 @@ class _LayoutSettings extends StatelessWidget {
                   ),
                   if (controller.rightSidebarVisible) ...[
                     ListTile(
-                      title: const Text('Content'),
+                      title: Text(l10n.content),
                       subtitle: Text(
-                        controller.rightPaneChoice.label,
+                        _localizedRightPaneChoice(
+                            controller.rightPaneChoice, l10n),
                       ),
                       leading: const Icon(LucideIcons.layoutList),
                       trailing: DropdownButton<RightPaneChoice>(
@@ -1094,14 +1103,14 @@ class _LayoutSettings extends StatelessWidget {
                             .map(
                               (c) => DropdownMenuItem(
                                 value: c,
-                                child: Text(c.label),
+                                child: Text(_localizedRightPaneChoice(c, l10n)),
                               ),
                             )
                             .toList(),
                       ),
                     ),
                     ListTile(
-                      title: const Text('Width'),
+                      title: Text(l10n.widthLabel),
                       subtitle: Text(
                         '${controller.rightSidebarWidth.round()} px',
                       ),
@@ -1155,13 +1164,14 @@ class _ChatSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Chat',
+                l10n.chatSettings,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1170,7 +1180,7 @@ class _ChatSettings extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Timeline and message display options',
+                l10n.timelineAndMessages,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1178,12 +1188,12 @@ class _ChatSettings extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               _SettingsSection(
-                title: 'State events',
+                title: l10n.stateEventsSection,
                 children: [
                   SwitchListTile(
-                    title: const Text('Show state events'),
-                    subtitle: const Text(
-                      'Display join/leave/room changes in the timeline',
+                    title: Text(l10n.showStateEvents),
+                    subtitle: Text(
+                      l10n.showStateEventsDescription,
                     ),
                     value: controller.showStateEvents,
                     onChanged: (v) => controller.updateShowStateEvents(v),
@@ -1240,5 +1250,52 @@ class _SettingsSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ── Localization helpers ────────────────────────────────────────────────────
+
+String _localizedThemeOption(
+    MoonrelayThemeOption option, AppLocalizations l10n) {
+  switch (option) {
+    case MoonrelayThemeOption.indigo:
+      return l10n.themeDefault;
+    case MoonrelayThemeOption.oceanBlue:
+      return l10n.themeOceanBlue;
+    case MoonrelayThemeOption.midnightSlate:
+      return l10n.themeMidnightSlate;
+    case MoonrelayThemeOption.crimson:
+      return l10n.themeCrimson;
+    case MoonrelayThemeOption.amber:
+      return l10n.themeAmber;
+    case MoonrelayThemeOption.steel:
+      return l10n.themeSteel;
+    case MoonrelayThemeOption.sky:
+      return l10n.themeSky;
+  }
+}
+
+String _localizedLeftPaneChoice(LeftPaneChoice choice, AppLocalizations l10n) {
+  switch (choice) {
+    case LeftPaneChoice.rooms:
+      return l10n.paneRooms;
+    case LeftPaneChoice.spaces:
+      return l10n.paneSpaces;
+    case LeftPaneChoice.friends:
+      return l10n.paneFriends;
+    case LeftPaneChoice.none:
+      return l10n.paneHidden;
+  }
+}
+
+String _localizedRightPaneChoice(
+    RightPaneChoice choice, AppLocalizations l10n) {
+  switch (choice) {
+    case RightPaneChoice.none:
+      return l10n.paneNone;
+    case RightPaneChoice.roomInfo:
+      return l10n.paneRoomInfo;
+    case RightPaneChoice.members:
+      return l10n.paneMembers;
   }
 }

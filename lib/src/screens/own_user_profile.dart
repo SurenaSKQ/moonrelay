@@ -71,7 +71,7 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text("You have not set a display name!"),
+                  content: Text(AppLocalizations.of(context)!.noDisplayNameSet),
                 ),
               );
             });
@@ -114,7 +114,7 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
         onPressed: () => context.pop(),
       ),
       title: Text(
-        AppLocalizations.of(context)?.ownProfileDescriptor ?? 'Your Profile',
+        AppLocalizations.of(context)!.ownProfileDescriptor,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
       ),
     );
@@ -122,9 +122,10 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
 
   Widget _buildErrorBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final message = _error is TimeoutException
-        ? 'Could not load profile: The server did not respond in time.'
-        : 'Could not load profile: $_error';
+        ? l10n.profileLoadTimeout
+        : l10n.profileLoadError('$_error');
 
     return Center(
       child: Padding(
@@ -142,7 +143,7 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
               icon: const Icon(LucideIcons.refreshCw, size: 18),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context)!.retry),
               onPressed: () {
                 setState(() {
                   _loading = true;

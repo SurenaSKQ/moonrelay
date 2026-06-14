@@ -18,6 +18,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Displays detailed information about a single timeline event, including
 /// sender metadata, timestamps, event identifiers, and the raw JSON content.
@@ -36,10 +37,11 @@ class MessageDetailsPage extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final sender = event.senderFromMemoryOrFallback;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Message Details'),
+        title: Text(l10n.messageDetails),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
@@ -49,50 +51,51 @@ class MessageDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // --- Sender section ---
-          _SectionHeader(title: 'Sender', cs: cs),
-          _InfoRow(label: 'Display name', value: sender.calcDisplayname()),
-          _InfoRow(label: 'User ID', value: sender.id, mono: true),
+          _SectionHeader(title: l10n.senderSection, cs: cs),
+          _InfoRow(
+              label: l10n.displayNameLabel, value: sender.calcDisplayname()),
+          _InfoRow(label: l10n.userIdLabel, value: sender.id, mono: true),
           const Divider(),
 
           // --- Timestamps ---
-          _SectionHeader(title: 'Timestamps', cs: cs),
+          _SectionHeader(title: l10n.timestampsSection, cs: cs),
           _InfoRow(
-            label: 'Sent at',
+            label: l10n.sentAt,
             value: event.originServerTs.toIso8601String(),
           ),
           const Divider(),
 
           // --- Event info ---
-          _SectionHeader(title: 'Event Info', cs: cs),
-          _InfoRow(label: 'Event type', value: event.type, mono: true),
-          _InfoRow(label: 'Event ID', value: event.eventId, mono: true),
-          _InfoRow(label: 'Room ID', value: room.id, mono: true),
+          _SectionHeader(title: l10n.eventInfo, cs: cs),
+          _InfoRow(label: l10n.eventType, value: event.type, mono: true),
+          _InfoRow(label: l10n.eventId, value: event.eventId, mono: true),
+          _InfoRow(label: l10n.roomId, value: room.id, mono: true),
           _InfoRow(
-            label: 'Status',
-            value: event.redacted ? 'Redacted (deleted)' : 'Active',
+            label: l10n.statusLabel,
+            value: event.redacted ? l10n.redactedStatus : l10n.activeStatus,
           ),
           if (event.relationshipType != null)
             _InfoRow(
-              label: 'Relationship',
+              label: l10n.relationshipLabel,
               value: event.relationshipType!,
               mono: true,
             ),
           if (event.relationshipEventId != null)
             _InfoRow(
-              label: 'Related event ID',
+              label: l10n.relatedEventId,
               value: event.relationshipEventId!,
               mono: true,
             ),
           if (event.inReplyToEventId() != null)
             _InfoRow(
-              label: 'Reply to event ID',
+              label: l10n.replyToEventId,
               value: event.inReplyToEventId()!,
               mono: true,
             ),
           const Divider(),
 
           // --- Raw JSON ---
-          _SectionHeader(title: 'Raw Content', cs: cs),
+          _SectionHeader(title: l10n.rawContent, cs: cs),
           const SizedBox(height: 8),
           Container(
             width: double.infinity,

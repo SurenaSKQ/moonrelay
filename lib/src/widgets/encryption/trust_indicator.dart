@@ -34,10 +34,11 @@ class EncryptionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final encrypted = room.encrypted;
 
     return Tooltip(
-      message: encrypted ? 'Encrypted' : 'Not encrypted',
+      message: encrypted ? l10n.encryptedTooltip : l10n.notEncryptedTooltip,
       child: Icon(
         encrypted ? LucideIcons.lock : LucideIcons.lockOpen,
         size: size,
@@ -64,10 +65,11 @@ class TrustIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     if (!isVerified) {
       return Tooltip(
-        message: 'Unverified',
+        message: l10n.unverifiedTooltip,
         child: Icon(
           LucideIcons.shieldOff,
           size: size,
@@ -77,7 +79,7 @@ class TrustIndicator extends StatelessWidget {
     }
 
     return Tooltip(
-      message: 'Verified',
+      message: l10n.verifiedTooltip,
       child: Icon(
         LucideIcons.shieldCheck,
         size: size,

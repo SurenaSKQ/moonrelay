@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Displays an image message with thumbnail, loading state, and tap-to-zoom.
 class ImageMessageType extends StatefulWidget {
@@ -92,10 +93,10 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Text(
-                    'Failed to load image',
-                    style: TextStyle(color: Colors.white),
+                    AppLocalizations.of(context)!.failedToLoadImage,
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ),
@@ -125,7 +126,8 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
 
         if (snapshot.hasError) {
           return Tooltip(
-            message: 'Failed to load image: ${snapshot.error}',
+            message: AppLocalizations.of(context)!
+                .failedToLoadImageWithError('${snapshot.error}'),
             child: const Icon(Icons.error, size: 48),
           );
         }

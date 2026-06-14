@@ -151,8 +151,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${AppLocalizations.of(context)?.error ?? "Error"}: '
-            'Failed to send message. ${e is TimeoutException ? "The request timed out." : e}',
+            '${AppLocalizations.of(context)!.error}: '
+            '${e is TimeoutException ? '${AppLocalizations.of(context)!.sendFailed} ${AppLocalizations.of(context)!.sendTimedOut}' : '${AppLocalizations.of(context)!.sendFailed} $e'}',
           ),
         ),
       );
@@ -191,8 +191,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '${AppLocalizations.of(context)?.error ?? "Error"}: '
-                  '${e is TimeoutException ? "Upload timed out." : e}',
+                  '${AppLocalizations.of(context)!.error}: '
+                  '${e is TimeoutException ? AppLocalizations.of(context)!.uploadTimedOut : '$e'}',
                 ),
               ),
             );
@@ -213,8 +213,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${AppLocalizations.of(context)?.error ?? "Error"}: '
-                '${e is TimeoutException ? "Upload timed out." : e}',
+                '${AppLocalizations.of(context)!.error}: '
+                '${e is TimeoutException ? AppLocalizations.of(context)!.uploadTimedOut : '$e'}',
               ),
             ),
           );
@@ -297,7 +297,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -335,7 +335,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                 // Attach button
                 _IconButton(
                   icon: LucideIcons.paperclip,
-                  tooltip: l10n?.chatBoxAttach ?? 'Attach file',
+                  tooltip: l10n.chatBoxAttach,
                   onPressed: _attachFile,
                   colorScheme: colorScheme,
                 ),
@@ -371,8 +371,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                         color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText:
-                            l10n?.chatBoxSendMessage ?? 'Send a message\u2026',
+                        hintText: l10n.chatBoxSendMessage,
                         hintStyle: TextStyle(
                           fontSize: 15,
                           color: colorScheme.onSurface.withValues(alpha: 0.4),
@@ -395,9 +394,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   icon: _isExpanded
                       ? LucideIcons.chevronDown
                       : LucideIcons.chevronUp,
-                  tooltip: _isExpanded
-                      ? (l10n?.chatBoxCollapse ?? 'Collapse')
-                      : (l10n?.chatBoxExpand ?? 'Expand editor'),
+                  tooltip:
+                      _isExpanded ? l10n.chatBoxCollapse : l10n.chatBoxExpand,
                   onPressed: _toggleExpand,
                   colorScheme: colorScheme,
                 ),
@@ -405,7 +403,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                 // Send button
                 _IconButton(
                   icon: LucideIcons.send,
-                  tooltip: l10n?.chatBoxSend ?? 'Send',
+                  tooltip: l10n.chatBoxSend,
                   onPressed: _isEmpty ? null : _send,
                   colorScheme: colorScheme,
                   isPrimary: true,
@@ -467,8 +465,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  l10n?.chatBoxReplyingTo(senderName) ??
-                      'Replying to $senderName',
+                  l10n!.chatBoxReplyingTo(senderName),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -489,7 +486,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           ),
           const SizedBox(width: 4),
           Tooltip(
-            message: l10n?.chatBoxCancelReply ?? 'Cancel reply',
+            message: l10n.chatBoxCancelReply,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -516,6 +513,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   // ---------------------------------------------------------------------------
 
   Widget _buildFormattingToolbar(ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Wrap(
@@ -524,55 +522,55 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         children: [
           _formatButton(
             icon: LucideIcons.bold,
-            tooltip: 'Bold',
+            tooltip: l10n.formatBold,
             onTap: () => _wrapSelection('**', '**'),
           ),
           _formatButton(
             icon: LucideIcons.italic,
-            tooltip: 'Italic',
+            tooltip: l10n.formatItalic,
             onTap: () => _wrapSelection('*', '*'),
           ),
           _formatButton(
             icon: LucideIcons.strikethrough,
-            tooltip: 'Strikethrough',
+            tooltip: l10n.formatStrikethrough,
             onTap: () => _wrapSelection('~~', '~~'),
           ),
           _formatDivider(),
           _formatButton(
             icon: LucideIcons.code,
-            tooltip: 'Inline code',
+            tooltip: l10n.formatInlineCode,
             onTap: () => _wrapSelection('`', '`'),
           ),
           _formatButton(
             icon: LucideIcons.code2,
-            tooltip: 'Code block',
+            tooltip: l10n.formatCodeBlock,
             onTap: () => _wrapSelection('```\n', '\n```'),
           ),
           _formatDivider(),
           _formatButton(
             icon: LucideIcons.textQuote,
-            tooltip: 'Blockquote',
+            tooltip: l10n.formatBlockquote,
             onTap: () => _insertLinePrefix('> '),
           ),
           _formatButton(
             icon: LucideIcons.heading1,
-            tooltip: 'Heading',
+            tooltip: l10n.formatHeading,
             onTap: () => _insertLinePrefix('# '),
           ),
           _formatButton(
             icon: LucideIcons.list,
-            tooltip: 'Unordered list',
+            tooltip: l10n.formatUnorderedList,
             onTap: () => _insertLinePrefix('- '),
           ),
           _formatButton(
             icon: LucideIcons.listOrdered,
-            tooltip: 'Ordered list',
+            tooltip: l10n.formatOrderedList,
             onTap: () => _insertLinePrefix('1. '),
           ),
           _formatDivider(),
           _formatButton(
             icon: LucideIcons.link,
-            tooltip: 'Link',
+            tooltip: l10n.formatLink,
             onTap: () => _wrapSelection('[', '](url)'),
           ),
         ],

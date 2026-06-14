@@ -231,8 +231,9 @@ class _TrustBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     return Tooltip(
-      message: verified ? 'Verified' : 'Unverified',
+      message: verified ? l10n.encryptionVerified : l10n.encryptionUnverified,
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,

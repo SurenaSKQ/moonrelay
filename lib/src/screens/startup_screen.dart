@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Welcome screen shown before authentication.
 ///
@@ -27,6 +28,7 @@ class StartupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
 
@@ -41,19 +43,19 @@ class StartupScreen extends StatelessWidget {
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(child: _buildBranding(context, colors)),
+                    Expanded(child: _buildBranding(context, colors, l10n)),
                     const SizedBox(width: 48),
                     SizedBox(
                       width: 400,
-                      child: _buildActionCard(context, colors),
+                      child: _buildActionCard(context, colors, l10n),
                     ),
                   ],
                 )
               : Column(
                   children: [
-                    _buildBranding(context, colors),
+                    _buildBranding(context, colors, l10n),
                     const SizedBox(height: 48),
-                    _buildActionCard(context, colors),
+                    _buildActionCard(context, colors, l10n),
                   ],
                 ),
         );
@@ -61,7 +63,8 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBranding(BuildContext context, ColorScheme colors) {
+  Widget _buildBranding(
+      BuildContext context, ColorScheme colors, AppLocalizations l10n) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -73,7 +76,7 @@ class StartupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'Moonrelay',
+          l10n.projectName,
           style: TextStyle(
             fontFamily: 'Oxanium',
             fontWeight: FontWeight.bold,
@@ -83,7 +86,7 @@ class StartupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'The Public Benefit Messenger',
+          l10n.startupTagline,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -92,7 +95,7 @@ class StartupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Text(
-          'A secure, decentralised Matrix client\nfocused on professional communication.',
+          l10n.startupDescription,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -103,7 +106,8 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(BuildContext context, ColorScheme colors) {
+  Widget _buildActionCard(
+      BuildContext context, ColorScheme colors, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -114,7 +118,7 @@ class StartupScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Get Started',
+              l10n.getStarted,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
@@ -123,7 +127,7 @@ class StartupScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sign in to your existing account\nor create a new one.',
+              l10n.signInDescription,
               style: TextStyle(
                 fontSize: 14,
                 color: colors.onSurfaceVariant,
@@ -133,7 +137,7 @@ class StartupScreen extends StatelessWidget {
             FilledButton.icon(
               onPressed: () => context.push('/welcome/login'),
               icon: const Icon(LucideIcons.logIn),
-              label: const Text('Sign In'),
+              label: Text(l10n.signIn),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
@@ -145,7 +149,7 @@ class StartupScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => context.push('/welcome/register'),
               icon: const Icon(LucideIcons.userPlus),
-              label: const Text('Create Account'),
+              label: Text(l10n.createAccount),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
@@ -157,7 +161,7 @@ class StartupScreen extends StatelessWidget {
             TextButton.icon(
               onPressed: () => context.push('/welcome/login'),
               icon: const Icon(LucideIcons.fingerprint, size: 18),
-              label: const Text('Sign in with Single Sign-On'),
+              label: Text(l10n.signInWithSso),
               style: TextButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(

@@ -17,16 +17,17 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 class VideoMessageType extends StatelessWidget {
   const VideoMessageType({super.key, required this.event});
   final Event event;
 
-  Future<void> _downloadFile() async {
+  Future<void> _downloadFile(BuildContext context) async {
     if (event.hasAttachment) {
       final attFile = await event.downloadAndDecryptAttachment();
       await FilePicker.saveFile(
-        dialogTitle: 'Save video',
+        dialogTitle: AppLocalizations.of(context)!.saveVideo,
         fileName: _fileName,
         bytes: attFile.bytes,
       );
@@ -52,6 +53,7 @@ class VideoMessageType extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 80, maxWidth: 280),
@@ -74,7 +76,7 @@ class VideoMessageType extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _fileName ?? 'video_file',
+                      _fileName ?? l10n.videoFileName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -84,7 +86,7 @@ class VideoMessageType extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_mimeType ?? "Unknown type"}${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
+                      '${_mimeType ?? l10n.unknownType}${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
                       style: TextStyle(
                         fontSize: 12,
                         color:
@@ -97,10 +99,10 @@ class VideoMessageType extends StatelessWidget {
               ),
               // Download button
               Tooltip(
-                message: 'Download video',
+                message: l10n.downloadVideo,
                 child: IconButton(
                   icon: const Icon(Icons.download, size: 20),
-                  onPressed: _downloadFile,
+                  onPressed: () => _downloadFile(context),
                 ),
               ),
             ],

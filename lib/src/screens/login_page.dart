@@ -73,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
 
     // ── Full-screen syncing state after successful login ──────────────
     if (_syncing) {
-      return _buildSyncingScreen(colors, theme);
+      return _buildSyncingScreen(colors, theme, l10n);
     }
 
     return SingleChildScrollView(
@@ -103,10 +103,10 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(width: 8),
                       Text(
                         _ssoMode
-                            ? 'Single Sign-On'
+                            ? l10n.ssoTitle
                             : _tokenMode
-                                ? 'Token Login'
-                                : 'Sign In',
+                                ? l10n.tokenLoginTitle
+                                : l10n.signInTitle,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
@@ -147,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                   // ── Homeserver field ──
-                  _buildLabel(colors, 'Homeserver'),
+                  _buildLabel(colors, l10n.homeserverText),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _homeserverCtrl,
@@ -168,22 +168,22 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
 
                   // ── SSO mode ──
-                  if (_ssoMode) ..._buildSsoSection(colors),
+                  if (_ssoMode) ..._buildSsoSection(colors, l10n),
 
                   // ── Token mode ──
-                  if (_tokenMode) ..._buildTokenSection(colors),
+                  if (_tokenMode) ..._buildTokenSection(colors, l10n),
 
                   // ── Password mode ──
                   if (!_ssoMode && !_tokenMode)
-                    ..._buildPasswordSection(colors),
+                    ..._buildPasswordSection(colors, l10n),
 
                   const SizedBox(height: 24),
 
                   // ── Primary action button ──
                   if (_ssoMode)
-                    _buildSsoActionButton(colors)
+                    _buildSsoActionButton(colors, l10n)
                   else if (_tokenMode)
-                    _buildTokenActionButton(colors)
+                    _buildTokenActionButton(colors, l10n)
                   else
                     _buildPasswordActionButton(colors, l10n),
 
@@ -192,22 +192,22 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 12),
                     if (!_ssoMode && !_tokenMode)
                       _buildModeLink(
-                        'Use Single Sign-On instead',
+                        l10n.useSsoInstead,
                         () => setState(() => _ssoMode = true),
                       ),
                     if (_ssoMode && !_tokenMode)
                       _buildModeLink(
-                        'Use password instead',
+                        l10n.usePasswordInstead,
                         () => setState(() => _ssoMode = false),
                       ),
                     if (!_ssoMode && !_tokenMode)
                       _buildModeLink(
-                        'Use login token instead',
+                        l10n.useTokenInstead,
                         () => setState(() => _tokenMode = true),
                       ),
                     if (_tokenMode)
                       _buildModeLink(
-                        'Back to password login',
+                        l10n.backToPasswordLogin,
                         () => setState(() => _tokenMode = false),
                       ),
                   ],
@@ -222,7 +222,8 @@ class _LoginPageState extends State<LoginPage> {
 
   // ── Syncing screen ───────────────────────────────────────────────────
 
-  Widget _buildSyncingScreen(ColorScheme colors, ThemeData theme) {
+  Widget _buildSyncingScreen(
+      ColorScheme colors, ThemeData theme, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -236,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Welcome to Moonrelay',
+              l10n.welcomeToApp,
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -254,7 +255,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              _statusMessage ?? 'Loading…',
+              _statusMessage ?? l10n.loading,
               style: TextStyle(
                 fontSize: 15,
                 color: colors.onSurfaceVariant,
@@ -262,7 +263,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Fetching your rooms and messages…',
+              l10n.fetchingRooms,
               style: TextStyle(
                 fontSize: 13,
                 color: colors.onSurfaceVariant.withValues(alpha: 0.7),
@@ -300,14 +301,15 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  List<Widget> _buildPasswordSection(ColorScheme colors) {
+  List<Widget> _buildPasswordSection(
+      ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, 'Username or email'),
+      _buildLabel(colors, l10n.usernameOrEmail),
       const SizedBox(height: 6),
       TextField(
         controller: _usernameCtrl,
         decoration: InputDecoration(
-          hintText: '@user:matrix.org',
+          hintText: l10n.usernameHint,
           prefixIcon: const Icon(LucideIcons.user, size: 18),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -321,7 +323,7 @@ class _LoginPageState extends State<LoginPage> {
         enabled: !_loading,
       ),
       const SizedBox(height: 16),
-      _buildLabel(colors, 'Password'),
+      _buildLabel(colors, l10n.passwordText),
       const SizedBox(height: 6),
       TextField(
         controller: _passwordCtrl,
@@ -343,9 +345,9 @@ class _LoginPageState extends State<LoginPage> {
     ];
   }
 
-  List<Widget> _buildSsoSection(ColorScheme colors) {
+  List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, 'SSO Login URL'),
+      _buildLabel(colors, l10n.ssoUrlLabel),
       const SizedBox(height: 6),
       Container(
         padding: const EdgeInsets.all(12),
@@ -354,7 +356,7 @@ class _LoginPageState extends State<LoginPage> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          _ssoUrl ?? 'Click "Open in Browser" to start.',
+          _ssoUrl ?? l10n.ssoStartingHint,
           style: TextStyle(
             fontFamily: 'SpaceMono',
             fontSize: 12,
@@ -363,12 +365,12 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
       const SizedBox(height: 16),
-      _buildLabel(colors, 'Login Token (paste after authenticating)'),
+      _buildLabel(colors, '${l10n.tokenLabel} (paste after authenticating)'),
       const SizedBox(height: 6),
       TextField(
         controller: _tokenCtrl,
         decoration: InputDecoration(
-          hintText: 'Paste your login token here…',
+          hintText: l10n.tokenHint,
           prefixIcon: const Icon(LucideIcons.key, size: 18),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -384,9 +386,9 @@ class _LoginPageState extends State<LoginPage> {
     ];
   }
 
-  List<Widget> _buildTokenSection(ColorScheme colors) {
+  List<Widget> _buildTokenSection(ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, 'Login Token'),
+      _buildLabel(colors, l10n.tokenLabel),
       const SizedBox(height: 6),
       TextField(
         controller: _tokenCtrl,
@@ -420,7 +422,7 @@ class _LoginPageState extends State<LoginPage> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(LucideIcons.logIn, size: 18),
-      label: Text(_loading ? 'Signing in…' : l10n.loginButton),
+      label: Text(_loading ? l10n.signingIn : l10n.loginButton),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -428,7 +430,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildSsoActionButton(ColorScheme colors) {
+  Widget _buildSsoActionButton(ColorScheme colors, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -441,7 +443,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(LucideIcons.externalLink, size: 18),
-          label: Text(_loading ? 'Preparing…' : 'Open in Browser'),
+          label: Text(_loading ? l10n.preparing : l10n.openInBrowser),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
             shape:
@@ -452,7 +454,7 @@ class _LoginPageState extends State<LoginPage> {
         FilledButton.icon(
           onPressed: _loading ? null : _doSsoComplete,
           icon: const Icon(LucideIcons.check, size: 18),
-          label: const Text('Complete Login'),
+          label: Text(l10n.completeLogin),
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
             shape:
@@ -463,7 +465,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildTokenActionButton(ColorScheme colors) {
+  Widget _buildTokenActionButton(ColorScheme colors, AppLocalizations l10n) {
     return FilledButton.icon(
       onPressed: _loading ? null : _doTokenLogin,
       icon: _loading
@@ -473,7 +475,7 @@ class _LoginPageState extends State<LoginPage> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(LucideIcons.key, size: 18),
-      label: Text(_loading ? 'Signing in…' : 'Sign in with Token'),
+      label: Text(_loading ? l10n.signingIn : l10n.signInWithToken),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -510,9 +512,9 @@ class _LoginPageState extends State<LoginPage> {
   /// Checks whether [error] is a timeout and sets a user-facing message.
   /// Returns `null` to signal the caller to abort.
   List<LoginFlow>? _handleTimeoutError(Object error, String prefix) {
+    final l10n = AppLocalizations.of(context)!;
     if (error is TimeoutException) {
-      setState(() => _error =
-          '$prefix: The server did not respond in time. Please check your connection and try again.');
+      setState(() => _error = '$prefix: ${l10n.loginHomeserverTimeout}');
     } else {
       setState(() => _error = '$prefix: $error');
     }
@@ -520,6 +522,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _doPasswordLogin() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _error = null;
@@ -544,7 +547,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!flows.any((f) => f.type == AuthenticationTypes.password)) {
       setState(() {
-        _error = 'This homeserver does not support password login.';
+        _error = l10n.passwordLoginNotSupported;
         _loading = false;
       });
       return;
@@ -574,7 +577,7 @@ class _LoginPageState extends State<LoginPage> {
           // in the background.  Show a full-screen loading state so the
           // user sees progress instead of a blank room list.
           setState(() {
-            _statusMessage = 'Syncing your account…';
+            _statusMessage = l10n.syncingYourAccount;
             _loading = false; // allow the build method to show _syncing UI
             _syncing = true;
           });
@@ -597,8 +600,8 @@ class _LoginPageState extends State<LoginPage> {
         {
           log.e('Login failed after $attempts attempt(s)', error: error);
           setState(() => _error = error is TimeoutException
-              ? 'Login timed out. The server may be overloaded. Please try again.'
-              : 'Login failed: $error');
+              ? l10n.loginTimedOut
+              : l10n.loginFailed('$error'));
           if (mounted) setState(() => _loading = false);
         }
     }
@@ -625,6 +628,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _doSsoOpenBrowser() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _error = null;
@@ -648,7 +652,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!flows.any((f) => f.type == AuthenticationTypes.sso)) {
       setState(() {
-        _error = 'This homeserver does not support SSO login.';
+        _error = l10n.ssoNotSupported;
         _loading = false;
       });
       return;
@@ -673,30 +677,32 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       log.e('Could not open browser', error: e);
       if (!mounted) return;
-      setState(() => _error = 'Could not open browser. Use the URL above.');
+      setState(() => _error = l10n.couldNotOpenBrowser);
     }
   }
 
   Future<void> _doSsoComplete() async {
+    final l10n = AppLocalizations.of(context)!;
     final String token = _tokenCtrl.text.trim();
     if (token.isEmpty) {
-      setState(
-          () => _error = 'Please paste the login token from your browser.');
+      setState(() => _error = l10n.pleasePasteToken);
       return;
     }
     await _completeTokenLogin(token);
   }
 
   Future<void> _doTokenLogin() async {
+    final l10n = AppLocalizations.of(context)!;
     final String token = _tokenCtrl.text.trim();
     if (token.isEmpty) {
-      setState(() => _error = 'Please enter a login token.');
+      setState(() => _error = l10n.pleaseEnterToken);
       return;
     }
     await _completeTokenLogin(token);
   }
 
   Future<void> _completeTokenLogin(String token) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _error = null;
@@ -736,7 +742,7 @@ class _LoginPageState extends State<LoginPage> {
       case RetrySuccess():
         {
           setState(() {
-            _statusMessage = 'Syncing your account…';
+            _statusMessage = l10n.syncingYourAccount;
             _loading = false;
             _syncing = true;
           });
@@ -756,8 +762,8 @@ class _LoginPageState extends State<LoginPage> {
         {
           log.e('Token login failed after $attempts attempt(s)', error: error);
           setState(() => _error = error is TimeoutException
-              ? 'Login timed out. The server may be overloaded. Please try again.'
-              : 'Token login failed: $error');
+              ? l10n.loginTimedOut
+              : l10n.tokenLoginFailed('$error'));
           if (mounted) setState(() => _loading = false);
         }
     }

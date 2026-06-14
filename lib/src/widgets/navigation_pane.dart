@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 /// A narrow vertical navigation bar that lets users switch between
@@ -39,6 +40,7 @@ class _NavigationPaneState extends State<NavigationPane> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Client client = Provider.of<Client>(context);
+    final l10n = AppLocalizations.of(context)!;
 
     // Collect spaces, sorted by name for consistency.
     final List<Room> spaces = client.rooms.where((r) => r.isSpace).toList()
@@ -62,7 +64,7 @@ class _NavigationPaneState extends State<NavigationPane> {
               // ── Home (direct messages) ────────────────────────────
               _NavIconButton(
                 icon: LucideIcons.home,
-                label: 'Home',
+                label: l10n.navigationHome,
                 isSelected: isHome,
                 onTap: nav.selectHome,
                 theme: theme,
@@ -71,7 +73,7 @@ class _NavigationPaneState extends State<NavigationPane> {
               // ── All Channels ──────────────────────────────────────
               _NavIconButton(
                 icon: LucideIcons.messageCircle,
-                label: 'All',
+                label: l10n.navigationAll,
                 isSelected: isAll,
                 onTap: nav.selectAll,
                 theme: theme,

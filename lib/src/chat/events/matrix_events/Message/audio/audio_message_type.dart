@@ -17,6 +17,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Displays an audio message with file info, duration, and a download button.
 ///
@@ -67,7 +68,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     if (_downloadFuture == null) return;
     final attFile = await _downloadFuture!;
     await FilePicker.saveFile(
-      dialogTitle: 'Save audio',
+      dialogTitle: AppLocalizations.of(context)!.saveAudio,
       fileName: _fileName,
       bytes: attFile.bytes,
     );
@@ -105,7 +106,8 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _fileName ?? 'audio_file',
+                          _fileName ??
+                              AppLocalizations.of(context)!.audioFileName,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -128,7 +130,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
 
                   // Download button
                   Tooltip(
-                    message: 'Download audio',
+                    message: AppLocalizations.of(context)!.downloadAudio,
                     child: IconButton(
                       icon: const Icon(Icons.download, size: 20),
                       onPressed: isReady ? _downloadFile : null,

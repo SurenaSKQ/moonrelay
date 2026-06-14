@@ -85,8 +85,9 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
             : LucideIcons.panelLeftOpen,
       ),
       onPressed: () => settings.toggleLeftSidebar(),
-      tooltip:
-          settings.leftSidebarVisible ? 'Collapse sidebar' : 'Expand sidebar',
+      tooltip: settings.leftSidebarVisible
+          ? l10n.collapseSidebar
+          : l10n.expandSidebar,
     );
 
     return PreferredSize(
@@ -145,36 +146,37 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     BuildContext context,
     Offset globalPosition,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
     final bool isMaxed = await windowManager.isMaximized();
 
     final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
-      const PopupMenuItem<String>(
+      PopupMenuItem<String>(
         value: 'minimize',
         child: _MenuRow(
           icon: Icons.minimize,
-          label: 'Minimize',
+          label: l10n.minimize,
         ),
       ),
       PopupMenuItem<String>(
         value: 'maximize',
         child: _MenuRow(
           icon: isMaxed ? Icons.filter_none : Icons.check_box_outline_blank,
-          label: isMaxed ? 'Restore' : 'Maximize',
+          label: isMaxed ? l10n.restore : l10n.maximize,
         ),
       ),
-      const PopupMenuItem<String>(
+      PopupMenuItem<String>(
         value: 'close',
         child: _MenuRow(
           icon: Icons.close,
-          label: 'Close',
+          label: l10n.closeWindow,
         ),
       ),
       const PopupMenuDivider(),
-      const PopupMenuItem<String>(
+      PopupMenuItem<String>(
         value: 'system',
         child: _MenuRow(
           icon: Icons.more_horiz,
-          label: 'Show system menu',
+          label: l10n.showSystemMenu,
         ),
       ),
     ];

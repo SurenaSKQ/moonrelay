@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
 /// A row of small icon buttons for **React**, **Reply**, **Forward**,
@@ -47,28 +48,28 @@ class MessageActions extends StatelessWidget {
       children: [
         _ActionIcon(
           icon: Icons.add_reaction_rounded,
-          tooltip: 'React',
+          tooltip: AppLocalizations.of(context)!.reactTooltip,
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: () => _react(context),
         ),
         const SizedBox(width: 2),
         _ActionIcon(
           icon: Icons.reply_rounded,
-          tooltip: 'Reply',
+          tooltip: AppLocalizations.of(context)!.replyTooltip,
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: onReply,
         ),
         const SizedBox(width: 2),
         _ActionIcon(
           icon: Icons.shortcut_rounded,
-          tooltip: 'Forward',
+          tooltip: AppLocalizations.of(context)!.forwardTooltip,
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: () => _forward(context),
         ),
         const SizedBox(width: 2),
         _ActionIcon(
           icon: Icons.info_outline_rounded,
-          tooltip: 'Details',
+          tooltip: AppLocalizations.of(context)!.detailsTooltip,
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: () => _showDetails(context),
         ),
@@ -76,7 +77,7 @@ class MessageActions extends StatelessWidget {
           const SizedBox(width: 2),
           _ActionIcon(
             icon: Icons.delete_outline_rounded,
-            tooltip: 'Delete',
+            tooltip: AppLocalizations.of(context)!.deleteTooltip,
             color: cs.error.withValues(alpha: 0.7),
             onTap: () => _confirmDelete(context),
           ),
@@ -102,7 +103,7 @@ class MessageActions extends StatelessWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Message copied to clipboard'),
+          content: Text(AppLocalizations.of(context)!.messageCopiedToClipboard),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -126,19 +127,19 @@ class MessageActions extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete message'),
-        content: const Text(
-          'Are you sure you want to delete this message?',
+        title: Text(AppLocalizations.of(context)!.deleteMessage),
+        content: Text(
+          AppLocalizations.of(context)!.areYouSureDeleteMessage,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Delete',
+              AppLocalizations.of(context)!.delete,
               style: TextStyle(color: Theme.of(ctx).colorScheme.error),
             ),
           ),
@@ -151,7 +152,9 @@ class MessageActions extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: $e')),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.failedToDelete('$e'))),
         );
       }
     }

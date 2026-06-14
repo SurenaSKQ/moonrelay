@@ -18,6 +18,7 @@ import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
@@ -482,7 +483,7 @@ class _RedactedEvent extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            'Message deleted',
+            AppLocalizations.of(context)!.messageDeleted,
             style: TextStyle(
               fontSize: 12,
               fontStyle: FontStyle.italic,

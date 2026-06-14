@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -96,7 +97,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Members ($totalMembers)',
+          AppLocalizations.of(context)!.membersCount(totalMembers),
           style: Theme.of(context).textTheme.titleLarge,
         ),
       ),
@@ -108,7 +109,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search members\u2026',
+                hintText: AppLocalizations.of(context)!.searchMembers,
                 prefixIcon: const Icon(LucideIcons.search, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -157,8 +158,9 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
                         const SizedBox(height: 12),
                         Text(
                           _searchQuery.isNotEmpty
-                              ? 'No members match your search'
-                              : 'No members found',
+                              ? AppLocalizations.of(context)!
+                                  .noMembersMatchSearch
+                              : AppLocalizations.of(context)!.noMembersFound,
                           style: TextStyle(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -174,10 +176,11 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
                   itemBuilder: (context, index) {
                     final member = members[index];
                     final displayName = member.calcDisplayname();
+                    final l10n = AppLocalizations.of(context)!;
                     final permissionLabel = member.powerLevel.level >= 100
-                        ? 'Admin'
+                        ? l10n.adminBadge
                         : member.powerLevel.level >= 50
-                            ? 'Moderator'
+                            ? l10n.moderatorBadge
                             : null;
 
                     return _FullMemberTile(
@@ -213,12 +216,13 @@ class _FullMemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final membershipLabel = switch (member.membership) {
-      Membership.ban => 'Banned',
-      Membership.invite => 'Invited',
+      Membership.ban => l10n.bannedBadge,
+      Membership.invite => l10n.invitedBadge,
       Membership.join => null,
-      Membership.knock => 'Knocking',
-      Membership.leave => 'Left',
+      Membership.knock => l10n.knockingBadge,
+      Membership.leave => l10n.leftBadge,
     };
 
     return GestureDetector(
@@ -341,20 +345,20 @@ class _FullMemberTile extends StatelessWidget {
         offset.dy + 60,
       ),
       items: [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'profile',
           child: ListTile(
             leading: Icon(Icons.person_rounded),
-            title: Text('View Profile'),
+            title: Text(AppLocalizations.of(context)!.viewProfile),
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'message',
           child: ListTile(
             leading: Icon(Icons.chat_rounded),
-            title: Text('Send Message'),
+            title: Text(AppLocalizations.of(context)!.sendMessage),
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),
@@ -405,8 +409,8 @@ class _FullMemberTile extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error is TimeoutException
-                ? 'Could not start chat: The server did not respond in time.'
-                : 'Could not start chat: $error'),
+                ? AppLocalizations.of(context)!.couldNotStartChatTimeout
+                : AppLocalizations.of(context)!.couldNotStartChat('$error')),
           ),
         );
     }

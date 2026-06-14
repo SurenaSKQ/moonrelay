@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// A timeline separator that marks the boundary between two different days.
 ///
@@ -34,11 +35,11 @@ class DateSeparator extends StatelessWidget {
 
     String label;
     if (isSameYear && now.month == dateTime.month && now.day == dateTime.day) {
-      label = 'Today';
+      label = AppLocalizations.of(context)!.today;
     } else if (isSameYear &&
         now.month == dateTime.month &&
         now.day == dateTime.day + 1) {
-      label = 'Yesterday';
+      label = AppLocalizations.of(context)!.yesterday;
     } else if (isSameYear) {
       label = DateFormat.MMMMd().format(dateTime);
     } else {

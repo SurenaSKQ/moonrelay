@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/widgets/label.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 // FIXME Text Styling
@@ -68,14 +69,16 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
 
     if (!mounted) return;
 
+    final l10n = AppLocalizations.of(context)!;
+
     switch (result) {
       case RetrySuccess():
         context.push('/main/rooms/$roomidOrAlias');
       case RetryFailed(:final error):
         setState(() {
           _error = error is TimeoutException
-              ? 'Joining room timed out. The server may be unreachable.'
-              : 'Could not join room: $error';
+              ? l10n.joiningTimedOut
+              : l10n.couldNotJoinRoom('$error');
         });
     }
 
@@ -85,6 +88,7 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
   @override
   Widget build(BuildContext context) {
     Client client = Provider.of<Client>(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -125,12 +129,12 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
                 ),
               ),
             Text(
-              'Search for the room you wish to join:',
+              l10n.joinRoomInstructions,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
             const SizedBox(height: 8.0),
             Label(
-              label: 'Room ID or Alias',
+              label: l10n.roomIdOrAlias,
               child: TextField(
                 controller: _roomIdController,
                 enabled: !_loading,
@@ -138,16 +142,16 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
             ),
             const SizedBox(height: 8.0),
             Text(
-              'Enter the server to join through:',
+              l10n.serverInstructions,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
             Text(
-              'If left empty, your own homeserver will be used.',
+              l10n.serverOptionalHint,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8.0),
             Label(
-              label: 'Server',
+              label: l10n.serverLabel,
               child: TextField(
                 controller: _serverController,
                 enabled: !_loading,
@@ -169,7 +173,7 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(LucideIcons.plus, size: 18),
-              label: Text(_loading ? 'Joining\u2026' : 'Add Room'),
+              label: Text(_loading ? l10n.joining : l10n.addRoom),
             ),
           ],
         ),

@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 class UnsupportedEventType extends StatelessWidget {
   const UnsupportedEventType({super.key, required this.event});
@@ -24,7 +25,11 @@ class UnsupportedEventType extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        "${event.senderFromMemoryOrFallback.calcDisplayname()} has sent an unsupported event of type ${event.type} with messageType ${event.messageType.toString()}",
+        AppLocalizations.of(context)!.unsupportedEvent(
+          event.senderFromMemoryOrFallback.calcDisplayname(),
+          event.type,
+          event.messageType.toString(),
+        ),
       ),
     );
   }

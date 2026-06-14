@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Common emojis shown in the quick-reaction popup.
 const List<String> kQuickReactionEmojis = [
@@ -177,7 +178,9 @@ class ReactionsBar extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send reaction: $e')),
+            SnackBar(
+                content: Text(
+                    AppLocalizations.of(context)!.failedToSendReaction('$e'))),
           );
         }
       }
@@ -191,7 +194,9 @@ class ReactionsBar extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send reaction: $e')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.failedToSendReaction('$e'))),
         );
       }
     }

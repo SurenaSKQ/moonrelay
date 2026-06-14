@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class CreateNewRoom extends StatefulWidget {
@@ -54,14 +55,16 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
 
     if (!mounted) return;
 
+    final l10n = AppLocalizations.of(context)!;
+
     switch (result) {
       case RetrySuccess(:final value):
         context.go('/main/rooms/$value');
       case RetryFailed(:final error):
         setState(() {
           _error = error is TimeoutException
-              ? 'Creating room timed out. The server may be unreachable.'
-              : 'Could not create room: $error';
+              ? l10n.creatingRoomTimedOut
+              : l10n.couldNotCreateRoom('$error');
           _loading = false;
         });
     }
@@ -78,9 +81,11 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
       });
     }
 
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Room'),
+        title: Text(l10n.createNewRoom),
       ),
       body: Center(
         child: Column(
@@ -91,13 +96,13 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
             else ...[
               FilledButton.icon(
                 icon: const Icon(LucideIcons.plus, size: 18),
-                label: const Text('Create Room'),
+                label: Text(l10n.createRoom),
                 onPressed: _createRoom,
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(LucideIcons.arrowLeft, size: 18),
-                label: const Text('Back'),
+                label: Text(l10n.back),
                 onPressed: () => context.pop(),
               ),
             ],

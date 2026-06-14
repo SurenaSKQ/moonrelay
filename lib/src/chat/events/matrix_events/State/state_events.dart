@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Renders a Matrix state event as a centred, muted timeline item.
 ///
@@ -47,7 +48,7 @@ class StateEvents extends StatelessWidget {
     final mutedColor =
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
 
-    final description = _description(event.type);
+    final description = _description(event.type, context);
     final timeStr =
         showTimestamp ? '  ${_effectiveTime.localizedTimeShort(context)}' : '';
 
@@ -68,7 +69,8 @@ class StateEvents extends StatelessWidget {
 
   /// Builds a description for common state event types, including the
   /// user display name for membership changes.
-  String _description(String type) {
+  String _description(String type, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     try {
       switch (type) {
         case 'm.room.member':
@@ -76,44 +78,44 @@ class StateEvents extends StatelessWidget {
           final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
           switch (membership) {
             case 'join':
-              return '$senderName joined';
+              return l10n.stateJoined(senderName);
             case 'leave':
-              return '$senderName left';
+              return l10n.stateLeft(senderName);
             case 'ban':
               final targetDisplayName =
                   event.content['displayname']?.toString();
               if (targetDisplayName != null &&
                   targetDisplayName != senderName) {
-                return '$senderName banned $targetDisplayName';
+                return l10n.stateBanned(senderName, targetDisplayName);
               }
-              return '$senderName banned';
+              return l10n.stateBannedSimple(senderName);
             case 'invite':
               final invited =
                   event.content['displayname']?.toString() ?? 'a user';
-              return '$senderName invited $invited';
+              return l10n.stateInvited(senderName, invited);
             case 'knock':
-              return '$senderName knocked';
+              return l10n.stateKnocked(senderName);
             default:
-              return '$senderName membership changed: $membership';
+              return l10n.stateMembershipChanged(senderName, membership);
           }
         case 'm.room.name':
-          return 'Room name changed';
+          return l10n.stateRoomNameChanged;
         case 'm.room.topic':
-          return 'Room topic changed';
+          return l10n.stateRoomTopicChanged;
         case 'm.room.avatar':
-          return 'Room avatar changed';
+          return l10n.stateRoomAvatarChanged;
         case 'm.room.create':
-          return 'Room created';
+          return l10n.stateRoomCreated;
         case 'm.room.encryption':
-          return 'Encryption enabled';
+          return l10n.stateEncryptionEnabled;
         case 'm.room.pinned_events':
-          return 'Pinned messages changed';
+          return l10n.statePinnedMessagesChanged;
         case 'm.room.canonical_alias':
-          return 'Main address changed';
+          return l10n.stateMainAddressChanged;
         case 'm.room.power_levels':
-          return 'Power levels changed';
+          return l10n.statePowerLevelsChanged;
         case 'm.room.tombstone':
-          return 'Room upgraded';
+          return l10n.stateRoomUpgraded;
         default:
           return type;
       }

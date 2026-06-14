@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -62,6 +63,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
 
@@ -87,11 +89,11 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       IconButton(
                         icon: const Icon(LucideIcons.arrowLeft),
                         onPressed: () => context.pop(),
-                        tooltip: 'Back',
+                        tooltip: l10n.back,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Create Account',
+                        l10n.registerTitle,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
@@ -132,7 +134,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                     ),
 
                   // ── Homeserver field ──
-                  _buildLabel(colors, 'Homeserver'),
+                  _buildLabel(colors, l10n.homeserverText),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _homeserverCtrl,
@@ -153,12 +155,12 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                   const SizedBox(height: 20),
 
                   // ── Username field ──
-                  _buildLabel(colors, 'Username'),
+                  _buildLabel(colors, l10n.usernameText),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _usernameCtrl,
                     decoration: InputDecoration(
-                      hintText: 'Choose a username',
+                      hintText: l10n.usernameHint,
                       prefixIcon: const Icon(LucideIcons.user, size: 18),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -180,7 +182,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                   const SizedBox(height: 16),
 
                   // ── Password field ──
-                  _buildLabel(colors, 'Password'),
+                  _buildLabel(colors, l10n.passwordText),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordCtrl,
@@ -212,7 +214,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                   const SizedBox(height: 16),
 
                   // ── Confirm Password field ──
-                  _buildLabel(colors, 'Confirm password'),
+                  _buildLabel(colors, l10n.confirmPasswordLabel),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _confirmPasswordCtrl,
@@ -250,7 +252,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                         ? (v) => setState(() => _agreeToTerms = v ?? false)
                         : null,
                     title: Text(
-                      'I agree to the Terms of Service of this homeserver',
+                      l10n.agreeToTerms,
                       style: TextStyle(
                         fontSize: 13,
                         color: colors.onSurfaceVariant,
@@ -272,8 +274,8 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(LucideIcons.userPlus, size: 18),
-                    label:
-                        Text(_loading ? 'Creating account…' : 'Create Account'),
+                    label: Text(
+                        _loading ? l10n.creatingAccount : l10n.createAccount),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
@@ -289,9 +291,9 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       onPressed: _loading
                           ? null
                           : () => context.push('/welcome/login'),
-                      child: const Text(
-                        'Already have an account? Sign in',
-                        style: TextStyle(fontSize: 13),
+                      child: Text(
+                        l10n.alreadyHaveAccount,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ),
                   ),
@@ -320,29 +322,31 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
   // ── Registration logic ────────────────────────────────────────────────
 
   String? _validateForm() {
+    final l10n = AppLocalizations.of(context)!;
     final String username = _usernameCtrl.text.trim();
     final String password = _passwordCtrl.text;
     final String confirm = _confirmPasswordCtrl.text;
 
-    if (username.isEmpty) return 'Please enter a username.';
+    if (username.isEmpty) return l10n.usernameRequired;
     if (username.contains('@')) {
-      return 'Enter just the local part (e.g. "alice"), not your full Matrix ID.';
+      return l10n.usernameNoAt;
     }
     if (username.length < 3) {
-      return 'Username must be at least 3 characters.';
+      return l10n.usernameTooShort;
     }
-    if (password.isEmpty) return 'Please enter a password.';
+    if (password.isEmpty) return l10n.passwordRequired;
     if (password.length < 8) {
-      return 'Password must be at least 8 characters.';
+      return l10n.passwordTooShort;
     }
-    if (password != confirm) return 'Passwords do not match.';
+    if (password != confirm) return l10n.passwordsDoNotMatch;
     if (!_agreeToTerms) {
-      return 'You must agree to the Terms of Service.';
+      return l10n.mustAgreeToTerms;
     }
     return null; // valid
   }
 
   Future<void> _doRegister() async {
+    final l10n = AppLocalizations.of(context)!;
     final String? validationError = _validateForm();
     if (validationError != null) {
       setState(() => _error = validationError);
@@ -373,9 +377,8 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
       if (!mounted) return;
       setState(() {
         _error = error is TimeoutException
-            ? 'Could not connect to homeserver: The server did not respond in time. '
-                'Please check your connection and try again.'
-            : 'Could not connect to homeserver: $error';
+            ? l10n.registerHomeserverTimeout
+            : l10n.registerHomeserverError('$error');
         _loading = false;
       });
       return;
@@ -408,10 +411,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
             if (error.raw.containsKey('flows') &&
                 error.raw.containsKey('session')) {
               setState(() {
-                _error =
-                    'This homeserver requires additional steps to register '
-                    '(e.g. email verification or CAPTCHA). '
-                    'Please create an account on the homeserver\'s website instead.';
+                _error = l10n.registerRequiresAdditionalSteps;
                 _loading = false;
               });
               return;
@@ -423,8 +423,8 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           } else {
             setState(() {
               _error = error is TimeoutException
-                  ? 'Registration timed out. The server may be overloaded. Please try again.'
-                  : 'Registration failed: $error';
+                  ? l10n.registerTimedOut
+                  : l10n.registerFailed('$error');
               _loading = false;
             });
           }

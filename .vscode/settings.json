@@ -1,8 +1,0 @@
-{
-    "editor.formatOnSave": true,
-    "editor.formatOnPaste": true,
-    "conventionalCommits.scopes": [
-        "dependecy changes"
-    ],
-    "license.author": "Surena Karimpour Ghannadi"
-}

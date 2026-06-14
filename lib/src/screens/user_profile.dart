@@ -73,7 +73,8 @@ class _ProfilePageState extends State<ProfilePage> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text("The user has not set a display name!"),
+                  content:
+                      Text(AppLocalizations.of(context)!.userNoDisplayNameSet),
                 ),
               );
             });
@@ -95,7 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (_error != null || _profile == null) {
       return Scaffold(
-        appBar: _buildAppBar(context, 'User'),
+        appBar: _buildAppBar(context, AppLocalizations.of(context)!.unknown),
         body: _buildErrorBody(context),
       );
     }
@@ -103,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: _buildAppBar(
         context,
-        _profile!.displayName ?? 'User',
+        _profile!.displayName ?? AppLocalizations.of(context)!.unknown,
       ),
       body: ProfilePageContents(
         client: widget.client,
@@ -119,8 +120,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: () => context.pop(),
       ),
       title: Text(
-        AppLocalizations.of(context)?.userProfilePageBanner(title) ??
-            'Profile View',
+        AppLocalizations.of(context)!.userProfilePageBanner(title),
         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
       ),
     );
@@ -128,9 +128,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildErrorBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final message = _error is TimeoutException
-        ? 'Could not load profile: The server did not respond in time.'
-        : 'Could not load profile: $_error';
+        ? l10n.profileLoadTimeout
+        : l10n.profileLoadError('$_error');
 
     return Center(
       child: Padding(
@@ -148,7 +149,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
               icon: const Icon(LucideIcons.refreshCw, size: 18),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context)!.retry),
               onPressed: () {
                 setState(() {
                   _loading = true;

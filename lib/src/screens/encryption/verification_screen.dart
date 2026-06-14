@@ -269,7 +269,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text(loc.encryptionVerificationFailed,
                 style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            Text(req.canceledReason ?? 'Unknown error'),
+            Text(req.canceledReason ?? loc.encryptionUnknownError),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -297,8 +297,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
       setState(() {});
     } catch (e) {
       if (context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept: $e')),
+          SnackBar(content: Text(l10n.encryptionFailedAction('$e'))),
         );
       }
     }
@@ -309,8 +310,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
       await widget.request.continueVerification(EventTypes.Sas);
     } catch (e) {
       if (context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          SnackBar(content: Text(l10n.encryptionFailedAction('$e'))),
         );
       }
     }
@@ -321,8 +323,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
       await widget.request.continueVerification(EventTypes.QRShow);
     } catch (e) {
       if (context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          SnackBar(content: Text(l10n.encryptionFailedAction('$e'))),
         );
       }
     }
@@ -333,8 +336,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
       await widget.request.acceptSas();
     } catch (e) {
       if (context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          SnackBar(content: Text(l10n.encryptionFailedAction('$e'))),
         );
       }
     }

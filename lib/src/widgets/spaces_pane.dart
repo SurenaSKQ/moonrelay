@@ -36,6 +36,7 @@ class SpacesPane extends StatelessWidget {
     final Client client = Provider.of<Client>(context);
     final scheme = Theme.of(context).colorScheme;
 
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Expanded(
@@ -63,7 +64,7 @@ class SpacesPane extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Loading rooms\u2026',
+                          l10n.loadingRooms,
                           style: TextStyle(color: scheme.onSurfaceVariant),
                         ),
                       ],
@@ -87,7 +88,7 @@ class SpacesPane extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'No rooms yet',
+                          l10n.noRoomsYet,
                           style: TextStyle(color: scheme.onSurfaceVariant),
                         ),
                       ],
@@ -116,7 +117,7 @@ class SpacesPane extends StatelessWidget {
                     ],
                   ),
                   subtitle: Text(
-                    rooms[index].lastEvent?.body ?? 'No messages',
+                    rooms[index].lastEvent?.body ?? l10n.noMessages,
                     maxLines: 1,
                   ),
                   trailing: (rooms[index].notificationCount > 0)
@@ -164,7 +165,7 @@ Future<void> _joinRoom(BuildContext context, Room room) async {
     );
     if (!context.mounted) return;
     final message = e is TimeoutException
-        ? 'Could not join room: The server did not respond in time.'
+        ? AppLocalizations.of(context)!.couldNotJoinRoomTimeout
         : e.toString();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
