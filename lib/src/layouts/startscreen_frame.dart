@@ -103,18 +103,12 @@ class _StartscreenFrameState extends State<StartscreenFrame>
           height: kToolbarHeight,
           color: theme.colorScheme.surface,
           child: Row(
-            children: [
+            children: <Widget>[
               // ── Leading slot ──────────────────────────────────
               if (reversed && showButtons)
                 const WindowButtons()
               else
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 4),
-                  child: IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () {},
-                  ),
-                ),
+                const SizedBox(width: 4),
 
               // ── Draggable title area ──────────────────────────
               Expanded(
@@ -130,13 +124,7 @@ class _StartscreenFrameState extends State<StartscreenFrame>
 
               // ── Trailing slot ─────────────────────────────────
               if (reversed)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 4),
-                  child: IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () {},
-                  ),
-                )
+                const SizedBox(width: 4)
               else if (showButtons)
                 const WindowButtons(),
             ],
@@ -144,6 +132,41 @@ class _StartscreenFrameState extends State<StartscreenFrame>
         ),
       ),
     );
+  }
+
+  @override
+  void onWindowClose() async {
+    final bool isPreventClose = await windowManager.isPreventClose();
+    if (isPreventClose && mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          final AppLocalizations l10n = AppLocalizations.of(context)!;
+          return AlertDialog(
+            title: Text(l10n.confirmClose),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[Text(l10n.areYouSureExit)],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: Text(l10n.yesOrAffirmitive),
+                onPressed: () {
+                  Navigator.pop(context);
+                  windowManager.destroy();
+                },
+              ),
+              TextButton(
+                child: Text(l10n.noOrCancellation),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   /// Show a custom context menu when the user right-clicks the header.

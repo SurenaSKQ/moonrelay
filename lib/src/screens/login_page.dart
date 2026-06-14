@@ -14,16 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/widgets/label.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
+/// Login page with password and SSO support.
+///
+/// This page discovers the homeserver's supported login flows and presents
+/// the appropriate authentication options:
+/// - Password login with homeserver, username, and password fields
+/// - SSO login that opens the browser and accepts a login token callback
+/// - Token-based login for advanced flows
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -31,140 +37,565 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with WindowListener {
-  final TextEditingController _usernameBox = TextEditingController();
-  final TextEditingController _passwordBox = TextEditingController();
-  final TextEditingController _homeserverBox =
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController _homeserverCtrl =
       TextEditingController(text: 'matrix.org');
+  final TextEditingController _usernameCtrl = TextEditingController();
+  final TextEditingController _passwordCtrl = TextEditingController();
+  final TextEditingController _tokenCtrl = TextEditingController();
 
-  bool _textActive = true;
+  bool _loading = false;
+  bool _ssoMode = false;
+  bool _tokenMode = false;
 
-  void _login() async {
-    if (context.mounted) {
-      final client = Provider.of<Client>(context, listen: false);
-      final log = Provider.of<Logger>(context, listen: false);
-      setState(() => _textActive = false);
-      try {
-        await client.checkHomeserver(Uri.https(_homeserverBox.text.trim(), ''));
-        await client.login(
-          LoginType.mLoginPassword,
-          password: _passwordBox.text,
-          identifier: AuthenticationUserIdentifier(user: _usernameBox.text),
-        );
-        // ignore: use_build_context_synchronously
-        context.go('/main/rooms');
-      } catch (e) {
-        log.e(
-          "Login error",
-          error: e,
-        );
-        // FIXME: Better error and localization
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              children: [
-                Text(AppLocalizations.of(context)!.error),
-                Text(e.toString())
-              ],
-            ),
-          ),
-        );
-      }
-      setState(() => _textActive = true);
-    }
-  }
-
-  @override
-  void initState() {
-    windowManager.addListener(this);
-    super.initState();
-  }
+  String? _error;
+  String? _ssoUrl;
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
-    _homeserverBox.dispose();
-    _usernameBox.dispose();
-    _passwordBox.dispose();
+    _homeserverCtrl.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(
-            LucideIcons.arrowLeft,
-            color: Colors.white,
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(LucideIcons.arrowLeft),
+                        onPressed: () => context.pop(),
+                        tooltip: l10n.cancel,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _ssoMode
+                            ? 'Single Sign-On'
+                            : _tokenMode
+                                ? 'Token Login'
+                                : 'Sign In',
+                        style: TextStyle(
+                          fontFamily: 'Rubik',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Error banner
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colors.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.alertCircle,
+                                size: 18, color: colors.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: colors.onErrorContainer,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // ── Homeserver field ──
+                  _buildLabel(colors, 'Homeserver'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _homeserverCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'matrix.org',
+                      prefixIcon: const Icon(LucideIcons.server, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    enabled: !_loading,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── SSO mode ──
+                  if (_ssoMode) ..._buildSsoSection(colors),
+
+                  // ── Token mode ──
+                  if (_tokenMode) ..._buildTokenSection(colors),
+
+                  // ── Password mode ──
+                  if (!_ssoMode && !_tokenMode)
+                    ..._buildPasswordSection(colors),
+
+                  const SizedBox(height: 24),
+
+                  // ── Primary action button ──
+                  if (_ssoMode)
+                    _buildSsoActionButton(colors)
+                  else if (_tokenMode)
+                    _buildTokenActionButton(colors)
+                  else
+                    _buildPasswordActionButton(colors, l10n),
+
+                  // ── Mode switcher ──
+                  if (!_loading) ...[
+                    const SizedBox(height: 12),
+                    if (!_ssoMode && !_tokenMode)
+                      _buildModeLink(
+                        'Use Single Sign-On instead',
+                        () => setState(() => _ssoMode = true),
+                      ),
+                    if (_ssoMode && !_tokenMode)
+                      _buildModeLink(
+                        'Use password instead',
+                        () => setState(() => _ssoMode = false),
+                      ),
+                    if (!_ssoMode && !_tokenMode)
+                      _buildModeLink(
+                        'Use login token instead',
+                        () => setState(() => _tokenMode = true),
+                      ),
+                    if (_tokenMode)
+                      _buildModeLink(
+                        'Back to password login',
+                        () => setState(() => _tokenMode = false),
+                      ),
+                  ],
+                ],
+              ),
+            ),
           ),
-          onPressed: () => context.pop(),
         ),
       ),
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Label(
-                  label: AppLocalizations.of(context)!.homeserverText,
-                  labelStyle: const TextStyle(color: Colors.white),
-                  child: TextField(
-                    controller: _homeserverBox,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                Label(
-                  label: AppLocalizations.of(context)!.usernameText,
-                  labelStyle: const TextStyle(color: Colors.white),
-                  child: TextField(
-                    controller: _usernameBox,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                Label(
-                  label: AppLocalizations.of(context)!.passwordText,
-                  labelStyle: const TextStyle(color: Colors.white),
-                  child: TextField(
-                    obscureText: true,
-                    controller: _passwordBox,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Center(
-            child: ElevatedButton(
-              onPressed: !_textActive ? null : _login,
-              child: !_textActive
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(AppLocalizations.of(context)!.loginButton),
-            ),
-          ),
-          const SizedBox(
-            height: 8.0,
-          ),
-        ],
+    );
+  }
+
+  // ── Build helpers ─────────────────────────────────────────────────────
+
+  Widget _buildLabel(ColorScheme colors, String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontFamily: 'Rubik',
+        fontWeight: FontWeight.w500,
+        fontSize: 13,
+        color: colors.onSurfaceVariant,
       ),
     );
+  }
+
+  Widget _buildModeLink(String text, VoidCallback onTap) {
+    return Align(
+      alignment: Alignment.center,
+      child: TextButton(
+        onPressed: onTap,
+        child: Text(
+          text,
+          style: const TextStyle(fontFamily: 'Rubik', fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPasswordSection(ColorScheme colors) {
+    return [
+      _buildLabel(colors, 'Username or email'),
+      const SizedBox(height: 6),
+      TextField(
+        controller: _usernameCtrl,
+        decoration: InputDecoration(
+          hintText: '@user:matrix.org',
+          prefixIcon: const Icon(LucideIcons.user, size: 18),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        enabled: !_loading,
+      ),
+      const SizedBox(height: 16),
+      _buildLabel(colors, 'Password'),
+      const SizedBox(height: 6),
+      TextField(
+        controller: _passwordCtrl,
+        obscureText: true,
+        decoration: InputDecoration(
+          hintText: '••••••••',
+          prefixIcon: const Icon(LucideIcons.lock, size: 18),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        enabled: !_loading,
+      ),
+    ];
+  }
+
+  List<Widget> _buildSsoSection(ColorScheme colors) {
+    return [
+      _buildLabel(colors, 'SSO Login URL'),
+      const SizedBox(height: 6),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          _ssoUrl ?? 'Click "Open in Browser" to start.',
+          style: TextStyle(
+            fontFamily: 'SpaceMono',
+            fontSize: 12,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      _buildLabel(colors, 'Login Token (paste after authenticating)'),
+      const SizedBox(height: 6),
+      TextField(
+        controller: _tokenCtrl,
+        decoration: InputDecoration(
+          hintText: 'Paste your login token here…',
+          prefixIcon: const Icon(LucideIcons.key, size: 18),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        enabled: !_loading,
+      ),
+    ];
+  }
+
+  List<Widget> _buildTokenSection(ColorScheme colors) {
+    return [
+      _buildLabel(colors, 'Login Token'),
+      const SizedBox(height: 6),
+      TextField(
+        controller: _tokenCtrl,
+        decoration: InputDecoration(
+          hintText: 'Paste your login token here…',
+          prefixIcon: const Icon(LucideIcons.key, size: 18),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        enabled: !_loading,
+      ),
+    ];
+  }
+
+  Widget _buildPasswordActionButton(
+    ColorScheme colors,
+    AppLocalizations l10n,
+  ) {
+    return FilledButton.icon(
+      onPressed: _loading ? null : _doPasswordLogin,
+      icon: _loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(LucideIcons.logIn, size: 18),
+      label: Text(_loading ? 'Signing in…' : l10n.loginButton),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildSsoActionButton(ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _doSsoOpenBrowser,
+          icon: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(LucideIcons.externalLink, size: 18),
+          label: Text(_loading ? 'Preparing…' : 'Open in Browser'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _loading ? null : _doSsoComplete,
+          icon: const Icon(LucideIcons.check, size: 18),
+          label: const Text('Complete Login'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTokenActionButton(ColorScheme colors) {
+    return FilledButton.icon(
+      onPressed: _loading ? null : _doTokenLogin,
+      icon: _loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(LucideIcons.key, size: 18),
+      label: Text(_loading ? 'Signing in…' : 'Sign in with Token'),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // ── Login actions ────────────────────────────────────────────────────
+
+  Future<List<LoginFlow>?> _tryCheckHomeserver(
+    Client client,
+    Uri homeserverUri,
+  ) async {
+    final Logger log = Provider.of<Logger>(context, listen: false);
+    try {
+      final result = await client.checkHomeserver(
+        homeserverUri,
+        checkWellKnown: true,
+      );
+      final List<LoginFlow> flows = result.$3;
+      return flows;
+    } catch (e) {
+      log.e('Homeserver check failed', error: e);
+      setState(() => _error = 'Could not connect to homeserver: $e');
+      return null;
+    }
+  }
+
+  Future<void> _doPasswordLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final Client client = Provider.of<Client>(context, listen: false);
+    final Logger log = Provider.of<Logger>(context, listen: false);
+
+    // Ensure supported login types includes password
+    client.supportedLoginTypes.add(AuthenticationTypes.password);
+
+    final String hs = _homeserverCtrl.text.trim();
+    final Uri homeserverUri =
+        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+
+    final List<LoginFlow>? flows =
+        await _tryCheckHomeserver(client, homeserverUri);
+    if (flows == null || !mounted) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    if (!flows.any((f) => f.type == AuthenticationTypes.password)) {
+      setState(() {
+        _error = 'This homeserver does not support password login.';
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      await client.login(
+        LoginType.mLoginPassword,
+        password: _passwordCtrl.text,
+        identifier:
+            AuthenticationUserIdentifier(user: _usernameCtrl.text.trim()),
+      );
+      if (!mounted) return;
+      context.go('/main/rooms');
+    } catch (e) {
+      log.e('Login error', error: e);
+      if (!mounted) return;
+      setState(() => _error = 'Login failed: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _doSsoOpenBrowser() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final Client client = Provider.of<Client>(context, listen: false);
+    final Logger log = Provider.of<Logger>(context, listen: false);
+
+    client.supportedLoginTypes.add(AuthenticationTypes.sso);
+
+    final String hs = _homeserverCtrl.text.trim();
+    final Uri homeserverUri =
+        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+
+    final List<LoginFlow>? flows =
+        await _tryCheckHomeserver(client, homeserverUri);
+    if (flows == null || !mounted) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    if (!flows.any((f) => f.type == AuthenticationTypes.sso)) {
+      setState(() {
+        _error = 'This homeserver does not support SSO login.';
+        _loading = false;
+      });
+      return;
+    }
+
+    // Build the SSO redirect URL.
+    // Use an OOB redirect URI so the browser shows the token after auth.
+    final Uri ssoUrl = homeserverUri.replace(
+      path: '/_matrix/client/v3/login/sso/redirect',
+      queryParameters: {
+        'redirectUrl': 'urn:ietf:wg:oauth:2.0:oob',
+      },
+    );
+
+    setState(() {
+      _ssoUrl = ssoUrl.toString();
+      _loading = false;
+    });
+
+    try {
+      await launchUrl(ssoUrl, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      log.e('Could not open browser', error: e);
+      if (!mounted) return;
+      setState(() => _error = 'Could not open browser. Use the URL above.');
+    }
+  }
+
+  Future<void> _doSsoComplete() async {
+    final String token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      setState(
+          () => _error = 'Please paste the login token from your browser.');
+      return;
+    }
+    await _completeTokenLogin(token);
+  }
+
+  Future<void> _doTokenLogin() async {
+    final String token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      setState(() => _error = 'Please enter a login token.');
+      return;
+    }
+    await _completeTokenLogin(token);
+  }
+
+  Future<void> _completeTokenLogin(String token) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final Client client = Provider.of<Client>(context, listen: false);
+    final Logger log = Provider.of<Logger>(context, listen: false);
+
+    client.supportedLoginTypes.add(AuthenticationTypes.token);
+
+    final String hs = _homeserverCtrl.text.trim();
+    final Uri homeserverUri =
+        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+
+    final List<LoginFlow>? flows =
+        await _tryCheckHomeserver(client, homeserverUri);
+    if (flows == null || !mounted) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      await client.login(
+        LoginType.mLoginToken,
+        token: token,
+      );
+      if (!mounted) return;
+      context.go('/main/rooms');
+    } catch (e) {
+      log.e('Token login error', error: e);
+      if (!mounted) return;
+      setState(() => _error = 'Token login failed: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }

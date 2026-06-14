@@ -14,133 +14,164 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/licenses.dart';
-import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// Welcome screen shown before authentication.
+///
+/// Displays the app branding, a tagline, and primary action buttons
+/// to log in, register, or use SSO to sign in.
 class StartupScreen extends StatelessWidget {
-  const StartupScreen({
-    super.key,
-  });
+  const StartupScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive layout: column for narrow, row for wide.
+        final bool isWide = constraints.maxWidth > 720;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          child: isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: _buildBranding(context, colors)),
+                    const SizedBox(width: 48),
+                    SizedBox(
+                      width: 400,
+                      child: _buildActionCard(context, colors),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _buildBranding(context, colors),
+                    const SizedBox(height: 48),
+                    _buildActionCard(context, colors),
+                  ],
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBranding(BuildContext context, ColorScheme colors) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          "The Public Benefit Messenger",
-          textAlign: TextAlign.center,
+        // Simple text-based logo to avoid asset dependency
+        Icon(
+          LucideIcons.moon,
+          size: 64,
+          color: colors.primary,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Moonrelay',
           style: TextStyle(
             fontFamily: 'Oxanium',
             fontWeight: FontWeight.bold,
-            fontSize: 24,
-            color: Colors.white,
+            fontSize: 36,
+            color: colors.onSurface,
           ),
-          maxLines: 2,
-          overflow: TextOverflow.fade,
         ),
-        const SizedBox(
-          height: 16.0,
+        const SizedBox(height: 8),
+        Text(
+          'The Public Benefit Messenger',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Rubik',
+            fontSize: 16,
+            color: colors.onSurfaceVariant,
+          ),
         ),
-        Wrap(
+        const SizedBox(height: 24),
+        Text(
+          'A secure, decentralised Matrix client\nfocused on professional communication.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Rubik',
+            fontSize: 14,
+            color: colors.onSurfaceVariant.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(BuildContext context, ColorScheme colors) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton(
-              child: const Text(
-                "Login",
-                style: TextStyle(
-                  fontFamily: 'Rubik',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            Text(
+              'Get Started',
+              style: TextStyle(
+                fontFamily: 'Rubik',
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: colors.onSurface,
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Sign in to your existing account\nor create a new one.',
+              style: TextStyle(
+                fontFamily: 'Rubik',
+                fontSize: 14,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 28),
+            FilledButton.icon(
               onPressed: () => context.push('/welcome/login'),
-            ),
-            const SizedBox(
-              width: 24,
-            ),
-            ElevatedButton(
-              child: const Text(
-                "Sign Up!",
-                style: TextStyle(
-                  fontFamily: 'Rubik',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              icon: const Icon(LucideIcons.logIn),
+              label: const Text('Sign In'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
               onPressed: () => context.push('/welcome/register'),
-            )
+              icon: const Icon(LucideIcons.userPlus),
+              label: const Text('Create Account'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => context.push('/welcome/login'),
+              icon: const Icon(LucideIcons.fingerprint, size: 18),
+              label: const Text('Sign in with Single Sign-On'),
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                AppLocalizations.of(context)!.appLicenseNotice,
-                textAlign: TextAlign.justify,
-                style: const TextStyle(
-                  fontFamily: 'Rubik',
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(
-                height: 16.0,
-              ),
-              const Text(
-                "The Moonrelay team cannot moderate or honour DMCA requests on content that is posted on the Matrix protocol network. Contact room administrators or homeserver owners.",
-                textAlign: TextAlign.justify,
-                style: TextStyle(
-                  fontFamily: 'Rubik',
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(
-                height: 8.0,
-              ),
-              Wrap(
-                children: [
-                  TextButton(
-                    child: Text(AppLocalizations.of(context)!.privacyPolicy,
-                        style: const TextStyle(fontFamily: 'Rubik')),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => const PrivacyPolicyPopupScreen(),
-                        barrierColor: Colors.black.withValues(alpha: 0.9),
-                      );
-                    },
-                  ),
-                  const SizedBox(
-                    width: 32,
-                  ),
-                  TextButton(
-                    child: Text(
-                      AppLocalizations.of(context)!.thirdPartyLicense,
-                      style: const TextStyle(fontFamily: 'Rubik'),
-                    ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => const LicensesScreen(),
-                        barrierColor: Colors.black.withValues(alpha: 0.9),
-                      );
-                    },
-                  )
-                ],
-              ),
-            ],
-          ),
-        )
-      ],
+      ),
     );
   }
 }

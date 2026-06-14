@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/widgets/blur_background.dart';
-import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
 import 'package:flutter/material.dart';
 
+/// Full-screen backdrop for the welcome / sign-on flow.
+///
+/// Provides a clean, theme-aware surface with a subtle gradient and
+/// backdrop blur behind the startup, login, and registration pages.
+/// Each child page supplies its own card-based layout, so this frame
+/// is intentionally minimal — just a background that respects the
+/// current light/dark theme.
 class StartupHomeFrame extends StatelessWidget {
   const StartupHomeFrame({super.key, required this.child});
 
@@ -26,44 +30,20 @@ class StartupHomeFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
     return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          // TODO: User selectable image?
-          image: AssetImage(
-              'assets/images/milad-fakurian-u8Jn2rzYIps-unsplash.jpg'),
-          fit: BoxFit.cover,
-        ),
-      ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Flexible(
-              flex: 4,
-              child: LogoWithTextThemed(
-                themeMode: Brightness.dark,
-              ),
-            ),
-            Flexible(
-              flex: 6,
-              child: Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      color: MoonrelayColorPalette.cpgDarkest.withAlpha(90)),
-                  child: BlurBackground(
-                    child: SizedBox.expand(
-                      child: child,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.surface,
+            colors.surfaceContainerLow,
           ],
         ),
       ),
+      child: Center(child: child),
     );
   }
 }
