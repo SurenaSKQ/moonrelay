@@ -72,53 +72,65 @@ class StateEvents extends StatelessWidget {
   String _description(String type, BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     try {
-      switch (type) {
-        case 'm.room.member':
-          final membership = event.content['membership']?.toString() ?? '';
-          final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
-          switch (membership) {
-            case 'join':
-              return l10n.stateJoined(senderName);
-            case 'leave':
-              return l10n.stateLeft(senderName);
-            case 'ban':
-              final targetDisplayName =
-                  event.content['displayname']?.toString();
-              if (targetDisplayName != null &&
-                  targetDisplayName != senderName) {
-                return l10n.stateBanned(senderName, targetDisplayName);
-              }
-              return l10n.stateBannedSimple(senderName);
-            case 'invite':
-              final invited =
-                  event.content['displayname']?.toString() ?? 'a user';
-              return l10n.stateInvited(senderName, invited);
-            case 'knock':
-              return l10n.stateKnocked(senderName);
-            default:
-              return l10n.stateMembershipChanged(senderName, membership);
-          }
-        case 'm.room.name':
-          return l10n.stateRoomNameChanged;
-        case 'm.room.topic':
-          return l10n.stateRoomTopicChanged;
-        case 'm.room.avatar':
-          return l10n.stateRoomAvatarChanged;
-        case 'm.room.create':
-          return l10n.stateRoomCreated;
-        case 'm.room.encryption':
-          return l10n.stateEncryptionEnabled;
-        case 'm.room.pinned_events':
-          return l10n.statePinnedMessagesChanged;
-        case 'm.room.canonical_alias':
-          return l10n.stateMainAddressChanged;
-        case 'm.room.power_levels':
-          return l10n.statePowerLevelsChanged;
-        case 'm.room.tombstone':
-          return l10n.stateRoomUpgraded;
-        default:
-          return type;
-      }
+    switch (type) {
+      case 'm.room.member':
+        final membership = event.content['membership']?.toString() ?? '';
+        final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
+        switch (membership) {
+          case 'join':
+            return l10n.stateJoined(senderName);
+          case 'leave':
+            return l10n.stateLeft(senderName);
+          case 'ban':
+            final targetDisplayName =
+                event.content['displayname']?.toString();
+            if (targetDisplayName != null &&
+                targetDisplayName != senderName) {
+              return l10n.stateBanned(senderName, targetDisplayName);
+            }
+            return l10n.stateBannedSimple(senderName);
+          case 'invite':
+            final invited =
+                event.content['displayname']?.toString() ?? 'a user';
+            return l10n.stateInvited(senderName, invited);
+          case 'knock':
+            return l10n.stateKnocked(senderName);
+          default:
+            return l10n.stateMembershipChanged(senderName, membership);
+        }
+      case 'm.room.name':
+        return l10n.stateRoomNameChanged;
+      case 'm.room.topic':
+        return l10n.stateRoomTopicChanged;
+      case 'm.room.avatar':
+        return l10n.stateRoomAvatarChanged;
+      case 'm.room.create':
+        return l10n.stateRoomCreated;
+      case 'm.room.encryption':
+        return l10n.stateEncryptionEnabled;
+      case 'm.room.pinned_events':
+        return l10n.statePinnedMessagesChanged;
+      case 'm.room.canonical_alias':
+        return l10n.stateMainAddressChanged;
+      case 'm.room.power_levels':
+        return l10n.statePowerLevelsChanged;
+      case 'm.room.tombstone':
+        return l10n.stateRoomUpgraded;
+      case 'm.key.verification.request':
+        final reqSenderName =
+            event.senderFromMemoryOrFallback.calcDisplayname();
+        return l10n.stateVerificationRequest(reqSenderName);
+      case 'm.key.verification.start':
+        return l10n.stateVerificationStart;
+      case 'm.key.verification.done':
+        return l10n.stateVerificationDone;
+      case 'm.key.verification.cancel':
+        return l10n.stateVerificationCancel;
+      case String t when t.startsWith('m.key.verification.'):
+        return l10n.stateVerificationEvent;
+      default:
+        return type;
+    }
     } catch (_) {
       return type;
     }

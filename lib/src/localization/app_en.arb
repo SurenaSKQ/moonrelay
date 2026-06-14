@@ -619,6 +619,19 @@
   "stateMainAddressChanged": "Main address changed",
   "statePowerLevelsChanged": "Power levels changed",
   "stateRoomUpgraded": "Room upgraded",
+  "stateVerificationRequest": "{sender} requests to verify",
+  "@stateVerificationRequest": {
+    "description": "A `m.key.verification.request` event: a user wants to verify with you in this room.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "stateVerificationCancel": "Verification cancelled",
+  "stateVerificationDone": "Verification completed",
+  "stateVerificationStart": "Verification started",
+  "stateVerificationEvent": "Verification event",
 
   "today": "Today",
   "yesterday": "Yesterday",

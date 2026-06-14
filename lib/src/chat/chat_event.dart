@@ -20,6 +20,7 @@ import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attach
 import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/State/verification_request_event.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
@@ -161,6 +162,16 @@ class MessageEventHandler extends StatelessWidget {
       case 'm.room.canonical_alias':
       case 'm.room.power_levels':
       case 'm.room.tombstone':
+        return StateEvents(event: event);
+      case EventTypes.KeyVerificationRequest:
+        return VerificationRequestEvent(event: event);
+      case EventTypes.KeyVerificationStart:
+      case EventTypes.KeyVerificationReady:
+      case EventTypes.KeyVerificationDone:
+      case EventTypes.KeyVerificationCancel:
+      case EventTypes.KeyVerificationAccept:
+        return StateEvents(event: event);
+      case String t when t.startsWith('m.key.verification.'):
         return StateEvents(event: event);
       default:
         return StateEvents(event: event);
