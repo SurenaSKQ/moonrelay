@@ -100,7 +100,7 @@ class _HubScreenState extends State<HubScreen> {
   void _buildCategories() {
     _categories = [
       _HubCategory(
-        label: AppLocalizations.of(context)?.directMessages ?? 'Accounts',
+        label: 'Accounts',
         icon: LucideIcons.users,
         isExpandable: false,
       ),
