@@ -201,7 +201,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
         if (_timeline == null) {
-          return const LoadingAndTransitionScreen();
+          return const LoadingScreen();
         }
 
         return TimelineView(

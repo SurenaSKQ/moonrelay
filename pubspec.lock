@@ -33,14 +33,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.7.0"
-  assorted_layout_widgets:
-    dependency: transitive
-    description:
-      name: assorted_layout_widgets
-      sha256: "86c6942f569f7f70bfb03b9cb0ada9bf5aee72264aaefdb0e2be0fbee70cfb06"
-      url: "https://pub.dev"
-    source: hosted
-    version: "11.0.0"
   async:
     dependency: transitive
     description:
@@ -238,6 +230,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_acrylic:
+    dependency: "direct main"
+    description:
+      name: flutter_acrylic
+      sha256: b3996dbde5abf5823cc9ead4cf2e5267c3181f15585fe47ce4dc4472e7ec827a
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.4"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -356,18 +356,6 @@ packages:
       sha256: "9a62a50b50b769a737bc0a8ff381f333529df3ab746b2f6b02e83760231455ba"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.0"
-      sha256: "4e9391085e524954a51e3625b7c9c7e9851dc3f376603208bb45c24b9a66255d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.1.0"
-  hooks:
-    dependency: transitive
-    description:
-      name: hooks
-      sha256: "9a62a50b50b769a737bc0a8ff381f333529df3ab746b2f6b02e83760231455ba"
-      url: "https://pub.dev"
-    source: hosted
     version: "2.0.2"
   html:
     dependency: transitive
@@ -473,46 +461,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
-  libadwaita:
-    dependency: "direct main"
-    description:
-      name: libadwaita
-      sha256: "1c1079587b21018e71173f0a0682797c255d166ef79fd470c636eedbd69f7fa3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
-  libadwaita_core:
-    dependency: transitive
-    description:
-      name: libadwaita_core
-      sha256: "1a7689e4130e96be4b0ec615863fded25cd86c2b95a682e7cec9659d420de37c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.4"
-  libadwaita_searchbar:
-    dependency: "direct main"
-    description:
-      name: libadwaita_searchbar
-      sha256: fc8c85e984dd6f01cdc0fb21846899e04959973319105cddc315af53d281b2ae
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.7"
-  libadwaita_searchbar_ac:
-    dependency: "direct main"
-    description:
-      name: libadwaita_searchbar_ac
-      sha256: bbbfc2ca08c2ab59e675d8106717d1cb3426ff610fb934bf29d17bd4f7df0e86
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.8"
-  libadwaita_window_manager:
-    dependency: "direct main"
-    description:
-      name: libadwaita_window_manager
-      sha256: "196b705b9683d2979740e9bfd46bbe1ce69fc16af217215d80df7c84ff8fe30f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.4+1"
   linkify_text:
     dependency: "direct main"
     description:
@@ -596,8 +544,8 @@ packages:
   matrix:
     dependency: "direct main"
     description:
-      name: matrix4_transform
-      sha256: "1346e53517e3081d3e8362377be97e285e2bd348855c177eae2a18aa965cafa0"
+      name: matrix
+      sha256: e52477dcc118fe89b7f40123c2dc9fe681fee0529738007c8ba82ccaf9fb6993
       url: "https://pub.dev"
     source: hosted
     version: "7.2.3"
@@ -729,14 +677,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.6"
-  platform_linux:
-    dependency: transitive
-    description:
-      name: platform_linux
-      sha256: "907b7c6da6ee6eea61cd1266b7bd72e2d5bbf7e85160221e8ac5583a44e7a1c7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.2+1"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -1215,7 +1155,7 @@ packages:
     source: hosted
     version: "15.2.0"
   vodozemac:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: vodozemac
       sha256: bbe7dd31d7f623e2aeedb92e4b71a8b519e6109ce1e2911b5a220f6752b65cda
@@ -1286,54 +1226,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.3"
-  yaru:
-    dependency: "direct main"
-    description:
-      name: yaru
-      sha256: "67ac8c3dc52a5d69c049056d5fa40b909973e10b36df3cffeb666de867532d79"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.3.0"
-  yaru_window:
-    dependency: transitive
-    description:
-      name: yaru_window
-      sha256: "58539a9abe9901891dadce142c7a5d303920b780dd0f7bd21f076a80adeeb744"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.2"
-  yaru_window_linux:
-    dependency: transitive
-    description:
-      name: yaru_window_linux
-      sha256: "885ad0ba5832d350c42862ce02da478599ef550280eb7f6b15285481fcff6f53"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.2"
-  yaru_window_manager:
-    dependency: transitive
-    description:
-      name: yaru_window_manager
-      sha256: "6288fd6ccd8bb9d5be56073c6f277e2da08dd38e346507bf88bc9332b08dd180"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.3"
-  yaru_window_platform_interface:
-    dependency: transitive
-    description:
-      name: yaru_window_platform_interface
-      sha256: d514387cc96750112ecf1933b6f12a1912beca199178d00052c0e87a94e232fa
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.3"
-  yaru_window_web:
-    dependency: transitive
-    description:
-      name: yaru_window_web
-      sha256: cf4d79e0760fbdcb78d4bbca3b5563f99518629224b9e5611f0ebd592befe1d9
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.4"
 sdks:
   dart: ">=3.12.0 <4.0.0"
   flutter: ">=3.44.0"

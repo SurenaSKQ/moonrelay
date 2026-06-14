@@ -15,9 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // TODO: Loading animations, handle different states, theming?
-import 'package:adwaita_icons/adwaita_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:libadwaita/libadwaita.dart';
 import 'package:matrix/matrix.dart';
 
 enum AvatarStates {
@@ -50,24 +48,21 @@ class _AvatarFromUriOrFallbackImageState
     return GestureDetector(
       onTap: widget.onTap,
       child: (widget.avatarUri == null)
-          ? AdwAvatar(child: AdwaitaIcon(AdwaitaIcons.person))
+          ? const CircleAvatar(child: Icon(Icons.person))
           : FutureBuilder(
               future: widget.avatarUri!
                   .getThumbnailUri(widget.client, width: 56, height: 56),
               builder: (context, asyncSnapshot) {
                 if (asyncSnapshot.connectionState != ConnectionState.done) {
-                  return Builder(
-                    builder: (context) => CircularProgressIndicator(),
-                  );
+                  return const CircularProgressIndicator();
                 }
-                return AdwAvatar(
+                return CircleAvatar(
                   backgroundImage: NetworkImage(
                     asyncSnapshot.data.toString(),
                     headers: {
                       "authorization": "Bearer ${widget.client.accessToken}"
                     },
                   ),
-                  child: const Text(''),
                 );
               },
             ),

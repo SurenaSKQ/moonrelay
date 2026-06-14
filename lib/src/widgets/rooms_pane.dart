@@ -17,7 +17,6 @@
 import 'package:badges/badges.dart';
 import 'package:flutter/material.dart' hide Badge;
 import 'package:go_router/go_router.dart';
-import 'package:libadwaita/libadwaita.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -76,7 +75,7 @@ class RoomsPane extends StatelessWidget {
                 size: 8,
               ),
               child: (client.rooms[index].avatar == null)
-                  ? AdwAvatar(
+                  ? CircleAvatar(
                       child: Text(
                         client.rooms[index]
                             .getLocalizedDisplayname()
@@ -95,7 +94,7 @@ class RoomsPane extends StatelessWidget {
                           width: 56),
                       builder: (context, asyncSnapshot) {
                         if (asyncSnapshot.hasError) {
-                          return AdwAvatar(
+                          return CircleAvatar(
                             child: Text(
                               client.rooms[index]
                                   .getLocalizedDisplayname()
@@ -108,17 +107,16 @@ class RoomsPane extends StatelessWidget {
                           );
                         }
                         if (asyncSnapshot.hasData) {
-                          return AdwAvatar(
+                          return CircleAvatar(
                             backgroundImage: NetworkImage(
                               asyncSnapshot.data.toString(),
                               headers: {
                                 "authorization": "Bearer ${client.accessToken}"
                               },
                             ),
-                            child: const Text(''),
                           );
                         } else {
-                          return CircularProgressIndicator();
+                          return const CircularProgressIndicator();
                         }
                       },
                     ),

@@ -14,13 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:adwaita_icons/adwaita_icons.dart';
-import 'package:libadwaita/libadwaita.dart';
-import 'package:libadwaita_window_manager/libadwaita_window_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 class StartscreenFrame extends StatefulWidget {
@@ -52,32 +47,22 @@ class _StartscreenFrameState extends State<StartscreenFrame>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsController>(
-      builder: (context, settingsController, child) => AdwScaffold(
-        start: [
-          Row(
-            children: [
-              AdwButton.flat(
-                child: AdwaitaIcon(AdwaitaIcons.menu),
-                onPressed: () {},
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  AppLocalizations.of(context)!.appTitle,
-                  style: const TextStyle(
-                    fontFamily: 'Rubik',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {},
+        ),
+        title: Text(
+          AppLocalizations.of(context)!.appTitle,
+          style: const TextStyle(
+            fontFamily: 'Rubik',
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
           ),
-        ],
-        actions: AdwActions().windowManager,
-        body: widget.child,
+        ),
       ),
+      body: widget.child,
     );
   }
 }

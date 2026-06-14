@@ -1,5 +1,6 @@
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:go_router/go_router.dart';
 import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
@@ -72,9 +73,9 @@ class _OldPageState extends State<OldPage> {
             onChanged: (value) => widget.controller.updateThemeMode(value!),
             child: Column(
               children: [
-                Radio(value: ThemeMode.system),
-                Radio(value: ThemeMode.light),
-                Radio(value: ThemeMode.dark),
+                mt.Radio(value: ThemeMode.system),
+                mt.Radio(value: ThemeMode.light),
+                mt.Radio(value: ThemeMode.dark),
               ],
             ),
           ),
@@ -84,7 +85,7 @@ class _OldPageState extends State<OldPage> {
         ),
         Label(
           label: "Use system titlebar",
-          child: Checkbox(
+          child: mt.Checkbox(
             value: systemBar,
             onChanged: (value) =>
                 widget.controller.updateUseOfSystemTitlebar(value!),
@@ -101,15 +102,15 @@ class _OldPageState extends State<OldPage> {
               children: [
                 ListTile(
                   title: Text(DisplayType.modern.label),
-                  leading: Radio(value: DisplayType.modern),
+                  leading: mt.Radio(value: DisplayType.modern),
                 ),
                 ListTile(
                   title: Text(DisplayType.irc.label),
-                  leading: Radio(value: DisplayType.irc),
+                  leading: mt.Radio(value: DisplayType.irc),
                 ),
                 ListTile(
                   title: Text(DisplayType.bubbles.label),
-                  leading: Radio(value: DisplayType.bubbles),
+                  leading: mt.Radio(value: DisplayType.bubbles),
                 )
               ],
             ),

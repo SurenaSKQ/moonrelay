@@ -4,7 +4,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:libadwaita/libadwaita.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/message_event_base.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
@@ -28,7 +27,7 @@ class ModernMessageItem implements MessageItemBase {
   Future<String?> _downloadFile() async {
     if (event.hasAttachment) {
       MatrixFile attFile = await event.downloadAndDecryptAttachment();
-      return await FilePicker.platform.saveFile(
+      return await FilePicker.saveFile(
           dialogTitle: 'Select download target',
           fileName: FileUtilities(event: event).getFileName(),
           bytes: attFile.bytes);
@@ -84,8 +83,8 @@ class ModernMessageItem implements MessageItemBase {
           case MessageTypes.Audio:
             return const Placeholder();
           case MessageTypes.File:
-            return AdwButton(
-              child: Text("Download"),
+            return ElevatedButton(
+              child: const Text("Download"),
               onPressed: () => _downloadFile(),
             );
           default:

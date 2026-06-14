@@ -14,12 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:libadwaita/libadwaita.dart';
-import 'package:libadwaita_window_manager/libadwaita_window_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 class AppFrame extends StatefulWidget {
@@ -53,9 +49,8 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     //STUB - For future!
     // final TextEditingController searchController = TextEditingController();
     // final settingsController = Provider.of<SettingsController>(context);
-    return Consumer<SettingsController>(
-      builder: (context, value, child) => AdwScaffold(
-        actions: AdwActions().windowManager,
+    return Scaffold(
+      appBar: AppBar(
         title: Text(
           AppLocalizations.of(context)!.appTitle,
           style: const TextStyle(
@@ -64,8 +59,8 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
             fontSize: 16,
           ),
         ),
-        body: widget.child,
       ),
+      body: widget.child,
     );
   }
 
