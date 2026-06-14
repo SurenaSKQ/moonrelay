@@ -21,6 +21,7 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -121,6 +122,10 @@ class _HubScreenState extends State<HubScreen> {
             label: 'Layout',
             icon: LucideIcons.layoutDashboard,
           ),
+          _HubNavigationItem(
+            label: 'Encryption & Security',
+            icon: LucideIcons.shield,
+          ),
         ],
       ),
     ];
@@ -199,11 +204,20 @@ class _HubScreenState extends State<HubScreen> {
     }
   }
 
-  void _onSubItemTap(int categoryIndex, int itemIndex) {
+  void _onSubItemTap(int catIndex, int subIndex) {
     setState(() {
-      _selectedCategoryIndex = categoryIndex;
-      _selectedSubItemIndex = itemIndex;
+      _selectedCategoryIndex = catIndex;
+      _selectedSubItemIndex = subIndex;
     });
+
+    // Navigate to the encryption overview when that item is tapped.
+    if (catIndex == 2 && subIndex == 2) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const EncryptionOverviewScreen(),
+        ),
+      );
+    }
   }
 
   void _onExpansionToggle(int index) {

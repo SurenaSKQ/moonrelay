@@ -32,6 +32,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
 class MoonRouter {
   static FutureOr<String?> loggedInRedirect(
@@ -199,7 +201,23 @@ class MoonRouter {
                 return genericPageBuilder(
                     context, state, HubScreen(client: client));
               },
-            )
+            ),
+            GoRoute(
+              path: '/main/encryption',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const EncryptionOverviewScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/main/devices',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const DeviceListScreen(),
+              ),
+            ),
           ],
         )
       ],

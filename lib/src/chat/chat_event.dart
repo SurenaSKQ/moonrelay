@@ -23,6 +23,9 @@ import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart'
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:provider/provider.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type
 /// and message type.
@@ -30,6 +33,9 @@ import 'package:matrix/matrix.dart';
 /// This is the central dispatch point for the entire event-rendering tree.
 /// Extend this when adding support for new event or message types (stickers,
 /// polls, location sharing, etc.).
+///
+/// Encrypted events (m.room.encrypted) are automatically handled by the SDK;
+/// this widget wraps the decrypted content with a trust indicator.
 class MessageEventHandler extends StatelessWidget {
   const MessageEventHandler({super.key, required this.event});
 
@@ -37,6 +43,54 @@ class MessageEventHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // If the event is still encrypted (failed to decrypt), show a warning.
+    if (event.type == EventTypes.Encrypted && !event.redacted) {
+      final enc = context.watch<EncryptionService>();
+      final isVerified = enc.isUserVerifiedById(event.senderId);
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              TrustIndicator(isVerified: isVerified, size: 14),
+              const SizedBox(width: 4),
+              Expanded(child: _renderContent()),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Decrypted or non-encrypted events: show verification status inline.
+    if (event.type == EventTypes.Message) {
+      final enc = context.watch<EncryptionService>();
+      final isVerified = enc.isUserVerifiedById(event.senderId);
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (event.originalSource?.type == EventTypes.Encrypted)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, right: 4),
+                  child: TrustIndicator(isVerified: isVerified, size: 12),
+                ),
+              Expanded(child: _renderContent()),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return _renderContent();
+  }
+
+  Widget _renderContent() {
     switch (event.type) {
       case EventTypes.Message:
         // TODO: Stickers, emotes; event relationships (replies, reactions, edits)

@@ -36,6 +36,7 @@ import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
 import 'package:path/path.dart' as p;
+import 'src/encryption/encryption_service.dart';
 
 /// Checks if the current environment is a desktop environment.
 bool get isDesktop {
@@ -111,7 +112,7 @@ void main() async {
       // TODO[epic=longterm] QRCode
       //KeyVerificationMethod.qrScan
     },
-    nativeImplementations: NativeImplementationsIsolate(compute),
+    nativeImplementations: NativeImplementations.dummy,
   );
   await sdk.init();
 
@@ -161,7 +162,13 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (context) => NavigationState(),
-        )
+        ),
+        ChangeNotifierProvider(
+          create: (context) => EncryptionService(
+            client: sdk,
+            logger: log,
+          )..init(),
+        ),
       ],
       child: const MoonrelayApp(),
     ),

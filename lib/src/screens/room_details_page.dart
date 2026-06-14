@@ -22,6 +22,9 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
+import 'package:provider/provider.dart';
 
 /// A full room information page built with Material 3 design tokens.
 ///
@@ -226,6 +229,12 @@ class _RoomInformationsState extends State<RoomInformations> {
           ),
           const SizedBox(height: 16),
 
+          // ── Security ─────────────────────────────────────────────────
+          _SectionHeader(title: 'Security', scheme: scheme),
+          const SizedBox(height: 8),
+          _buildSecuritySection(context, scheme, room, isEncrypted),
+          const SizedBox(height: 16),
+
           // ── Top members ──────────────────────────────────────────────
           _SectionHeader(title: 'Members', scheme: scheme),
           const SizedBox(height: 8),
@@ -239,13 +248,90 @@ class _RoomInformationsState extends State<RoomInformations> {
       ),
     );
   }
+
+  Widget _buildSecuritySection(
+    BuildContext context,
+    ColorScheme scheme,
+    Room room,
+    bool isEncrypted,
+  ) {
+    if (!isEncrypted) {
+      return _DetailRow(
+        icon: LucideIcons.lockOpen,
+        label: 'Encryption',
+        value: 'Not enabled',
+        scheme: scheme,
+      );
+    }
+    final participants = room.getParticipants();
+
+    return Column(
+      children: [
+        _DetailRow(
+          icon: LucideIcons.shieldCheck,
+          label: 'Encryption',
+          value: room.encryptionAlgorithm ?? 'Megolm',
+          scheme: scheme,
+        ),
+        if (participants.length <= 10)
+          ...participants.map((member) {
+            if (member.id == room.client.userID) return const SizedBox.shrink();
+            return _DetailRow(
+              icon: LucideIcons.user,
+              label: member.calcDisplayname(),
+              value: '',
+              trailing: VerificationIconButton(
+                userId: member.id,
+                room: room,
+              ),
+              scheme: scheme,
+            );
+          }),
+      ],
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+
+class VerificationIconButton extends StatelessWidget {
+  const VerificationIconButton({
+    super.key,
+    required this.userId,
+    required this.room,
+  });
+
+  final String userId;
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final enc = context.watch<EncryptionService>();
+    final isUserVerified = enc.isUserVerifiedById(userId);
+    final scheme = Theme.of(context).colorScheme;
+
+    return IconButton(
+      icon: Icon(
+        isUserVerified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+        size: 18,
+        color: isUserVerified ? scheme.primary : scheme.error,
+      ),
+      tooltip: isUserVerified ? 'User is verified' : 'User is not verified',
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => UserDevicesScreen(userId: userId),
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Internal widgets
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// The top card showing the room avatar, display name, topic, and key badges.
 class _RoomIdentityCard extends StatelessWidget {
   const _RoomIdentityCard({
     required this.room,
@@ -465,12 +551,14 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.scheme,
+    this.trailing,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final ColorScheme scheme;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -498,10 +586,9 @@ class _DetailRow extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: scheme.onSurface,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (trailing != null) trailing!,
         ],
       ),
     );
