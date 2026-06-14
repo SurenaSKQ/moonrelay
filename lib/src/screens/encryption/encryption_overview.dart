@@ -20,6 +20,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/bootstrap_screen.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
+import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:provider/provider.dart';
 
 /// The "Encryption & Security" hub page shown in the settings area.
@@ -86,6 +87,18 @@ class EncryptionOverviewScreen extends StatelessWidget {
                       onPressed: () => _startBootstrap(context, enc),
                     )
                   else ...[
+                    // Self-verification: verify this device with another
+                    // of the user's own (already-trusted) devices via SAS.
+                    if (!enc.isThisDeviceVerified)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: FilledButton.tonalIcon(
+                          icon: const Icon(LucideIcons.verified, size: 18),
+                          label: Text(loc.encryptionVerifyDevice),
+                          onPressed: () =>
+                              _startSelfVerification(context, enc, loc),
+                        ),
+                      ),
                     Row(
                       children: [
                         Expanded(
@@ -239,6 +252,28 @@ class EncryptionOverviewScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${AppLocalizations.of(context)!.error} $e')),
+        );
+      }
+    }
+  }
+
+  void _startSelfVerification(
+    BuildContext context,
+    EncryptionService enc,
+    AppLocalizations loc,
+  ) async {
+    try {
+      final req = await enc.requestSelfVerification();
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VerificationScreen(request: req),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.encryptionFailedAction('$e'))),
         );
       }
     }

@@ -93,15 +93,32 @@ class MessageEventHandler extends StatelessWidget {
   /// Checks whether the device that sent this event is verified via
   /// cross-signing.
   ///
-  /// Falls back to user-level verification if the sender's device ID is
-  /// not available in the event metadata (e.g. non-encrypted events).
+  /// For decrypted events the sender's device ID is extracted from
+  /// the `device_id` field of the original encrypted event wrapper
+  /// ([Event.originalSource]).  For undecryptable events ([EventTypes.Encrypted])
+  /// the event itself *is* the encrypted event, so its own content
+  /// carries the `device_id`.
+  ///
+  /// Falls back to user-level verification when the sender's device ID is
+  /// not available (e.g. unencrypted events).
   bool _isDeviceVerified(EncryptionService enc) {
-    final deviceId =
+    // 1. Try the original encrypted source (available after decryption).
+    final fromOriginal =
         event.originalSource?.content['device_id'] as String?;
-    if (deviceId != null) {
-      return enc.isDeviceVerifiedById(event.senderId, deviceId);
+    if (fromOriginal != null) {
+      return enc.isDeviceVerifiedById(event.senderId, fromOriginal);
     }
-    // Fall back to user-level verification when device ID is unknown.
+
+    // 2. For undecryptable events (type == m.room.encrypted), the event
+    //    itself carries the `device_id` in its content.
+    if (event.type == EventTypes.Encrypted) {
+      final fromContent = event.content['device_id'] as String?;
+      if (fromContent != null) {
+        return enc.isDeviceVerifiedById(event.senderId, fromContent);
+      }
+    }
+
+    // 3. Fall back to user-level (master-key) verification.
     return enc.isUserVerifiedById(event.senderId);
   }
 

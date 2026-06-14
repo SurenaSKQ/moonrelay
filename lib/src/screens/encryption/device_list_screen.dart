@@ -60,7 +60,12 @@ class DeviceListScreen extends StatelessWidget {
                 final deviceKeys =
                     client.userDeviceKeys[client.userID]?.deviceKeys;
                 final key = deviceKeys?[device.deviceId];
-                final isVerified = key?.verified ?? false;
+                // For the current device use crossVerified to avoid the
+                // self-trust trap; for other devices use the combined
+                // `verified` (directVerified || crossVerified).
+                final isVerified = isCurrent
+                    ? (key?.crossVerified ?? false)
+                    : (key?.verified ?? false);
 
                 return ListTile(
                   leading: Icon(

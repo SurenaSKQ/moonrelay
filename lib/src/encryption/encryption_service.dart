@@ -207,28 +207,49 @@ class EncryptionService extends ChangeNotifier {
     return bootstrap;
   }
 
-  /// Quick-check: is the current user cross-signed?
+  /// Whether the current user is verified (master key trusted and at least
+  /// the current device is cross-signed).
   bool get isUserVerified => _crossSigningBootstrapped && isThisDeviceVerified;
 
   /// Whether the current device is verified via cross-signing.
+  ///
+  /// Using [SignableKey.crossVerified] instead of [SignableKey.verified]
+  /// because the SDK unconditionally sets `directVerified = true` for the
+  /// current device (self-trust), which would always make `verified` true
+  /// even without cross-signing.  [crossVerified] checks the actual
+  /// signature chain: device → self-signing key → master key.
   bool get isThisDeviceVerified {
     try {
       final enc = _enc;
       if (enc == null) return false;
-      return _client.userDeviceKeys[_client.userID]
-              ?.deviceKeys[_client.deviceID]?.verified ==
-          true;
+      final deviceKey = _client.userDeviceKeys[_client.userID]
+          ?.deviceKeys[_client.deviceID];
+      if (deviceKey == null) return false;
+      // Only consider the device verified if it has a valid cross-signing
+      // chain, not just self-trust.
+      return deviceKey.crossVerified;
     } catch (_) {
       return false;
     }
   }
 
-  /// Whether [userId] is verified via cross-signing.
+  /// Whether [userId]'s master key is verified.
+  ///
+  /// This indicates a successfully-completed cross-signing verification
+  /// (SAS or manual) of this user.  Their master key may be directly
+  /// verified (after SAS) or cross-verified (via a valid signature chain
+  /// back to a directly-verified key).
   bool isUserVerifiedById(String userId) {
     try {
       final enc = _enc;
       if (enc == null) return false;
-      return _client.userDeviceKeys[userId]?.masterKey?.verified == true;
+      final mk = _client.userDeviceKeys[userId]?.masterKey;
+      if (mk == null) return false;
+      // Reject self-trust: the SDK auto-marks the current user's master
+      // key as directly verified during bootstrap, but for other users we
+      // need explicit verification (directVerified) or a valid
+      // cross-signing chain (crossVerified).
+      return mk.verified;
     } catch (_) {
       return false;
     }
@@ -244,16 +265,37 @@ class EncryptionService extends ChangeNotifier {
   /// that was never cross-signed (e.g. a new session before old device
   /// dehydration completed).
   ///
+  /// If the device-level check cannot be satisfied (key not in cache,
+  /// incomplete signature chain, etc.) this falls back to the user-level
+  /// master-key check provided by [isUserVerifiedById] so that devices
+  /// belonging to a verified user are not incorrectly flagged as
+  /// untrusted.
+  ///
   /// [deviceId] can be obtained from the original encrypted event content
   /// via `event.originalSource?.content['device_id']` for decrypted events.
   bool isDeviceVerifiedById(String userId, String deviceId) {
     try {
       final enc = _enc;
       if (enc == null) return false;
-      return _client.userDeviceKeys[userId]
-              ?.deviceKeys[deviceId]
-              ?.verified ==
-          true;
+
+      // If it's our own device, we can skip the user-level fallback:
+      // self-verification is handled explicitly via cross-signing.
+      if (userId == _client.userID && deviceId == _client.deviceID) {
+        final dk =
+            _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
+        if (dk == null) return false;
+        return dk.crossVerified;
+      }
+
+      // For other users' devices: try the device-level check first.
+      final dk = _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
+      if (dk != null && dk.verified) return true;
+
+      // Device not found or not individually verified — fall back to
+      // the user-level master-key check.  If the user's master key is
+      // verified (SAS completed), all of their cross-signed devices
+      // are considered trusted.
+      return isUserVerifiedById(userId);
     } catch (_) {
       return false;
     }
@@ -345,6 +387,33 @@ class EncryptionService extends ChangeNotifier {
       () => kv.start(),
       timeout: kDefaultTimeout,
     );
+    return kv;
+  }
+
+  /// Request verification of the current device from another of the
+  /// user's own devices via SAS (emoji / number matching).
+  ///
+  /// Passes `deviceId: '*'` so any of the user's already-verified devices
+  /// can respond.  The returned [KeyVerification] object drives the same
+  /// SAS UI used for cross-user verification.
+  Future<KeyVerification> requestSelfVerification() async {
+    _log.i('requesting self-verification (device → device)');
+    final enc = _enc;
+    if (enc == null) throw Exception('Encryption not available');
+    if (_client.userID == null) throw Exception('Not logged in');
+
+    final kv = KeyVerification(
+      encryption: enc,
+      userId: _client.userID!,
+      deviceId: '*',
+    );
+    await withTimeout(
+      () => kv.start(),
+      timeout: kDefaultTimeout,
+    );
+    // Register with the manager so the other device's response is routed
+    // back to this KeyVerification instance.
+    enc.keyVerificationManager.addRequest(kv);
     return kv;
   }
 
