@@ -66,14 +66,9 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
       controller: ownProfileMenuController,
       menuChildren: [
         MenuItemButton(
-          leadingIcon: Icon(LucideIcons.user),
+          leadingIcon: Icon(LucideIcons.layoutDashboard),
           onPressed: () => context.push('/main/myprofile'),
-          child: Text("Your Profile"),
-        ),
-        MenuItemButton(
-          leadingIcon: const Icon(LucideIcons.settings),
-          onPressed: () => context.push('/settings'),
-          child: Text("Settings"),
+          child: Text("Hub"),
         ),
         MenuItemButton(
           leadingIcon: Icon(LucideIcons.logOut),
