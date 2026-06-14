@@ -139,11 +139,6 @@ class StartupScreen extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/moonrelay_logo.png',
-          width: 100,
-          height: 100,
-        ),
         const SizedBox(height: 16),
         Text(
           l10n.projectName,
