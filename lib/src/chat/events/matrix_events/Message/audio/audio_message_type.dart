@@ -120,7 +120,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                           style: TextStyle(
                             fontSize: 12,
                             fontFamily: 'Rubik',
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],

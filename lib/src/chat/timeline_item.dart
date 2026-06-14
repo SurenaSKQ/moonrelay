@@ -151,7 +151,7 @@ class TimelineItem extends StatelessWidget {
                             fontFamily: 'Rubik',
                             fontWeight: FontWeight.w500,
                             color:
-                                theme.colorScheme.onSurface.withOpacity(0.45),
+                                theme.colorScheme.onSurface.withValues(alpha: 0.45),
                           ),
                         ),
                       ],
@@ -172,7 +172,7 @@ class TimelineItem extends StatelessWidget {
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w500,
                               color:
-                                  theme.colorScheme.onSurface.withOpacity(0.35),
+                                  theme.colorScheme.onSurface.withValues(alpha: 0.35),
                             ),
                           ),
                         ],
@@ -355,7 +355,7 @@ class _RedactedEvent extends StatelessWidget {
           Icon(
             Icons.delete,
             size: 14,
-            color: theme.colorScheme.onSurface.withOpacity(0.35),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
           ),
           const SizedBox(width: 6),
           Text(
@@ -364,7 +364,7 @@ class _RedactedEvent extends StatelessWidget {
               fontSize: 12,
               fontStyle: FontStyle.italic,
               fontFamily: 'Rubik',
-              color: theme.colorScheme.onSurface.withOpacity(0.45),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           ),
         ],

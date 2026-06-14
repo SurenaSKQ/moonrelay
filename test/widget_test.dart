@@ -1,31 +1,21 @@
-// This is an example Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-//
-// Visit https://flutter.dev/docs/cookbook/testing/widget/introduction for
-// more information about Widget testing.
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 
 void main() {
-  group('MyWidget', () {
-    testWidgets('should display a string of text', (WidgetTester tester) async {
-      // Define a Widget
-      const myWidget = MaterialApp(
-        home: Scaffold(
-          body: Text('Hello'),
-        ),
-      );
-
-      // Build myWidget and trigger a frame.
-      await tester.pumpWidget(myWidget);
-
-      // Verify myWidget shows some text
-      expect(find.byType(Text), findsOneWidget);
-    });
-  });
+  // Widget tests are in test/widget/ directory.
+  // See test/widget/startup_screen_test.dart, test/widget/settings_view_test.dart, etc.
 }

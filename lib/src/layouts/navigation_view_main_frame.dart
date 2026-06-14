@@ -59,7 +59,7 @@ class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
         Container(
           color: theme.brightness == Brightness.light
               ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.primary.withOpacity(0.3),
+              : theme.colorScheme.primary.withValues(alpha: 0.3),
           child: GestureDetector(
             onPanStart: (_) => windowManager.startDragging(),
             child: Row(

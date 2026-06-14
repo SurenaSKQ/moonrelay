@@ -45,8 +45,8 @@ class DateSeparator extends StatelessWidget {
       label = DateFormat.yMMMd().format(dateTime);
     }
 
-    final lineColor = theme.colorScheme.onSurface.withOpacity(0.15);
-    final textColor = theme.colorScheme.onSurface.withOpacity(0.5);
+    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.15);
+    final textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),

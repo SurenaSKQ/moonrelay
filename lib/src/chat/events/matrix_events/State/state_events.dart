@@ -28,7 +28,7 @@ class StateEvents extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mutedColor = theme.colorScheme.onSurface.withOpacity(0.55);
+    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.55);
 
     // Resolve the display name of the sender.
     final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
