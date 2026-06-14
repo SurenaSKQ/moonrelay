@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/user_profile.dart';
 
 class ProfileDelegate extends StatelessWidget {
   const ProfileDelegate({super.key, required this.userid});
@@ -35,17 +35,21 @@ class ProfileDelegate extends StatelessWidget {
         stackTrace: StackTrace.current,
         time: DateTime.now(),
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            children: [
-              Text(AppLocalizations.of(context)!.error),
-              Text(
-                  "The User's ID could not be understood (userid==null),\n Please try again later , or report a bug to our project"),
-            ],
+      // Schedule SnackBar after build to avoid "showSnackBar during build".
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.error),
+                Text(
+                    "The User's ID could not be understood (userid==null),\n Please try again later , or report a bug to our project"),
+              ],
+            ),
           ),
-        ),
-      );
+        );
+      });
       return const SizedBox.shrink();
     } else {
       return ProfilePage(client: client, userID: userid!);

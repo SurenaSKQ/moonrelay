@@ -34,7 +34,7 @@ class _RoomPageState extends State<RoomPage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
-          RoomInfoCard(room: widget.room),
+          ChatRoomHeader(room: widget.room),
           Expanded(
             child: ChatTimeline(room: widget.room),
           ),

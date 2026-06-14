@@ -39,13 +39,17 @@ class _ProfilePageState extends State<ProfilePage> {
       future: widget.client.getProfileFromUserId(widget.userID),
       builder: (context, asyncSnapshot) {
         if (asyncSnapshot.hasError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                asyncSnapshot.error.toString(),
+          // Schedule SnackBar after build.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  asyncSnapshot.error.toString(),
+                ),
               ),
-            ),
-          );
+            );
+          });
         }
         if (asyncSnapshot.hasData) {
           return Scaffold(
@@ -87,11 +91,15 @@ class ProfilePageContents extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (userProfile.displayName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("The user has not set a display name!"),
-        ),
-      );
+      // Schedule SnackBar after build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("The user has not set a display name!"),
+          ),
+        );
+      });
     }
 
     return Column(
