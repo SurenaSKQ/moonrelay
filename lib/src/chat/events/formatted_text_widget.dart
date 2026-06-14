@@ -176,7 +176,7 @@ class _HtmlTagParser {
           return spans;
         }
 
-        if (rawTag == 'br' || rawTag == 'br/') {
+        if (rawTag == 'br' || rawTag == 'br/' || rawTag == 'br /') {
           buffer.write('\n');
           continue;
         }
@@ -251,7 +251,7 @@ class _HtmlTagParser {
           return spans;
         }
 
-        if (raw == 'br' || raw == 'br/') {
+        if (raw == 'br' || raw == 'br/' || raw == 'br /') {
           buffer.write('\n');
           _pos = end;
           continue;
@@ -316,7 +316,7 @@ class _HtmlTagParser {
           return spans;
         }
 
-        if (raw == 'br' || raw == 'br/') {
+        if (raw == 'br' || raw == 'br/' || raw == 'br /') {
           buffer.write('\n');
           _pos = end;
           continue;
