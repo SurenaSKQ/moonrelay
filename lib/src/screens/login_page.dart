@@ -48,11 +48,13 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _tokenCtrl = TextEditingController();
 
   bool _loading = false;
+  bool _syncing = false;
   bool _ssoMode = false;
   bool _tokenMode = false;
 
   String? _error;
   String? _ssoUrl;
+  String? _statusMessage;
 
   @override
   void dispose() {
@@ -68,6 +70,11 @@ class _LoginPageState extends State<LoginPage> {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
+
+    // ── Full-screen syncing state after successful login ──────────────
+    if (_syncing) {
+      return _buildSyncingScreen(colors, theme);
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -208,6 +215,60 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ── Syncing screen ───────────────────────────────────────────────────
+
+  Widget _buildSyncingScreen(ColorScheme colors, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.moon,
+              size: 48,
+              color: colors.primary,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Welcome to Moonrelay',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: colors.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _statusMessage ?? 'Loading…',
+              style: TextStyle(
+                fontSize: 15,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Fetching your rooms and messages…',
+              style: TextStyle(
+                fontSize: 13,
+                color: colors.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -505,10 +566,34 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
 
+    if (!mounted) return;
+
     switch (result) {
       case RetrySuccess():
         {
-          context.go('/main/rooms');
+          // ── Transition to syncing state ────────────────────────────
+          // Login succeeded; the Matrix SDK is now running its first sync
+          // in the background.  Show a full-screen loading state so the
+          // user sees progress instead of a blank room list.
+          setState(() {
+            _statusMessage = 'Syncing your account…';
+            _loading = false; // allow the build method to show _syncing UI
+            _syncing = true;
+          });
+
+          final syncResult = await _waitForInitialSync(client, log);
+
+          if (!mounted) return;
+
+          switch (syncResult) {
+            case true:
+              context.go('/main/rooms');
+            case false:
+              // Sync timed out, but we can still show the app —
+              // the background sync loop will retry.
+              log.w('Initial sync not yet complete, proceeding to rooms');
+              context.go('/main/rooms');
+          }
         }
       case RetryFailed(:final error, :final attempts):
         {
@@ -516,10 +601,29 @@ class _LoginPageState extends State<LoginPage> {
           setState(() => _error = error is TimeoutException
               ? 'Login timed out. The server may be overloaded. Please try again.'
               : 'Login failed: $error');
+          if (mounted) setState(() => _loading = false);
         }
     }
+  }
 
-    if (mounted) setState(() => _loading = false);
+  /// Waits for the first [Client.onSync] event, which indicates that the
+  /// initial sync has delivered room data.  Returns `true` if sync completed
+  /// within the timeout, `false` otherwise.
+  Future<bool> _waitForInitialSync(Client client, Logger log) async {
+    try {
+      await client.onSync.stream.first.timeout(
+        const Duration(seconds: 20),
+      );
+      return true;
+    } on TimeoutException {
+      log.w('Initial sync timed out but continuing to room list');
+      return false;
+    } catch (e) {
+      log.w('Initial sync error but continuing', error: e);
+      return false;
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   Future<void> _doSsoOpenBrowser() async {
@@ -633,7 +737,22 @@ class _LoginPageState extends State<LoginPage> {
     switch (result) {
       case RetrySuccess():
         {
-          context.go('/main/rooms');
+          setState(() {
+            _statusMessage = 'Syncing your account…';
+            _loading = false;
+            _syncing = true;
+          });
+
+          final syncResult = await _waitForInitialSync(client, log);
+
+          if (!mounted) return;
+
+          if (syncResult) {
+            context.go('/main/rooms');
+          } else {
+            log.w('Initial sync not yet complete, proceeding to rooms');
+            context.go('/main/rooms');
+          }
         }
       case RetryFailed(:final error, :final attempts):
         {
@@ -641,9 +760,8 @@ class _LoginPageState extends State<LoginPage> {
           setState(() => _error = error is TimeoutException
               ? 'Login timed out. The server may be overloaded. Please try again.'
               : 'Token login failed: $error');
+          if (mounted) setState(() => _loading = false);
         }
     }
-
-    if (mounted) setState(() => _loading = false);
   }
 }

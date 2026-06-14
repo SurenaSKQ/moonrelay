@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:badges/badges.dart' as badges;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -30,25 +34,40 @@ class SpacesPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void join(Room room) async {
+      final log = Provider.of<Logger>(context, listen: false);
       try {
         if (room.membership != Membership.join) {
-          await room.join();
+          final result = await withRetry(
+            () => room.join(),
+            maxRetries: 1,
+            timeout: kDefaultTimeout,
+            log: log,
+            label: 'spacesJoinRoom',
+          );
+          if (result is RetryFailed) {
+            throw (result).error;
+          }
         }
+        if (!context.mounted) return;
         context.push('/rooms/${room.id}');
       } catch (e) {
-        Provider.of<Logger>(context).f(
-          "Failed to join",
+        log.f(
+          'Failed to join',
           error: e,
           stackTrace: StackTrace.current,
           time: DateTime.now(),
         );
-        // FIXME: Better error and localization
+        if (!context.mounted) return;
+        final message = e is TimeoutException
+            ? 'Could not join room: The server did not respond in time.'
+            : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(AppLocalizations.of(context)!.error),
-                Text(e.toString()),
+                Text(message),
               ],
             ),
           ),
@@ -57,45 +76,102 @@ class SpacesPane extends StatelessWidget {
     }
 
     Client client = Provider.of<Client>(context);
+    final scheme = Theme.of(context).colorScheme;
 
     return Column(
       children: [
         Expanded(
           child: StreamBuilder(
             stream: client.onSync.stream,
-            builder: (context, _) => ListView.builder(
-              itemCount: client.rooms.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: CircleAvatar(
-                  foregroundImage: client.rooms[index].avatar == null
-                      ? null
-                      : NetworkImage(
-                          client.rooms[index].avatar.toString(),
+            builder: (context, snapshot) {
+              final bool hasSynced = snapshot.hasData;
+              final rooms = client.rooms;
+
+              // Loading state
+              if (!hasSynced && rooms.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: scheme.primary,
+                          ),
                         ),
-                ),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        client.rooms[index].getLocalizedDisplayname(),
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading rooms\u2026',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                subtitle: Text(
-                  client.rooms[index].lastEvent?.body ?? 'No messages',
-                  maxLines: 1,
-                ),
-                trailing: (client.rooms[index].notificationCount > 0)
-                    ? badges.Badge(
-                        child: Text(
-                          client.rooms[index].notificationCount.toString(),
+                  ),
+                );
+              }
+
+              // Empty state
+              if (rooms.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.messageCircle,
+                          size: 40,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
                         ),
-                      )
-                    : null,
-                onTap: () => join(client.rooms[index]),
-              ),
-            ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No rooms yet',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: rooms.length,
+                itemBuilder: (context, index) => ListTile(
+                  leading: CircleAvatar(
+                    foregroundImage: rooms[index].avatar == null
+                        ? null
+                        : NetworkImage(
+                            rooms[index].avatar.toString(),
+                          ),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          rooms[index].getLocalizedDisplayname(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    rooms[index].lastEvent?.body ?? 'No messages',
+                    maxLines: 1,
+                  ),
+                  trailing: (rooms[index].notificationCount > 0)
+                      ? badges.Badge(
+                          child: Text(
+                            rooms[index].notificationCount.toString(),
+                          ),
+                        )
+                      : null,
+                  onTap: () => join(rooms[index]),
+                ),
+              );
+            },
           ),
         ),
       ],

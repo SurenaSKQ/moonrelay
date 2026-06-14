@@ -20,6 +20,7 @@ import 'package:badges/badges.dart';
 import 'package:flutter/material.dart' hide Badge;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -86,14 +87,75 @@ class RoomsPane extends StatelessWidget {
 
     Client client = Provider.of<Client>(context);
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Material(
       child: StreamBuilder(
         stream: client.onSync.stream,
-        builder: (context, _) {
+        builder: (context, snapshot) {
+          // Determine whether the first sync has arrived yet.
+          final bool hasSynced = snapshot.hasData;
+
           // Re-filter on every sync to pick up new rooms.
           final Iterable<Room> currentRooms = roomFilter != null
               ? client.rooms.where(roomFilter!)
               : client.rooms;
+
+          // ── Loading state: waiting for initial sync ────────────────
+          if (!hasSynced && currentRooms.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading rooms…',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Empty state: synced but no matching rooms ───────────────
+          if (currentRooms.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      LucideIcons.messageCircle,
+                      size: 40,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No rooms yet',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
           return ListView.builder(
             itemCount: currentRooms.length,
