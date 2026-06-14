@@ -245,6 +245,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open browser. Use the URL above.';
 
   @override
+  String get ssoWaitingForBrowser => 'Waiting for browser authentication…';
+
+  @override
+  String get ssoSwitchToManual => 'Switch to manual setup';
+
+  @override
+  String get ssoAutomaticFailed =>
+      'Automatic SSO login failed. You can try manually below.';
+
+  @override
+  String get ssoLocalServerError =>
+      'Could not start local server. Trying manual method.';
+
+  @override
+  String get ssoWaitingForToken =>
+      'Waiting for the login token from your browser…';
+
+  @override
+  String get ssoTokenDetected => 'Login token received! Completing sign-in…';
+
+  @override
+  String get ssoPasteManually => 'Paste token manually';
+
+  @override
   String get registerTitle => 'Create Account';
 
   @override

@@ -121,6 +121,14 @@
   "pleasePasteToken": "Please paste the login token from your browser.",
   "couldNotOpenBrowser": "Could not open browser. Use the URL above.",
 
+  "ssoWaitingForBrowser": "Waiting for browser authentication…",
+  "ssoSwitchToManual": "Switch to manual setup",
+  "ssoAutomaticFailed": "Automatic SSO login failed. You can try manually below.",
+  "ssoLocalServerError": "Could not start local server. Trying manual method.",
+  "ssoWaitingForToken": "Waiting for the login token from your browser…",
+  "ssoTokenDetected": "Login token received! Completing sign-in…",
+  "ssoPasteManually": "Paste token manually",
+
   "registerTitle": "Create Account",
   "registerHomeserverHint": "matrix.org",
   "usernameText": "Username",

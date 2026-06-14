@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -25,13 +26,15 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/sso_server.dart';
 
 /// Login page with password and SSO support.
 ///
 /// This page discovers the homeserver's supported login flows and presents
 /// the appropriate authentication options:
 /// - Password login with homeserver, username, and password fields
-/// - SSO login that opens the browser and accepts a login token callback
+/// - SSO login that **automatically** captures the token via a local HTTP
+///   server (falling back to manual copy-paste if the automatic flow fails)
 /// - Token-based login for advanced flows
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -52,12 +55,30 @@ class _LoginPageState extends State<LoginPage> {
   bool _ssoMode = false;
   bool _tokenMode = false;
 
+  /// Tracks whether we are running the automatic (local-server) SSO flow.
+  bool _autoSsoActive = false;
+
+  /// Set to `true` when the automatic SSO flow fails so we show the manual
+  /// fallback UI instead.
+  bool _autoSsoFailed = false;
+
+  /// The local HTTP server used to capture the SSO login token.
+  SsoCallbackServer? _ssoServer;
+
+  /// A timer that can cancel the automatic SSO wait if it takes too long.
+  Timer? _autoSsoTimer;
+
+  /// Whether the manual token-paste field is visible in the fallback SSO UI.
+  bool _showManualTokenEntry = false;
+
   String? _error;
   String? _ssoUrl;
   String? _statusMessage;
 
   @override
   void dispose() {
+    _autoSsoTimer?.cancel();
+    _ssoServer?.stop();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -170,6 +191,9 @@ class _LoginPageState extends State<LoginPage> {
                   // ── SSO mode ──
                   if (_ssoMode) ..._buildSsoSection(colors, l10n),
 
+                  // ── Auto-SSO status (shown during automatic flow) ──
+                  if (_autoSsoActive) ..._buildAutoSsoStatus(colors, l10n),
+
                   // ── Token mode ──
                   if (_tokenMode) ..._buildTokenSection(colors, l10n),
 
@@ -180,7 +204,9 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 24),
 
                   // ── Primary action button ──
-                  if (_ssoMode)
+                  if (_autoSsoActive)
+                    _buildAutoSsoActionButton(colors, l10n)
+                  else if (_ssoMode)
                     _buildSsoActionButton(colors, l10n)
                   else if (_tokenMode)
                     _buildTokenActionButton(colors, l10n)
@@ -188,12 +214,15 @@ class _LoginPageState extends State<LoginPage> {
                     _buildPasswordActionButton(colors, l10n),
 
                   // ── Mode switcher ──
-                  if (!_loading) ...[
+                  if (!_loading && !_autoSsoActive) ...[
                     const SizedBox(height: 12),
                     if (!_ssoMode && !_tokenMode)
                       _buildModeLink(
                         l10n.useSsoInstead,
-                        () => setState(() => _ssoMode = true),
+                        () => setState(() {
+                          _ssoMode = true;
+                          _showManualTokenEntry = false;
+                        }),
                       ),
                     if (_ssoMode && !_tokenMode)
                       _buildModeLink(
@@ -345,6 +374,78 @@ class _LoginPageState extends State<LoginPage> {
     ];
   }
 
+  /// Builds the status UI shown during the automatic (local-server) SSO flow.
+  List<Widget> _buildAutoSsoStatus(ColorScheme colors, AppLocalizations l10n) {
+    return [
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.primaryContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.ssoWaitingForBrowser,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colors.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// Builds the cancel / switch-to-manual button during automatic SSO.
+  Widget _buildAutoSsoActionButton(ColorScheme colors, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _cancelAutoSso,
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
+          label: Text(l10n.ssoSwitchToManual),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_autoSsoFailed)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.ssoAutomaticFailed,
+              style: TextStyle(
+                fontSize: 13,
+                color: colors.error,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
+    );
+  }
+
   List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
     return [
       _buildLabel(colors, l10n.ssoUrlLabel),
@@ -364,6 +465,15 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+      // Token field — only shown when the user explicitly requests it.
+      if (_showManualTokenEntry) ...[..._buildManualTokenEntry(colors, l10n)],
+    ];
+  }
+
+  /// Builds the manual token-paste field (hidden behind a toggle by default).
+  List<Widget> _buildManualTokenEntry(
+      ColorScheme colors, AppLocalizations l10n) {
+    return [
       const SizedBox(height: 16),
       _buildLabel(colors, '${l10n.tokenLabel} (paste after authenticating)'),
       const SizedBox(height: 6),
@@ -451,16 +561,30 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _loading ? null : _doSsoComplete,
-          icon: const Icon(LucideIcons.check, size: 18),
-          label: Text(l10n.completeLogin),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // ── "Paste token manually" toggle ──
+        if (!_showManualTokenEntry)
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _showManualTokenEntry = true),
+            icon: const Icon(LucideIcons.key, size: 18),
+            label: Text(l10n.ssoPasteManually),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
           ),
-        ),
+        // ── Manual entry visible: show "Complete Login" ──
+        if (_showManualTokenEntry)
+          FilledButton.icon(
+            onPressed: _loading ? null : _doSsoComplete,
+            icon: const Icon(LucideIcons.check, size: 18),
+            label: Text(l10n.completeLogin),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
       ],
     );
   }
@@ -627,6 +751,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Attempts SSO login using the automatic (local server callback) flow.
+  /// Falls back to the manual copy-paste flow if the automatic approach fails.
   Future<void> _doSsoOpenBrowser() async {
     final l10n = AppLocalizations.of(context)!;
     setState(() {
@@ -658,8 +784,22 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // Build the SSO redirect URL.
-    // Use an OOB redirect URI so the browser shows the token after auth.
+    // ── Try the automatic (local-server) SSO flow ──────────────
+    try {
+      await _doAutomaticSso(client, log, l10n, homeserverUri);
+      return; // success, we are done
+    } on SsoAutomaticException catch (e) {
+      log.w('Automatic SSO failed: ${e.message}');
+      // Fall through to manual flow below
+    } catch (e) {
+      log.w('Automatic SSO failed with unexpected error: $e');
+    }
+
+    // ── Fallback: manual copy-paste flow ───────────────────────
+    if (!mounted) return;
+
+    // Build the SSO redirect URL with OOB redirect URI so the browser
+    // shows the token after auth.
     final Uri ssoUrl = homeserverUri.replace(
       path: '/_matrix/client/v3/login/sso/redirect',
       queryParameters: {
@@ -669,6 +809,8 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() {
       _ssoUrl = ssoUrl.toString();
+      _autoSsoFailed = true;
+      _autoSsoActive = false;
       _loading = false;
     });
 
@@ -679,6 +821,124 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       setState(() => _error = l10n.couldNotOpenBrowser);
     }
+  }
+
+  /// Attempts the automatic SSO flow by:
+  ///   1. Starting a local HTTP server on a random port.
+  ///   2. Building the SSO redirect URL pointing to that local server.
+  ///   3. Opening the browser.
+  ///   4. Waiting for the browser to redirect back with the login token.
+  ///   5. Completing the login.
+  ///
+  /// Throws [SsoAutomaticException] if any step fails, letting the caller
+  /// fall back to the manual flow.
+  Future<void> _doAutomaticSso(
+    Client client,
+    Logger log,
+    AppLocalizations l10n,
+    Uri homeserverUri,
+  ) async {
+    // ── 1. Start the local callback server ──────────────────────
+    final SsoCallbackServer server = SsoCallbackServer();
+    late Uri redirectUri;
+
+    try {
+      redirectUri = await server.start();
+    } on SocketException catch (e) {
+      await server.stop();
+      throw SsoAutomaticException(
+        'Failed to bind local server: $e',
+      );
+    }
+
+    _ssoServer = server;
+
+    if (!mounted) {
+      await server.stop();
+      return;
+    }
+
+    setState(() {
+      _autoSsoActive = true;
+      _autoSsoFailed = false;
+      _loading = false;
+      _ssoUrl = null;
+    });
+
+    // ── 2. Build the SSO URL with our local redirect ───────────
+    final Uri ssoUrl = homeserverUri.replace(
+      path: '/_matrix/client/v3/login/sso/redirect',
+      queryParameters: {
+        'redirectUrl': redirectUri.toString(),
+      },
+    );
+
+    // ── 3. Open the browser ────────────────────────────────────
+    try {
+      await launchUrl(ssoUrl, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      await server.stop();
+      _ssoServer = null;
+      if (!mounted) return;
+      setState(() => _autoSsoActive = false);
+      throw SsoAutomaticException('Could not open browser: $e');
+    }
+
+    if (!mounted) {
+      await server.stop();
+      return;
+    }
+
+    // ── 4. Wait for the token (with timeout) ───────────────────
+    String token;
+    try {
+      token = await server.token.timeout(
+        const Duration(minutes: 3),
+      );
+    } on TimeoutException {
+      await server.stop();
+      _ssoServer = null;
+      if (!mounted) return;
+      setState(() => _autoSsoActive = false);
+      throw SsoAutomaticException('Timed out waiting for browser redirect');
+    } finally {
+      _autoSsoTimer?.cancel();
+    }
+
+    if (!mounted) {
+      await server.stop();
+      return;
+    }
+
+    // ── 5. Token received — complete the login ─────────────────
+    setState(() {
+      _statusMessage = l10n.ssoTokenDetected;
+    });
+
+    // Small delay so the user sees the status update.
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    // Shut down the server before the token login call.
+    await server.stop();
+    _ssoServer = null;
+
+    if (!mounted) return;
+
+    setState(() => _autoSsoActive = false);
+
+    await _completeTokenLogin(token);
+  }
+
+  /// Cancels the automatic SSO flow and switches to the manual fallback.
+  void _cancelAutoSso() {
+    _autoSsoTimer?.cancel();
+    _ssoServer?.stop();
+    _ssoServer = null;
+    setState(() {
+      _autoSsoActive = false;
+      _autoSsoFailed = true;
+      _loading = false;
+    });
   }
 
   Future<void> _doSsoComplete() async {
@@ -768,4 +1028,14 @@ class _LoginPageState extends State<LoginPage> {
         }
     }
   }
+}
+
+/// Thrown when the automatic SSO flow fails, so the caller can fall back
+/// to the manual token-paste flow.
+class SsoAutomaticException implements Exception {
+  SsoAutomaticException(this.message);
+  final String message;
+
+  @override
+  String toString() => 'SsoAutomaticException: $message';
 }

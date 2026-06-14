@@ -538,6 +538,48 @@ abstract class AppLocalizations {
   /// **'Could not open browser. Use the URL above.'**
   String get couldNotOpenBrowser;
 
+  /// No description provided for @ssoWaitingForBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for browser authentication…'**
+  String get ssoWaitingForBrowser;
+
+  /// No description provided for @ssoSwitchToManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to manual setup'**
+  String get ssoSwitchToManual;
+
+  /// No description provided for @ssoAutomaticFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic SSO login failed. You can try manually below.'**
+  String get ssoAutomaticFailed;
+
+  /// No description provided for @ssoLocalServerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start local server. Trying manual method.'**
+  String get ssoLocalServerError;
+
+  /// No description provided for @ssoWaitingForToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the login token from your browser…'**
+  String get ssoWaitingForToken;
+
+  /// No description provided for @ssoTokenDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Login token received! Completing sign-in…'**
+  String get ssoTokenDetected;
+
+  /// No description provided for @ssoPasteManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste token manually'**
+  String get ssoPasteManually;
+
   /// No description provided for @registerTitle.
   ///
   /// In en, this message translates to:
