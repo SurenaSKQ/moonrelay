@@ -231,6 +231,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yes'**
   String get yesOrAffirmitive;
+
+  /// No description provided for @chatBoxAttach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach file'**
+  String get chatBoxAttach;
+
+  /// No description provided for @chatBoxSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get chatBoxSend;
+
+  /// No description provided for @chatBoxExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand editor'**
+  String get chatBoxExpand;
+
+  /// No description provided for @chatBoxCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get chatBoxCollapse;
 }
 
 class _AppLocalizationsDelegate

@@ -33,5 +33,9 @@
     }
   },
   "warning": "Warning!",
-  "yesOrAffirmitive": "Yes"
+  "yesOrAffirmitive": "Yes",
+  "chatBoxAttach": "Attach file",
+  "chatBoxSend": "Send",
+  "chatBoxExpand": "Expand editor",
+  "chatBoxCollapse": "Collapse"
 }

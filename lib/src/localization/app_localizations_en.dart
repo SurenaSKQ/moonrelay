@@ -79,4 +79,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yesOrAffirmitive => 'Yes';
+
+  @override
+  String get chatBoxAttach => 'Attach file';
+
+  @override
+  String get chatBoxSend => 'Send';
+
+  @override
+  String get chatBoxExpand => 'Expand editor';
+
+  @override
+  String get chatBoxCollapse => 'Collapse';
 }
