@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
@@ -202,7 +200,7 @@ class TimelineItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Hover actions + message body + reactions
+                // Hover actions (right-aligned — away from sender info)
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
@@ -379,12 +377,14 @@ class TimelineItem extends StatelessWidget {
 // Hover actions wrapper (Modern & Bubbles only)
 // ---------------------------------------------------------------------------
 
-/// Wraps [child] with a [MouseRegion] and reveals action buttons at the
-/// top‑right when the user hovers anywhere within the bounds.
+/// Wraps [child] with a [MouseRegion] and overlays action buttons at the
+/// top‑right corner of the message when the user hovers over it.
 ///
-/// Actions include **React**, **Reply**, **Forward**, and **Delete** (when
-/// permitted).  When [onReply] is `null` the whole mechanism is skipped and
-/// [child] is returned as-is.
+/// Actions include **React**, **Reply**, **Forward**, **Details**, and
+/// **Delete** (when permitted).
+///
+/// When [onReply] is `null` the whole mechanism is skipped and [child] is
+/// returned as-is.
 class _HoverActionsWrapper extends StatefulWidget {
   const _HoverActionsWrapper({
     required this.child,
@@ -404,29 +404,6 @@ class _HoverActionsWrapper extends StatefulWidget {
 
 class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
   bool _isHovered = false;
-  Timer? _hideTimer;
-
-  /// Duration the hover bar stays visible after the mouse leaves, giving the
-  /// user time to reach the floating action buttons.
-  static const _kHideDelay = Duration(milliseconds: 400);
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    super.dispose();
-  }
-
-  void _onEnter(dynamic _) {
-    _hideTimer?.cancel();
-    if (!_isHovered) setState(() => _isHovered = true);
-  }
-
-  void _onExit(dynamic _) {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(_kHideDelay, () {
-      if (mounted) setState(() => _isHovered = false);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -436,44 +413,42 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
     final cs = Theme.of(context).colorScheme;
 
     return MouseRegion(
-      onEnter: _onEnter,
-      onExit: _onExit,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Stack(
         children: [
-          if (_isHovered) _buildActionBar(cs),
           widget.child,
-        ],
-      ),
-    );
-  }
-
-  /// The floating action bar shown when the message is hovered.
-  Widget _buildActionBar(ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: cs.primary.withValues(alpha: 0.25),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+          if (_isHovered)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: cs.primary.withValues(alpha: 0.25),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                child: MessageActions(
+                  event: widget.event,
+                  room: widget.room,
+                  onReply: widget.onReply!,
+                ),
+              ),
             ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: MessageActions(
-          event: widget.event,
-          room: widget.room,
-          onReply: widget.onReply!,
-        ),
+        ],
       ),
     );
   }

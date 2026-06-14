@@ -18,9 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/screens/message_details_page.dart';
 
-/// A row of small icon buttons for **React**, **Reply**, **Forward**, and
-/// **Delete** (if permitted).
+/// A row of small icon buttons for **React**, **Reply**, **Forward**,
+/// **Details**, and **Delete** (if permitted).
 ///
 /// This widget does **not** manage its own visibility — the parent controls
 /// when it appears (e.g. via a hover wrapper).
@@ -64,6 +65,13 @@ class MessageActions extends StatelessWidget {
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: () => _forward(context),
         ),
+        const SizedBox(width: 2),
+        _ActionIcon(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'Details',
+          color: cs.onSurface.withValues(alpha: 0.6),
+          onTap: () => _showDetails(context),
+        ),
         if (canDelete) ...[
           const SizedBox(width: 2),
           _ActionIcon(
@@ -99,6 +107,18 @@ class MessageActions extends StatelessWidget {
         ),
       );
     }
+  }
+
+  /// Opens the message details page.
+  void _showDetails(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessageDetailsPage(
+          event: event,
+          room: room,
+        ),
+      ),
+    );
   }
 
   /// Shows a confirmation dialog before redacting the event.
