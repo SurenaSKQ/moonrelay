@@ -236,6 +236,12 @@
   "roomInfoTitle": "Room Info",
   "copyRoomIdTooltip": "Copy Room ID",
   "actionsSection": "Actions",
+
+  "roleLabel": "Role",
+  "statusLabel": "Status",
+  "reportUserReason": "Please describe why you are reporting this user.",
+  "reportUserHint": "Reason for report…",
+
   "leaveRoom": "Leave Room",
   "leaveRoomDescription": "Remove yourself from this room",
   "copyRoomId": "Copy Room ID",
@@ -679,5 +685,91 @@
   "welcomeToggleDark": "Switch to dark mode",
   "@welcomeToggleDark": {
     "description": "Tooltip for the theme toggle button to switch to dark mode."
-  }
+  },
+
+  "presenceOnline": "Online",
+  "presenceOffline": "Offline",
+  "presenceUnavailable": "Unavailable",
+  "presenceUnknown": "Unknown",
+
+  "sectionAbout": "About",
+  "sectionModeration": "Moderation",
+
+  "powerLevelLabel": "Power Level",
+  "membershipLabel": "Membership",
+
+  "actionKick": "Kick",
+  "actionBan": "Ban",
+  "actionUnban": "Unban",
+  "actionSetModerator": "Set as Moderator",
+  "actionSetAdmin": "Set as Admin",
+  "actionRemovePrivileges": "Remove Privileges",
+  "actionInvite": "Invite to Room",
+  "actionReport": "Report User",
+  "actionStartDirectChat": "Send Direct Message",
+
+  "kickConfirm": "Are you sure you want to kick {displayName}? They will be able to rejoin.",
+  "@kickConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "banConfirm": "Are you sure you want to ban {displayName}? This will prevent them from joining.",
+  "@banConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "unbanConfirm": "Unban {displayName}?",
+  "@unbanConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "changePowerLevelConfirm": "Change power level of {displayName} to {level}?",
+  "@changePowerLevelConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" },
+      "level": { "type": "int" }
+    }
+  },
+  "userKicked": "{displayName} has been kicked from the room.",
+  "@userKicked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userBanned": "{displayName} has been banned from the room.",
+  "@userBanned": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userUnbanned": "{displayName} has been unbanned.",
+  "@userUnbanned": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "powerLevelChanged": "{displayName}'s power level changed to {level}.",
+  "@powerLevelChanged": {
+    "placeholders": {
+      "displayName": { "type": "String" },
+      "level": { "type": "int" }
+    }
+  },
+  "userInvited": "Invitation sent to {displayName}.",
+  "@userInvited": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userReported": "User has been reported to the server admin.",
+  "actionFailed": "Action failed: {error}",
+  "@actionFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "moderationNotAvailable": "Room context required for moderation actions."
 }

@@ -381,6 +381,7 @@ class _FullMemberTile extends StatelessWidget {
         builder: (_) => ProfilePage(
           client: member.room.client,
           userID: member.id,
+          room: member.room,
         ),
       ),
     );

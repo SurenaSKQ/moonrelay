@@ -21,6 +21,7 @@ import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/own_profile_bar.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:provider/provider.dart';
 
 /// A bottom bar for the sidebar pane that shows the user's profile and
@@ -39,7 +40,9 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
   Future<void> _logout() async {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
+    final enc = context.read<EncryptionService>();
     try {
+      await enc.onLogout();
       await client.logout();
       if (!mounted) return;
       context.go('/');
