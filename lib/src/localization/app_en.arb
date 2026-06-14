@@ -649,5 +649,35 @@
   "unverifiedTooltip": "Unverified",
 
   "navigationHome": "Home",
-  "navigationAll": "All"
+  "navigationAll": "All",
+
+  "welcomeProjectNews": "Project News",
+  "@welcomeProjectNews": {
+    "description": "Title for the project news card on the welcome screen."
+  },
+
+  "welcomeProjectNewsContent": "Stay up to date with the latest Moonrelay developments, releases, and community announcements.",
+  "@welcomeProjectNewsContent": {
+    "description": "Content for the project news card on the welcome screen."
+  },
+
+  "welcomeDonators": "Supporters",
+  "@welcomeDonators": {
+    "description": "Title for the donators / supporters card on the welcome screen."
+  },
+
+  "welcomeDonatorsContent": "Moonrelay is made possible thanks to the generous support of our community. We deeply appreciate every contribution, big or small.",
+  "@welcomeDonatorsContent": {
+    "description": "Content for the donators / supporters card on the welcome screen."
+  },
+
+  "welcomeToggleLight": "Switch to light mode",
+  "@welcomeToggleLight": {
+    "description": "Tooltip for the theme toggle button to switch to light mode."
+  },
+
+  "welcomeToggleDark": "Switch to dark mode",
+  "@welcomeToggleDark": {
+    "description": "Tooltip for the theme toggle button to switch to dark mode."
+  }
 }
