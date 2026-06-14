@@ -44,20 +44,20 @@ enum MoonrelayThemeOption {
     seedColor: MoonrelayColorPalette.ordinaryBlue,
   ),
   midnightSlate(
-    label: 'Midnight Slate',
-    seedColor: MoonrelayColorPalette.cpgDarkest,
+    label: 'British Racing Green',
+    seedColor: MoonrelayColorPalette.britishRacingGreen,
   ),
   crimson(
-    label: 'Crimson',
-    seedColor: MoonrelayColorPalette.cpgRed,
+    label: 'Bright Maroon',
+    seedColor: MoonrelayColorPalette.brightMaroon,
   ),
   amber(
     label: 'Amber',
     seedColor: MoonrelayColorPalette.ordinaryOrange,
   ),
   steel(
-    label: 'Steel',
-    seedColor: MoonrelayColorPalette.primaryColor,
+    label: 'Lime Green',
+    seedColor: MoonrelayColorPalette.ordinaryLimeGreen,
   ),
   sky(
     label: 'Sky',
