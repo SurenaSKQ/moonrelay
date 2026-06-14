@@ -672,6 +672,13 @@ class _LoginPageState extends State<LoginPage> {
 
     final Client client = Provider.of<Client>(context, listen: false);
     final Logger log = Provider.of<Logger>(context, listen: false);
+    final enc = context.read<EncryptionService>();
+
+    // ── Invalidate any cached session data before a fresh login ──
+    // This ensures the SDK doesn't carry over a stale Olm account,
+    // stale device keys, or any other cached state from a previous
+    // session (e.g. after an unclean shutdown or a failed logout).
+    await _clearCachedSession(client, enc, log);
 
     // Ensure supported login types includes password
     client.supportedLoginTypes.add(AuthenticationTypes.password);
@@ -751,6 +758,42 @@ class _LoginPageState extends State<LoginPage> {
           if (mounted) setState(() => _loading = false);
         }
     }
+  }
+
+  /// Clears any cached session data from the SDK and EncryptionService
+  /// so a fresh login starts with a clean slate.
+  ///
+  /// This prevents stale Olm accounts, cached device keys, and other
+  /// encrypted state from leaking across sessions (e.g. after a crash
+  /// before [Client.logout] completed, or when re-logging into a
+  /// different account on the same client instance).
+  Future<void> _clearCachedSession(
+    Client client,
+    EncryptionService enc,
+    Logger log,
+  ) async {
+    try {
+      // If there's an active session, shut it down properly.
+      if (client.isLogged()) {
+        await enc.onLogout();
+        await client.logout();
+        log.i('Cleared previous session before login');
+        return;
+      }
+    } catch (_) {
+      // Ignore logout errors; we'll still clear caches below.
+    }
+
+    // Even without an active session, clear any cached state that
+    // the SDK may have loaded from the database on init().
+    try {
+      await client.clearCache();
+    } catch (_) {
+      // best-effort
+    }
+
+    await enc.onLogout();
+    log.i('Cleared cached client state before login');
   }
 
   /// Waits for the first [Client.onSync] event, which indicates that the
@@ -992,6 +1035,10 @@ class _LoginPageState extends State<LoginPage> {
 
     final Client client = Provider.of<Client>(context, listen: false);
     final Logger log = Provider.of<Logger>(context, listen: false);
+    final enc = context.read<EncryptionService>();
+
+    // ── Invalidate any cached session data before a fresh login ──
+    await _clearCachedSession(client, enc, log);
 
     client.supportedLoginTypes.add(AuthenticationTypes.token);
 
