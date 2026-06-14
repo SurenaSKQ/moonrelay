@@ -14,57 +14,67 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// TODO: Loading animations, handle different states, theming?
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
-enum AvatarStates {
-  inactive,
-  active,
-}
-
-class AvatarFromUriOrFallbackImage extends StatefulWidget {
+/// An avatar that loads from a Matrix content URI with a themed placeholder
+/// while the thumbnail URL resolves and the image downloads.
+///
+/// When [avatarUri] is `null` a generic person icon is shown instead.
+class AvatarFromUriOrFallbackImage extends StatelessWidget {
   const AvatarFromUriOrFallbackImage({
     super.key,
     required this.client,
     this.avatarUri,
     this.onTap,
-    this.fallbackImage,
     this.radius,
   });
+
   final Client client;
   final Uri? avatarUri;
   final VoidCallback? onTap;
-  final AvatarStates avatarState = AvatarStates.active;
-  final ImageProvider? fallbackImage;
   final double? radius;
-  @override
-  State<AvatarFromUriOrFallbackImage> createState() =>
-      _AvatarFromUriOrFallbackImageState();
-}
 
-class _AvatarFromUriOrFallbackImageState
-    extends State<AvatarFromUriOrFallbackImage> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GestureDetector(
-      onTap: widget.onTap,
-      child: (widget.avatarUri == null)
-          ? const CircleAvatar(child: Icon(Icons.person))
-          : FutureBuilder(
-              future: widget.avatarUri!
-                  .getThumbnailUri(widget.client, width: 56, height: 56),
-              builder: (context, asyncSnapshot) {
-                if (asyncSnapshot.connectionState != ConnectionState.done) {
-                  return const CircularProgressIndicator();
+      onTap: onTap,
+      child: avatarUri == null
+          ? CircleAvatar(
+              radius: radius,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              child: Icon(
+                Icons.person,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            )
+          : FutureBuilder<Uri>(
+              future: avatarUri!.getThumbnailUri(
+                client,
+                width: 56,
+                height: 56,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return CircleAvatar(
+                    radius: radius,
+                    backgroundImage: NetworkImage(
+                      snapshot.data.toString(),
+                      headers: {
+                        'authorization': 'Bearer ${client.accessToken}',
+                      },
+                    ),
+                  );
                 }
+                // Themed placeholder while the thumbnail URL resolves.
                 return CircleAvatar(
-                  radius: widget.radius,
-                  backgroundImage: NetworkImage(
-                    asyncSnapshot.data.toString(),
-                    headers: {
-                      "authorization": "Bearer ${widget.client.accessToken}"
-                    },
+                  radius: radius,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.person,
+                    color: theme.colorScheme.onPrimaryContainer,
                   ),
                 );
               },

@@ -16,13 +16,15 @@
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/own_profile_bar.dart';
 import 'package:provider/provider.dart';
 
+/// A bottom bar for the sidebar pane that shows the user's profile and
+/// a right-click context menu with navigation (Hub) and logout actions.
 class PermanentPaneBottomItems extends StatefulWidget {
   const PermanentPaneBottomItems({super.key});
 
@@ -32,53 +34,58 @@ class PermanentPaneBottomItems extends StatefulWidget {
 }
 
 class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
-  void _logout() async {
-    if (context.mounted) {
-      final client = Provider.of<Client>(context, listen: false);
-      final log = Provider.of<Logger>(context, listen: false);
-      try {
-        await client.logout();
-        context.go('/');
-      } catch (e) {
-        log.e("Logout error, maybe network failure",
-            error: e, time: DateTime.now(), stackTrace: StackTrace.current);
-        // ignore: use_build_context_synchronously
-        // FIXME This can cause build exception
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              children: [
-                Text(AppLocalizations.of(context)!.error),
-                Text(e.toString()),
-              ],
-            ),
+  final MenuController _menuController = MenuController();
+
+  Future<void> _logout() async {
+    if (!context.mounted) return;
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
+    try {
+      await client.logout();
+      if (!context.mounted) return;
+      context.go('/');
+    } catch (e) {
+      log.e(
+        'Logout error',
+        error: e,
+        time: DateTime.now(),
+        stackTrace: StackTrace.current,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(AppLocalizations.of(context)!.error),
+              Text(e.toString()),
+            ],
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    Client client = Provider.of<Client>(context);
-    final MenuController ownProfileMenuController = MenuController();
+    final client = Provider.of<Client>(context);
+
     return MenuAnchor(
-      controller: ownProfileMenuController,
+      controller: _menuController,
       menuChildren: [
         MenuItemButton(
-          leadingIcon: Icon(LucideIcons.layoutDashboard),
+          leadingIcon: const Icon(LucideIcons.layoutDashboard),
           onPressed: () => context.push('/main/myprofile'),
-          child: Text("Hub"),
+          child: const Text('Hub'),
         ),
         MenuItemButton(
-          leadingIcon: Icon(LucideIcons.logOut),
-          onPressed: () => _logout(),
-          child: Text("Log Out"),
-        )
+          leadingIcon: const Icon(LucideIcons.logOut),
+          onPressed: _logout,
+          child: const Text('Log Out'),
+        ),
       ],
       builder: (context, controller, child) {
         return GestureDetector(
-          child: OwnProfileBar(client: client),
           onSecondaryTap: () {
             if (controller.isOpen) {
               controller.close();
@@ -86,88 +93,8 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
               controller.open();
             }
           },
-        );
-      },
-    );
-  }
-}
-
-class OwnProfileBar extends StatefulWidget {
-  const OwnProfileBar({
-    super.key,
-    required this.client,
-  });
-  final Client client;
-  @override
-  State<OwnProfileBar> createState() => _OwnProfileBarState();
-}
-
-class _OwnProfileBarState extends State<OwnProfileBar> {
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: widget.client.getProfileFromUserId(widget.client.userID!),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return Builder(
-            builder: (context) => SpinKitCubeGrid(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          );
-        }
-        return Builder(
-          builder: (context) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: snapshot.data?.avatarUrl == null
-                      ? Text(
-                          snapshot.data?.displayName == null
-                              ? "You"
-                              : snapshot.data!.displayName!
-                                  .toUpperCase()
-                                  .split(RegExp(' +'))
-                                  .map((s) => s[0])
-                                  .take(2)
-                                  .join(),
-                        )
-                      : CircleAvatar(
-                          foregroundImage: NetworkImage(
-                            snapshot.data!.avatarUrl!
-                                .getThumbnailUri(
-                                  widget.client,
-                                  animated: true,
-                                  height: 56,
-                                  width: 56,
-                                )
-                                .toString(),
-                          ),
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
-                        ),
-                ),
-                const SizedBox(
-                  width: 69.0,
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      snapshot.data?.displayName ?? "View your profile",
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    Text(
-                      snapshot.data!.userId,
-                      style: const TextStyle(fontSize: 16),
-                    )
-                  ],
-                )
-              ],
-            ),
-          ),
+          onTap: () => context.push('/main/myprofile'),
+          child: OwnProfileBar(client: client),
         );
       },
     );
