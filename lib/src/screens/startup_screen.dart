@@ -159,7 +159,7 @@ class StartupScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextButton.icon(
-              onPressed: () => context.push('/welcome/login'),
+              onPressed: () => context.push('/welcome/login', extra: 'sso'),
               icon: const Icon(LucideIcons.fingerprint, size: 18),
               label: Text(l10n.signInWithSso),
               style: TextButton.styleFrom(

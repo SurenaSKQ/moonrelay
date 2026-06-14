@@ -75,6 +75,23 @@ class _LoginPageState extends State<LoginPage> {
   String? _ssoUrl;
   String? _statusMessage;
 
+  bool _didCheckExtra = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didCheckExtra) {
+      _didCheckExtra = true;
+      final Object? extra = GoRouterState.of(context).extra;
+      if (extra == 'sso') {
+        setState(() {
+          _ssoMode = true;
+          _showManualTokenEntry = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _autoSsoTimer?.cancel();
