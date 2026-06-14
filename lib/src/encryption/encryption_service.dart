@@ -134,8 +134,8 @@ class EncryptionService extends ChangeNotifier {
         _refreshBackupState(),
         _refreshMyDevices(),
       ]).catchError((e, s) {
-        _log.w('encryption refresh after sync failed',
-            error: e, stackTrace: s);
+        _log.w('encryption refresh after sync failed', error: e, stackTrace: s);
+        return <void>[];
       });
     });
 
@@ -222,8 +222,8 @@ class EncryptionService extends ChangeNotifier {
     try {
       final enc = _enc;
       if (enc == null) return false;
-      final deviceKey = _client.userDeviceKeys[_client.userID]
-          ?.deviceKeys[_client.deviceID];
+      final deviceKey =
+          _client.userDeviceKeys[_client.userID]?.deviceKeys[_client.deviceID];
       if (deviceKey == null) return false;
       // Only consider the device verified if it has a valid cross-signing
       // chain, not just self-trust.
@@ -281,8 +281,7 @@ class EncryptionService extends ChangeNotifier {
       // If it's our own device, we can skip the user-level fallback:
       // self-verification is handled explicitly via cross-signing.
       if (userId == _client.userID && deviceId == _client.deviceID) {
-        final dk =
-            _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
+        final dk = _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
         if (dk == null) return false;
         return dk.crossVerified;
       }
