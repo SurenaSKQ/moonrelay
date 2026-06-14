@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Common emojis shown in the quick-reaction popup.
-const List<String> _quickEmojis = [
+const List<String> kQuickReactionEmojis = [
   '\u{1F44D}', // 👍
   '\u{2764}\u{FE0F}', // ❤️
   '\u{1F600}', // 😀
@@ -28,6 +28,69 @@ const List<String> _quickEmojis = [
   '\u{1F44E}', // 👎
   '\u{1F525}', // 🔥
 ];
+
+/// Opens a popup menu with common reaction emojis positioned near [button].
+/// Calls [onSelected] when an emoji is picked.
+void showReactionPicker(
+  BuildContext context, {
+  required ValueChanged<String> onSelected,
+}) {
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final button = context.findRenderObject() as RenderBox;
+  final position = button.localToGlobal(Offset.zero, ancestor: overlay);
+
+  showMenu<String>(
+    context: context,
+    position: RelativeRect.fromRect(
+      Rect.fromPoints(
+        position + const Offset(0, 24),
+        position + const Offset(200, 200),
+      ),
+      Offset.zero & overlay.size,
+    ),
+    items: [
+      PopupMenuItem<String>(
+        enabled: false,
+        child: ReactionEmojiGrid(onSelected: onSelected),
+      ),
+    ],
+  );
+}
+
+/// A grid of emoji buttons used inside the add-reaction popup.
+class ReactionEmojiGrid extends StatelessWidget {
+  const ReactionEmojiGrid({super.key, required this.onSelected});
+
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 200,
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: kQuickReactionEmojis.map((emoji) {
+          return InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              onSelected(emoji);
+              Navigator.of(context).pop();
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Text(emoji, style: const TextStyle(fontSize: 22)),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reactions bar (placed below message body)
+// ---------------------------------------------------------------------------
 
 /// A compact bar that displays emoji reactions for a timeline event.
 ///
@@ -208,7 +271,7 @@ class _AddReactionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showEmojiPicker(context),
+        onTap: () => showReactionPicker(context, onSelected: onSelected),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           child: Icon(
@@ -217,60 +280,6 @@ class _AddReactionButton extends StatelessWidget {
             color: cs.onSurface.withValues(alpha: 0.6),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showEmojiPicker(BuildContext context) {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final button = context.findRenderObject() as RenderBox;
-    final position = button.localToGlobal(Offset.zero, ancestor: overlay);
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(
-          position + const Offset(0, 24),
-          position + const Offset(200, 200),
-        ),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem<String>(
-          enabled: false,
-          child: _EmojiGrid(onSelected: onSelected),
-        ),
-      ],
-    );
-  }
-}
-
-/// A grid of emoji buttons used inside the add-reaction popup.
-class _EmojiGrid extends StatelessWidget {
-  const _EmojiGrid({required this.onSelected});
-
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 200,
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: _quickEmojis.map((emoji) {
-          return InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              onSelected(emoji);
-              Navigator.of(context).pop();
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
-            ),
-          );
-        }).toList(),
       ),
     );
   }

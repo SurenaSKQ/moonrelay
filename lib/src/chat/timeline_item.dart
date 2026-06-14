@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
@@ -35,10 +37,10 @@ import 'package:matrix/matrix.dart';
 ///   grouped events (the first event of the group still shows the time).
 ///
 /// **Display types:**
-/// - [DisplayType.modern]: avatar left, sender name above, content indented
-///   for grouped messages.
-/// - [DisplayType.bubbles]: bubble container with avatar, content inside.
-/// - [DisplayType.irc]: compact format with sender prefix on each line.
+/// - [DisplayType.modern] and [DisplayType.bubbles]: hover actions (React,
+///   Reply, Forward, Delete) appear at the top‑right when hovering anywhere
+///   on the message.
+/// - [DisplayType.irc]: compact format with no hover actions.
 class TimelineItem extends StatelessWidget {
   const TimelineItem({
     super.key,
@@ -99,7 +101,7 @@ class TimelineItem extends StatelessWidget {
     }
   }
 
-  /// Common content wrapper: message body + reactions bar.
+  /// Message body + reactions bar (shared between all display modes).
   Widget _messageContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,27 +114,6 @@ class TimelineItem extends StatelessWidget {
             timeline: timeline!,
             room: room,
           ),
-      ],
-    );
-  }
-
-  /// Wraps the content area with a hover-revealed actions row.
-  Widget _withActions(Widget content) {
-    if (onReply == null) return content;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        content,
-        Positioned(
-          top: -4,
-          right: 0,
-          child: MessageActions(
-            event: event,
-            room: room,
-            onReply: onReply!,
-          ),
-        ),
       ],
     );
   }
@@ -225,8 +206,13 @@ class TimelineItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Message body with reactions and hover actions
-                _withActions(_messageContent(context)),
+                // Hover actions + message body + reactions
+                _HoverActionsWrapper(
+                  event: event,
+                  room: room,
+                  onReply: onReply,
+                  child: _messageContent(context),
+                ),
               ],
             ),
           ),
@@ -295,8 +281,12 @@ class TimelineItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                _withActions(
-                  Container(
+                // Hover actions + bubble
+                _HoverActionsWrapper(
+                  event: event,
+                  room: room,
+                  onReply: onReply,
+                  child: Container(
                     decoration: BoxDecoration(
                       color: MoonrelayColorPalette.cpgDarker,
                       borderRadius: BorderRadius.circular(8),
@@ -335,7 +325,7 @@ class TimelineItem extends StatelessWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // IRC display
+  // IRC display (compact, no hover actions)
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
@@ -371,25 +361,127 @@ class TimelineItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Message body with actions and reactions
+          // Message body + reactions
           Expanded(
-            child: _withActions(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  MessageEventHandler(event: event),
-                  if (timeline != null)
-                    ReactionsBar(
-                      event: event,
-                      timeline: timeline!,
-                      room: room,
-                    ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MessageEventHandler(event: event),
+                if (timeline != null)
+                  ReactionsBar(
+                    event: event,
+                    timeline: timeline!,
+                    room: room,
+                  ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hover actions wrapper (Modern & Bubbles only)
+// ---------------------------------------------------------------------------
+
+/// Wraps [child] with a [MouseRegion] and reveals action buttons at the
+/// top‑right when the user hovers anywhere within the bounds.
+///
+/// Actions include **React**, **Reply**, **Forward**, and **Delete** (when
+/// permitted).  When [onReply] is `null` the whole mechanism is skipped and
+/// [child] is returned as-is.
+class _HoverActionsWrapper extends StatefulWidget {
+  const _HoverActionsWrapper({
+    required this.child,
+    required this.event,
+    required this.room,
+    this.onReply,
+  });
+
+  final Widget child;
+  final Event event;
+  final Room room;
+  final VoidCallback? onReply;
+
+  @override
+  State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
+}
+
+class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
+  bool _isHovered = false;
+  Timer? _hideTimer;
+
+  /// Duration the hover bar stays visible after the mouse leaves, giving the
+  /// user time to reach the floating action buttons.
+  static const _kHideDelay = Duration(milliseconds: 400);
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onEnter(dynamic _) {
+    _hideTimer?.cancel();
+    if (!_isHovered) setState(() => _isHovered = true);
+  }
+
+  void _onExit(dynamic _) {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(_kHideDelay, () {
+      if (mounted) setState(() => _isHovered = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // No reply callback means no actions at all – skip the overhead.
+    if (widget.onReply == null) return widget.child;
+
+    final cs = Theme.of(context).colorScheme;
+
+    return MouseRegion(
+      onEnter: _onEnter,
+      onExit: _onExit,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isHovered) _buildActionBar(cs),
+          widget.child,
+        ],
+      ),
+    );
+  }
+
+  /// The floating action bar shown when the message is hovered.
+  Widget _buildActionBar(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: cs.primary.withValues(alpha: 0.25),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: MessageActions(
+          event: widget.event,
+          room: widget.room,
+          onReply: widget.onReply!,
+        ),
       ),
     );
   }

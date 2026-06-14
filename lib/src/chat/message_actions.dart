@@ -17,15 +17,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/reactions_bar.dart';
 
-/// A row of small icon buttons that appear when the user hovers over a
-/// timeline message.
+/// A row of small icon buttons for **React**, **Reply**, **Forward**, and
+/// **Delete** (if permitted).
 ///
-/// Provides **Reply**, **Forward** (copy to clipboard), and **Delete**
-/// (redact, only if the user has permission) actions.  The button visibility
-/// is controlled by a [HoverController] so that the parent can show/hide
-/// the whole row in response to mouse hover.
-class MessageActions extends StatefulWidget {
+/// This widget does **not** manage its own visibility — the parent controls
+/// when it appears (e.g. via a hover wrapper).
+class MessageActions extends StatelessWidget {
   const MessageActions({
     super.key,
     required this.event,
@@ -38,65 +37,61 @@ class MessageActions extends StatefulWidget {
   final VoidCallback onReply;
 
   @override
-  State<MessageActions> createState() => _MessageActionsState();
-}
-
-class _MessageActionsState extends State<MessageActions> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final event = widget.event;
+    final cs = Theme.of(context).colorScheme;
     final canDelete = event.canRedact;
 
-    if (!_isHovered) {
-      return MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: const SizedBox(width: 80, height: 24),
-      );
-    }
-
-    final cs = Theme.of(context).colorScheme;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ActionIcon(
-            icon: Icons.reply_rounded,
-            tooltip: 'Reply',
-            color: cs.onSurface.withValues(alpha: 0.6),
-            onTap: widget.onReply,
-          ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionIcon(
+          icon: Icons.add_reaction_rounded,
+          tooltip: 'React',
+          color: cs.onSurface.withValues(alpha: 0.6),
+          onTap: () => _react(context),
+        ),
+        const SizedBox(width: 2),
+        _ActionIcon(
+          icon: Icons.reply_rounded,
+          tooltip: 'Reply',
+          color: cs.onSurface.withValues(alpha: 0.6),
+          onTap: onReply,
+        ),
+        const SizedBox(width: 2),
+        _ActionIcon(
+          icon: Icons.shortcut_rounded,
+          tooltip: 'Forward',
+          color: cs.onSurface.withValues(alpha: 0.6),
+          onTap: () => _forward(context),
+        ),
+        if (canDelete) ...[
           const SizedBox(width: 2),
           _ActionIcon(
-            icon: Icons.shortcut_rounded,
-            tooltip: 'Forward',
-            color: cs.onSurface.withValues(alpha: 0.6),
-            onTap: _forward,
+            icon: Icons.delete_outline_rounded,
+            tooltip: 'Delete',
+            color: cs.error.withValues(alpha: 0.7),
+            onTap: () => _confirmDelete(context),
           ),
-          if (canDelete) ...[
-            const SizedBox(width: 2),
-            _ActionIcon(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Delete',
-              color: cs.error.withValues(alpha: 0.7),
-              onTap: _confirmDelete,
-            ),
-          ],
         ],
-      ),
+      ],
+    );
+  }
+
+  /// Opens the reaction emoji picker and sends the chosen reaction.
+  void _react(BuildContext context) {
+    showReactionPicker(
+      context,
+      onSelected: (emoji) {
+        room.sendReaction(event.eventId, emoji);
+      },
     );
   }
 
   /// Forwards the message by copying its body to the clipboard.
-  void _forward() {
-    final body = widget.event.body;
+  void _forward(BuildContext context) {
+    final body = event.body;
     Clipboard.setData(ClipboardData(text: body));
-    if (mounted) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Message copied to clipboard'),
@@ -107,7 +102,7 @@ class _MessageActionsState extends State<MessageActions> {
   }
 
   /// Shows a confirmation dialog before redacting the event.
-  Future<void> _confirmDelete() async {
+  Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -132,9 +127,9 @@ class _MessageActionsState extends State<MessageActions> {
     );
     if (confirmed != true) return;
     try {
-      await widget.event.redactEvent(reason: 'Deleted by user');
+      await event.redactEvent(reason: 'Deleted by user');
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to delete: $e')),
         );
