@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,7 @@ import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data model for hub navigation items
@@ -137,6 +139,38 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   int get categoryCount => _categories.length;
+
+  Future<void> _logout() async {
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
+    final enc = context.read<EncryptionService>();
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await enc.onLogout();
+      await client.logout();
+      if (!mounted) return;
+      context.go('/');
+    } catch (e) {
+      log.e(
+        'Logout error',
+        error: e,
+        time: DateTime.now(),
+        stackTrace: StackTrace.current,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.error),
+              Text(l10n.logoutError(e.toString())),
+            ],
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +286,7 @@ class _HubScreenState extends State<HubScreen> {
     // Render a top-level category page.
     switch (_selectedCategoryIndex) {
       case 0:
-        return const _AccountsPage();
+        return _AccountsPage(onLogout: _logout);
       case 1:
         return _MyProfilePage(client: widget.client);
       case 2:
@@ -513,7 +547,9 @@ class _SubPageHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AccountsPage extends StatelessWidget {
-  const _AccountsPage();
+  const _AccountsPage({required this.onLogout});
+
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -608,6 +644,73 @@ class _AccountsPage extends StatelessWidget {
                         size: 22,
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Sign-out section ─────────────────────────────────────
+              Text(
+                l10n.sessions,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // An account row with a sign-out action (future-proofed
+              // for multi-account — each account gets its own row).
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.dividerColor,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      radius: 22,
+                      backgroundColor:
+                          theme.colorScheme.errorContainer,
+                      child: Icon(
+                        LucideIcons.logOut,
+                        size: 20,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                    title: Text(
+                      l10n.logOut,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                    subtitle: Text(
+                      client.userID ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      LucideIcons.chevronRight,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    onTap: onLogout,
                   ),
                 ),
               ),
