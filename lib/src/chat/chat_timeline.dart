@@ -282,6 +282,20 @@ class _ChatTimelineState extends State<ChatTimeline> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            Icon(
+              LucideIcons.shield,
+              size: 24,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.encryptionVerifyDevice,
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.primary.withValues(alpha: 0.8),
+              ),
+            ),
           ],
         ),
       ),

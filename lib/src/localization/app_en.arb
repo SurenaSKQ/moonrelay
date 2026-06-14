@@ -215,7 +215,9 @@
   },
 
   "couldNotLoadMessages": "Could not load messages",
-  "serverMayBeUnreachable": "The server may be unreachable. Pull down to retry.",
+  "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
+  "encryptionUndecryptableMessage": "message can't be decrypted",
+  "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
   "unsupportedEvent": "{sender} has sent an unsupported event of type {type} with messageType {messageType}",
   "@unsupportedEvent": {

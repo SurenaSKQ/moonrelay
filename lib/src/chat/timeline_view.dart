@@ -18,8 +18,10 @@ import 'package:moonrelay/src/chat/events/date_separator.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders the list of timeline events with event-type filtering, sender
@@ -103,15 +105,25 @@ class TimelineView extends StatelessWidget {
   /// calendar day.  Consecutive state events are grouped into a single
   /// [StateEventTile] widget when [showStateEvents] is true, or filtered out
   /// when it is false.
+  ///
+  /// If any visible events are undecryptable (type == `m.room.encrypted`), an
+  /// info banner is prepended to alert the user that some messages can't be
+  /// read and suggest verification or key request.
   List<Widget> _buildItemList(BuildContext context) {
     final visibleIndices = _visibleIndices(); // newest → oldest
     final items = <Widget>[];
     Event? previousVisible; // the *newer* neighbour (non-state events only)
+    int undecryptableCount = 0;
     int i = 0;
 
     while (i < visibleIndices.length) {
       final eventIndex = visibleIndices[i];
       final event = timeline.events[eventIndex];
+
+      // Count undecryptable encrypted events
+      if (event.type == EventTypes.Encrypted) {
+        undecryptableCount++;
+      }
 
       if (_isStateEvent(event)) {
         if (showStateEvents) {
@@ -164,6 +176,14 @@ class TimelineView extends StatelessWidget {
         i++;
       }
     }
+
+    // Prepend an undecryptable-messages banner if any encrypted events
+    // were found.  Because the ListView uses reverse: true, the banner
+    // appears at the bottom, immediately visible when opening the chat.
+    if (undecryptableCount > 0) {
+      items.insert(0, _UndecryptableBanner(count: undecryptableCount));
+    }
+
     return items;
   }
 
@@ -182,6 +202,72 @@ class TimelineView extends StatelessWidget {
       reverse: true,
       itemCount: items.length,
       itemBuilder: (context, index) => items[index],
+    );
+  }
+}
+
+/// Banner shown at the bottom of the timeline when one or more messages
+/// can't be decrypted (no session key, device not verified, etc.).
+class _UndecryptableBanner extends StatelessWidget {
+  const _UndecryptableBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: scheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              LucideIcons.alertTriangle,
+              color: scheme.tertiary,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.encryptionDecryptionFailed,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    count == 1
+                        ? '${count} ${l10n.encryptionUndecryptableMessage}'
+                        : '$count ${l10n.encryptionUndecryptableMessages}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: scheme.onTertiaryContainer
+                          .withValues(alpha: 0.75),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
