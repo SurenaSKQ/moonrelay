@@ -166,7 +166,7 @@ void main() async {
           create: (context) => EncryptionService(
             client: sdk,
             logger: log,
-          )..init(),
+          ),
         ),
       ],
       child: const MoonrelayApp(),

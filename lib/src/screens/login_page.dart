@@ -27,6 +27,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -723,6 +724,10 @@ class _LoginPageState extends State<LoginPage> {
             _syncing = true;
           });
 
+          // ── Enable encryption now that we're logged in ──────────
+          final encryptionService = context.read<EncryptionService>();
+          await encryptionService.init();
+
           final syncResult = await _waitForInitialSync(client, log);
 
           if (!mounted) return;
@@ -1023,6 +1028,10 @@ class _LoginPageState extends State<LoginPage> {
             _loading = false;
             _syncing = true;
           });
+
+          // ── Enable encryption now that we're logged in ──────────
+          final encryptionService = context.read<EncryptionService>();
+          await encryptionService.init();
 
           final syncResult = await _waitForInitialSync(client, log);
 

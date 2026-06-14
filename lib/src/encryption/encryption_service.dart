@@ -86,10 +86,40 @@ class EncryptionService extends ChangeNotifier {
   // Lifecycle
   // -----------------------------------------------------------------------
 
-  /// Must be called once after the [Client] has logged in.
+  /// Must be called once after the [Client] has logged in and the
+  /// SDK has set up its encryption subsystem.
+  ///
+  /// Attaches a sync listener and refreshes cross-signing, key backup,
+  /// and device state.  The Matrix SDK initialises the Olm/Megolm engine
+  /// automatically during login; this method waits for it to be ready.
   Future<void> init() async {
     if (_isInitialized) return;
     _log.i('EncryptionService: initializing');
+
+    // ── Wait for the SDK to finish setting up encryption ────────────
+    // The Matrix SDK creates and initialises the Encryption object
+    // during the login flow.  If it hasn't finished yet, give it a
+    // brief window before we start querying its state.
+    var waited = 0;
+    while (_client.encryption == null && waited < 50) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      waited++;
+    }
+    if (_client.encryption == null) {
+      _log.w('EncryptionService: encryption object still null after waiting; '
+          'the SDK may not support encryption on this homeserver');
+      // We still set up the sync listener so state will be refreshed if
+      // encryption becomes available later.
+    }
+
+    // ── Attach sync listener BEFORE the first refresh so we don't ──
+    // ── miss a sync event that fires concurrently.                ──
+    _syncSubscription = _client.onSync.stream.listen((_) {
+      _cachedUnverified = null;
+      _refreshCrossSigningStatus();
+      _refreshBackupState();
+      _refreshMyDevices();
+    });
 
     try {
       _isBusy = true;
@@ -107,14 +137,6 @@ class EncryptionService extends ChangeNotifier {
       _isBusy = false;
       notifyListeners();
     }
-
-    // Keep state fresh after every sync.
-    _syncSubscription = _client.onSync.stream.listen((_) {
-      _cachedUnverified = null; // invalidate cache
-      _refreshCrossSigningStatus();
-      _refreshBackupState();
-      _refreshMyDevices();
-    });
   }
 
   /// Dispose of resources. Call when the service is no longer needed.
@@ -194,12 +216,15 @@ class EncryptionService extends ChangeNotifier {
 
   Future<void> _refreshBackupState() async {
     try {
-      // The SDK doesn't expose a direct keyBackupState() on Encryption,
-      // but we can check via the key manager or the client API.
-      // For now, use a best-effort approach.
-      _keyBackupExists = _enc?.keyManager.enabled ?? false;
+      final enc = _enc;
+      if (enc == null) {
+        _keyBackupExists = false;
+        return;
+      }
+      // Key backup is active when the megolm key secret is stored in SSSS.
+      _keyBackupExists = enc.keyManager.enabled;
     } catch (_) {
-      // ignore
+      _keyBackupExists = false;
     }
   }
 
@@ -316,13 +341,17 @@ class EncryptionService extends ChangeNotifier {
         if (keys?.deviceKeys[d.deviceId]?.verified != true) own++;
       }
 
-      // Other users
+      // Other users — use a Set to avoid double-counting a user
+      // who appears in multiple rooms.
+      final seen = <String>{};
       for (final room in _client.rooms) {
         final participants = room.getParticipants();
         for (final user in participants) {
           if (user.id == _client.userID) continue;
-          final mk = _client.userDeviceKeys[user.id]?.masterKey;
-          if (mk?.verified != true) other++;
+          if (seen.add(user.id)) {
+            final mk = _client.userDeviceKeys[user.id]?.masterKey;
+            if (mk?.verified != true) other++;
+          }
         }
       }
     } catch (_) {
@@ -338,13 +367,15 @@ class EncryptionService extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   Future<void> onLogout() async {
-    _log.i('cleaning up');
+    _log.i('cleaning up encryption state');
     _syncSubscription?.cancel();
     _syncSubscription = null;
+
     _isInitialized = false;
     _crossSigningBootstrapped = false;
     _keyBackupExists = false;
     _myDevices = [];
+    _cachedUnverified = null;
     notifyListeners();
   }
 }

@@ -139,8 +139,8 @@ class EncryptionOverviewScreen extends StatelessWidget {
                 children: [
                   _StatusRow(
                     icon: enc.isKeyBackupEnabled
-                        ? LucideIcons.cloudOff
-                        : LucideIcons.cloud,
+                        ? LucideIcons.cloud
+                        : LucideIcons.cloudOff,
                     iconColor:
                         enc.isKeyBackupEnabled ? Colors.green : scheme.outline,
                     label: enc.isKeyBackupEnabled

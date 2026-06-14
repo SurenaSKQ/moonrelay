@@ -26,6 +26,7 @@ import 'package:moonrelay/src/widgets/navigation_pane.dart';
 import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/spaces_pane.dart';
+import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 
 /// A flexible multi-pane layout that replaces the old rigid TwoColumnLayout.
 ///
@@ -101,7 +102,9 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
                 // ── Main content ──────────────────────────────────────
                 Expanded(
-                  child: widget.child,
+                  child: IncomingVerificationListener(
+                    child: widget.child,
+                  ),
                 ),
 
                 // ── Right sidebar ─────────────────────────────────────
