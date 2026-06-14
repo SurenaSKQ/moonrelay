@@ -129,13 +129,11 @@ class TimelineView extends StatelessWidget {
     // bottom so the newest event appears at the bottom of the viewport.
     final items = _buildItemList(context);
 
-    return Expanded(
-      child: ListView.builder(
-        controller: scrollController,
-        reverse: true,
-        itemCount: items.length,
-        itemBuilder: (context, index) => items[index],
-      ),
+    return ListView.builder(
+      controller: scrollController,
+      reverse: true,
+      itemCount: items.length,
+      itemBuilder: (context, index) => items[index],
     );
   }
 }
