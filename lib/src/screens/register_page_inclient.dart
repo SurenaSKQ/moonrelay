@@ -90,7 +90,6 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       Text(
                         'Create Account',
                         style: TextStyle(
-                          fontFamily: 'Rubik',
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
                           color: colors.onSurface,
@@ -145,7 +144,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                         vertical: 14,
                       ),
                     ),
-                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    style: const TextStyle(fontSize: 14),
                     enabled: !_loading,
                   ),
                   const SizedBox(height: 20),
@@ -167,7 +166,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       errorText: _usernameError,
                     ),
-                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    style: const TextStyle(fontSize: 14),
                     enabled: !_loading,
                     onChanged: (_) {
                       if (_usernameError != null) {
@@ -204,7 +203,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                         vertical: 14,
                       ),
                     ),
-                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    style: const TextStyle(fontSize: 14),
                     enabled: !_loading,
                   ),
                   const SizedBox(height: 16),
@@ -236,7 +235,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                         vertical: 14,
                       ),
                     ),
-                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    style: const TextStyle(fontSize: 14),
                     enabled: !_loading,
                   ),
                   const SizedBox(height: 20),
@@ -250,7 +249,6 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                     title: Text(
                       'I agree to the Terms of Service of this homeserver',
                       style: TextStyle(
-                        fontFamily: 'Rubik',
                         fontSize: 13,
                         color: colors.onSurfaceVariant,
                       ),
@@ -290,7 +288,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                           : () => context.push('/welcome/login'),
                       child: const Text(
                         'Already have an account? Sign in',
-                        style: TextStyle(fontFamily: 'Rubik', fontSize: 13),
+                        style: TextStyle(fontSize: 13),
                       ),
                     ),
                   ),
@@ -309,7 +307,6 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     return Text(
       text,
       style: TextStyle(
-        fontFamily: 'Rubik',
         fontWeight: FontWeight.w500,
         fontSize: 13,
         color: colors.onSurfaceVariant,

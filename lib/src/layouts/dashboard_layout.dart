@@ -187,7 +187,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         return const Center(
           child: Text(
             'Room Info',
-            style: TextStyle(fontFamily: 'Rubik'),
+            style: TextStyle(),
           ),
         );
       case RightPaneChoice.members:
@@ -195,7 +195,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         return const Center(
           child: Text(
             'Members',
-            style: TextStyle(fontFamily: 'Rubik'),
+            style: TextStyle(),
           ),
         );
     }
@@ -267,7 +267,6 @@ class _SidebarPane extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontFamily: 'Rubik',
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
                 color: theme.colorScheme.onSurfaceVariant,

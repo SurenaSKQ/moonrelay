@@ -338,7 +338,6 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                           : TextInputAction.send,
                       onSubmitted: _isExpanded ? null : (_) => _send(),
                       style: TextStyle(
-                        fontFamily: 'Rubik',
                         fontSize: 15,
                         color: colorScheme.onSurface,
                       ),
@@ -346,7 +345,6 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                         hintText:
                             l10n?.chatBoxSendMessage ?? 'Send a message\u2026',
                         hintStyle: TextStyle(
-                          fontFamily: 'Rubik',
                           fontSize: 15,
                           color: colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
@@ -446,7 +444,6 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: colorScheme.primary,
-                    fontFamily: 'Rubik',
                   ),
                 ),
                 Text(
@@ -454,7 +451,6 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   style: TextStyle(
                     fontSize: 12,
                     color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontFamily: 'Rubik',
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

@@ -78,7 +78,6 @@ class FormattedTextWidget extends StatelessWidget {
         style: TextStyle(
           color: accent,
           decoration: TextDecoration.underline,
-          fontFamily: 'Rubik',
           fontSize: 16,
         ),
         recognizer: TapGestureRecognizer()..onTap = () => _openUrl(url),
@@ -150,7 +149,7 @@ class _HtmlTagParser {
       return [
         TextSpan(
           text: source.substring(_pos),
-          style: const TextStyle(fontFamily: 'Rubik', fontSize: 16),
+          style: const TextStyle(fontSize: 16),
         )
       ];
     }
@@ -210,7 +209,7 @@ class _HtmlTagParser {
     if (buf.isNotEmpty) {
       out.add(TextSpan(
         text: buf.toString(),
-        style: const TextStyle(fontFamily: 'Rubik', fontSize: 16),
+        style: const TextStyle(fontSize: 16),
       ));
       buf.clear();
     }
@@ -224,7 +223,7 @@ class _HtmlTagParser {
       return [
         const TextSpan(
           text: '…',
-          style: TextStyle(fontFamily: 'Rubik', fontSize: 16),
+          style: TextStyle(fontSize: 16),
         )
       ];
     }
@@ -289,7 +288,7 @@ class _HtmlTagParser {
       return [
         const TextSpan(
           text: '…',
-          style: TextStyle(fontFamily: 'Rubik', fontSize: 16),
+          style: TextStyle(fontSize: 16),
         )
       ];
     }
@@ -367,7 +366,7 @@ class _HtmlTagParser {
     List<TextSpan> inner,
     Map<String, String> attrs,
   ) {
-    final base = TextStyle(fontFamily: 'Rubik', fontSize: 16);
+    final base = TextStyle(fontSize: 16);
 
     switch (tag) {
       case 'blockquote':
@@ -460,7 +459,7 @@ class _HtmlTagParser {
     Map<String, String> attrs,
   ) {
     final accent = Theme.of(context).colorScheme.primary;
-    final base = const TextStyle(fontFamily: 'Rubik', fontSize: 16);
+    final base = const TextStyle(fontSize: 16);
 
     switch (tag) {
       case 'b':

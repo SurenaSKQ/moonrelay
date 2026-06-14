@@ -58,7 +58,7 @@ class ModernMessageItem implements MessageItemBase {
           case MessageTypes.Text:
             return Text(
               event.body,
-              style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
+              style: const TextStyle(fontSize: 16),
             );
           case MessageTypes.Image:
             return FutureBuilder(
@@ -93,7 +93,7 @@ class ModernMessageItem implements MessageItemBase {
       default:
         return Text(
           event.body,
-          style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
+          style: const TextStyle(fontSize: 16),
         );
     }
   }

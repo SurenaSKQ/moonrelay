@@ -44,21 +44,8 @@ class MoonrelayApp extends StatelessWidget {
           // TODO: Support persian
           supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-          // TODO: theme builder, user settings theme management
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.indigo,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.indigo,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-          ),
+          theme: MoonrelayTheme.light(settingsController.themeOption),
+          darkTheme: MoonrelayTheme.dark(settingsController.themeOption),
           themeMode: settingsController.themeMode,
           builder: (context, child) => Directionality(
             textDirection: _appTheme.textDirection,

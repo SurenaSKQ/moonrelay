@@ -66,7 +66,6 @@ class DateSeparator extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: textColor,
-                fontFamily: 'Rubik',
               ),
             ),
           ),

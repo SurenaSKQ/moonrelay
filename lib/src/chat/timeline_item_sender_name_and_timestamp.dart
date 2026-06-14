@@ -44,7 +44,6 @@ class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
           event.originServerTs.localizedTimeShort(context),
           style: const TextStyle(
             fontSize: 12,
-            fontFamily: 'Rubik',
             fontWeight: FontWeight.bold,
           ),
         ),

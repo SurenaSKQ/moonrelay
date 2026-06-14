@@ -19,7 +19,6 @@ import 'dart:async';
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -164,7 +163,6 @@ class TimelineItem extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              fontFamily: 'Rubik',
                               color: theme.colorScheme.onSurface,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -175,7 +173,6 @@ class TimelineItem extends StatelessWidget {
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
                             fontSize: 11,
-                            fontFamily: 'Rubik',
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.45),
@@ -196,7 +193,6 @@ class TimelineItem extends StatelessWidget {
                             event.originServerTs.localizedTimeShort(context),
                             style: TextStyle(
                               fontSize: 11,
-                              fontFamily: 'Rubik',
                               fontWeight: FontWeight.w500,
                               color: theme.colorScheme.onSurface
                                   .withValues(alpha: 0.35),
@@ -226,6 +222,7 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildBubbles(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -264,7 +261,6 @@ class TimelineItem extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              fontFamily: 'Rubik',
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -274,7 +270,6 @@ class TimelineItem extends StatelessWidget {
                           event.originServerTs.localizedTimeShort(context),
                           style: const TextStyle(
                             fontSize: 11,
-                            fontFamily: 'Rubik',
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -288,10 +283,10 @@ class TimelineItem extends StatelessWidget {
                   onReply: onReply,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: MoonrelayColorPalette.cpgDarker,
+                      color: cs.primaryContainer.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: MoonrelayColorPalette.britishRacingGreen,
+                        color: cs.primary.withValues(alpha: 0.5),
                         width: 0.7,
                       ),
                     ),
@@ -307,7 +302,6 @@ class TimelineItem extends StatelessWidget {
                               event.originServerTs.localizedTimeShort(context),
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontFamily: 'Rubik',
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -343,7 +337,6 @@ class TimelineItem extends StatelessWidget {
                   : '',
               style: const TextStyle(
                 fontSize: 14,
-                fontFamily: 'Rubik',
                 fontWeight: FontWeight.w700,
               ),
               overflow: TextOverflow.ellipsis,
@@ -356,7 +349,6 @@ class TimelineItem extends StatelessWidget {
             event.originServerTs.localizedTimeShort(context),
             style: const TextStyle(
               fontSize: 12,
-              fontFamily: 'Rubik',
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -519,7 +511,6 @@ class _RedactedEvent extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontStyle: FontStyle.italic,
-              fontFamily: 'Rubik',
               color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           ),

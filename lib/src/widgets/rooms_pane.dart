@@ -149,9 +149,7 @@ class RoomsPane extends StatelessWidget {
                       child: Text(
                         room.getLocalizedDisplayname(),
                         style: const TextStyle(
-                            fontFamily: 'Rubik',
-                            fontWeight: FontWeight.w300,
-                            fontSize: 18),
+                            fontWeight: FontWeight.w300, fontSize: 18),
                       ),
                     ),
                   ],
@@ -160,7 +158,6 @@ class RoomsPane extends StatelessWidget {
                   room.lastEvent?.body ?? 'No messages',
                   maxLines: 1,
                   style: const TextStyle(
-                    fontFamily: 'Rubic',
                     fontWeight: FontWeight.w300,
                     fontSize: 16,
                   ),

@@ -51,7 +51,6 @@ class StateEvents extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                fontFamily: 'Rubik',
                 color: mutedColor,
               ),
             ),

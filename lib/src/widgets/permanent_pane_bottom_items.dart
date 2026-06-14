@@ -157,11 +157,11 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                   children: [
                     Text(
                       snapshot.data?.displayName ?? "View your profile",
-                      style: const TextStyle(fontSize: 18, fontFamily: 'Rubik'),
+                      style: const TextStyle(fontSize: 18),
                     ),
                     Text(
                       snapshot.data!.userId,
-                      style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
+                      style: const TextStyle(fontSize: 16),
                     )
                   ],
                 )

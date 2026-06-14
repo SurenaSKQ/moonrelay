@@ -98,7 +98,6 @@ class _LoginPageState extends State<LoginPage> {
                                 ? 'Token Login'
                                 : 'Sign In',
                         style: TextStyle(
-                          fontFamily: 'Rubik',
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
                           color: colors.onSurface,
@@ -153,7 +152,7 @@ class _LoginPageState extends State<LoginPage> {
                         vertical: 14,
                       ),
                     ),
-                    style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+                    style: const TextStyle(fontSize: 14),
                     enabled: !_loading,
                   ),
                   const SizedBox(height: 20),
@@ -217,7 +216,6 @@ class _LoginPageState extends State<LoginPage> {
     return Text(
       text,
       style: TextStyle(
-        fontFamily: 'Rubik',
         fontWeight: FontWeight.w500,
         fontSize: 13,
         color: colors.onSurfaceVariant,
@@ -232,7 +230,7 @@ class _LoginPageState extends State<LoginPage> {
         onPressed: onTap,
         child: Text(
           text,
-          style: const TextStyle(fontFamily: 'Rubik', fontSize: 13),
+          style: const TextStyle(fontSize: 13),
         ),
       ),
     );
@@ -255,7 +253,7 @@ class _LoginPageState extends State<LoginPage> {
             vertical: 14,
           ),
         ),
-        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        style: const TextStyle(fontSize: 14),
         enabled: !_loading,
       ),
       const SizedBox(height: 16),
@@ -275,7 +273,7 @@ class _LoginPageState extends State<LoginPage> {
             vertical: 14,
           ),
         ),
-        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        style: const TextStyle(fontSize: 14),
         enabled: !_loading,
       ),
     ];
@@ -316,7 +314,7 @@ class _LoginPageState extends State<LoginPage> {
             vertical: 14,
           ),
         ),
-        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        style: const TextStyle(fontSize: 14),
         enabled: !_loading,
       ),
     ];
@@ -339,7 +337,7 @@ class _LoginPageState extends State<LoginPage> {
             vertical: 14,
           ),
         ),
-        style: const TextStyle(fontFamily: 'Rubik', fontSize: 14),
+        style: const TextStyle(fontSize: 14),
         enabled: !_loading,
       ),
     ];

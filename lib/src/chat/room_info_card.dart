@@ -121,7 +121,6 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                       Text(
                         displayName,
                         style: TextStyle(
-                          fontFamily: 'Rubik',
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurface,
@@ -133,7 +132,6 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                       Text(
                         topic,
                         style: TextStyle(
-                          fontFamily: 'Rubik',
                           fontSize: 13,
                           color: scheme.onSurfaceVariant,
                         ),
@@ -194,7 +192,6 @@ class _MemberCountBadge extends StatelessWidget {
           Text(
             '$count',
             style: TextStyle(
-              fontFamily: 'Rubik',
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: scheme.onSecondaryContainer,

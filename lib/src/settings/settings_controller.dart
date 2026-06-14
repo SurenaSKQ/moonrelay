@@ -1,5 +1,6 @@
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -13,6 +14,7 @@ import 'settings_service.dart';
 class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   late ThemeMode _themeMode;
+  late MoonrelayThemeOption _themeOption;
   late DisplayType _displayType;
   // late AccentColor _accentColor;
   late bool _useSystemTitlebar;
@@ -31,6 +33,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   ThemeMode get themeMode => _themeMode;
+  MoonrelayThemeOption get themeOption => _themeOption;
   DisplayType get displayType => _displayType;
   // AccentColor get accentColor => _accentColor;
   bool get useSystemTitlebar => _useSystemTitlebar;
@@ -46,6 +49,7 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
+    _themeOption = await _settingsService.themeOption();
     _displayType = await _settingsService.displayType();
     // _accentColor = await _settingsService.accentColor();
     _useSystemTitlebar = await _settingsService.useSystemTitlebar();
@@ -88,6 +92,14 @@ class SettingsController with ChangeNotifier, WindowListener {
       _themeMode = newThemeMode;
       notifyListeners();
       await _settingsService.updateThemeMode(newThemeMode);
+    }
+  }
+
+  Future<void> updateThemeOption(MoonrelayThemeOption option) async {
+    if (option != _themeOption) {
+      _themeOption = option;
+      notifyListeners();
+      await _settingsService.updateThemeOption(option);
     }
   }
 

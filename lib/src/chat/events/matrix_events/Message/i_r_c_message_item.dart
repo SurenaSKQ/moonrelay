@@ -30,7 +30,7 @@ class IRCMessageItem implements MessageItemBase {
   Widget buildSubtitle(BuildContext context) {
     return Text(
       event.body,
-      style: const TextStyle(fontSize: 16, fontFamily: 'Rubik'),
+      style: const TextStyle(fontSize: 16),
     );
   }
 }

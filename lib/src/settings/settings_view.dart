@@ -34,7 +34,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             title: const Text(
               "Settings",
-              style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
+              style: TextStyle(fontSize: 18),
             ),
           ),
           body: Padding(
@@ -65,7 +65,6 @@ class _SettingsViewState extends State<SettingsView> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Rubik',
             color: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -142,7 +141,6 @@ class _SettingsViewState extends State<SettingsView> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Rubik',
             color: Theme.of(context).colorScheme.primary,
           ),
         ),

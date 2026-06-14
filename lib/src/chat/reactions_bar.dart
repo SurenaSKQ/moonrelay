@@ -239,7 +239,6 @@ class _ReactionChip extends StatelessWidget {
                 '$count',
                 style: TextStyle(
                   fontSize: 11,
-                  fontFamily: 'Rubik',
                   fontWeight: isOwn ? FontWeight.w700 : FontWeight.w500,
                   color:
                       isOwn ? cs.primary : cs.onSurface.withValues(alpha: 0.7),

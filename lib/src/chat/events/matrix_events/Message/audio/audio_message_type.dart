@@ -109,7 +109,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Rubik',
                           ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
@@ -119,8 +118,8 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                           '$_extension${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
                           style: TextStyle(
                             fontSize: 12,
-                            fontFamily: 'Rubik',
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
                           ),
                         ),
                       ],

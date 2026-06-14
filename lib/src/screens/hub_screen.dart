@@ -25,6 +25,7 @@ import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 
@@ -146,7 +147,6 @@ class _HubScreenState extends State<HubScreen> {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Rubik',
           ),
         ),
       ),
@@ -324,7 +324,6 @@ class _CategorySidebar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                fontFamily: 'Rubik',
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -395,7 +394,6 @@ class _CategorySidebar extends StatelessWidget {
                       fontSize: 14,
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w400,
-                      fontFamily: 'Rubik',
                       color: isSelected
                           ? theme.colorScheme.primary
                           : theme.colorScheme.onSurface,
@@ -452,7 +450,6 @@ class _CategorySidebar extends StatelessWidget {
                         fontSize: 13,
                         fontWeight:
                             isSubSelected ? FontWeight.w600 : FontWeight.w400,
-                        fontFamily: 'Rubik',
                         color: isSubSelected
                             ? theme.colorScheme.secondary
                             : theme.colorScheme.onSurface,
@@ -492,7 +489,6 @@ class _SubPageHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              fontFamily: 'Rubik',
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -537,7 +533,6 @@ class _AccountsPage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Rubik',
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -547,7 +542,6 @@ class _AccountsPage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onSurfaceVariant,
-                  fontFamily: 'Rubik',
                 ),
               ),
               const SizedBox(height: 24),
@@ -586,7 +580,6 @@ class _AccountsPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                fontFamily: 'Rubik',
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -595,7 +588,6 @@ class _AccountsPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: theme.colorScheme.onSurfaceVariant,
-                                fontFamily: 'Rubik',
                               ),
                             ),
                           ],
@@ -678,7 +670,6 @@ class _MyProfilePage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Rubik',
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -687,7 +678,6 @@ class _MyProfilePage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             color: theme.colorScheme.onSurfaceVariant,
-                            fontFamily: 'Rubik',
                           ),
                         ),
                       ],
@@ -706,7 +696,6 @@ class _MyProfilePage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Rubik',
                 ),
               ),
               const SizedBox(height: 8),
@@ -722,7 +711,6 @@ class _MyProfilePage extends StatelessWidget {
                   profile?.displayName ?? 'Not set',
                   style: TextStyle(
                     fontSize: 16,
-                    fontFamily: 'Rubik',
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
@@ -736,7 +724,6 @@ class _MyProfilePage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Rubik',
                 ),
               ),
               const SizedBox(height: 8),
@@ -789,7 +776,6 @@ class _AppSettingsOverview extends StatelessWidget {
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            fontFamily: 'Rubik',
             color: theme.colorScheme.onSurface,
           ),
         ),
@@ -799,7 +785,6 @@ class _AppSettingsOverview extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             color: theme.colorScheme.onSurfaceVariant,
-            fontFamily: 'Rubik',
           ),
         ),
         const SizedBox(height: 24),
@@ -816,7 +801,6 @@ class _AppSettingsOverview extends StatelessWidget {
               title: Text(
                 item.label,
                 style: TextStyle(
-                  fontFamily: 'Rubik',
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -849,7 +833,6 @@ class _AppearanceSettings extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Rubik',
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -859,7 +842,6 @@ class _AppearanceSettings extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontFamily: 'Rubik',
                 ),
               ),
               const SizedBox(height: 24),
@@ -886,6 +868,37 @@ class _AppearanceSettings extends StatelessWidget {
                     groupValue: controller.themeMode,
                     onChanged: (v) => controller.updateThemeMode(v!),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Colour theme
+              _SettingsSection(
+                title: 'Colour theme',
+                children: [
+                  for (final option in MoonrelayThemeOption.values)
+                    RadioListTile<MoonrelayThemeOption>(
+                      title: Row(
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: option.seedColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(option.label),
+                        ],
+                      ),
+                      value: option,
+                      groupValue: controller.themeOption,
+                      onChanged: (v) {
+                        if (v != null) controller.updateThemeOption(v);
+                      },
+                      dense: true,
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -958,7 +971,6 @@ class _LayoutSettings extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Rubik',
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -968,7 +980,6 @@ class _LayoutSettings extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontFamily: 'Rubik',
                 ),
               ),
               const SizedBox(height: 24),
@@ -1140,7 +1151,6 @@ class _SettingsSection extends StatelessWidget {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Rubik',
             color: theme.colorScheme.primary,
           ),
         ),

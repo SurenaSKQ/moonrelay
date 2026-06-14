@@ -86,7 +86,6 @@ class StartupScreen extends StatelessWidget {
           'The Public Benefit Messenger',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: 'Rubik',
             fontSize: 16,
             color: colors.onSurfaceVariant,
           ),
@@ -96,7 +95,6 @@ class StartupScreen extends StatelessWidget {
           'A secure, decentralised Matrix client\nfocused on professional communication.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: 'Rubik',
             fontSize: 14,
             color: colors.onSurfaceVariant.withValues(alpha: 0.8),
           ),
@@ -118,7 +116,6 @@ class StartupScreen extends StatelessWidget {
             Text(
               'Get Started',
               style: TextStyle(
-                fontFamily: 'Rubik',
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
                 color: colors.onSurface,
@@ -128,7 +125,6 @@ class StartupScreen extends StatelessWidget {
             Text(
               'Sign in to your existing account\nor create a new one.',
               style: TextStyle(
-                fontFamily: 'Rubik',
                 fontSize: 14,
                 color: colors.onSurfaceVariant,
               ),

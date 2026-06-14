@@ -1,5 +1,6 @@
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsService {
   // static const _accentColorKey = 'accent_color';
   static const _themeModeKey = 'theme_mode';
+  static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
   static const _useSystemTitlebarKey = 'system_title_bar';
 
@@ -28,6 +30,19 @@ class SettingsService {
   Future<void> updateTitlebarStatus(bool useSystemTitlebar) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_useSystemTitlebarKey, useSystemTitlebar);
+  }
+
+  Future<MoonrelayThemeOption> themeOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? index = prefs.getInt(_themeOptionKey);
+    return index != null
+        ? MoonrelayThemeOption.values[index]
+        : MoonrelayThemeOption.indigo;
+  }
+
+  Future<void> updateThemeOption(MoonrelayThemeOption option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_themeOptionKey, option.index);
   }
 
   // TODO Own accent color representation + serialization

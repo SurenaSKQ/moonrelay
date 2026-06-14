@@ -271,7 +271,6 @@ class _HeaderTitle extends StatelessWidget {
     return Text(
       l10n.appTitle,
       style: const TextStyle(
-        fontFamily: 'Rubik',
         fontWeight: FontWeight.w600,
         fontSize: 16,
       ),

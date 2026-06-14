@@ -487,7 +487,6 @@ class _SectionHeader extends StatelessWidget {
     return Text(
       title,
       style: TextStyle(
-        fontFamily: 'Rubik',
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: scheme.onSurfaceVariant,
