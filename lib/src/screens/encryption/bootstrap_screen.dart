@@ -68,8 +68,8 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(LucideIcons.shield),
-          onPressed: null, // can't close until done
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(loc.encryptionSetupTitle),
       ),

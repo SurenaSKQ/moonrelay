@@ -71,22 +71,27 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
 
   Widget _loadingIndicator(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+        ),
+      ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 16,
+            radius: 20,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 80,
-                  height: 10,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -95,7 +100,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                 const SizedBox(height: 6),
                 Container(
                   width: 120,
-                  height: 8,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -113,25 +118,31 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
 
   Widget _errorIndicator(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+        ),
+      ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 16,
+            radius: 20,
             backgroundColor: theme.colorScheme.errorContainer,
             child: Icon(
               Icons.error_outline,
-              size: 18,
+              size: 22,
               color: theme.colorScheme.onErrorContainer,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Flexible(
             child: Text(
               widget.client.userID ?? 'Unknown',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               overflow: TextOverflow.ellipsis,
@@ -150,44 +161,49 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
       profile.displayName ?? profile.userId,
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+        ),
+      ),
       child: Row(
         children: [
           // Avatar (or initials fallback)
           if (profile.avatarUrl != null)
             CircleAvatar(
-              radius: 16,
+              radius: 20,
               foregroundImage: NetworkImage(
                 profile.avatarUrl!
                     .getThumbnailUri(
                       widget.client,
                       animated: true,
-                      height: 32,
-                      width: 32,
+                      height: 40,
+                      width: 40,
                     )
                     .toString(),
                 headers: {
                   'authorization': 'Bearer ${widget.client.accessToken}',
                 },
               ),
-              backgroundColor: theme.colorScheme.primary,
+              backgroundColor: theme.colorScheme.primaryContainer,
               onForegroundImageError: (_, __) {},
             )
           else
             CircleAvatar(
-              radius: 16,
+              radius: 20,
               backgroundColor: theme.colorScheme.primary,
               child: Text(
                 initials,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onPrimary,
                 ),
               ),
             ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
 
           // Display name and user ID
           Expanded(
@@ -197,18 +213,18 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                 Text(
                   profile.displayName ?? 'You',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   profile.userId,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 1,

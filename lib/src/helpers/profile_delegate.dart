@@ -15,10 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 
 class ProfileDelegate extends StatelessWidget {
@@ -49,6 +51,13 @@ class ProfileDelegate extends StatelessWidget {
             ),
           ),
         );
+      });
+      return const SizedBox.shrink();
+    } else if (userid == client.userID) {
+      // Redirect to the hub screen when viewing the user's own profile.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        context.go('/main/myprofile');
       });
       return const SizedBox.shrink();
     } else {
