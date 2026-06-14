@@ -21,7 +21,7 @@ import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_mess
 import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type

@@ -16,7 +16,7 @@
 
 import 'dart:io';
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:matrix/matrix.dart';
 
@@ -54,7 +54,7 @@ class FormattedTextWidget extends StatelessWidget {
   ///
   /// URLs that form the full text become the only span (entirely clickable).
   List<TextSpan> _linkifyPlainText(String text, BuildContext context) {
-    final accent = FluentTheme.of(context).accentColor;
+    final accent = Theme.of(context).colorScheme.primary;
     final uriRegExp = RegExp(
       r'(\b(?:https?|ftp|matrix):\/\/[^\s<>"]+\([^\s<>")]*\)|[^\s<>"()]+\b)'
       r'|(\b(?:www\.)[^\s<>"()]+\b)',
@@ -459,8 +459,8 @@ class _HtmlTagParser {
     List<TextSpan> inner,
     Map<String, String> attrs,
   ) {
-    final accent = FluentTheme.of(context).accentColor;
-    final base = TextStyle(fontFamily: 'Rubik', fontSize: 16);
+    final accent = Theme.of(context).colorScheme.primary;
+    final base = const TextStyle(fontFamily: 'Rubik', fontSize: 16);
 
     switch (tag) {
       case 'b':

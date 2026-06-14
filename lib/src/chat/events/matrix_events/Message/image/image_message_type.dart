@@ -16,7 +16,7 @@
 
 import 'dart:typed_data';
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Displays an image message with thumbnail, loading state, and tap-to-zoom.
@@ -109,7 +109,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   @override
   Widget build(BuildContext context) {
     if (_downloadFuture == null) {
-      return const Icon(FluentIcons.page, size: 48);
+      return const Icon(Icons.description, size: 48);
     }
 
     return FutureBuilder<MatrixFile>(
@@ -119,20 +119,20 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
           return const SizedBox(
             width: 120,
             height: 120,
-            child: Center(child: ProgressRing()),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (snapshot.hasError) {
           return Tooltip(
             message: 'Failed to load image: ${snapshot.error}',
-            child: const Icon(FluentIcons.error_badge, size: 48),
+            child: const Icon(Icons.error, size: 48),
           );
         }
 
         final bytes = snapshot.data?.bytes;
         if (bytes == null || bytes.isEmpty) {
-          return const Icon(FluentIcons.error_badge, size: 48);
+          return const Icon(Icons.error, size: 48);
         }
 
         return ConstrainedBox(
@@ -145,7 +145,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                 bytes,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const Icon(
-                  FluentIcons.page,
+                  Icons.description,
                   size: 48,
                 ),
               ),

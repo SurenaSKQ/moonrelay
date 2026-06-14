@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders Matrix state events (membership changes, room metadata updates,
@@ -27,8 +27,8 @@ class StateEvents extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
-    final mutedColor = theme.resources.textFillColorPrimary.withOpacity(0.55);
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurface.withOpacity(0.55);
 
     // Resolve the display name of the sender.
     final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
@@ -65,27 +65,27 @@ class StateEvents extends StatelessWidget {
   IconData _iconForType(String type) {
     switch (type) {
       case 'm.room.member':
-        return FluentIcons.people;
+        return Icons.people;
       case 'm.room.name':
-        return FluentIcons.edit;
+        return Icons.edit;
       case 'm.room.topic':
-        return FluentIcons.info;
+        return Icons.info;
       case 'm.room.avatar':
-        return FluentIcons.camera;
+        return Icons.camera_alt;
       case 'm.room.create':
-        return FluentIcons.add;
+        return Icons.add;
       case 'm.room.encryption':
-        return FluentIcons.lock;
+        return Icons.lock;
       case 'm.room.pinned_events':
-        return FluentIcons.pinned;
+        return Icons.push_pin;
       case 'm.room.canonical_alias':
-        return FluentIcons.link;
+        return Icons.link;
       case 'm.room.power_levels':
-        return FluentIcons.shield;
+        return Icons.shield;
       case 'm.room.tombstone':
-        return FluentIcons.up;
+        return Icons.arrow_upward;
       default:
-        return FluentIcons.info;
+        return Icons.info;
     }
   }
 

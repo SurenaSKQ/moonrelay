@@ -17,7 +17,6 @@
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'settings/settings_controller.dart';
@@ -34,9 +33,6 @@ class MoonrelayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final SettingsController settingsController =
         Provider.of<SettingsController>(context, listen: true);
-    final isDark = settingsController.themeMode == ThemeMode.dark ||
-        (settingsController.themeMode == ThemeMode.system &&
-            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
     return ListenableBuilder(
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
@@ -64,33 +60,9 @@ class MoonrelayApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: settingsController.themeMode,
-          builder: (context, child) => fluent.FluentTheme(
-            data: fluent.FluentThemeData(
-              brightness: isDark ? Brightness.dark : Brightness.light,
-              accentColor: isDark
-                  ? fluent.AccentColor.swatch(const {
-                      'darkest': Color(0xFF312E81),
-                      'darker': Color(0xFF3730A3),
-                      'dark': Color(0xFF4338CA),
-                      'normal': Color(0xFF6366F1),
-                      'light': Color(0xFF818CF8),
-                      'lighter': Color(0xFFA5B4FC),
-                      'lightest': Color(0xFFC7D2FE),
-                    })
-                  : fluent.AccentColor.swatch(const {
-                      'darkest': Color(0xFF312E81),
-                      'darker': Color(0xFF3730A3),
-                      'dark': Color(0xFF4338CA),
-                      'normal': Color(0xFF4F46E5),
-                      'light': Color(0xFF6366F1),
-                      'lighter': Color(0xFF818CF8),
-                      'lightest': Color(0xFFA5B4FC),
-                    }),
-            ),
-            child: Directionality(
-              textDirection: _appTheme.textDirection,
-              child: child!,
-            ),
+          builder: (context, child) => Directionality(
+            textDirection: _appTheme.textDirection,
+            child: child!,
           ),
         );
       },

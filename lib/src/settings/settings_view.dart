@@ -1,6 +1,5 @@
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
@@ -25,10 +24,10 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, child) {
-        return NavigationView(
-          titleBar: TitleBar(
-            icon: IconButton(
-              icon: const Icon(FluentIcons.back),
+        return Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
               onPressed: () => context.canPop() ? context.pop() : null,
             ),
             title: const Text(
@@ -36,12 +35,8 @@ class _SettingsViewState extends State<SettingsView> {
               style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
             ),
           ),
-          content: Padding(
+          body: Padding(
             padding: const EdgeInsets.all(16),
-            // Glue the SettingsController to the theme selection DropdownButton.
-            //
-            // When a user selects a theme from the dropdown list, the
-            // SettingsController is updated, which rebuilds the MaterialApp.
             child: OldPage(controller: controller),
           ),
         );
@@ -68,15 +63,27 @@ class _OldPageState extends State<OldPage> {
       children: [
         Label(
           label: "Theme mode",
-          child: RadioGroup<ThemeMode>(
-            onChanged: (value) => widget.controller.updateThemeMode(value!),
-            child: Column(
-              children: [
-                mt.Radio(value: ThemeMode.system),
-                mt.Radio(value: ThemeMode.light),
-                mt.Radio(value: ThemeMode.dark),
-              ],
-            ),
+          child: Column(
+            children: [
+              RadioListTile<ThemeMode>(
+                title: const Text('System'),
+                value: ThemeMode.system,
+                groupValue: widget.controller.themeMode,
+                onChanged: (value) => widget.controller.updateThemeMode(value!),
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Light'),
+                value: ThemeMode.light,
+                groupValue: widget.controller.themeMode,
+                onChanged: (value) => widget.controller.updateThemeMode(value!),
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Dark'),
+                value: ThemeMode.dark,
+                groupValue: widget.controller.themeMode,
+                onChanged: (value) => widget.controller.updateThemeMode(value!),
+              ),
+            ],
           ),
         ),
         const SizedBox(
@@ -84,7 +91,7 @@ class _OldPageState extends State<OldPage> {
         ),
         Label(
           label: "Use system titlebar",
-          child: mt.Checkbox(
+          child: Checkbox(
             value: systemBar,
             onChanged: (value) =>
                 widget.controller.updateUseOfSystemTitlebar(value!),
@@ -95,24 +102,30 @@ class _OldPageState extends State<OldPage> {
         ),
         Label(
           label: "Chat display type",
-          child: RadioGroup<DisplayType>(
-            onChanged: (value) => widget.controller.updateDisplayType(value!),
-            child: Column(
-              children: [
-                ListTile(
-                  title: Text(DisplayType.modern.label),
-                  leading: mt.Radio(value: DisplayType.modern),
-                ),
-                ListTile(
-                  title: Text(DisplayType.irc.label),
-                  leading: mt.Radio(value: DisplayType.irc),
-                ),
-                ListTile(
-                  title: Text(DisplayType.bubbles.label),
-                  leading: mt.Radio(value: DisplayType.bubbles),
-                )
-              ],
-            ),
+          child: Column(
+            children: [
+              RadioListTile<DisplayType>(
+                title: Text(DisplayType.modern.label),
+                value: DisplayType.modern,
+                groupValue: widget.controller.displayType,
+                onChanged: (value) =>
+                    widget.controller.updateDisplayType(value!),
+              ),
+              RadioListTile<DisplayType>(
+                title: Text(DisplayType.irc.label),
+                value: DisplayType.irc,
+                groupValue: widget.controller.displayType,
+                onChanged: (value) =>
+                    widget.controller.updateDisplayType(value!),
+              ),
+              RadioListTile<DisplayType>(
+                title: Text(DisplayType.bubbles.label),
+                value: DisplayType.bubbles,
+                groupValue: widget.controller.displayType,
+                onChanged: (value) =>
+                    widget.controller.updateDisplayType(value!),
+              ),
+            ],
           ),
         ),
       ],

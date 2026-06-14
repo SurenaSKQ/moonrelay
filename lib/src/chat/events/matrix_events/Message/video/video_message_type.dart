@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:file_picker/file_picker.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 class VideoMessageType extends StatelessWidget {
@@ -51,60 +51,61 @@ class VideoMessageType extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
+    final theme = Theme.of(context);
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 80, maxWidth: 280),
       child: Card(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Video icon
-            Icon(
-              FluentIcons.video,
-              size: 36,
-              color: theme.accentColor,
-            ),
-            const SizedBox(width: 12),
-            // Video info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _fileName ?? 'video_file',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Rubik',
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_mimeType ?? "Unknown type"}${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'Rubik',
-                      color:
-                          theme.resources.textFillColorPrimary.withOpacity(0.6),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Video icon
+              Icon(
+                Icons.videocam,
+                size: 36,
+                color: theme.colorScheme.primary,
               ),
-            ),
-            // Download button
-            Tooltip(
-              message: 'Download video',
-              child: IconButton(
-                icon: const Icon(FluentIcons.download_document, size: 20),
-                onPressed: _downloadFile,
+              const SizedBox(width: 12),
+              // Video info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _fileName ?? 'video_file',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Rubik',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_mimeType ?? "Unknown type"}${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'Rubik',
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              // Download button
+              Tooltip(
+                message: 'Download video',
+                child: IconButton(
+                  icon: const Icon(Icons.download, size: 20),
+                  onPressed: _downloadFile,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

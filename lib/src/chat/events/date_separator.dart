@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// A timeline separator that marks the boundary between two different days.
@@ -28,7 +28,7 @@ class DateSeparator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
+    final theme = Theme.of(context);
     final now = DateTime.now();
     final isSameYear = now.year == dateTime.year;
 
@@ -45,8 +45,8 @@ class DateSeparator extends StatelessWidget {
       label = DateFormat.yMMMd().format(dateTime);
     }
 
-    final lineColor = theme.resources.textFillColorPrimary.withOpacity(0.15);
-    final textColor = theme.resources.textFillColorPrimary.withOpacity(0.5);
+    final lineColor = theme.colorScheme.onSurface.withOpacity(0.15);
+    final textColor = theme.colorScheme.onSurface.withOpacity(0.5);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),

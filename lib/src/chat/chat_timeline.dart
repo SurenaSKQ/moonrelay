@@ -18,7 +18,6 @@ import 'package:flutter/widgets.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 

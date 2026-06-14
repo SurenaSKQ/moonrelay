@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
@@ -51,56 +51,59 @@ class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
 
   @override
   Widget build(BuildContext context) {
-    //STUB - For future!
-    // final TextEditingController searchController = TextEditingController();
-    // final settingsController = Provider.of<SettingsController>(context);
+    final theme = Theme.of(context);
 
-    return NavigationView(
-      titleBar: Container(
-        color: (FluentTheme.of(context).brightness == Brightness.light)
-            ? FluentTheme.of(context).accentColor.lightest
-            : FluentTheme.of(context).accentColor.darkest,
-        child: DragToMoveArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  AppLocalizations.of(context)!.appTitle,
-                  style: const TextStyle(
-                    fontFamily: 'Rubik',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+    return Column(
+      children: [
+        // Custom title bar
+        Container(
+          color: theme.brightness == Brightness.light
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.primary.withOpacity(0.3),
+          child: GestureDetector(
+            onPanStart: (_) => windowManager.startDragging(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    AppLocalizations.of(context)!.appTitle,
+                    style: const TextStyle(
+                      fontFamily: 'Rubik',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
-              ),
-              Flexible(
-                child: Text(
-                  "{${GoRouterState.of(context).uri.toString()}}",
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontWeight: FontWeight.normal,
-                    fontSize: 14,
+                Flexible(
+                  child: Text(
+                    "{${GoRouterState.of(context).uri.toString()}}",
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontWeight: FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(FluentIcons.settings),
-                    onPressed: () => context.push('/settings'),
-                  ),
-                  const WindowButtons(),
-                ],
-              )
-            ],
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.settings),
+                      onPressed: () => context.push('/settings'),
+                    ),
+                    const WindowButtons(),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
-      ),
-      content: widget.child,
+        // Content area
+        Expanded(child: widget.child),
+      ],
     );
   }
 
@@ -111,7 +114,7 @@ class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
       showDialog(
         context: context,
         builder: (_) {
-          return ContentDialog(
+          return AlertDialog(
             title: Text(AppLocalizations.of(context)!.confirmClose),
             content: Text(AppLocalizations.of(context)!.areYouSureExit),
             actions: [
@@ -122,7 +125,7 @@ class _NavigationViewMainFrameState extends State<NavigationViewMainFrame>
                   windowManager.destroy();
                 },
               ),
-              Button(
+              OutlinedButton(
                 child: Text(AppLocalizations.of(context)!.noOrCancellation),
                 onPressed: () {
                   Navigator.pop(context);

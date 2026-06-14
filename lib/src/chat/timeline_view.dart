@@ -18,7 +18,7 @@ import 'package:moonrelay/src/chat/events/date_separator.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders the list of timeline events with event-type filtering, sender

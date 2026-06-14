@@ -19,7 +19,7 @@ import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
@@ -96,7 +96,7 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildModern(BuildContext context) {
-    final theme = FluentTheme.of(context);
+    final theme = Theme.of(context);
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -138,7 +138,7 @@ class TimelineItem extends StatelessWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               fontFamily: 'Rubik',
-                              color: theme.resources.textFillColorPrimary,
+                              color: theme.colorScheme.onSurface,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -150,8 +150,8 @@ class TimelineItem extends StatelessWidget {
                             fontSize: 11,
                             fontFamily: 'Rubik',
                             fontWeight: FontWeight.w500,
-                            color: theme.resources.textFillColorPrimary
-                                .withOpacity(0.45),
+                            color:
+                                theme.colorScheme.onSurface.withOpacity(0.45),
                           ),
                         ),
                       ],
@@ -171,8 +171,8 @@ class TimelineItem extends StatelessWidget {
                               fontSize: 11,
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w500,
-                              color: theme.resources.textFillColorPrimary
-                                  .withOpacity(0.35),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.35),
                             ),
                           ),
                         ],
@@ -347,15 +347,15 @@ class _RedactedEvent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 4),
       child: Row(
         children: [
           Icon(
-            FluentIcons.delete,
+            Icons.delete,
             size: 14,
-            color: theme.resources.textFillColorPrimary.withOpacity(0.35),
+            color: theme.colorScheme.onSurface.withOpacity(0.35),
           ),
           const SizedBox(width: 6),
           Text(
@@ -364,7 +364,7 @@ class _RedactedEvent extends StatelessWidget {
               fontSize: 12,
               fontStyle: FontStyle.italic,
               fontFamily: 'Rubik',
-              color: theme.resources.textFillColorPrimary.withOpacity(0.45),
+              color: theme.colorScheme.onSurface.withOpacity(0.45),
             ),
           ),
         ],
