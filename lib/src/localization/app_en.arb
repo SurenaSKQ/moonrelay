@@ -526,6 +526,12 @@
   },
   "encryptionUnknownError": "Unknown error",
 
+  "encryptionPostLoginBootstrap": "End-to-end encryption is not set up on this account. Would you like to set it up now? You can also do this later from Settings.",
+  "encryptionPostLoginVerify": "This device is not yet verified. You can verify it using a recovery passphrase or by confirming with one of your other devices.",
+  "encryptionVerifyDevice": "Verify This Device",
+  "encryptionVerifyDeviceAction": "Verify",
+  "encryptionLater": "Do This Later",
+
   "failedToLoadImage": "Failed to load image",
   "failedToLoadImageWithError": "Failed to load image: {error}",
   "@failedToLoadImageWithError": {

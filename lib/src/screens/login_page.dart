@@ -28,6 +28,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/screens/encryption/bootstrap_screen.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -739,12 +740,18 @@ class _LoginPageState extends State<LoginPage> {
 
           if (!mounted) return;
 
+          // ── Check if the user needs to set up encryption ─────────
+          // For new devices, this shows a prompt to bootstrap
+          // cross-signing, recover from key backup, or verify with
+          // another device.
+          await _checkPostLoginEncryptionSetup(context, encryptionService, log);
+
+          if (!mounted) return;
+
           switch (syncResult) {
             case true:
               context.go('/main/rooms');
             case false:
-              // Sync timed out, but we can still show the app —
-              // the background sync loop will retry.
               log.w('Initial sync not yet complete, proceeding to rooms');
               context.go('/main/rooms');
           }
@@ -794,6 +801,93 @@ class _LoginPageState extends State<LoginPage> {
 
     await enc.onLogout();
     log.i('Cleared cached client state before login');
+  }
+
+  /// Checks the encryption setup state after login and prompts the user
+  /// if they need to set up cross-signing, recover keys, or verify this
+  /// device.
+  Future<void> _checkPostLoginEncryptionSetup(
+    BuildContext context,
+    EncryptionService enc,
+    Logger log,
+  ) async {
+    // Give the encryption state a moment to settle after init().
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final requirement = enc.setupRequirement;
+    log.i('Post-login encryption setup requirement: $requirement');
+
+    if (requirement == EncryptionSetupRequirement.none) return;
+
+    if (!mounted) return;
+
+    final l10n = AppLocalizations.of(context)!;
+
+    if (requirement == EncryptionSetupRequirement.bootstrap) {
+      final shouldBootstrap = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.encryptionSetupTitle),
+          content: Text(l10n.encryptionPostLoginBootstrap),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.encryptionSkipKeySetup),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.encryptionBootstrap),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldBootstrap == true && mounted) {
+        try {
+          final bootstrap = enc.startBootstrap();
+          if (!mounted) return;
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => BootstrapScreen(bootstrap: bootstrap),
+            ),
+          );
+        } catch (e) {
+          log.e('Bootstrap failed', error: e);
+        }
+      }
+      return;
+    }
+
+    if (requirement == EncryptionSetupRequirement.verify) {
+      final action = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.encryptionVerifyDevice),
+          content: Text(l10n.encryptionPostLoginVerify),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'later'),
+              child: Text(l10n.encryptionLater),
+            ),
+            FilledButton(
+              onPressed: () {
+                // Navigate to encryption settings where the user
+                // can start device verification or set up key backup.
+                Navigator.pop(ctx, 'settings');
+              },
+              child: Text(l10n.encryptionVerifyDeviceAction),
+            ),
+          ],
+        ),
+      );
+
+      if (action == 'settings' && mounted) {
+        context.go('/main/encryption');
+      }
+      return;
+    }
   }
 
   /// Waits for the first [Client.onSync] event, which indicates that the
@@ -1081,6 +1175,11 @@ class _LoginPageState extends State<LoginPage> {
           await encryptionService.init();
 
           final syncResult = await _waitForInitialSync(client, log);
+
+          if (!mounted) return;
+
+          // ── Check if the user needs to set up encryption ─────────
+          await _checkPostLoginEncryptionSetup(context, encryptionService, log);
 
           if (!mounted) return;
 

@@ -29,6 +29,19 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 export 'package:matrix/encryption/utils/key_verification.dart'
     show KeyVerification, KeyVerificationState, KeyVerificationMethod;
 
+/// Describes what encryption setup action the user should take after login.
+enum EncryptionSetupRequirement {
+  /// Cross-signing is fully set up and this device is verified.
+  none,
+
+  /// Cross-signing has never been set up on this account.
+  bootstrap,
+
+  /// Cross-signing exists on the account but this device needs to be
+  /// verified (via recovery passphrase or device verification).
+  verify,
+}
+
 /// Central encryption coordinator.
 ///
 /// Provides a single high-level API for cross-signing, key backup, device
@@ -360,6 +373,27 @@ class EncryptionService extends ChangeNotifier {
 
     _cachedUnverified = (own: own, other: other);
     return _cachedUnverified!;
+  }
+
+  // -----------------------------------------------------------------------
+  // Post-login setup state
+  // -----------------------------------------------------------------------
+
+  /// Determines what, if anything, the user should do after logging in.
+  EncryptionSetupRequirement get setupRequirement {
+    if (!isSupported || _client.encryption == null) {
+      return EncryptionSetupRequirement.bootstrap;
+    }
+
+    if (!_crossSigningBootstrapped) {
+      return EncryptionSetupRequirement.bootstrap;
+    }
+
+    if (!isThisDeviceVerified) {
+      return EncryptionSetupRequirement.verify;
+    }
+
+    return EncryptionSetupRequirement.none;
   }
 
   // -----------------------------------------------------------------------
