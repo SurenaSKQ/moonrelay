@@ -348,6 +348,7 @@ class _HtmlTagParser {
 
   bool _isBlock(String tag) => const {
         'blockquote',
+        'mx-reply',
         'pre',
         'p',
         'h1',
@@ -404,6 +405,9 @@ class _HtmlTagParser {
           ),
           const TextSpan(text: '\n'),
         ];
+
+      case 'mx-reply':
+        return inner;
 
       case 'p':
         return [...inner, const TextSpan(text: '\n')];
