@@ -18,8 +18,8 @@ import 'dart:async';
 
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
+import 'package:moonrelay/src/layouts/dashboard_layout.dart';
 import 'package:moonrelay/src/layouts/startscreen_frame.dart';
-import 'package:moonrelay/src/layouts/two_column_layout.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
@@ -28,8 +28,6 @@ import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/settings/settings_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
-import 'package:moonrelay/src/widgets/rooms_pane.dart';
-import 'package:moonrelay/src/widgets/side_pane_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -123,10 +121,12 @@ class MoonRouter {
           pageBuilder: (context, state, child) => genericPageBuilder(
             context,
             state,
-            TwoColumnLayout(
-              mainView: const SidePaneHandler(child: RoomsPane()),
-              sideView: child,
-            ),
+            // The DashboardLayout replaces the old TwoColumnLayout.
+            // It reads sidebar visibility and pane choice from
+            // SettingsController and uses LayoutBuilder for responsive
+            // breakpoints. The PermanentPaneBottomItems (user profile,
+            // logout) are now rendered by DashboardLayout itself.
+            DashboardLayout(child: child),
           ),
           routes: [
             GoRoute(
@@ -205,32 +205,6 @@ class MoonRouter {
       ],
     ),
   ];
-
-  static final Router panelRouter = Router.withConfig(
-    config: GoRouter(
-      routes: [
-        ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            SidePaneHandler(
-              child: child,
-            ),
-          ),
-          routes: [
-            GoRoute(
-              path: '/',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const RoomsPane(),
-              ),
-            )
-          ],
-        ),
-      ],
-    ),
-  );
 
   static Page genericPageBuilder(
     BuildContext context,

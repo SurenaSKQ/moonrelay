@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-// TODO Use layoutbuilder instead of all this
+/// Deprecated — replaced by [DashboardLayout].
+///
+/// The new layout supports hide/show toggles, multiple sidebars, responsive
+/// breakpoints via [LayoutBuilder], and drag-to-resize handles.
+@Deprecated('Use DashboardLayout from dashboard_layout.dart instead.')
 class TwoColumnLayout extends StatelessWidget {
   final Widget mainView;
   final Widget sideView;

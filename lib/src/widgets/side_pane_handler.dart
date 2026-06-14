@@ -14,9 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
 import 'package:flutter/material.dart';
 
+/// Deprecated — the sidebar structure is now managed by [DashboardLayout].
+///
+/// This widget is kept only for backwards compatibility and will be removed
+/// once all call sites are migrated to [DashboardLayout].
+@Deprecated(
+    'Use DashboardLayout instead. The bottom bar is now part of the layout.')
 class SidePaneHandler extends StatelessWidget {
   const SidePaneHandler({super.key, required this.child});
 
@@ -24,15 +29,6 @@ class SidePaneHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Expanded(child: child),
-          Divider(),
-          const PermanentPaneBottomItems(),
-        ],
-      ),
-    );
+    return child;
   }
 }
