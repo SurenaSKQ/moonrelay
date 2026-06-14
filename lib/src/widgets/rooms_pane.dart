@@ -167,6 +167,7 @@ class RoomsPane extends StatelessWidget {
                                         'Bearer ${client.accessToken}',
                                   },
                                 ),
+                                onBackgroundImageError: (_, __) {},
                               );
                             }
                             return CircleAvatar(

@@ -43,14 +43,7 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: avatarUri == null
-          ? CircleAvatar(
-              radius: radius,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: Icon(
-                Icons.person,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            )
+          ? _placeholder(theme)
           : FutureBuilder<Uri>(
               future: withTimeoutOrFallback(
                 () => avatarUri!.getThumbnailUri(
@@ -63,27 +56,53 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
               ),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  return CircleAvatar(
-                    radius: radius,
-                    backgroundImage: NetworkImage(
-                      snapshot.data.toString(),
-                      headers: {
-                        'authorization': 'Bearer ${client.accessToken}',
-                      },
-                    ),
+                  return _avatarWithErrorHandling(
+                    context,
+                    theme,
+                    snapshot.data.toString(),
                   );
                 }
                 // Themed placeholder while the thumbnail URL resolves.
-                return CircleAvatar(
-                  radius: radius,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.person,
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                );
+                return _placeholder(theme);
               },
             ),
+    );
+  }
+
+  /// Placeholder avatar shown when no URI is available or while loading.
+  Widget _placeholder(ThemeData theme) => CircleAvatar(
+        radius: radius,
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: Icon(
+          Icons.person,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      );
+
+  /// Avatar with a network image that gracefully handles load failures
+  /// (e.g. empty files returned by the server).
+  Widget _avatarWithErrorHandling(
+    BuildContext context,
+    ThemeData theme,
+    String imageUrl,
+  ) {
+    final avatarSize = (radius ?? 20) * 2;
+
+    return ClipOval(
+      child: Image.network(
+        imageUrl,
+        headers: {
+          'authorization': 'Bearer ${client.accessToken}',
+        },
+        width: avatarSize,
+        height: avatarSize,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _placeholder(theme),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _placeholder(theme);
+        },
+      ),
     );
   }
 }

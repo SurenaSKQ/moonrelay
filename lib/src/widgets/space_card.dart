@@ -36,6 +36,7 @@ class SpaceCard extends StatelessWidget {
           CircleAvatar(
             foregroundImage:
                 thumbnailURL.isEmpty ? null : NetworkImage(thumbnailURL),
+            onForegroundImageError: (_, __) {},
           ),
           Text(
             name,

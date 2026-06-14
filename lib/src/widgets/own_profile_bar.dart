@@ -172,6 +172,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                 },
               ),
               backgroundColor: theme.colorScheme.primary,
+              onForegroundImageError: (_, __) {},
             )
           else
             CircleAvatar(

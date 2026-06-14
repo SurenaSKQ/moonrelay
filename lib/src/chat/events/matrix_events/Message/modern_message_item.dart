@@ -68,13 +68,13 @@ class ModernMessageItem implements MessageItemBase {
                   return CircularProgressIndicator();
                 }
                 if (asyncSnapshot.hasData) {
-                  return Image(
-                    image: NetworkImage(
-                      asyncSnapshot.data.toString(),
-                      headers: {
-                        "authorization": "Bearer ${room.client.accessToken}"
-                      },
-                    ),
+                  return Image.network(
+                    asyncSnapshot.data.toString(),
+                    headers: {
+                      "authorization": "Bearer ${room.client.accessToken}"
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image, size: 48),
                   );
                 }
                 return SizedBox.shrink();

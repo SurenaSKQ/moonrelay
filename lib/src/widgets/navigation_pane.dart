@@ -224,6 +224,7 @@ class AvatarIcon extends StatelessWidget {
                 'authorization': 'Bearer ${client.accessToken}',
               },
             ),
+            onBackgroundImageError: (_, __) {},
           );
         }
         return CircleAvatar(

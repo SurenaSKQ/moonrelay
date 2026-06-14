@@ -106,6 +106,7 @@ class SpacesPane extends StatelessWidget {
                         : NetworkImage(
                             rooms[index].avatar.toString(),
                           ),
+                    onForegroundImageError: (_, __) {},
                   ),
                   title: Row(
                     children: [
