@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 
 /// An avatar that loads from a Matrix content URI with a themed placeholder
 /// while the thumbnail URL resolves and the image downloads.
@@ -51,10 +52,14 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
               ),
             )
           : FutureBuilder<Uri>(
-              future: avatarUri!.getThumbnailUri(
-                client,
-                width: 56,
-                height: 56,
+              future: withTimeoutOrFallback(
+                () => avatarUri!.getThumbnailUri(
+                  client,
+                  width: 56,
+                  height: 56,
+                ),
+                timeout: kDefaultTimeout,
+                fallback: avatarUri!,
               ),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {

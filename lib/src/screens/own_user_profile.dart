@@ -14,13 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 // FIXME this entire widget is a disaster
 class OwnProfilePage extends StatefulWidget {
@@ -31,46 +36,113 @@ class OwnProfilePage extends StatefulWidget {
 }
 
 class _OwnProfilePageState extends State<OwnProfilePage> {
+  Profile? _profile;
+  Object? _error;
+  bool _loading = true;
+
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: widget.client.getProfileFromUserId(widget.client.userID!),
-      builder: (context, asyncSnapshot) {
-        if (asyncSnapshot.hasError) {
-          // Schedule SnackBar after build.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  asyncSnapshot.error.toString(),
-                ),
-              ),
-            );
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final log = context.read<Logger>();
+    final result = await withRetry(
+      () => widget.client.getProfileFromUserId(widget.client.userID!),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'ownProfile',
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess(:final value):
+        {
+          setState(() {
+            _profile = value;
+            _loading = false;
           });
         }
-        if (asyncSnapshot.hasData) {
-          return Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(LucideIcons.arrowLeft),
-                onPressed: () => context.pop(),
-              ),
-              title: Text(
-                AppLocalizations.of(context)?.ownProfileDescriptor ??
-                    "Your Profile",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-              ),
-            ),
-            body: OwnProfilePageContent(
-              client: widget.client,
-              userProfile: asyncSnapshot.data!,
-            ),
-          );
-        } else {
-          return LoadingScreen();
+      case RetryFailed(:final error):
+        {
+          setState(() {
+            _error = error;
+            _loading = false;
+          });
         }
-      },
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const LoadingScreen();
+
+    if (_error != null || _profile == null) {
+      return Scaffold(
+        appBar: _buildAppBar(context),
+        body: _buildErrorBody(context),
+      );
+    }
+
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      body: OwnProfilePageContent(
+        client: widget.client,
+        userProfile: _profile!,
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(LucideIcons.arrowLeft),
+        onPressed: () => context.pop(),
+      ),
+      title: Text(
+        AppLocalizations.of(context)?.ownProfileDescriptor ?? 'Your Profile',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+      ),
+    );
+  }
+
+  Widget _buildErrorBody(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final message = _error is TimeoutException
+        ? 'Could not load profile: The server did not respond in time.'
+        : 'Could not load profile: $_error';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
+              label: const Text('Retry'),
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _error = null;
+                });
+                _fetchProfile();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

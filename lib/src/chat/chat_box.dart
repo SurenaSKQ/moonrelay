@@ -14,14 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 /// A modern chat composition widget with formatting tools,
 /// attachment support, and a compact/expanded mode toggle.
@@ -114,28 +118,45 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    final log = context.read<Logger>();
     final replyTo = _replyEvent;
     final html = MarkdownToHtml.convert(text);
 
-    if (replyTo != null) {
-      // Send as a reply.
-      widget.room.sendTextEvent(
-        text,
-        inReplyTo: replyTo,
-      );
-    } else if (html == text || html.isEmpty) {
-      widget.room.sendTextEvent(text);
-    } else {
-      widget.room.sendEvent({
-        'body': text,
-        'msgtype': MessageTypes.Text,
-        'format': 'org.matrix.custom.html',
-        'formatted_body': html,
-      });
+    Future<void> sendFn() async {
+      if (replyTo != null) {
+        await widget.room.sendTextEvent(
+          text,
+          inReplyTo: replyTo,
+        );
+      } else if (html == text || html.isEmpty) {
+        await widget.room.sendTextEvent(text);
+      } else {
+        await widget.room.sendEvent({
+          'body': text,
+          'msgtype': MessageTypes.Text,
+          'format': 'org.matrix.custom.html',
+          'formatted_body': html,
+        });
+      }
     }
 
-    _controller.clear();
-    _clearReply();
+    withTimeout(sendFn, timeout: kDefaultTimeout).then((_) {
+      if (!mounted) return;
+      _controller.clear();
+      _clearReply();
+    }).catchError((Object e) {
+      log.w('Failed to send message', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppLocalizations.of(context)?.error ?? "Error"}: '
+              'Failed to send message. ${e is TimeoutException ? "The request timed out." : e}',
+            ),
+          ),
+        );
+      }
+    });
   }
 
   void _clearReply() {
@@ -159,15 +180,19 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         if (path == null) continue;
         try {
           final fileBytes = await File(path).readAsBytes();
-          await widget.room.sendFileEvent(
-            MatrixFile(bytes: fileBytes, name: file.name),
+          await withTimeout(
+            () => widget.room.sendFileEvent(
+              MatrixFile(bytes: fileBytes, name: file.name),
+            ),
+            timeout: kUploadTimeout,
           );
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '${AppLocalizations.of(context)?.error ?? "Error"}: $e',
+                  '${AppLocalizations.of(context)?.error ?? "Error"}: '
+                  '${e is TimeoutException ? "Upload timed out." : e}',
                 ),
               ),
             );
@@ -177,15 +202,19 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       }
 
       try {
-        await widget.room.sendFileEvent(
-          MatrixFile(bytes: bytes, name: file.name),
+        await withTimeout(
+          () => widget.room.sendFileEvent(
+            MatrixFile(bytes: bytes, name: file.name),
+          ),
+          timeout: kUploadTimeout,
         );
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${AppLocalizations.of(context)?.error ?? "Error"}: $e',
+                '${AppLocalizations.of(context)?.error ?? "Error"}: '
+                '${e is TimeoutException ? "Upload timed out." : e}',
               ),
             ),
           );

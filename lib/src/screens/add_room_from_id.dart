@@ -14,10 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
 
@@ -32,10 +36,50 @@ class AddRoomFromID extends StatefulWidget {
 class _AddRoomFromIDState extends State<AddRoomFromID> {
   final TextEditingController _roomIdController = TextEditingController();
   final TextEditingController _serverController = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _roomIdController.dispose();
+    _serverController.dispose();
+    super.dispose();
+  }
 
   Future<void> _addRoomFromID(
-      Client client, String roomidOrAlias, String? server) async {
-    client.joinRoom(roomidOrAlias);
+    Client client,
+    String roomidOrAlias,
+    String? server,
+  ) async {
+    final log = context.read<Logger>();
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final result = await withRetry(
+      () => client.joinRoom(roomidOrAlias,
+          serverName: server != null ? [server] : null),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'joinRoom',
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess():
+        context.push('/main/rooms/$roomidOrAlias');
+      case RetryFailed(:final error):
+        setState(() {
+          _error = error is TimeoutException
+              ? 'Joining room timed out. The server may be unreachable.'
+              : 'Could not join room: $error';
+        });
+    }
+
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -52,45 +96,80 @@ class _AddRoomFromIDState extends State<AddRoomFromID> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.alertCircle,
+                          size: 18, color: Theme.of(context).colorScheme.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Text(
-              "Search for the room you wish to join:",
+              'Search for the room you wish to join:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
-            const SizedBox(
-              height: 8.0,
-            ),
+            const SizedBox(height: 8.0),
             Label(
-              label: "Room ID or Alias",
+              label: 'Room ID or Alias',
               child: TextField(
                 controller: _roomIdController,
+                enabled: !_loading,
               ),
             ),
-            const SizedBox(
-              height: 8.0,
-            ),
+            const SizedBox(height: 8.0),
             Text(
-              "Enter the server to join through:",
+              'Enter the server to join through:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             ),
             Text(
-              "If left empty, your own homeserver will be used.",
+              'If left empty, your own homeserver will be used.',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(
-              height: 8.0,
-            ),
+            const SizedBox(height: 8.0),
             Label(
-              label: "Server",
+              label: 'Server',
               child: TextField(
                 controller: _serverController,
+                enabled: !_loading,
               ),
             ),
-            OutlinedButton(
-              child: const Row(
-                children: [Icon(LucideIcons.plus), Text("Add Room")],
-              ),
-              onPressed: () => _addRoomFromID(
-                  client, _roomIdController.text, _serverController.text),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _loading
+                  ? null
+                  : () => _addRoomFromID(
+                        client,
+                        _roomIdController.text,
+                        _serverController.text,
+                      ),
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.plus, size: 18),
+              label: Text(_loading ? 'Joining\u2026' : 'Add Room'),
             ),
           ],
         ),

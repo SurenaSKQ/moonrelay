@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 
 // ---------------------------------------------------------------------------
 // Re-export SDK types so UI code can import from a single place.
@@ -203,7 +204,10 @@ class EncryptionService extends ChangeNotifier {
   Future<void> _refreshMyDevices() async {
     try {
       if (!_client.isLogged()) return;
-      final devices = await _client.getDevices();
+      final devices = await withTimeout(
+        () => _client.getDevices(),
+        timeout: kDefaultTimeout,
+      );
       _myDevices = devices ?? [];
       notifyListeners();
     } catch (e, s) {
@@ -216,7 +220,10 @@ class EncryptionService extends ChangeNotifier {
     try {
       final enc = _enc;
       if (enc == null) return [];
-      await _client.updateUserDeviceKeys(additionalUsers: {userId});
+      await withTimeout(
+        () => _client.updateUserDeviceKeys(additionalUsers: {userId}),
+        timeout: kDefaultTimeout,
+      );
       final keys = _client.userDeviceKeys[userId]?.deviceKeys.values ?? [];
       return keys.toList();
     } catch (e, s) {
@@ -229,7 +236,10 @@ class EncryptionService extends ChangeNotifier {
   Future<void> deleteDevice(String deviceId) async {
     _log.i('deleting device $deviceId');
     try {
-      await _client.deleteDevices([deviceId]);
+      await withTimeout(
+        () => _client.deleteDevices([deviceId]),
+        timeout: kDefaultTimeout,
+      );
       await _refreshMyDevices();
     } catch (e, s) {
       _log.e('failed to delete device $deviceId', error: e, stackTrace: s);
@@ -248,7 +258,10 @@ class EncryptionService extends ChangeNotifier {
     if (enc == null) throw Exception('Encryption not available');
 
     final kv = KeyVerification(encryption: enc, userId: userId);
-    await kv.start();
+    await withTimeout(
+      () => kv.start(),
+      timeout: kDefaultTimeout,
+    );
     return kv;
   }
 
@@ -258,7 +271,10 @@ class EncryptionService extends ChangeNotifier {
     try {
       final masterKey = _client.userDeviceKeys[userId]?.masterKey;
       if (masterKey != null) {
-        await masterKey.setVerified(true);
+        await withTimeout(
+          () => masterKey.setVerified(true),
+          timeout: kDefaultTimeout,
+        );
       }
     } catch (e, s) {
       _log.e('failed to mark user $userId as verified',

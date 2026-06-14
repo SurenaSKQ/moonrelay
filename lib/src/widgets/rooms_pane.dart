@@ -14,11 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:badges/badges.dart';
 import 'package:flutter/material.dart' hide Badge;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -40,25 +43,40 @@ class RoomsPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void join(Room room) async {
+      final log = Provider.of<Logger>(context, listen: false);
       try {
         if (room.membership != Membership.join) {
-          await room.join();
+          final result = await withRetry(
+            () => room.join(),
+            maxRetries: 1,
+            timeout: kDefaultTimeout,
+            log: log,
+            label: 'joinRoom',
+          );
+          if (result is RetryFailed) {
+            throw (result).error;
+          }
         }
+        if (!context.mounted) return;
         context.pushReplacement('/main/rooms/${room.id}');
       } catch (e) {
-        Provider.of<Logger>(context).f(
-          "Failed to join",
+        log.f(
+          'Failed to join',
           error: e,
           stackTrace: StackTrace.current,
           time: DateTime.now(),
         );
-        // FIXME: Better error and localization
+        if (!context.mounted) return;
+        final message = e is TimeoutException
+            ? 'Could not join room: The server did not respond in time.'
+            : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(AppLocalizations.of(context)!.error),
-                Text(e.toString()),
+                Text(message),
               ],
             ),
           ),
@@ -106,39 +124,40 @@ class RoomsPane extends StatelessWidget {
                           ),
                         )
                       : FutureBuilder(
-                          future: room.avatar!.getThumbnailUri(
-                            client,
-                            method: ThumbnailMethod.scale,
-                            height: 56,
-                            width: 56,
+                          future: withTimeoutOrFallback(
+                            () => room.avatar!.getThumbnailUri(
+                              client,
+                              method: ThumbnailMethod.scale,
+                              height: 56,
+                              width: 56,
+                            ),
+                            timeout: kDefaultTimeout,
+                            fallback: null,
                           ),
                           builder: (context, asyncSnapshot) {
-                            if (asyncSnapshot.hasError) {
-                              return CircleAvatar(
-                                child: Text(
-                                  room
-                                      .getLocalizedDisplayname()
-                                      .toUpperCase()
-                                      .split(RegExp(' +'))
-                                      .map((s) => s[0])
-                                      .take(2)
-                                      .join(),
-                                ),
-                              );
-                            }
-                            if (asyncSnapshot.hasData) {
+                            if (asyncSnapshot.hasData &&
+                                asyncSnapshot.data != null) {
                               return CircleAvatar(
                                 backgroundImage: NetworkImage(
                                   asyncSnapshot.data.toString(),
                                   headers: {
-                                    "authorization":
-                                        "Bearer ${client.accessToken}"
+                                    'authorization':
+                                        'Bearer ${client.accessToken}',
                                   },
                                 ),
                               );
-                            } else {
-                              return const CircularProgressIndicator();
                             }
+                            return CircleAvatar(
+                              child: Text(
+                                room
+                                    .getLocalizedDisplayname()
+                                    .toUpperCase()
+                                    .split(RegExp(' +'))
+                                    .map((s) => s[0])
+                                    .take(2)
+                                    .join(),
+                              ),
+                            );
                           },
                         ),
                 ),

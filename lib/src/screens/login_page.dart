@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -21,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Login page with password and SSO support.
@@ -424,18 +427,35 @@ class _LoginPageState extends State<LoginPage> {
     Uri homeserverUri,
   ) async {
     final Logger log = Provider.of<Logger>(context, listen: false);
-    try {
-      final result = await client.checkHomeserver(
+
+    final result = await withRetry(
+      () => client.checkHomeserver(
         homeserverUri,
         checkWellKnown: true,
-      );
-      final List<LoginFlow> flows = result.$3;
-      return flows;
-    } catch (e) {
-      log.e('Homeserver check failed', error: e);
-      setState(() => _error = 'Could not connect to homeserver: $e');
-      return null;
+      ),
+      maxRetries: 1,
+      timeout: kLoginTimeout,
+      log: log,
+      label: 'checkHomeserver',
+    );
+
+    return switch (result) {
+      RetrySuccess(:final value) => value.$3,
+      RetryFailed(:final error) =>
+        _handleTimeoutError(error, 'Could not connect to homeserver'),
+    };
+  }
+
+  /// Checks whether [error] is a timeout and sets a user-facing message.
+  /// Returns `null` to signal the caller to abort.
+  List<LoginFlow>? _handleTimeoutError(Object error, String prefix) {
+    if (error is TimeoutException) {
+      setState(() => _error =
+          '$prefix: The server did not respond in time. Please check your connection and try again.');
+    } else {
+      setState(() => _error = '$prefix: $error');
     }
+    return null;
   }
 
   Future<void> _doPasswordLogin() async {
@@ -469,22 +489,37 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    try {
-      await client.login(
+    final result = await withRetry(
+      () => client.login(
         LoginType.mLoginPassword,
         password: _passwordCtrl.text,
         identifier:
             AuthenticationUserIdentifier(user: _usernameCtrl.text.trim()),
-      );
-      if (!mounted) return;
-      context.go('/main/rooms');
-    } catch (e) {
-      log.e('Login error', error: e);
-      if (!mounted) return;
-      setState(() => _error = 'Login failed: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      ),
+      maxRetries: 1,
+      timeout: kLoginTimeout,
+      log: log,
+      label: 'passwordLogin',
+      retryOnAllErrors: true, // login errors are often transient
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess():
+        {
+          context.go('/main/rooms');
+        }
+      case RetryFailed(:final error, :final attempts):
+        {
+          log.e('Login failed after $attempts attempt(s)', error: error);
+          setState(() => _error = error is TimeoutException
+              ? 'Login timed out. The server may be overloaded. Please try again.'
+              : 'Login failed: $error');
+        }
     }
+
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _doSsoOpenBrowser() async {
@@ -581,19 +616,34 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    try {
-      await client.login(
+    final result = await withRetry(
+      () => client.login(
         LoginType.mLoginToken,
         token: token,
-      );
-      if (!mounted) return;
-      context.go('/main/rooms');
-    } catch (e) {
-      log.e('Token login error', error: e);
-      if (!mounted) return;
-      setState(() => _error = 'Token login failed: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      ),
+      maxRetries: 1,
+      timeout: kLoginTimeout,
+      log: log,
+      label: 'tokenLogin',
+      retryOnAllErrors: true,
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess():
+        {
+          context.go('/main/rooms');
+        }
+      case RetryFailed(:final error, :final attempts):
+        {
+          log.e('Token login failed after $attempts attempt(s)', error: error);
+          setState(() => _error = error is TimeoutException
+              ? 'Login timed out. The server may be overloaded. Please try again.'
+              : 'Token login failed: $error');
+        }
     }
+
+    if (mounted) setState(() => _loading = false);
   }
 }

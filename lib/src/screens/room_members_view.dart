@@ -14,12 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// A full-screen page that lists all members of a room.
 ///
@@ -377,20 +382,33 @@ class _FullMemberTile extends StatelessWidget {
     );
   }
 
-  void _sendMessage(BuildContext context) {
+  Future<void> _sendMessage(BuildContext context) async {
+    final log = context.read<Logger>();
     final goRouter = GoRouter.of(context);
     final navigator = Navigator.of(context);
-    member.startDirectChat().then((roomId) {
-      navigator.pop();
-      goRouter.go('/main/rooms/$roomId');
-    }).catchError((e) {
-      if (context.mounted) {
+
+    final result = await withRetry(
+      () => member.startDirectChat(),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'startDirectChat',
+    );
+
+    if (!context.mounted) return;
+
+    switch (result) {
+      case RetrySuccess(:final value):
+        navigator.pop();
+        goRouter.go('/main/rooms/$value');
+      case RetryFailed(:final error):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not open chat: $e'),
+            content: Text(error is TimeoutException
+                ? 'Could not start chat: The server did not respond in time.'
+                : 'Could not start chat: $error'),
           ),
         );
-      }
-    });
+    }
   }
 }

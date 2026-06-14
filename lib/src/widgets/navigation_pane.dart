@@ -17,8 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:provider/provider.dart';
 
 /// A narrow vertical navigation bar that lets users switch between
 /// **Home** (direct messages), **All Channels**, and each **Space**
@@ -201,11 +202,15 @@ class AvatarIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Uri>(
-      future: uri.getThumbnailUri(
-        client,
-        method: ThumbnailMethod.scale,
-        width: size.round(),
-        height: size.round(),
+      future: withTimeoutOrFallback(
+        () => uri.getThumbnailUri(
+          client,
+          method: ThumbnailMethod.scale,
+          width: size.round(),
+          height: size.round(),
+        ),
+        timeout: kDefaultTimeout,
+        fallback: uri, // fall through and let NetworkImage try
       ),
       builder: (context, snapshot) {
         if (snapshot.hasData) {

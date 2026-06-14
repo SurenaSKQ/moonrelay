@@ -14,8 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/widgets.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
@@ -89,21 +94,43 @@ class _ChatTimelineState extends State<ChatTimeline> {
   @override
   void initState() {
     super.initState();
-    widget.room
-        .getTimeline(
-      onChange: (_) => setState(() => _timelineVersion++),
-      onInsert: (_) => setState(() => _timelineVersion++),
-      onRemove: (_) => setState(() => _timelineVersion++),
-      onUpdate: () {},
-    )
-        .then((timeline) {
-      if (!mounted) return;
-      setState(() => _timeline = timeline);
-      _scrollController.addListener(_onScroll);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _ensureContentFillsScreen();
-      });
-    });
+    _initTimeline();
+  }
+
+  Future<void> _initTimeline() async {
+    final log = context.read<Logger>();
+
+    final result = await withRetry(
+      () => widget.room.getTimeline(
+        onChange: (_) => setState(() => _timelineVersion++),
+        onInsert: (_) => setState(() => _timelineVersion++),
+        onRemove: (_) => setState(() => _timelineVersion++),
+        onUpdate: () {},
+      ),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'getTimeline(${widget.room.id})',
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess(:final value):
+        {
+          setState(() => _timeline = value);
+          _scrollController.addListener(_onScroll);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _ensureContentFillsScreen();
+          });
+        }
+      case RetryFailed(:final error):
+        {
+          log.e('Failed to load timeline for ${widget.room.id}', error: error);
+          // Leave _timeline as null so the build method shows the error.
+          setState(() {});
+        }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -117,7 +144,10 @@ class _ChatTimelineState extends State<ChatTimeline> {
     _isLoadingHistory = true;
     _scrollDebounce = true;
 
-    _timeline!.requestHistory().whenComplete(() {
+    withTimeout(
+      () => _timeline!.requestHistory(),
+      timeout: kDefaultTimeout,
+    ).then((_) {
       if (!mounted) return;
       _isLoadingHistory = false;
       // Let the list lay out, then release the debounce two frames later
@@ -131,6 +161,14 @@ class _ChatTimelineState extends State<ChatTimeline> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _ensureContentFillsScreen();
       });
+    }).catchError((Object e) {
+      if (!mounted) return;
+      _isLoadingHistory = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _scrollDebounce = false);
+      });
+      final log = context.read<Logger>();
+      log.w('History request failed for ${widget.room.id}', error: e);
     });
   }
 
@@ -204,7 +242,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
         if (_timeline == null) {
-          return const LoadingScreen();
+          return _buildError(context);
         }
 
         return TimelineView(
@@ -216,6 +254,39 @@ class _ChatTimelineState extends State<ChatTimeline> {
           onReply: widget.onReply,
         );
       },
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.alertCircle,
+              size: 48,
+              color: scheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Could not load messages',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The server may be unreachable. Pull down to retry.',
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

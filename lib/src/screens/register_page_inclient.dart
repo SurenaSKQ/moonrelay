@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -358,55 +361,74 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final Uri homeserverUri =
         hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
 
-    try {
-      await client.checkHomeserver(homeserverUri, checkWellKnown: true);
-    } catch (e) {
-      log.e('Homeserver check failed', error: e);
+    final hsResult = await withRetry(
+      () => client.checkHomeserver(homeserverUri, checkWellKnown: true),
+      maxRetries: 1,
+      timeout: kLoginTimeout,
+      log: log,
+      label: 'registerCheckHS',
+    );
+
+    if (hsResult case RetryFailed(:final error)) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not connect to homeserver: $e';
+        _error = error is TimeoutException
+            ? 'Could not connect to homeserver: The server did not respond in time. '
+                'Please check your connection and try again.'
+            : 'Could not connect to homeserver: $error';
         _loading = false;
       });
       return;
     }
 
-    try {
-      final RegisterResponse response = await client.register(
+    final regResult = await withRetry(
+      () => client.register(
         username: _usernameCtrl.text.trim(),
         password: _passwordCtrl.text,
-      );
+      ),
+      maxRetries: 1,
+      timeout: kLoginTimeout,
+      log: log,
+      label: 'register',
+      retryOnAllErrors: true,
+    );
 
-      log.i('Registration successful for ${response.userId}');
+    if (!mounted) return;
 
-      if (!mounted) return;
-      context.go('/main/rooms');
-    } on MatrixException catch (e) {
-      log.e('Registration failed', error: e);
-
-      // Handle user-interactive authentication (e.g. terms of service)
-      if (e.raw.containsKey('flows') && e.raw.containsKey('session')) {
-        if (!mounted) return;
-        setState(() {
-          _error = 'This homeserver requires additional steps to register '
-              '(e.g. email verification or CAPTCHA). '
-              'Please create an account on the homeserver\'s website instead.';
-          _loading = false;
-        });
-        return;
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _error = e.errorMessage;
-        _loading = false;
-      });
-    } catch (e) {
-      log.e('Registration failed', error: e);
-      if (!mounted) return;
-      setState(() {
-        _error = 'Registration failed: $e';
-        _loading = false;
-      });
+    switch (regResult) {
+      case RetrySuccess(:final value):
+        {
+          log.i('Registration successful for ${value.userId}');
+          context.go('/main/rooms');
+        }
+      case RetryFailed(:final error):
+        {
+          if (error is MatrixException) {
+            // Handle user-interactive authentication (e.g. terms of service)
+            if (error.raw.containsKey('flows') &&
+                error.raw.containsKey('session')) {
+              setState(() {
+                _error =
+                    'This homeserver requires additional steps to register '
+                    '(e.g. email verification or CAPTCHA). '
+                    'Please create an account on the homeserver\'s website instead.';
+                _loading = false;
+              });
+              return;
+            }
+            setState(() {
+              _error = error.errorMessage;
+              _loading = false;
+            });
+          } else {
+            setState(() {
+              _error = error is TimeoutException
+                  ? 'Registration timed out. The server may be overloaded. Please try again.'
+                  : 'Registration failed: $error';
+              _loading = false;
+            });
+          }
+        }
     }
   }
 }
