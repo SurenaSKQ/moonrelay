@@ -105,7 +105,7 @@ class RoomParticipantsList extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         var members = room.getParticipants().toList()
-          ..sort((b, a) => a.powerLevel.compareTo(b.powerLevel));
+          ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
         members = members.take(10).toList();
         final actualMembersCount = (room.summary.mInvitedMemberCount ?? 0) +
             (room.summary.mJoinedMemberCount ?? 0);
@@ -122,9 +122,9 @@ class RoomParticipantsList extends StatelessWidget {
               Membership.knock => "Wants to enter",
               Membership.leave => "Left the chat",
             };
-            final permissionBatch = members[index].powerLevel == 100
+            final permissionBatch = members[index].powerLevel.level >= 100
                 ? "Administrator"
-                : members[index].powerLevel >= 50
+                : members[index].powerLevel.level >= 50
                     ? "Moderator"
                     : '';
             return ListTile(

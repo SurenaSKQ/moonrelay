@@ -1,4 +1,3 @@
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -26,20 +25,18 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     return Consumer<SettingsController>(
       builder: (context, controller, child) {
-        return Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(LucideIcons.arrowLeft),
+        return NavigationView(
+          titleBar: TitleBar(
+            icon: IconButton(
+              icon: const Icon(FluentIcons.back),
               onPressed: () => context.canPop() ? context.pop() : null,
             ),
-            title: DragToMoveArea(
-              child: Text(
-                "Settings",
-                style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
-              ),
+            title: const Text(
+              "Settings",
+              style: TextStyle(fontSize: 18, fontFamily: 'Rubik'),
             ),
           ),
-          body: Padding(
+          content: Padding(
             padding: const EdgeInsets.all(16),
             // Glue the SettingsController to the theme selection DropdownButton.
             //

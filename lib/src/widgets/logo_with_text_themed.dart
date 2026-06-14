@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
@@ -26,8 +26,7 @@ class LogoWithTextThemed extends StatelessWidget {
   Widget build(BuildContext context) {
     SettingsController settings = Provider.of<SettingsController>(context);
     bool isLightMode = (settings.themeMode == ThemeMode.light ? true : false);
-    // TODO what even is the following code?
-    // if (themeMode != null) isLightMode = themeMode!.isLight;
+    if (themeMode != null) isLightMode = themeMode! == Brightness.light;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,

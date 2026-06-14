@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "azhi_main" "\0"
+            VALUE "CompanyName", "ir.kekw.moonrelay" "\0"
+            VALUE "FileDescription", "moonrelay" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "azhi_main" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "azhi_main.exe" "\0"
-            VALUE "ProductName", "azhi_main" "\0"
+            VALUE "InternalName", "moonrelay" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 ir.kekw.moonrelay. All rights reserved." "\0"
+            VALUE "OriginalFilename", "moonrelay.exe" "\0"
+            VALUE "ProductName", "moonrelay" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
