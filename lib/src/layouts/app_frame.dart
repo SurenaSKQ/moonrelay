@@ -18,6 +18,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -37,8 +38,10 @@ bool get _isDesktop {
 /// Main application frame shown after authentication.
 ///
 /// Provides a custom header bar with:
-/// - Platform-native window management buttons (minimize, maximize, close)
+/// - Platform-style window management buttons (minimize, maximize, close)
+/// - A draggable title area for moving the window
 /// - Right-click context menu with window actions and a "System menu" entry
+/// - Left sidebar toggle button
 /// - Reversible layout (buttons left / title right) via [SettingsController]
 class AppFrame extends StatefulWidget {
   const AppFrame({
@@ -87,13 +90,23 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     final bool reversed = settings.headerReversed;
     final bool showButtons = _isDesktop && !settings.useSystemTitlebar;
 
+    final Widget sidebarToggle = IconButton(
+      icon: Icon(
+        settings.leftSidebarVisible
+            ? LucideIcons.panelLeftClose
+            : LucideIcons.panelLeftOpen,
+      ),
+      onPressed: () => settings.toggleLeftSidebar(),
+      tooltip:
+          settings.leftSidebarVisible ? 'Collapse sidebar' : 'Expand sidebar',
+    );
+
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (event) {
           if (event.kind == PointerDeviceKind.mouse &&
-              // kSecondaryMouseButton (2) = right mouse button
               (event.buttons & 0x02) != 0) {
             _showContextMenu(context, event.position);
           }
@@ -102,23 +115,33 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
           height: kToolbarHeight,
           color: theme.colorScheme.surface,
           child: Row(
-            children: [
+            children: <Widget>[
               // ── Leading slot ──────────────────────────────────
               if (reversed && showButtons)
                 const WindowButtons()
-              else if (!reversed)
+              else
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 16),
-                  child: _HeaderTitle(l10n: l10n),
+                  padding: const EdgeInsetsDirectional.only(start: 4),
+                  child: sidebarToggle,
                 ),
 
-              const Spacer(),
+              // ── Draggable title area ──────────────────────────
+              Expanded(
+                child: DragToMoveArea(
+                  child: SizedBox(
+                    height: double.infinity,
+                    child: Center(
+                      child: _HeaderTitle(l10n: l10n),
+                    ),
+                  ),
+                ),
+              ),
 
               // ── Trailing slot ─────────────────────────────────
               if (reversed)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 16),
-                  child: _HeaderTitle(l10n: l10n),
+                  padding: const EdgeInsetsDirectional.only(end: 4),
+                  child: sidebarToggle,
                 )
               else if (showButtons)
                 const WindowButtons(),
@@ -135,9 +158,6 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     Offset globalPosition,
   ) async {
     final bool isMaxed = await windowManager.isMaximized();
-
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
 
     final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
       const PopupMenuItem<String>(

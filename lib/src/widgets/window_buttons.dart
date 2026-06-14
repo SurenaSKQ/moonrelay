@@ -16,25 +16,77 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Platform-native window caption buttons (minimize, maximize/restore, close).
+/// Platform-style window caption buttons.
 ///
-/// Uses [WindowCaption] from the window_manager package to render the
-/// appropriate buttons for the current platform — traffic lights on macOS,
-/// standard caption buttons on Windows/Linux.
-class WindowButtons extends StatelessWidget {
+/// Renders minimize, maximize/restore, and close buttons using the
+/// [WindowCaptionButton] widgets from the window_manager package.
+/// The maximize/restore button toggles based on the current window state.
+class WindowButtons extends StatefulWidget {
   const WindowButtons({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
+  State<WindowButtons> createState() => _WindowButtonsState();
+}
 
-    return SizedBox(
-      width: 138,
-      height: 50,
-      child: WindowCaption(
-        brightness: theme.brightness,
-        backgroundColor: Colors.transparent,
-      ),
+class _WindowButtonsState extends State<WindowButtons> with WindowListener {
+  bool _isMaximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _initMaximized();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  Future<void> _initMaximized() async {
+    final maximized = await windowManager.isMaximized();
+    if (mounted && maximized != _isMaximized) {
+      setState(() => _isMaximized = maximized);
+    }
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _isMaximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _isMaximized = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Brightness brightness = Theme.of(context).brightness;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        WindowCaptionButton.minimize(
+          brightness: brightness,
+          onPressed: () => windowManager.minimize(),
+        ),
+        if (_isMaximized)
+          WindowCaptionButton.unmaximize(
+            brightness: brightness,
+            onPressed: () => windowManager.unmaximize(),
+          )
+        else
+          WindowCaptionButton.maximize(
+            brightness: brightness,
+            onPressed: () => windowManager.maximize(),
+          ),
+        WindowCaptionButton.close(
+          brightness: brightness,
+          onPressed: () => windowManager.close(),
+        ),
+      ],
     );
   }
 }

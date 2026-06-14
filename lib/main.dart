@@ -30,6 +30,7 @@ import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
 import 'package:path_provider/path_provider.dart';
+import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
@@ -157,6 +158,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (context) => settingsController,
+        ),
+        ChangeNotifierProvider(
+          create: (context) => NavigationState(),
         )
       ],
       child: const MoonrelayApp(),

@@ -15,11 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
+import 'package:moonrelay/src/widgets/navigation_pane.dart';
 import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/spaces_pane.dart';
@@ -27,10 +29,12 @@ import 'package:moonrelay/src/widgets/spaces_pane.dart';
 /// A flexible multi-pane layout that replaces the old rigid TwoColumnLayout.
 ///
 /// Uses [LayoutBuilder] to adapt to available space:
-/// - **Wide** (>= 1000px): left sidebar + content + optional right sidebar
-/// - **Medium** (>= 700px): left sidebar + content, right sidebar hidden
+/// - **Wide** (>= 1100px): nav pane + left sidebar + content + optional right sidebar
+/// - **Medium** (>= 700px): nav pane + left sidebar + content
 /// - **Narrow** (< 700px):  content only, sidebars accessible via overlay
 ///
+/// The leftmost **nav pane** is a permanent narrow rail (Home / All / Spaces).
+/// The **left sidebar** (rooms pane) is collapsible via the AppFrame header.
 /// Sidebar visibility, width, and pane choice are driven by
 /// [SettingsController] and persisted across sessions.
 class DashboardLayout extends StatefulWidget {
@@ -44,7 +48,7 @@ class DashboardLayout extends StatefulWidget {
 }
 
 class _DashboardLayoutState extends State<DashboardLayout> {
-  // Local drag state for resize handles (clamped against settings when persisted).
+  // Local drag state for resize handles.
   double? _leftWidth;
   double? _rightWidth;
 
@@ -54,9 +58,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
       builder: (context, settings, _) {
         return LayoutBuilder(
           builder: (context, constraints) {
-            final double availableWidth = constraints.maxWidth;
-            final bool isWide = availableWidth >= 1000;
-            final bool isMedium = availableWidth >= 700;
+            final bool isWide = constraints.maxWidth >= 1100;
 
             final bool showLeft = settings.leftSidebarVisible;
             final bool showRight = settings.rightSidebarVisible && isWide;
@@ -66,15 +68,15 @@ class _DashboardLayoutState extends State<DashboardLayout> {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Left sidebar ──────────────────────────────────────
+                // ── Navigation pane (always visible) ─────────────────
+                const NavigationPane(),
+
+                // ── Left sidebar (rooms pane, collapsible) ───────────
                 if (showLeft)
                   _SidebarPane(
                     width: _leftWidth ?? settings.leftSidebarWidth,
                     minWidth: 200,
-                    header: _SidebarHeader(
-                      title: settings.leftPaneChoice.label,
-                      onToggle: () => settings.toggleLeftSidebar(),
-                    ),
+                    title: settings.leftPaneChoice.label,
                     body: _buildLeftPane(settings.leftPaneChoice),
                     bottomBar: const PermanentPaneBottomItems(),
                     theme: theme,
@@ -122,20 +124,11 @@ class _DashboardLayoutState extends State<DashboardLayout> {
                   _SidebarPane(
                     width: _rightWidth ?? settings.rightSidebarWidth,
                     minWidth: 200,
-                    header: _SidebarHeader(
-                      title: settings.rightPaneChoice.label,
-                      onToggle: () => settings.toggleRightSidebar(),
-                    ),
+                    title: settings.rightPaneChoice.label,
                     body: _buildRightPane(settings.rightPaneChoice),
                     bottomBar: null,
                     theme: theme,
                   ),
-
-                // ── Medium-screen floating toggle for right sidebar ───
-                if (isMedium && !isWide && settings.rightSidebarVisible)
-                  // This case is handled by hiding the right sidebar in medium mode.
-                  // A floating action could be added here later.
-                  const SizedBox.shrink(),
               ],
             );
           },
@@ -144,17 +137,43 @@ class _DashboardLayoutState extends State<DashboardLayout> {
     );
   }
 
-  /// Build the left pane widget based on the user's choice.
+  /// Build the left pane widget based on the user's choice,
+  /// applying the current navigation filter.
   Widget _buildLeftPane(LeftPaneChoice choice) {
     switch (choice) {
       case LeftPaneChoice.rooms:
-        return const RoomsPane();
+        return Consumer<NavigationState>(
+          builder: (context, nav, _) {
+            return RoomsPane(roomFilter: (Room room) {
+              if (nav.isAll) return true;
+              if (nav.isHome) return room.isDirectChat;
+              if (nav.isSpace) {
+                return _roomBelongsToSpace(context, room, nav.selectedId);
+              }
+              return true;
+            });
+          },
+        );
       case LeftPaneChoice.spaces:
         return const SpacesPane();
       case LeftPaneChoice.friends:
         return const FriendsChatsPane();
       case LeftPaneChoice.none:
         return const SizedBox.shrink();
+    }
+  }
+
+  /// Check whether [room] is a child of the space identified by [spaceId].
+  bool _roomBelongsToSpace(BuildContext context, Room room, String spaceId) {
+    try {
+      final Client client = Provider.of<Client>(context, listen: false);
+      final Room? space = client.getRoomById(spaceId);
+      if (space == null) return false;
+      final Set<String?> childIds =
+          space.spaceChildren.map((c) => c.roomId).toSet();
+      return childIds.contains(room.id);
+    } catch (_) {
+      return false;
     }
   }
 
@@ -220,7 +239,7 @@ class _ResizeHandle extends StatelessWidget {
 class _SidebarPane extends StatelessWidget {
   final double width;
   final double minWidth;
-  final Widget header;
+  final String title;
   final Widget body;
   final Widget? bottomBar;
   final ThemeData theme;
@@ -228,7 +247,7 @@ class _SidebarPane extends StatelessWidget {
   const _SidebarPane({
     required this.width,
     required this.minWidth,
-    required this.header,
+    required this.title,
     required this.body,
     this.bottomBar,
     required this.theme,
@@ -241,38 +260,10 @@ class _SidebarPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          header,
-          const Divider(height: 1),
-          Expanded(child: body),
-          if (bottomBar != null) ...[
-            const Divider(height: 1),
-            bottomBar!,
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// A small header row for a sidebar, with a title and a collapse button.
-class _SidebarHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onToggle;
-
-  const _SidebarHeader({
-    required this.title,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Container(
-      color: theme.colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
+          // Simple header bar — collapse toggle lives in AppFrame now.
+          Container(
+            color: theme.colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
               title,
               style: TextStyle(
@@ -285,17 +276,12 @@ class _SidebarHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              iconSize: 16,
-              icon: Icon(LucideIcons.chevronLeft),
-              onPressed: onToggle,
-              tooltip: 'Toggle sidebar',
-            ),
-          ),
+          const Divider(height: 1),
+          Expanded(child: body),
+          if (bottomBar != null) ...[
+            const Divider(height: 1),
+            bottomBar!,
+          ],
         ],
       ),
     );

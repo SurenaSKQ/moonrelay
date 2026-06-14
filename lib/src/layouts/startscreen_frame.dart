@@ -107,38 +107,34 @@ class _StartscreenFrameState extends State<StartscreenFrame>
               // ── Leading slot ──────────────────────────────────
               if (reversed && showButtons)
                 const WindowButtons()
-              else if (!reversed)
+              else
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.menu),
-                        onPressed: () {},
-                      ),
-                      const SizedBox(width: 8),
-                      _HeaderTitle(l10n: l10n),
-                    ],
+                  padding: const EdgeInsetsDirectional.only(start: 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () {},
                   ),
                 ),
 
-              const Spacer(),
+              // ── Draggable title area ──────────────────────────
+              Expanded(
+                child: DragToMoveArea(
+                  child: SizedBox(
+                    height: double.infinity,
+                    child: Center(
+                      child: _HeaderTitle(l10n: l10n),
+                    ),
+                  ),
+                ),
+              ),
 
               // ── Trailing slot ─────────────────────────────────
               if (reversed)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _HeaderTitle(l10n: l10n),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.menu),
-                        onPressed: () {},
-                      ),
-                    ],
+                  padding: const EdgeInsetsDirectional.only(end: 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () {},
                   ),
                 )
               else if (showButtons)
