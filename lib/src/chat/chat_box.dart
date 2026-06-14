@@ -58,6 +58,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isEmpty = true;
   Event? _replyEvent;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -87,6 +88,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
+    _disposed = true;
     widget.replyTarget?.removeListener(_onReplyTargetChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -170,6 +172,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       allowMultiple: true,
       withData: true,
     );
+    if (_disposed) return;
     if (result == null || result.files.isEmpty) return;
 
     for (final file in result.files) {

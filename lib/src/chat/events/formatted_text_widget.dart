@@ -56,8 +56,8 @@ class FormattedTextWidget extends StatelessWidget {
   List<TextSpan> _linkifyPlainText(String text, BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final uriRegExp = RegExp(
-      r'(\b(?:https?|ftp|matrix):\/\/[^\s<>"]+\([^\s<>")]*\)|[^\s<>"()]+\b)'
-      r'|(\b(?:www\.)[^\s<>"()]+\b)',
+      r'\b(?:https?|ftp|matrix):\/\/(?:[^\s<>")()]|\([^\s<>")()]*\))*(?!\w)'
+      r'|\b(?:www\.)[^\s<>")()]+(?!\w)',
       caseSensitive: false,
     );
 
@@ -382,20 +382,25 @@ class _HtmlTagParser {
         ];
 
       case 'pre':
+        final scheme = Theme.of(context).colorScheme;
         return [
           const TextSpan(text: '\n'),
           TextSpan(
             children: [
               TextSpan(
                 children: inner,
-                style: const TextStyle(
-                  fontFamily: 'FiraCode',
-                  fontSize: 14,
-                  color: Color(0xFFE0E0E0),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: scheme.onSurface,
+                  height: 1.5,
                 ),
               ),
+              const TextSpan(text: ' '),
             ],
-            style: const TextStyle(backgroundColor: Color(0xFF1E1E1E)),
+            style: TextStyle(
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
           ),
           const TextSpan(text: '\n'),
         ];
