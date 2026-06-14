@@ -57,7 +57,7 @@ class ProfileDelegate extends StatelessWidget {
       // Redirect to the hub screen when viewing the user's own profile.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        context.go('/main/myprofile');
+        context.pushReplacement('/main/myprofile');
       });
       return const SizedBox.shrink();
     } else {

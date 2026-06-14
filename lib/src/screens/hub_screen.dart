@@ -179,7 +179,13 @@ class _HubScreenState extends State<HubScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/main/rooms');
+            }
+          },
         ),
         title: Text(
           l10n.hub,
