@@ -566,8 +566,6 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
 
-    if (!mounted) return;
-
     switch (result) {
       case RetrySuccess():
         {

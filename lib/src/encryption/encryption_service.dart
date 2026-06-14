@@ -77,10 +77,10 @@ class EncryptionService extends ChangeNotifier {
   bool _isBusy = false;
   bool get isBusy => _isBusy;
 
-  /// Stream of incoming key verification requests.  Listen to this to show
-  /// a verification dialog when another user wants to verify with you.
   Stream<KeyVerification> get onKeyVerificationRequest =>
       _client.onKeyVerificationRequest.stream;
+
+  StreamSubscription? _syncSubscription;
 
   // -----------------------------------------------------------------------
   // Lifecycle
@@ -109,11 +109,20 @@ class EncryptionService extends ChangeNotifier {
     }
 
     // Keep state fresh after every sync.
-    _client.onSync.stream.listen((_) {
+    _syncSubscription = _client.onSync.stream.listen((_) {
+      _cachedUnverified = null; // invalidate cache
       _refreshCrossSigningStatus();
       _refreshBackupState();
       _refreshMyDevices();
     });
+  }
+
+  /// Dispose of resources. Call when the service is no longer needed.
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    _syncSubscription = null;
+    super.dispose();
   }
 
   // -----------------------------------------------------------------------
@@ -287,9 +296,15 @@ class EncryptionService extends ChangeNotifier {
   // Convenience
   // -----------------------------------------------------------------------
 
+  ({int own, int other})? _cachedUnverified;
+
   /// The number of unverified devices belonging to the current user and to
   /// other users (aggregated across all joined rooms).
+  ///
+  /// Results are cached until the next sync invalidates them.
   Future<({int own, int other})> countUnverified() async {
+    if (_cachedUnverified != null) return _cachedUnverified!;
+
     int own = 0;
     int other = 0;
 
@@ -314,7 +329,8 @@ class EncryptionService extends ChangeNotifier {
       // best-effort
     }
 
-    return (own: own, other: other);
+    _cachedUnverified = (own: own, other: other);
+    return _cachedUnverified!;
   }
 
   // -----------------------------------------------------------------------
@@ -323,6 +339,8 @@ class EncryptionService extends ChangeNotifier {
 
   Future<void> onLogout() async {
     _log.i('cleaning up');
+    _syncSubscription?.cancel();
+    _syncSubscription = null;
     _isInitialized = false;
     _crossSigningBootstrapped = false;
     _keyBackupExists = false;

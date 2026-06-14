@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ui' show Color;
-
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 

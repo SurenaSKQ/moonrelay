@@ -344,7 +344,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     try {
       await widget.request.rejectSas();
     } catch (_) {}
-    if (mounted) Navigator.of(context).pop(false);
+    if (mounted && context.mounted) Navigator.of(context).pop(false);
   }
 
   Future<void> _cancel(BuildContext context) async {
@@ -353,7 +353,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     } catch (_) {
       // ignore
     }
-    if (mounted) Navigator.of(context).pop(false);
+    if (mounted && context.mounted) Navigator.of(context).pop(false);
   }
 
   // ---- Helpers ----------------------------------------------------------

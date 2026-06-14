@@ -16,24 +16,14 @@
 
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
-
-/// Whether the current platform is a desktop OS.
-bool get _isDesktop {
-  if (kIsWeb) return false;
-  return [
-    TargetPlatform.windows,
-    TargetPlatform.linux,
-    TargetPlatform.macOS,
-  ].contains(defaultTargetPlatform);
-}
 
 /// Main application frame shown after authentication.
 ///
@@ -47,11 +37,9 @@ class AppFrame extends StatefulWidget {
   const AppFrame({
     super.key,
     required this.child,
-    required this.shellContext,
   });
 
   final Widget child;
-  final BuildContext? shellContext;
   @override
   State<AppFrame> createState() => _AppFrameState();
 }
@@ -88,7 +76,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
         Provider.of<SettingsController>(context, listen: true);
     final ThemeData theme = Theme.of(context);
     final bool reversed = settings.headerReversed;
-    final bool showButtons = _isDesktop && !settings.useSystemTitlebar;
+    final bool showButtons = isDesktop && !settings.useSystemTitlebar;
 
     final Widget sidebarToggle = IconButton(
       icon: Icon(
@@ -191,6 +179,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
       ),
     ];
 
+    if (!context.mounted) return;
     final String? result = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -227,7 +216,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
   @override
   void onWindowClose() async {
     final bool isPreventClose = await windowManager.isPreventClose();
-    if (isPreventClose && mounted) {
+    if (isPreventClose && mounted && context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: true,

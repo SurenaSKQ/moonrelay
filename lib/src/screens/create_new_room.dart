@@ -56,7 +56,7 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
 
     switch (result) {
       case RetrySuccess(:final value):
-        context.go('/main/rooms/${value}');
+        context.go('/main/rooms/$value');
       case RetryFailed(:final error):
         setState(() {
           _error = error is TimeoutException

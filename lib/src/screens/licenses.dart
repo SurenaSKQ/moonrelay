@@ -28,7 +28,7 @@ class _Licenses {
 }
 
 // ignore: unused_element
-Future<_Licenses> _createLicense(name, assetName) async {
+Future<_Licenses> _createLicense(String name, String assetName) async {
   String licenseTxt = await rootBundle.loadString('assets/$assetName');
   return _Licenses(name: name, assetName: assetName, licenseText: licenseTxt);
 }

@@ -29,9 +29,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   late bool _headerReversed;
   late bool _showStateEvents;
 
-  SettingsController(this._settingsService) {
-    loadSettings();
-  }
+  SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
   MoonrelayThemeOption get themeOption => _themeOption;

@@ -37,12 +37,11 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
   final MenuController _menuController = MenuController();
 
   Future<void> _logout() async {
-    if (!context.mounted) return;
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
     try {
       await client.logout();
-      if (!context.mounted) return;
+      if (!mounted) return;
       context.go('/');
     } catch (e) {
       log.e(
@@ -51,7 +50,7 @@ class _PermanentPaneBottomItemsState extends State<PermanentPaneBottomItems> {
         time: DateTime.now(),
         stackTrace: StackTrace.current,
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Column(

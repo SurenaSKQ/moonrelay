@@ -114,7 +114,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   // Actions
   // ---------------------------------------------------------------------------
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
@@ -140,23 +140,23 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       }
     }
 
-    withTimeout(sendFn, timeout: kDefaultTimeout).then((_) {
+    try {
+      await withTimeout(sendFn, timeout: kDefaultTimeout);
       if (!mounted) return;
       _controller.clear();
       _clearReply();
-    }).catchError((Object e) {
+    } catch (e) {
       log.w('Failed to send message', error: e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${AppLocalizations.of(context)?.error ?? "Error"}: '
-              'Failed to send message. ${e is TimeoutException ? "The request timed out." : e}',
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppLocalizations.of(context)?.error ?? "Error"}: '
+            'Failed to send message. ${e is TimeoutException ? "The request timed out." : e}',
           ),
-        );
-      }
-    });
+        ),
+      );
+    }
   }
 
   void _clearReply() {

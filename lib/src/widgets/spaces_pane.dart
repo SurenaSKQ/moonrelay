@@ -33,49 +33,7 @@ class SpacesPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void join(Room room) async {
-      final log = Provider.of<Logger>(context, listen: false);
-      try {
-        if (room.membership != Membership.join) {
-          final result = await withRetry(
-            () => room.join(),
-            maxRetries: 1,
-            timeout: kDefaultTimeout,
-            log: log,
-            label: 'spacesJoinRoom',
-          );
-          if (result is RetryFailed) {
-            throw (result).error;
-          }
-        }
-        if (!context.mounted) return;
-        context.push('/rooms/${room.id}');
-      } catch (e) {
-        log.f(
-          'Failed to join',
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        if (!context.mounted) return;
-        final message = e is TimeoutException
-            ? 'Could not join room: The server did not respond in time.'
-            : e.toString();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(AppLocalizations.of(context)!.error),
-                Text(message),
-              ],
-            ),
-          ),
-        );
-      }
-    }
-
-    Client client = Provider.of<Client>(context);
+    final Client client = Provider.of<Client>(context);
     final scheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -168,13 +126,56 @@ class SpacesPane extends StatelessWidget {
                           ),
                         )
                       : null,
-                  onTap: () => join(rooms[index]),
+                  onTap: () => _joinRoom(context, rooms[index]),
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Joins the [room] (if not already a member) and navigates to it.
+Future<void> _joinRoom(BuildContext context, Room room) async {
+  final log = Provider.of<Logger>(context, listen: false);
+  try {
+    if (room.membership != Membership.join) {
+      final result = await withRetry(
+        () => room.join(),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'spacesJoinRoom',
+      );
+      if (result is RetryFailed) {
+        throw (result).error;
+      }
+    }
+    if (!context.mounted) return;
+    context.push('/rooms/${room.id}');
+  } catch (e) {
+    log.f(
+      'Failed to join',
+      error: e,
+      stackTrace: StackTrace.current,
+      time: DateTime.now(),
+    );
+    if (!context.mounted) return;
+    final message = e is TimeoutException
+        ? 'Could not join room: The server did not respond in time.'
+        : e.toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(AppLocalizations.of(context)!.error),
+            Text(message),
+          ],
+        ),
+      ),
     );
   }
 }

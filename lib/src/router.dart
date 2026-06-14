@@ -38,16 +38,28 @@ class MoonRouter {
   static FutureOr<String?> loggedInRedirect(
     BuildContext context,
     GoRouterState state,
-  ) =>
-      Provider.of<Client>(context, listen: false).isLogged() ? '/rooms' : null;
+  ) {
+    try {
+      return Provider.of<Client>(context, listen: false).isLogged()
+          ? '/rooms'
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static FutureOr<String?> loggedOutRedirect(
     BuildContext context,
     GoRouterState state,
-  ) =>
-      Provider.of<Client>(context, listen: false).isLogged()
+  ) {
+    try {
+      return Provider.of<Client>(context, listen: false).isLogged()
           ? null
           : '/welcome';
+    } catch (_) {
+      return '/welcome';
+    }
+  }
 
   MoonRouter();
   // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
@@ -56,7 +68,7 @@ class MoonRouter {
       pageBuilder: (context, state, child) => genericPageBuilder(
         context,
         state,
-        StartscreenFrame(shellContext: context, child: child),
+        StartscreenFrame(child: child),
       ),
       routes: [
         ShellRoute(
@@ -100,7 +112,7 @@ class MoonRouter {
       pageBuilder: (context, state, child) => genericPageBuilder(
         context,
         state,
-        AppFrame(shellContext: context, child: child),
+        AppFrame(child: child),
       ),
       routes: [
         GoRoute(

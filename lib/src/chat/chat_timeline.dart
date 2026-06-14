@@ -21,7 +21,6 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
-import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -139,36 +138,33 @@ class _ChatTimelineState extends State<ChatTimeline> {
 
   /// Requests more history from the server and debounces subsequent
   /// scroll-triggered loads so that layout reflow doesn't create a loop.
-  void _requestMoreHistory() {
+  Future<void> _requestMoreHistory() async {
     if (_timeline == null) return;
+    final Logger log = context.read<Logger>();
     _isLoadingHistory = true;
     _scrollDebounce = true;
 
-    withTimeout(
-      () => _timeline!.requestHistory(),
-      timeout: kDefaultTimeout,
-    ).then((_) {
-      if (!mounted) return;
-      _isLoadingHistory = false;
-      // Let the list lay out, then release the debounce two frames later
-      // to skip any layout-caused scroll events.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _scrollDebounce = false);
-        });
-      });
-      // Also re-check auto-fill after this load finishes.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _ensureContentFillsScreen();
-      });
-    }).catchError((Object e) {
-      if (!mounted) return;
-      _isLoadingHistory = false;
+    try {
+      await withTimeout(
+        () => _timeline!.requestHistory(),
+        timeout: kDefaultTimeout,
+      );
+    } catch (e) {
+      log.w('History request failed for ${widget.room.id}', error: e);
+    }
+
+    if (!mounted) return;
+    _isLoadingHistory = false;
+    // Let the list lay out, then release the debounce two frames later
+    // to skip any layout-caused scroll events.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _scrollDebounce = false);
       });
-      final log = context.read<Logger>();
-      log.w('History request failed for ${widget.room.id}', error: e);
+    });
+    // Also re-check auto-fill after this load finishes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureContentFillsScreen();
     });
   }
 

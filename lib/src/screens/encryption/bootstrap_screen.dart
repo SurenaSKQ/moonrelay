@@ -210,6 +210,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                         return;
                       }
                     }
+                    if (!mounted) return;
                     _bootstrap.unlockedSsss();
                   },
                   child: Text(loc.encryptionUnlock),

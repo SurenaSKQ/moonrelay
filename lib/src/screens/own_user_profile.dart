@@ -65,6 +65,17 @@ class _OwnProfilePageState extends State<OwnProfilePage> {
             _profile = value;
             _loading = false;
           });
+          // Show a friendly reminder if the user hasn't set a display name.
+          if (value.displayName == null && mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("You have not set a display name!"),
+                ),
+              );
+            });
+          }
         }
       case RetryFailed(:final error):
         {
@@ -159,18 +170,6 @@ class OwnProfilePageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (userProfile.displayName == null) {
-      // Schedule SnackBar after build.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("You have not set a display name!"),
-          ),
-        );
-      });
-    }
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,

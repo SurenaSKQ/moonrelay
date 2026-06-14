@@ -856,23 +856,26 @@ class _AppearanceSettings extends StatelessWidget {
               _SettingsSection(
                 title: 'Theme mode',
                 children: [
-                  RadioListTile<ThemeMode>(
-                    title: const Text('System'),
-                    value: ThemeMode.system,
+                  RadioGroup<ThemeMode>(
                     groupValue: controller.themeMode,
                     onChanged: (v) => controller.updateThemeMode(v!),
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Light'),
-                    value: ThemeMode.light,
-                    groupValue: controller.themeMode,
-                    onChanged: (v) => controller.updateThemeMode(v!),
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Dark'),
-                    value: ThemeMode.dark,
-                    groupValue: controller.themeMode,
-                    onChanged: (v) => controller.updateThemeMode(v!),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<ThemeMode>(
+                          title: const Text('System'),
+                          value: ThemeMode.system,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('Light'),
+                          value: ThemeMode.light,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('Dark'),
+                          value: ThemeMode.dark,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -882,29 +885,36 @@ class _AppearanceSettings extends StatelessWidget {
               _SettingsSection(
                 title: 'Colour theme',
                 children: [
-                  for (final option in MoonrelayThemeOption.values)
-                    RadioListTile<MoonrelayThemeOption>(
-                      title: Row(
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: option.seedColor,
-                              borderRadius: BorderRadius.circular(6),
+                  RadioGroup<MoonrelayThemeOption>(
+                    groupValue: controller.themeOption,
+                    onChanged: (v) {
+                      if (v != null) controller.updateThemeOption(v);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final option in MoonrelayThemeOption.values)
+                          RadioListTile<MoonrelayThemeOption>(
+                            title: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: option.seedColor,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(option.label),
+                              ],
                             ),
+                            value: option,
+                            dense: true,
                           ),
-                          const SizedBox(width: 12),
-                          Text(option.label),
-                        ],
-                      ),
-                      value: option,
-                      groupValue: controller.themeOption,
-                      onChanged: (v) {
-                        if (v != null) controller.updateThemeOption(v);
-                      },
-                      dense: true,
+                      ],
                     ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -930,23 +940,26 @@ class _AppearanceSettings extends StatelessWidget {
               _SettingsSection(
                 title: 'Chat display type',
                 children: [
-                  RadioListTile<DisplayType>(
-                    title: Text(DisplayType.modern.label),
-                    value: DisplayType.modern,
+                  RadioGroup<DisplayType>(
                     groupValue: controller.displayType,
                     onChanged: (v) => controller.updateDisplayType(v!),
-                  ),
-                  RadioListTile<DisplayType>(
-                    title: Text(DisplayType.irc.label),
-                    value: DisplayType.irc,
-                    groupValue: controller.displayType,
-                    onChanged: (v) => controller.updateDisplayType(v!),
-                  ),
-                  RadioListTile<DisplayType>(
-                    title: Text(DisplayType.bubbles.label),
-                    value: DisplayType.bubbles,
-                    groupValue: controller.displayType,
-                    onChanged: (v) => controller.updateDisplayType(v!),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<DisplayType>(
+                          title: Text(DisplayType.modern.label),
+                          value: DisplayType.modern,
+                        ),
+                        RadioListTile<DisplayType>(
+                          title: Text(DisplayType.irc.label),
+                          value: DisplayType.irc,
+                        ),
+                        RadioListTile<DisplayType>(
+                          title: Text(DisplayType.bubbles.label),
+                          value: DisplayType.bubbles,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
