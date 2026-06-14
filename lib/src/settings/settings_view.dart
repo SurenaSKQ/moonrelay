@@ -4,7 +4,6 @@ import 'package:flutter/material.dart' as mt;
 import 'package:go_router/go_router.dart';
 import 'package:moonrelay/src/widgets/label.dart';
 import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'settings_controller.dart';
 
