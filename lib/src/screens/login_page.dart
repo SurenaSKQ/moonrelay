@@ -708,6 +708,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordCtrl.text,
         identifier:
             AuthenticationUserIdentifier(user: _usernameCtrl.text.trim()),
+        initialDeviceDisplayName: 'Moonrelay',
       ),
       maxRetries: 1,
       timeout: kLoginTimeout,
@@ -1055,6 +1056,7 @@ class _LoginPageState extends State<LoginPage> {
       () => client.login(
         LoginType.mLoginToken,
         token: token,
+        initialDeviceDisplayName: 'Moonrelay',
       ),
       maxRetries: 1,
       timeout: kLoginTimeout,
