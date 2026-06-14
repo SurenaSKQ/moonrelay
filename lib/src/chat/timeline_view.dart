@@ -82,6 +82,11 @@ class TimelineView extends StatelessWidget {
 
   /// True when [newer] and [older] belong to the same sender and fall within
   /// the same ~10‑minute environment, i.e. they should share a visual group.
+  ///
+  /// [newer] is the chronologically newer event (displayed lower in the
+  /// timeline) and [older] is the earlier event (displayed higher up).
+  /// When they form a group, the **older** event acts as the group start
+  /// (shows avatar/name) and the newer event is a continuation (no avatar).
   bool _isContinuation(Event newer, Event older) {
     if (newer.senderId != older.senderId) return false;
     return newer.originServerTs.sameEnvironment(older.originServerTs);
@@ -119,6 +124,9 @@ class TimelineView extends StatelessWidget {
     while (i < visibleIndices.length) {
       final eventIndex = visibleIndices[i];
       final event = timeline.events[eventIndex];
+      final int nextIdx =
+          i + 1 < visibleIndices.length ? visibleIndices[i + 1] : -1;
+      final Event? nextEvent = nextIdx >= 0 ? timeline.events[nextIdx] : null;
 
       // Count undecryptable encrypted events
       if (event.type == EventTypes.Encrypted) {
@@ -157,8 +165,12 @@ class TimelineView extends StatelessWidget {
           items.add(DateSeparator(dateTime: event.originServerTs));
         }
 
+        // An event is a continuation of the **older** event above it
+        // (next in newest-first iteration). This ensures the oldest
+        // (uppermost) message in a group is the one that shows the
+        // sender avatar and name.
         final isContinuation =
-            previousVisible != null && _isContinuation(previousVisible, event);
+            nextEvent != null && _isContinuation(event, nextEvent);
 
         items.add(TimelineItem(
           event: event,
@@ -258,8 +270,7 @@ class _UndecryptableBanner extends StatelessWidget {
                         : '$count ${l10n.encryptionUndecryptableMessages}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: scheme.onTertiaryContainer
-                          .withValues(alpha: 0.75),
+                      color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
                     ),
                   ),
                 ],

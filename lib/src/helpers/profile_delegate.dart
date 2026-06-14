@@ -20,7 +20,6 @@ import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 
 class ProfileDelegate extends StatelessWidget {
