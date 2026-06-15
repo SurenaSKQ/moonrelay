@@ -99,7 +99,6 @@ class TimelineItem extends StatelessWidget {
       );
     }
 
-    final cs = Theme.of(context).colorScheme;
     final isHighlighted = highlightedEventId == event.eventId;
 
     Widget content;
@@ -112,13 +111,8 @@ class TimelineItem extends StatelessWidget {
         content = _buildIrc(context);
     }
 
-    content = Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: isHighlighted
-            ? cs.primary.withValues(alpha: 0.15)
-            : Colors.transparent,
-      ),
+    content = _HoverHighlight(
+      isHighlighted: isHighlighted,
       child: content,
     );
 
@@ -527,6 +521,56 @@ class _RedactedEvent extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hover highlight & reply-jump flash
+// ---------------------------------------------------------------------------
+
+/// Wraps a chat item and applies a subtle background tint when the mouse
+/// hovers over it, plus a stronger flash when [isHighlighted] is true
+/// (triggered by a reply jump-to).
+class _HoverHighlight extends StatefulWidget {
+  const _HoverHighlight({
+    required this.isHighlighted,
+    required this.child,
+  });
+
+  final bool isHighlighted;
+  final Widget child;
+
+  @override
+  State<_HoverHighlight> createState() => _HoverHighlightState();
+}
+
+class _HoverHighlightState extends State<_HoverHighlight> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    Color bgColor;
+    if (widget.isHighlighted) {
+      bgColor = cs.primary.withValues(alpha: 0.15);
+    } else if (_isHovered) {
+      bgColor = cs.primary.withValues(alpha: 0.06);
+    } else {
+      bgColor = Colors.transparent;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: bgColor,
+        ),
+        child: widget.child,
       ),
     );
   }
