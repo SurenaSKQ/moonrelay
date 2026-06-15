@@ -70,6 +70,9 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the active room so the right sidebar rebuilds on room change.
+    final activeRoom = context.watch<CurrentRoom>().room;
+
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
         return LayoutBuilder(
@@ -145,7 +148,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
                     width: _rightWidth ?? settings.rightSidebarWidth,
                     minWidth: 200,
                     title: '', // managed by the content itself
-                    body: const _RightSidebarContent(),
+                    body: _RightSidebarContent(room: activeRoom),
                     bottomBar: null,
                     theme: theme,
                   ),
@@ -203,47 +206,43 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 /// Manages the right sidebar content with a built-in dropdown to switch
 /// between room-info and members views.
 ///
-/// Reads the current pane choice from [SettingsController] and switches
-/// the displayed content accordingly.
+/// Receives the currently-active room from [DashboardLayout] so that
+/// room changes trigger a clean rebuild from the top of the widget tree.
 class _RightSidebarContent extends StatelessWidget {
-  const _RightSidebarContent();
+  const _RightSidebarContent({required this.room});
+
+  final Room? room;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CurrentRoom>(
-      builder: (context, currentRoom, _) {
-        final room = currentRoom.room;
-
-        if (room == null) {
-          final scheme = Theme.of(context).colorScheme;
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.arrowRightFromLine,
-                  size: 40,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  AppLocalizations.of(context)!.selectCategory,
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-              ],
+    if (room == null) {
+      final scheme = Theme.of(context).colorScheme;
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.arrowRightFromLine,
+              size: 40,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
-          );
-        }
+            const SizedBox(height: 12),
+            Text(
+              AppLocalizations.of(context)!.selectCategory,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return _RightSidebarWithSwitcher(room: room);
-      },
-    );
+    return _RightSidebarWithSwitcher(key: ValueKey(room!.id), room: room!);
   }
 }
 
 /// The right sidebar body with a segmented/dropdown switcher at the top.
 class _RightSidebarWithSwitcher extends StatelessWidget {
-  const _RightSidebarWithSwitcher({required this.room});
+  const _RightSidebarWithSwitcher({super.key, required this.room});
 
   final Room room;
 
@@ -266,7 +265,8 @@ class _RightSidebarWithSwitcher extends StatelessWidget {
           child: switch (choice) {
             RightPaneChoice.none => const SizedBox.shrink(),
             RightPaneChoice.roomInfo => _SidebarRoomInfo(room: room),
-            RightPaneChoice.members => _SidebarMembersList(room: room),
+            RightPaneChoice.members =>
+              _SidebarMembersList(key: ValueKey(room.id), room: room),
           },
         ),
       ],
@@ -297,9 +297,11 @@ class _RightSidebarHeader extends StatelessWidget {
         children: [
           // Selected view icon
           Icon(
-            currentChoice == RightPaneChoice.roomInfo
-                ? LucideIcons.info
-                : LucideIcons.users,
+            switch (currentChoice) {
+              RightPaneChoice.roomInfo => LucideIcons.info,
+              RightPaneChoice.members => LucideIcons.users,
+              RightPaneChoice.none => LucideIcons.panelRight,
+            },
             size: 16,
             color: scheme.onSurfaceVariant,
           ),
@@ -324,6 +326,10 @@ class _RightSidebarHeader extends StatelessWidget {
                   DropdownMenuItem(
                     value: RightPaneChoice.members,
                     child: Text('Members'),
+                  ),
+                  DropdownMenuItem(
+                    value: RightPaneChoice.none,
+                    child: Text('None'),
                   ),
                 ],
                 onChanged: (v) {
@@ -539,7 +545,7 @@ class _StatusCard extends StatelessWidget {
 /// of members.  This avoids the destructive back-button that would otherwise
 /// appear when using [FullRoomMembersList] directly inside a sidebar.
 class _SidebarMembersList extends StatefulWidget {
-  const _SidebarMembersList({required this.room});
+  const _SidebarMembersList({super.key, required this.room});
 
   final Room room;
 
@@ -628,6 +634,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   }
 
   Future<void> _fetchLocalThenRemote() async {
+    final roomId = widget.room.id;
     setState(() {
       _isLoading = true;
       _loadError = null;
@@ -639,7 +646,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
 
     _allMembers = List.from(localParticipants);
-    if (mounted) {
+    if (mounted && widget.room.id == roomId) {
       setState(() {
         _isLoading = false;
         _displayedCount = _allMembers.length > 0
@@ -649,7 +656,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || widget.room.id != roomId) return;
       if (_displayedCount < _allMembers.length) _loadNextBatch();
     });
 
@@ -657,13 +664,18 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       _isFetchingMore = true;
       final joinedMembers =
           await widget.room.client.getJoinedMembersByRoom(widget.room.id);
-      if (!mounted || joinedMembers == null || joinedMembers.isEmpty) return;
+      if (!mounted ||
+          widget.room.id != roomId ||
+          joinedMembers == null ||
+          joinedMembers.isEmpty) return;
 
       final existingIds = _allMembers.map((u) => u.id).toSet();
       final missingMxids =
           joinedMembers.keys.where((id) => !existingIds.contains(id)).toList();
       if (missingMxids.isEmpty) {
-        if (mounted) setState(() => _isFetchingMore = false);
+        if (mounted && widget.room.id == roomId) {
+          setState(() => _isFetchingMore = false);
+        }
         return;
       }
 
@@ -675,7 +687,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
         final results = await Future.wait(
           batch.map((mxid) => _fetchUser(mxid, joinedMembers)),
         );
-        if (!mounted) return;
+        if (!mounted || widget.room.id != roomId) return;
 
         final newUsers = results.whereType<User>().where((u) {
           return !_allMembers.any((existing) => existing.id == u.id);
@@ -686,7 +698,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
         _allMembers
             .sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
 
-        if (mounted) {
+        if (mounted && widget.room.id == roomId) {
           setState(() {
             _displayedCount = (_displayedCount + newUsers.length)
                 .clamp(0, _allMembers.length);
@@ -696,7 +708,9 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     } catch (_) {
       // Silently swallow – local data is already shown.
     }
-    if (mounted) setState(() => _isFetchingMore = false);
+    if (mounted && widget.room.id == roomId) {
+      setState(() => _isFetchingMore = false);
+    }
   }
 
   Future<User?> _fetchUser(

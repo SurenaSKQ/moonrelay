@@ -121,7 +121,7 @@ class SettingsService {
 
   Future<bool> rightSidebarVisible() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_rightSidebarVisibleKey) ?? false;
+    return prefs.getBool(_rightSidebarVisibleKey) ?? true;
   }
 
   Future<void> updateRightSidebarVisible(bool visible) async {
@@ -162,7 +162,9 @@ class SettingsService {
   Future<RightPaneChoice> rightPaneChoice() async {
     final prefs = await SharedPreferences.getInstance();
     final int? index = prefs.getInt(_rightPaneChoiceKey);
-    return index != null ? RightPaneChoice.values[index] : RightPaneChoice.none;
+    return index != null
+        ? RightPaneChoice.values[index]
+        : RightPaneChoice.roomInfo;
   }
 
   Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
