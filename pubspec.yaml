@@ -39,6 +39,7 @@ dependencies:
   lucide_icons_flutter: ^3.0.4
   flutter_vodozemac: ^0.5.0
   url_launcher: ^6.3.2
+  meta: ^1.15.0
 
 dev_dependencies:
   flutter_test:

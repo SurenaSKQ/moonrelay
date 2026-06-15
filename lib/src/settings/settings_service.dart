@@ -22,6 +22,9 @@ class SettingsService {
   static const _headerReversedKey = 'header_reversed';
   static const _showStateEventsKey = 'show_state_events';
   static const _showStatusBarKey = 'show_status_bar';
+  static const _pinnedSpacesKey = 'pinned_spaces';
+  static const _spaceOrderKey = 'space_order';
+  static const _collapsedGroupsKey = 'collapsed_groups';
 
   Future<bool> useSystemTitlebar() async {
     final prefs = await SharedPreferences.getInstance();
@@ -160,6 +163,50 @@ class SettingsService {
     await prefs.setBool(_showStatusBarKey, value);
   }
 
+  // ── Pinned spaces ───────────────────────────────────────────────────
+
+  /// Loads the set of manually pinned subspace room IDs.
+  Future<Set<String>> pinnedSpaces() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pinnedSpacesKey);
+    if (raw == null || raw.isEmpty) return {};
+    return raw.split(',').where((id) => id.isNotEmpty).toSet();
+  }
+
+  /// Persists the set of pinned subspace room IDs.
+  Future<void> updatePinnedSpaces(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pinnedSpacesKey, ids.join(','));
+  }
+
+  // ── Space order ──────────────────────────────────────────────────────
+
+  Future<List<String>> spaceOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_spaceOrderKey);
+    if (raw == null || raw.isEmpty) return [];
+    return raw.split(',').where((id) => id.isNotEmpty).toList();
+  }
+
+  Future<void> updateSpaceOrder(List<String> order) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_spaceOrderKey, order.join(','));
+  }
+
+  // ── Collapsed groups ─────────────────────────────────────────────────
+
+  Future<Set<String>> collapsedGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_collapsedGroupsKey);
+    if (raw == null || raw.isEmpty) return {};
+    return raw.split(',').where((id) => id.isNotEmpty).toSet();
+  }
+
+  Future<void> updateCollapsedGroups(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_collapsedGroupsKey, ids.join(','));
+  }
+
   Future<double> rightSidebarWidth() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getDouble(_rightSidebarWidthKey) ?? 280.0;
@@ -182,21 +229,30 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
   }
-}
 
-// AccentColor get systemAccentColor {
-//   if ((defaultTargetPlatform == TargetPlatform.windows ||
-//           defaultTargetPlatform == TargetPlatform.android) &&
-//       !kIsWeb) {
-//     return AccentColor.swatch({
-//       'darkest': SystemTheme.accentColor.darkest,
-//       'darker': SystemTheme.accentColor.darker,
-//       'dark': SystemTheme.accentColor.dark,
-//       'normal': SystemTheme.accentColor.accent,
-//       'light': SystemTheme.accentColor.light,
-//       'lighter': SystemTheme.accentColor.lighter,
-//       'lightest': SystemTheme.accentColor.lightest,
-//     });
-//   }
-//   return Colors.blue;
-// }
+
+  // ── Space groups ──────────────────────────────────────────────────
+
+  Future<Map<String, List<String>>> spaceGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('space_groups');
+    if (raw == null || raw.isEmpty) return {};
+    final map = <String, List<String>>{};
+    for (final entry in raw.split('|')) {
+      final parts = entry.split(':');
+      if (parts.length == 2) {
+        map[parts[0]] = parts[1].split(',').where((id) => id.isNotEmpty).toList();
+      }
+    }
+    return map;
+  }
+
+  Future<void> updateSpaceGroups(Map<String, List<String>> groups) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = groups.entries
+        .where((e) => e.value.isNotEmpty)
+        .map((e) => '${e.key}:${e.value.join(',')}')
+        .join('|');
+    await prefs.setString('space_groups', encoded);
+  }
+}

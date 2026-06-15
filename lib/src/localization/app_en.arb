@@ -965,5 +965,26 @@
   "joinSpace": "Join Space",
   "@joinSpace": {
     "description": "Button for non-members to join a space."
+  },
+
+  "pinSpace": "Pin to navigation",
+  "@pinSpace": {
+    "description": "Context menu item to pin a subspace to the navigation pane."
+  },
+  "unpinSpace": "Unpin from navigation",
+  "@unpinSpace": {
+    "description": "Context menu item to remove a pinned subspace from the navigation pane."
+  },
+  "openSpace": "Open Space Home",
+  "@openSpace": {
+    "description": "Context menu item to open the space home page."
+  },
+  "rootSpaces": "Spaces",
+  "@rootSpaces": {
+    "description": "Section header for root spaces in the navigation pane."
+  },
+  "pinnedSpaces": "Pinned",
+  "@pinnedSpaces": {
+    "description": "Section header for pinned subspaces in the navigation pane."
   }
 }

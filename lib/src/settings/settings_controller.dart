@@ -29,6 +29,10 @@ class SettingsController with ChangeNotifier, WindowListener {
   late bool _headerReversed;
   late bool _showStateEvents;
   late bool _showStatusBar;
+  late Set<String> _pinnedSpaces;
+  late List<String> _spaceOrder;
+  late Set<String> _collapsedGroups;
+  late Map<String, List<String>> _spaceGroups;
 
   SettingsController(this._settingsService);
 
@@ -48,6 +52,10 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get headerReversed => _headerReversed;
   bool get showStateEvents => _showStateEvents;
   bool get showStatusBar => _showStatusBar;
+  Set<String> get pinnedSpaces => _pinnedSpaces;
+  List<String> get spaceOrder => _spaceOrder;
+  Set<String> get collapsedGroups => _collapsedGroups;
+  Map<String, List<String>> get spaceGroups => _spaceGroups;
 
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
@@ -66,6 +74,10 @@ class SettingsController with ChangeNotifier, WindowListener {
     _headerReversed = await _settingsService.headerReversed();
     _showStateEvents = await _settingsService.showStateEvents();
     _showStatusBar = await _settingsService.showStatusBar();
+    _pinnedSpaces = await _settingsService.pinnedSpaces();
+    _spaceOrder = await _settingsService.spaceOrder();
+    _collapsedGroups = await _settingsService.collapsedGroups();
+    _spaceGroups = await _settingsService.spaceGroups();
 
     notifyListeners();
   }
@@ -214,5 +226,133 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       await _settingsService.updateShowStatusBar(value);
     }
+  }
+
+  // ── Pinned spaces ──────────────────────────────────────────────────
+
+  /// Toggle whether [spaceId] is pinned in the navigation pane.
+  Future<void> togglePinSpace(String spaceId) async {
+    if (_pinnedSpaces.contains(spaceId)) {
+      _pinnedSpaces.remove(spaceId);
+    } else {
+      _pinnedSpaces.add(spaceId);
+    }
+    notifyListeners();
+    await _settingsService.updatePinnedSpaces(_pinnedSpaces);
+  }
+
+  /// Returns `true` if [spaceId] is pinned.
+  bool isSpacePinned(String spaceId) => _pinnedSpaces.contains(spaceId);
+
+  // ── Space order ──────────────────────────────────────────────────
+
+  Future<void> setSpaceOrder(List<String> order) async {
+    _spaceOrder = List.of(order);
+    notifyListeners();
+    await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  // ── Collapsed groups ──────────────────────────────────────────────
+
+  Future<void> toggleGroupCollapsed(String spaceId) async {
+    if (_collapsedGroups.contains(spaceId)) {
+      _collapsedGroups.remove(spaceId);
+    } else {
+      _collapsedGroups.add(spaceId);
+    }
+    notifyListeners();
+    await _settingsService.updateCollapsedGroups(_collapsedGroups);
+  }
+
+  bool isGroupCollapsed(String spaceId) => _collapsedGroups.contains(spaceId);
+
+
+
+  /// Creates a group identified by [groupId] containing [ids].
+  Future<void> createGroup(String groupId, List<String> ids) async {
+    _spaceGroups[groupId] = List.of(ids);
+    for (final id in ids) {
+      _spaceOrder.remove(id);
+    }
+    _spaceOrder.insert(0, groupId);
+    notifyListeners();
+    await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  /// Adds [spaceId] to an existing group.
+  Future<void> addToGroup(String groupId, String spaceId) async {
+    _spaceGroups[groupId] = [..._spaceGroups[groupId] ?? [], spaceId];
+    _spaceOrder.remove(spaceId);
+    notifyListeners();
+    await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  /// Removes [spaceId] from its group. Deletes the group if empty.
+  Future<void> removeFromGroup(String spaceId) async {
+    for (final entry in _spaceGroups.entries) {
+      if (entry.value.contains(spaceId)) {
+        entry.value.remove(spaceId);
+        if (entry.value.isEmpty) {
+          _spaceGroups.remove(entry.key);
+          _spaceOrder.remove(entry.key);
+        }
+        if (!_spaceOrder.contains(spaceId)) {
+          _spaceOrder.add(spaceId);
+        }
+        break;
+      }
+    }
+    notifyListeners();
+    await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  /// Moves [spaceId] up one position in the order.
+  Future<void> moveUp(String spaceId) async {
+    final idx = _spaceOrder.indexOf(spaceId);
+    if (idx > 0) {
+      _spaceOrder.removeAt(idx);
+      _spaceOrder.insert(idx - 1, spaceId);
+      notifyListeners();
+      await _settingsService.updateSpaceOrder(_spaceOrder);
+    }
+  }
+
+  /// Moves [spaceId] down one position in the order.
+  Future<void> moveDown(String spaceId) async {
+    final idx = _spaceOrder.indexOf(spaceId);
+    if (idx >= 0 && idx < _spaceOrder.length - 1) {
+      _spaceOrder.removeAt(idx);
+      _spaceOrder.insert(idx + 1, spaceId);
+      notifyListeners();
+      await _settingsService.updateSpaceOrder(_spaceOrder);
+    }
+  }
+
+  /// Runs auto‑grouping from the Matrix hierarchy.
+  Future<void> sortIntoGroups(Map<String, List<String>> groups) async {
+    _spaceGroups = Map.of(groups);
+    final toRemove = <String>{};
+    for (final children in groups.values) {
+      toRemove.addAll(children);
+    }
+    for (final entry in groups.entries) {
+      if (!_spaceOrder.contains(entry.key)) _spaceOrder.add(entry.key);
+    }
+    // Put group children after their group in the order
+    final newOrder = <String>[];
+    for (final id in _spaceOrder) {
+      if (toRemove.contains(id)) continue;
+      newOrder.add(id);
+      // If this is a group, insert its children after it
+      final children = groups[id];
+      if (children != null) newOrder.addAll(children);
+    }
+    _spaceOrder = newOrder;
+    notifyListeners();
+    await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateSpaceOrder(_spaceOrder);
   }
 }
