@@ -43,6 +43,7 @@ class MessageEventHandler extends StatelessWidget {
     required this.event,
     this.timeline,
     this.room,
+    this.onJumpToEvent,
   });
 
   final Event event;
@@ -53,6 +54,10 @@ class MessageEventHandler extends StatelessWidget {
 
   /// The room this event belongs to, used to fetch replied-to events.
   final Room? room;
+
+  /// Called when the user taps a reply preview to jump to the replied-to
+  /// event.  Receives the event ID of the target event.
+  final void Function(String eventId)? onJumpToEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -233,6 +238,7 @@ class MessageEventHandler extends StatelessWidget {
           repliedTo: repliedTo,
           replyId: replyId,
           room: room,
+          onJumpToEvent: onJumpToEvent,
         ),
         const SizedBox(height: 4),
         FormattedTextWidget(
@@ -254,11 +260,16 @@ class _ReplyPreview extends StatelessWidget {
     required this.repliedTo,
     required this.replyId,
     this.room,
+    this.onJumpToEvent,
   });
 
   final Event? repliedTo;
   final String replyId;
   final Room? room;
+
+  /// Called when the user taps the reply preview to jump to the replied-to
+  /// event in the timeline.
+  final void Function(String eventId)? onJumpToEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -287,7 +298,7 @@ class _ReplyPreview extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final preview = _preview(body);
 
-    return Row(
+    final barAndText = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Vertical bar indicator
@@ -314,6 +325,18 @@ class _ReplyPreview extends StatelessWidget {
         ),
       ],
     );
+
+    if (onJumpToEvent != null) {
+      return GestureDetector(
+        onTap: () => onJumpToEvent!(replyId),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: barAndText,
+        ),
+      );
+    }
+
+    return barAndText;
   }
 
   /// Returns a short preview (≈40 characters + ellipsis) of [text].

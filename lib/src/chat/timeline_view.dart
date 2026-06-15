@@ -117,6 +117,8 @@ class TimelineView extends StatelessWidget {
   List<Widget> _buildItemList(BuildContext context) {
     final visibleIndices = _visibleIndices(); // newest → oldest
     final items = <Widget>[];
+    // Map of eventId → item index in [items], built as we go.
+    final eventIdToItemIndex = <String, int>{};
     Event? previousVisible; // the *newer* neighbour (non-state events only)
     int undecryptableCount = 0;
     int i = 0;
@@ -182,8 +184,10 @@ class TimelineView extends StatelessWidget {
           isGroupContinuation: isContinuation,
           timeline: timeline,
           onReply: onReply != null ? () => onReply!(event) : null,
+          onJumpToEvent: _jumpToEvent(scrollController, eventIdToItemIndex),
         ));
 
+        eventIdToItemIndex[event.eventId] = items.length - 1;
         previousVisible = event;
         i++;
       }
@@ -215,6 +219,40 @@ class TimelineView extends StatelessWidget {
       itemCount: items.length,
       itemBuilder: (context, index) => items[index],
     );
+  }
+
+  /// Returns a callback that scrolls to a target event identified by
+  /// [eventId].  Uses the [eventIdToItemIndex] map built during
+  /// [_buildItemList] to find the item's list position, then animates
+  /// the scroll controller to roughly that location.
+  ///
+  /// Because the ListView uses `reverse: true`, newer items are at the
+  /// bottom (scroll offset 0) and older items are at the top (max scroll
+  /// extent).  The offset is estimated proportionally, so the target may
+  /// not be pixel-perfect, but will be close enough for the user to see it.
+  void Function(String eventId) _jumpToEvent(
+    ScrollController controller,
+    Map<String, int> eventIdToItemIndex,
+  ) {
+    return (String eventId) {
+      final targetIdx = eventIdToItemIndex[eventId];
+      if (targetIdx == null) return;
+      if (!controller.hasClients) return;
+
+      final position = controller.position;
+      final itemCount = eventIdToItemIndex.length;
+      // Estimate position in the list. With reverse: true, item 0 is at
+      // scroll offset 0 (bottom), and the last item is at maxScrollExtent.
+      final fraction = itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
+      final targetOffset = position.minScrollExtent +
+          (position.maxScrollExtent - position.minScrollExtent) * fraction;
+
+      controller.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    };
   }
 }
 

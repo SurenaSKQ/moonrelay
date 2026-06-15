@@ -50,6 +50,7 @@ class TimelineItem extends StatelessWidget {
     this.isGroupContinuation = false,
     this.timeline,
     this.onReply,
+    this.onJumpToEvent,
   });
 
   final Event event;
@@ -69,6 +70,10 @@ class TimelineItem extends StatelessWidget {
 
   /// Called when the user wants to reply to this event.
   final VoidCallback? onReply;
+
+  /// Called when the user taps a reply preview to jump to the replied-to
+  /// event.  Receives the event ID of the target event.
+  final void Function(String eventId)? onJumpToEvent;
 
   /// Whether the event was redacted (deleted).
   bool get _isRedacted => event.redacted;
@@ -105,7 +110,12 @@ class TimelineItem extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        MessageEventHandler(event: event, timeline: timeline, room: room),
+        MessageEventHandler(
+          event: event,
+          timeline: timeline,
+          room: room,
+          onJumpToEvent: onJumpToEvent,
+        ),
         if (timeline != null)
           ReactionsBar(
             event: event,
@@ -359,7 +369,11 @@ class TimelineItem extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 MessageEventHandler(
-                    event: event, timeline: timeline, room: room),
+                  event: event,
+                  timeline: timeline,
+                  room: room,
+                  onJumpToEvent: onJumpToEvent,
+                ),
                 if (timeline != null)
                   ReactionsBar(
                     event: event,
