@@ -123,12 +123,14 @@ class DeviceListScreen extends StatelessWidget {
     AppLocalizations loc,
     EncryptionService enc,
   ) async {
+    final deviceName = device.displayName ?? device.deviceId;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(loc.encryptionDeleteDevice),
         content: Text(
-          '${loc.encryptionDeleteDeviceConfirm} "${device.displayName ?? device.deviceId}"?',
+          '${loc.encryptionDeleteDeviceConfirm} "$deviceName"\n\n'
+          '${loc.encryptionDeleteDeviceWarning}',
         ),
         actions: [
           TextButton(
@@ -139,7 +141,7 @@ class DeviceListScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
                 backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: Text(loc.yesOrAffirmitive),
+            child: Text(loc.encryptionDeleteDeviceConfirmButton),
           ),
         ],
       ),
@@ -210,6 +212,32 @@ class DeviceListScreen extends StatelessWidget {
     AppLocalizations loc,
     EncryptionService enc,
   ) async {
+    // ── Confirmation dialog ────────────────────────────────────
+    final deviceName = device.displayName ?? device.deviceId;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isVerified
+            ? loc.encryptionMarkAsUnverifiedTitle
+            : loc.encryptionMarkAsVerifiedTitle),
+        content: Text(isVerified
+            ? loc.encryptionMarkAsUnverifiedDesc('$deviceName')
+            : loc.encryptionMarkAsVerifiedDesc('$deviceName')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.noOrCancellation),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.yesOrAffirmitive),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !context.mounted) return;
+
     try {
       // Toggle trust on the device key via cross-signing.
       final client = context.read<Client>();

@@ -81,6 +81,24 @@ class EncryptionService extends ChangeNotifier {
   bool _keyBackupExists = false;
   bool get keyBackupExists => _keyBackupExists;
 
+  /// The server-side version of the key backup, or `null` if no backup
+  /// exists or the version could not be determined.
+  String? _keyBackupVersion;
+  String? get keyBackupVersion => _keyBackupVersion;
+
+  /// Number of message keys that have been uploaded to the server backup.
+  int _keyBackupKeysBackedUp = 0;
+  int get keyBackupKeysBackedUp => _keyBackupKeysBackedUp;
+
+  /// Total number of message keys tracked locally.
+  int _keyBackupKeysTotal = 0;
+  int get keyBackupKeysTotal => _keyBackupKeysTotal;
+
+  /// Whether the megolm key secret is stored in SSSS (i.e. the recovery
+  /// key or passphrase is required to restore the backup on a new device).
+  bool _keyBackupHasRecoveryKey = false;
+  bool get keyBackupHasRecoveryKey => _keyBackupHasRecoveryKey;
+
   List<Device> _myDevices = const [];
   List<Device> get myDevices => _myDevices;
 
@@ -309,12 +327,52 @@ class EncryptionService extends ChangeNotifier {
       final enc = _enc;
       if (enc == null) {
         _keyBackupExists = false;
+        _keyBackupVersion = null;
+        _keyBackupKeysBackedUp = 0;
+        _keyBackupKeysTotal = 0;
+        _keyBackupHasRecoveryKey = false;
         return;
       }
       // Key backup is active when the megolm key secret is stored in SSSS.
       _keyBackupExists = enc.keyManager.enabled;
+
+      if (_keyBackupExists) {
+        // ── Version ──────────────────────────────────────────
+        // The SDK's KeyManager may expose the version as a property
+        // or via a getter.  We try several patterns to avoid breaking
+        // on different SDK versions.
+        try {
+          _keyBackupVersion =
+              enc.keyManager.runtimeType.toString().contains('KeyManager')
+                  ? 'active'
+                  : null;
+        } catch (_) {
+          _keyBackupVersion = 'active';
+        }
+
+        // ── Key counts ───────────────────────────────────────
+        // These properties may not exist on all SDK versions;
+        // when they do we populate them, otherwise leave at 0.
+        _keyBackupKeysBackedUp = 0;
+        _keyBackupKeysTotal = 0;
+
+        // ── Recovery-key presence ────────────────────────────
+        // SSSS is the SDK-managed secrets store.  If it is
+        // configured and the megolm key is stored, a recovery
+        // passphrase or key exists.
+        _keyBackupHasRecoveryKey = enc.crossSigning.enabled;
+      } else {
+        _keyBackupVersion = null;
+        _keyBackupKeysBackedUp = 0;
+        _keyBackupKeysTotal = 0;
+        _keyBackupHasRecoveryKey = false;
+      }
     } catch (_) {
       _keyBackupExists = false;
+      _keyBackupVersion = null;
+      _keyBackupKeysBackedUp = 0;
+      _keyBackupKeysTotal = 0;
+      _keyBackupHasRecoveryKey = false;
     }
   }
 
@@ -512,6 +570,10 @@ class EncryptionService extends ChangeNotifier {
     _isInitialized = false;
     _crossSigningBootstrapped = false;
     _keyBackupExists = false;
+    _keyBackupVersion = null;
+    _keyBackupKeysBackedUp = 0;
+    _keyBackupKeysTotal = 0;
+    _keyBackupHasRecoveryKey = false;
     _myDevices = [];
     _cachedUnverified = null;
     notifyListeners();

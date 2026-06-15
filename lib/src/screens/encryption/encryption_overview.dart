@@ -160,6 +160,36 @@ class EncryptionOverviewScreen extends StatelessWidget {
                         ? loc.encryptionKeyBackupActive
                         : loc.encryptionKeyBackupInactive,
                   ),
+                  if (enc.isKeyBackupEnabled) ...[
+                    const SizedBox(height: 12),
+                    // Version
+                    if (enc.keyBackupVersion != null)
+                      _DetailLine(
+                        scheme: scheme,
+                        label: loc.encryptionBackupVersion,
+                        value: enc.keyBackupVersion!,
+                      ),
+                    // Key count
+                    if (enc.keyBackupKeysTotal > 0)
+                      _DetailLine(
+                        scheme: scheme,
+                        label: loc.encryptionKeysBackedUp,
+                        value:
+                            '${enc.keyBackupKeysBackedUp} / ${enc.keyBackupKeysTotal}',
+                      ),
+                    // Recovery key presence
+                    _StatusRow(
+                      icon: enc.keyBackupHasRecoveryKey
+                          ? LucideIcons.checkCircle
+                          : LucideIcons.helpCircle,
+                      iconColor: enc.keyBackupHasRecoveryKey
+                          ? Colors.green
+                          : Colors.orange,
+                      label: enc.keyBackupHasRecoveryKey
+                          ? loc.encryptionBackupRecoveryKeySet
+                          : loc.encryptionBackupNoRecoveryKey,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (!enc.crossSigningBootstrapped)
                     Text(
@@ -321,6 +351,46 @@ class _StatusRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(label)),
       ],
+    );
+  }
+}
+
+/// A small label-below-value detail line for showing backup metadata.
+class _DetailLine extends StatelessWidget {
+  const _DetailLine({
+    required this.scheme,
+    required this.label,
+    required this.value,
+  });
+
+  final ColorScheme scheme;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          const SizedBox(width: 26), // align with icon width in _StatusRow
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

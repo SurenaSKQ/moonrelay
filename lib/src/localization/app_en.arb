@@ -449,6 +449,22 @@
   "encryptionThisDevice": "This device",
   "encryptionDeleteDevice": "Delete Device",
   "encryptionDeleteDeviceConfirm": "Are you sure you want to delete",
+  "encryptionDeleteDeviceWarning": "This will permanently sign out the selected session. You will need to log in again from that device.",
+  "encryptionDeleteDeviceConfirmButton": "Delete Session",
+  "encryptionMarkAsVerifiedTitle": "Mark Device as Verified",
+  "encryptionMarkAsVerifiedDesc": "This will trust \"{device}\" and all future messages from it. Only verify devices you recognise.",
+  "@encryptionMarkAsVerifiedDesc": {
+    "placeholders": {
+      "device": { "type": "String" }
+    }
+  },
+  "encryptionMarkAsUnverifiedTitle": "Mark Device as Unverified",
+  "encryptionMarkAsUnverifiedDesc": "This will stop trusting \"{device}\" for encryption verification. Messages from it will show an unverified warning.",
+  "@encryptionMarkAsUnverifiedDesc": {
+    "placeholders": {
+      "device": { "type": "String" }
+    }
+  },
   "encryptionDeviceDeleted": "Device deleted",
   "encryptionMarkAsVerified": "Mark as Verified",
   "encryptionMarkAsUnverified": "Mark as Unverified",
@@ -794,6 +810,11 @@
     }
   },
   "moderationNotAvailable": "Room context required for moderation actions.",
+
+  "encryptionBackupVersion": "Backup version",
+  "encryptionKeysBackedUp": "Keys backed up",
+  "encryptionBackupRecoveryKeySet": "Recovery key is set",
+  "encryptionBackupNoRecoveryKey": "No recovery key set",
 
   "roomNotFound": "Room not found",
   "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",

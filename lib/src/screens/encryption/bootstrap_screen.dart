@@ -248,6 +248,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
               ] else ...[
                 TextField(
                   controller: _passphraseCtl,
+                  obscureText: true,
                   decoration: InputDecoration(
                     labelText: loc.encryptionPassphraseOrKey,
                     border: const OutlineInputBorder(),
