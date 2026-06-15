@@ -17,27 +17,23 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:moonrelay/src/layouts/empty_space.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_page.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 /// Routing delegate that resolves a room ID to a [RoomPage].
 ///
-/// Validates that:
-/// - [roomID] is non-null, non-empty, and matches a Matrix room ID/alias
-///   pattern (`!…:domain` or `#…:domain`).
-/// - The room exists in the client's room list (joined or invited).
+/// On paper every Matrix room ID starts with `!` and every alias with `#`,
+/// but in practice URL-encoded path segments, unusual server deployments,
+/// and edge-case IDs can slip past a naïve regex.  Instead of format-
+/// checking we let the SDK decide: if [Client.getRoomById] returns a
+/// [Room], we render it; otherwise we degrade gracefully.
 ///
 /// If the first sync hasn't completed yet (no rooms loaded at all), a
-/// loading indicator is shown instead of an error — the room typically
-/// appears moments later when the sync delivers the room list.
+/// loading indicator is shown instead of a failure state.
 class RoomDelegate extends StatelessWidget {
   const RoomDelegate({super.key, required this.roomID});
   final String? roomID;
-
-  /// Valid Matrix room IDs start with `!` or `#` and contain a `:`.
-  static final _roomIdPattern = RegExp(r'^(!|#)[^:]+:.+');
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +45,7 @@ class RoomDelegate extends StatelessWidget {
       return const EmptySpace();
     }
 
-    // ── Format validation ────────────────────────────────────────
-    if (!_roomIdPattern.hasMatch(roomID!)) {
-      _log(context, 'RoomDelegate: invalid roomID "$roomID"');
-      return const EmptySpace();
-    }
-
-    // ── Look up the room ─────────────────────────────────────────
+    // ── Look up the room via the SDK ────────────────────────────
     final Room? room = client.getRoomById(roomID!);
     if (room != null) {
       return RoomPage(room: room);
@@ -68,45 +58,19 @@ class RoomDelegate extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return _buildNotJoinedError(context);
+    // Room is genuinely not in our joined-list.  This can happen
+    // when the URL references a room the user never joined, or when
+    // a stale room ID is bookmarked after the user left.  Log it
+    // and show an empty space.
+    _log(
+        context,
+        'RoomDelegate: room "$roomID" not found among '
+        '${client.rooms.length} joined rooms');
+    return const EmptySpace();
   }
 
   void _log(BuildContext context, String message) {
     final Logger log = Provider.of<Logger>(context, listen: false);
     log.w(message);
-  }
-
-  Widget _buildNotJoinedError(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.block, size: 48, color: scheme.outline),
-              const SizedBox(height: 16),
-              Text(
-                l10n.roomNotFound,
-                style: TextStyle(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.roomNotFoundHint,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -29,6 +29,7 @@ import 'package:matrix/matrix.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sql;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:system_theme/system_theme.dart';
@@ -41,6 +42,17 @@ import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
+
+/// Current schema version for the local database.
+///
+/// Increment this whenever the Matrix SDK or our local store layout
+/// changes in a backward-incompatible way.  The init pipeline will
+/// drop the old database and the user will be prompted to log in
+/// again with a clean slate.
+///
+/// During heavy development this is bumped on every release to avoid
+/// subtle migration bugs.
+const int kDbSchemaVersion = 1;
 
 /// Whether the current platform is a desktop OS.
 bool get isDesktop {
@@ -57,9 +69,6 @@ bool get isDesktop {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Return value of [_initialize].
-///
-/// On success all fields are non-null; on failure [errorTitle] and
-/// [errorBody] are populated instead.
 class _InitResult {
   final Client? sdk;
   final Logger? log;
@@ -134,16 +143,43 @@ Future<_InitResult> _initialize() async {
   }
   databaseFactory = databaseFactoryFfi;
 
-  // ── 3. Open database & Matrix SDK store ─────────────────────
-  log.t('Opening database…');
-  final dbdir = await getApplicationSupportDirectory();
+  // ── 3. Database schema version check ────────────────────────
+  // During heavy development we wipe the database on every version
+  // bump so that subtle SDK migration bugs never accumulate.
   const String dbname = 'moonrelay.db';
-  final database = await sql.openDatabase(p.join(dbdir.path, dbname));
+  const String _schemaVersionKey = 'db_schema_version';
+  final prefs = await SharedPreferences.getInstance();
+  final int? storedVersion = prefs.getInt(_schemaVersionKey);
+  final dbdir = await getApplicationSupportDirectory();
+  final String dbPath = p.join(dbdir.path, dbname);
+
+  if (storedVersion == null || storedVersion != kDbSchemaVersion) {
+    log.i(
+      'Database schema version changed ($storedVersion → $kDbSchemaVersion); '
+      'wiping old database',
+    );
+    // Close any lingering connections then delete the file.
+    if (await File(dbPath).exists()) {
+      try {
+        await sql.deleteDatabase(dbPath);
+      } catch (_) {
+        // best-effort
+      }
+    }
+    // Wipe all SharedPreferences so the session token is also cleared.
+    await prefs.clear();
+    // Store the new version for next launch.
+    await prefs.setInt(_schemaVersionKey, kDbSchemaVersion);
+  }
+
+  // ── 4. Open database & Matrix SDK store ─────────────────────
+  log.t('Opening database…');
+  final database = await sql.openDatabase(dbPath);
   final dbobj = await MatrixSdkDatabase.init('moonrelay',
       database: database, sqfliteFactory: databaseFactoryFfi);
   await dbobj.open();
 
-  // ── 4. Matrix client ────────────────────────────────────────
+  // ── 5. Matrix client ────────────────────────────────────────
   log.t('Starting Matrix client…');
   final sdk = Client(
     'Moonrelay',
@@ -167,7 +203,7 @@ Future<_InitResult> _initialize() async {
     );
   }
 
-  // ── 5. Theming & window ─────────────────────────────────────
+  // ── 6. Theming & window ─────────────────────────────────────
   log.t('Loading preferences…');
   if (!kIsWeb &&
       [
@@ -194,7 +230,7 @@ Future<_InitResult> _initialize() async {
     await windowManager.setSkipTaskbar(false);
   }
 
-  // ── 6. Encryption service ───────────────────────────────────
+  // ── 7. Encryption service ───────────────────────────────────
   log.t('Initializing encryption…');
   final encryptionService = EncryptionService(client: sdk, logger: log);
   if (sdk.isLogged()) {
