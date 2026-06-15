@@ -14,41 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:logger/logger.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
-Future<Logger> initializeLog() async {
+import 'helpers/log_service.dart';
+
+/// Initialises the application-wide [LogService] and returns it.
+///
+/// The service writes redacted, level-gated log lines to rotating files
+/// in the application-support directory and provides a [LogService.wipeLogs]
+/// method that callers can invoke on logout.
+Future<LogService> initializeLog() async {
   try {
-    // FIXME working on this shiet
-    Directory cache = Directory.current;
-    try {
-      cache = await getApplicationCacheDirectory();
-    } catch (e) {
-      cache = Directory.current;
-    }
-    Directory logDir =
-        await Directory(join(cache.path, 'MoonrelayLogs')).create();
-    return Logger(
-      printer: PrettyPrinter(
-        colors: (Platform.isMacOS ? false : true),
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-        printEmojis: true,
-        methodCount: 5,
-      ),
-      output: AdvancedFileOutput(
-        path: logDir.path,
-        encoding: utf8,
-        maxFileSizeKB: 32768,
-        maxDelay: const Duration(minutes: 2),
-      ),
-      filter: ProductionFilter(),
-      level: Level.all,
-    );
+    return await LogService.create();
   } catch (e) {
     debugPrint("Log initialization failed at ${StackTrace.current.toString()}");
     exit(-1);

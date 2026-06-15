@@ -30,6 +30,7 @@ import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/log_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data model for hub navigation items
@@ -143,11 +144,14 @@ class _HubScreenState extends State<HubScreen> {
   Future<void> _logout() async {
     final client = Provider.of<Client>(context, listen: false);
     final log = Provider.of<Logger>(context, listen: false);
+    final logService = context.read<LogService>();
     final enc = context.read<EncryptionService>();
     final l10n = AppLocalizations.of(context)!;
     try {
       await enc.onLogout();
       await client.logout();
+      // Wipe all log files now that the session has been torn down.
+      await logService.wipeLogs();
       if (!mounted) return;
       context.go('/');
     } catch (e) {
@@ -682,8 +686,7 @@ class _AccountsPage extends StatelessWidget {
                   child: ListTile(
                     leading: CircleAvatar(
                       radius: 22,
-                      backgroundColor:
-                          theme.colorScheme.errorContainer,
+                      backgroundColor: theme.colorScheme.errorContainer,
                       child: Icon(
                         LucideIcons.logOut,
                         size: 20,

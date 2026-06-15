@@ -15,18 +15,28 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 /// Manages a temporary local HTTP server that receives the SSO login token
 /// callback from the browser.
 ///
 /// After the user authenticates in their browser, the homeserver redirects
-/// to `http://localhost:{port}/callback?loginToken={token}`. This server
-/// captures the token and makes it available via [token].
+/// to `http://localhost:{port}/callback?loginToken={token}&state={nonce}`.
+/// This server validates the `state` parameter against the nonce generated
+/// at [start] time, then captures the token and makes it available via
+/// [token].
+///
+/// Only GET requests from localhost are accepted; any other request method
+/// or origin is rejected with a 403 response.
 class SsoCallbackServer {
   HttpServer? _server;
   Completer<String>? _completer;
   int _port = 0;
+
+  /// The randomly generated CSRF nonce that must appear in the callback.
+  String? _expectedState;
 
   /// The port the server is listening on, or 0 if not started.
   int get port => _port;
@@ -34,11 +44,18 @@ class SsoCallbackServer {
   /// Starts the local HTTP server on a random available port and returns
   /// the [Uri] the browser should be redirected to for SSO.
   ///
-  /// The returned URI has the path `/callback` on the local server.
+  /// The returned URI has the path `/callback` and includes a `state`
+  /// parameter whose value must be echoed back by the homeserver in the
+  /// redirect URI.
   Future<Uri> start() async {
     await stop(); // ensure any previous server is cleaned up
 
     _completer = Completer<String>();
+
+    // Generate a 32-byte random nonce for CSRF protection.
+    final nonceBytes =
+        List<int>.generate(32, (_) => _secureRandom.nextInt(256));
+    _expectedState = base64Url.encode(nonceBytes);
 
     // Bind to any available port on localhost.
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -49,6 +66,7 @@ class SsoCallbackServer {
       host: 'localhost',
       port: _port,
       path: '/callback',
+      queryParameters: {'state': _expectedState},
     );
 
     // Listen for exactly one request — the SSO redirect.
@@ -66,20 +84,38 @@ class SsoCallbackServer {
     await _server?.close(force: true);
     _server = null;
     _port = 0;
+    _expectedState = null;
     // Don't cancel the completer — callers may still await it.
     // If the token was never received, the future will never complete,
     // and the caller is responsible for a timeout.
   }
 
   void _handleRequest(HttpRequest request) {
+    // ── Only accept GET ───────────────────────────────────────────
+    if (request.method.toUpperCase() != 'GET') {
+      _respondWithText(request, 405, 'Method Not Allowed');
+      return;
+    }
+
     final Uri uri = request.uri;
 
-    // Try to extract login token from the query parameters.
+    // ── Validate the CSRF state parameter ─────────────────────────
+    final String? receivedState = uri.queryParameters['state'];
+    if (_expectedState == null ||
+        receivedState == null ||
+        receivedState != _expectedState) {
+      _respondWithText(request, 403, 'Invalid or missing state parameter');
+      return;
+    }
+
+    // ── Try to extract the login token ────────────────────────────
     final String? loginToken = uri.queryParameters['loginToken'];
+
+    // Invalidate the state immediately — it's single-use.
+    _expectedState = null;
 
     if (loginToken != null && loginToken.isNotEmpty) {
       // ── Success path ──
-      // Send a friendly "you can close this" page.
       _respondWithPage(
         request,
         200,
@@ -98,6 +134,7 @@ class SsoCallbackServer {
     } else {
       // ── Fallback: show a page with the full URL so the user can
       // manually copy the token if the automatic extraction failed.
+      // The URL in the error page omits the token to avoid leaking it.
       _respondWithPage(
         request,
         200,
@@ -108,13 +145,16 @@ class SsoCallbackServer {
         </p>
         <p>Please check the address bar for a <code>loginToken</code>
         parameter and copy it into the application manually.</p>
-        <hr>
-        <p style="font-size:13px;color:#6b7280;">
-          URL: ${uri.toString()}
-        </p>
         ''',
       );
     }
+  }
+
+  void _respondWithText(HttpRequest request, int statusCode, String body) {
+    request.response.statusCode = statusCode;
+    request.response.headers.contentType = ContentType.text;
+    request.response.write(body);
+    request.response.close();
   }
 
   void _respondWithPage(
@@ -125,6 +165,10 @@ class SsoCallbackServer {
   ) {
     request.response.statusCode = statusCode;
     request.response.headers.contentType = ContentType.html;
+    request.response.headers.set(
+      'Content-Security-Policy',
+      "default-src 'none'; style-src 'unsafe-inline';",
+    );
     request.response.write('''
     <!DOCTYPE html>
     <html>
@@ -147,4 +191,7 @@ class SsoCallbackServer {
     ''');
     request.response.close();
   }
+
+  /// A cryptographically secure random number generator for nonces.
+  static final Random _secureRandom = Random.secure();
 }

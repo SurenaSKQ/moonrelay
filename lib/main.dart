@@ -54,7 +54,8 @@ void main() async {
 
   // ignore: avoid_print
   print("Starting log.");
-  Logger log = await initializeLog();
+  final logService = await initializeLog();
+  final Logger log = logService.logger;
 
   log.t("Now awaiting vodozemac initialization");
   try {
@@ -169,6 +170,9 @@ void main() async {
         ),
         Provider(
           create: (_) => log,
+        ),
+        Provider(
+          create: (_) => logService,
         ),
         ChangeNotifierProvider(
           create: (context) => settingsController,

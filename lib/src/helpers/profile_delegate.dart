@@ -22,45 +22,75 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 
+/// Routing delegate that resolves a user ID to a [ProfilePage].
+///
+/// Validates that:
+/// - [userid] is non-null and non-empty.
+/// - [userid] looks like a valid Matrix user ID (`@user:domain`).
+/// - If the provided ID matches the logged-in user, redirects to the
+///   hub screen instead of opening a self-profile.
+///
+/// If validation fails, an error is logged and a snackbar is shown.
 class ProfileDelegate extends StatelessWidget {
   const ProfileDelegate({super.key, required this.userid});
   final String? userid;
+
+  /// Valid Matrix user IDs start with `@` and contain a `:` (server part).
+  static final _userIdPattern = RegExp(r'^@.+:.+');
 
   @override
   Widget build(BuildContext context) {
     final Client client = Provider.of<Client>(context, listen: false);
     final Logger log = Provider.of<Logger>(context, listen: false);
-    if (userid == null) {
-      log.e(
-        "Profile page called with null user ID!",
-        stackTrace: StackTrace.current,
-        time: DateTime.now(),
-      );
-      // Schedule SnackBar after build to avoid "showSnackBar during build".
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              children: [
-                Text(AppLocalizations.of(context)!.error),
-                Text(
-                    "The User's ID could not be understood (userid==null),\n Please try again later , or report a bug to our project"),
-              ],
-            ),
-          ),
-        );
-      });
+    final l10n = AppLocalizations.of(context)!;
+
+    // ── Null / empty check ──────────────────────────────────────
+    if (userid == null || userid!.isEmpty) {
+      _showError(context, log, l10n.profileIdNullError);
       return const SizedBox.shrink();
-    } else if (userid == client.userID) {
-      // Redirect to the hub screen when viewing the user's own profile.
+    }
+
+    // ── Format validation ────────────────────────────────────────
+    if (!_userIdPattern.hasMatch(userid!)) {
+      _showError(context, log, l10n.profileIdInvalid('$userid'));
+      return const SizedBox.shrink();
+    }
+
+    // ── Own profile → redirect to hub ───────────────────────────
+    if (userid == client.userID) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         context.pushReplacement('/main/myprofile');
       });
       return const SizedBox.shrink();
-    } else {
-      return ProfilePage(client: client, userID: userid!);
     }
+
+    // ── Look up the user to verify they exist ────────────────────
+    // `getUserFromMemory` returns null if the user has never been seen
+    // in any joined room, but a valid Matrix ID may still exist on the
+    // server.  We use the cached profile as a best-effort existence check.
+    return ProfilePage(client: client, userID: userid!);
+  }
+
+  void _showError(BuildContext context, Logger log, String message) {
+    log.e(
+      'ProfileDelegate: $message',
+      stackTrace: StackTrace.current,
+      time: DateTime.now(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(AppLocalizations.of(context)!.error),
+              Text(message),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }

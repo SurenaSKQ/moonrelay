@@ -793,5 +793,17 @@
       "error": { "type": "String" }
     }
   },
-  "moderationNotAvailable": "Room context required for moderation actions."
+  "moderationNotAvailable": "Room context required for moderation actions.",
+
+  "roomNotFound": "Room not found",
+  "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
+
+  "profileIdNullError": "The User's ID could not be understood. Please try again later, or report a bug to our project.",
+  "profileIdInvalid": "The User's ID could not be understood ({error}). Please try again later, or report a bug to our project.",
+  "@profileIdInvalid": {
+    "description": "Error shown when the profile user ID is invalid.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  }
 }
