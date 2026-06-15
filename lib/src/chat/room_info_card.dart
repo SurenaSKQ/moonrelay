@@ -205,6 +205,7 @@ class _SyncIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return StreamBuilder<SyncStatusUpdate>(
       stream: client.onSyncStatus.stream,
@@ -232,7 +233,7 @@ class _SyncIndicator extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                'Syncing',
+                l10n.statusSyncing,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

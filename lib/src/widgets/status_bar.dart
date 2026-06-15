@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 /// A thin status bar that sits below the main dashboard content and reports
@@ -58,19 +59,20 @@ class _ApplicationStatusBarState extends State<ApplicationStatusBar> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     String statusLabel;
 
     switch (_status) {
       case SyncStatus.waitingForResponse:
-        statusLabel = 'Waiting for response';
+        statusLabel = l10n.statusWaitingForResponse;
       case SyncStatus.processing:
       case SyncStatus.cleaningUp:
-        statusLabel = 'Syncing';
+        statusLabel = l10n.statusSyncing;
       case SyncStatus.error:
-        statusLabel = 'Error';
+        statusLabel = l10n.statusError;
       case SyncStatus.finished:
-        statusLabel = 'Synced';
+        statusLabel = l10n.statusSynced;
     }
 
     return Container(
@@ -88,7 +90,7 @@ class _ApplicationStatusBarState extends State<ApplicationStatusBar> {
       child: Row(
         children: [
           Text(
-            'Status: $statusLabel',
+            l10n.statusBarLabel(statusLabel),
             style: TextStyle(
               fontSize: 11,
               color: scheme.onSurfaceVariant,

@@ -21,6 +21,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 /// A settings page that lets the user view the most recent log file
@@ -78,6 +79,7 @@ class _LogsPageState extends State<LogsPage> {
 
   Future<void> _loadContent(File file) async {
     setState(() => _loading = true);
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Read only the last ~50 KB to avoid freezing on huge files.
       final length = await file.length();
@@ -90,13 +92,14 @@ class _LogsPageState extends State<LogsPage> {
 
       if (!mounted) return;
       setState(() {
-        _logContent = offset > 0 ? '(showing last 50 KB)\n\n$content' : content;
+        _logContent =
+            offset > 0 ? '${l10n.showingLastKb}\n\n$content' : content;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _logContent = 'Failed to read log: $e';
+        _logContent = '${l10n.error}: $e';
         _loading = false;
       });
     }
@@ -113,6 +116,7 @@ class _LogsPageState extends State<LogsPage> {
     final logService = context.watch<LogService>();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -127,7 +131,7 @@ class _LogsPageState extends State<LogsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Logs',
+                      l10n.logs,
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -136,7 +140,7 @@ class _LogsPageState extends State<LogsPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'View application logs or open the logs folder.',
+                      l10n.logsDescription,
                       style: TextStyle(
                         fontSize: 13,
                         color: scheme.onSurfaceVariant,
@@ -148,7 +152,7 @@ class _LogsPageState extends State<LogsPage> {
               if (_selectedFile != null)
                 IconButton(
                   icon: const Icon(LucideIcons.refreshCw, size: 20),
-                  tooltip: 'Refresh',
+                  tooltip: l10n.refresh,
                   onPressed: _loading ? null : _refresh,
                 ),
             ],
@@ -164,9 +168,9 @@ class _LogsPageState extends State<LogsPage> {
             ),
             child: ListTile(
               leading: const Icon(LucideIcons.folderOpen, size: 24),
-              title: const Text(
-                'Open logs folder',
-                style: TextStyle(fontWeight: FontWeight.w500),
+              title: Text(
+                l10n.openLogsFolder,
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
               subtitle: Text(
                 logService.logDir,
@@ -193,14 +197,14 @@ class _LogsPageState extends State<LogsPage> {
             child: ListTile(
               leading: Icon(LucideIcons.trash2, size: 24, color: scheme.error),
               title: Text(
-                'Clear log',
+                l10n.clearLog,
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   color: scheme.error,
                 ),
               ),
               subtitle: Text(
-                'Delete all log files.',
+                l10n.clearLogDescription,
                 style: TextStyle(
                   fontSize: 12,
                   color: scheme.onSurfaceVariant,
@@ -222,7 +226,7 @@ class _LogsPageState extends State<LogsPage> {
                     size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Text(
-                  'Log file',
+                  l10n.logFile,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -320,24 +324,25 @@ class _LogsPageState extends State<LogsPage> {
 
   Future<void> _confirmClearLogs(
       BuildContext context, LogService logService) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear logs'),
-        content: const Text(
-          'Delete all log files? This cannot be undone.',
+        title: Text(l10n.clearLogsTitle),
+        content: Text(
+          l10n.clearLogsConfirmation,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -348,7 +353,7 @@ class _LogsPageState extends State<LogsPage> {
     if (!mounted) return;
     setState(() {
       _selectedFile = null;
-      _logContent = '(log files cleared)';
+      _logContent = l10n.logFilesCleared;
       _logFiles = [];
     });
     _loadLogFiles();

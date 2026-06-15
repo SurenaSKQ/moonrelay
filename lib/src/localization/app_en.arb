@@ -827,5 +827,54 @@
     "placeholders": {
       "error": { "type": "String" }
     }
+  },
+
+  "network": "Network",
+  "@network": {
+    "description": "Title for the Network settings page."
+  },
+  "networkDescription": "Network and synchronisation settings.",
+  "@networkDescription": {
+    "description": "Subtitle description for the Network settings page."
+  },
+  "statusBarSection": "Status bar",
+  "@statusBarSection": {
+    "description": "Section title for the status bar toggle."
+  },
+  "showStatusBar": "Show status bar",
+  "showStatusBarDescription": "Display the sync status bar at the bottom of the screen.",
+  "@showStatusBarDescription": {
+    "description": "Description for the status bar toggle."
+  },
+
+  "statusWaitingForResponse": "Waiting for response",
+  "statusSyncing": "Syncing",
+  "statusError": "Error",
+  "statusSynced": "Synced",
+  "statusBarLabel": "Status: {status}",
+  "@statusBarLabel": {
+    "description": "Label for the status bar showing the current sync state.",
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+
+  "logs": "Logs",
+  "@logs": {
+    "description": "Title for the Logs page."
+  },
+  "logsDescription": "View application logs or open the logs folder.",
+  "openLogsFolder": "Open logs folder",
+  "clearLog": "Clear log",
+  "clearLogDescription": "Delete all log files.",
+  "logFile": "Log file",
+  "refresh": "Refresh",
+  "clearLogsTitle": "Clear logs",
+  "clearLogsConfirmation": "Delete all log files? This cannot be undone.",
+  "delete": "Delete",
+  "logFilesCleared": "(log files cleared)",
+  "showingLastKb": "(showing last 50 KB)",
+  "@showingLastKb": {
+    "description": "Indicator shown when only the last portion of a log file is displayed."
   }
 }

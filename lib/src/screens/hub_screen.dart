@@ -137,11 +137,11 @@ class _HubScreenState extends State<HubScreen> {
             icon: LucideIcons.messageSquare,
           ),
           _HubNavigationItem(
-            label: 'Network',
+            label: l10n.network,
             icon: LucideIcons.activity,
           ),
           _HubNavigationItem(
-            label: 'Logs',
+            label: l10n.logs,
             icon: LucideIcons.fileText,
           ),
         ],
@@ -1028,13 +1028,14 @@ class _NetworkSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final scheme = Theme.of(context).colorScheme;
+        final l10n = AppLocalizations.of(context)!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Network',
+                l10n.network,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1043,7 +1044,7 @@ class _NetworkSettings extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Network and synchronisation settings.',
+                l10n.networkDescription,
                 style: TextStyle(
                   fontSize: 13,
                   color: scheme.onSurfaceVariant,
@@ -1051,12 +1052,12 @@ class _NetworkSettings extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               _SettingsSection(
-                title: 'Status bar',
+                title: l10n.statusBarSection,
                 children: [
                   SwitchListTile(
-                    title: const Text('Show status bar'),
-                    subtitle: const Text(
-                      'Display the sync status bar at the bottom of the screen.',
+                    title: Text(l10n.showStatusBar),
+                    subtitle: Text(
+                      l10n.showStatusBarDescription,
                     ),
                     value: controller.showStatusBar,
                     onChanged: (v) => controller.updateShowStatusBar(v),
