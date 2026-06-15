@@ -232,11 +232,9 @@ class MoonRouter {
     GoRouterState state,
     Widget child,
   ) =>
-      CustomTransitionPage(
+      NoTransitionPage(
         key: state.pageKey,
         restorationId: state.pageKey.value,
         child: child,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
       );
 }

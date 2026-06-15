@@ -112,9 +112,7 @@ class TimelineItem extends StatelessWidget {
         content = _buildIrc(context);
     }
 
-    content = AnimatedContainer(
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOut,
+    content = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: isHighlighted
