@@ -51,6 +51,7 @@ class TimelineItem extends StatelessWidget {
     this.timeline,
     this.onReply,
     this.onJumpToEvent,
+    this.highlightedEventId,
   });
 
   final Event event;
@@ -75,6 +76,10 @@ class TimelineItem extends StatelessWidget {
   /// event.  Receives the event ID of the target event.
   final void Function(String eventId)? onJumpToEvent;
 
+  /// When non-null and matching this event's [event.eventId], the event
+  /// is rendered with a brief highlight background flash.
+  final String? highlightedEventId;
+
   /// Whether the event was redacted (deleted).
   bool get _isRedacted => event.redacted;
 
@@ -94,14 +99,32 @@ class TimelineItem extends StatelessWidget {
       );
     }
 
+    final cs = Theme.of(context).colorScheme;
+    final isHighlighted = highlightedEventId == event.eventId;
+
+    Widget content;
     switch (displayType) {
       case DisplayType.modern:
-        return _buildModern(context);
+        content = _buildModern(context);
       case DisplayType.bubbles:
-        return _buildBubbles(context);
+        content = _buildBubbles(context);
       case DisplayType.irc:
-        return _buildIrc(context);
+        content = _buildIrc(context);
     }
+
+    content = AnimatedContainer(
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: isHighlighted
+            ? cs.primary.withValues(alpha: 0.15)
+            : Colors.transparent,
+      ),
+      child: content,
+    );
+
+    return content;
   }
 
   /// Message body + reactions bar (shared between all display modes).

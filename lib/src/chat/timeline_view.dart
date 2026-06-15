@@ -37,7 +37,7 @@ import 'package:matrix/matrix.dart';
 /// Events with a non-null [relationshipEventId] (replies, reactions, edits,
 /// threads) are excluded from the visible list because they are rendered
 /// inline with their parent event.
-class TimelineView extends StatelessWidget {
+class TimelineView extends StatefulWidget {
   const TimelineView({
     super.key,
     required this.timeline,
@@ -65,6 +65,15 @@ class TimelineView extends StatelessWidget {
   /// When false, state events are hidden from the timeline.
   final bool showStateEvents;
 
+  @override
+  State<TimelineView> createState() => _TimelineViewState();
+}
+
+class _TimelineViewState extends State<TimelineView> {
+  /// The event ID currently highlighted by a "jump to event" action, or
+  /// null if nothing is highlighted.
+  String? _highlightedEventId;
+
   // ---------------------------------------------------------------------------
   // Index helpers
   // ---------------------------------------------------------------------------
@@ -72,8 +81,9 @@ class TimelineView extends StatelessWidget {
   /// Indices (into `timeline.events`) of events that should appear as
   /// standalone items.  Events are in SDK order (newest → oldest).
   List<int> _visibleIndices() {
-    final indices = List<int>.generate(timeline.events.length, (i) => i);
-    indices.removeWhere((i) => timeline.events[i].relationshipEventId != null);
+    final indices = List<int>.generate(widget.timeline.events.length, (i) => i);
+    indices.removeWhere(
+        (i) => widget.timeline.events[i].relationshipEventId != null);
     return indices;
   }
 
@@ -108,7 +118,7 @@ class TimelineView extends StatelessWidget {
   ///
   /// [DateSeparator] widgets are interleaved before events that start a new
   /// calendar day.  Consecutive state events are grouped into a single
-  /// [StateEventTile] widget when [showStateEvents] is true, or filtered out
+  /// [StateEventTile] widget when [widget.showStateEvents] is true, or filtered out
   /// when it is false.
   ///
   /// If any visible events are undecryptable (type == `m.room.encrypted`), an
@@ -125,10 +135,11 @@ class TimelineView extends StatelessWidget {
 
     while (i < visibleIndices.length) {
       final eventIndex = visibleIndices[i];
-      final event = timeline.events[eventIndex];
+      final event = widget.timeline.events[eventIndex];
       final int nextIdx =
           i + 1 < visibleIndices.length ? visibleIndices[i + 1] : -1;
-      final Event? nextEvent = nextIdx >= 0 ? timeline.events[nextIdx] : null;
+      final Event? nextEvent =
+          nextIdx >= 0 ? widget.timeline.events[nextIdx] : null;
 
       // Count undecryptable encrypted events
       if (event.type == EventTypes.Encrypted) {
@@ -136,13 +147,13 @@ class TimelineView extends StatelessWidget {
       }
 
       if (_isStateEvent(event)) {
-        if (showStateEvents) {
+        if (widget.showStateEvents) {
           // Collect a run of consecutive state events.
           final batch = <Event>[event];
           i++;
           while (i < visibleIndices.length &&
-              _isStateEvent(timeline.events[visibleIndices[i]])) {
-            batch.add(timeline.events[visibleIndices[i]]);
+              _isStateEvent(widget.timeline.events[visibleIndices[i]])) {
+            batch.add(widget.timeline.events[visibleIndices[i]]);
             i++;
           }
 
@@ -176,15 +187,17 @@ class TimelineView extends StatelessWidget {
 
         items.add(TimelineItem(
           event: event,
-          room: room,
+          room: widget.room,
           previousEvent:
-              eventIndex >= 1 ? timeline.events[eventIndex - 1] : null,
-          displayType: displayType,
+              eventIndex >= 1 ? widget.timeline.events[eventIndex - 1] : null,
+          displayType: widget.displayType,
           isGroupStart: !isContinuation,
           isGroupContinuation: isContinuation,
-          timeline: timeline,
-          onReply: onReply != null ? () => onReply!(event) : null,
-          onJumpToEvent: _jumpToEvent(scrollController, eventIdToItemIndex),
+          timeline: widget.timeline,
+          onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
+          onJumpToEvent:
+              _jumpToEvent(widget.scrollController, eventIdToItemIndex),
+          highlightedEventId: _highlightedEventId,
         ));
 
         eventIdToItemIndex[event.eventId] = items.length - 1;
@@ -214,7 +227,7 @@ class TimelineView extends StatelessWidget {
     final items = _buildItemList(context);
 
     return ListView.builder(
-      controller: scrollController,
+      controller: widget.scrollController,
       reverse: true,
       itemCount: items.length,
       itemBuilder: (context, index) => items[index],
@@ -238,6 +251,18 @@ class TimelineView extends StatelessWidget {
       final targetIdx = eventIdToItemIndex[eventId];
       if (targetIdx == null) return;
       if (!controller.hasClients) return;
+
+      // Highlight the target event briefly.
+      setState(() => _highlightedEventId = eventId);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            if (_highlightedEventId == eventId) {
+              _highlightedEventId = null;
+            }
+          });
+        }
+      });
 
       final position = controller.position;
       final itemCount = eventIdToItemIndex.length;
