@@ -266,8 +266,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   bool isGroupCollapsed(String spaceId) => _collapsedGroups.contains(spaceId);
 
-
-
   /// Creates a group identified by [groupId] containing [ids].
   Future<void> createGroup(String groupId, List<String> ids) async {
     _spaceGroups[groupId] = List.of(ids);
@@ -353,6 +351,38 @@ class SettingsController with ChangeNotifier, WindowListener {
     _spaceOrder = newOrder;
     notifyListeners();
     await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  /// Merges [groups] into existing groups without replacing them.
+  Future<void> mergeIntoGroups(Map<String, List<String>> groups) async {
+    bool changed = false;
+    for (final e in groups.entries) {
+      if (!_spaceGroups.containsKey(e.key)) {
+        _spaceGroups[e.key] = List.of(e.value);
+        if (!_spaceOrder.contains(e.key)) _spaceOrder.add(e.key);
+        for (final cid in e.value) {
+          _spaceOrder.remove(cid);
+          if (!_spaceOrder.contains(cid)) _spaceOrder.add(cid);
+        }
+        changed = true;
+      }
+    }
+    if (changed) {
+      notifyListeners();
+      await _settingsService.updateSpaceGroups(_spaceGroups);
+      await _settingsService.updateSpaceOrder(_spaceOrder);
+    }
+  }
+
+  /// Removes all groups and ordering, restoring the default flat layout.
+  Future<void> resetSpaceLayout() async {
+    _spaceGroups = {};
+    _collapsedGroups = {};
+    _spaceOrder = [];
+    notifyListeners();
+    await _settingsService.updateSpaceGroups(_spaceGroups);
+    await _settingsService.updateCollapsedGroups(_collapsedGroups);
     await _settingsService.updateSpaceOrder(_spaceOrder);
   }
 }
