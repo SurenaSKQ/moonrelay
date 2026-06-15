@@ -43,6 +43,9 @@ class SpaceCard extends StatelessWidget {
   /// Called when the card is tapped.
   final VoidCallback? onTap;
 
+  /// Whether a valid thumbnail URL was provided.
+  bool get _hasThumbnail => thumbnailURL != null && thumbnailURL!.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -63,19 +66,17 @@ class SpaceCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage:
-                    thumbnailURL != null && thumbnailURL!.isNotEmpty
-                        ? NetworkImage(thumbnailURL!)
-                        : null,
                 backgroundColor: scheme.primaryContainer,
-                onBackgroundImageError: (_, __) {},
-                child: thumbnailURL == null || thumbnailURL!.isEmpty
-                    ? Icon(
+                backgroundImage:
+                    _hasThumbnail ? NetworkImage(thumbnailURL!) : null,
+                onBackgroundImageError: _hasThumbnail ? (_, __) {} : null,
+                child: _hasThumbnail
+                    ? null
+                    : Icon(
                         LucideIcons.folder,
                         size: 24,
                         color: scheme.onPrimaryContainer,
-                      )
-                    : null,
+                      ),
               ),
               const SizedBox(height: 8),
               Text(

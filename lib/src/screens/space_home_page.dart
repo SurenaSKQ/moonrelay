@@ -217,13 +217,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               height: 80,
               child: CircleAvatar(
                 radius: 40,
-                backgroundImage: space.avatar == null
-                    ? null
-                    : NetworkImage(
-                        space.avatar.toString(),
-                      ),
                 backgroundColor: scheme.primaryContainer,
-                onBackgroundImageError: (_, __) {},
+                backgroundImage: space.avatar != null
+                    ? NetworkImage(space.avatar.toString())
+                    : null,
+                onBackgroundImageError:
+                    space.avatar != null ? (_, __) {} : null,
                 child: space.avatar == null
                     ? Icon(
                         LucideIcons.folder,
@@ -329,10 +328,10 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       child: ListTile(
         leading: CircleAvatar(
           radius: 18,
-          backgroundImage:
-              avatar == null ? null : NetworkImage(avatar.toString()),
           backgroundColor: scheme.primaryContainer,
-          onBackgroundImageError: (_, __) {},
+          backgroundImage:
+              avatar != null ? NetworkImage(avatar.toString()) : null,
+          onBackgroundImageError: avatar != null ? (_, __) {} : null,
           child: avatar == null
               ? Icon(
                   isSubspace ? LucideIcons.folder : LucideIcons.hash,
