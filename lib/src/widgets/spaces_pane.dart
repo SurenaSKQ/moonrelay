@@ -69,7 +69,7 @@ class _SpacesPaneState extends State<SpacesPane> {
   }
 
   void _attach() {
-    _disposed = true;
+    _disposed = false;
     _syncSub?.cancel();
     _settleTimer?.cancel();
     _settled = false;

@@ -79,7 +79,6 @@ class _NavigationPaneState extends State<NavigationPane> {
     final ids = client.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
     final newIds = ids.difference(_knownIds);
     if (newIds.isNotEmpty) {
-      _knownIds = ids;
       _pendingAutoGroup = true;
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _runPendingAutoGroup());
@@ -166,8 +165,22 @@ class _NavigationPaneState extends State<NavigationPane> {
       },
       onDrop: (id) {
         setState(() => _dragHoverId = null);
-        settings.createGroup(
-            '_grp_${DateTime.now().millisecondsSinceEpoch}', [id, space.id]);
+        if (id == space.id) return; // prevent self-grouping
+        if (id.startsWith('_grp_')) {
+          // Group dropped on leaf = reorder group before this leaf.
+          final order = List<String>.of(settings.spaceOrder);
+          final srcIdx = order.indexOf(id);
+          final dstIdx = order.indexOf(space.id);
+          if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
+            order.removeAt(srcIdx);
+            final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
+            order.insert(adjustedDst, id);
+            settings.setSpaceOrder(order);
+          }
+        } else {
+          settings.createGroup(
+              '_grp_${DateTime.now().millisecondsSinceEpoch}', [id, space.id]);
+        }
       },
       child: _DraggableIcon(
         data: space.id,
@@ -220,7 +233,20 @@ class _NavigationPaneState extends State<NavigationPane> {
       },
       onDrop: (id) {
         setState(() => _dragHoverId = null);
-        settings.addToGroup(gid, id);
+        if (id.startsWith('_grp_')) {
+          // Group-to-group drop = reorder: move dropped group before this one.
+          final order = List<String>.of(settings.spaceOrder);
+          final srcIdx = order.indexOf(id);
+          final dstIdx = order.indexOf(gid);
+          if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
+            order.removeAt(srcIdx);
+            final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
+            order.insert(adjustedDst, id);
+            settings.setSpaceOrder(order);
+          }
+        } else {
+          settings.addToGroup(gid, id);
+        }
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 4),
@@ -244,13 +270,10 @@ class _NavigationPaneState extends State<NavigationPane> {
                   padding: const EdgeInsets.only(top: 2),
                   child: GestureDetector(
                       onTap: () => settings.toggleGroupCollapsed(gid),
-                      child: _NIB(
-                          icon: LucideIcons.folder,
-                          label: 'Group',
-                          sel: false,
-                          size: _is,
-                          radius: _ir,
-                          theme: theme)),
+                      child: _groupIcon(theme, expanded, gid,
+                          onDragEnd: () {
+                        if (mounted) setState(() => _dragHoverId = null);
+                      })),
                 ),
                 Positioned(
                   right: 4,
@@ -294,6 +317,28 @@ class _NavigationPaneState extends State<NavigationPane> {
       ),
     );
   }
+
+  /// The group icon — draggable when collapsed so users can reorder groups.
+  Widget _groupIcon(ThemeData theme, bool expanded, String gid,
+      {VoidCallback? onDragEnd}) {
+    final icon = _NIB(
+        icon: LucideIcons.folder,
+        label: 'Group',
+        sel: false,
+        size: _is,
+        radius: _ir,
+        theme: theme);
+    if (expanded) return icon;
+    // Wrap in Draggable when collapsed for reordering via drag.
+    return _DraggableIcon(
+      data: gid,
+      feedback: _DFeedback(
+          theme: theme, label: 'Group', uri: null),
+      ghost: Opacity(opacity: 0.25, child: icon),
+      onDragEnd: onDragEnd,
+      child: icon,
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -305,14 +350,17 @@ class _DraggableIcon extends StatelessWidget {
       {required this.data,
       required this.feedback,
       required this.ghost,
-      required this.child});
+      required this.child,
+      this.onDragEnd});
   final String data;
   final Widget feedback, ghost, child;
+  final VoidCallback? onDragEnd;
   @override
   Widget build(BuildContext context) => Draggable<String>(
         data: data,
         feedback: feedback,
         childWhenDragging: ghost,
+        onDragEnd: onDragEnd != null ? (_) => onDragEnd!() : null,
         child: child,
       );
 }
@@ -382,7 +430,7 @@ class _DFeedback extends StatelessWidget {
 // Context menu — tap navigates, long‑press/right‑click opens menu
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _SCMenu extends StatelessWidget {
+class _SCMenu extends StatefulWidget {
   const _SCMenu({
     required this.ctx,
     required this.settings,
@@ -403,39 +451,65 @@ class _SCMenu extends StatelessWidget {
   final Widget child;
 
   @override
+  State<_SCMenu> createState() => _SCMenuState();
+}
+
+class _SCMenuState extends State<_SCMenu> {
+  Offset _tapPosition = Offset.zero;
+
+  @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: () {
-          if (space != null) {
-            nav.selectSpace(space!.id);
-            ctx.push('/main/space/${space!.id}');
+          if (widget.space != null) {
+            widget.nav.selectSpace(widget.space!.id);
+            widget.ctx.push('/main/space/${widget.space!.id}');
           }
         },
-        onLongPress: () => _show(context),
+        onLongPressStart: (details) {
+          _tapPosition = details.globalPosition;
+          _show(context);
+        },
+        onSecondaryTapDown: (details) {
+          _tapPosition = details.globalPosition;
+        },
         onSecondaryTap: () => _show(context),
-        child: child,
+        child: widget.child,
       );
 
   void _show(BuildContext context) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(_pw, 0, _pw + 52, 0),
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(
+            _tapPosition.dx, _tapPosition.dy, 1, 1),
+        Offset.zero & overlay.size,
+      ),
       items: [
-        if (space != null)
+        if (widget.space != null)
           PopupMenuItem(
               value: 'open',
-              child: _Row(LucideIcons.externalLink, l10n.openSpace)),
-        if (space != null && !inGroup)
+              child: _Row(LucideIcons.externalLink, widget.l10n.openSpace)),
+        if (widget.space != null && !widget.inGroup)
           PopupMenuItem(
               value: 'up', child: _Row(LucideIcons.arrowUp, 'Move Up')),
-        if (space != null && !inGroup)
+        if (widget.space != null && !widget.inGroup)
           PopupMenuItem(
               value: 'dn', child: _Row(LucideIcons.arrowDown, 'Move Down')),
+        if (widget.groupId != null)
+          PopupMenuItem(
+              value: 'gup', child: _Row(LucideIcons.arrowUp, 'Move Group Up')),
+        if (widget.groupId != null)
+          PopupMenuItem(
+              value: 'gdn',
+              child: _Row(LucideIcons.arrowDown, 'Move Group Down')),
         const PopupMenuDivider(),
-        if (inGroup)
+        if (widget.inGroup)
           PopupMenuItem(
               value: 'ungroup',
               child: _Row(LucideIcons.ungroup, 'Remove from group')),
-        if (groupId != null)
+        if (widget.groupId != null)
           PopupMenuItem(
               value: 'ug_all', child: _Row(LucideIcons.ungroup, 'Ungroup all')),
         const PopupMenuDivider(),
@@ -447,29 +521,33 @@ class _SCMenu extends StatelessWidget {
             child: _Row(LucideIcons.rotateCcw, 'Reset space layout')),
       ],
     ).then((v) {
-      if (v == null || !ctx.mounted) return;
+      if (v == null || !widget.ctx.mounted) return;
       switch (v) {
         case 'open':
-          if (space != null) {
-            nav.selectSpace(space!.id);
-            ctx.push('/main/space/${space!.id}');
+          if (widget.space != null) {
+            widget.nav.selectSpace(widget.space!.id);
+            widget.ctx.push('/main/space/${widget.space!.id}');
           }
         case 'up':
-          if (space != null) settings.moveUp(space!.id);
+          if (widget.space != null) widget.settings.moveUp(widget.space!.id);
         case 'dn':
-          if (space != null) settings.moveDown(space!.id);
+          if (widget.space != null) widget.settings.moveDown(widget.space!.id);
+        case 'gup':
+          if (widget.groupId != null) widget.settings.moveUp(widget.groupId!);
+        case 'gdn':
+          if (widget.groupId != null) widget.settings.moveDown(widget.groupId!);
         case 'ungroup':
-          if (space != null) settings.removeFromGroup(space!.id);
+          if (widget.space != null) widget.settings.removeFromGroup(widget.space!.id);
         case 'ug_all':
-          if (groupId != null) {
-            for (final c in List.of(settings.spaceGroups[groupId] ?? []))
-              settings.removeFromGroup(c);
+          if (widget.groupId != null) {
+            for (final c in List.of(widget.settings.spaceGroups[widget.groupId] ?? []))
+              widget.settings.removeFromGroup(c);
           }
         case 'sort':
-          final c = Provider.of<Client>(ctx, listen: false);
-          settings.sortIntoGroups(computeAutoGroups(c.rooms));
+          final c = Provider.of<Client>(widget.ctx, listen: false);
+          widget.settings.sortIntoGroups(computeAutoGroups(c.rooms));
         case 'reset':
-          settings.resetSpaceLayout();
+          widget.settings.resetSpaceLayout();
       }
     });
   }

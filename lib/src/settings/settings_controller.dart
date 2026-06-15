@@ -268,6 +268,15 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   /// Creates a group identified by [groupId] containing [ids].
   Future<void> createGroup(String groupId, List<String> ids) async {
+    // Prevent nesting: a group's children must not be other groups.
+    ids = ids.where((id) => !id.startsWith('_grp_')).toList();
+    // Deduplicate in case the same id was passed twice.
+    ids = ids.toSet().toList();
+    if (ids.isEmpty) return;
+    // Remove each id from any existing group first.
+    for (final id in ids) {
+      _removeFromAllGroups(id);
+    }
     _spaceGroups[groupId] = List.of(ids);
     for (final id in ids) {
       _spaceOrder.remove(id);
@@ -280,11 +289,23 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   /// Adds [spaceId] to an existing group.
   Future<void> addToGroup(String groupId, String spaceId) async {
+    // Prevent nesting: refuse to add another group as a child.
+    if (spaceId.startsWith('_grp_')) return;
+    // Remove space from any existing group first (no multi-group).
+    _removeFromAllGroups(spaceId);
     _spaceGroups[groupId] = [..._spaceGroups[groupId] ?? [], spaceId];
     _spaceOrder.remove(spaceId);
     notifyListeners();
     await _settingsService.updateSpaceGroups(_spaceGroups);
     await _settingsService.updateSpaceOrder(_spaceOrder);
+  }
+
+  /// Removes [spaceId] from every group it belongs to.
+  void _removeFromAllGroups(String spaceId) {
+    for (final entry in _spaceGroups.entries) {
+      entry.value.remove(spaceId);
+    }
+    _spaceGroups.removeWhere((_, v) => v.isEmpty);
   }
 
   /// Removes [spaceId] from its group. Deletes the group if empty.
@@ -362,9 +383,11 @@ class SettingsController with ChangeNotifier, WindowListener {
         _spaceGroups[e.key] = List.of(e.value);
         if (!_spaceOrder.contains(e.key)) _spaceOrder.add(e.key);
         for (final cid in e.value) {
-          _spaceOrder.remove(cid);
-          if (!_spaceOrder.contains(cid)) _spaceOrder.add(cid);
+          _spaceOrder.removeWhere((id) => id == cid);
         }
+        // Insert children right after the group in the order.
+        final idx = _spaceOrder.indexOf(e.key);
+        _spaceOrder.insertAll(idx + 1, e.value);
         changed = true;
       }
     }
