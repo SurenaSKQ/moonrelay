@@ -39,6 +39,7 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final displaySize = ((radius ?? 20) * 2).round();
 
     return GestureDetector(
       onTap: onTap,
@@ -48,8 +49,8 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
               future: withTimeoutOrFallback(
                 () => avatarUri!.getThumbnailUri(
                   client,
-                  width: 56,
-                  height: 56,
+                  width: displaySize,
+                  height: displaySize,
                 ),
                 timeout: kDefaultTimeout,
                 fallback: avatarUri!,
@@ -86,23 +87,18 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     ThemeData theme,
     String imageUrl,
   ) {
-    final avatarSize = (radius ?? 20) * 2;
+    final avatarRadius = radius ?? 20.0;
 
-    return ClipOval(
-      child: Image.network(
+    return CircleAvatar(
+      radius: avatarRadius,
+      backgroundImage: NetworkImage(
         imageUrl,
         headers: {
           'authorization': 'Bearer ${client.accessToken}',
         },
-        width: avatarSize,
-        height: avatarSize,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _placeholder(theme),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _placeholder(theme);
-        },
       ),
+      backgroundColor: theme.colorScheme.primaryContainer,
+      onBackgroundImageError: (_, __) {},
     );
   }
 }

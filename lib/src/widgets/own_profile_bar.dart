@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 /// A compact bar showing the user's own profile — avatar, display name,
 /// and Matrix ID — intended for the bottom of the sidebar pane.
@@ -172,23 +173,10 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
         children: [
           // Avatar (or initials fallback)
           if (profile.avatarUrl != null)
-            CircleAvatar(
+            AvatarFromUriOrFallbackImage(
+              client: widget.client,
+              avatarUri: profile.avatarUrl,
               radius: 20,
-              foregroundImage: NetworkImage(
-                profile.avatarUrl!
-                    .getThumbnailUri(
-                      widget.client,
-                      animated: true,
-                      height: 40,
-                      width: 40,
-                    )
-                    .toString(),
-                headers: {
-                  'authorization': 'Bearer ${widget.client.accessToken}',
-                },
-              ),
-              backgroundColor: theme.colorScheme.primaryContainer,
-              onForegroundImageError: (_, __) {},
             )
           else
             CircleAvatar(

@@ -615,17 +615,24 @@ class _AccountsPage extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        child: Text(
-                          initials,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ),
+                      profile?.avatarUrl == null
+                          ? CircleAvatar(
+                              radius: 28,
+                              backgroundColor:
+                                  theme.colorScheme.primaryContainer,
+                              child: Text(
+                                initials,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            )
+                          : AvatarFromUriOrFallbackImage(
+                              client: client,
+                              avatarUri: profile!.avatarUrl,
+                              radius: 28,
+                            ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
