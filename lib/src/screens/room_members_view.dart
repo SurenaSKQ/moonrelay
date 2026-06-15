@@ -32,6 +32,7 @@ import 'package:provider/provider.dart';
 ///
 /// Provides:
 /// - A search bar at the top for filtering by display name or Matrix ID
+/// - Progressive batch loading: 50 members initially, more on scroll
 /// - A scrollable list of all members, sorted by power level
 /// - Pull-to-refresh to re-fetch the full member list
 /// - A context menu on each member tile (right-click or long-press)
@@ -49,17 +50,22 @@ class FullRoomMembersList extends StatefulWidget {
 
 class _FullRoomMembersListState extends State<FullRoomMembersList> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
 
   // Progressive loading state
+  static const int _batchSize = 50;
   List<User> _allMembers = [];
+  int _displayedCount = 0;
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   Object? _loadError;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
     _fetchAllMembers();
   }
 
@@ -67,6 +73,8 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -76,13 +84,36 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     });
   }
 
+  /// Load more members when the user scrolls near the bottom,
+  /// but only when not searching (searching shows all filtered results).
+  void _onScroll() {
+    if (_searchQuery.isNotEmpty) return;
+    if (_isLoadingMore) return;
+    if (_displayedCount >= _allMembers.length) return;
+
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 300) {
+      setState(() {
+        _isLoadingMore = true;
+        _displayedCount =
+            (_displayedCount + _batchSize).clamp(0, _allMembers.length);
+      });
+      // Allow the frame to render before removing the indicator.
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) setState(() => _isLoadingMore = false);
+      });
+    }
+  }
+
   /// Fetches the full member list from the server using the Matrix API.
   ///
   /// Falls back to locally known participants if the server request fails.
   Future<void> _fetchAllMembers() async {
     setState(() {
       _isLoading = true;
+      _isLoadingMore = false;
       _loadError = null;
+      _displayedCount = 0;
     });
 
     try {
@@ -93,11 +124,8 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       if (!mounted) return;
 
       if (joinedMembers != null && joinedMembers.isNotEmpty) {
-        // Build User objects from the returned member info.
         final members = <User>[];
         for (final mxid in joinedMembers.keys) {
-          // Try to get an existing User object for this mxid to preserve
-          // power level information that getJoinedMembersByRoom doesn't include.
           // Re-use the existing User object if available (preserves power
           // level data); otherwise request it from the room state.
           final existing = widget.room.getParticipants().firstWhere(
@@ -126,21 +154,31 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     }
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _displayedCount = _allMembers.length > 0
+            ? _batchSize.clamp(0, _allMembers.length)
+            : 0;
+      });
     }
   }
 
-  /// Returns all members, filtered by the current search query.
-  List<User> get _filteredMembers {
-    if (_searchQuery.isEmpty) return _allMembers;
-
-    return _allMembers.where((m) {
-      final displayName = m.calcDisplayname().toLowerCase();
-      final userId = m.id.toLowerCase();
-      return displayName.contains(_searchQuery) ||
-          userId.contains(_searchQuery);
-    }).toList();
+  /// Returns the currently visible members, filtered by search query.
+  List<User> get _visibleMembers {
+    if (_searchQuery.isNotEmpty) {
+      return _allMembers.where((m) {
+        final displayName = m.calcDisplayname().toLowerCase();
+        final userId = m.id.toLowerCase();
+        return displayName.contains(_searchQuery) ||
+            userId.contains(_searchQuery);
+      }).toList();
+    }
+    return _allMembers.take(_displayedCount).toList();
   }
+
+  /// Whether there are more members to load beyond the current batch.
+  bool get _hasMore =>
+      _searchQuery.isEmpty && _displayedCount < _allMembers.length;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +294,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
   }
 
   Widget _buildMemberList(ColorScheme scheme) {
-    final members = _filteredMembers;
+    final members = _visibleMembers;
     final l10n = AppLocalizations.of(context)!;
 
     if (members.isEmpty) {
@@ -281,12 +319,45 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       );
     }
 
+    // Total item count: members + loading indicator if there are more.
+    final itemCount = members.length + (_hasMore ? 1 : 0);
+
     return RefreshIndicator(
       onRefresh: _fetchAllMembers,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: members.length,
+        itemCount: itemCount,
         itemBuilder: (context, index) {
+          // Loading more indicator at the bottom
+          if (index >= members.length) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.loading,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           final member = members[index];
           final displayName = member.calcDisplayname();
           final permissionLabel = member.powerLevel.level >= 100

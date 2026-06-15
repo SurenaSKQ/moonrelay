@@ -17,12 +17,16 @@
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
 
+/// A full-screen empty state that displays the app branding centered.
+///
+/// Used as fallback content when no room or view is selected.
 class EmptySpace extends StatelessWidget {
   const EmptySpace({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-        body: FittedBox(fit: BoxFit.fitHeight, child: LogoWithTextThemed()));
+      body: Center(child: LogoWithTextThemed()),
+    );
   }
 }
