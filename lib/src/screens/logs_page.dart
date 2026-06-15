@@ -181,6 +181,37 @@ class _LogsPageState extends State<LogsPage> {
               onTap: () => _openLogsFolder(logService.logDir),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ── Clear logs button ────────────────────────────────────────
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: theme.dividerColor),
+            ),
+            child: ListTile(
+              leading: Icon(LucideIcons.trash2, size: 24, color: scheme.error),
+              title: Text(
+                'Clear log',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: scheme.error,
+                ),
+              ),
+              subtitle: Text(
+                'Delete all log files.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Icon(LucideIcons.chevronRight, size: 20),
+              onTap: () => _confirmClearLogs(context, logService),
+            ),
+          ),
           const SizedBox(height: 20),
 
           // ── File picker row ────────────────────────────────────────
@@ -285,5 +316,41 @@ class _LogsPageState extends State<LogsPage> {
     } catch (_) {
       // best-effort
     }
+  }
+
+  Future<void> _confirmClearLogs(
+      BuildContext context, LogService logService) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear logs'),
+        content: const Text(
+          'Delete all log files? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await logService.wipeLogs();
+    if (!mounted) return;
+    setState(() {
+      _selectedFile = null;
+      _logContent = '(log files cleared)';
+      _logFiles = [];
+    });
+    _loadLogFiles();
   }
 }
