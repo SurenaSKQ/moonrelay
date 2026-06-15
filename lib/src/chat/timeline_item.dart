@@ -205,27 +205,7 @@ class TimelineItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                // Timestamp-only for continuation
-                if (isGroupContinuation)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SizedBox(
-                      height: 14,
-                      child: Row(
-                        children: [
-                          Text(
-                            event.originServerTs.localizedTimeShort(context),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.35),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                // No timestamp for continuation messages (time shown on group start)
                 // Hover actions (right-aligned — away from sender info)
                 _HoverActionsWrapper(
                   event: event,
@@ -319,17 +299,7 @@ class TimelineItem extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _messageContent(context),
-                        if (isGroupContinuation)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              event.originServerTs.localizedTimeShort(context),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                        // No timestamp for continuation messages
                       ],
                     ),
                   ),
@@ -368,15 +338,16 @@ class TimelineItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Timestamp
-          Text(
-            event.originServerTs.localizedTimeShort(context),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+          // Timestamp (only on group start)
+          if (isGroupStart)
+            Text(
+              event.originServerTs.localizedTimeShort(context),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
+          if (isGroupStart) const SizedBox(width: 8),
           // Message body + reactions
           Expanded(
             child: Column(

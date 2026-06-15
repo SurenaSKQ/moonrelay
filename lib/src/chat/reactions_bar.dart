@@ -121,7 +121,9 @@ class ReactionsBar extends StatelessWidget {
     // Group by reaction key.
     final grouped = <String, List<Event>>{};
     for (final r in reactions) {
-      final key = (r.content['key'] as String?) ?? '';
+      final key =
+          ((r.content['m.relates_to'] as Map?) ?? const {})['key'] as String? ??
+              '';
       grouped.putIfAbsent(key, () => []).add(r);
     }
 

@@ -22,6 +22,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/theme.dart';
 
 /// Welcome screen shown before authentication.
 ///
@@ -179,8 +180,6 @@ class StartupScreen extends StatelessWidget {
     AppLocalizations l10n,
     SettingsController settings,
   ) {
-    final bool isDark = settings.themeMode == ThemeMode.dark;
-
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -205,11 +204,14 @@ class StartupScreen extends StatelessWidget {
           child: Text(l10n.privacyPolicy),
         ),
         IconButton(
-          icon: Icon(isDark ? LucideIcons.sun : LucideIcons.moon),
-          tooltip: isDark ? l10n.welcomeToggleLight : l10n.welcomeToggleDark,
+          icon: const Icon(LucideIcons.settings),
+          tooltip: l10n.appSettings,
           onPressed: () {
-            settings.updateThemeMode(
-              isDark ? ThemeMode.light : ThemeMode.dark,
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const _WelcomeSettingsScreen(),
+              ),
             );
           },
         ),
@@ -408,9 +410,201 @@ class StartupScreen extends StatelessWidget {
                 height: 1.5,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'CritBase111 (https://codeberg.org/CritBase111)',
+              style: TextStyle(
+                fontSize: 14,
+                color: colors.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Welcome settings screen (theme-only subset of the hub settings)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A simple settings page accessible from the welcome screen.
+///
+/// Exposes a subset of theming options:
+/// - Theme mode (System / Light / Dark)
+/// - Colour theme (MoonrelayThemeOption)
+class _WelcomeSettingsScreen extends StatelessWidget {
+  const _WelcomeSettingsScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.appSettings),
+        leading: IconButton(
+          icon: const Icon(LucideIcons.chevronLeft),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Consumer<SettingsController>(
+        builder: (context, controller, _) {
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                l10n.appearance,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.customizeExperience,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Theme mode
+              _SettingsSection(
+                title: l10n.themeMode,
+                children: [
+                  RadioGroup<ThemeMode>(
+                    groupValue: controller.themeMode,
+                    onChanged: (v) => controller.updateThemeMode(v!),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<ThemeMode>(
+                          title: Text(l10n.system),
+                          value: ThemeMode.system,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: Text(l10n.light),
+                          value: ThemeMode.light,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: Text(l10n.dark),
+                          value: ThemeMode.dark,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Colour theme
+              _SettingsSection(
+                title: l10n.colourTheme,
+                children: [
+                  RadioGroup<MoonrelayThemeOption>(
+                    groupValue: controller.themeOption,
+                    onChanged: (v) {
+                      if (v != null) controller.updateThemeOption(v);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final option in MoonrelayThemeOption.values)
+                          RadioListTile<MoonrelayThemeOption>(
+                            title: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: option.seedColor,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(_localizedThemeOption(option, l10n)),
+                              ],
+                            ),
+                            value: option,
+                            dense: true,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A labelled card section used in settings pages.
+class _SettingsSection extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _SettingsSection({
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Localized label for a [MoonrelayThemeOption].
+String _localizedThemeOption(
+    MoonrelayThemeOption option, AppLocalizations l10n) {
+  switch (option) {
+    case MoonrelayThemeOption.indigo:
+      return l10n.themeDefault;
+    case MoonrelayThemeOption.oceanBlue:
+      return l10n.themeOceanBlue;
+    case MoonrelayThemeOption.midnightSlate:
+      return l10n.themeMidnightSlate;
+    case MoonrelayThemeOption.crimson:
+      return l10n.themeCrimson;
+    case MoonrelayThemeOption.amber:
+      return l10n.themeAmber;
+    case MoonrelayThemeOption.steel:
+      return l10n.themeSteel;
+    case MoonrelayThemeOption.sky:
+      return l10n.themeSky;
   }
 }
