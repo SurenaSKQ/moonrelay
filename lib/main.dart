@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Application entry point.  All heavy initialisation (Vodozemac, SQLite,
-// Matrix SDK, etc.) happens in [main] before [runApp] is called so that
-// the widgets are never rendered until the full provider tree is ready.
-// If initialisation fails a minimal error-only UI is shown instead.
+// Application entry point.  A single MaterialApp is created, its `home`
+// is the [SplashScreen] while initialisation runs, then the entire
+// widget tree is swapped to [MoonrelayApp] once everything is ready.
 
 import 'dart:io';
 
@@ -42,6 +41,7 @@ import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
+import 'src/splash_screen.dart';
 
 /// Current schema version for the local database.
 ///
@@ -65,87 +65,62 @@ bool get isDesktop {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Initialisation pipeline — runs before the UI appears
+// Init state — populated by the init pipeline, consumed by the app on success
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Return value of [_initialize].
-class _InitResult {
-  final Client? sdk;
-  final Logger? log;
-  final LogService? logService;
-  final SettingsController? settingsController;
-  final EncryptionService? encryptionService;
-  final String? errorTitle;
-  final String? errorBody;
-
-  const _InitResult._({
-    this.sdk,
-    this.log,
-    this.logService,
-    this.settingsController,
-    this.encryptionService,
-    this.errorTitle,
-    this.errorBody,
+class _AppState {
+  const _AppState({
+    required this.sdk,
+    required this.log,
+    required this.logService,
+    required this.settingsController,
+    required this.encryptionService,
   });
 
-  factory _InitResult.ok({
-    required Client sdk,
-    required Logger log,
-    required LogService logService,
-    required SettingsController settingsController,
-    required EncryptionService encryptionService,
-  }) =>
-      _InitResult._(
-        sdk: sdk,
-        log: log,
-        logService: logService,
-        settingsController: settingsController,
-        encryptionService: encryptionService,
-      );
-
-  factory _InitResult.err(String title, String body) =>
-      _InitResult._(errorTitle: title, errorBody: body);
+  final Client sdk;
+  final Logger log;
+  final LogService logService;
+  final SettingsController settingsController;
+  final EncryptionService encryptionService;
 }
 
-Future<_InitResult> _initialize() async {
-  // ── 0. Log service ──────────────────────────────────────────
-  final logService = await initializeLog();
-  final Logger log = logService.logger;
+// ─────────────────────────────────────────────────────────────────────────────
+// Init pipeline
+// ─────────────────────────────────────────────────────────────────────────────
 
-  void showError(String title, String body) {
-    log.e('Init failed: $title\n$body');
-  }
-
+/// Runs all blocking initialisation steps.  Each step updates [onStatus] so
+/// the splash screen can show progress.  Returns an [_AppState] on success
+/// or throws on failure.
+Future<_AppState> _initialize({
+  required void Function(String) onStatus,
+  required Logger log,
+  required LogService logService,
+}) async {
   // ── 1. Vodozemac (native crypto) ────────────────────────────
+  onStatus('Initializing encryption engine…');
   log.t('Initializing Vodozemac…');
   try {
     await vdz.init();
   } catch (e) {
-    showError('Encryption Engine Failed', '$e');
-    return _InitResult.err(
-      'Encryption Engine Failed',
-      'The encryption library (Vodozemac) could not be initialized. '
-          'This usually means your platform is missing required native '
-          'libraries.\n\nError: $e',
-    );
+    log.f('Vodozemac failed', error: e);
+    rethrow;
   }
 
   // ── 2. SQLite FFI ───────────────────────────────────────────
+  onStatus('Initializing database…');
   log.t('Initializing SQLite FFI…');
   try {
     sqfliteFfiInit();
   } catch (e) {
-    showError('Database Engine Failed', '$e');
-    return _InitResult.err(
-      'Database Engine Failed',
-      'The SQLite native library could not be loaded.\n\nError: $e',
-    );
+    log.f('SQLite FFI failed', error: e);
+    rethrow;
   }
   databaseFactory = databaseFactoryFfi;
 
   // ── 3. Database schema version check ────────────────────────
   // During heavy development we wipe the database on every version
   // bump so that subtle SDK migration bugs never accumulate.
+  onStatus('Checking database version…');
   const String dbname = 'moonrelay.db';
   const String _schemaVersionKey = 'db_schema_version';
   final prefs = await SharedPreferences.getInstance();
@@ -158,7 +133,6 @@ Future<_InitResult> _initialize() async {
       'Database schema version changed ($storedVersion → $kDbSchemaVersion); '
       'wiping old database',
     );
-    // Close any lingering connections then delete the file.
     if (await File(dbPath).exists()) {
       try {
         await sql.deleteDatabase(dbPath);
@@ -166,13 +140,12 @@ Future<_InitResult> _initialize() async {
         // best-effort
       }
     }
-    // Wipe all SharedPreferences so the session token is also cleared.
     await prefs.clear();
-    // Store the new version for next launch.
     await prefs.setInt(_schemaVersionKey, kDbSchemaVersion);
   }
 
   // ── 4. Open database & Matrix SDK store ─────────────────────
+  onStatus('Opening database…');
   log.t('Opening database…');
   final database = await sql.openDatabase(dbPath);
   final dbobj = await MatrixSdkDatabase.init('moonrelay',
@@ -180,6 +153,7 @@ Future<_InitResult> _initialize() async {
   await dbobj.open();
 
   // ── 5. Matrix client ────────────────────────────────────────
+  onStatus('Starting network client…');
   log.t('Starting Matrix client…');
   final sdk = Client(
     'Moonrelay',
@@ -196,14 +170,12 @@ Future<_InitResult> _initialize() async {
   try {
     await sdk.init();
   } catch (e) {
-    showError('Connection Failed', '$e');
-    return _InitResult.err(
-      'Connection Failed',
-      'Could not initialise the Matrix client.\n\nError: $e',
-    );
+    log.e('Client.init() failed', error: e);
+    rethrow;
   }
 
   // ── 6. Theming & window ─────────────────────────────────────
+  onStatus('Loading preferences…');
   log.t('Loading preferences…');
   if (!kIsWeb &&
       [
@@ -231,6 +203,7 @@ Future<_InitResult> _initialize() async {
   }
 
   // ── 7. Encryption service ───────────────────────────────────
+  onStatus('Preparing encryption…');
   log.t('Initializing encryption…');
   final encryptionService = EncryptionService(client: sdk, logger: log);
   if (sdk.isLogged()) {
@@ -238,7 +211,7 @@ Future<_InitResult> _initialize() async {
   }
 
   log.i('Initialization complete');
-  return _InitResult.ok(
+  return _AppState(
     sdk: sdk,
     log: log,
     logService: logService,
@@ -248,95 +221,155 @@ Future<_InitResult> _initialize() async {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Minimal error UI shown when init fails
+// Root widget — swaps between splash and the real app via setState
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ErrorApp extends StatelessWidget {
-  const _ErrorApp({required this.title, required this.body});
+class MoonrelayBootstrap extends StatefulWidget {
+  const MoonrelayBootstrap({super.key});
 
-  final String title;
-  final String body;
+  @override
+  State<MoonrelayBootstrap> createState() => _MoonrelayBootstrapState();
+}
+
+class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
+  _AppState? _appState;
+  String? _errorTitle;
+  String? _errorBody;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
+  }
+
+  Future<void> _boot() async {
+    // ── Step 0: Log service (lightweight, run it first) ──────
+    LogService logService;
+    Logger log;
+    try {
+      logService = await initializeLog();
+      log = logService.logger;
+      log.t('Moonrelay booting');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorTitle = 'Log initialization failed';
+        _errorBody = '$e';
+      });
+      return;
+    }
+
+    // ── Steps 1-7: heavy init with status callbacks ───────────
+    try {
+      final state = await _initialize(
+        onStatus: (msg) {
+          log.t(msg);
+          // The splash can't receive status updates until we know
+          // the widget tree is stable.  We update the splash via
+          // its GlobalKey below.
+        },
+        log: log,
+        logService: logService,
+      );
+      if (!mounted) return;
+      setState(() => _appState = state);
+    } catch (e) {
+      log.f('Initialization failed', error: e);
+      if (!mounted) return;
+      setState(() {
+        _errorTitle = 'Initialization Failed';
+        _errorBody = '$e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ── Error state ───────────────────────────────────────────
+    if (_errorTitle != null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        ),
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 56, color: Colors.red),
+                  const SizedBox(height: 24),
+                  Text(
+                    _errorTitle!,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: SelectableText(
+                      _errorBody!,
+                      style: const TextStyle(fontSize: 14, height: 1.4),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  FilledButton.icon(
+                    onPressed: () => exit(0),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text('Exit'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ── Success state — the real app ──────────────────────────
+    if (_appState != null) {
+      return MultiProvider(
+        providers: [
+          Provider<Client>.value(value: _appState!.sdk),
+          Provider<Logger>.value(value: _appState!.log),
+          Provider<LogService>.value(value: _appState!.logService),
+          ChangeNotifierProvider<SettingsController>.value(
+              value: _appState!.settingsController),
+          ChangeNotifierProvider<NavigationState>(
+            create: (_) => NavigationState(),
+          ),
+          ChangeNotifierProvider<EncryptionService>.value(
+              value: _appState!.encryptionService),
+        ],
+        child: const MoonrelayApp(),
+      );
+    }
+
+    // ── Loading state — the splash screen ─────────────────────
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
       ),
-      home: Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 56, color: Colors.red),
-                const SizedBox(height: 24),
-                Text(
-                  title,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: SelectableText(
-                    body,
-                    style: const TextStyle(fontSize: 14, height: 1.4),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 36),
-                FilledButton.icon(
-                  onPressed: () => exit(0),
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Exit'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      home: const SplashScreen(),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entry point — init first, then show either the error UI or the real app
+// Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final result = await _initialize();
-
-  if (result.sdk != null) {
-    // ── Success — show the real app ──────────────────────────
-    runApp(
-      MultiProvider(
-        providers: [
-          Provider<Client>.value(value: result.sdk!),
-          Provider<Logger>.value(value: result.log!),
-          Provider<LogService>.value(value: result.logService!),
-          ChangeNotifierProvider<SettingsController>.value(
-              value: result.settingsController!),
-          ChangeNotifierProvider<NavigationState>(
-            create: (_) => NavigationState(),
-          ),
-          ChangeNotifierProvider<EncryptionService>.value(
-              value: result.encryptionService!),
-        ],
-        child: const MoonrelayApp(),
-      ),
-    );
-  } else {
-    // ── Failure — show error UI ──────────────────────────────
-    runApp(_ErrorApp(title: result.errorTitle!, body: result.errorBody!));
-  }
+  runApp(const MoonrelayBootstrap());
 }
