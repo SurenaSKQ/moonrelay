@@ -268,6 +268,7 @@ class _HtmlTagParser {
         final nested = _tagName(raw);
         final attrs = _parseAttrs(raw);
 
+        _pos = end; // advance past the opening tag before recursing
         if (_isBlock(nested)) {
           spans.addAll(_wrapBlock(
               nested, _parseBlockContent(nested, depth: depth + 1), attrs));
@@ -341,6 +342,7 @@ class _HtmlTagParser {
           return spans;
         }
 
+        _pos = end; // advance past the opening tag before recursing
         spans.add(_wrapInline(
             nested, _parseInlineContent(nested, depth: depth + 1), attrs));
       } else if (source[_pos] == '&') {
