@@ -106,11 +106,9 @@ class LogService {
     final logLevel = kReleaseMode ? releaseLevel : debugLevel;
 
     final logger = Logger(
-      printer: PrettyPrinter(
+      printer: SimplePrinter(
         colors: !Platform.isMacOS,
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-        printEmojis: false, // emojis are not useful in log files
-        methodCount: kReleaseMode ? 0 : 5,
+        printTime: false,
       ),
       output: safeOutput,
       filter: ProductionFilter(),
