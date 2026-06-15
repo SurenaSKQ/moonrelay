@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -735,13 +736,70 @@ class _AccountsPage extends StatelessWidget {
 // My Profile Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MyProfilePage extends StatelessWidget {
+class _MyProfilePage extends StatefulWidget {
   const _MyProfilePage({required this.client});
   final Client client;
 
   @override
+  State<_MyProfilePage> createState() => _MyProfilePageState();
+}
+
+class _MyProfilePageState extends State<_MyProfilePage> {
+  bool _uploadingAvatar = false;
+
+  /// Opens a file picker for images, uploads the selected file as the
+  /// user's avatar, and triggers a UI refresh.
+  Future<void> _changeAvatar() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+      allowMultiple: false,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    setState(() => _uploadingAvatar = true);
+
+    try {
+      await widget.client.uploadContent(
+        bytes,
+        filename: file.name,
+        contentType:
+            file.extension != null ? 'image/${file.extension}' : 'image/png',
+      );
+      await widget.client.setAvatar(MatrixFile(
+        bytes: bytes,
+        name: file.name,
+      ));
+
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.done),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppLocalizations.of(context)!.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final client = widget.client;
     return FutureBuilder<Profile>(
       future: client.getProfileFromUserId(client.userID!),
       builder: (context, snapshot) {
@@ -759,29 +817,86 @@ class _MyProfilePage extends StatelessWidget {
               // Avatar + name header
               Row(
                 children: [
-                  profile?.avatarUrl == null
-                      ? CircleAvatar(
-                          radius: 40,
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Text(
-                            (profile?.displayName ?? profile?.userId ?? '?')
-                                .toUpperCase()
-                                .split(RegExp(' +'))
-                                .map((s) => s[0])
-                                .take(2)
-                                .join(),
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onPrimaryContainer,
+                  // Avatar with change overlay
+                  GestureDetector(
+                    onTap: _uploadingAvatar ? null : _changeAvatar,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Stack(
+                        children: [
+                          profile?.avatarUrl == null
+                              ? CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor:
+                                      theme.colorScheme.primaryContainer,
+                                  child: Text(
+                                    (profile?.displayName ??
+                                            profile?.userId ??
+                                            '?')
+                                        .toUpperCase()
+                                        .split(RegExp(' +'))
+                                        .map((s) => s[0])
+                                        .take(2)
+                                        .join(),
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                )
+                              : AvatarFromUriOrFallbackImage(
+                                  client: client,
+                                  avatarUri: profile!.avatarUrl,
+                                  radius: 40,
+                                ),
+                          // Upload overlay
+                          if (_uploadingAvatar)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black38,
+                                  borderRadius: BorderRadius.circular(40),
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: theme.colorScheme.surface,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  LucideIcons.camera,
+                                  size: 14,
+                                  color: theme.colorScheme.onPrimary,
+                                ),
+                              ),
                             ),
-                          ),
-                        )
-                      : AvatarFromUriOrFallbackImage(
-                          client: client,
-                          avatarUri: profile!.avatarUrl,
-                          radius: 40,
-                        ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 20),
                   Expanded(
                     child: Column(
@@ -800,6 +915,15 @@ class _MyProfilePage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.profilePageTitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.6),
                           ),
                         ),
                       ],

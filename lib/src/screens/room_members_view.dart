@@ -27,11 +27,13 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
-/// A full-screen page that lists all members of a room.
+/// A full-screen page that lists all members of a room with progressive
+/// loading from the server (not limited to lazy-loaded sync data).
 ///
 /// Provides:
 /// - A search bar at the top for filtering by display name or Matrix ID
 /// - A scrollable list of all members, sorted by power level
+/// - Pull-to-refresh to re-fetch the full member list
 /// - A context menu on each member tile (right-click or long-press)
 ///   with "View Profile" and "Send Message" actions
 ///
@@ -49,10 +51,16 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Progressive loading state
+  List<User> _allMembers = [];
+  bool _isLoading = true;
+  Object? _loadError;
+
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _fetchAllMembers();
   }
 
   @override
@@ -68,15 +76,65 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     });
   }
 
-  /// Returns all room participants, sorted by power level descending,
-  /// then filtered by the current search query.
-  List<User> _filteredMembers() {
-    final members = widget.room.getParticipants().toList()
-      ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+  /// Fetches the full member list from the server using the Matrix API.
+  ///
+  /// Falls back to locally known participants if the server request fails.
+  Future<void> _fetchAllMembers() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
 
-    if (_searchQuery.isEmpty) return members;
+    try {
+      // Fetch joined members from the server (not lazy-loaded).
+      final joinedMembers =
+          await widget.room.client.getJoinedMembersByRoom(widget.room.id);
 
-    return members.where((m) {
+      if (!mounted) return;
+
+      if (joinedMembers != null && joinedMembers.isNotEmpty) {
+        // Build User objects from the returned member info.
+        final members = <User>[];
+        for (final mxid in joinedMembers.keys) {
+          // Try to get an existing User object for this mxid to preserve
+          // power level information that getJoinedMembersByRoom doesn't include.
+          // Re-use the existing User object if available (preserves power
+          // level data); otherwise request it from the room state.
+          final existing = widget.room.getParticipants().firstWhere(
+                (u) => u.id == mxid,
+                orElse: () => widget.room.requestUser(mxid) as User,
+              );
+          members.add(existing);
+        }
+
+        // Sort by power level descending; unknown power levels go to the end.
+        members
+            .sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+
+        _allMembers = members;
+      } else {
+        // Fallback: use whatever the client already knows.
+        _allMembers = widget.room.getParticipants().toList()
+          ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      // Fallback to locally known members on error.
+      _allMembers = widget.room.getParticipants().toList()
+        ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+      _loadError = e;
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Returns all members, filtered by the current search query.
+  List<User> get _filteredMembers {
+    if (_searchQuery.isEmpty) return _allMembers;
+
+    return _allMembers.where((m) {
       final displayName = m.calcDisplayname().toLowerCase();
       final userId = m.id.toLowerCase();
       return displayName.contains(_searchQuery) ||
@@ -137,64 +195,113 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
 
           const SizedBox(height: 4),
 
-          // Member list
+          // Member list or loading/error state
           Expanded(
-            child: StreamBuilder(
-              stream: widget.room.client.onRoomState.stream
-                  .where((event) => event.roomId == widget.room.id),
-              builder: (context, snapshot) {
-                final members = _filteredMembers();
-
-                if (members.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          LucideIcons.users,
-                          size: 48,
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _searchQuery.isNotEmpty
-                              ? AppLocalizations.of(context)!
-                                  .noMembersMatchSearch
-                              : AppLocalizations.of(context)!.noMembersFound,
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: members.length,
-                  itemBuilder: (context, index) {
-                    final member = members[index];
-                    final displayName = member.calcDisplayname();
-                    final l10n = AppLocalizations.of(context)!;
-                    final permissionLabel = member.powerLevel.level >= 100
-                        ? l10n.adminBadge
-                        : member.powerLevel.level >= 50
-                            ? l10n.moderatorBadge
-                            : null;
-
-                    return _FullMemberTile(
-                      member: member,
-                      displayName: displayName,
-                      permissionLabel: permissionLabel,
-                      scheme: scheme,
-                    );
-                  },
-                );
-              },
-            ),
+            child: _isLoading
+                ? _buildLoadingState(scheme)
+                : _loadError != null && _allMembers.isEmpty
+                    ? _buildErrorState(scheme)
+                    : _buildMemberList(scheme),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(ColorScheme scheme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: scheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context)!.loading,
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ColorScheme scheme) {
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.alertCircle,
+              size: 48,
+              color: scheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.couldNotLoadMessages,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: _fetchAllMembers,
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
+              label: Text(l10n.retry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberList(ColorScheme scheme) {
+    final members = _filteredMembers;
+    final l10n = AppLocalizations.of(context)!;
+
+    if (members.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.users,
+              size: 48,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? l10n.noMembersMatchSearch
+                  : l10n.noMembersFound,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchAllMembers,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: members.length,
+        itemBuilder: (context, index) {
+          final member = members[index];
+          final displayName = member.calcDisplayname();
+          final permissionLabel = member.powerLevel.level >= 100
+              ? l10n.adminBadge
+              : member.powerLevel.level >= 50
+                  ? l10n.moderatorBadge
+                  : null;
+
+          return _FullMemberTile(
+            member: member,
+            displayName: displayName,
+            permissionLabel: permissionLabel,
+            scheme: scheme,
+          );
+        },
       ),
     );
   }

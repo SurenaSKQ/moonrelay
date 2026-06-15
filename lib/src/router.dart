@@ -24,6 +24,7 @@ import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
+import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
@@ -219,6 +220,14 @@ class MoonRouter {
                 context,
                 state,
                 const DeviceListScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/main/addroom',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const AddRoomPage(),
               ),
             ),
           ],

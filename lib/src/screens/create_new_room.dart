@@ -16,7 +16,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Visibility;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,16 +25,27 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-class CreateNewRoom extends StatefulWidget {
-  const CreateNewRoom({super.key});
+/// A page for creating a new room with optional customisation.
+class CreateNewRoomPage extends StatefulWidget {
+  const CreateNewRoomPage({super.key});
 
   @override
-  State<CreateNewRoom> createState() => _CreateNewRoomState();
+  State<CreateNewRoomPage> createState() => _CreateNewRoomPageState();
 }
 
-class _CreateNewRoomState extends State<CreateNewRoom> {
+class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _topicController = TextEditingController();
+  bool _isPublic = true;
   bool _loading = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _topicController.dispose();
+    super.dispose();
+  }
 
   Future<void> _createRoom() async {
     final client = context.read<Client>();
@@ -45,8 +56,18 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
       _error = null;
     });
 
+    final name = _nameController.text.trim();
+    final topic = _topicController.text.trim();
+
     final result = await withRetry(
-      () => client.createRoom(),
+      () => client.createRoom(
+        name: name.isNotEmpty ? name : null,
+        topic: topic.isNotEmpty ? topic : null,
+        preset: _isPublic
+            ? CreateRoomPreset.publicChat
+            : CreateRoomPreset.privateChat,
+        visibility: _isPublic ? Visibility.public : Visibility.private,
+      ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
       log: log,
@@ -72,6 +93,9 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+
     if (_error != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
@@ -81,31 +105,135 @@ class _CreateNewRoomState extends State<CreateNewRoom> {
       });
     }
 
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => context.pop(),
+        ),
         title: Text(l10n.createNewRoom),
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_loading)
-              const CircularProgressIndicator()
-            else ...[
-              FilledButton.icon(
-                icon: const Icon(LucideIcons.plus, size: 18),
-                label: Text(l10n.createRoom),
-                onPressed: _createRoom,
+            // Room name
+            Text(
+              l10n.displayName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                icon: const Icon(LucideIcons.arrowLeft, size: 18),
-                label: Text(l10n.back),
-                onPressed: () => context.pop(),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nameController,
+              enabled: !_loading,
+              decoration: InputDecoration(
+                hintText: l10n.roomInfoTitle,
+                filled: true,
+                fillColor:
+                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
-            ],
+              textInputAction: TextInputAction.next,
+            ),
+
+            const SizedBox(height: 20),
+
+            // Room topic
+            Text(
+              l10n.roomInfoTitle,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _topicController,
+              enabled: !_loading,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: l10n.noTopicSet,
+                filled: true,
+                fillColor:
+                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              textInputAction: TextInputAction.done,
+            ),
+
+            const SizedBox(height: 20),
+
+            // Visibility toggle
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: scheme.outlineVariant),
+              ),
+              child: SwitchListTile(
+                title: Text(
+                  _isPublic ? l10n.publicRoom : l10n.privateRoom,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text(
+                  _isPublic
+                      ? 'Anyone can find and join this room'
+                      : 'Only invited people can join this room',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                secondary: Icon(
+                  _isPublic ? LucideIcons.globe : LucideIcons.lock,
+                  size: 22,
+                ),
+                value: _isPublic,
+                onChanged:
+                    (_loading) ? null : (v) => setState(() => _isPublic = v),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Create button
+            FilledButton.icon(
+              onPressed: _loading ? null : _createRoom,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.plus, size: 18),
+              label: Text(_loading ? l10n.loading : l10n.createRoom),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
       ),
