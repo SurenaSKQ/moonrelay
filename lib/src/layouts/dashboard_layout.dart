@@ -139,7 +139,8 @@ class _DashboardLayoutState extends State<DashboardLayout> {
                     width: _rightWidth ?? settings.rightSidebarWidth,
                     minWidth: 200,
                     title: settings.rightPaneChoice.label,
-                    body: _buildRightPane(settings.rightPaneChoice),
+                    body: _ConsumerWrappedRightPane(
+                        choice: settings.rightPaneChoice),
                     bottomBar: null,
                     theme: theme,
                   ),
@@ -190,16 +191,35 @@ class _DashboardLayoutState extends State<DashboardLayout> {
       return false;
     }
   }
+}
 
-  /// Build the right pane widget based on the user's choice.
-  Widget _buildRightPane(RightPaneChoice choice) {
+/// Wraps the right-pane content inside a [Consumer<CurrentRoom>] so that it
+/// rebuilds whenever the active room changes, even when the intermediate
+/// [SettingsController] consumer doesn't fire.
+class _ConsumerWrappedRightPane extends StatelessWidget {
+  const _ConsumerWrappedRightPane({required this.choice});
+
+  final RightPaneChoice choice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<CurrentRoom>(
+      builder: (context, currentRoom, _) {
+        // Delegate to the existing builder — the Consumer ensures we
+        // rebuild on every CurrentRoom notification.
+        return _buildPaneForChoice(context, choice);
+      },
+    );
+  }
+
+  Widget _buildPaneForChoice(BuildContext context, RightPaneChoice choice) {
     switch (choice) {
       case RightPaneChoice.none:
         return const SizedBox.shrink();
       case RightPaneChoice.roomInfo:
-        return const _RoomInfoRightSidebar();
+        return _RoomInfoRightSidebar();
       case RightPaneChoice.members:
-        return const _MembersRightSidebar();
+        return _MembersRightSidebar();
     }
   }
 }
@@ -211,8 +231,6 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 /// Reads the current room from [CurrentRoom].  When no room is active a
 /// placeholder message is shown.
 class _RoomInfoRightSidebar extends StatelessWidget {
-  const _RoomInfoRightSidebar();
-
   @override
   Widget build(BuildContext context) {
     final currentRoom = context.watch<CurrentRoom>();
