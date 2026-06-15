@@ -317,58 +317,42 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: Row(
+    return _IRCRow(
+      sender: SizedBox(
+        width: 120,
+        child: Text(
+          '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.right,
+        ),
+      ),
+      timestamp: Text(
+        event.originServerTs.localizedTimeShort(context),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Sender prefix
-          SizedBox(
-            width: 120,
-            child: Text(
-              isGroupStart
-                  ? '<${event.senderFromMemoryOrFallback.calcDisplayname()}>'
-                  : '',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-            ),
+          MessageEventHandler(
+            event: event,
+            timeline: timeline,
+            room: room,
+            onJumpToEvent: onJumpToEvent,
           ),
-          const SizedBox(width: 8),
-          // Timestamp (only on group start)
-          if (isGroupStart)
-            Text(
-              event.originServerTs.localizedTimeShort(context),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+          if (timeline != null)
+            ReactionsBar(
+              event: event,
+              timeline: timeline!,
+              room: room,
             ),
-          if (isGroupStart) const SizedBox(width: 8),
-          // Message body + reactions
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                MessageEventHandler(
-                  event: event,
-                  timeline: timeline,
-                  room: room,
-                  onJumpToEvent: onJumpToEvent,
-                ),
-                if (timeline != null)
-                  ReactionsBar(
-                    event: event,
-                    timeline: timeline!,
-                    room: room,
-                  ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -542,6 +526,60 @@ class _HoverHighlightState extends State<_HoverHighlight> {
           color: bgColor,
         ),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IRC row layout
+// ---------------------------------------------------------------------------
+
+/// Renders a single IRC-style message row with the sender always visible and
+/// the timestamp shown only on hover at the end of the row.
+class _IRCRow extends StatefulWidget {
+  const _IRCRow({
+    required this.sender,
+    required this.timestamp,
+    required this.body,
+  });
+
+  final Widget sender;
+  final Widget timestamp;
+  final Widget body;
+
+  @override
+  State<_IRCRow> createState() => _IRCRowState();
+}
+
+class _IRCRowState extends State<_IRCRow> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Stack(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                widget.sender,
+                const SizedBox(width: 8),
+                Expanded(child: widget.body),
+              ],
+            ),
+            if (_isHovered)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: widget.timestamp,
+              ),
+          ],
+        ),
       ),
     );
   }
