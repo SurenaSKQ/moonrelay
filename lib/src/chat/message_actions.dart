@@ -21,7 +21,7 @@ import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
-/// A row of small icon buttons for **React**, **Reply**, **Forward**,
+/// A row of small icon buttons for **React**, **Reply**, **Copy**,
 /// **Details**, and **Delete** (if permitted).
 ///
 /// This widget does **not** manage its own visibility — the parent controls
@@ -61,10 +61,10 @@ class MessageActions extends StatelessWidget {
         ),
         const SizedBox(width: 2),
         _ActionIcon(
-          icon: Icons.shortcut_rounded,
-          tooltip: AppLocalizations.of(context)!.forwardTooltip,
+          icon: Icons.copy_rounded,
+          tooltip: AppLocalizations.of(context)!.copyTooltip,
           color: cs.onSurface.withValues(alpha: 0.6),
-          onTap: () => _forward(context),
+          onTap: () => _copyMessage(context),
         ),
         const SizedBox(width: 2),
         _ActionIcon(
@@ -96,8 +96,8 @@ class MessageActions extends StatelessWidget {
     );
   }
 
-  /// Forwards the message by copying its body to the clipboard.
-  void _forward(BuildContext context) {
+  /// Copies the message body to the clipboard.
+  void _copyMessage(BuildContext context) {
     final body = event.body;
     Clipboard.setData(ClipboardData(text: body));
     if (context.mounted) {

@@ -621,14 +621,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  persian_fonts:
-    dependency: "direct main"
-    description:
-      name: persian_fonts
-      sha256: "8cebcb4043959df130202a80f9e301aeb9e535f1c455f0ba75c9dcf6d18af60a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.6"
   petitparser:
     dependency: transitive
     description:

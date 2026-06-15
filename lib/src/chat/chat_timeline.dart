@@ -218,8 +218,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
       _autoFillRetries++;
       _isFillingViewport = true;
       _requestMoreHistory();
-      // _requestMoreHistory posts its own re-check callback, so we
-      // only need to remove the guard once the load completes.
+    } else {
       _isFillingViewport = false;
     }
   }

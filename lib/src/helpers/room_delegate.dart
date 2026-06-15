@@ -25,20 +25,19 @@ import 'package:provider/provider.dart';
 /// Routing delegate that resolves a room ID to a [RoomPage].
 ///
 /// Validates that:
-/// - [roomID] is non-null and non-empty.
-/// - [roomID] looks like a valid Matrix room ID or alias
-///   (`!…:domain` or `#…:domain`).
-/// - The room exists in the client's room list (the user must have already
-///   joined or been invited to it).
+/// - [roomID] is non-null, non-empty, and matches a Matrix room ID/alias
+///   pattern (`!…:domain` or `#…:domain`).
+/// - The room exists in the client's room list (joined or invited).
 ///
-/// If any check fails, an error state is shown instead of silently
-/// displaying an empty placeholder.
+/// If the first sync hasn't completed yet (no rooms loaded at all), a
+/// loading indicator is shown instead of an error — the room typically
+/// appears moments later when the sync delivers the room list.
 class RoomDelegate extends StatelessWidget {
   const RoomDelegate({super.key, required this.roomID});
   final String? roomID;
 
-  /// Valid Matrix room IDs start with `!` and contain a `:` (the server part).
-  static final _roomIdPattern = RegExp(r'^(!|#).+:.+');
+  /// Valid Matrix room IDs start with `!` or `#` and contain a `:`.
+  static final _roomIdPattern = RegExp(r'^(!|#)[^:]+:.+');
 
   @override
   Widget build(BuildContext context) {
@@ -46,28 +45,33 @@ class RoomDelegate extends StatelessWidget {
 
     // ── Null / empty check ──────────────────────────────────────
     if (roomID == null || roomID!.isEmpty) {
-      _logAndShowError(context, 'RoomDelegate: roomID is null or empty');
+      _log(context, 'RoomDelegate: roomID is null or empty');
       return const EmptySpace();
     }
 
     // ── Format validation ────────────────────────────────────────
     if (!_roomIdPattern.hasMatch(roomID!)) {
-      _logAndShowError(context, 'RoomDelegate: invalid roomID "$roomID"');
+      _log(context, 'RoomDelegate: invalid roomID "$roomID"');
       return const EmptySpace();
     }
 
-    // ── Membership check ─────────────────────────────────────────
+    // ── Look up the room ─────────────────────────────────────────
     final Room? room = client.getRoomById(roomID!);
-    if (room == null) {
-      _logAndShowError(
-          context, 'RoomDelegate: room "$roomID" not found (not joined)');
-      return _buildNotJoinedError(context);
+    if (room != null) {
+      return RoomPage(room: room);
     }
 
-    return RoomPage(room: room);
+    // ── Room not found yet ───────────────────────────────────────
+    // If the client has *no* rooms at all the first sync hasn't
+    // delivered the room list yet — show a spinner, not an error.
+    if (client.rooms.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return _buildNotJoinedError(context);
   }
 
-  void _logAndShowError(BuildContext context, String message) {
+  void _log(BuildContext context, String message) {
     final Logger log = Provider.of<Logger>(context, listen: false);
     log.w(message);
   }

@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:matrix/matrix.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Renders a Matrix message body with rich formatting support.
 ///
@@ -111,21 +110,11 @@ class FormattedTextWidget extends StatelessWidget {
     return spans;
   }
 
-  /// Opens [url] in the system default browser via the platform shell.
+  /// Opens [url] in the system default browser via [url_launcher].
   static void _openUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    try {
-      if (Platform.isWindows) {
-        Process.run('start', [url], runInShell: true);
-      } else if (Platform.isMacOS) {
-        Process.run('open', [url]);
-      } else if (Platform.isLinux) {
-        Process.run('xdg-open', [url]);
-      }
-    } catch (_) {
-      // Text is selectable – user can copy the URL manually.
-    }
+    launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 

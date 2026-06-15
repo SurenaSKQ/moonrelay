@@ -194,6 +194,7 @@
   "reactTooltip": "React",
   "replyTooltip": "Reply",
   "forwardTooltip": "Forward",
+  "copyTooltip": "Copy",
   "detailsTooltip": "Details",
   "deleteTooltip": "Delete",
   "messageCopiedToClipboard": "Message copied to clipboard",
