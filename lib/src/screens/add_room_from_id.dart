@@ -470,7 +470,7 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
             ],
             selected: {_isSpace},
             onSelectionChanged: (selected) {
-              setState(() => _isSpace = selected.first);
+              WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isSpace = selected.first); });
             },
             style: ButtonStyle(
               visualDensity: VisualDensity.compact,
@@ -568,7 +568,7 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
               ),
               value: _isPublic,
               onChanged:
-                  (_loading) ? null : (v) => setState(() => _isPublic = v),
+                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPublic = v); }); },
             ),
           ),
 
@@ -589,7 +589,7 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
               secondary: const Icon(LucideIcons.settings2, size: 22),
               value: _showAdvanced,
               onChanged:
-                  (_loading) ? null : (v) => setState(() => _showAdvanced = v),
+                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _showAdvanced = v); }); },
             ),
           ),
 

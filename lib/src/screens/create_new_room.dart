@@ -250,7 +250,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                 ),
                 value: _isSpace,
                 onChanged:
-                    (_loading) ? null : (v) => setState(() => _isSpace = v),
+                    (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isSpace = v); }); },
               ),
             ),
 
@@ -283,13 +283,13 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                 ),
                 value: _isPublic,
                 onChanged:
-                    (_loading) ? null : (v) => setState(() => _isPublic = v),
+                    (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPublic = v); }); },
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // ── Advanced options toggle ─────────────────────────────────
+            // Advanced options toggle
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -308,107 +308,119 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                 value: _showAdvanced,
                 onChanged: (_loading)
                     ? null
-                    : (v) => setState(() => _showAdvanced = v),
+                    : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _showAdvanced = v); }); },
               ),
             ),
 
-            if (_showAdvanced) ...[
-              const SizedBox(height: 16),
-
-              // Room alias
-              Text(
-                l10n.roomAlias,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _aliasController,
-                enabled: !_loading,
-                decoration: InputDecoration(
-                  hintText: l10n.roomAliasHint,
-                  filled: true,
-                  fillColor:
-                      scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 20),
-
-              // Invite users
-              Text(
-                l10n.inviteUsers,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _inviteController,
-                enabled: !_loading,
-                decoration: InputDecoration(
-                  hintText: l10n.inviteUsersHint,
-                  filled: true,
-                  fillColor:
-                      scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 20),
-
-              // Encryption toggle (only for non-space rooms)
-              if (!_isSpace)
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: scheme.outlineVariant),
-                  ),
-                  child: SwitchListTile(
-                    title: Text(
-                      l10n.enableEncryption,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      l10n.enableEncryptionDescription,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    secondary: Icon(
-                      LucideIcons.shield,
-                      size: 22,
-                    ),
-                    value: _enableEncryption,
-                    onChanged: (_loading)
-                        ? null
-                        : (v) => setState(() => _enableEncryption = v),
-                  ),
-                ),
-              if (!_isSpace) const SizedBox(height: 16),
-            ],
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              alignment: Alignment.topCenter,
+              curve: Curves.easeInOut,
+              child: _showAdvanced
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        // Room alias
+                        Text(
+                          l10n.roomAlias,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _aliasController,
+                          enabled: !_loading,
+                          decoration: InputDecoration(
+                            hintText: l10n.roomAliasHint,
+                            filled: true,
+                            fillColor: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: 20),
+                        // Invite users
+                        Text(
+                          l10n.inviteUsers,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _inviteController,
+                          enabled: !_loading,
+                          decoration: InputDecoration(
+                            hintText: l10n.inviteUsersHint,
+                            filled: true,
+                            fillColor: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: 20),
+                        // Encryption toggle (only for non-space rooms)
+                        if (!_isSpace)
+                          Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: scheme.outlineVariant,
+                              ),
+                            ),
+                            child: SwitchListTile(
+                              title: Text(
+                                l10n.enableEncryption,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: Text(
+                                l10n.enableEncryptionDescription,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              secondary: const Icon(
+                                LucideIcons.shield,
+                                size: 22,
+                              ),
+                              value: _enableEncryption,
+                              onChanged: (_loading)
+                                  ? null
+                                  : (v) =>
+                                      setState(() => _enableEncryption = v),
+                            ),
+                          ),
+                        if (!_isSpace) const SizedBox(height: 16),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
 
             const SizedBox(height: 32),
 
