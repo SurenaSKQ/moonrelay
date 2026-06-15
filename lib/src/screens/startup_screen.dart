@@ -205,9 +205,7 @@ class StartupScreen extends StatelessWidget {
           ),
           child: Text(l10n.privacyPolicy),
         ),
-        IconButton(
-          icon: const Icon(LucideIcons.settings),
-          tooltip: l10n.appSettings,
+        TextButton(
           onPressed: () {
             Navigator.push(
               context,
@@ -216,6 +214,18 @@ class StartupScreen extends StatelessWidget {
               ),
             );
           },
+          child: Text(l10n.appSettings),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const _CreditsScreen(),
+              ),
+            );
+          },
+          child: const Text('Credits'),
         ),
       ],
     );
@@ -448,6 +458,210 @@ class StartupScreen extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Welcome settings screen (theme-only subset of the hub settings)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credits screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A screen that displays developer and project information to build user trust.
+class _CreditsScreen extends StatelessWidget {
+  const _CreditsScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.chevronLeft),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Credits'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        children: [
+          // ── Project identity card ────────────────────────────────
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    LucideIcons.moon,
+                    size: 48,
+                    color: colors.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.projectName,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Version 0.2.0+1',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Author ───────────────────────────────────────────────
+          _CreditsSection(
+            icon: LucideIcons.user,
+            title: l10n.author,
+            children: [
+              Text(
+                'Surena Karimpour Ghannadi is the creator and primary '
+                'maintainer of Moonrelay.',
+              ),
+              Text(
+                'You can reach the project via Matrix or by opening an '
+                'issue on the project repository.',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── License ──────────────────────────────────────────────
+          _CreditsSection(
+            icon: LucideIcons.scrollText,
+            title: 'License',
+            children: [
+              Text(
+                'Moonrelay is free software released under the GNU Affero '
+                'General Public License version 3 or later.',
+              ),
+              Text(l10n.appLicenseNotice),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── Open Source Credits ──────────────────────────────────
+          _CreditsSection(
+            icon: LucideIcons.code2,
+            title: 'Open Source Acknowledgements',
+            children: [
+              Text(
+                'Moonrelay builds on the Matrix Dart SDK and many other '
+                'open-source packages. See the Third Party Licenses '
+                'screen for the full list.',
+              ),
+              Text(
+                'Portions of the date/time formatting and colour utilities '
+                'are derived from FluffyChat, used under the terms of '
+                'the AGPLv3.',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── Repository ───────────────────────────────────────────
+          _CreditsSection(
+            icon: LucideIcons.gitBranch,
+            title: 'Repository',
+            children: [
+              Text(
+                'The complete source code is available for inspection, '
+                'audit, and contribution at the project repository:',
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'https://codeberg.org/SurenaSKQ/moonrelay/',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () => launchUrl(
+                                Uri.parse(
+                                  'https://codeberg.org/SurenaSKQ/moonrelay/',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+/// A card section used in the credits screen.
+class _CreditsSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<Widget> children;
+
+  const _CreditsSection({
+    required this.icon,
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 22, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DefaultTextStyle(
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.6,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// A simple settings page accessible from the welcome screen.
 ///
