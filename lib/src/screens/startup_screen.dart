@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
@@ -411,12 +413,29 @@ class StartupScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'CritBase111 (https://codeberg.org/CritBase111)',
-              style: TextStyle(
-                fontSize: 14,
-                color: colors.onSurfaceVariant,
-                height: 1.5,
+            Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colors.onSurfaceVariant,
+                  height: 1.5,
+                ),
+                children: [
+                  const TextSpan(text: 'CritBase111 ('),
+                  TextSpan(
+                    text: 'https://codeberg.org/CritBase111',
+                    style: TextStyle(
+                      color: colors.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => launchUrl(
+                            Uri.parse('https://codeberg.org/CritBase111'),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                  ),
+                  const TextSpan(text: ')'),
+                ],
               ),
             ),
           ],
