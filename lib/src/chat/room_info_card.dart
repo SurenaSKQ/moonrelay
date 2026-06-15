@@ -144,6 +144,10 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 ),
                 const SizedBox(width: 8),
 
+                // Sync status indicator
+                _SyncIndicator(client: widget.room.client),
+                const SizedBox(width: 4),
+
                 // Member count badge
                 _MemberCountBadge(count: _memberCount, scheme: scheme),
                 const SizedBox(width: 4),
@@ -156,6 +160,60 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 ),
               ],
             ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A small badge that shows a (• Syncing) indicator while the Matrix sync is
+/// in progress (waiting for response, processing, or cleaning up).
+///
+/// Hides automatically when the sync reaches the [SyncStatus.finished] state.
+class _SyncIndicator extends StatelessWidget {
+  const _SyncIndicator({required this.client});
+
+  final Client client;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return StreamBuilder<SyncStatusUpdate>(
+      stream: client.onSyncStatus.stream,
+      builder: (context, snapshot) {
+        final status = snapshot.data?.status;
+        final isSyncing = status != null && status != SyncStatus.finished;
+
+        if (!isSyncing) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '\u2022', // bullet character
+                style: TextStyle(
+                  fontSize: 14,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Syncing',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ],
           ),
         );
       },

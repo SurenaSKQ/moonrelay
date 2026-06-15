@@ -91,6 +91,9 @@ class _ChatTimelineState extends State<ChatTimeline> {
 
   int _timelineVersion = 0;
 
+  /// True when [_initTimeline] finished with a permanent error.
+  bool _timelineLoadFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -123,11 +126,13 @@ class _ChatTimelineState extends State<ChatTimeline> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _ensureContentFillsScreen();
           });
+          // Mark the latest event as read.
+          _markRoomRead();
         }
       case RetryFailed(:final error):
         {
           log.e('Failed to load timeline for ${widget.room.id}', error: error);
-          // Leave _timeline as null so the build method shows the error.
+          _timelineLoadFailed = true;
           setState(() {});
         }
     }
@@ -238,7 +243,12 @@ class _ChatTimelineState extends State<ChatTimeline> {
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
         if (_timeline == null) {
-          return _buildError(context);
+          if (_timelineLoadFailed) {
+            return _buildError(context);
+          }
+          // Still loading – sync indicator in ChatRoomHeader handles the
+          // visual feedback, so we just show an empty container.
+          return const SizedBox.shrink();
         }
 
         return TimelineView(
@@ -299,6 +309,21 @@ class _ChatTimelineState extends State<ChatTimeline> {
         ),
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Read marker
+  // ---------------------------------------------------------------------------
+
+  /// Sends a read receipt for the newest event in the timeline so the server
+  /// and other clients know that the user has seen the latest messages.
+  void _markRoomRead() {
+    if (_timeline == null) return;
+    final events = _timeline!.events;
+    if (events.isEmpty) return;
+    // events are newest-first, so index 0 is the most recent.
+    final latestId = events.first.eventId;
+    widget.room.setReadMarker(latestId, mRead: latestId);
   }
 
   // ---------------------------------------------------------------------------
