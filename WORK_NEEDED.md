@@ -20,87 +20,106 @@
 
 Expected timeline: ~~Mid 2026 (This will eventually become a lesson in wishful thinking)~~ lmao, it sure did
 
-- Support chat event types v1
-  - Chat timeline needs rework.
-  - Text Messages **[DONE]**
-  - Images **[DONE]**
-    - Still needs some work tbh, we need a dedicated image view screen
-  - Audio **[DONE]**
-    - No in-app player right now
-  - Video
-  - Files **[DONE]**
-    - Needs some work on the widget
-- Chat events v2
-  - Dynamically built text with inline images
-  - Code blocks support
-  - Right click menu
-  - Replies
-  - Threads
-  - Stickers
-- Application fundamentals v1
-  - Settings controller and service integration
-  - More configurable UI values
-  - Full integration with internationalization (this is particularly embarassing for a non-english project)
-  - State management rework
-- UI revamp v1
-  - Overall increase the dynamic scaling potential of the UI and fix scaling
-  - Chat screen rework v1
-    - New text entry
-    - New user profiles page
-    - New server profile design
-  - Rework settings
-    - Or more accurately, make settingsview as it is only a stub
-  - Rework sidebar
-- Login & Registeration Flow
-  - Support third party sign in
-  - Support registeration
-- UI revamp v2
-  - New UI framework **[in progress]**
-    - Custom sidebar widget
-    - Custom frame widget **[•]**
-    - Custom input widget
-    - Custom header v2 **[•]**
-    - ~~Custom scaffold **[•]**~~ No longer a good idea
+## Chat events v1
+- Chat timeline needs rework.
+- Text Messages **[DONE]**
+- Images **[DONE]**
+  - Still needs some work — dedicated image view screen needed
+- Audio **[DONE]**
+  - No in-app player yet
+- Video **[NOT STARTED]**
+- Files **[DONE]**
+  - Widget needs polish
+
+## Chat events v2
+- Dynamically built text with inline images
+- Code blocks support
+- Right-click context menu
+- Replies **[IN PROGRESS]**
+- Threads **[INVESTIGATION NEEDED]**
+- Stickers **[INVESTIGATION NEEDED]**
+
+## Application fundamentals v1
+- Settings controller and service integration **[DONE]**
+- More configurable UI values **[IN PROGRESS]**
+- Full integration with internationalisation (particularly embarrassing for a non-English project) **[IN PROGRESS]**
+- State management rework **[IN PROGRESS]**
+
+## UI revamp v1
+- Overall dynamic scaling and scaling fixes
+- Chat screen rework v1 **[DONE]**
+  - New text entry **[DONE]**
+  - New user profiles page **[DONE]**
+  - New server profile design **[DONE]**
+- Rework settings **[DONE]**
+  - Reworked into a hub page
+- Rework sidebar **[IN PROGRESS]**
+  - The right sidebar is useless and the sidebar settings needs rework.
+
+## Login & Registration Flow
+- Support third-party sign-in **[DONE]**
+  - Proper SSO support is done
+- Support registration **[DONE]**
+  - Untested!!!
+
+## UI revamp v2
+- New UI framework **[in progress]**
+  - Custom sidebar widget **[DONE]**
+  - Custom frame widget **[DONE]**
+    - Well, we use a dynamic layout widget to build the dashboard dynamically now
+  - Custom input widget
+  - Custom header v2 **[DONE]**
+  - ~~Custom scaffold~~ No longer a good idea
+
+## Branding & Identity
+- Welcome screen settings page **[DONE]**
+- Credits / developer information screen **[DONE]**
+- Supporters card with links **[DONE]**
+- Logo replaced with vector icon + text **[DONE]**
+- Project monicker: Moonrelay (Alpha)
+
+---
 
 # Future work
 
-Expected timeline: 2026 and beyound
+Expected timeline: 2026 and beyond
 
 - Custom events (events v3)
   - Git events
   - Map events
   - Realtime audio and video chat
 - Application fundamentals v2
-  - Optimize for background process
+  - Optimise for background processes
   - Tighter system integration
 
 # Wishlist
 
-Extremely long term wishlist that may or may not come to fruitition; only introduced here for gathering options
-to remain flexible in the face of the inescapable temporal burden we carry.
+Extremely long-term wishlist that may or may not come to fruition; only
+introduced here to remain flexible in the face of the inescapable temporal
+burden we carry.
 
 - Server SDK v1
   - Server-side SDK for Matrix protocol
 - Client SDK v1
-  - Potentially explore new chat protocols as time moves onwards; XMPP was here once and how it is no more
-  - who can trully proclaim to know where Matrix will go, especially with the strong disdain certain communities
-  - show towards the Matrix protocol.
-  - I have forked matrix-sdk-lite from Famedly; just in case
+  - Potentially explore new chat protocols as time moves onwards; XMPP was
+    once here and now it is no more
+  - Who can truly proclaim to know where Matrix will go, especially with the
+    strong disdain certain communities show towards the Matrix protocol.
+  - I have forked matrix-dart-sdk from Famedly; just in case
 
 # Bad Design
 
-This category is the underlying work that needs to be done to fix the terrible design I accumulated over the past 2 years.
+This category captures underlying work needed to fix accumulated design debt.
 
-- FutureBuilders **[in progress]**
-  - There is a LOT of code that need to use FutureBuilders with placeholders to get data.
-- New Chat Timeline
-  - That whole thing is a mess
-- Skeletonized loading
+- FutureBuilders **[DONE]**
+- New Chat Timeline **[DONE]**
+- Skeletonised loading
   - Better UX
-  - Without proper loading animations; the app shows a blank screen on Linux until loaded
-  - Currently there is a long delay when logging in
-- Own blur widget **[•]**
-- Potential global key issue?
-- Use layout building instead of static layout widgets **[in progress]**
-- FIXME Handle cases where user profile response is invalid!
-- FIXME List tiles are not adaptive, causing an exception when the list tile becomes smaller than title widget
+  - Without proper loading animations, the app shows a blank screen on Linux until loaded
+  - There is currently a long delay when logging in
+- Own blur widget **[DONE]**
+- Potential global key issue? **[DONE]**
+- Use layout building instead of static layout widgets **[DONE]**
+- FIXME Handle cases where user profile response is invalid! **[DONE, I THINK?]**
+- FIXME List tiles are not adaptive, causing an exception when the list tile becomes smaller than the title widget **[DONE]**
+  - Ended up changing the entire infra behind this to fix it lmao

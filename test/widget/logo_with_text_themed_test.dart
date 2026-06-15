@@ -17,30 +17,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../helpers/widget_test_utils.dart';
 
 void main() {
   group('LogoWithTextThemed', () {
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-    });
-
-    testWidgets('renders ColorFiltered widget', (tester) async {
+    testWidgets('renders moon icon and project name', (tester) async {
       await tester.pumpWidget(
-        wrapWithProviders(
-          child: const SingleChildScrollView(
-            child: SizedBox(
-              width: 400,
-              height: 400,
-              child: LogoWithTextThemed(),
-            ),
+        const MaterialApp(
+          home: Scaffold(
+            body: LogoWithTextThemed(),
           ),
         ),
       );
 
-      expect(find.byType(ColorFiltered), findsOneWidget);
+      expect(find.byIcon(Icons.dark_mode), findsOneWidget);
+      expect(find.text('Moonrelay (Alpha)'), findsOneWidget);
     });
   });
 }

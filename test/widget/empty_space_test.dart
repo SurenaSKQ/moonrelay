@@ -18,35 +18,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/layouts/empty_space.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../helpers/widget_test_utils.dart';
 
 void main() {
   group('EmptySpace', () {
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-    });
-
     testWidgets('renders LogoWithTextThemed', (tester) async {
       await tester.pumpWidget(
-        wrapWithProviders(
-          child: const EmptySpace(),
+        const MaterialApp(
+          home: EmptySpace(),
         ),
       );
 
       expect(find.byType(LogoWithTextThemed), findsOneWidget);
     });
 
-    testWidgets('renders FittedBox inside Scaffold', (tester) async {
+    testWidgets('renders Scaffold with brand content', (tester) async {
       await tester.pumpWidget(
-        wrapWithProviders(
-          child: const EmptySpace(),
+        const MaterialApp(
+          home: EmptySpace(),
         ),
       );
 
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.byType(FittedBox), findsOneWidget);
+      expect(find.text('Moonrelay (Alpha)'), findsOneWidget);
     });
   });
 }

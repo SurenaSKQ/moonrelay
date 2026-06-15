@@ -156,7 +156,7 @@ Future<_AppState> _initialize({
   onStatus('Starting network client…');
   log.t('Starting Matrix client…');
   final sdk = Client(
-    'Moonrelay',
+    'Moonrelay (Alpha)',
     database: dbobj,
     verificationMethods: {
       KeyVerificationMethod.numbers,

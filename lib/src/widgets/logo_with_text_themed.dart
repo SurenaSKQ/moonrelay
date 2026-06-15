@@ -15,55 +15,36 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:provider/provider.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// A branding widget that displays a moon icon and the project name.
+///
+/// Replaces the previous raster-logo approach with a crisp vector icon
+/// and styled text, avoiding platform-specific image loading issues.
 class LogoWithTextThemed extends StatelessWidget {
   const LogoWithTextThemed({super.key, this.themeMode});
+
+  /// Optional brightness override. When provided, the icon/text colours
+  /// are tuned for that brightness; otherwise they follow the current theme.
   final Brightness? themeMode;
 
   @override
   Widget build(BuildContext context) {
-    SettingsController settings = Provider.of<SettingsController>(context);
-    bool isLightMode = (settings.themeMode == ThemeMode.light ? true : false);
-    if (themeMode != null) isLightMode = themeMode! == Brightness.light;
+    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        ColorFiltered(
-          colorFilter: isLightMode
-              ? const ColorFilter.matrix(<double>[
-                  -1.0, 0.0, 0.0, 0.0, 255.0, //
-                  0.0, -1.0, 0.0, 0.0, 255.0, //
-                  0.0, 0.0, -1.0, 0.0, 255.0, //
-                  0.0, 0.0, 0.0, 1.0, 0.0, //
-                ])
-              : const ColorFilter.matrix(<double>[
-                  1.0, 0.0, 0.0, 0.0, 0.0, //
-                  0.0, 1.0, 0.0, 0.0, 0.0, //
-                  0.0, 0.0, 1.0, 0.0, 0.0, //
-                  0.0, 0.0, 0.0, 1.0, 0.0, //
-                ]),
-          child: Image(
-            image: AssetImage('assets/images/moonrelay_logo.png'),
+        Icon(LucideIcons.moon, size: 64, color: cs.primary),
+        const SizedBox(height: 12),
+        Text(
+          'Moonrelay (Alpha)',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Oxanium',
+            color: cs.onSurface,
           ),
         ),
-        SizedBox(
-          height: 8.0,
-        ),
-        // Text(
-        //   AppLocalizations.of(context)!.projectName,
-        //   style: TextStyle(
-        //       color: isLightMode
-        //           ? MoonrelayColorPalette.cpgDark
-        //           : MoonrelayColorPalette.cpgWhite,
-        //       fontSize: 32,
-        //       fontFamily: 'Oxanium',
-        //       fontWeight: FontWeight.bold,
-        //       backgroundColor: Colors.grey.withAlpha(125)),
-        //   overflow: TextOverflow.clip,
-        // ),
       ],
     );
   }

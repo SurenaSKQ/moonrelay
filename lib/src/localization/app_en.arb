@@ -7,12 +7,12 @@
     "description": "Inform the user of the license and how to obtain it."
   },
 
-  "appTitle": "Moonrelay",
+  "appTitle": "Moonrelay (Alpha)",
   "@appTitle": {
     "description": "The main application title shown in the window header."
   },
 
-  "projectName": "Moonrelay",
+  "projectName": "Moonrelay (Alpha)",
   "@projectName": {
     "description": "The brand name of the application."
   },
