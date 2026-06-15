@@ -39,18 +39,20 @@ class SpaceSettingsPage extends StatefulWidget {
 
 class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
   StreamSubscription? _syncSub;
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
     final client = context.read<Client>();
     _syncSub = client.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
+      if (mounted && !_disposed) setState(() {});
     });
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _syncSub?.cancel();
     super.dispose();
   }

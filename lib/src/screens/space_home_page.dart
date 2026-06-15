@@ -47,6 +47,7 @@ class SpaceHomePage extends StatefulWidget {
 
 class _SpaceHomePageState extends State<SpaceHomePage> {
   StreamSubscription? _syncSub;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -54,12 +55,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     // Refresh when new sync data arrives so child lists stay current.
     final client = context.read<Client>();
     _syncSub = client.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
+      if (mounted && !_disposed) setState(() {});
     });
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _syncSub?.cancel();
     super.dispose();
   }
@@ -650,7 +652,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       if (result is RetryFailed) {
         throw (result).error;
       }
-      if (mounted) setState(() {});
+      if (mounted && !_disposed) setState(() {});
     } catch (e) {
       if (!mounted) return;
       final message = e is TimeoutException

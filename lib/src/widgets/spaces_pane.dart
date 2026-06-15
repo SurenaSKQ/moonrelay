@@ -41,6 +41,7 @@ class SpacesPane extends StatefulWidget {
 
 class _SpacesPaneState extends State<SpacesPane> {
   StreamSubscription? _syncSub;
+  bool _disposed = false;
   Timer? _settleTimer;
 
   /// True once the room list has stabilised (no room count change across
@@ -68,6 +69,7 @@ class _SpacesPaneState extends State<SpacesPane> {
   }
 
   void _attach() {
+    _disposed = true;
     _syncSub?.cancel();
     _settleTimer?.cancel();
     _settled = false;
@@ -76,7 +78,7 @@ class _SpacesPaneState extends State<SpacesPane> {
 
     final client = context.read<Client>();
     _syncSub = client.onSync.stream.listen((_) {
-      if (!mounted) return;
+      if (!mounted || _disposed) return;
       final count = client.rooms.length;
       if (count == _lastRoomCount) {
         _stableStreak++;
@@ -93,7 +95,7 @@ class _SpacesPaneState extends State<SpacesPane> {
 
     // Hard timeout: after 30 seconds show whatever we have.
     _settleTimer = Timer(_settleTimeout, () {
-      if (mounted) setState(() => _settled = true);
+      if (mounted && !_disposed) setState(() => _settled = true);
     });
 
     // Seed the initial count if rooms are already available.
@@ -104,6 +106,7 @@ class _SpacesPaneState extends State<SpacesPane> {
 
   @override
   void dispose() {
+    _disposed = true;
     _syncSub?.cancel();
     _settleTimer?.cancel();
     super.dispose();
