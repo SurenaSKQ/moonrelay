@@ -38,9 +38,21 @@ import 'package:provider/provider.dart';
 /// Encrypted events (m.room.encrypted) are automatically handled by the SDK;
 /// this widget wraps the decrypted content with a trust indicator.
 class MessageEventHandler extends StatelessWidget {
-  const MessageEventHandler({super.key, required this.event});
+  const MessageEventHandler({
+    super.key,
+    required this.event,
+    this.timeline,
+    this.room,
+  });
 
   final Event event;
+
+  /// The timeline this event belongs to, used to look up replied-to events
+  /// locally without an extra network round-trip.
+  final Timeline? timeline;
+
+  /// The room this event belongs to, used to fetch replied-to events.
+  final Room? room;
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +116,7 @@ class MessageEventHandler extends StatelessWidget {
   /// not available (e.g. unencrypted events).
   bool _isDeviceVerified(EncryptionService enc) {
     // 1. Try the original encrypted source (available after decryption).
-    final fromOriginal =
-        event.originalSource?.content['device_id'] as String?;
+    final fromOriginal = event.originalSource?.content['device_id'] as String?;
     if (fromOriginal != null) {
       return enc.isDeviceVerifiedById(event.senderId, fromOriginal);
     }
@@ -123,6 +134,15 @@ class MessageEventHandler extends StatelessWidget {
     return enc.isUserVerifiedById(event.senderId);
   }
 
+  /// Strips the `<mx-reply>…</mx-reply>` wrapper from a Matrix HTML body
+  /// so that the actual message content remains.
+  static String _stripReplyHtml(String html) {
+    return html.replaceAll(
+      RegExp(r'<mx-reply>.*</mx-reply>', dotAll: true, caseSensitive: false),
+      '',
+    );
+  }
+
   Widget _renderContent() {
     // Failed decryption — show the decryption-failed placeholder
     // with a manual key-request button.
@@ -135,11 +155,17 @@ class MessageEventHandler extends StatelessWidget {
 
     switch (event.type) {
       case EventTypes.Message:
-        // TODO: Stickers, emotes; event relationships (replies, reactions, edits)
+        // Check if this event is a reply.
+        final replyId = event.inReplyToEventId();
+        final isReply = replyId != null;
+
         switch (event.messageType) {
           case MessageTypes.Text:
           case MessageTypes.Emote:
           case MessageTypes.Notice:
+            if (isReply) {
+              return _buildReplyContent(replyId);
+            }
             return FormattedTextWidget(event: event);
           case MessageTypes.Image:
             return ImageMessageType(event: event);
@@ -176,5 +202,126 @@ class MessageEventHandler extends StatelessWidget {
       default:
         return StateEvents(event: event);
     }
+  }
+
+  /// Builds the content for a reply event: a reply preview header followed
+  /// by the actual message body (with the `<mx-reply>` wrapper stripped).
+  Widget _buildReplyContent(String replyId) {
+    // Strip reply HTML from the formatted body so we only render the
+    // actual message.
+    final rawFormatted = event.content['formatted_body'] as String?;
+    final strippedHtml =
+        rawFormatted != null ? _stripReplyHtml(rawFormatted) : null;
+
+    // Try to find the replied-to event locally first.
+    Event? repliedTo;
+    if (timeline != null) {
+      try {
+        repliedTo = timeline!.events.firstWhere(
+          (e) => e.eventId == replyId,
+        );
+      } catch (_) {
+        repliedTo = null;
+      }
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ReplyPreview(
+          repliedTo: repliedTo,
+          replyId: replyId,
+          room: room,
+        ),
+        const SizedBox(height: 4),
+        FormattedTextWidget(
+          event: event,
+          formattedBodyOverride: strippedHtml,
+        ),
+      ],
+    );
+  }
+}
+
+/// Displays a short preview of the replied-to message above the reply.
+///
+/// Tries to show the replied-to message body (truncated with ellipsis)
+/// prefixed by a vertical bar in the accent colour.  If the replied-to
+/// event isn't available locally, fetches it via [Room.getEventById].
+class _ReplyPreview extends StatelessWidget {
+  const _ReplyPreview({
+    required this.repliedTo,
+    required this.replyId,
+    this.room,
+  });
+
+  final Event? repliedTo;
+  final String replyId;
+  final Room? room;
+
+  @override
+  Widget build(BuildContext context) {
+    if (repliedTo != null) {
+      return _buildPreview(context, repliedTo!.body);
+    }
+
+    // If we have a room, try to fetch the replied-to event.
+    if (room != null) {
+      return FutureBuilder<Event?>(
+        future: room!.getEventById(replyId),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return _buildPreview(context, snapshot.data!.body);
+          }
+          // While loading or on error, show nothing.
+          return const SizedBox.shrink();
+        },
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildPreview(BuildContext context, String body) {
+    final scheme = Theme.of(context).colorScheme;
+    final preview = _preview(body);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Vertical bar indicator
+        Container(
+          width: 3,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          constraints: const BoxConstraints(minHeight: 20, maxHeight: 40),
+        ),
+        // Preview text
+        Expanded(
+          child: Text(
+            preview,
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurface.withValues(alpha: 0.55),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Returns a short preview (≈40 characters + ellipsis) of [text].
+  static String _preview(String text, [int maxLen = 40]) {
+    // Strip leading " > " reply markers from the body.
+    final clean = text.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
+    final display = clean.isNotEmpty ? clean : text.trim();
+    if (display.length <= maxLen) return display;
+    return '${display.substring(0, maxLen)}…';
   }
 }

@@ -105,7 +105,7 @@ class TimelineItem extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        MessageEventHandler(event: event),
+        MessageEventHandler(event: event, timeline: timeline, room: room),
         if (timeline != null)
           ReactionsBar(
             event: event,
@@ -358,7 +358,8 @@ class TimelineItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                MessageEventHandler(event: event),
+                MessageEventHandler(
+                    event: event, timeline: timeline, room: room),
                 if (timeline != null)
                   ReactionsBar(
                     event: event,

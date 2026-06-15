@@ -30,18 +30,31 @@ import 'package:matrix/matrix.dart';
 /// URL linkification: bare URLs are converted into clickable spans styled with
 /// the accent colour and underline.
 class FormattedTextWidget extends StatelessWidget {
-  const FormattedTextWidget({super.key, required this.event});
+  const FormattedTextWidget({
+    super.key,
+    required this.event,
+    this.formattedBodyOverride,
+  });
 
   final Event event;
 
+  /// Optional override for `formatted_body`. When set, this HTML is used
+  /// instead of `event.content['formatted_body']`, bypassing the event's
+  /// own formatted body entirely.
+  final String? formattedBodyOverride;
+
   @override
   Widget build(BuildContext context) {
-    final formattedBody = event.content['formatted_body'] as String?;
+    final formattedBody =
+        formattedBodyOverride ?? event.content['formatted_body'] as String?;
     final format = event.content['format'] as String?;
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
       final spans = _HtmlTagParser(formattedBody, context).parse();
-      return SelectableText.rich(TextSpan(children: spans));
+      if (spans.isNotEmpty) {
+        return SelectableText.rich(TextSpan(children: spans));
+      }
+      // Parser produced nothing – fall through to plain-text rendering.
     }
 
     // Plain text with manual URL detection.
@@ -170,10 +183,12 @@ class _HtmlTagParser {
         _pos = tagEnd + 1;
 
         if (rawTag.startsWith('/')) {
-          _flushBuffer(buffer, spans);
-          // Return so the caller can close its own span.
-          _depth--;
-          return spans;
+          // Unexpected closing tag at top level – treat as literal
+          // text so we don't silently drop all remaining content.
+          buffer.write('<');
+          buffer.write(rawTag);
+          buffer.write('>');
+          continue;
         }
 
         if (rawTag == 'br' || rawTag == 'br/' || rawTag == 'br /') {
@@ -181,9 +196,8 @@ class _HtmlTagParser {
           continue;
         }
 
-        final parts = rawTag.split(RegExp(r'\s+'));
-        final tag = parts.first.toLowerCase();
-        final attrs = _parseAttrs(parts);
+        final tag = _tagName(rawTag);
+        final attrs = _parseAttrs(rawTag);
 
         if (_isBlock(tag)) {
           final innerSpans = _parseBlockContent(tag);
@@ -247,8 +261,13 @@ class _HtmlTagParser {
         _flushBuffer(buffer, spans);
 
         if (raw.startsWith('/')) {
+          // Unexpected closing tag – treat as literal text rather
+          // than aborting and dropping the rest of the message.
+          buffer.write('<');
+          buffer.write(raw);
+          buffer.write('>');
           _pos = end;
-          return spans;
+          continue;
         }
 
         if (raw == 'br' || raw == 'br/' || raw == 'br /') {
@@ -257,9 +276,8 @@ class _HtmlTagParser {
           continue;
         }
 
-        final parts = raw.split(RegExp(r'\s+'));
-        final nested = parts.first.toLowerCase();
-        final attrs = _parseAttrs(parts);
+        final nested = _tagName(raw);
+        final attrs = _parseAttrs(raw);
 
         if (_isBlock(nested)) {
           spans.addAll(_wrapBlock(
@@ -312,8 +330,13 @@ class _HtmlTagParser {
         _flushBuffer(buffer, spans);
 
         if (raw.startsWith('/')) {
+          // Unexpected closing tag – treat as literal text rather
+          // than aborting and dropping the rest of the message.
+          buffer.write('<');
+          buffer.write(raw);
+          buffer.write('>');
           _pos = end;
-          return spans;
+          continue;
         }
 
         if (raw == 'br' || raw == 'br/' || raw == 'br /') {
@@ -322,9 +345,8 @@ class _HtmlTagParser {
           continue;
         }
 
-        final parts = raw.split(RegExp(r'\s+'));
-        final nested = parts.first.toLowerCase();
-        final attrs = _parseAttrs(parts);
+        final nested = _tagName(raw);
+        final attrs = _parseAttrs(raw);
 
         if (_isBlock(nested)) {
           return spans;
@@ -371,13 +393,17 @@ class _HtmlTagParser {
 
     switch (tag) {
       case 'blockquote':
+        final scheme = Theme.of(context).colorScheme;
+        final muted = base.copyWith(
+          fontStyle: FontStyle.italic,
+          color: scheme.onSurface.withValues(alpha: 0.75),
+          fontSize: 15,
+        );
         return [
           const TextSpan(text: '\n'),
           TextSpan(
             children: inner,
-            style: base.copyWith(
-              fontStyle: FontStyle.italic,
-            ),
+            style: muted,
           ),
           const TextSpan(text: '\n'),
         ];
@@ -407,7 +433,29 @@ class _HtmlTagParser {
         ];
 
       case 'mx-reply':
-        return inner;
+        final scheme = Theme.of(context).colorScheme;
+        final muted = base.copyWith(
+          color: scheme.onSurface.withValues(alpha: 0.65),
+          fontSize: 14,
+        );
+        return [
+          const TextSpan(text: '\n'),
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '│ ',
+                style: TextStyle(
+                  color: scheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  height: 1.5,
+                ),
+              ),
+              TextSpan(children: inner, style: muted),
+            ],
+          ),
+          const TextSpan(text: '\n'),
+        ];
 
       case 'p':
         return [...inner, const TextSpan(text: '\n')];
@@ -539,20 +587,70 @@ class _HtmlTagParser {
     return items.isEmpty ? [spans] : items;
   }
 
-  Map<String, String> _parseAttrs(List<String> parts) {
+  /// Parses HTML attributes from the portion of [raw] that follows the
+  /// tag name.  Respects single- and double-quoted values that may
+  /// themselves contain whitespace.
+  ///
+  /// [raw] is the full content between `<` and `>` (e.g.
+  /// `a href="url" title="hello world"`).
+  Map<String, String> _parseAttrs(String raw) {
     final map = <String, String>{};
-    for (int i = 1; i < parts.length; i++) {
-      final eq = parts[i].indexOf('=');
-      if (eq == -1) continue;
-      final k = parts[i].substring(0, eq).toLowerCase();
-      var v = parts[i].substring(eq + 1);
-      if ((v.startsWith('"') && v.endsWith('"')) ||
-          (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.substring(1, v.length - 1);
-      }
-      map[k] = v;
+    int i = 0;
+
+    // Skip leading tag name and any whitespace that follows it.
+    while (i < raw.length && raw[i] != ' ') {
+      i++;
     }
+
+    while (i < raw.length) {
+      // Skip whitespace between attributes.
+      while (i < raw.length && raw[i] == ' ') {
+        i++;
+      }
+      if (i >= raw.length) break;
+
+      // Read the attribute name up to '=' or end-of-attribute.
+      final nameStart = i;
+      while (i < raw.length && raw[i] != '=' && raw[i] != ' ') {
+        i++;
+      }
+      final name = raw.substring(nameStart, i).toLowerCase();
+
+      if (i < raw.length && raw[i] == '=') {
+        i++; // skip '='
+
+        // Read quoted or unquoted value.
+        if (i < raw.length && (raw[i] == '"' || raw[i] == "'")) {
+          final quote = raw[i];
+          i++; // skip opening quote
+          final valueStart = i;
+          while (i < raw.length && raw[i] != quote) {
+            i++;
+          }
+          map[name] = raw.substring(valueStart, i);
+          if (i < raw.length) i++; // skip closing quote
+        } else {
+          // Unquoted value – read until whitespace.
+          final valueStart = i;
+          while (i < raw.length && raw[i] != ' ') {
+            i++;
+          }
+          map[name] = raw.substring(valueStart, i);
+        }
+      } else {
+        // Boolean attribute (no value).
+        map[name] = '';
+      }
+    }
+
     return map;
+  }
+
+  /// Extracts the tag name from a raw HTML tag string (the content
+  /// between `<` and `>`).  e.g. `'a href="..."'` → `'a'`.
+  String _tagName(String raw) {
+    final space = raw.indexOf(' ');
+    return (space == -1 ? raw : raw.substring(0, space)).toLowerCase();
   }
 
   String _entity() {
