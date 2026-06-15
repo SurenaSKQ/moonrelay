@@ -101,6 +101,22 @@ class _TimelineViewState extends State<TimelineView> {
     if (newer.senderId != older.senderId) return false;
     return newer.originServerTs.sameEnvironment(older.originServerTs);
   }
+  /// Returns the next non-state-event event that would be visible
+  /// as a regular message, skipping past state events that may be
+  /// hidden (when [showStateEvents] is false).
+  /// Returns null if no visible message event follows.
+  Event? _nextVisibleMessage(List<int> visibleIndices, List<Event> events, int currentI) {
+    int j = currentI + 1;
+    while (j < visibleIndices.length) {
+      final idx = visibleIndices[j];
+      final ev = events[idx];
+      if (!_isStateEvent(ev) || widget.showStateEvents) {
+        return ev;
+      }
+      j++;
+    }
+    return null;
+  }
 
   /// True when [newer] and [older] fall on different calendar days.
   bool _isDifferentDay(Event newer, Event older) {
@@ -136,10 +152,6 @@ class _TimelineViewState extends State<TimelineView> {
     while (i < visibleIndices.length) {
       final eventIndex = visibleIndices[i];
       final event = widget.timeline.events[eventIndex];
-      final int nextIdx =
-          i + 1 < visibleIndices.length ? visibleIndices[i + 1] : -1;
-      final Event? nextEvent =
-          nextIdx >= 0 ? widget.timeline.events[nextIdx] : null;
 
       // Count undecryptable encrypted events
       if (event.type == EventTypes.Encrypted) {
@@ -182,8 +194,13 @@ class _TimelineViewState extends State<TimelineView> {
         // (next in newest-first iteration). This ensures the oldest
         // (uppermost) message in a group is the one that shows the
         // sender avatar and name.
+        // Walk past hidden state events so they don't incorrectly
+        // absorb the sender info. A skipped state event can't
+        // serve as the group-start avatar.
+        final effectiveNextEvent = _nextVisibleMessage(
+            visibleIndices, widget.timeline.events, i);
         final isContinuation =
-            nextEvent != null && _isContinuation(event, nextEvent);
+            effectiveNextEvent != null && _isContinuation(event, effectiveNextEvent);
 
         items.add(TimelineItem(
           event: event,
