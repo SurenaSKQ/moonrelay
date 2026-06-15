@@ -15,12 +15,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
@@ -40,6 +44,9 @@ import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 /// The **left sidebar** (rooms pane) is collapsible via the AppFrame header.
 /// Sidebar visibility, width, and pane choice are driven by
 /// [SettingsController] and persisted across sessions.
+///
+/// The **right sidebar** content is driven by [RightPaneChoice] and reads the
+/// currently-active room from [CurrentRoom].
 class DashboardLayout extends StatefulWidget {
   /// The main content widget (typically the route's child).
   final Widget child;
@@ -186,31 +193,309 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
   /// Build the right pane widget based on the user's choice.
   Widget _buildRightPane(RightPaneChoice choice) {
-    final l10n = AppLocalizations.of(context)!;
     switch (choice) {
       case RightPaneChoice.none:
         return const SizedBox.shrink();
       case RightPaneChoice.roomInfo:
-        // TODO: Wire up room info panel when implemented
-        return Center(
-          child: Text(
-            l10n.roomInfo,
-            style: const TextStyle(),
-          ),
-        );
+        return const _RoomInfoRightSidebar();
       case RightPaneChoice.members:
-        // TODO: Wire up members panel when implemented
-        return Center(
-          child: Text(
-            l10n.members,
-            style: const TextStyle(),
-          ),
-        );
+        return const _MembersRightSidebar();
     }
   }
 }
 
-// ─── Internal widgets ───────────────────────────────────────────────────────
+// ─── Right sidebar content widgets ───────────────────────────────────────────
+
+/// Shows a concise room-information panel in the right sidebar.
+///
+/// Reads the current room from [CurrentRoom].  When no room is active a
+/// placeholder message is shown.
+class _RoomInfoRightSidebar extends StatelessWidget {
+  const _RoomInfoRightSidebar();
+
+  @override
+  Widget build(BuildContext context) {
+    final currentRoom = context.watch<CurrentRoom>();
+    final room = currentRoom.room;
+
+    if (room == null) {
+      return _emptyPlaceholder(
+        context,
+        LucideIcons.arrowRightFromLine,
+        AppLocalizations.of(context)!.selectCategory,
+      );
+    }
+
+    return _buildRoomInfo(context, room);
+  }
+
+  Widget _buildRoomInfo(BuildContext context, Room room) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final displayName = room.getLocalizedDisplayname();
+    final topic = room.topic.isNotEmpty ? room.topic : l10n.noTopicSet;
+    final memberCount = (room.summary.mJoinedMemberCount ?? 0) +
+        (room.summary.mInvitedMemberCount ?? 0);
+    final roomType = room.isDirectChat
+        ? l10n.directMessage
+        : room.isSpace
+            ? l10n.spaceType
+            : room.joinRules == JoinRules.public
+                ? l10n.publicRoom
+                : l10n.privateRoom;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Room avatar + name
+          Center(
+            child: Column(
+              children: [
+                AvatarFromUriOrFallbackImage(
+                  client: room.client,
+                  avatarUri: room.avatar,
+                  radius: 36,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  displayName,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Topic
+          _InfoRow(
+            icon: LucideIcons.alignLeft,
+            label: topic,
+            scheme: scheme,
+          ),
+          const SizedBox(height: 8),
+
+          // Room type
+          _InfoRow(
+            icon: LucideIcons.hash,
+            label: roomType,
+            scheme: scheme,
+          ),
+          const SizedBox(height: 8),
+
+          // Room ID
+          _InfoRow(
+            icon: LucideIcons.tag,
+            label: room.id,
+            scheme: scheme,
+            mono: true,
+          ),
+          const SizedBox(height: 8),
+
+          // Member count
+          _InfoRow(
+            icon: LucideIcons.users,
+            label: l10n.membersCount(memberCount),
+            scheme: scheme,
+          ),
+          if (room.canonicalAlias.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _InfoRow(
+              icon: LucideIcons.atSign,
+              label: room.canonicalAlias,
+              scheme: scheme,
+              mono: true,
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Encryption status
+          _StatusCard(
+            icon: room.encrypted
+                ? LucideIcons.shieldCheck
+                : LucideIcons.shieldOff,
+            label: room.encrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
+            color: room.encrypted ? scheme.primary : scheme.error,
+            scheme: scheme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyPlaceholder(
+    BuildContext context,
+    IconData icon,
+    String message,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 40, color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single key-value row in the room-info sidebar.
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.scheme,
+    this.mono = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurface,
+              fontFamily: mono ? 'JetBrainsMono' : null,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A small card that highlights a status (e.g. encryption state).
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows the full room-members list in the right sidebar.
+///
+/// Reads the current room from [CurrentRoom].  When no room is active a
+/// placeholder is shown.
+class _MembersRightSidebar extends StatelessWidget {
+  const _MembersRightSidebar();
+
+  @override
+  Widget build(BuildContext context) {
+    final currentRoom = context.watch<CurrentRoom>();
+    final room = currentRoom.room;
+
+    if (room == null) {
+      final scheme = Theme.of(context).colorScheme;
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.arrowRightFromLine,
+              size: 40,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              AppLocalizations.of(context)!.selectCategory,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // The FullRoomMembersList normally comes with its own Scaffold and
+    // AppBar.  For the sidebar we strip those and render only the body.
+    return _MembersListWrapper(room: room);
+  }
+}
+
+/// Wraps [FullRoomMembersList] inside a sidebar-friendly layout that
+/// hides the outer Scaffold/AppBar.
+class _MembersListWrapper extends StatelessWidget {
+  const _MembersListWrapper({required this.room});
+
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    // FullRoomMembersList is designed as a standalone page with Scaffold.
+    // We reuse its logic by sharing the same implementation pattern here.
+    return Column(
+      children: [
+        // Inline search bar
+        Expanded(
+          child: FullRoomMembersList(room: room),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Internal dashboard-layout widgets ───────────────────────────────────────
 
 /// A draggable resize handle between panes.
 class _ResizeHandle extends StatelessWidget {

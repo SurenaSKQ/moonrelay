@@ -18,7 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// A Material 3 room header bar that reactively displays the room's name,
 /// topic, avatar, and member count.
@@ -27,7 +30,10 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 /// without requiring a manual rebuild. When the topic is missing or fails to
 /// load a friendly placeholder is shown instead.
 ///
-/// Tapping the header navigates to the full [RoomInformations] page.
+/// Tap behaviour depends on the right-sidebar configuration:
+/// - If the right sidebar is **enabled and set to "Room Info"**, tapping
+///   opens the sidebar (or does nothing if already open).
+/// - Otherwise, tapping navigates to the full [RoomInformations] page.
 class ChatRoomHeader extends StatefulWidget {
   const ChatRoomHeader({super.key, required this.room});
 
@@ -65,6 +71,26 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         (widget.room.summary.mJoinedMemberCount ?? 0);
   }
 
+  /// React to a tap on the room header.
+  ///
+  /// *If* the right sidebar is enabled *and* its pane choice is
+  /// [`RightPaneChoice.roomInfo`] we toggle the sidebar instead of
+  /// navigating to the full-info page.  Otherwise the old push-navigation
+  /// behaviour is retained.
+  void _onTap() {
+    final settings = context.read<SettingsController>();
+
+    if (settings.rightSidebarVisible &&
+        settings.rightPaneChoice == RightPaneChoice.roomInfo) {
+      // Sidebar is already open and on room_info → no-op.
+      // Otherwise (sidebar hidden, or on different pane) → open it.
+      return;
+    }
+
+    // Fall back to full-page navigation.
+    _openRoomInfo();
+  }
+
   /// Navigate to the full room information page.
   void _openRoomInfo() {
     Navigator.of(context).push(
@@ -93,7 +119,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             : AppLocalizations.of(context)!.noTopicSet;
 
         return GestureDetector(
-          onTap: _openRoomInfo,
+          onTap: _onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(

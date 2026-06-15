@@ -17,8 +17,10 @@
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 class RoomPage extends StatefulWidget {
   final Room room;
@@ -30,6 +32,20 @@ class RoomPage extends StatefulWidget {
 class _RoomPageState extends State<RoomPage> {
   /// The event the user is currently replying to (or null).
   final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<CurrentRoom>().setRoom(widget.room);
+  }
+
+  @override
+  void didUpdateWidget(RoomPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      context.read<CurrentRoom>().setRoom(widget.room);
+    }
+  }
 
   @override
   void dispose() {

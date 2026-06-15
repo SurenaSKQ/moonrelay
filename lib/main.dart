@@ -37,6 +37,7 @@ import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
 import 'src/encryption/encryption_service.dart';
 import 'src/helpers/log_service.dart';
+import 'src/helpers/current_room.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/settings/settings_controller.dart';
@@ -348,6 +349,9 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           ),
           ChangeNotifierProvider<EncryptionService>.value(
               value: _appState!.encryptionService),
+          ChangeNotifierProvider<CurrentRoom>(
+            create: (_) => CurrentRoom(),
+          ),
         ],
         child: const MoonrelayApp(),
       );
