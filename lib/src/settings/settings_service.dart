@@ -21,6 +21,7 @@ class SettingsService {
   static const _rightPaneChoiceKey = 'right_pane_choice';
   static const _headerReversedKey = 'header_reversed';
   static const _showStateEventsKey = 'show_state_events';
+  static const _showStatusBarKey = 'show_status_bar';
 
   Future<bool> useSystemTitlebar() async {
     final prefs = await SharedPreferences.getInstance();
@@ -147,6 +148,16 @@ class SettingsService {
   Future<void> updateShowStateEvents(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showStateEventsKey, value);
+  }
+
+  Future<bool> showStatusBar() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showStatusBarKey) ?? true;
+  }
+
+  Future<void> updateShowStatusBar(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showStatusBarKey, value);
   }
 
   Future<double> rightSidebarWidth() async {

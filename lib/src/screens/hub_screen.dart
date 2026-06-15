@@ -23,6 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/logs_page.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -134,6 +135,14 @@ class _HubScreenState extends State<HubScreen> {
           _HubNavigationItem(
             label: l10n.chatSettings,
             icon: LucideIcons.messageSquare,
+          ),
+          _HubNavigationItem(
+            label: 'Network',
+            icon: LucideIcons.activity,
+          ),
+          _HubNavigationItem(
+            label: 'Logs',
+            icon: LucideIcons.fileText,
           ),
         ],
       ),
@@ -329,6 +338,10 @@ class _HubScreenState extends State<HubScreen> {
           return _LayoutSettings();
         case 3:
           return _ChatSettings();
+        case 4:
+          return _NetworkSettings();
+        case 5:
+          return const LogsPage();
         default:
           return const SizedBox.shrink();
       }
@@ -996,6 +1009,60 @@ class _MyProfilePageState extends State<_MyProfilePage> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Network Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NetworkSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        final scheme = Theme.of(context).colorScheme;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Network',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Network and synchronisation settings.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SettingsSection(
+                title: 'Status bar',
+                children: [
+                  SwitchListTile(
+                    title: const Text('Show status bar'),
+                    subtitle: const Text(
+                      'Display the sync status bar at the bottom of the screen.',
+                    ),
+                    value: controller.showStatusBar,
+                    onChanged: (v) => controller.updateShowStatusBar(v),
+                    secondary: const Icon(LucideIcons.activity, size: 22),
+                  ),
+                ],
               ),
             ],
           ),

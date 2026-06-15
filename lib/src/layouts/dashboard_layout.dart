@@ -36,6 +36,7 @@ import 'package:moonrelay/src/widgets/navigation_pane.dart';
 import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/spaces_pane.dart';
+import 'package:moonrelay/src/widgets/status_bar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
@@ -137,57 +138,66 @@ class _DashboardView extends StatelessWidget {
 
         final bool showLeft = settings.leftSidebarVisible;
         final bool showRight = settings.rightSidebarVisible && isWide;
+        final bool showStatus = settings.showStatusBar;
 
         final ThemeData theme = Theme.of(context);
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Column(
           children: [
-            // ── Navigation pane (always visible) ─────────────────
-            const NavigationPane(),
-
-            // ── Left sidebar (rooms pane, collapsible) ───────────
-            if (showLeft)
-              _SidebarPane(
-                width: leftWidth ?? settings.leftSidebarWidth,
-                minWidth: 200,
-                title: settings.leftPaneChoice.label,
-                body: _buildLeftPane(context, settings.leftPaneChoice),
-                bottomBar: const PermanentPaneBottomItems(),
-                theme: theme,
-              ),
-
-            if (showLeft)
-              _ResizeHandle(
-                onDrag: onLeftResize,
-                onDragEnd: onLeftResizeEnd,
-              ),
-
-            // ── Main content ──────────────────────────────────────
             Expanded(
-              child: PostLoginSetupChecker(
-                child: IncomingVerificationListener(
-                  child: child,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Navigation pane (always visible) ─────────────────
+                  const NavigationPane(),
+
+                  // ── Left sidebar (rooms pane, collapsible) ───────────
+                  if (showLeft)
+                    _SidebarPane(
+                      width: leftWidth ?? settings.leftSidebarWidth,
+                      minWidth: 200,
+                      title: settings.leftPaneChoice.label,
+                      body: _buildLeftPane(context, settings.leftPaneChoice),
+                      bottomBar: const PermanentPaneBottomItems(),
+                      theme: theme,
+                    ),
+
+                  if (showLeft)
+                    _ResizeHandle(
+                      onDrag: onLeftResize,
+                      onDragEnd: onLeftResizeEnd,
+                    ),
+
+                  // ── Main content ──────────────────────────────────────
+                  Expanded(
+                    child: PostLoginSetupChecker(
+                      child: IncomingVerificationListener(
+                        child: child,
+                      ),
+                    ),
+                  ),
+
+                  // ── Right sidebar ─────────────────────────────────────
+                  if (showRight)
+                    _ResizeHandle(
+                      onDrag: onRightResize,
+                      onDragEnd: onRightResizeEnd,
+                    ),
+
+                  if (showRight)
+                    _SidebarPane(
+                      width: rightWidth ?? settings.rightSidebarWidth,
+                      minWidth: 200,
+                      title: '',
+                      body: _RightSidebarContent(room: room),
+                      bottomBar: null,
+                      theme: theme,
+                    ),
+                ],
               ),
             ),
-
-            // ── Right sidebar ─────────────────────────────────────
-            if (showRight)
-              _ResizeHandle(
-                onDrag: onRightResize,
-                onDragEnd: onRightResizeEnd,
-              ),
-
-            if (showRight)
-              _SidebarPane(
-                width: rightWidth ?? settings.rightSidebarWidth,
-                minWidth: 200,
-                title: '',
-                body: _RightSidebarContent(room: room),
-                bottomBar: null,
-                theme: theme,
-              ),
+            // ── Status bar (sync feedback) ────────────────────────────
+            if (showStatus) const ApplicationStatusBar(),
           ],
         );
       },
