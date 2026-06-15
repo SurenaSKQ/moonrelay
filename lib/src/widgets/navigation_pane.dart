@@ -25,6 +25,11 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
+const double _paneWidth = 80;
+const double _iconSize = 56;
+// unused
+const double _iconRadius = 18;
+
 class NavigationPane extends StatefulWidget {
   const NavigationPane({super.key});
   @override
@@ -33,12 +38,12 @@ class NavigationPane extends StatefulWidget {
 
 class _NavigationPaneState extends State<NavigationPane> {
   Set<String> _knownSpaceIds = {};
-  String? _dragHoverId; // target ID being hovered during group drag
+  String? _dragHoverId;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Client client = Provider.of<Client>(context);
+    final theme = Theme.of(context);
+    final client = Provider.of<Client>(context);
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsController>();
 
@@ -50,12 +55,10 @@ class _NavigationPaneState extends State<NavigationPane> {
           spaceGroups: settings.spaceGroups,
           order: settings.spaceOrder,
         );
-
-        // Detect new spaces and auto-group them.
         _detectNewSpaces(client.rooms, settings, l10n);
 
         return Container(
-          width: 68,
+          width: _paneWidth,
           color: theme.colorScheme.surfaceContainerLow,
           child: Column(children: [
             const SizedBox(height: 8),
@@ -64,24 +67,27 @@ class _NavigationPaneState extends State<NavigationPane> {
                 label: l10n.navigationHome,
                 isSelected: nav.isHome,
                 onTap: nav.selectHome,
-                theme: theme),
+                theme: theme,
+                useTooltip: true),
             _NavIconButton(
                 icon: LucideIcons.messageCircle,
                 label: l10n.navigationAll,
                 isSelected: nav.isAll,
                 onTap: nav.selectAll,
-                theme: theme),
+                theme: theme,
+                useTooltip: true),
             _NavIconButton(
                 icon: LucideIcons.plus,
                 label: l10n.addRoom,
                 isSelected: false,
                 onTap: () => context.push('/main/addroom'),
-                theme: theme),
+                theme: theme,
+                useTooltip: true),
             Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Container(
                     height: 2,
-                    width: 32,
+                    width: 40,
                     decoration: BoxDecoration(
                         color: theme.colorScheme.onSurfaceVariant
                             .withValues(alpha: 0.25),
@@ -89,19 +95,19 @@ class _NavigationPaneState extends State<NavigationPane> {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(top: 4),
-                children: navItems.map((item) {
-                  return switch (item) {
-                    NavSpaceLeaf(:final space) => _buildDraggableLeaf(
-                        context, space, nav, theme, settings, l10n),
-                    NavSpaceGroup(
-                      :final groupId,
-                      :final children,
-                      :final isExpanded
-                    ) =>
-                      _buildGroup(context, groupId, children, isExpanded, nav,
-                          theme, settings, l10n),
-                  };
-                }).toList(),
+                children: navItems
+                    .map((item) => switch (item) {
+                          NavSpaceLeaf(:final space) => _buildDraggableLeaf(
+                              context, space, nav, theme, settings, l10n),
+                          NavSpaceGroup(
+                            :final groupId,
+                            :final children,
+                            :final isExpanded
+                          ) =>
+                            _buildGroup(context, groupId, children, isExpanded,
+                                nav, theme, settings, l10n),
+                        })
+                    .toList(),
               ),
             ),
           ]),
@@ -112,33 +118,30 @@ class _NavigationPaneState extends State<NavigationPane> {
 
   void _detectNewSpaces(Iterable<Room> rooms, SettingsController settings,
       AppLocalizations l10n) {
-    final allSpaceIds = rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
-    final newIds = allSpaceIds.difference(_knownSpaceIds);
-    _knownSpaceIds = allSpaceIds;
+    final ids = rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
+    final newIds = ids.difference(_knownSpaceIds);
+    _knownSpaceIds = ids;
     if (newIds.isNotEmpty) {
-      // Collect all new spaces and their children for auto‑grouping.
-      final autoGroups = computeAutoGroups(rooms);
-      final relevantNewGroups = <String, List<String>>{};
-      for (final e in autoGroups.entries) {
+      final auto = computeAutoGroups(rooms);
+      final rel = <String, List<String>>{};
+      for (final e in auto.entries) {
         if (newIds.contains(e.key) || e.value.any((c) => newIds.contains(c))) {
-          relevantNewGroups[e.key] = e.value;
+          rel[e.key] = e.value;
         }
       }
-      if (relevantNewGroups.isNotEmpty) {
-        settings.sortIntoGroups(relevantNewGroups);
-      }
+      if (rel.isNotEmpty) settings.sortIntoGroups(rel);
     }
   }
 
-  // ── Leaf (standalone space) with drag support ─────────────────────
+  // ── Leaf ────────────────────────────────────────────────────────
 
   Widget _buildDraggableLeaf(BuildContext ctx, Room space, NavigationState nav,
       ThemeData theme, SettingsController settings, AppLocalizations l10n) {
     final sel = nav.isSpace && nav.selectedId == space.id;
-    final isHovered = _dragHoverId == space.id;
+    final hovered = _dragHoverId == space.id;
     return _SpaceDragTarget(
       id: space.id,
-      isHovered: isHovered,
+      isHovered: hovered,
       onWillAccept: (id) {
         setState(() => _dragHoverId = space.id);
         return true;
@@ -148,8 +151,8 @@ class _NavigationPaneState extends State<NavigationPane> {
       },
       onAccept: (id) {
         setState(() => _dragHoverId = null);
-        final gid = '_grp_${DateTime.now().millisecondsSinceEpoch}';
-        settings.createGroup(gid, [id, space.id]);
+        settings.createGroup(
+            '_grp_${DateTime.now().millisecondsSinceEpoch}', [id, space.id]);
       },
       child: LongPressDraggable<String>(
         data: space.id,
@@ -158,36 +161,34 @@ class _NavigationPaneState extends State<NavigationPane> {
             label: space.getLocalizedDisplayname(),
             avatarUri: space.avatar),
         childWhenDragging:
-            Opacity(opacity: 0.3, child: _leafIcon(sel, space, theme)),
+            Opacity(opacity: 0.25, child: iconLeaf(sel, space, theme)),
         child: _SpaceContextMenu(
             ctx: ctx,
             space: space,
             settings: settings,
             l10n: l10n,
             nav: nav,
-            child: _leafIcon(sel, space, theme)),
+            child: iconLeaf(sel, space, theme)),
       ),
     );
   }
 
-  Widget _leafIcon(bool sel, Room space, ThemeData theme) {
-    return _NavIconButton(
-      key: ValueKey(space.id),
-      icon: LucideIcons.folder,
-      label: space.getLocalizedDisplayname(),
-      isSelected: sel,
-      size: 52,
-      borderRadius: 16,
-      theme: theme,
-      avatarUri: space.avatar,
-    );
-  }
+  Widget iconLeaf(bool sel, Room space, ThemeData theme) => _NavIconButton(
+        icon: LucideIcons.folder,
+        label: space.getLocalizedDisplayname(),
+        isSelected: sel,
+        size: _iconSize,
+        borderRadius: _iconRadius,
+        theme: theme,
+        avatarUri: space.avatar,
+        useTooltip: false,
+      );
 
-  // ── Group widget ──────────────────────────────────────────────────
+  // ── Group ────────────────────────────────────────────────────────
 
   Widget _buildGroup(
       BuildContext ctx,
-      String groupId,
+      String gid,
       List<NavSpaceLeaf> children,
       bool expanded,
       NavigationState nav,
@@ -195,15 +196,14 @@ class _NavigationPaneState extends State<NavigationPane> {
       SettingsController settings,
       AppLocalizations l10n) {
     final scheme = theme.colorScheme;
-    final firstChild = children.isNotEmpty ? children.first.space : null;
-    final sel = false; // groups don't match nav selection
-    final isHovered = _dragHoverId == groupId;
+    final first = children.isNotEmpty ? children.first.space : null;
+    final hovered = _dragHoverId == gid;
 
     return _SpaceDragTarget(
-      id: groupId,
-      isHovered: isHovered,
+      id: gid,
+      isHovered: hovered,
       onWillAccept: (id) {
-        setState(() => _dragHoverId = groupId);
+        setState(() => _dragHoverId = gid);
         return true;
       },
       onLeave: () {
@@ -211,59 +211,85 @@ class _NavigationPaneState extends State<NavigationPane> {
       },
       onAccept: (id) {
         setState(() => _dragHoverId = null);
-        settings.addToGroup(groupId, id);
+        settings.addToGroup(gid, id);
       },
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.only(bottom: 4),
         child: Column(children: [
-          // Group header with expand toggle
-          _SpaceContextMenu(
-            ctx: ctx,
-            settings: settings,
-            l10n: l10n,
-            nav: nav,
-            groupId: groupId,
-            child: Stack(children: [
-              _NavIconButton(
-                key: ValueKey(groupId),
-                icon: LucideIcons.folder,
-                label: firstChild?.getLocalizedDisplayname() ?? 'Group',
-                isSelected: sel,
-                size: 52,
-                borderRadius: 16,
-                theme: theme,
-                avatarUri: firstChild?.avatar,
-              ),
-              Positioned(
-                right: 2,
-                bottom: 2,
-                child: GestureDetector(
-                  onTap: () => settings.toggleGroupCollapsed(groupId),
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                        color: scheme.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 3)
-                        ]),
-                    child: Icon(
-                        expanded
-                            ? LucideIcons.chevronDown
-                            : LucideIcons.chevronRight,
-                        size: 12,
-                        color: scheme.onSurface),
+          // Group container — rounded box with tinted background
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.25)),
+            ),
+            child: Column(children: [
+              // Group header with expand toggle
+              _SpaceContextMenu(
+                ctx: ctx,
+                settings: settings,
+                l10n: l10n,
+                nav: nav,
+                groupId: gid,
+                child: Stack(children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: _NavIconButton(
+                      icon: LucideIcons.folder,
+                      label: first?.getLocalizedDisplayname() ?? 'Group',
+                      isSelected: false,
+                      size: _iconSize,
+                      borderRadius: _iconRadius,
+                      theme: theme,
+                      avatarUri: first?.avatar,
+                      useTooltip: false,
+                    ),
                   ),
-                ),
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: GestureDetector(
+                      onTap: () => settings.toggleGroupCollapsed(gid),
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                            color: scheme.surface,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 3)
+                            ]),
+                        child: Icon(
+                            expanded
+                                ? LucideIcons.chevronDown
+                                : LucideIcons.chevronRight,
+                            size: 12,
+                            color: scheme.onSurface),
+                      ),
+                    ),
+                  ),
+                ]),
               ),
+              // Children
+              if (expanded)
+                ...children.map((c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: _buildDraggableLeaf(
+                          ctx, c.space, nav, theme, settings, l10n),
+                    )),
+              if (!expanded && children.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text('${children.length}',
+                      style: TextStyle(
+                          fontSize: 10, color: scheme.onSurfaceVariant)),
+                ),
             ]),
           ),
-          if (expanded)
-            ...children.map((c) =>
-                _buildDraggableLeaf(ctx, c.space, nav, theme, settings, l10n)),
         ]),
       ),
     );
@@ -271,7 +297,7 @@ class _NavigationPaneState extends State<NavigationPane> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Drag‑and‑drop widgets
+// Drag‑and‑drop
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _SpaceDragTarget extends StatelessWidget {
@@ -292,27 +318,23 @@ class _SpaceDragTarget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return DragTarget<String>(
       onWillAcceptWithDetails: (d) => onWillAccept(d.data),
       onLeave: (_) => onLeave(),
       onAcceptWithDetails: (d) => onAccept(d.data),
-      builder: (context, candidates, rejected) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          decoration: isHovered
-              ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: Theme.of(context).colorScheme.primary, width: 2),
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.08),
-                )
-              : null,
-          child: child,
-        );
-      },
+      builder: (context, candidates, rejected) => AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: isHovered
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: scheme.primary, width: 2.5),
+                color: scheme.primary.withValues(alpha: 0.12),
+              )
+            : null,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: child,
+      ),
     );
   }
 }
@@ -325,28 +347,25 @@ class _DragFeedback extends StatelessWidget {
   final Uri? avatarUri;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: SizedBox(
-        width: 52,
-        height: 52,
-        child: _NavIconButton(
-          icon: LucideIcons.folder,
-          label: label,
-          isSelected: false,
-          size: 52,
-          borderRadius: 14,
-          theme: theme,
-          avatarUri: avatarUri,
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: _iconSize,
+          height: _iconSize,
+          child: _NavIconButton(
+              icon: LucideIcons.folder,
+              label: label,
+              isSelected: false,
+              size: _iconSize,
+              borderRadius: _iconRadius - 2,
+              theme: theme,
+              avatarUri: avatarUri),
         ),
-      ),
-    );
-  }
+      );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Right‑click context menu wrapper
+// Context menu
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _SpaceContextMenu extends StatelessWidget {
@@ -368,55 +387,46 @@ class _SpaceContextMenu extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (space != null) {
-          nav.selectSpace(space!.id);
-          ctx.push('/main/space/${space!.id}');
-        }
-      },
-      onSecondaryTap: () => _showMenu(context),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () {
+          if (space != null) {
+            nav.selectSpace(space!.id);
+            ctx.push('/main/space/${space!.id}');
+          }
+        },
+        onSecondaryTap: () => _showMenu(context),
+        child: child,
+      );
 
   void _showMenu(BuildContext context) {
-    final items = <PopupMenuEntry<String>>[
-      if (space != null)
-        PopupMenuItem(
-            value: 'open',
-            child: _MenuRow(
-                icon: LucideIcons.externalLink, label: l10n.openSpace)),
-      if (space != null)
-        PopupMenuItem(
-            value: 'move_up',
-            child: _MenuRow(icon: LucideIcons.arrowUp, label: 'Move Up')),
-      if (space != null)
-        PopupMenuItem(
-            value: 'move_down',
-            child: _MenuRow(icon: LucideIcons.arrowDown, label: 'Move Down')),
-      const PopupMenuDivider(),
-      if (space != null && groupId == null)
-        PopupMenuItem(
-            value: 'ungroup',
-            child: _MenuRow(
-                icon: LucideIcons.ungroup, label: 'Remove from group')),
-      if (groupId != null)
-        PopupMenuItem(
-            value: 'ungroup_all',
-            child: _MenuRow(icon: LucideIcons.ungroup, label: 'Ungroup all')),
-      const PopupMenuDivider(),
-      PopupMenuItem(
-          value: 'sort_groups',
-          child:
-              _MenuRow(icon: LucideIcons.folders, label: 'Sort into groups')),
-    ];
-
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(68, 0, 68 + 52, 0),
-      items: items,
+      position: RelativeRect.fromLTRB(_paneWidth, 0, _paneWidth + 52, 0),
+      items: [
+        if (space != null)
+          PopupMenuItem(
+              value: 'open',
+              child: _Row(LucideIcons.externalLink, l10n.openSpace)),
+        if (space != null)
+          PopupMenuItem(
+              value: 'up', child: _Row(LucideIcons.arrowUp, 'Move Up')),
+        if (space != null)
+          PopupMenuItem(
+              value: 'dn', child: _Row(LucideIcons.arrowDown, 'Move Down')),
+        const PopupMenuDivider(),
+        if (space != null && groupId == null)
+          PopupMenuItem(
+              value: 'ungroup',
+              child: _Row(LucideIcons.ungroup, 'Remove from group')),
+        if (groupId != null)
+          PopupMenuItem(
+              value: 'ungroup_all',
+              child: _Row(LucideIcons.ungroup, 'Ungroup all')),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+            value: 'sort',
+            child: _Row(LucideIcons.folders, 'Sort into groups')),
+      ],
     ).then((v) {
       if (v == null || !ctx.mounted) return;
       switch (v) {
@@ -425,9 +435,9 @@ class _SpaceContextMenu extends StatelessWidget {
             nav.selectSpace(space!.id);
             ctx.push('/main/space/${space!.id}');
           }
-        case 'move_up':
+        case 'up':
           if (space != null) settings.moveUp(space!.id);
-        case 'move_down':
+        case 'dn':
           if (space != null) settings.moveDown(space!.id);
         case 'ungroup':
           if (space != null) settings.removeFromGroup(space!.id);
@@ -436,70 +446,77 @@ class _SpaceContextMenu extends StatelessWidget {
             for (final c in List.of(settings.spaceGroups[groupId] ?? []))
               settings.removeFromGroup(c);
           }
-        case 'sort_groups':
-          final client = Provider.of<Client>(ctx, listen: false);
-          settings.sortIntoGroups(computeAutoGroups(client.rooms));
+        case 'sort':
+          final c = Provider.of<Client>(ctx, listen: false);
+          settings.sortIntoGroups(computeAutoGroups(c.rooms));
       }
     });
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Icon button
+// Icon button – with NO Tooltip for draggable items to avoid LongPress conflict
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _NavIconButton extends StatelessWidget {
   const _NavIconButton({
-    super.key,
+    
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.theme,
     this.onTap,
-    this.onSecondaryTap,
+    
     this.avatarUri,
-    this.size = 52,
-    this.borderRadius = 16,
+    this.size = _iconSize,
+    this.borderRadius = _iconRadius,
+    this.useTooltip = false,
   });
   final IconData icon;
   final String label;
   final bool isSelected;
-  final VoidCallback? onTap, onSecondaryTap;
+  final VoidCallback? onTap;
   final ThemeData theme;
   final Uri? avatarUri;
   final double size, borderRadius;
+  final bool useTooltip;
 
   @override
   Widget build(BuildContext context) {
     final sc = theme.colorScheme;
     final c = isSelected ? sc.primary : sc.onSurfaceVariant;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 2, horizontal: (68 - size) / 2),
-      child: Tooltip(
-        message: label,
-        preferBelow: false,
-        child: GestureDetector(
-          onTap: onTap,
-          onSecondaryTap: onSecondaryTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? sc.primary.withValues(alpha: 0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(
-                  isSelected ? borderRadius : borderRadius - 4),
-            ),
-            child: Center(
-              child: avatarUri != null
-                  ? _SpaceAvatar(uri: avatarUri!, size: size * 0.55)
-                  : Icon(icon, size: size * 0.46, color: c),
-            ),
-          ),
+    final btn = GestureDetector(
+      onTap: onTap,
+      
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? sc.primary.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(
+              isSelected ? borderRadius : borderRadius - 4),
+        ),
+        child: Center(
+          child: avatarUri != null
+              ? _SpaceAvatar(uri: avatarUri!, size: size * 0.55)
+              : Icon(icon, size: size * 0.46, color: c),
         ),
       ),
+    );
+    if (useTooltip) {
+      return Padding(
+        padding: EdgeInsets.symmetric(
+            vertical: 3, horizontal: (_paneWidth - size) / 2),
+        child: Tooltip(message: label, preferBelow: false, child: btn),
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.symmetric(
+          vertical: 3, horizontal: (_paneWidth - size) / 2),
+      child: btn,
     );
   }
 }
@@ -518,13 +535,12 @@ class _SpaceAvatar extends StatelessWidget {
     final client = Provider.of<Client>(context);
     return FutureBuilder<Uri>(
       future: withTimeoutOrFallback(
-        () => uri.getThumbnailUri(client,
-            method: ThumbnailMethod.scale,
-            width: size.round(),
-            height: size.round()),
-        timeout: kDefaultTimeout,
-        fallback: uri,
-      ),
+          () => uri.getThumbnailUri(client,
+              method: ThumbnailMethod.scale,
+              width: size.round(),
+              height: size.round()),
+          timeout: kDefaultTimeout,
+          fallback: uri),
       builder: (context, s) => s.hasData
           ? CircleAvatar(
               radius: size / 2,
@@ -541,8 +557,8 @@ class _SpaceAvatar extends StatelessWidget {
   }
 }
 
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label});
+class _Row extends StatelessWidget {
+  const _Row(this.icon, this.label);
   final IconData icon;
   final String label;
   @override
