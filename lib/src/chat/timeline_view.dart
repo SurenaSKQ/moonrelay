@@ -268,12 +268,25 @@ class _TimelineViewState extends State<TimelineView> {
       final itemCount = eventIdToItemIndex.length;
       // Estimate position in the list. With reverse: true, item 0 is at
       // scroll offset 0 (bottom), and the last item is at maxScrollExtent.
+      final range = position.maxScrollExtent - position.minScrollExtent;
       final fraction = itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
-      final targetOffset = position.minScrollExtent +
-          (position.maxScrollExtent - position.minScrollExtent) * fraction;
+      final targetOffset = position.minScrollExtent + range * fraction;
+
+      // If the target is already roughly within viewport, skip scrolling
+      // and just show the highlight.
+      final distance = (targetOffset - position.pixels).abs();
+      final viewportHeight = position.viewportDimension;
+      if (distance < viewportHeight * 0.6) return;
+
+      // Scroll so the target sits about one third from the top of the
+      // viewport, preventing it from being hidden at the edge.
+      final paddedOffset = (targetOffset - viewportHeight * 0.33).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
 
       controller.animateTo(
-        targetOffset,
+        paddedOffset,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
