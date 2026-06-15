@@ -39,3 +39,5 @@ class MockUser extends Mock implements User {}
 class MockProfile extends Mock implements Profile {}
 
 class MockLogger extends Mock implements Logger {}
+
+class MockSyncUpdate extends Mock implements SyncUpdate {}

@@ -93,6 +93,18 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     }
 
     final bool isJoined = space.membership == Membership.join;
+    final canEdit = space.canChangeStateEvent('m.space.child');
+
+    // Build parent-space breadcrumb trail.
+    final parentSpaces = <Room>[];
+    for (final parent in space.spaceParents) {
+      final parentId = parent.roomId;
+      if (parentId == null) continue;
+      final parentRoom = client.getRoomById(parentId);
+      if (parentRoom != null) {
+        parentSpaces.add(parentRoom);
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -116,6 +128,11 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
+          // ── Parent-space breadcrumb ──────────────────────────────────
+          if (parentSpaces.isNotEmpty) ...[            _buildBreadcrumb(context, parentSpaces, scheme),
+            const SizedBox(height: 16),
+          ],
+
           // ── Space identity card ────────────────────────────────────────
           _buildIdentityCard(
             context,
@@ -130,9 +147,25 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           ),
           const SizedBox(height: 24),
 
+          // ── Quick actions (for members with permission) ────────────────
+          if (isJoined && canEdit) ...[            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            const SizedBox(height: 8),
+            _ActionTile(
+              icon: LucideIcons.plus,
+              label: l10n.addRoomToSpace,
+              description: l10n.spaceSettingsDescription,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SpaceSettingsPage(space: space),
+                ),
+              ),
+              scheme: scheme,
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Child subspaces ────────────────────────────────────────────
-          if (childSubspaces.isNotEmpty) ...[
-            _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
+          if (childSubspaces.isNotEmpty) ...[            _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
             const SizedBox(height: 8),
             ...childSubspaces.map(
               (child) => _buildChildTile(
@@ -148,8 +181,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           ],
 
           // ── Child rooms ────────────────────────────────────────────────
-          if (childRooms.isNotEmpty) ...[
-            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
+          if (childRooms.isNotEmpty) ...[            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             const SizedBox(height: 8),
             ...childRooms.map(
               (child) => _buildChildTile(
@@ -376,6 +408,52 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     );
   }
 
+  /// Builds a breadcrumb trail of parent spaces, each tappable to navigate up.
+  Widget _buildBreadcrumb(
+    BuildContext context,
+    List<Room> parents,
+    ColorScheme scheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (int i = 0; i < parents.length; i++) ...[            if (i > 0)
+              Icon(
+                LucideIcons.chevronRight,
+                size: 14,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            GestureDetector(
+              onTap: () => context.push('/main/space/${parents[i].id}'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  parents[i].getLocalizedDisplayname(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _joinSpace(BuildContext context, Room space) async {
     final log = context.read<Logger>();
     try {
@@ -457,6 +535,54 @@ class _InfoChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A tappable action row used in the quick-actions section.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    this.description,
+    required this.onTap,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? description;
+  final VoidCallback onTap;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side:
+            BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        leading: Icon(icon, size: 22, color: scheme.primary),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: description != null
+            ? Text(
+                description!,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+              )
+            : null,
+        trailing: Icon(
+          LucideIcons.chevronRight,
+          size: 18,
+          color: scheme.onSurfaceVariant,
+        ),
+        onTap: onTap,
       ),
     );
   }

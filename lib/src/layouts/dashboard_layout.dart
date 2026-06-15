@@ -35,6 +35,7 @@ import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
+import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import 'package:moonrelay/src/widgets/spaces_pane.dart';
 import 'package:moonrelay/src/widgets/status_bar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
@@ -211,12 +212,21 @@ class _DashboardView extends StatelessWidget {
       case LeftPaneChoice.rooms:
         return Consumer<NavigationState>(
           builder: (context, nav, _) {
+            // When a specific space is selected, show the hierarchical
+            // tree view with expandable subspace groups.
+            if (nav.isSpace) {
+              final Client client = Provider.of<Client>(context, listen: false);
+              final Room? space = client.getRoomById(nav.selectedId);
+              if (space != null) {
+                return SpaceRoomsPane(space: space, client: client);
+              }
+            }
+
+            // For Home (direct messages) and All Channels, show the
+            // traditional flat room list.
             return RoomsPane(roomFilter: (Room room) {
               if (nav.isAll) return true;
               if (nav.isHome) return room.isDirectChat;
-              if (nav.isSpace) {
-                return _roomBelongsToSpace(context, room, nav.selectedId);
-              }
               return true;
             });
           },
@@ -227,21 +237,6 @@ class _DashboardView extends StatelessWidget {
         return const FriendsChatsPane();
       case LeftPaneChoice.none:
         return const SizedBox.shrink();
-    }
-  }
-
-  /// Check whether [room] is a child of the space identified by [spaceId].
-  static bool _roomBelongsToSpace(
-      BuildContext context, Room room, String spaceId) {
-    try {
-      final Client client = Provider.of<Client>(context, listen: false);
-      final Room? space = client.getRoomById(spaceId);
-      if (space == null) return false;
-      final Set<String?> childIds =
-          space.spaceChildren.map((c) => c.roomId).toSet();
-      return childIds.contains(room.id);
-    } catch (_) {
-      return false;
     }
   }
 }
