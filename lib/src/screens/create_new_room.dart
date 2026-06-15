@@ -37,6 +37,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _topicController = TextEditingController();
   bool _isPublic = true;
+  bool _isSpace = false;
   bool _loading = false;
   String? _error;
 
@@ -58,6 +59,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
     final name = _nameController.text.trim();
     final topic = _topicController.text.trim();
+    final l10n = AppLocalizations.of(context)!;
 
     final result = await withRetry(
       () => client.createRoom(
@@ -67,6 +69,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
             ? CreateRoomPreset.publicChat
             : CreateRoomPreset.privateChat,
         visibility: _isPublic ? Visibility.public : Visibility.private,
+        creationContent: _isSpace ? {'type': 'm.space'} : null,
       ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
@@ -76,11 +79,16 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
     if (!mounted) return;
 
-    final l10n = AppLocalizations.of(context)!;
-
     switch (result) {
       case RetrySuccess(:final value):
-        context.go('/main/rooms/$value');
+        if (_isSpace) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.spaceCreated)),
+          );
+          context.go('/main/space/$value');
+        } else {
+          context.go('/main/rooms/$value');
+        }
       case RetryFailed(:final error):
         setState(() {
           _error = error is TimeoutException
@@ -111,7 +119,9 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => context.pop(),
         ),
-        title: Text(l10n.createNewRoom),
+        title: Text(
+          _isSpace ? l10n.createSpace : l10n.createNewRoom,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -183,6 +193,37 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
             const SizedBox(height: 20),
 
+            // Create as Space toggle
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: scheme.outlineVariant),
+              ),
+              child: SwitchListTile(
+                title: Text(
+                  l10n.createAsSpace,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text(
+                  l10n.createAsSpaceDescription,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                secondary: Icon(
+                  LucideIcons.folder,
+                  size: 22,
+                ),
+                value: _isSpace,
+                onChanged:
+                    (_loading) ? null : (v) => setState(() => _isSpace = v),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Visibility toggle
             Card(
               elevation: 0,
@@ -226,7 +267,11 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(LucideIcons.plus, size: 18),
-              label: Text(_loading ? l10n.loading : l10n.createRoom),
+              label: Text(_loading
+                  ? l10n.loading
+                  : _isSpace
+                      ? l10n.createSpace
+                      : l10n.createRoom),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

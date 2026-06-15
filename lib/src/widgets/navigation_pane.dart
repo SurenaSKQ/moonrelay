@@ -117,7 +117,10 @@ class _NavigationPaneState extends State<NavigationPane> {
                       icon: LucideIcons.folder,
                       label: space.getLocalizedDisplayname(),
                       isSelected: isSelected,
-                      onTap: () => nav.selectSpace(space.id),
+                      onTap: () {
+                        nav.selectSpace(space.id);
+                        context.push('/main/space/${space.id}');
+                      },
                       theme: theme,
                       // Use the space avatar if available
                       avatarUri: space.avatar,

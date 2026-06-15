@@ -888,5 +888,82 @@
   "showingLastKb": "(showing last 50 KB)",
   "@showingLastKb": {
     "description": "Indicator shown when only the last portion of a log file is displayed."
+  },
+
+  "spaceHome": "Space Home",
+  "@spaceHome": {
+    "description": "Title for the space home page."
+  },
+  "spaceChildRooms": "Rooms",
+  "@spaceChildRooms": {
+    "description": "Section header for child rooms in a space."
+  },
+  "spaceChildSpaces": "Subspaces",
+  "@spaceChildSpaces": {
+    "description": "Section header for child subspaces in a space."
+  },
+  "spaceNoChildren": "This space has no rooms yet",
+  "@spaceNoChildren": {
+    "description": "Empty state when a space has no child rooms or subspaces."
+  },
+  "spaceSettings": "Space Settings",
+  "@spaceSettings": {
+    "description": "Title for the space settings page."
+  },
+  "spaceSettingsDescription": "Manage rooms in this space",
+  "@spaceSettingsDescription": {
+    "description": "Subtitle for the space settings page."
+  },
+  "addRoomToSpace": "Add Room to Space",
+  "@addRoomToSpace": {
+    "description": "Button to add a room to the current space."
+  },
+  "removeRoomFromSpace": "Remove from Space",
+  "@removeRoomFromSpace": {
+    "description": "Button to remove a room from a space."
+  },
+  "selectRoomToAdd": "Select a room to add",
+  "@selectRoomToAdd": {
+    "description": "Prompt shown when picking a room to add to a space."
+  },
+  "roomAddedToSpace": "Room added to space",
+  "@roomAddedToSpace": {
+    "description": "Confirmation shown after adding a room to a space."
+  },
+  "roomRemovedFromSpace": "Room removed from space",
+  "@roomRemovedFromSpace": {
+    "description": "Confirmation shown after removing a room from a space."
+  },
+  "createAsSpace": "Create as Space",
+  "@createAsSpace": {
+    "description": "Toggle label for creating a space instead of a room."
+  },
+  "createAsSpaceDescription": "Create a space to organise your rooms",
+  "@createAsSpaceDescription": {
+    "description": "Description for the create-as-space toggle."
+  },
+  "createSpace": "Create Space",
+  "@createSpace": {
+    "description": "Button label for creating a new space."
+  },
+  "spaceCreated": "Space created",
+  "@spaceCreated": {
+    "description": "Confirmation shown after creating a space."
+  },
+  "openSpaceSettings": "Space Settings",
+  "@openSpaceSettings": {
+    "description": "Button to open the space settings page."
+  },
+  "addToSpace": "Add to Space",
+  "@addToSpace": {
+    "description": "Context menu item to add the current room to a space."
+  },
+  "suggested": "Suggested",
+  "@suggested": {
+    "description": "Label for suggested rooms in a space."
+  },
+  "joinSpace": "Join Space",
+  "@joinSpace": {
+    "description": "Button for non-members to join a space."
   }
 }

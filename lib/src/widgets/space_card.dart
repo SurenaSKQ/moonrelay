@@ -15,38 +15,93 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// A card widget for displaying a space's basic info in a grid or list.
+///
+/// Shows the space thumbnail (or a folder icon fallback), name, and
+/// an optional subtitle. Used by the space hierarchy browser and
+/// space home page for child subspace tiles.
 class SpaceCard extends StatelessWidget {
-  const SpaceCard(
-      {super.key,
-      required this.thumbnailURL,
-      required this.name,
-      required this.subtitle});
-  final String thumbnailURL;
-  final String name;
-  final String subtitle;
+  const SpaceCard({
+    super.key,
+    required this.name,
+    this.thumbnailURL,
+    this.subtitle,
+    this.onTap,
+  });
 
-// FIXME Text styling, app wide!
+  /// The display name of the space.
+  final String name;
+
+  /// Optional URL for the space avatar thumbnail.
+  final String? thumbnailURL;
+
+  /// Optional subtitle (e.g. room count or description).
+  final String? subtitle;
+
+  /// Called when the card is tapped.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Card(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            foregroundImage:
-                thumbnailURL.isEmpty ? null : NetworkImage(thumbnailURL),
-            onForegroundImageError: (_, __) {},
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundImage:
+                    thumbnailURL != null && thumbnailURL!.isNotEmpty
+                        ? NetworkImage(thumbnailURL!)
+                        : null,
+                backgroundColor: scheme.primaryContainer,
+                onBackgroundImageError: (_, __) {},
+                child: thumbnailURL == null || thumbnailURL!.isEmpty
+                    ? Icon(
+                        LucideIcons.folder,
+                        size: 24,
+                        color: scheme.onPrimaryContainer,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
           ),
-          Text(
-            name,
-            // style: ,
-          ),
-          Text(
-            subtitle,
-            // style:,
-          ),
-        ],
+        ),
       ),
     );
   }
