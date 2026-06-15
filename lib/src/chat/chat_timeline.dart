@@ -105,9 +105,9 @@ class _ChatTimelineState extends State<ChatTimeline> {
 
     final result = await withRetry(
       () => widget.room.getTimeline(
-        onChange: (_) => setState(() => _timelineVersion++),
-        onInsert: (_) => setState(() => _timelineVersion++),
-        onRemove: (_) => setState(() => _timelineVersion++),
+        onChange: (_) => _onTimelineUpdate(),
+        onInsert: (_) => _onTimelineUpdate(),
+        onRemove: (_) => _onTimelineUpdate(),
         onUpdate: () {},
       ),
       maxRetries: 1,
@@ -330,10 +330,16 @@ class _ChatTimelineState extends State<ChatTimeline> {
   // Dispose
   // ---------------------------------------------------------------------------
 
+  void _onTimelineUpdate() {
+    if (!mounted) return;
+    setState(() => _timelineVersion++);
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _timeline?.cancelSubscriptions();
     super.dispose();
   }
 }
