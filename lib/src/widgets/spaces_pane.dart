@@ -16,7 +16,6 @@
 
 import 'dart:async';
 
-import 'package:badges/badges.dart' as badges;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -252,9 +251,19 @@ class _SpacesPaneState extends State<SpacesPane> {
           maxLines: 1,
         ),
         trailing: (rooms[index].notificationCount > 0)
-            ? badges.Badge(
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Text(
                   rooms[index].notificationCount.toString(),
+                  style: TextStyle(
+                    color: scheme.onError,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               )
             : null,

@@ -16,8 +16,7 @@
 
 import 'dart:async';
 
-import 'package:badges/badges.dart';
-import 'package:flutter/material.dart' hide Badge;
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -119,72 +118,10 @@ class RoomsPane extends StatelessWidget {
             itemCount: currentRooms.length,
             itemBuilder: (context, index) {
               final Room room = currentRooms.elementAt(index);
-              final Color badgeColor = Theme.of(context).colorScheme.primary;
 
               return ListTile(
-                // FIXME: Avatar & Badge
-                leading: Badge(
-                  showBadge: room.hasNewMessages,
-                  badgeStyle: BadgeStyle(
-                    badgeColor: badgeColor,
-                    shape: BadgeShape.circle,
-                  ),
-                  badgeContent: Icon(
-                    Icons.notifications,
-                    size: 8,
-                  ),
-                  child: (room.avatar == null)
-                      ? CircleAvatar(
-                          child: Text(
-                            room
-                                .getLocalizedDisplayname()
-                                .toUpperCase()
-                                .split(RegExp(' +'))
-                                .map((s) => s[0])
-                                .take(2)
-                                .join(),
-                          ),
-                        )
-                      : FutureBuilder(
-                          future: withTimeoutOrFallback(
-                            () => room.avatar!.getThumbnailUri(
-                              client,
-                              method: ThumbnailMethod.scale,
-                              height: 56,
-                              width: 56,
-                            ),
-                            timeout: kDefaultTimeout,
-                            fallback: null,
-                          ),
-                          builder: (context, asyncSnapshot) {
-                            if (asyncSnapshot.hasData &&
-                                asyncSnapshot.data != null) {
-                              return CircleAvatar(
-                                backgroundImage: NetworkImage(
-                                  asyncSnapshot.data.toString(),
-                                  headers: {
-                                    'authorization':
-                                        'Bearer ${client.accessToken}',
-                                  },
-                                ),
-                                onBackgroundImageError: (_, __) {},
-                              );
-                            }
-                            return CircleAvatar(
-                              child: Text(
-                                room
-                                    .getLocalizedDisplayname()
-                                    .toUpperCase()
-                                    .split(RegExp(' +'))
-                                    .map((s) => s[0])
-                                    .take(2)
-                                    .join(),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-
+                leading:
+                    _RoomAvatar(room: room, client: client, scheme: scheme),
                 title: Row(
                   children: [
                     Expanded(
@@ -253,6 +190,110 @@ Future<void> _joinRoom(BuildContext context, Room room) async {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A compact room avatar with a small unread dot overlaid at the
+/// bottom-right corner when the room has new messages.
+///
+/// Uses the theme's [ColorScheme.error] for the dot and [ColorScheme.surface]
+/// for the border so it integrates cleanly with light and dark themes.
+class _RoomAvatar extends StatelessWidget {
+  const _RoomAvatar({
+    required this.room,
+    required this.client,
+    required this.scheme,
+  });
+
+  final Room room;
+  final Client client;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Stack(
+        children: [
+          // The avatar fills the available area.
+          Positioned.fill(child: _buildAvatar()),
+          // Unread dot – bottom-right, partially overlaps the avatar edge.
+          if (room.hasNewMessages)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: scheme.error,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: scheme.surface,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    if (room.avatar == null) {
+      return CircleAvatar(
+        child: Text(
+          room
+              .getLocalizedDisplayname()
+              .toUpperCase()
+              .split(RegExp(' +'))
+              .map((s) => s[0])
+              .take(2)
+              .join(),
+        ),
+      );
+    }
+
+    return FutureBuilder<Uri?>(
+      future: withTimeoutOrFallback(
+        () => room.avatar!.getThumbnailUri(
+          client,
+          method: ThumbnailMethod.scale,
+          height: 56,
+          width: 56,
+        ),
+        timeout: kDefaultTimeout,
+        fallback: null,
+      ),
+      builder: (context, asyncSnapshot) {
+        final uri = asyncSnapshot.data;
+        if (uri != null) {
+          return CircleAvatar(
+            backgroundImage: NetworkImage(
+              uri.toString(),
+              headers: {
+                'authorization': 'Bearer ${client.accessToken}',
+              },
+            ),
+            onBackgroundImageError: (_, __) {},
+          );
+        }
+// Fallback to initials when the thumbnail hasn't loaded yet or failed.
+        return CircleAvatar(
+          child: Text(
+            room
+                .getLocalizedDisplayname()
+                .toUpperCase()
+                .split(RegExp(' +'))
+                .map((s) => s[0])
+                .take(2)
+                .join(),
+          ),
+        );
+      },
     );
   }
 }
