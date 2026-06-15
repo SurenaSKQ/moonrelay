@@ -4,7 +4,7 @@ description: "a Matrix client with a focus on professional usage."
 # Prevent accidental publishing to pub.dev.
 publish_to: "none"
 
-version: 0.2.0+1
+version: 0.3.0+0
 
 environment:
   sdk: ">=3.2.6 <4.0.0"
