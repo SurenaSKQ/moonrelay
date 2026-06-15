@@ -111,7 +111,7 @@ class _DirectorySearchTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const RoomDirectorySearch();
+    return const RoomDirectorySearch(embedded: true);
   }
 }
 

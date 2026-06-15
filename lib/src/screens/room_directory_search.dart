@@ -34,7 +34,12 @@ import 'package:provider/provider.dart';
 /// - Joining a room directly from the result list
 /// - Joining by room ID / alias as a fallback option
 class RoomDirectorySearch extends StatefulWidget {
-  const RoomDirectorySearch({super.key});
+  /// When `true`, the widget renders without its own [Scaffold] / [AppBar]
+  /// so it can be embedded inside another page (e.g. as a tab in
+  /// [AddRoomPage]) without duplicating the chrome.
+  final bool embedded;
+
+  const RoomDirectorySearch({super.key, this.embedded = false});
 
   @override
   State<RoomDirectorySearch> createState() => _RoomDirectorySearchState();
@@ -194,6 +199,81 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
+    final Widget body = Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: l10n.joinRoomInstructions,
+              prefixIcon: const Icon(LucideIcons.search, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(LucideIcons.x, size: 18),
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : null,
+              filled: true,
+              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+            ),
+            textInputAction: TextInputAction.search,
+          ),
+        ),
+
+        // Join error banner
+        if (_joinError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.alertCircle, size: 18, color: scheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _joinError!,
+                      style: TextStyle(
+                        color: scheme.onErrorContainer,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(LucideIcons.x, size: 16, color: scheme.error),
+                    onPressed: () => setState(() => _joinError = null),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 4),
+
+        // Results area
+        Expanded(
+          child: _buildContent(scheme, l10n),
+        ),
+      ],
+    );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -205,80 +285,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: l10n.joinRoomInstructions,
-                prefixIcon: const Icon(LucideIcons.search, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(LucideIcons.x, size: 18),
-                        onPressed: () => _searchController.clear(),
-                      )
-                    : null,
-                filled: true,
-                fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-              ),
-              textInputAction: TextInputAction.search,
-            ),
-          ),
-
-          // Join error banner
-          if (_joinError != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.alertCircle,
-                        size: 18, color: scheme.error),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _joinError!,
-                        style: TextStyle(
-                          color: scheme.onErrorContainer,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(LucideIcons.x, size: 16, color: scheme.error),
-                      onPressed: () => setState(() => _joinError = null),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 4),
-
-          // Results area
-          Expanded(
-            child: _buildContent(scheme, l10n),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 

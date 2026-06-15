@@ -114,38 +114,36 @@ class RoomsPane extends StatelessWidget {
             );
           }
 
-          return Expanded(
-            child: ListView.builder(
-              itemCount: currentRooms.length,
-              itemBuilder: (context, index) {
-                final Room room = currentRooms.elementAt(index);
+          return ListView.builder(
+            itemCount: currentRooms.length,
+            itemBuilder: (context, index) {
+              final Room room = currentRooms.elementAt(index);
 
-                return ListTile(
-                  leading:
-                      _RoomAvatar(room: room, client: client, scheme: scheme),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          room.getLocalizedDisplayname(),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w300, fontSize: 18),
-                        ),
+              return ListTile(
+                leading:
+                    _RoomAvatar(room: room, client: client, scheme: scheme),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        room.getLocalizedDisplayname(),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w300, fontSize: 18),
                       ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    room.lastEvent?.body ?? l10n.noMessages,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w300,
-                      fontSize: 16,
                     ),
+                  ],
+                ),
+                subtitle: Text(
+                  room.lastEvent?.body ?? l10n.noMessages,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w300,
+                    fontSize: 16,
                   ),
-                  onTap: () => _joinRoom(context, room),
-                );
-              },
-            ),
+                ),
+                onTap: () => _joinRoom(context, room),
+              );
+            },
           );
         },
       ),
