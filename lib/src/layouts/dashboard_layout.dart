@@ -225,7 +225,7 @@ class _DashboardView extends StatelessWidget {
             // For Home (direct messages) and All Channels, show the
             // traditional flat room list.
             return RoomsPane(roomFilter: (Room room) {
-              if (nav.isAll) return true;
+              if (nav.isAll) return !room.isSpace;
               if (nav.isHome) return room.isDirectChat;
               return true;
             });

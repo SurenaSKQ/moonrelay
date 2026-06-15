@@ -125,7 +125,7 @@ class _SpacesPaneState extends State<SpacesPane> {
   }
 
   Widget _buildBody(Client client, ColorScheme scheme, AppLocalizations l10n) {
-    final rooms = client.rooms;
+    final rooms = client.rooms.where((r) => r.isSpace).toList();
 
     // Loading state — keep retrying until the room list stabilises.
     if (!_settled) {

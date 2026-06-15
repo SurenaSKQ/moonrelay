@@ -986,5 +986,147 @@
   "pinnedSpaces": "Pinned",
   "@pinnedSpaces": {
     "description": "Section header for pinned subspaces in the navigation pane."
+  },
+
+  "deleteRoom": "Delete Room",
+  "@deleteRoom": {
+    "description": "Button to permanently delete a room."
+  },
+  "deleteRoomDescription": "Permanently delete this room and all its messages",
+  "@deleteRoomDescription": {
+    "description": "Subtitle for the delete room action."
+  },
+  "deleteRoomConfirm": "Are you sure you want to permanently delete \"{roomName}\"? This action cannot be undone.",
+  "@deleteRoomConfirm": {
+    "description": "Confirmation dialog for deleting a room.",
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "deleteRoomSuccess": "Room deleted",
+  "@deleteRoomSuccess": {
+    "description": "Confirmation shown after deleting a room."
+  },
+  "deleteRoomFailed": "Failed to delete room: {error}",
+  "@deleteRoomFailed": {
+    "description": "Error shown when room deletion fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "forgetRoom": "Forget Room",
+  "@forgetRoom": {
+    "description": "Button to forget a room locally."
+  },
+  "forgetRoomDescription": "Remove this room from your account",
+  "@forgetRoomDescription": {
+    "description": "Subtitle for the forget room action."
+  },
+  "deleteRoomAdminOnly": "Only room administrators can delete rooms",
+  "@deleteRoomAdminOnly": {
+    "description": "Message shown when a non-admin tries to delete a room."
+  },
+
+  "deleteSpace": "Delete Space and Channels",
+  "@deleteSpace": {
+    "description": "Button to delete a space and all its child rooms."
+  },
+  "deleteSpaceDescription": "Delete this space and all its rooms",
+  "@deleteSpaceDescription": {
+    "description": "Subtitle for the delete space action."
+  },
+  "deleteSpaceConfirm": "Are you sure you want to permanently delete \"{spaceName}\" and all its child rooms? This action cannot be undone.",
+  "@deleteSpaceConfirm": {
+    "description": "Confirmation dialog for deleting a space.",
+    "placeholders": {
+      "spaceName": { "type": "String" }
+    }
+  },
+  "deleteSpaceSuccess": "Space and channels deleted",
+  "@deleteSpaceSuccess": {
+    "description": "Confirmation shown after deleting a space."
+  },
+  "deleteSpaceFailed": "Failed to delete space: {error}",
+  "@deleteSpaceFailed": {
+    "description": "Error shown when space deletion fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "deleteSpaceNotEnoughPower": "You need admin permissions on the space and all its rooms to delete it",
+  "@deleteSpaceNotEnoughPower": {
+    "description": "Message shown when user lacks power to delete a space."
+  },
+  "deleteChildRoomFailed": "Failed to delete room \"{name}\": {error}",
+  "@deleteChildRoomFailed": {
+    "description": "Error when deleting a child room of a space fails.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "error": { "type": "String" }
+    }
+  },
+
+  "roomAlias": "Room address (optional)",
+  "@roomAlias": {
+    "description": "Label for the room alias input."
+  },
+  "roomAliasHint": "e.g. my-cool-room",
+  "@roomAliasHint": {
+    "description": "Hint text for the room alias input."
+  },
+  "inviteUsers": "Invite users (optional)",
+  "@inviteUsers": {
+    "description": "Label for the invite users input."
+  },
+  "inviteUsersHint": "User IDs separated by commas",
+  "@inviteUsersHint": {
+    "description": "Hint text for the invite users input."
+  },
+  "advancedOptions": "Advanced Options",
+  "@advancedOptions": {
+    "description": "Section header for advanced room creation options."
+  },
+  "enableEncryption": "Enable end-to-end encryption",
+  "@enableEncryption": {
+    "description": "Toggle label for enabling encryption."
+  },
+  "enableEncryptionDescription": "Encrypt messages end-to-end. This cannot be changed later.",
+  "@enableEncryptionDescription": {
+    "description": "Description for the encryption toggle."
+  },
+  "roomVisibilitySection": "Visibility",
+  "@roomVisibilitySection": {
+    "description": "Section header for room visibility options."
+  },
+  "publicChatDescription": "Anyone can find and join",
+  "@publicChatDescription": {
+    "description": "Description for public chat preset."
+  },
+  "privateChatDescription": "Only invited people can join",
+  "@privateChatDescription": {
+    "description": "Description for private chat preset."
+  },
+
+  "forgetRoomConfirm": "Are you sure you want to forget \"{roomName}\"? It will be removed from your account.",
+  "@forgetRoomConfirm": {
+    "description": "Confirmation dialog for forgetting a room.",
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "forgetRoomSuccess": "Room forgotten",
+  "@forgetRoomSuccess": {
+    "description": "Confirmation shown after forgetting a room."
+  },
+  "forgetRoomFailed": "Failed to forget room: {error}",
+  "@forgetRoomFailed": {
+    "description": "Error shown when forgetting a room fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "actionsDeleteSection": "Danger Zone",
+  "@actionsDeleteSection": {
+    "description": "Section header for destructive room actions."
   }
 }

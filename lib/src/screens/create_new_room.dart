@@ -36,8 +36,12 @@ class CreateNewRoomPage extends StatefulWidget {
 class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _topicController = TextEditingController();
+  final TextEditingController _aliasController = TextEditingController();
+  final TextEditingController _inviteController = TextEditingController();
   bool _isPublic = true;
   bool _isSpace = false;
+  bool _enableEncryption = false;
+  bool _showAdvanced = false;
   bool _loading = false;
   String? _error;
 
@@ -45,7 +49,19 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   void dispose() {
     _nameController.dispose();
     _topicController.dispose();
+    _aliasController.dispose();
+    _inviteController.dispose();
     super.dispose();
+  }
+
+  List<String> _parseInvites() {
+    final text = _inviteController.text.trim();
+    if (text.isEmpty) return [];
+    return text
+        .split(RegExp('[,\n]'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   Future<void> _createRoom() async {
@@ -59,17 +75,33 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
     final name = _nameController.text.trim();
     final topic = _topicController.text.trim();
+    final alias = _aliasController.text.trim();
+    final invites = _parseInvites();
     final l10n = AppLocalizations.of(context)!;
+
+    // Build initial state for encryption.
+    final initialState = <StateEvent>[];
+    if (_enableEncryption && !_isSpace) {
+      initialState.add(
+        StateEvent(
+          type: 'm.room.encryption',
+          content: {'algorithm': 'm.megolm.v1.aes-sha2'},
+        ),
+      );
+    }
 
     final result = await withRetry(
       () => client.createRoom(
         name: name.isNotEmpty ? name : null,
         topic: topic.isNotEmpty ? topic : null,
+        roomAliasName: alias.isNotEmpty ? alias : null,
+        invite: invites.isNotEmpty ? invites : null,
         preset: _isPublic
             ? CreateRoomPreset.publicChat
             : CreateRoomPreset.privateChat,
         visibility: _isPublic ? Visibility.public : Visibility.private,
         creationContent: _isSpace ? {'type': 'm.space'} : null,
+        initialState: initialState.isNotEmpty ? initialState : null,
       ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
@@ -254,6 +286,129 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                     (_loading) ? null : (v) => setState(() => _isPublic = v),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // ── Advanced options toggle ─────────────────────────────────
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: scheme.outlineVariant),
+              ),
+              child: SwitchListTile(
+                title: Text(
+                  l10n.advancedOptions,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                secondary: Icon(
+                  LucideIcons.settings2,
+                  size: 22,
+                ),
+                value: _showAdvanced,
+                onChanged: (_loading)
+                    ? null
+                    : (v) => setState(() => _showAdvanced = v),
+              ),
+            ),
+
+            if (_showAdvanced) ...[
+              const SizedBox(height: 16),
+
+              // Room alias
+              Text(
+                l10n.roomAlias,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _aliasController,
+                enabled: !_loading,
+                decoration: InputDecoration(
+                  hintText: l10n.roomAliasHint,
+                  filled: true,
+                  fillColor:
+                      scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 20),
+
+              // Invite users
+              Text(
+                l10n.inviteUsers,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _inviteController,
+                enabled: !_loading,
+                decoration: InputDecoration(
+                  hintText: l10n.inviteUsersHint,
+                  filled: true,
+                  fillColor:
+                      scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 20),
+
+              // Encryption toggle (only for non-space rooms)
+              if (!_isSpace)
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: scheme.outlineVariant),
+                  ),
+                  child: SwitchListTile(
+                    title: Text(
+                      l10n.enableEncryption,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      l10n.enableEncryptionDescription,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    secondary: Icon(
+                      LucideIcons.shield,
+                      size: 22,
+                    ),
+                    value: _enableEncryption,
+                    onChanged: (_loading)
+                        ? null
+                        : (v) => setState(() => _enableEncryption = v),
+                  ),
+                ),
+              if (!_isSpace) const SizedBox(height: 16),
+            ],
 
             const SizedBox(height: 32),
 

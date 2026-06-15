@@ -18,8 +18,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
@@ -292,6 +294,142 @@ class _RoomInformationsState extends State<RoomInformations> {
   }
 
   // ---------------------------------------------------------------------------
+  // Room deletion / forgetting
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current user has admin power (can change power levels).
+  bool get _isAdmin => widget.room.canChangeStateEvent('m.room.power_levels');
+
+  /// Permanently delete the room via the server admin API, then leave it.
+  Future<void> _deleteRoom() async {
+    final room = widget.room;
+    final l10n = AppLocalizations.of(context)!;
+
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteRoomAdminOnly),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteRoom),
+        content: Text(l10n.deleteRoomConfirm(
+          room.getLocalizedDisplayname(),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final log = context.read<Logger>();
+    final client = context.read<Client>();
+
+    try {
+      // Attempt to delete via the Synapse admin API.
+      // The endpoint may not exist on all homeserver implementations.
+      final serverUrl = client.homeserver.toString();
+      final url = serverUrl.endsWith('/')
+          ? '${serverUrl}_synapse/admin/v2/rooms/${room.id}/delete'
+          : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
+
+      await withRetry(
+        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'deleteRoom',
+      );
+
+      // Leave the room locally in case the server doesn't support deletion.
+      await room.leave();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteRoomSuccess),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/main/rooms');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteRoomFailed('$e')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Forget the room (remove it from the local account).
+  Future<void> _forgetRoom() async {
+    final room = widget.room;
+    final l10n = AppLocalizations.of(context)!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.forgetRoom),
+        content: Text(l10n.forgetRoomConfirm(
+          room.getLocalizedDisplayname(),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.forgetRoom),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await room.leave();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.forgetRoomSuccess),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/main/rooms');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.forgetRoomFailed('$e')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -367,6 +505,35 @@ class _RoomInformationsState extends State<RoomInformations> {
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar'))
             ..._buildEditingActions(scheme, l10n, room),
+          const SizedBox(height: 16),
+
+          // ── Danger zone (admin-only destructive actions) ──────────────
+          if (_isAdmin || room.membership == Membership.leave)
+            _SectionHeader(
+              title: l10n.actionsDeleteSection,
+              scheme: scheme,
+            ),
+          if (_isAdmin) ...[
+            const SizedBox(height: 8),
+            _ActionTile(
+              icon: LucideIcons.trash2,
+              label: l10n.deleteRoom,
+              description: l10n.deleteRoomDescription,
+              color: scheme.error,
+              onTap: _deleteRoom,
+              scheme: scheme,
+            ),
+          ],
+          if (room.membership == Membership.leave) ...[
+            const SizedBox(height: 8),
+            _ActionTile(
+              icon: LucideIcons.eyeOff,
+              label: l10n.forgetRoom,
+              description: l10n.forgetRoomDescription,
+              onTap: _forgetRoom,
+              scheme: scheme,
+            ),
+          ],
           const SizedBox(height: 16),
 
           // ── Room details ─────────────────────────────────────────────

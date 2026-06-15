@@ -26,6 +26,9 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:provider/provider.dart';
 
+/// Maximum number of child rooms to delete before showing a progress dialog.
+const int _maxDeleteWithoutProgress = 5;
+
 /// The main landing page for a space, showing its avatar, name, topic,
 /// member count, child rooms, and child subspaces.
 ///
@@ -129,7 +132,8 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
           // ── Parent-space breadcrumb ──────────────────────────────────
-          if (parentSpaces.isNotEmpty) ...[            _buildBreadcrumb(context, parentSpaces, scheme),
+          if (parentSpaces.isNotEmpty) ...[
+            _buildBreadcrumb(context, parentSpaces, scheme),
             const SizedBox(height: 16),
           ],
 
@@ -148,7 +152,8 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           const SizedBox(height: 24),
 
           // ── Quick actions (for members with permission) ────────────────
-          if (isJoined && canEdit) ...[            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+          if (isJoined && canEdit) ...[
+            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
             const SizedBox(height: 8),
             _ActionTile(
               icon: LucideIcons.plus,
@@ -164,8 +169,27 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             const SizedBox(height: 16),
           ],
 
+          // ── Danger zone (space deletion) ──────────────────────────────
+          if (_canDeleteSpace()) ...[
+            _SectionHeader(
+              title: l10n.actionsDeleteSection,
+              scheme: scheme,
+            ),
+            const SizedBox(height: 8),
+            _ActionTile(
+              icon: LucideIcons.trash2,
+              label: l10n.deleteSpace,
+              description: l10n.deleteSpaceDescription,
+              color: scheme.error,
+              onTap: _deleteSpace,
+              scheme: scheme,
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Child subspaces ────────────────────────────────────────────
-          if (childSubspaces.isNotEmpty) ...[            _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
+          if (childSubspaces.isNotEmpty) ...[
+            _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
             const SizedBox(height: 8),
             ...childSubspaces.map(
               (child) => _buildChildTile(
@@ -181,7 +205,8 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           ],
 
           // ── Child rooms ────────────────────────────────────────────────
-          if (childRooms.isNotEmpty) ...[            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
+          if (childRooms.isNotEmpty) ...[
+            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             const SizedBox(height: 8),
             ...childRooms.map(
               (child) => _buildChildTile(
@@ -421,7 +446,8 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (int i = 0; i < parents.length; i++) ...[            if (i > 0)
+          for (int i = 0; i < parents.length; i++) ...[
+            if (i > 0)
               Icon(
                 LucideIcons.chevronRight,
                 size: 14,
@@ -430,8 +456,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             GestureDetector(
               onTap: () => context.push('/main/space/${parents[i].id}'),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: scheme.primaryContainer.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(6),
@@ -452,6 +477,164 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Space deletion
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current user is admin of the space and all its child rooms.
+  bool _canDeleteSpace() {
+    final space = widget.space;
+    // Must be admin of the space itself.
+    if (!space.canChangeStateEvent('m.room.power_levels')) return false;
+
+    // Must be admin of all joined child rooms.
+    final client = space.client;
+    for (final child in space.spaceChildren) {
+      final cid = child.roomId;
+      if (cid == null) continue;
+      final childRoom = client.getRoomById(cid);
+      if (childRoom != null &&
+          childRoom.membership == Membership.join &&
+          !childRoom.canChangeStateEvent('m.room.power_levels')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Delete a child room via the admin API.
+  Future<void> _deleteChildRoom(Room room, Logger log) async {
+    final client = room.client;
+    final serverUrl = client.homeserver.toString();
+    final url = serverUrl.endsWith('/')
+        ? '${serverUrl}_synapse/admin/v2/rooms/${room.id}/delete'
+        : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
+
+    await withRetry(
+      () => client.httpClient.post(Uri.parse(url), body: '{}'),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'deleteChildRoom',
+    );
+  }
+
+  /// Permanently delete this space and all its child rooms.
+  Future<void> _deleteSpace() async {
+    final space = widget.space;
+    final l10n = AppLocalizations.of(context)!;
+    final log = context.read<Logger>();
+
+    if (!_canDeleteSpace()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceNotEnoughPower),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteSpace),
+        content: Text(l10n.deleteSpaceConfirm(
+          space.getLocalizedDisplayname(),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final client = space.client;
+    final childRooms = space.spaceChildren
+        .map((c) => c.roomId != null ? client.getRoomById(c.roomId!) : null)
+        .whereType<Room>()
+        .where((r) => r.membership == Membership.join)
+        .toList();
+
+    // For many children, show a progress dialog.
+    if (childRooms.length > _maxDeleteWithoutProgress && mounted) {
+      return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _DeleteSpaceProgressDialog(
+          space: space,
+          childRooms: childRooms,
+          l10n: l10n,
+          log: log,
+        ),
+      );
+    }
+
+    try {
+      // Delete children first.
+      for (final child in childRooms) {
+        try {
+          await _deleteChildRoom(child, log);
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.deleteChildRoomFailed(
+                child.getLocalizedDisplayname(),
+                '$e',
+              )),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+
+      // Delete the space itself.
+      final serverUrl = client.homeserver.toString();
+      final url = serverUrl.endsWith('/')
+          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
+          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
+
+      await withRetry(
+        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'deleteSpace',
+      );
+
+      await space.leave();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceSuccess),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/main/rooms');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceFailed('$e')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _joinSpace(BuildContext context, Room space) async {
@@ -548,6 +731,7 @@ class _ActionTile extends StatelessWidget {
     this.description,
     required this.onTap,
     required this.scheme,
+    this.color,
   });
 
   final IconData icon;
@@ -555,18 +739,19 @@ class _ActionTile extends StatelessWidget {
   final String? description;
   final VoidCallback onTap;
   final ColorScheme scheme;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = color ?? scheme.primary;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side:
-            BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
-        leading: Icon(icon, size: 22, color: scheme.primary),
+        leading: Icon(icon, size: 22, color: effectiveColor),
         title: Text(
           label,
           style: const TextStyle(fontWeight: FontWeight.w500),
@@ -583,6 +768,139 @@ class _ActionTile extends StatelessWidget {
           color: scheme.onSurfaceVariant,
         ),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// A modal dialog that shows deletion progress for a space with many children.
+class _DeleteSpaceProgressDialog extends StatefulWidget {
+  const _DeleteSpaceProgressDialog({
+    required this.space,
+    required this.childRooms,
+    required this.l10n,
+    required this.log,
+  });
+
+  final Room space;
+  final List<Room> childRooms;
+  final AppLocalizations l10n;
+  final Logger log;
+
+  @override
+  State<_DeleteSpaceProgressDialog> createState() =>
+      _DeleteSpaceProgressDialogState();
+}
+
+class _DeleteSpaceProgressDialogState
+    extends State<_DeleteSpaceProgressDialog> {
+  int _deleted = 0;
+  String? _error;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _deleteAll());
+  }
+
+  Future<void> _deleteAll() async {
+    final l10n = widget.l10n;
+    final log = widget.log;
+    final space = widget.space;
+    final client = space.client;
+
+    // Delete children.
+    for (final child in widget.childRooms) {
+      try {
+        final serverUrl = client.homeserver.toString();
+        final url = serverUrl.endsWith('/')
+            ? '${serverUrl}_synapse/admin/v2/rooms/${child.id}/delete'
+            : '$serverUrl/_synapse/admin/v2/rooms/${child.id}/delete';
+
+        await withRetry(
+          () => client.httpClient.post(Uri.parse(url), body: '{}'),
+          maxRetries: 1,
+          timeout: kDefaultTimeout,
+          log: log,
+          label: 'deleteChildRoom',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = l10n.deleteChildRoomFailed(
+            child.getLocalizedDisplayname(),
+            '$e',
+          );
+        });
+        // Continue trying the rest.
+      }
+
+      if (!mounted) return;
+      setState(() => _deleted++);
+    }
+
+    // Delete the space itself.
+    try {
+      final serverUrl = client.homeserver.toString();
+      final url = serverUrl.endsWith('/')
+          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
+          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
+
+      await withRetry(
+        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'deleteSpace',
+      );
+
+      await space.leave();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = l10n.deleteSpaceFailed('$e');
+      });
+    }
+
+    if (!mounted) return;
+    setState(() => _done = true);
+
+    // Close dialog and navigate after a brief delay.
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_error ?? l10n.deleteSpaceSuccess),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    if (context.mounted) context.go('/main/rooms');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = widget.childRooms.length + 1; // +1 for the space itself
+
+    return AlertDialog(
+      title: Text(widget.l10n.deleteSpace),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(
+            value: _done ? 1.0 : _deleted / total,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _done
+                ? widget.l10n.deleteSpaceSuccess
+                : _error ??
+                    '$_deleted / $total ${widget.l10n.delete.toLowerCase()}',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
