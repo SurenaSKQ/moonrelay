@@ -32,9 +32,9 @@ import 'package:provider/provider.dart';
 ///
 /// Provides:
 /// - A search bar at the top for filtering by display name or Matrix ID
-/// - Progressive batch loading: 50 members initially, auto-loads more until
-///   the viewport is filled, then loads on scroll
-/// - All members fetched server-side via `getJoinedMembersByRoom`
+/// - Progressive rendering: locally-known members appear immediately,
+///   then server-only members are fetched in parallel batches and inserted
+///   as they arrive
 /// - Pull-to-refresh to re-fetch the full member list
 /// - A context menu on each member tile (right-click or long-press)
 ///   with "View Profile" and "Send Message" actions
@@ -54,10 +54,12 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
 
   // Progressive loading state
   static const int _batchSize = 50;
+  static const int _fetchBatchSize = 10; // parallel requestUser calls at once
+
   List<User> _allMembers = [];
   int _displayedCount = 0;
-  bool _isLoading = true;
-
+  bool _isLoading = true; // true only while waiting for initial local data
+  bool _isFetchingMore = false; // true while server-only members are fetched
   Object? _loadError;
 
   @override
@@ -65,7 +67,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
-    _fetchAllMembers();
+    _fetchLocalThenRemote();
   }
 
   @override
@@ -105,14 +107,11 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
           (_displayedCount + _batchSize).clamp(0, _allMembers.length);
     });
 
-    // After the frame renders, check if we should auto-load more to fill
-    // the viewport so that scroll events can be triggered.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_displayedCount >= _allMembers.length) return;
       if (_searchQuery.isNotEmpty) return;
 
-      // If the content still doesn't overflow, keep loading.
       if (_scrollController.hasClients &&
           _scrollController.position.maxScrollExtent <=
               _scrollController.position.viewportDimension + 1) {
@@ -121,14 +120,10 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     });
   }
 
-  /// Fetches the full member list from the server using the Matrix API.
-  ///
-  /// 1. Calls `getJoinedMembersByRoom` to get ALL joined member MXIDs.
-  /// 2. Re-uses locally known `User` objects (which carry power level data)
-  ///    and falls back to `requestUser` for any missing members (awaited
-  ///    properly, unlike the broken sync `orElse` approach).
-  /// 3. Sorts by power level descending.
-  Future<void> _fetchAllMembers() async {
+  /// Phase 1: show locally-known members immediately.
+  /// Phase 2: fetch the full member set from the server and add missing users
+  ///          in parallel batches, re-sorting after each batch.
+  Future<void> _fetchLocalThenRemote() async {
     setState(() {
       _isLoading = true;
       _loadError = null;
@@ -136,83 +131,103 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       _allMembers = [];
     });
 
+    // ── Phase 1: Show local participants right away ────────────────
+    final localParticipants = widget.room.getParticipants().toList()
+      ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+
+    _allMembers = List.from(localParticipants);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _displayedCount = _allMembers.length > 0
+            ? _batchSize.clamp(0, _allMembers.length)
+            : 0;
+      });
+    }
+
+    // Auto-fill viewport with local data.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_displayedCount < _allMembers.length) _loadNextBatch();
+    });
+
+    // ── Phase 2: Fetch server-side member list ─────────────────────
     try {
-      // ── 1. Fetch all joined member IDs from the server ──────────────
+      _isFetchingMore = true;
       final joinedMembers =
           await widget.room.client.getJoinedMembersByRoom(widget.room.id);
 
       if (!mounted) return;
 
-      // ── 2. Build a name-index of locally known participants ─────────
-      final localParticipants = widget.room.getParticipants().toList();
-      final localById = <String, User>{};
-      for (final u in localParticipants) {
-        localById[u.id] = u;
+      if (joinedMembers == null || joinedMembers.isEmpty) return;
+
+      // Determine which MXIDs are not yet in our list.
+      final existingIds = _allMembers.map((u) => u.id).toSet();
+      final missingMxids =
+          joinedMembers.keys.where((id) => !existingIds.contains(id)).toList();
+
+      if (missingMxids.isEmpty) {
+        if (mounted) setState(() => _isFetchingMore = false);
+        return;
       }
 
-      // ── 3. Assemble the full list ───────────────────────────────────
-      final members = <User>[];
+      // Fetch missing members in parallel batches.
+      for (int i = 0; i < missingMxids.length; i += _fetchBatchSize) {
+        final batch = missingMxids.sublist(
+          i,
+          (i + _fetchBatchSize).clamp(0, missingMxids.length),
+        );
 
-      if (joinedMembers != null && joinedMembers.isNotEmpty) {
-        for (final mxid in joinedMembers.keys) {
-          final local = localById[mxid];
-          if (local != null) {
-            // Use the local object which has power level data.
-            members.add(local);
-          } else {
-            // Fetch from server – awaited correctly.
-            try {
-              final remote = await widget.room.requestUser(mxid);
-              if (remote != null) {
-                members.add(remote);
-              }
-            } catch (_) {
-              // If even requestUser fails, create a minimal User with the
-              // display name and avatar from the joined-members response.
-              final fallback = User(
-                mxid,
-                room: widget.room,
-                displayName: joinedMembers[mxid]?.displayName,
-                avatarUrl: joinedMembers[mxid]?.avatarUrl?.toString(),
-              );
-              members.add(fallback);
-            }
-          }
+        final results = await Future.wait(
+          batch.map((mxid) => _fetchUser(mxid, joinedMembers)),
+        );
+
+        if (!mounted) return;
+
+        final newUsers = results.whereType<User>().where((u) {
+          return !_allMembers.any((existing) => existing.id == u.id);
+        }).toList();
+
+        if (newUsers.isEmpty) continue;
+
+        // Insert new members into the sorted list (by power level descending).
+        _allMembers.addAll(newUsers);
+        _allMembers
+            .sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+
+        if (mounted) {
+          setState(() {
+            _displayedCount = (_displayedCount + newUsers.length)
+                .clamp(0, _allMembers.length);
+          });
         }
-      } else {
-        // Fallback: use whatever the client already knows.
-        members.addAll(localParticipants);
       }
-
-      // ── 4. Sort by power level descending ──────────────────────────
-      members.sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
-
-      _allMembers = members;
     } catch (e) {
       if (!mounted) return;
-      // Fallback to locally known members on error.
-      _allMembers = widget.room.getParticipants().toList()
-        ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
-      _loadError = e;
+      // Silently swallow – we already have local data showing.
     }
 
-    if (!mounted) return;
+    if (mounted) setState(() => _isFetchingMore = false);
+  }
 
-    setState(() => _isLoading = false);
-
-    // ── 5. Load initial batch and auto-fill viewport ─────────────────
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        _displayedCount = (_allMembers.length > 0)
-            ? _batchSize.clamp(0, _allMembers.length)
-            : 0;
-      });
-      // Auto-advance until the viewport is filled.
-      if (_displayedCount < _allMembers.length) {
-        _loadNextBatch();
-      }
-    });
+  /// Tries to fetch a single User from the server, falling back to a minimal
+  /// object built from the joined-members response.
+  Future<User?> _fetchUser(
+    String mxid,
+    Map<String, RoomMember> joinedMembers,
+  ) async {
+    try {
+      return await widget.room.requestUser(mxid);
+    } catch (_) {
+      final info = joinedMembers[mxid];
+      if (info == null) return null;
+      return User(
+        mxid,
+        room: widget.room,
+        displayName: info.displayName,
+        avatarUrl: info.avatarUrl?.toString(),
+      );
+    }
   }
 
   /// Returns the currently visible members, filtered by search query.
@@ -237,6 +252,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     final scheme = Theme.of(context).colorScheme;
     final totalMembers = (widget.room.summary.mInvitedMemberCount ?? 0) +
         (widget.room.summary.mJoinedMemberCount ?? 0);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -244,9 +260,24 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          AppLocalizations.of(context)!.membersCount(totalMembers),
-          style: Theme.of(context).textTheme.titleLarge,
+        title: Row(
+          children: [
+            Text(
+              l10n.membersCount(totalMembers),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (_isFetchingMore) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.primary,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
       body: Column(
@@ -257,7 +288,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.searchMembers,
+                hintText: l10n.searchMembers,
                 prefixIcon: const Icon(LucideIcons.search, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -335,7 +366,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
             ),
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
-              onPressed: _fetchAllMembers,
+              onPressed: _fetchLocalThenRemote,
               icon: const Icon(LucideIcons.refreshCw, size: 18),
               label: Text(l10n.retry),
             ),
@@ -371,17 +402,18 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       );
     }
 
-    // Total item count: members + loading indicator if there are more.
-    final itemCount = members.length + (_hasMore ? 1 : 0);
+    // Total item count: members + bottom indicator if fetching or hasMore.
+    final showIndicator = _isFetchingMore || _hasMore;
+    final itemCount = members.length + (showIndicator ? 1 : 0);
 
     return RefreshIndicator(
-      onRefresh: _fetchAllMembers,
+      onRefresh: _fetchLocalThenRemote,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: itemCount,
         itemBuilder: (context, index) {
-          // Loading more indicator at the bottom
+          // Bottom indicator
           if (index >= members.length) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -398,7 +430,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      l10n.loading,
+                      _isFetchingMore ? l10n.loading : l10n.loading,
                       style: TextStyle(
                         fontSize: 12,
                         color: scheme.onSurfaceVariant,
