@@ -292,7 +292,10 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.indigo,
+            brightness: Brightness.dark,
+          ),
         ),
         home: Scaffold(
           body: Center(
@@ -362,7 +365,10 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.indigo,
+          brightness: Brightness.dark,
+        ),
       ),
       home: const SplashScreen(),
     );
