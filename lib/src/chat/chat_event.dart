@@ -20,6 +20,7 @@ import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attach
 import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/State/verification_notice_event.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_request_event.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:flutter/material.dart';
@@ -164,6 +165,15 @@ class MessageEventHandler extends StatelessWidget {
         final replyId = event.inReplyToEventId();
         final isReply = replyId != null;
 
+        // Verification events are sent as m.room.message events with
+        // a msgtype of m.key.verification.request, .start, .done, etc.
+        if (event.messageType.startsWith('m.key.verification.')) {
+          if (event.messageType == EventTypes.KeyVerificationRequest) {
+            return VerificationRequestEvent(event: event);
+          }
+          return VerificationNoticeEvent(event: event);
+        }
+
         switch (event.messageType) {
           case MessageTypes.Text:
           case MessageTypes.Emote:
@@ -194,17 +204,16 @@ class MessageEventHandler extends StatelessWidget {
       case 'm.room.power_levels':
       case 'm.room.tombstone':
         return StateEvents(event: event);
-      case EventTypes.KeyVerificationRequest:
-        return VerificationRequestEvent(event: event);
-      case EventTypes.KeyVerificationStart:
-      case EventTypes.KeyVerificationReady:
-      case EventTypes.KeyVerificationDone:
-      case EventTypes.KeyVerificationCancel:
-      case EventTypes.KeyVerificationAccept:
-        return StateEvents(event: event);
-      case String t when t.startsWith('m.key.verification.'):
-        return StateEvents(event: event);
       default:
+        // Fallback: check if the event type itself looks like a
+        // verification event (some legacy servers may send them as
+        // raw event types rather than m.room.message + msgtype).
+        if (event.type.startsWith('m.key.verification.')) {
+          if (event.type == EventTypes.KeyVerificationRequest) {
+            return VerificationRequestEvent(event: event);
+          }
+          return VerificationNoticeEvent(event: event);
+        }
         return StateEvents(event: event);
     }
   }
