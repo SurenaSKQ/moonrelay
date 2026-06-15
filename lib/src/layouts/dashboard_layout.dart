@@ -570,6 +570,22 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   }
 
   @override
+  void didUpdateWidget(_SidebarMembersList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      // Room changed — reset everything and build from scratch.
+      _searchController.clear();
+      _searchQuery = '';
+      _displayedCount = 0;
+      _allMembers = [];
+      _isLoading = true;
+      _isFetchingMore = false;
+      _loadError = null;
+      _fetchLocalThenRemote();
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
@@ -605,7 +621,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       if (_searchQuery.isNotEmpty) return;
       if (_scrollController.hasClients &&
           _scrollController.position.maxScrollExtent <=
-              _scrollController.position.viewportDimension + 1) {
+              _scrollController.position.viewportDimension + 50) {
         _loadNextBatch();
       }
     });
@@ -821,42 +837,46 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
 
     return RefreshIndicator(
       onRefresh: _fetchLocalThenRemote,
-      child: ListView.builder(
+      child: Scrollbar(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          if (index >= members.length) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: scheme.primary,
+        thumbVisibility: true,
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          itemCount: itemCount,
+          itemBuilder: (context, index) {
+            if (index >= members.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: scheme.primary,
+                    ),
                   ),
                 ),
-              ),
+              );
+            }
+
+            final member = members[index];
+            final displayName = member.calcDisplayname();
+            final permissionLabel = member.powerLevel.level >= 100
+                ? l10n.adminBadge
+                : member.powerLevel.level >= 50
+                    ? l10n.moderatorBadge
+                    : null;
+
+            return _SidebarMemberTile(
+              member: member,
+              displayName: displayName,
+              permissionLabel: permissionLabel,
+              scheme: scheme,
             );
-          }
-
-          final member = members[index];
-          final displayName = member.calcDisplayname();
-          final permissionLabel = member.powerLevel.level >= 100
-              ? l10n.adminBadge
-              : member.powerLevel.level >= 50
-                  ? l10n.moderatorBadge
-                  : null;
-
-          return _SidebarMemberTile(
-            member: member,
-            displayName: displayName,
-            permissionLabel: permissionLabel,
-            scheme: scheme,
-          );
-        },
+          },
+        ),
       ),
     );
   }
