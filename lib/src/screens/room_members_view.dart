@@ -32,13 +32,12 @@ import 'package:provider/provider.dart';
 ///
 /// Provides:
 /// - A search bar at the top for filtering by display name or Matrix ID
-/// - Progressive batch loading: 50 members initially, more on scroll
-/// - A scrollable list of all members, sorted by power level
+/// - Progressive batch loading: 50 members initially, auto-loads more until
+///   the viewport is filled, then loads on scroll
+/// - All members fetched server-side via `getJoinedMembersByRoom`
 /// - Pull-to-refresh to re-fetch the full member list
 /// - A context menu on each member tile (right-click or long-press)
 ///   with "View Profile" and "Send Message" actions
-///
-/// The list reactively updates when room state changes.
 class FullRoomMembersList extends StatefulWidget {
   const FullRoomMembersList({super.key, required this.room});
 
@@ -58,7 +57,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
   List<User> _allMembers = [];
   int _displayedCount = 0;
   bool _isLoading = true;
-  bool _isLoadingMore = false;
+
   Object? _loadError;
 
   @override
@@ -84,67 +83,111 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     });
   }
 
-  /// Load more members when the user scrolls near the bottom,
-  /// but only when not searching (searching shows all filtered results).
+  /// Load more members when the user scrolls near the bottom.
   void _onScroll() {
     if (_searchQuery.isNotEmpty) return;
-    if (_isLoadingMore) return;
     if (_displayedCount >= _allMembers.length) return;
+    if (!_scrollController.hasClients) return;
 
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
-      setState(() {
-        _isLoadingMore = true;
-        _displayedCount =
-            (_displayedCount + _batchSize).clamp(0, _allMembers.length);
-      });
-      // Allow the frame to render before removing the indicator.
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) setState(() => _isLoadingMore = false);
-      });
+      _loadNextBatch();
     }
+  }
+
+  /// Increases the displayed count by one batch, then auto-advances if the
+  /// viewport is still not filled.
+  void _loadNextBatch() {
+    if (_displayedCount >= _allMembers.length) return;
+
+    setState(() {
+      _displayedCount =
+          (_displayedCount + _batchSize).clamp(0, _allMembers.length);
+    });
+
+    // After the frame renders, check if we should auto-load more to fill
+    // the viewport so that scroll events can be triggered.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_displayedCount >= _allMembers.length) return;
+      if (_searchQuery.isNotEmpty) return;
+
+      // If the content still doesn't overflow, keep loading.
+      if (_scrollController.hasClients &&
+          _scrollController.position.maxScrollExtent <=
+              _scrollController.position.viewportDimension + 1) {
+        _loadNextBatch();
+      }
+    });
   }
 
   /// Fetches the full member list from the server using the Matrix API.
   ///
-  /// Falls back to locally known participants if the server request fails.
+  /// 1. Calls `getJoinedMembersByRoom` to get ALL joined member MXIDs.
+  /// 2. Re-uses locally known `User` objects (which carry power level data)
+  ///    and falls back to `requestUser` for any missing members (awaited
+  ///    properly, unlike the broken sync `orElse` approach).
+  /// 3. Sorts by power level descending.
   Future<void> _fetchAllMembers() async {
     setState(() {
       _isLoading = true;
-      _isLoadingMore = false;
       _loadError = null;
       _displayedCount = 0;
+      _allMembers = [];
     });
 
     try {
-      // Fetch joined members from the server (not lazy-loaded).
+      // ── 1. Fetch all joined member IDs from the server ──────────────
       final joinedMembers =
           await widget.room.client.getJoinedMembersByRoom(widget.room.id);
 
       if (!mounted) return;
 
+      // ── 2. Build a name-index of locally known participants ─────────
+      final localParticipants = widget.room.getParticipants().toList();
+      final localById = <String, User>{};
+      for (final u in localParticipants) {
+        localById[u.id] = u;
+      }
+
+      // ── 3. Assemble the full list ───────────────────────────────────
+      final members = <User>[];
+
       if (joinedMembers != null && joinedMembers.isNotEmpty) {
-        final members = <User>[];
         for (final mxid in joinedMembers.keys) {
-          // Re-use the existing User object if available (preserves power
-          // level data); otherwise request it from the room state.
-          final existing = widget.room.getParticipants().firstWhere(
-                (u) => u.id == mxid,
-                orElse: () => widget.room.requestUser(mxid) as User,
+          final local = localById[mxid];
+          if (local != null) {
+            // Use the local object which has power level data.
+            members.add(local);
+          } else {
+            // Fetch from server – awaited correctly.
+            try {
+              final remote = await widget.room.requestUser(mxid);
+              if (remote != null) {
+                members.add(remote);
+              }
+            } catch (_) {
+              // If even requestUser fails, create a minimal User with the
+              // display name and avatar from the joined-members response.
+              final fallback = User(
+                mxid,
+                room: widget.room,
+                displayName: joinedMembers[mxid]?.displayName,
+                avatarUrl: joinedMembers[mxid]?.avatarUrl?.toString(),
               );
-          members.add(existing);
+              members.add(fallback);
+            }
+          }
         }
-
-        // Sort by power level descending; unknown power levels go to the end.
-        members
-            .sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
-
-        _allMembers = members;
       } else {
         // Fallback: use whatever the client already knows.
-        _allMembers = widget.room.getParticipants().toList()
-          ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+        members.addAll(localParticipants);
       }
+
+      // ── 4. Sort by power level descending ──────────────────────────
+      members.sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+
+      _allMembers = members;
     } catch (e) {
       if (!mounted) return;
       // Fallback to locally known members on error.
@@ -153,14 +196,23 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       _loadError = e;
     }
 
-    if (mounted) {
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    // ── 5. Load initial batch and auto-fill viewport ─────────────────
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _displayedCount = _allMembers.length > 0
+        _displayedCount = (_allMembers.length > 0)
             ? _batchSize.clamp(0, _allMembers.length)
             : 0;
       });
-    }
+      // Auto-advance until the viewport is filled.
+      if (_displayedCount < _allMembers.length) {
+        _loadNextBatch();
+      }
+    });
   }
 
   /// Returns the currently visible members, filtered by search query.
