@@ -39,20 +39,12 @@ import 'package:moonrelay/src/widgets/spaces_pane.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
-/// A flexible multi-pane layout that replaces the old rigid TwoColumnLayout.
+/// Controller widget for the multi-pane dashboard layout.
 ///
-/// Uses [LayoutBuilder] to adapt to available space:
-/// - **Wide** (>= 1100px): nav pane + left sidebar + content + optional right sidebar
-/// - **Medium** (>= 700px): nav pane + left sidebar + content
-/// - **Narrow** (< 700px):  content only, sidebars accessible via overlay
-///
-/// The leftmost **nav pane** is a permanent narrow rail (Home / All / Spaces).
-/// The **left sidebar** (rooms pane) is collapsible via the AppFrame header.
-/// Sidebar visibility, width, and pane choice are driven by
-/// [SettingsController] and persisted across sessions.
-///
-/// The **right sidebar** content is driven by [RightPaneChoice] and reads the
-/// currently-active room from [CurrentRoom].
+/// Owns transient resize state and reacts to [CurrentRoom] and
+/// [SettingsController] changes.  The actual UI is delegated to the
+/// stateless [_DashboardView] so that the right sidebar receives
+/// room changes as direct props with no indirection.
 class DashboardLayout extends StatefulWidget {
   /// The main content widget (typically the route's child).
   final Widget child;
@@ -70,91 +62,133 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch the active room so the right sidebar rebuilds on room change.
-    final activeRoom = context.watch<CurrentRoom>().room;
+    return Consumer2<CurrentRoom, SettingsController>(
+      builder: (context, currentRoom, settings, _) {
+        final room = currentRoom.room;
 
-    return Consumer<SettingsController>(
-      builder: (context, settings, _) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final bool isWide = constraints.maxWidth >= 1100;
-
-            final bool showLeft = settings.leftSidebarVisible;
-            final bool showRight = settings.rightSidebarVisible && isWide;
-
-            final ThemeData theme = Theme.of(context);
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Navigation pane (always visible) ─────────────────
-                const NavigationPane(),
-
-                // ── Left sidebar (rooms pane, collapsible) ───────────
-                if (showLeft)
-                  _SidebarPane(
-                    width: _leftWidth ?? settings.leftSidebarWidth,
-                    minWidth: 200,
-                    title: settings.leftPaneChoice.label,
-                    body: _buildLeftPane(settings.leftPaneChoice),
-                    bottomBar: const PermanentPaneBottomItems(),
-                    theme: theme,
-                  ),
-
-                if (showLeft)
-                  _ResizeHandle(
-                    onDrag: (double delta) {
-                      setState(() {
-                        _leftWidth =
-                            (_leftWidth ?? settings.leftSidebarWidth) + delta;
-                      });
-                    },
-                    onDragEnd: () {
-                      if (_leftWidth != null) {
-                        settings.setLeftSidebarWidth(_leftWidth!);
-                        _leftWidth = null;
-                      }
-                    },
-                  ),
-
-                // ── Main content ──────────────────────────────────────
-                Expanded(
-                  child: PostLoginSetupChecker(
-                    child: IncomingVerificationListener(
-                      child: widget.child,
-                    ),
-                  ),
-                ),
-
-                // ── Right sidebar ─────────────────────────────────────
-                if (showRight)
-                  _ResizeHandle(
-                    onDrag: (double delta) {
-                      setState(() {
-                        _rightWidth =
-                            (_rightWidth ?? settings.rightSidebarWidth) - delta;
-                      });
-                    },
-                    onDragEnd: () {
-                      if (_rightWidth != null) {
-                        settings.setRightSidebarWidth(_rightWidth!);
-                        _rightWidth = null;
-                      }
-                    },
-                  ),
-
-                if (showRight)
-                  _SidebarPane(
-                    width: _rightWidth ?? settings.rightSidebarWidth,
-                    minWidth: 200,
-                    title: '', // managed by the content itself
-                    body: _RightSidebarContent(room: activeRoom),
-                    bottomBar: null,
-                    theme: theme,
-                  ),
-              ],
-            );
+        return _DashboardView(
+          child: widget.child,
+          room: room,
+          settings: settings,
+          leftWidth: _leftWidth,
+          rightWidth: _rightWidth,
+          onLeftResize: (double delta) {
+            setState(() {
+              _leftWidth = (_leftWidth ?? settings.leftSidebarWidth) + delta;
+            });
           },
+          onLeftResizeEnd: () {
+            if (_leftWidth != null) {
+              settings.setLeftSidebarWidth(_leftWidth!);
+              _leftWidth = null;
+            }
+          },
+          onRightResize: (double delta) {
+            setState(() {
+              _rightWidth = (_rightWidth ?? settings.rightSidebarWidth) - delta;
+            });
+          },
+          onRightResizeEnd: () {
+            if (_rightWidth != null) {
+              settings.setRightSidebarWidth(_rightWidth!);
+              _rightWidth = null;
+            }
+          },
+        );
+      },
+    );
+  }
+}
+
+// ─── Stateless view ───────────────────────────────────────────────────────────
+
+/// Pure presentation widget for the dashboard layout.
+///
+/// Receives everything it needs as constructor props so it rebuilds
+/// deterministically whenever the controller rebuilds.
+class _DashboardView extends StatelessWidget {
+  const _DashboardView({
+    required this.child,
+    required this.room,
+    required this.settings,
+    required this.leftWidth,
+    required this.rightWidth,
+    required this.onLeftResize,
+    required this.onLeftResizeEnd,
+    required this.onRightResize,
+    required this.onRightResizeEnd,
+  });
+
+  final Widget child;
+  final Room? room;
+  final SettingsController settings;
+  final double? leftWidth;
+  final double? rightWidth;
+  final void Function(double) onLeftResize;
+  final VoidCallback onLeftResizeEnd;
+  final void Function(double) onRightResize;
+  final VoidCallback onRightResizeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isWide = constraints.maxWidth >= 1100;
+
+        final bool showLeft = settings.leftSidebarVisible;
+        final bool showRight = settings.rightSidebarVisible && isWide;
+
+        final ThemeData theme = Theme.of(context);
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Navigation pane (always visible) ─────────────────
+            const NavigationPane(),
+
+            // ── Left sidebar (rooms pane, collapsible) ───────────
+            if (showLeft)
+              _SidebarPane(
+                width: leftWidth ?? settings.leftSidebarWidth,
+                minWidth: 200,
+                title: settings.leftPaneChoice.label,
+                body: _buildLeftPane(context, settings.leftPaneChoice),
+                bottomBar: const PermanentPaneBottomItems(),
+                theme: theme,
+              ),
+
+            if (showLeft)
+              _ResizeHandle(
+                onDrag: onLeftResize,
+                onDragEnd: onLeftResizeEnd,
+              ),
+
+            // ── Main content ──────────────────────────────────────
+            Expanded(
+              child: PostLoginSetupChecker(
+                child: IncomingVerificationListener(
+                  child: child,
+                ),
+              ),
+            ),
+
+            // ── Right sidebar ─────────────────────────────────────
+            if (showRight)
+              _ResizeHandle(
+                onDrag: onRightResize,
+                onDragEnd: onRightResizeEnd,
+              ),
+
+            if (showRight)
+              _SidebarPane(
+                width: rightWidth ?? settings.rightSidebarWidth,
+                minWidth: 200,
+                title: '',
+                body: _RightSidebarContent(room: room),
+                bottomBar: null,
+                theme: theme,
+              ),
+          ],
         );
       },
     );
@@ -162,7 +196,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
   /// Build the left pane widget based on the user's choice,
   /// applying the current navigation filter.
-  Widget _buildLeftPane(LeftPaneChoice choice) {
+  static Widget _buildLeftPane(BuildContext context, LeftPaneChoice choice) {
     switch (choice) {
       case LeftPaneChoice.rooms:
         return Consumer<NavigationState>(
@@ -187,7 +221,8 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   }
 
   /// Check whether [room] is a child of the space identified by [spaceId].
-  bool _roomBelongsToSpace(BuildContext context, Room room, String spaceId) {
+  static bool _roomBelongsToSpace(
+      BuildContext context, Room room, String spaceId) {
     try {
       final Client client = Provider.of<Client>(context, listen: false);
       final Room? space = client.getRoomById(spaceId);

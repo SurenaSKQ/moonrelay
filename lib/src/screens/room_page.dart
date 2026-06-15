@@ -36,14 +36,27 @@ class _RoomPageState extends State<RoomPage> {
   @override
   void initState() {
     super.initState();
-    context.read<CurrentRoom>().setRoom(widget.room);
+    // Defer the CurrentRoom update to after the current frame.
+    // Calling setRoom here would fire during the parent's build phase —
+    // DashboardLayout has already read CurrentRoom for this frame and
+    // the notifyListeners would only take effect on the next frame,
+    // causing the right sidebar to lag one navigation behind.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<CurrentRoom>().setRoom(widget.room);
+      }
+    });
   }
 
   @override
   void didUpdateWidget(RoomPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.room.id != widget.room.id) {
-      context.read<CurrentRoom>().setRoom(widget.room);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<CurrentRoom>().setRoom(widget.room);
+        }
+      });
     }
   }
 
