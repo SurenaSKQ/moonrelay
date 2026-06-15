@@ -278,6 +278,18 @@
     }
   },
   "roomIdCopied": "Room ID copied to clipboard",
+
+  "editRoomName": "Edit Room Name",
+  "editRoomNameHint": "Enter a new name for this room",
+  "editRoomTopic": "Edit Topic",
+  "editRoomTopicHint": "Enter a new topic for this room",
+  "changeRoomAvatar": "Change Avatar",
+  "changeRoomAvatarDescription": "Upload a new room picture",
+  "removeRoomAvatar": "Remove Avatar",
+  "roomNameUpdated": "Room name updated",
+  "roomTopicUpdated": "Room topic updated",
+  "roomAvatarUpdated": "Room avatar updated",
+  "saving": "Saving…",
   "showAllMembers": "Show all members ({count})",
   "@showAllMembers": {
     "placeholders": {

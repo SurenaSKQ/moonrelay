@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -133,6 +134,164 @@ class _RoomInformationsState extends State<RoomInformations> {
   }
 
   // ---------------------------------------------------------------------------
+  // Room editing helpers
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current user can change the [eventType] state event.
+  bool _canChange(String eventType) =>
+      widget.room.canChangeStateEvent(eventType);
+
+  /// Shows a dialog to edit the room name, then calls [room.setName].
+  Future<void> _editRoomName() async {
+    final room = widget.room;
+    final l10n = AppLocalizations.of(context)!;
+    final controller =
+        TextEditingController(text: room.getLocalizedDisplayname());
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.editRoomName),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.editRoomNameHint,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final newName = controller.text.trim();
+    if (newName.isEmpty || newName == room.getLocalizedDisplayname()) return;
+
+    try {
+      await room.setName(newName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.roomNameUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Shows a dialog to edit the room topic, then calls [room.setDescription].
+  Future<void> _editRoomTopic() async {
+    final room = widget.room;
+    final l10n = AppLocalizations.of(context)!;
+    final controller = TextEditingController(text: room.topic);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.editRoomTopic),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: l10n.editRoomTopicHint,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final newTopic = controller.text.trim();
+    if (newTopic == room.topic) return;
+
+    try {
+      await room.setDescription(newTopic);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.roomTopicUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Opens a file picker for images and uploads a new room avatar.
+  Future<void> _changeRoomAvatar() async {
+    final room = widget.room;
+    final l10n = AppLocalizations.of(context)!;
+
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+      allowMultiple: false,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    try {
+      await room.setAvatar(MatrixFile(bytes: bytes, name: file.name));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.roomAvatarUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -202,6 +361,12 @@ class _RoomInformationsState extends State<RoomInformations> {
             onTap: _copyRoomId,
             scheme: scheme,
           ),
+
+          // ── Room editing (permission-gated) ──────────────────────────
+          if (_canChange('m.room.name') ||
+              _canChange('m.room.topic') ||
+              _canChange('m.room.avatar'))
+            ..._buildEditingActions(scheme, l10n, room),
           const SizedBox(height: 16),
 
           // ── Room details ─────────────────────────────────────────────
@@ -254,6 +419,47 @@ class _RoomInformationsState extends State<RoomInformations> {
         ],
       ),
     );
+  }
+
+  /// Builds permission-gated editing actions for room name, topic, and avatar.
+  List<Widget> _buildEditingActions(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    Room room,
+  ) {
+    final actions = <Widget>[];
+
+    if (_canChange('m.room.name')) {
+      actions.add(_ActionTile(
+        icon: LucideIcons.pencil,
+        label: l10n.editRoomName,
+        description: room.getLocalizedDisplayname(),
+        onTap: _editRoomName,
+        scheme: scheme,
+      ));
+    }
+
+    if (_canChange('m.room.topic')) {
+      actions.add(_ActionTile(
+        icon: LucideIcons.alignLeft,
+        label: l10n.editRoomTopic,
+        description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
+        onTap: _editRoomTopic,
+        scheme: scheme,
+      ));
+    }
+
+    if (_canChange('m.room.avatar')) {
+      actions.add(_ActionTile(
+        icon: LucideIcons.image,
+        label: l10n.changeRoomAvatar,
+        description: l10n.changeRoomAvatarDescription,
+        onTap: _changeRoomAvatar,
+        scheme: scheme,
+      ));
+    }
+
+    return actions;
   }
 
   Widget _buildSecuritySection(
