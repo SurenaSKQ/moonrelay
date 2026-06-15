@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
@@ -76,6 +77,15 @@ class _NavigationPaneState extends State<NavigationPane> {
                 label: l10n.navigationAll,
                 isSelected: isAll,
                 onTap: nav.selectAll,
+                theme: theme,
+              ),
+
+              // ── Add room / space ───────────────────────────────────
+              _NavIconButton(
+                icon: LucideIcons.plus,
+                label: l10n.addRoom,
+                isSelected: false,
+                onTap: () => context.push('/main/addroom'),
                 theme: theme,
               ),
 

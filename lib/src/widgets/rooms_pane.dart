@@ -114,61 +114,38 @@ class RoomsPane extends StatelessWidget {
             );
           }
 
-          return Column(
-            children: [
-              // Add room button
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/main/addroom'),
-                    icon: const Icon(LucideIcons.plus, size: 16),
-                    label: Text(l10n.addRoom),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: currentRooms.length,
-                  itemBuilder: (context, index) {
-                    final Room room = currentRooms.elementAt(index);
+          return Expanded(
+            child: ListView.builder(
+              itemCount: currentRooms.length,
+              itemBuilder: (context, index) {
+                final Room room = currentRooms.elementAt(index);
 
-                    return ListTile(
-                      leading: _RoomAvatar(
-                          room: room, client: client, scheme: scheme),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              room.getLocalizedDisplayname(),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w300, fontSize: 18),
-                            ),
-                          ),
-                        ],
-                      ),
-                      subtitle: Text(
-                        room.lastEvent?.body ?? l10n.noMessages,
-                        maxLines: 1,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w300,
-                          fontSize: 16,
+                return ListTile(
+                  leading:
+                      _RoomAvatar(room: room, client: client, scheme: scheme),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          room.getLocalizedDisplayname(),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w300, fontSize: 18),
                         ),
                       ),
-                      onTap: () => _joinRoom(context, room),
-                    );
-                  },
-                ),
-              ),
-            ],
+                    ],
+                  ),
+                  subtitle: Text(
+                    room.lastEvent?.body ?? l10n.noMessages,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w300,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () => _joinRoom(context, room),
+                );
+              },
+            ),
           );
         },
       ),
