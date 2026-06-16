@@ -18,36 +18,51 @@ import 'dart:async';
 
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
-import 'package:moonrelay/src/layouts/two_column_layout.dart';
+import 'package:moonrelay/src/layouts/dashboard_layout.dart';
+import 'package:moonrelay/src/layouts/startscreen_frame.dart';
+import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
+import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
-import 'package:moonrelay/src/screens/own_user_profile.dart';
-import 'package:moonrelay/src/screens/register_page.dart';
+import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/screens/space_home_page.dart';
+import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
-import 'package:moonrelay/src/settings/settings_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
-import 'package:moonrelay/src/widgets/rooms_pane.dart';
-import 'package:moonrelay/src/widgets/side_pane_handler.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
 class MoonRouter {
   static FutureOr<String?> loggedInRedirect(
     BuildContext context,
     GoRouterState state,
-  ) =>
-      Provider.of<Client>(context, listen: false).isLogged() ? '/rooms' : null;
+  ) {
+    try {
+      return Provider.of<Client>(context, listen: false).isLogged()
+          ? '/rooms'
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static FutureOr<String?> loggedOutRedirect(
     BuildContext context,
     GoRouterState state,
-  ) =>
-      Provider.of<Client>(context, listen: false).isLogged()
+  ) {
+    try {
+      return Provider.of<Client>(context, listen: false).isLogged()
           ? null
           : '/welcome';
+    } catch (_) {
+      return '/welcome';
+    }
+  }
 
   MoonRouter();
   // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
@@ -56,7 +71,51 @@ class MoonRouter {
       pageBuilder: (context, state, child) => genericPageBuilder(
         context,
         state,
-        AppFrame(shellContext: context, child: child),
+        StartscreenFrame(child: child),
+      ),
+      routes: [
+        ShellRoute(
+          pageBuilder: (context, state, child) => genericPageBuilder(
+            context,
+            state,
+            StartupHomeFrame(
+              child: child,
+            ),
+          ),
+          redirect: loggedInRedirect,
+          routes: [
+            GoRoute(
+              path: '/welcome',
+              pageBuilder: (context, state) =>
+                  genericPageBuilder(context, state, StartupScreen()),
+              routes: [
+                GoRoute(
+                  path: 'login',
+                  pageBuilder: (context, state) => genericPageBuilder(
+                    context,
+                    state,
+                    const LoginPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'register',
+                  pageBuilder: (context, state) => genericPageBuilder(
+                    context,
+                    state,
+                    const RegisterInClientPage(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+    ShellRoute(
+      pageBuilder: (context, state, child) => genericPageBuilder(
+        context,
+        state,
+        AppFrame(child: child),
       ),
       routes: [
         GoRoute(
@@ -70,52 +129,12 @@ class MoonRouter {
           pageBuilder: (context, state, child) => genericPageBuilder(
             context,
             state,
-            StartupHomeFrame(
-              child: child,
-            ),
-          ),
-          redirect: loggedInRedirect,
-          routes: [
-            GoRoute(
-                path: '/welcome',
-                pageBuilder: (context, state) =>
-                    genericPageBuilder(context, state, StartupScreen()),
-                routes: [
-                  GoRoute(
-                    path: 'login',
-                    pageBuilder: (context, state) => genericPageBuilder(
-                      context,
-                      state,
-                      const LoginPage(),
-                    ),
-                  ),
-                  GoRoute(
-                    path: 'register',
-                    pageBuilder: (context, state) => genericPageBuilder(
-                      context,
-                      state,
-                      const RegisterNewUserAccountGuidancePage(),
-                    ),
-                  ),
-                ]),
-          ],
-        ),
-        GoRoute(
-          path: '/settings',
-          pageBuilder: (context, state) => genericPageBuilder(
-            context,
-            state,
-            const SettingsView(),
-          ),
-        ),
-        ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            TwoColumnLayout(
-              mainView: const SidePaneHandler(child: RoomsPane()),
-              sideView: child,
-            ),
+            // The DashboardLayout replaces the old TwoColumnLayout.
+            // It reads sidebar visibility and pane choice from
+            // SettingsController and uses LayoutBuilder for responsive
+            // breakpoints. The PermanentPaneBottomItems (user profile,
+            // logout) are now rendered by DashboardLayout itself.
+            DashboardLayout(child: child),
           ),
           routes: [
             GoRoute(
@@ -186,51 +205,92 @@ class MoonRouter {
                 final Client client =
                     Provider.of<Client>(context, listen: false);
                 return genericPageBuilder(
-                    context, state, OwnProfilePage(client: client));
+                    context, state, HubScreen(client: client));
               },
-            )
+            ),
+            GoRoute(
+              path: '/main/encryption',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const EncryptionOverviewScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/main/devices',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const DeviceListScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/main/space/:spaceid',
+              pageBuilder: (context, state) {
+                final String spaceId = state.pathParameters['spaceid']!;
+                final Client client =
+                    Provider.of<Client>(context, listen: false);
+                final Room? space = client.getRoomById(spaceId);
+                if (space == null) {
+                  return genericPageBuilder(
+                    context,
+                    state,
+                    const Center(child: Text('Space not found')),
+                  );
+                }
+                return genericPageBuilder(
+                  context,
+                  state,
+                  SpaceHomePage(space: space),
+                );
+              },
+              redirect: loggedOutRedirect,
+              routes: [
+                GoRoute(
+                  path: 'settings',
+                  pageBuilder: (context, state) {
+                    final String spaceId = state.pathParameters['spaceid']!;
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    final Room? space = client.getRoomById(spaceId);
+                    if (space == null) {
+                      return genericPageBuilder(
+                        context,
+                        state,
+                        const Center(child: Text('Space not found')),
+                      );
+                    }
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      SpaceSettingsPage(space: space),
+                    );
+                  },
+                ),
+              ],
+            ),
+            GoRoute(
+              path: '/main/addroom',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                const AddRoomPage(),
+              ),
+            ),
           ],
         )
       ],
     ),
   ];
 
-  static final Router panelRouter = Router.withConfig(
-    config: GoRouter(
-      routes: [
-        ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            SidePaneHandler(
-              child: child,
-            ),
-          ),
-          routes: [
-            GoRoute(
-              path: '/',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const RoomsPane(),
-              ),
-            )
-          ],
-        ),
-      ],
-    ),
-  );
-
   static Page genericPageBuilder(
     BuildContext context,
     GoRouterState state,
     Widget child,
   ) =>
-      CustomTransitionPage(
+      NoTransitionPage(
         key: state.pageKey,
         restorationId: state.pageKey.value,
         child: child,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
       );
 }

@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/show_error_infobar.dart';
 import 'package:provider/provider.dart';
 
+// FIXME this entire widget is a disaster
 class OwnProfilePage extends StatefulWidget {
   const OwnProfilePage({super.key, required this.client});
   final Client client;
@@ -32,58 +36,124 @@ class OwnProfilePage extends StatefulWidget {
 }
 
 class _OwnProfilePageState extends State<OwnProfilePage> {
-  late Profile uprofile;
-  Future<void> _getUserProfile() async {
-    uprofile = await widget.client.getProfileFromUserId(widget.client.userID!);
-    setState(() {});
-  }
+  Profile? _profile;
+  Object? _error;
+  bool _loading = true;
 
   @override
   void initState() {
-    _getUserProfile();
     super.initState();
+    _fetchProfile();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    try {
-      return Acrylic(
-        child: ScaffoldPage(
-          header: OwnProfileHeaderBar(
-            username: uprofile.displayName,
-          ),
-          content: OwnProfilePageContent(
-            client: widget.client,
-            userProfile: uprofile,
-          ),
-        ),
-      );
-    } catch (e) {
-      final Logger log = Provider.of<Logger>(context, listen: false);
-      log.w(
-        "Method 'client.getProfileFromuserId' has failed! Probably loading data",
-        error: e,
-        stackTrace: StackTrace.current,
-        time: DateTime.now(),
-      );
-      return const LoadingAndTransitionScreen();
+  Future<void> _fetchProfile() async {
+    final log = context.read<Logger>();
+    final result = await withRetry(
+      () => widget.client.getProfileFromUserId(widget.client.userID!),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'ownProfile',
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess(:final value):
+        {
+          setState(() {
+            _profile = value;
+            _loading = false;
+          });
+          // Show a friendly reminder if the user hasn't set a display name.
+          if (value.displayName == null && mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.noDisplayNameSet),
+                ),
+              );
+            });
+          }
+        }
+      case RetryFailed(:final error):
+        {
+          setState(() {
+            _error = error;
+            _loading = false;
+          });
+        }
     }
   }
-}
 
-class OwnProfileHeaderBar extends StatelessWidget {
-  const OwnProfileHeaderBar({super.key, required this.username});
-  final String? username;
   @override
   Widget build(BuildContext context) {
-    return PageHeader(
+    if (_loading) return const LoadingScreen();
+
+    if (_error != null || _profile == null) {
+      return Scaffold(
+        appBar: _buildAppBar(context),
+        body: _buildErrorBody(context),
+      );
+    }
+
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      body: OwnProfilePageContent(
+        client: widget.client,
+        userProfile: _profile!,
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
       leading: IconButton(
-        icon: const Icon(FluentIcons.back),
+        icon: const Icon(LucideIcons.arrowLeft),
         onPressed: () => context.pop(),
       ),
       title: Text(
-        AppLocalizations.of(context)?.ownProfileDescriptor ?? "Your Profile",
-        style: FluentTheme.of(context).typography.bodyLarge,
+        AppLocalizations.of(context)!.ownProfileDescriptor,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+      ),
+    );
+  }
+
+  Widget _buildErrorBody(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final message = _error is TimeoutException
+        ? l10n.profileLoadTimeout
+        : l10n.profileLoadError('$_error');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
+              label: Text(AppLocalizations.of(context)!.retry),
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _error = null;
+                });
+                _fetchProfile();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -101,10 +171,6 @@ class OwnProfilePageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (userProfile.displayName == null) {
-      showErrorInfobar(context, "You have not set a display name yet!", "");
-    }
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +187,8 @@ class OwnProfilePageContent extends StatelessWidget {
                           .map((s) => s[0])
                           .take(2)
                           .join(),
-                      style: FluentTheme.of(context).typography.titleLarge,
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                     )
                   : AvatarFromUriOrFallbackImage(
                       client: client,
@@ -132,17 +199,15 @@ class OwnProfilePageContent extends StatelessWidget {
               ),
               Text(
                 userProfile.displayName ?? userProfile.userId,
-                style: FluentTheme.of(context).typography.titleLarge,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
         ),
-        const Divider(
-          direction: Axis.horizontal,
-        ),
+        const Divider(),
         Text(
           "(${userProfile.userId})",
-          style: FluentTheme.of(context).typography.subtitle,
+          style: TextStyle(fontSize: 14),
         ),
       ],
     );

@@ -16,12 +16,11 @@
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
-import 'package:flutter_acrylic/flutter_acrylic.dart' as flutter_acrylic;
 
 final _appTheme = MoonrelayAppTheme();
 
@@ -37,7 +36,7 @@ class MoonrelayApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: settingsController,
       builder: (BuildContext context, Widget? child) {
-        return FluentApp.router(
+        return MaterialApp.router(
           routerConfig: moonrouter,
           debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
@@ -45,34 +44,12 @@ class MoonrelayApp extends StatelessWidget {
           // TODO: Support persian
           supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-          // TODO: theme builder, user settings theme management
-          theme: FluentThemeData(
-            accentColor: _appTheme.color,
-            visualDensity: VisualDensity.standard,
-            focusTheme: FocusThemeData(
-              glowFactor: is10footScreen(context) ? 2.0 : 0.0,
-            ),
-          ),
-          darkTheme: FluentThemeData(
-            brightness: Brightness.dark,
-            accentColor: _appTheme.color,
-            visualDensity: VisualDensity.standard,
-            focusTheme: FocusThemeData(
-              glowFactor: is10footScreen(context) ? 2.0 : 0.0,
-            ),
-          ),
+          theme: MoonrelayTheme.light(settingsController.themeOption),
+          darkTheme: MoonrelayTheme.dark(settingsController.themeOption),
           themeMode: settingsController.themeMode,
           builder: (context, child) => Directionality(
             textDirection: _appTheme.textDirection,
-            child: NavigationPaneTheme(
-              data: NavigationPaneThemeData(
-                backgroundColor: _appTheme.windowEffect !=
-                        flutter_acrylic.WindowEffect.disabled
-                    ? Colors.transparent
-                    : null,
-              ),
-              child: child!,
-            ),
+            child: child!,
           ),
         );
       },

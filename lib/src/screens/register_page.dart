@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:linkify_text/linkify_text.dart';
 
@@ -24,21 +24,22 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      topBar: IconButton(
-        icon: const Icon(
-          FluentIcons.back,
-          color: Colors.white,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: Colors.white,
+          ),
+          onPressed: () => context.pop(),
         ),
-        onPressed: () => context.pop(),
       ),
-      content: Column(
+      body: Column(
         children: [
           const Text(
             "Choose a Homeserver.",
             style: TextStyle(
               color: Colors.white,
-              fontFamily: 'Rubic',
               fontWeight: FontWeight.bold,
               fontSize: 22,
             ),
@@ -46,7 +47,6 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
           const Text(
             "What is a homeserver?",
             style: TextStyle(
-              fontFamily: 'Rubik',
               color: Colors.white,
               fontSize: 16,
             ),
@@ -54,7 +54,6 @@ class RegisterNewUserAccountGuidancePage extends StatelessWidget {
           const Text(
             "A homserver is your gateway into the Matrix network. It is a place where you create an account on, and then you use that account to login to the network.\nIn order to create an account, you need to go into a homeserver's website, and create an account there.\nFor your convenience, a brief list of popular homeservers is presented below\nWe will add the option to register inside the client in later versions.",
             style: TextStyle(
-              fontFamily: 'Rubik',
               color: Colors.white,
               fontSize: 16,
             ),

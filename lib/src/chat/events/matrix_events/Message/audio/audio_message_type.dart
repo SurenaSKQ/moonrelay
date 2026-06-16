@@ -14,13 +14,134 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
-class AudioMessageType extends StatelessWidget {
-  const AudioMessageType({super.key});
+/// Displays an audio message with file info, duration, and a download button.
+///
+/// A future iteration may replace the download action with in-app playback
+/// using a low-level audio package (e.g. `flutter_soloud` or `just_audio`).
+class AudioMessageType extends StatefulWidget {
+  const AudioMessageType({super.key, required this.event});
+  final Event event;
+
+  @override
+  State<AudioMessageType> createState() => _AudioMessageTypeState();
+}
+
+class _AudioMessageTypeState extends State<AudioMessageType> {
+  Future<MatrixFile>? _downloadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.event.hasAttachment) {
+      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+    }
+  }
+
+  // ---- Content helpers ----
+
+  String? get _fileName => widget.event.content['filename']?.toString();
+  String get _extension =>
+      (_fileName?.split('.').last ?? 'audio').toUpperCase();
+
+  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
+      ? widget.event.content['info'] as Map<String, dynamic>
+      : const {};
+
+  /// Duration in milliseconds from the content's info blob.
+  int? get _duration => _infoMap['duration'] as int?;
+
+  String _formatDuration(int ms) {
+    final totalSeconds = ms ~/ 1000;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  // ---- Actions ----
+
+  Future<void> _downloadFile() async {
+    if (_downloadFuture == null) return;
+    final attFile = await _downloadFuture!;
+    await FilePicker.saveFile(
+      dialogTitle: AppLocalizations.of(context)!.saveAudio,
+      fileName: _fileName,
+      bytes: attFile.bytes,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    final theme = Theme.of(context);
+
+    return FutureBuilder<MatrixFile>(
+      future: _downloadFuture,
+      builder: (context, snapshot) {
+        final isReady = snapshot.connectionState == ConnectionState.done &&
+            !snapshot.hasError;
+
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 80, maxWidth: 320),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Audio icon (pulsing while loading)
+                  Icon(
+                    isReady ? Icons.music_note : Icons.sync,
+                    size: 36,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+
+                  // File metadata
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _fileName ??
+                              AppLocalizations.of(context)!.audioFileName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$_extension${_duration != null ? " · ${_formatDuration(_duration!)}" : ""}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Download button
+                  Tooltip(
+                    message: AppLocalizations.of(context)!.downloadAudio,
+                    child: IconButton(
+                      icon: const Icon(Icons.download, size: 20),
+                      onPressed: isReady ? _downloadFile : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

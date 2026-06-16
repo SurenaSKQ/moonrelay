@@ -14,61 +14,91 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// TODO: Loading animations, handle different states, theming?
-import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 
-enum AvatarStates {
-  inactive,
-  active,
-}
-
-class AvatarFromUriOrFallbackImage extends StatefulWidget {
+/// An avatar that loads from a Matrix content URI with a themed placeholder
+/// while the thumbnail URL resolves and the image downloads.
+///
+/// When [avatarUri] is `null` a generic person icon is shown instead.
+class AvatarFromUriOrFallbackImage extends StatelessWidget {
   const AvatarFromUriOrFallbackImage({
     super.key,
     required this.client,
     this.avatarUri,
     this.onTap,
-    this.fallbackImage,
+    this.radius,
   });
+
   final Client client;
   final Uri? avatarUri;
   final VoidCallback? onTap;
-  final AvatarStates avatarState = AvatarStates.active;
-  final ImageProvider? fallbackImage;
-  @override
-  State<AvatarFromUriOrFallbackImage> createState() =>
-      _AvatarFromUriOrFallbackImageState();
-}
+  final double? radius;
 
-class _AvatarFromUriOrFallbackImageState
-    extends State<AvatarFromUriOrFallbackImage> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final displaySize = ((radius ?? 20) * 2).round();
+
     return GestureDetector(
-      onTap: widget.onTap,
-      child: (widget.avatarUri == null)
-          ? CircleAvatar(
-              foregroundImage: AssetImage('assets/images/fallbackAvatar.png'))
-          : FutureBuilder(
-              future: widget.avatarUri!
-                  .getThumbnailUri(widget.client, width: 56, height: 56),
-              builder: (context, asyncSnapshot) {
-                if (asyncSnapshot.connectionState != ConnectionState.done) {
-                  return Builder(
-                    builder: (context) => SpinKitCubeGrid(
-                      color: FluentTheme.of(context).accentColor,
-                    ),
+      onTap: onTap,
+      child: avatarUri == null
+          ? _placeholder(theme)
+          : FutureBuilder<Uri>(
+              future: withTimeoutOrFallback(
+                () => avatarUri!.getThumbnailUri(
+                  client,
+                  width: displaySize,
+                  height: displaySize,
+                ),
+                timeout: kDefaultTimeout,
+                fallback: avatarUri!,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return _avatarWithErrorHandling(
+                    context,
+                    theme,
+                    snapshot.data.toString(),
                   );
                 }
-                return CircleAvatar(
-                  foregroundImage: NetworkImage(asyncSnapshot.data.toString(),
-                      headers: {
-                        "authorization": "Bearer ${widget.client.accessToken}"
-                      }),
-                );
-              }),
+                // Themed placeholder while the thumbnail URL resolves.
+                return _placeholder(theme);
+              },
+            ),
+    );
+  }
+
+  /// Placeholder avatar shown when no URI is available or while loading.
+  Widget _placeholder(ThemeData theme) => CircleAvatar(
+        radius: radius,
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: Icon(
+          Icons.person,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      );
+
+  /// Avatar with a network image that gracefully handles load failures
+  /// (e.g. empty files returned by the server).
+  Widget _avatarWithErrorHandling(
+    BuildContext context,
+    ThemeData theme,
+    String imageUrl,
+  ) {
+    final avatarRadius = radius ?? 20.0;
+
+    return CircleAvatar(
+      radius: avatarRadius,
+      backgroundImage: NetworkImage(
+        imageUrl,
+        headers: {
+          'authorization': 'Bearer ${client.accessToken}',
+        },
+      ),
+      backgroundColor: theme.colorScheme.primaryContainer,
+      onBackgroundImageError: (_, __) {},
     );
   }
 }

@@ -14,113 +14,286 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:badges/badges.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+/// A scrollable list of rooms, optionally filtered by [roomFilter].
+///
+/// If [roomFilter] is `null`, every room the user is a member of is shown.
+/// Otherwise only rooms for which the predicate returns `true` are shown —
+/// this is used by the navigation pane to display direct chats, all rooms,
+/// or rooms belonging to a specific space.
 class RoomsPane extends StatelessWidget {
+  /// An optional filter predicate. Return `true` to include a room.
+  final bool Function(Room room)? roomFilter;
+
   const RoomsPane({
     super.key,
+    this.roomFilter,
   });
 
   @override
   Widget build(BuildContext context) {
-    void join(Room room) async {
-      try {
-        if (room.membership != Membership.join) {
-          await room.join();
-        }
-        context.pushReplacement('/main/rooms/${room.id}');
-      } catch (e) {
-        Provider.of<Logger>(context).f(
-          "Failed to join",
-          error: e,
-          stackTrace: StackTrace.current,
-          time: DateTime.now(),
-        );
-        // FIXME: Better error and localization
-        await displayInfoBar(
-          context,
-          builder: (context, close) {
-            return InfoBar(
-              title: Text(AppLocalizations.of(context)!.error),
-              content: Text(e.toString()),
-              action: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: close,
-              ),
-              severity: InfoBarSeverity.error,
-            );
-          },
-        );
-      }
-    }
+    final Client client = Provider.of<Client>(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    Client client = Provider.of<Client>(context);
-    return StreamBuilder(
-      stream: client.onSync.stream,
-      builder: (context, _) => ListView.builder(
-        itemCount: client.rooms.length,
-        itemBuilder: (context, index) => ListTile.selectable(
-          // FIXME: Avatar & Badge
-          leading: Badge(
-            showBadge: (client.rooms[index].notificationCount > 0),
-            position: BadgePosition.bottomStart(),
-            badgeStyle: BadgeStyle(shape: BadgeShape.square),
-            badgeAnimation: BadgeAnimation.slide(),
-            badgeContent: Text(
-              client.rooms[index].notificationCount.toString(),
-            ),
-            child: (client.rooms[index].avatar == null)
-                ? CircleAvatar(
-                    child: Text(
-                      client.rooms[index]
-                          .getLocalizedDisplayname()
-                          .toUpperCase()
-                          .split(RegExp(' +'))
-                          .map((s) => s[0])
-                          .take(2)
-                          .join(),
-                    ),
-                  )
-                : CircleAvatar(
-                    foregroundImage: NetworkImage(
-                      client.rooms[index].avatar!
-                          .getThumbnail(client, width: 56, height: 56)
-                          .toString(),
-                    ),
-                  ),
-          ),
+    final l10n = AppLocalizations.of(context)!;
+    return Material(
+      child: StreamBuilder(
+        stream: client.onSync.stream,
+        builder: (context, snapshot) {
+          // Determine whether the first sync has arrived yet.
+          final bool hasSynced = snapshot.hasData;
 
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  client.rooms[index].getLocalizedDisplayname(),
-                  style: const TextStyle(
-                      fontFamily: 'Rubik',
-                      fontWeight: FontWeight.w300,
-                      fontSize: 18),
+          // Re-filter on every sync to pick up new rooms.
+          final Iterable<Room> currentRooms = roomFilter != null
+              ? client.rooms.where(roomFilter!)
+              : client.rooms;
+
+          // ── Loading state: waiting for initial sync ────────────────
+          if (!hasSynced && currentRooms.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      l10n.loadingRooms,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          subtitle: Text(
-            client.rooms[index].lastEvent?.body ?? 'No messages',
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: 'Rubic',
-              fontWeight: FontWeight.w300,
-              fontSize: 16,
-            ),
-          ),
-          onPressed: () => join(client.rooms[index]),
+            );
+          }
+
+          // ── Empty state: synced but no matching rooms ───────────────
+          if (currentRooms.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      LucideIcons.messageCircle,
+                      size: 40,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.noRoomsYet,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: currentRooms.length,
+            itemBuilder: (context, index) {
+              final Room room = currentRooms.elementAt(index);
+
+              return ListTile(
+                leading:
+                    _RoomAvatar(room: room, client: client, scheme: scheme),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        room.getLocalizedDisplayname(),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w300, fontSize: 18),
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text(
+                  room.lastEvent?.body ?? l10n.noMessages,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w300,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () => _joinRoom(context, room),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Joins the [room] (if not already a member) and navigates to it.
+Future<void> _joinRoom(BuildContext context, Room room) async {
+  final log = Provider.of<Logger>(context, listen: false);
+  try {
+    if (room.membership != Membership.join) {
+      final result = await withRetry(
+        () => room.join(),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'joinRoom',
+      );
+      if (result is RetryFailed) {
+        throw (result).error;
+      }
+    }
+    if (!context.mounted) return;
+    context.pushReplacement('/main/rooms/${room.id}');
+  } catch (e) {
+    log.f(
+      'Failed to join',
+      error: e,
+      stackTrace: StackTrace.current,
+      time: DateTime.now(),
+    );
+    if (!context.mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final message =
+        e is TimeoutException ? l10n.couldNotJoinRoomTimeout : e.toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(AppLocalizations.of(context)!.error),
+            Text(message),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// A compact room avatar with a small unread dot overlaid at the
+/// bottom-right corner when the room has new messages.
+///
+/// Uses the theme's [ColorScheme.error] for the dot and [ColorScheme.surface]
+/// for the border so it integrates cleanly with light and dark themes.
+class _RoomAvatar extends StatelessWidget {
+  const _RoomAvatar({
+    required this.room,
+    required this.client,
+    required this.scheme,
+  });
+
+  final Room room;
+  final Client client;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Stack(
+        children: [
+          // The avatar fills the available area.
+          Positioned.fill(child: _buildAvatar()),
+          // Unread dot – bottom-right, partially overlaps the avatar edge.
+          if (room.hasNewMessages)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: scheme.error,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: scheme.surface,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    if (room.avatar == null) {
+      return CircleAvatar(
+        child: Text(
+          room
+              .getLocalizedDisplayname()
+              .toUpperCase()
+              .split(RegExp(' +'))
+              .map((s) => s[0])
+              .take(2)
+              .join(),
+        ),
+      );
+    }
+
+    return FutureBuilder<Uri?>(
+      future: withTimeoutOrFallback(
+        () => room.avatar!.getThumbnailUri(
+          client,
+          method: ThumbnailMethod.scale,
+          height: 56,
+          width: 56,
+        ),
+        timeout: kDefaultTimeout,
+        fallback: null,
+      ),
+      builder: (context, asyncSnapshot) {
+        final uri = asyncSnapshot.data;
+        if (uri != null) {
+          return CircleAvatar(
+            backgroundImage: NetworkImage(
+              uri.toString(),
+              headers: {
+                'authorization': 'Bearer ${client.accessToken}',
+              },
+            ),
+            onBackgroundImageError: (_, __) {},
+          );
+        }
+// Fallback to initials when the thumbnail hasn't loaded yet or failed.
+        return CircleAvatar(
+          child: Text(
+            room
+                .getLocalizedDisplayname()
+                .toUpperCase()
+                .split(RegExp(' +'))
+                .map((s) => s[0])
+                .take(2)
+                .join(),
+          ),
+        );
+      },
     );
   }
 }

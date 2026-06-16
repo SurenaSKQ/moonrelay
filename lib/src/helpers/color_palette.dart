@@ -16,6 +16,8 @@
 
 import 'dart:ui';
 
+import 'package:moonrelay/src/helpers/string_color.dart';
+
 /// Use this as a reference color palette. Probably mostly useful for making new themes.
 class MoonrelayColorPalette {
   // Black/Grey
@@ -40,4 +42,32 @@ class MoonrelayColorPalette {
   static const Color cpgDark = Color.fromRGBO(15, 52, 97, 1);
   static const Color cpgRed = Color.fromRGBO(233, 68, 95, 1);
   static const Color cpgWhite = Color.fromRGBO(250, 250, 250, 1);
+
+  // Colors
+  static const Color primaryColor =
+      Color(0xFF2A2E31); // Example dark color for primary theme
+  static const Color secondaryColor =
+      Color(0xFF46494C); // Example darker shade of the primary color
+  static const Color corporateDarkColor = Color(0x0020272f);
+  static const Color accentColor = Color(0xFF58A6FF); // Example accent color
+
+  // Method to get color for a given string
+  Color getColorFromString(String text) {
+    return text.color;
+  }
+
+  // Method to get dark color for a given string
+  Color getDarkColorFromString(String text) {
+    return text.darkColor;
+  }
+
+  // Method to get light color for text based on a given string
+  Color getLightColorTextFromString(String text) {
+    return text.lightColorText;
+  }
+
+  // Method to get light color for avatar based on a given string
+  Color getLightColorAvatarFromString(String text) {
+    return text.lightColorAvatar;
+  }
 }

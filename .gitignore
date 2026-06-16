@@ -129,6 +129,7 @@ lib/generated_plugin_registrant.dart
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/flutter,visualstudiocode
-windows/
-linux/
-macos/
+
+# Ignore automatically generated localization files
+lib/src/localization/app_localizations.dart
+lib/src/localization/app_localizations_en.dart

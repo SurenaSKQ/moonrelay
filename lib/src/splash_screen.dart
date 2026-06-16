@@ -1,0 +1,166 @@
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+/// Full-screen splash shown while the application initialises.
+///
+/// This widget is shown as the `home` of a single MaterialApp before
+/// the main [MoonrelayApp] is swapped in.  It shows a progress spinner
+/// with a status message and, when [_status] is `null`, the building
+/// animation.
+///
+/// The splash also handles the error state: when [_done] is `false`,
+/// it shows a descriptive error with an Exit button.
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  /// `null` → still running; `true` → success; `false` → error.
+  bool? _done;
+
+  /// Status message shown under the spinner.
+  String _status = 'Starting…';
+
+  String _errorTitle = '';
+  String _errorBody = '';
+
+  /// Called by [main] to kick off the init pipeline.
+  ///
+  /// Must be called exactly once, after the widget tree has been built.
+  Future<void> start() async {
+    // The actual init logic lives outside this widget so we can keep
+    // the widget tree lean.  main.dart calls back into us to update
+    // the UI.
+    setState(() {
+      _done = null;
+      _status = 'Starting…';
+    });
+  }
+
+  /// Update the status message (called from the init pipeline in main).
+  void updateStatus(String msg) {
+    if (mounted) setState(() => _status = msg);
+  }
+
+  /// Signal that init succeeded (called from the init pipeline in main).
+  void markDone() {
+    if (mounted) setState(() => _done = true);
+  }
+
+  /// Signal that init failed (called from the init pipeline in main).
+  void markError(String title, String body) {
+    if (mounted) {
+      setState(() {
+        _done = false;
+        _errorTitle = title;
+        _errorBody = body;
+      });
+    }
+  }
+
+  // ── Build ───────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      body: Center(
+        child: _done == false ? _buildError(scheme) : _buildLoading(scheme),
+      ),
+    );
+  }
+
+  Widget _buildLoading(ColorScheme scheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(LucideIcons.moon, size: 64, color: scheme.primary),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          _status,
+          style: TextStyle(
+            fontSize: 15,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildError(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.alertOctagon, size: 56, color: scheme.error),
+          const SizedBox(height: 24),
+          Text(
+            _errorTitle,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SelectableText(
+              _errorBody,
+              style: TextStyle(
+                fontSize: 14,
+                color: scheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 36),
+          FilledButton.icon(
+            onPressed: () => exit(0),
+            icon: const Icon(LucideIcons.logOut, size: 18),
+            label: const Text('Exit'),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -17,10 +17,10 @@
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/layouts/custom_scaffold.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 class RoomPage extends StatefulWidget {
   final Room room;
@@ -30,25 +30,62 @@ class RoomPage extends StatefulWidget {
 }
 
 class _RoomPageState extends State<RoomPage> {
+  /// The event the user is currently replying to (or null).
+  final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer the CurrentRoom update to after the current frame.
+    // Calling setRoom here would fire during the parent's build phase —
+    // DashboardLayout has already read CurrentRoom for this frame and
+    // the notifyListeners would only take effect on the next frame,
+    // causing the right sidebar to lag one navigation behind.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<CurrentRoom>().setRoom(widget.room);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(RoomPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<CurrentRoom>().setRoom(widget.room);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _replyTarget.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      backgroundColor: MoonrelayColorPalette.ordinaryDarkGrey,
-      content: Stack(children: [
-        Column(
-          children: [
-            Expanded(
-              child: ChatTimeline(room: widget.room),
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Column(
+        children: [
+          ChatRoomHeader(room: widget.room),
+          Expanded(
+            child: ChatTimeline(
+              room: widget.room,
+              onReply: (event) => _replyTarget.value = event,
             ),
-            const Divider(
-              direction: Axis.vertical,
-              size: 1,
-            ),
-            ChatBox(room: widget.room),
-          ],
-        ),
-        RoomInfoCard(room: widget.room),
-      ]),
+          ),
+          const Divider(thickness: 1),
+          ChatBox(
+            room: widget.room,
+            replyTarget: _replyTarget,
+          ),
+        ],
+      ),
     );
   }
 }

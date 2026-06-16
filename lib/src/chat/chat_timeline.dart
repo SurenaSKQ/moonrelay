@@ -14,102 +14,332 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/chat/timeline_item.dart';
-import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/chat/timeline_view.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:fluent_ui/fluent_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
+/// Orchestrates the chat timeline lifecycle.
+///
+/// Creates the [Timeline] via the Matrix SDK, manages scroll-to-load-history
+/// with auto-fill for short content, and delegates rendering to [TimelineView].
+///
+/// ## Scroll loading
+///
+/// With `reverse: true` on the ListView, the scroll position is 0 at the
+/// bottom (newest messages) and reaches [maxScrollExtent] at the top (oldest
+/// messages).  History is loaded whenever the user scrolls within 150 px of
+/// the top.
+///
+/// ## Auto-fill
+///
+/// If the initially loaded content does not fill the viewport (no scrollbar),
+/// history is fetched repeatedly until the viewport is full or the server
+/// returns no more events.  This ensures the user can always scroll up to
+/// trigger manual pagination.
+///
+/// ## Stability
+///
+/// A shared [scaffold] / debounce mechanism prevents cascading history loads.
+/// When a load completes, layout-induced scroll notifications are suppressed
+/// for two frames while the list stabilises, stopping the "load → layout
+/// change → scroll event → load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline({super.key, required this.room});
+  const ChatTimeline({super.key, required this.room, this.onReply});
+
   final Room room;
+
+  /// Called when the user wants to reply to a specific timeline event.
+  final void Function(Event event)? onReply;
 
   @override
   State<ChatTimeline> createState() => _ChatTimelineState();
 }
 
-//TODO: This needs settingsController styling.
 class _ChatTimelineState extends State<ChatTimeline> {
-  late final Future<Timeline> _timelineFuture;
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  final ScrollController _scrollController = ScrollController();
-  // Counts events
-  // ignore: unused_field
-  int _count = 0;
+  /// The resolved Timeline, or null while still initialising.
+  Timeline? _timeline;
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<SettingsController>(
-      builder: (context, value, child) => FutureBuilder<Timeline>(
-        future: _timelineFuture,
-        builder: (context, snapshot) {
-          final timeline = snapshot.data;
-          if (snapshot.connectionState != ConnectionState.done ||
-              timeline == null) {
-            return LoadingAndTransitionScreen();
-          }
-          _scrollController.addListener(
-            () {
-              if (_scrollController.position.pixels ==
-                  _scrollController.position.maxScrollExtent) {
-                // User has scrolled to the top (not bottom lol), request more data
-                timeline.requestHistory();
-              }
-            },
-          );
-          _count = timeline.events.length;
-          return Expanded(
-            child: AnimatedList(
-              controller: _scrollController,
-              key: _listKey,
-              reverse: true,
-              initialItemCount: timeline.events.length,
-              itemBuilder: (context, index, animation) {
-                if ((timeline.events[index].relationshipEventId != null)) {
-                  return Container();
-                } else {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: TimelineItem(
-                      event: timeline.events[index],
-                      previousEvent:
-                          (index >= 1 ? timeline.events[index - 1] : null),
-                      room: widget.room,
-                      displayType: value.displayType,
-                    ),
-                  );
-                }
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
+  final ScrollController _scrollController = ScrollController();
+
+  /// True while a [requestHistory] call is in flight.
+  bool _isLoadingHistory = false;
+
+  /// True while the auto-fill loop is running.
+  bool _isFillingViewport = false;
+
+  /// Temporarily suppresses [_onScroll] after a successful history load so
+  /// that layout-induced scroll notifications don't trigger another request
+  /// before the user has had a chance to scroll manually.
+  bool _scrollDebounce = false;
+
+  /// How many consecutive auto-fill requests have been issued without the
+  /// viewport becoming scrollable.  Caps the retry loop when the server
+  /// returns no more history.
+  int _autoFillRetries = 0;
+  static const int _maxAutoFillRetries = 5;
+
+  /// Trigger distance (logical pixels) from the top of the list.
+  static const double _scrollThreshold = 150.0;
+
+  int _timelineVersion = 0;
+
+  /// True when [_initTimeline] finished with a permanent error.
+  bool _timelineLoadFailed = false;
 
   @override
   void initState() {
     super.initState();
-    _timelineFuture = widget.room.getTimeline(
-      onChange: (i) {
-        _listKey.currentState?.setState(() {});
-      },
-      onInsert: (i) {
-        _listKey.currentState?.insertItem(i);
-        _count++;
-      },
-      onRemove: (i) {
-        _count--;
-        _listKey.currentState?.removeItem(i, (_, __) => const ListTile());
-      },
-      onUpdate: () {},
+    _initTimeline();
+  }
+
+  Future<void> _initTimeline() async {
+    final log = context.read<Logger>();
+
+    final result = await withRetry(
+      () => widget.room.getTimeline(
+        onChange: (_) => _onTimelineUpdate(),
+        onInsert: (_) => _onTimelineUpdate(),
+        onRemove: (_) => _onTimelineUpdate(),
+        onUpdate: () {},
+      ),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'getTimeline(${widget.room.id})',
     );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case RetrySuccess(:final value):
+        {
+          setState(() => _timeline = value);
+          _scrollController.addListener(_onScroll);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _ensureContentFillsScreen();
+          });
+          // Mark the latest event as read.
+          _markRoomRead();
+        }
+      case RetryFailed(:final error):
+        {
+          log.e('Failed to load timeline for ${widget.room.id}', error: error);
+          _timelineLoadFailed = true;
+          setState(() {});
+        }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared history-loading
+  // ---------------------------------------------------------------------------
+
+  /// Requests more history from the server and debounces subsequent
+  /// scroll-triggered loads so that layout reflow doesn't create a loop.
+  Future<void> _requestMoreHistory() async {
+    if (_timeline == null) return;
+    final Logger log = context.read<Logger>();
+    _isLoadingHistory = true;
+    _scrollDebounce = true;
+
+    try {
+      await withTimeout(
+        () => _timeline!.requestHistory(),
+        timeout: kDefaultTimeout,
+      );
+    } catch (e) {
+      log.w('History request failed for ${widget.room.id}', error: e);
+    }
+
+    if (!mounted) return;
+    _isLoadingHistory = false;
+    // Let the list lay out, then release the debounce two frames later
+    // to skip any layout-caused scroll events.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _scrollDebounce = false);
+      });
+    });
+    // Also re-check auto-fill after this load finishes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureContentFillsScreen();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll-to-load history
+  // ---------------------------------------------------------------------------
+
+  /// Called on every scroll event.  Loads more history when the user scrolls
+  /// near the top of the timeline (oldest messages).
+  ///
+  /// The ListView uses `reverse: true`, so:
+  /// - `pixels == 0` → bottom of the list (newest messages)
+  /// - `pixels >= maxScrollExtent - threshold` → near the top (oldest)
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_isLoadingHistory) return;
+    if (_scrollDebounce) return;
+    if (_isFillingViewport) return;
+
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - _scrollThreshold) {
+      _requestMoreHistory();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auto-fill viewport
+  // ---------------------------------------------------------------------------
+
+  /// If the current content does not overflow the viewport (i.e. no scrollbar
+  /// is visible), requests more history until either the viewport is filled or
+  /// no more events are available from the server.
+  void _ensureContentFillsScreen() {
+    if (!mounted) return;
+    if (_isFillingViewport) return;
+    if (_isLoadingHistory) return;
+    if (_timeline == null) return;
+
+    if (!_scrollController.hasClients) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _ensureContentFillsScreen());
+      return;
+    }
+
+    if (_autoFillRetries >= _maxAutoFillRetries) return;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    // Still too short -> request more.
+    if (maxScroll <= 50.0) {
+      _autoFillRetries++;
+      _isFillingViewport = true;
+      _requestMoreHistory();
+    } else {
+      _isFillingViewport = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    // Reset auto-fill counter when content becomes scrollable.
+    if (_scrollController.hasClients &&
+        _scrollController.position.maxScrollExtent > 50.0) {
+      _autoFillRetries = 0;
+    }
+
+    return Consumer<SettingsController>(
+      builder: (context, settings, _) {
+        if (_timeline == null) {
+          if (_timelineLoadFailed) {
+            return _buildError(context);
+          }
+          // Still loading – sync indicator in ChatRoomHeader handles the
+          // visual feedback, so we just show an empty container.
+          return const SizedBox.shrink();
+        }
+
+        return TimelineView(
+          timeline: _timeline!,
+          room: widget.room,
+          displayType: settings.displayType,
+          scrollController: _scrollController,
+          timelineVersion: _timelineVersion,
+          onReply: widget.onReply,
+          showStateEvents: settings.showStateEvents,
+        );
+      },
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.alertCircle,
+              size: 48,
+              color: scheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              AppLocalizations.of(context)!.couldNotLoadMessages,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.serverMayBeUnreachable,
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Icon(
+              LucideIcons.shield,
+              size: 24,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.encryptionVerifyDevice,
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.primary.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Read marker
+  // ---------------------------------------------------------------------------
+
+  /// Sends a read receipt for the newest event in the timeline so the server
+  /// and other clients know that the user has seen the latest messages.
+  void _markRoomRead() {
+    if (_timeline == null) return;
+    final events = _timeline!.events;
+    if (events.isEmpty) return;
+    // events are newest-first, so index 0 is the most recent.
+    final latestId = events.first.eventId;
+    widget.room.setReadMarker(latestId, mRead: latestId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dispose
+  // ---------------------------------------------------------------------------
+
+  void _onTimelineUpdate() {
+    if (!mounted) return;
+    setState(() => _timelineVersion++);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _timeline?.cancelSubscriptions();
     super.dispose();
   }
 }

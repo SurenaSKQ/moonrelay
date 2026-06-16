@@ -19,20 +19,21 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 class FileAttachedMessage extends StatelessWidget {
-  const FileAttachedMessage({Key? key, required this.event}) : super(key: key);
+  const FileAttachedMessage({super.key, required this.event});
   final Event event;
 
   // TODO: Multiple file download; split download utility; (future work) bind FFI to windows defender / ClamAV
 
-  Future<String?> _downloadFile() async {
+  Future<String?> _downloadFile(BuildContext context) async {
     if (event.hasAttachment) {
       MatrixFile attFile = await event.downloadAndDecryptAttachment();
-      return await FilePicker.platform.saveFile(
-          dialogTitle: 'Select download target',
+      return await FilePicker.saveFile(
+          dialogTitle: AppLocalizations.of(context)!.selectDownloadTarget,
           fileName: FileUtilities(event: event).getFileName(),
           bytes: attFile.bytes);
     }
@@ -51,9 +52,9 @@ class FileAttachedMessage extends StatelessWidget {
             width: 16,
             child: Center(
                 child: GestureDetector(
-              onTap: () => _downloadFile(),
-              child: const Icon(
-                FluentIcons.download_document,
+              onTap: () => _downloadFile(context),
+              child: Icon(
+                Icons.download,
                 size: 24,
               ),
             )),
@@ -62,7 +63,10 @@ class FileAttachedMessage extends StatelessWidget {
             children: [
               Center(
                 child: Text(
-                  "File: ${fileInfo.getFileName()} of Type: ${fileInfo.getFileMIMEType()} with extension: ${fileInfo.getFileExtention()}",
+                  AppLocalizations.of(context)!.fileInfo(
+                      fileInfo.getFileName() ?? '',
+                      fileInfo.getFileMIMEType() ?? '',
+                      fileInfo.getFileExtention() ?? ''),
                   overflow: TextOverflow.fade,
                   maxLines: 2,
                 ),

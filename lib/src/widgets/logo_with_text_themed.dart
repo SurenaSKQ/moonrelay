@@ -14,44 +14,185 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// A polished branding widget that displays a moon icon and the project name.
+///
+/// Replaces the previous raster-logo approach with a crisp vector icon
+/// and styled text, avoiding platform-specific image loading issues.
+/// Now features:
+/// - A subtle animated gradient glow behind the moon icon
+/// - A multiline tagline below the app name
+/// - Theme-aware colors with proper contrast
 class LogoWithTextThemed extends StatelessWidget {
-  const LogoWithTextThemed({super.key, this.themeModeOverride});
-  final Brightness? themeModeOverride;
+  const LogoWithTextThemed({super.key, this.themeMode, this.compact = false});
+
+  /// Optional brightness override. When provided, the icon/text colours
+  /// are tuned for that brightness; otherwise they follow the current theme.
+  final Brightness? themeMode;
+
+  /// When `true` renders a smaller layout suitable for sidebar footers.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final brightness = themeMode ?? cs.brightness;
+
+    if (compact) {
+      return _buildCompact(context, cs, brightness);
+    }
+    return _buildFull(context, cs, brightness);
+  }
+
+  Widget _buildFull(
+    BuildContext context,
+    ColorScheme cs,
+    Brightness brightness,
+  ) {
+    final isDark = brightness == Brightness.dark;
+    final glowColor = cs.primary.withValues(alpha: isDark ? 0.15 : 0.08);
+    final accentColor = cs.primary;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SvgPicture.asset(
-          'assets/images/azhi_logo.svg',
-          colorFilter: ColorFilter.mode(
-              ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
-                      Brightness.dark)
-                  ? MoonrelayColorPalette.cpgWhite
-                  : MoonrelayColorPalette.cpgDark,
-              BlendMode.srcIn),
-          fit: BoxFit.scaleDown,
+        // Animated moon icon with glow
+        SizedBox(
+          width: 96,
+          height: 96,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer glow ring
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 800),
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: glowColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: isDark ? 0.3 : 0.15),
+                      blurRadius: 32,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              // Inner gradient ring
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      accentColor.withValues(alpha: 0.2),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+              // Moon icon
+              Icon(
+                LucideIcons.moon,
+                size: 48,
+                color: accentColor,
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 20),
+
+        // App name
         Text(
-          AppLocalizations.of(context)!.projectName,
+          'Moonrelay',
           style: TextStyle(
-              color:
-                  ((themeModeOverride ?? FluentTheme.of(context).brightness) ==
-                          Brightness.dark)
-                      ? MoonrelayColorPalette.cpgWhite
-                      : MoonrelayColorPalette.cpgDark,
-              fontSize: 32,
-              fontFamily: 'Oxanium',
-              fontWeight: FontWeight.bold,
-              backgroundColor: Colors.grey.withAlpha(125)),
-          overflow: TextOverflow.clip,
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Oxanium',
+            color: cs.onSurface,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Subtitle / alpha label
+        Text(
+          'Alpha',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'Oxanium',
+            color: cs.primary,
+            letterSpacing: 4,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Tagline
+        Text(
+          'A modern Matrix client\nfor professional teams',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.4,
+            color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompact(
+    BuildContext context,
+    ColorScheme cs,
+    Brightness brightness,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: cs.primaryContainer.withValues(alpha: 0.5),
+          ),
+          child: Icon(
+            LucideIcons.moon,
+            size: 18,
+            color: cs.primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Moonrelay',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Oxanium',
+            color: cs.onSurface,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            color: cs.primaryContainer.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            'Alpha',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: cs.onPrimaryContainer,
+            ),
+          ),
         ),
       ],
     );
