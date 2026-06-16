@@ -15,7 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -44,6 +46,8 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   bool _showAdvanced = false;
   bool _loading = false;
   String? _error;
+  Uint8List? _avatarBytes;
+  String? _avatarName;
 
   @override
   void dispose() {
@@ -62,6 +66,21 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
+  }
+
+  Future<void> _pickAvatar() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+      allowMultiple: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+    setState(() {
+      _avatarBytes = file.bytes;
+      _avatarName = file.name;
+    });
   }
 
   Future<void> _createRoom() async {
@@ -113,6 +132,25 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
     switch (result) {
       case RetrySuccess(:final value):
+        // Set room avatar if one was picked.
+        if (_avatarBytes != null && mounted) {
+          try {
+            final room = client.getRoomById(value);
+            if (room != null) {
+              await room.setAvatar(
+                MatrixFile(bytes: _avatarBytes!, name: _avatarName ?? 'avatar'),
+              );
+            }
+          } catch (e) {
+            log.w('Failed to set room avatar after creation', error: e);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${l10n.error}: $e')),
+              );
+            }
+          }
+        }
+        if (!mounted) return;
         if (_isSpace) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.spaceCreated)),
@@ -190,6 +228,72 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
               textInputAction: TextInputAction.next,
             ),
 
+            const SizedBox(height: 16),
+
+            // Room avatar
+            GestureDetector(
+              onTap: _avatarBytes == null ? _pickAvatar : null,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor:
+                        scheme.primaryContainer.withValues(alpha: 0.5),
+                    backgroundImage: _avatarBytes != null
+                        ? MemoryImage(_avatarBytes!)
+                        : null,
+                    child: _avatarBytes == null
+                        ? Icon(
+                            LucideIcons.camera,
+                            size: 28,
+                            color: scheme.onPrimaryContainer,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.changeRoomAvatar,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _avatarBytes != null
+                            ? _avatarName ?? ''
+                            : l10n.changeRoomAvatarDescription,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                  if (_avatarBytes != null) ...[
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(
+                        LucideIcons.x,
+                        size: 18,
+                        color: scheme.error,
+                      ),
+                      tooltip: l10n.removeRoomAvatar,
+                      onPressed: () => setState(() {
+                        _avatarBytes = null;
+                        _avatarName = null;
+                      }),
+                    ),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
 
             // Room topic
