@@ -25,6 +25,11 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
+  // Set icon
+  gtk_window_set_default_icon_from_file(
+      "assets/images/logo.png",  // This path resolves relative to the CWD at runtime
+      NULL);
+
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
   // desktop).
@@ -66,12 +71,6 @@ static void my_application_activate(GApplication* application) {
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
-
-  // Get the path to the installed icon relative to the app bundle
-  gchar* icon_path = g_build_filename(g_get_current_dir(), "data", "moonrelay_logo.png", NULL);
-  gtk_window_set_default_icon_from_file(icon_path, NULL);
-  g_free(icon_path);
-
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
