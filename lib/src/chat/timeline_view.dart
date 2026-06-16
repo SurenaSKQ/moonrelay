@@ -110,7 +110,7 @@ class _TimelineViewState extends State<TimelineView> {
     while (j < visibleIndices.length) {
       final idx = visibleIndices[j];
       final ev = events[idx];
-      if (!_isStateEvent(ev) || widget.showStateEvents) {
+      if (!_isStateEvent(ev)) {
         return ev;
       }
       j++;
