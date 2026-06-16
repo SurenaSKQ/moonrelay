@@ -42,6 +42,7 @@ Pre-built binaries are not yet available. You will need to build from source.
 
 - [Flutter](https://flutter.dev) SDK (3.x or later)
 - A C++ toolchain (MSVC on Windows, GCC/Clang on Linux)
+- Latest Rust toolchain! You NEED this or you get a cryptic build failure because of Vodozemac!
 
 ### Build & Run
 
