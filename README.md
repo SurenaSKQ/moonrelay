@@ -2,9 +2,15 @@
 
 **A Matrix client for professionals — secure, cross-platform, and built with Flutter.**
 
-Moonrelay is a Matrix chat client focused on professional usage and advanced
-users. It prioritises stability, security, and a clean, intuitive interface.
-This is an **Alpha** release — features are actively being built and refined.
+This project originally started as a hobby project, then became my bachelor's project; and since putting it on git 2 years ago it's just kind of floundered around because I haven't had much time to work on it; and a LOT of shit happened in those years to be honest.
+
+I decided to clean up the project and push it out for alpha releasae after 2 years, you can see some relatively inaccurate report in [`WORK_NEEDED.md`](WORK_NEEDED.md) in which I had DeepSeek generate a report of the features.
+
+This alpha uses matrix-dart-sdk by Famedly GmbH, but I plan to fully move to my own SDK, -but- considering how 'fast' development has been this will probably happen between the final release of GNU HURD and the heat death of the universe.
+
+Also the "logo" is a slop placeholder until I learn 1337 vector art skillz and design an actual logo.
+
+Disclaimer: I've recently used DeepSeek and some small FOSS local models to aid the development; so if you have a holy crusade against AI usage feel free not to use this thing
 
 ---
 
