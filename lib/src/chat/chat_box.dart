@@ -143,10 +143,13 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     }
 
     try {
-      await withTimeout(sendFn, timeout: kDefaultTimeout);
+      // Clear the input immediately for responsive UX.  If sending
+      // fails the user will see an error and can retype.
       if (!mounted) return;
       _controller.clear();
       _clearReply();
+
+      await withTimeout(sendFn, timeout: kDefaultTimeout);
     } catch (e) {
       log.w('Failed to send message', error: e);
       if (!mounted) return;
