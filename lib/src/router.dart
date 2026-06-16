@@ -27,6 +27,7 @@ import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
+import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:flutter/material.dart';
@@ -244,6 +245,29 @@ class MoonRouter {
                 );
               },
               redirect: loggedOutRedirect,
+              routes: [
+                GoRoute(
+                  path: 'settings',
+                  pageBuilder: (context, state) {
+                    final String spaceId = state.pathParameters['spaceid']!;
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    final Room? space = client.getRoomById(spaceId);
+                    if (space == null) {
+                      return genericPageBuilder(
+                        context,
+                        state,
+                        const Center(child: Text('Space not found')),
+                      );
+                    }
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      SpaceSettingsPage(space: space),
+                    );
+                  },
+                ),
+              ],
             ),
             GoRoute(
               path: '/main/addroom',

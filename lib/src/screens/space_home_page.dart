@@ -23,7 +23,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum number of child rooms to delete before showing a progress dialog.
@@ -122,11 +121,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             IconButton(
               icon: const Icon(LucideIcons.settings),
               tooltip: l10n.openSpaceSettings,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SpaceSettingsPage(space: space),
-                ),
-              ),
+              onPressed: () => context.push('/main/space/${space.id}/settings'),
             ),
         ],
       ),
@@ -161,11 +156,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               icon: LucideIcons.plus,
               label: l10n.addRoomToSpace,
               description: l10n.spaceSettingsDescription,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SpaceSettingsPage(space: space),
-                ),
-              ),
+              onTap: () => context.push('/main/space/${space.id}/settings'),
               scheme: scheme,
             ),
             const SizedBox(height: 16),
