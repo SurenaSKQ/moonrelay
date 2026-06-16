@@ -479,6 +479,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
   /// Whether the current user is admin of the space and all its child rooms.
   bool _canDeleteSpace() {
     final space = widget.space;
+    if (space.membership != Membership.join) return false;
+
+    // Room must have a power levels state event.  Without it
+    // canChangeStateEvent defaults to requiring power level 0, which
+    // would let any joined user see the delete button.
+    if (space.getState(EventTypes.RoomPowerLevels) == null) return false;
     // Must be admin of the space itself.
     if (!space.canChangeStateEvent('m.room.power_levels')) return false;
 
@@ -488,11 +494,11 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       final cid = child.roomId;
       if (cid == null) continue;
       final childRoom = client.getRoomById(cid);
-      if (childRoom != null &&
-          childRoom.membership == Membership.join &&
-          !childRoom.canChangeStateEvent('m.room.power_levels')) {
-        return false;
-      }
+      if (childRoom == null) continue;
+      if (childRoom.membership != Membership.join) continue;
+      // Same guard for each child room.
+      if (childRoom.getState(EventTypes.RoomPowerLevels) == null) return false;
+      if (!childRoom.canChangeStateEvent('m.room.power_levels')) return false;
     }
     return true;
   }
