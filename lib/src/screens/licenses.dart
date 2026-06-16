@@ -54,7 +54,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
       name: 'GNU Affero General Public License v3.0',
       description: 'The license under which Moonrelay itself is distributed.',
       assetName: 'assets/agpl-3.0.txt',
-      packages: 'moonrelay',
+      packages: 'moonrelay, matrix-dart-sdk',
       url: 'https://www.gnu.org/licenses/agpl-3.0.html',
     ),
     _LicenseEntry(

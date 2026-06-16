@@ -16,7 +16,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
-import 'package:matrix/matrix_api_lite.dart';
 import 'package:matrix/src/utils/space_child.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';

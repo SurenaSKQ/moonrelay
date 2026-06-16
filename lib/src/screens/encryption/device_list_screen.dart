@@ -221,8 +221,8 @@ class DeviceListScreen extends StatelessWidget {
             ? loc.encryptionMarkAsUnverifiedTitle
             : loc.encryptionMarkAsVerifiedTitle),
         content: Text(isVerified
-            ? loc.encryptionMarkAsUnverifiedDesc('$deviceName')
-            : loc.encryptionMarkAsVerifiedDesc('$deviceName')),
+            ? loc.encryptionMarkAsUnverifiedDesc(deviceName)
+            : loc.encryptionMarkAsVerifiedDesc(deviceName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

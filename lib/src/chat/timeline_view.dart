@@ -359,7 +359,7 @@ class _UndecryptableBanner extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     count == 1
-                        ? '${count} ${l10n.encryptionUndecryptableMessage}'
+                        ? '$count ${l10n.encryptionUndecryptableMessage}'
                         : '$count ${l10n.encryptionUndecryptableMessages}',
                     style: TextStyle(
                       fontSize: 13,

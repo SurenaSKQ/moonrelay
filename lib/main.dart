@@ -123,9 +123,9 @@ Future<_AppState> _initialize({
   // bump so that subtle SDK migration bugs never accumulate.
   onStatus('Checking database version…');
   const String dbname = 'moonrelay.db';
-  const String _schemaVersionKey = 'db_schema_version';
+  const String schemaVersionKey = 'db_schema_version';
   final prefs = await SharedPreferences.getInstance();
-  final int? storedVersion = prefs.getInt(_schemaVersionKey);
+  final int? storedVersion = prefs.getInt(schemaVersionKey);
   final dbdir = await getApplicationSupportDirectory();
   final String dbPath = p.join(dbdir.path, dbname);
 
@@ -142,7 +142,7 @@ Future<_AppState> _initialize({
       }
     }
     await prefs.clear();
-    await prefs.setInt(_schemaVersionKey, kDbSchemaVersion);
+    await prefs.setInt(schemaVersionKey, kDbSchemaVersion);
   }
 
   // ── 4. Open database & Matrix SDK store ─────────────────────

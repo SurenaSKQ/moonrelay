@@ -139,7 +139,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
     if (mounted) {
       setState(() {
         _isLoading = false;
-        _displayedCount = _allMembers.length > 0
+        _displayedCount = _allMembers.isNotEmpty
             ? _batchSize.clamp(0, _allMembers.length)
             : 0;
       });

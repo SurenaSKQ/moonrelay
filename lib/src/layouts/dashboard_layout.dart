@@ -69,7 +69,6 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         final room = currentRoom.room;
 
         return _DashboardView(
-          child: widget.child,
           room: room,
           settings: settings,
           leftWidth: _leftWidth,
@@ -96,6 +95,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
               _rightWidth = null;
             }
           },
+          child: widget.child,
         );
       },
     );
@@ -651,7 +651,9 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     if (_displayedCount >= _allMembers.length) return;
     if (!_scrollController.hasClients) return;
     if (_scrollController.position.pixels <
-        _scrollController.position.maxScrollExtent - 300) return;
+        _scrollController.position.maxScrollExtent - 300) {
+      return;
+    }
     _loadNextBatch();
   }
 
@@ -689,7 +691,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     if (mounted && widget.room.id == roomId) {
       setState(() {
         _isLoading = false;
-        _displayedCount = _allMembers.length > 0
+        _displayedCount = _allMembers.isNotEmpty
             ? _batchSize.clamp(0, _allMembers.length)
             : 0;
       });
@@ -707,7 +709,9 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       if (!mounted ||
           widget.room.id != roomId ||
           joinedMembers == null ||
-          joinedMembers.isEmpty) return;
+          joinedMembers.isEmpty) {
+        return;
+      }
 
       final existingIds = _allMembers.map((u) => u.id).toSet();
       final missingMxids =

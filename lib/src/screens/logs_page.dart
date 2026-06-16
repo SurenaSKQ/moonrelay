@@ -237,7 +237,7 @@ class _LogsPageState extends State<LogsPage> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<File>(
-              value: _selectedFile,
+              initialValue: _selectedFile,
               isExpanded: true,
               decoration: InputDecoration(
                 filled: true,

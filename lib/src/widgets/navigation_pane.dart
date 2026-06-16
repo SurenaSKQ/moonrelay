@@ -540,8 +540,9 @@ class _SCMenuState extends State<_SCMenu> {
           if (widget.space != null) widget.settings.removeFromGroup(widget.space!.id);
         case 'ug_all':
           if (widget.groupId != null) {
-            for (final c in List.of(widget.settings.spaceGroups[widget.groupId] ?? []))
+            for (final c in List.of(widget.settings.spaceGroups[widget.groupId] ?? [])) {
               widget.settings.removeFromGroup(c);
+            }
           }
         case 'sort':
           final c = Provider.of<Client>(widget.ctx, listen: false);

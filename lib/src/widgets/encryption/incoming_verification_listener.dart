@@ -17,7 +17,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:matrix/encryption.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
