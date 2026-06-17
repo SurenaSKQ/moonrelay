@@ -59,9 +59,14 @@ class TrayService with tray.TrayListener {
 
       // Load the tray icon from assets and write it to a temp file so that
       // the platform plugin can access it via a file system path.
-      final ByteData byteData = await rootBundle.load('assets/images/logo.png');
+      // Windows requires .ico format; other platforms use .png.
+      final String iconName = Platform.isWindows
+          ? 'assets/images/logo.ico'
+          : 'assets/images/logo.png';
+      final String ext = Platform.isWindows ? 'ico' : 'png';
+      final ByteData byteData = await rootBundle.load(iconName);
       final Directory tmpDir = await getTemporaryDirectory();
-      final File iconFile = File('${tmpDir.path}/moonrelay_tray_icon.png');
+      final File iconFile = File('${tmpDir.path}/moonrelay_tray_icon.$ext');
       await iconFile.writeAsBytes(byteData.buffer.asUint8List());
       await tray.trayManager.setIcon(iconFile.path);
 
