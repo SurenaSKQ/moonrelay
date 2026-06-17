@@ -70,7 +70,8 @@ class _NavigationPaneState extends State<NavigationPane> {
     final auto = computeAutoGroups(c.rooms);
     final rel = <String, List<String>>{};
     for (final e in auto.entries) {
-      if (newIds.contains(e.key) || e.value.any((x) => newIds.contains(x))) {
+      final spaceId = e.key.startsWith('_grp_') ? e.key.substring(5) : e.key;
+      if (newIds.contains(spaceId) || e.value.any((x) => newIds.contains(x))) {
         rel[e.key] = e.value;
       }
     }

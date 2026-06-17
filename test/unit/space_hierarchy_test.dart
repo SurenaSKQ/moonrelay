@@ -128,7 +128,7 @@ void main() {
       stubP(c2, ['!root:test']);
       final r = computeAutoGroups([root, c1, c2]);
       expect(r, isNotEmpty);
-      expect(r['!root:test'], containsAll(['!c1:test', '!c2:test']));
+      expect(r['_grp_!root:test'], containsAll(['!c1:test', '!c2:test']));
     });
 
     test('returns empty when no subspaces', () {

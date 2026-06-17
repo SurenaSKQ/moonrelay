@@ -123,7 +123,7 @@ Map<String, List<String>> computeAutoGroups(Iterable<Room> allRooms) {
     if (!_isRoot(space, joinedIds)) continue;
     final children = _walkSubspaces(space, allSpaces);
     if (children.isNotEmpty) {
-      result[space.id] = children.map((s) => s.id).toList();
+      result['_grp_${space.id}'] = children.map((s) => s.id).toList();
     }
   }
 
