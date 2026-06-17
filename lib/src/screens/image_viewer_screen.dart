@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
@@ -48,9 +49,21 @@ class ImageViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // ── Blurred image background ────────────────────────────────
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+
           // ── Zoomable image ──────────────────────────────────────────
           Center(
             child: InteractiveViewer(
