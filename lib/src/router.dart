@@ -26,6 +26,7 @@ import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
@@ -268,6 +269,18 @@ class MoonRouter {
                   },
                 ),
               ],
+            ),
+            GoRoute(
+              path: '/main/room_preview/:roomid',
+              pageBuilder: (context, state) {
+                final String roomId = state.pathParameters['roomid']!;
+                return genericPageBuilder(
+                  context,
+                  state,
+                  RoomPreviewScreen(roomId: roomId),
+                );
+              },
+              redirect: loggedOutRedirect,
             ),
             GoRoute(
               path: '/main/addroom',

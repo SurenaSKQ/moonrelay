@@ -51,7 +51,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
 
   // Search state
   String _searchQuery = '';
-  List<PublicRoomsChunk> _rooms = [];
+  List<PublishedRoomsChunk> _rooms = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -155,7 +155,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
   }
 
   /// Joins a room by its room ID or alias.
-  Future<void> _joinRoom(PublicRoomsChunk room) async {
+  Future<void> _joinRoom(PublishedRoomsChunk room) async {
     final log = context.read<Logger>();
     final client = context.read<Client>();
     final roomIdOrAlias = room.roomId;
@@ -196,7 +196,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
   }
 
   /// Knocks on a room that requires approval to join.
-  Future<void> _knockRoom(PublicRoomsChunk room) async {
+  Future<void> _knockRoom(PublishedRoomsChunk room) async {
     final client = context.read<Client>();
     final roomIdOrAlias = room.roomId;
     final alias = room.canonicalAlias ?? roomIdOrAlias;
@@ -446,7 +446,7 @@ class _PublicRoomTile extends StatelessWidget {
     this.onKnock,
   });
 
-  final PublicRoomsChunk room;
+  final PublishedRoomsChunk room;
   final bool isJoining;
   final bool isKnocking;
   final bool requiresKnock;

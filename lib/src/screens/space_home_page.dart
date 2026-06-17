@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum number of child rooms to delete before showing a progress dialog.
@@ -77,25 +78,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     final totalMembers = (space.summary.mInvitedMemberCount ?? 0) +
         (space.summary.mJoinedMemberCount ?? 0);
 
-    // Separate children into rooms and subspaces.
-    final children = space.spaceChildren;
-    final childRooms = <dynamic>[];
-    final childSubspaces = <dynamic>[];
     final client = space.client;
-
-    for (final child in children) {
-      final roomId = child.roomId;
-      if (roomId == null) continue;
-      final childRoom = client.getRoomById(roomId);
-      if (childRoom != null) {
-        if (childRoom.isSpace) {
-          childSubspaces.add(child);
-        } else {
-          childRooms.add(child);
-        }
-      }
-    }
-
     final bool isJoined = space.membership == Membership.join;
     final canEdit = space.canChangeStateEvent('m.space.child');
 
@@ -109,6 +92,27 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         parentSpaces.add(parentRoom);
       }
     }
+
+    // Pre-compute child lists for conditional spreads below.
+    final subspaces = space.spaceChildren.where((c) {
+      final roomId = c.roomId;
+      if (roomId == null) return false;
+      final room = client.getRoomById(roomId);
+      return room != null && room.isSpace;
+    }).toList();
+
+    final joinedRooms = space.spaceChildren.where((c) {
+      final roomId = c.roomId;
+      if (roomId == null) return false;
+      final room = client.getRoomById(roomId);
+      return room != null && !room.isSpace;
+    }).toList();
+
+    final unjoined = space.spaceChildren.where((c) {
+      final roomId = c.roomId;
+      if (roomId == null) return false;
+      return client.getRoomById(roomId) == null;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -181,11 +185,11 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           ],
 
           // ── Child subspaces ────────────────────────────────────────────
-          if (childSubspaces.isNotEmpty) ...[
+          if (subspaces.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
             const SizedBox(height: 8),
-            ...childSubspaces.map(
-              (child) => _buildChildTile(
+            for (final child in subspaces)
+              _buildChildTile(
                 context,
                 client,
                 child,
@@ -193,16 +197,15 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 scheme: scheme,
                 l10n: l10n,
               ),
-            ),
             const SizedBox(height: 16),
           ],
 
-          // ── Child rooms ────────────────────────────────────────────────
-          if (childRooms.isNotEmpty) ...[
+          // ── Child rooms (joined) ───────────────────────────────────────
+          if (joinedRooms.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             const SizedBox(height: 8),
-            ...childRooms.map(
-              (child) => _buildChildTile(
+            for (final child in joinedRooms)
+              _buildChildTile(
                 context,
                 client,
                 child,
@@ -210,11 +213,24 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 scheme: scheme,
                 l10n: l10n,
               ),
-            ),
+            const SizedBox(height: 16),
+          ],
+
+          // ── Unjoined rooms ──────────────────────────────────────────────
+          if (unjoined.isNotEmpty) ...[
+            _SectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
+            const SizedBox(height: 8),
+            for (final child in unjoined)
+              _UnjoinedRoomTile(
+                child: child,
+                client: client,
+                scheme: scheme,
+                l10n: l10n,
+              ),
           ],
 
           // ── Empty state ────────────────────────────────────────────────
-          if (children.isEmpty)
+          if (space.spaceChildren.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(
@@ -900,6 +916,80 @@ class _DeleteSpaceProgressDialogState
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A tile for a room in a space that the user has not yet joined.
+///
+/// Shows the room ID with a preview button that opens [RoomPreviewScreen].
+class _UnjoinedRoomTile extends StatelessWidget {
+  const _UnjoinedRoomTile({
+    required this.child,
+    required this.client,
+    required this.scheme,
+    required this.l10n,
+  });
+
+  final dynamic child;
+  final Client client;
+  final ColorScheme scheme;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final roomId = child.roomId ?? '?';
+    final isSuggested = child.suggested == true;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
+          child: Icon(
+            LucideIcons.hash,
+            size: 18,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+        title: Text(
+          roomId,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontFamily: 'JetBrainsMono',
+            fontSize: 13,
+          ),
+        ),
+        subtitle: isSuggested
+            ? Text(
+                l10n.roomPreviewSuggested,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: scheme.tertiary,
+                ),
+              )
+            : null,
+        trailing: FilledButton.tonal(
+          onPressed: () => context.push('/main/room_preview/$roomId'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            l10n.roomPreviewView,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
       ),
     );
   }

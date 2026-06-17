@@ -331,7 +331,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                '${_videoWidth}×${_videoHeight}',
+                '$_videoWidth×$_videoHeight',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.white.withValues(alpha: 0.85),

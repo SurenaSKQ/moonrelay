@@ -253,7 +253,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                     const SizedBox(width: 4),
                     Text(
                       _imgWidth != null && _imgHeight != null
-                          ? '${_imgWidth}×${_imgHeight}'
+                          ? '$_imgWidth×$_imgHeight'
                           : '',
                       style: TextStyle(
                         fontSize: 11,

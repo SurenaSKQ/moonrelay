@@ -1251,5 +1251,46 @@
   "actionsDeleteSection": "Danger Zone",
   "@actionsDeleteSection": {
     "description": "Section header for destructive room actions."
+  },
+
+  "roomPreviewTitle": "Room Preview",
+  "@roomPreviewTitle": {
+    "description": "Title for the room preview screen."
+  },
+  "roomPreviewNotJoined": "You have not joined this room",
+  "@roomPreviewNotJoined": {
+    "description": "Label shown on room preview for unjoined rooms."
+  },
+  "roomPreviewJoin": "Join Room",
+  "@roomPreviewJoin": {
+    "description": "Button to join a room from the preview screen."
+  },
+  "roomPreviewLoading": "Loading room info…",
+  "@roomPreviewLoading": {
+    "description": "Loading state while fetching room summary."
+  },
+  "roomPreviewFailed": "Could not load room information",
+  "@roomPreviewFailed": {
+    "description": "Error when room summary fails to load."
+  },
+  "roomPreviewLastMessages": "Recent messages",
+  "@roomPreviewLastMessages": {
+    "description": "Section header for recent messages in the room preview."
+  },
+  "roomPreviewNoMessages": "No recent messages to display",
+  "@roomPreviewNoMessages": {
+    "description": "Empty state when there are no recent messages."
+  },
+  "roomPreviewView": "Preview",
+  "@roomPreviewView": {
+    "description": "Button label to preview an unjoined room."
+  },
+  "roomPreviewSuggested": "Suggested room",
+  "@roomPreviewSuggested": {
+    "description": "Badge for suggested rooms in a space."
+  },
+  "unjoinedRooms": "Unjoined rooms",
+  "@unjoinedRooms": {
+    "description": "Section header for unjoined rooms in a space."
   }
 }
