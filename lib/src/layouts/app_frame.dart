@@ -17,7 +17,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
@@ -107,6 +109,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
           child: Row(
             children: <Widget>[
               // ── Leading slot ──────────────────────────────────
+              const _HeaderProfile(),
               if (reversed && showButtons)
                 const WindowButtons()
               else
@@ -285,6 +288,109 @@ class _HeaderTitle extends StatelessWidget {
         fontSize: 16,
       ),
     );
+  }
+}
+
+/// Compact user profile button for the header bar.
+///
+/// Shows the user's avatar (or initials) as a small tappable circle
+/// that navigates to the Hub/profile screen on tap.
+class _HeaderProfile extends StatefulWidget {
+  const _HeaderProfile();
+
+  @override
+  State<_HeaderProfile> createState() => _HeaderProfileState();
+}
+
+class _HeaderProfileState extends State<_HeaderProfile> {
+  Profile? _profile;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final client = Provider.of<Client>(context, listen: false);
+      final profile = await client.getProfileFromUserId(client.userID!);
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final avatarUrl = _profile?.avatarUrl;
+
+    final avatar = _buildAvatar(theme, avatarUrl);
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4),
+      child: Tooltip(
+        message: _profile?.displayName ??
+            Provider.of<Client>(context, listen: false).userID ??
+            '',
+        child: GestureDetector(
+          onTap: () => context.push('/main/myprofile'),
+          child: avatar,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(ThemeData theme, Uri? avatarUrl) {
+    if (_loading) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+      );
+    }
+
+    if (avatarUrl != null) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundImage: NetworkImage(avatarUrl.toString()),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+
+    final initials = _initials(
+      _profile?.displayName ??
+          Provider.of<Client>(context, listen: false).userID ??
+          '?',
+    );
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: theme.colorScheme.primary,
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onPrimary,
+        ),
+      ),
+    );
+  }
+
+  static String _initials(String name) {
+    return name
+        .toUpperCase()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0])
+        .take(2)
+        .join();
   }
 }
 

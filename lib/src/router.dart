@@ -133,8 +133,8 @@ class MoonRouter {
             // The DashboardLayout replaces the old TwoColumnLayout.
             // It reads sidebar visibility and pane choice from
             // SettingsController and uses LayoutBuilder for responsive
-            // breakpoints. The PermanentPaneBottomItems (user profile,
-            // logout) are now rendered by DashboardLayout itself.
+            // breakpoints. The user profile button is now rendered
+            // in the AppFrame header bar.
             DashboardLayout(child: child),
           ),
           routes: [

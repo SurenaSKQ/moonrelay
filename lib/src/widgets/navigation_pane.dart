@@ -29,6 +29,18 @@ const double _pw = 80;
 const double _is = 56;
 const double _ir = 18;
 
+/// Returns the initials from [name], suitable for avatar fallbacks.
+///
+/// If [name] is empty, returns a single hash character.
+String _initials(String name) {
+  if (name.isEmpty) return '#';
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.length >= 2) {
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+  return name[0].toUpperCase();
+}
+
 class NavigationPane extends StatefulWidget {
   const NavigationPane({super.key});
   @override
@@ -208,7 +220,8 @@ class _NavigationPaneState extends State<NavigationPane> {
       size: _is,
       radius: _ir,
       theme: t,
-      avatar: s.avatar);
+      avatar: s.avatar,
+      showInitialsFallback: true);
 
   Widget _buildGroup(
       BuildContext ctx,
@@ -270,8 +283,7 @@ class _NavigationPaneState extends State<NavigationPane> {
                   padding: const EdgeInsets.only(top: 2),
                   child: GestureDetector(
                       onTap: () => settings.toggleGroupCollapsed(gid),
-                      child: _groupIcon(theme, expanded, gid,
-                          onDragEnd: () {
+                      child: _groupIcon(theme, expanded, gid, onDragEnd: () {
                         if (mounted) setState(() => _dragHoverId = null);
                       })),
                 ),
@@ -324,6 +336,7 @@ class _NavigationPaneState extends State<NavigationPane> {
     final icon = _NIB(
         icon: LucideIcons.folder,
         label: 'Group',
+        showInitialsFallback: false,
         sel: false,
         size: _is,
         radius: _ir,
@@ -332,8 +345,7 @@ class _NavigationPaneState extends State<NavigationPane> {
     // Wrap in Draggable when collapsed for reordering via drag.
     return _DraggableIcon(
       data: gid,
-      feedback: _DFeedback(
-          theme: theme, label: 'Group', uri: null),
+      feedback: _DFeedback(theme: theme, label: 'Group', uri: null),
       ghost: Opacity(opacity: 0.25, child: icon),
       onDragEnd: onDragEnd,
       child: icon,
@@ -477,13 +489,11 @@ class _SCMenuState extends State<_SCMenu> {
       );
 
   void _show(BuildContext context) {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
-        Rect.fromLTWH(
-            _tapPosition.dx, _tapPosition.dy, 1, 1),
+        Rect.fromLTWH(_tapPosition.dx, _tapPosition.dy, 1, 1),
         Offset.zero & overlay.size,
       ),
       items: [
@@ -537,10 +547,12 @@ class _SCMenuState extends State<_SCMenu> {
         case 'gdn':
           if (widget.groupId != null) widget.settings.moveDown(widget.groupId!);
         case 'ungroup':
-          if (widget.space != null) widget.settings.removeFromGroup(widget.space!.id);
+          if (widget.space != null)
+            widget.settings.removeFromGroup(widget.space!.id);
         case 'ug_all':
           if (widget.groupId != null) {
-            for (final c in List.of(widget.settings.spaceGroups[widget.groupId] ?? [])) {
+            for (final c
+                in List.of(widget.settings.spaceGroups[widget.groupId] ?? [])) {
               widget.settings.removeFromGroup(c);
             }
           }
@@ -569,6 +581,7 @@ class _NIB extends StatelessWidget {
     this.size = _is,
     this.radius = _ir,
     this.tip = false,
+    this.showInitialsFallback = false,
   });
   final IconData icon;
   final String label;
@@ -578,6 +591,7 @@ class _NIB extends StatelessWidget {
   final Uri? avatar;
   final double size, radius;
   final bool tip;
+  final bool showInitialsFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -592,8 +606,21 @@ class _NIB extends StatelessWidget {
         borderRadius: BorderRadius.circular(sel ? radius : radius - 4),
       ),
       child: avatar != null
-          ? _SAvatar(uri: avatar!, s: size * 0.55)
-          : Icon(icon, size: size * 0.46, color: c),
+          ? _SAvatar(uri: avatar!, label: label, s: size * 0.55)
+          : showInitialsFallback
+              ? CircleAvatar(
+                  radius: size * 0.55 / 2,
+                  backgroundColor: c.withValues(alpha: 0.1),
+                  child: Text(
+                    _initials(label),
+                    style: TextStyle(
+                      fontSize: size * 0.55 * 0.4,
+                      fontWeight: FontWeight.w600,
+                      color: c,
+                    ),
+                  ),
+                )
+              : Icon(icon, size: size * 0.46, color: c),
     );
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 3, horizontal: (_pw - size) / 2),
@@ -612,12 +639,15 @@ class _NIB extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _SAvatar extends StatelessWidget {
-  const _SAvatar({required this.uri, required this.s});
+  const _SAvatar({required this.uri, required this.label, required this.s});
   final Uri uri;
+  final String label;
   final double s;
   @override
   Widget build(BuildContext context) {
     final cl = Provider.of<Client>(context);
+    final scheme = Theme.of(context).colorScheme;
+    final c = scheme.onSurfaceVariant;
     return FutureBuilder<Uri>(
       future: withTimeoutOrFallback(
           () => uri.getThumbnailUri(cl,
@@ -634,10 +664,16 @@ class _SAvatar extends StatelessWidget {
               onBackgroundImageError: (_, __) {})
           : CircleAvatar(
               radius: s / 2,
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(LucideIcons.folder,
-                  size: s * 0.6,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer)),
+              backgroundColor: c.withValues(alpha: 0.1),
+              child: Text(
+                _initials(label),
+                style: TextStyle(
+                  fontSize: s * 0.4,
+                  fontWeight: FontWeight.w600,
+                  color: c,
+                ),
+              ),
+            ),
     );
   }
 }
