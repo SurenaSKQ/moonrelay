@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -58,67 +58,59 @@ void main() {
       );
     });
 
-    testWidgets('renders login form with all fields', (tester) async {
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<Client>.value(value: client),
-            Provider<Logger>.value(value: logger),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const LoginPage(),
+    Widget _buildApp() {
+      final goRouter = GoRouter(
+        initialLocation: '/login',
+        routes: [
+          GoRoute(
+            path: '/login',
+            builder: (context, state) => const LoginPage(),
           ),
-        ),
+          GoRoute(
+            path: '/main/rooms',
+            builder: (context, state) => const Scaffold(body: Text('Rooms')),
+          ),
+        ],
       );
 
-      expect(find.text('Login'), findsWidgets);
+      return MultiProvider(
+        providers: [
+          Provider<Client>.value(value: client),
+          Provider<Logger>.value(value: logger),
+        ],
+        child: MaterialApp.router(
+          routerConfig: goRouter,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
+      );
+    }
+
+    testWidgets('renders login form with all fields', (tester) async {
+      await tester.pumpWidget(_buildApp());
+
+      expect(find.text('Sign In'), findsWidgets);
       expect(find.text('Homeserver'), findsOneWidget);
-      expect(find.text('Username'), findsOneWidget);
+      expect(find.text('Username or email'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
     });
 
     testWidgets('has a back button', (tester) async {
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<Client>.value(value: client),
-            Provider<Logger>.value(value: logger),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const LoginPage(),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_buildApp());
 
-      // LoginPage uses LucideIcons.arrowLeft which renders as an Icon with Icons.arrow_back
-      // We just verify a back navigation icon is present by checking the IconButton
+      // LoginPage uses LucideIcons.arrowLeft, verify a back navigation icon is present
       final backButtons = find.byType(IconButton);
-      // There should be exactly one IconButton (the back button in AppBar)
+      // There should be exactly one IconButton (the back button)
       expect(backButtons, findsOneWidget);
     });
 
     testWidgets('has a homeserver text field with default value',
         (tester) async {
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<Client>.value(value: client),
-            Provider<Logger>.value(value: logger),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const LoginPage(),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_buildApp());
 
-      final homeserverField = find.widgetWithText(TextField, 'matrix.org');
-      expect(homeserverField, findsOneWidget);
+      // The homeserver controller now defaults to "matrix.org". Both the
+      // EditableText and hint Text widgets contain this string.
+      expect(find.text('matrix.org'), findsWidgets);
     });
   });
 }

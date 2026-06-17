@@ -17,12 +17,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/chat/events/date_separator.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 void main() {
   group('DateSeparator', () {
     testWidgets('shows "Today" for current date', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: DateSeparator(dateTime: DateTime.now())),
         ),
       );
@@ -34,6 +37,8 @@ void main() {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: DateSeparator(dateTime: yesterday)),
         ),
       );
@@ -48,6 +53,8 @@ void main() {
       final oldDate = DateTime(now.year, 1, 15);
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: DateSeparator(dateTime: oldDate)),
         ),
       );
@@ -61,6 +68,8 @@ void main() {
       final oldDate = DateTime(2023, 6, 14);
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: DateSeparator(dateTime: oldDate)),
         ),
       );
@@ -72,6 +81,8 @@ void main() {
     testWidgets('renders without errors', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: DateSeparator(dateTime: DateTime.now())),
         ),
       );

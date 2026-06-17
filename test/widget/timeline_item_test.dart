@@ -17,11 +17,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:provider/provider.dart';
 
 import '../helpers/mocks.dart';
+
+class MockEncryptionService extends Mock implements EncryptionService {}
 
 /// Finder that matches a [Text] or [SelectableText] whose plain text [contains] [text].
 Finder _findTextContaining(String text) {
@@ -53,6 +58,7 @@ void main() {
       when(() => event.type).thenReturn(EventTypes.Message);
       when(() => event.messageType).thenReturn(MessageTypes.Text);
       when(() => event.body).thenReturn('');
+      when(() => event.eventId).thenReturn('evt_123');
       when(() => event.senderId).thenReturn('@user:matrix.org');
       when(() => event.senderFromMemoryOrFallback).thenReturn(sender);
       when(() => event.originServerTs)
@@ -68,13 +74,23 @@ void main() {
     testWidgets('displays redacted event as deleted message', (tester) async {
       when(() => event.redacted).thenReturn(true);
 
+      final enc = MockEncryptionService();
+      when(() => enc.isUserVerifiedById(any())).thenReturn(false);
+
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TimelineItem(
-              event: event,
-              room: room,
-              displayType: DisplayType.modern,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EncryptionService>.value(value: enc),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: TimelineItem(
+                event: event,
+                room: room,
+                displayType: DisplayType.modern,
+              ),
             ),
           ),
         ),
@@ -90,14 +106,24 @@ void main() {
         'msgtype': 'm.text',
       });
 
+      final enc = MockEncryptionService();
+      when(() => enc.isUserVerifiedById(any())).thenReturn(false);
+
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TimelineItem(
-              event: event,
-              room: room,
-              displayType: DisplayType.modern,
-              isGroupStart: true,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EncryptionService>.value(value: enc),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: TimelineItem(
+                event: event,
+                room: room,
+                displayType: DisplayType.modern,
+                isGroupStart: true,
+              ),
             ),
           ),
         ),
@@ -113,14 +139,24 @@ void main() {
         'msgtype': 'm.text',
       });
 
+      final enc = MockEncryptionService();
+      when(() => enc.isUserVerifiedById(any())).thenReturn(false);
+
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TimelineItem(
-              event: event,
-              room: room,
-              displayType: DisplayType.modern,
-              isGroupStart: true,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EncryptionService>.value(value: enc),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: TimelineItem(
+                event: event,
+                room: room,
+                displayType: DisplayType.modern,
+                isGroupStart: true,
+              ),
             ),
           ),
         ),
@@ -136,14 +172,24 @@ void main() {
         'msgtype': 'm.text',
       });
 
+      final enc = MockEncryptionService();
+      when(() => enc.isUserVerifiedById(any())).thenReturn(false);
+
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TimelineItem(
-              event: event,
-              room: room,
-              displayType: DisplayType.bubbles,
-              isGroupStart: true,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EncryptionService>.value(value: enc),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: TimelineItem(
+                event: event,
+                room: room,
+                displayType: DisplayType.bubbles,
+                isGroupStart: true,
+              ),
             ),
           ),
         ),
@@ -159,14 +205,24 @@ void main() {
         'msgtype': 'm.text',
       });
 
+      final enc = MockEncryptionService();
+      when(() => enc.isUserVerifiedById(any())).thenReturn(false);
+
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TimelineItem(
-              event: event,
-              room: room,
-              displayType: DisplayType.irc,
-              isGroupStart: true,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EncryptionService>.value(value: enc),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: TimelineItem(
+                event: event,
+                room: room,
+                displayType: DisplayType.irc,
+                isGroupStart: true,
+              ),
             ),
           ),
         ),

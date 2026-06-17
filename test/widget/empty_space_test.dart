@@ -39,7 +39,7 @@ void main() {
       );
 
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.text('Moonrelay (Alpha)'), findsOneWidget);
+      expect(find.text('Moonrelay'), findsOneWidget);
     });
   });
 }

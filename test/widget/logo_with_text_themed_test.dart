@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/widgets/logo_with_text_themed.dart';
 
 void main() {
@@ -29,8 +30,8 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.dark_mode), findsOneWidget);
-      expect(find.text('Moonrelay (Alpha)'), findsOneWidget);
+      expect(find.byIcon(LucideIcons.moon), findsOneWidget);
+      expect(find.text('Moonrelay'), findsOneWidget);
     });
   });
 }

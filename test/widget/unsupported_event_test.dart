@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../helpers/mocks.dart';
@@ -35,6 +36,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: UnsupportedEventType(event: event),
           ),
