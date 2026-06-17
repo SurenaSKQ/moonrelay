@@ -1156,6 +1156,30 @@
   "@deleteSpaceNotEnoughPower": {
     "description": "Message shown when user lacks power to delete a space."
   },
+  "joinRuleLabel": "Join rules",
+  "@joinRuleLabel": {
+    "description": "Label for the join rules selector."
+  },
+  "joinRulePublic": "Anyone can join",
+  "@joinRulePublic": {
+    "description": "Option for public join rule."
+  },
+  "joinRuleInvite": "Invite only",
+  "@joinRuleInvite": {
+    "description": "Option for invite-only join rule."
+  },
+  "joinRuleKnock": "Requires approval (knock)",
+  "@joinRuleKnock": {
+    "description": "Option for knock join rule."
+  },
+  "joinRuleRestricted": "Restricted",
+  "@joinRuleRestricted": {
+    "description": "Option for restricted join rule."
+  },
+  "joinRuleKnockRestricted": "Approval or restricted (knock + restricted)",
+  "@joinRuleKnockRestricted": {
+    "description": "Option for knock_restricted join rule."
+  },
   "deleteChildRoomFailed": "Failed to delete room \"{name}\": {error}",
   "@deleteChildRoomFailed": {
     "description": "Error when deleting a child room of a space fails.",

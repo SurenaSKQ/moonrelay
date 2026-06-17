@@ -444,6 +444,15 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
   Uint8List? _avatarBytes;
   String? _avatarName;
 
+  /// Selected join rule. Initialised to match [_isPublic].
+  late String _joinRule;
+
+  @override
+  void initState() {
+    super.initState();
+    _joinRule = _isPublic ? 'public' : 'invite';
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -492,7 +501,7 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
     final alias = _aliasController.text.trim();
     final invites = _parseInvites();
 
-    // Build initial state for encryption.
+    // Build initial state.
     final initialState = <StateEvent>[];
     if (_enableEncryption && !_isSpace) {
       initialState.add(
@@ -503,16 +512,30 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
       );
     }
 
+    // Determine preset, visibility, and whether we need a custom join_rule
+    // state event. When the join rule is 'public' we use the server's preset
+    // which also sets the visibility correctly. For any other rule we set
+    // the state explicitly so the createRoom call sends the desired rule.
+    final usePublicPreset = _joinRule == 'public';
+    if (!usePublicPreset) {
+      initialState.add(
+        StateEvent(
+          type: 'm.room.join_rules',
+          content: {'join_rule': _joinRule},
+        ),
+      );
+    }
+
     final result = await withRetry(
       () => client.createRoom(
         name: name.isNotEmpty ? name : null,
         topic: topic.isNotEmpty ? topic : null,
         roomAliasName: alias.isNotEmpty ? alias : null,
         invite: invites.isNotEmpty ? invites : null,
-        preset: _isPublic
+        preset: usePublicPreset
             ? CreateRoomPreset.publicChat
             : CreateRoomPreset.privateChat,
-        visibility: _isPublic ? Visibility.public : Visibility.private,
+        visibility: usePublicPreset ? Visibility.public : Visibility.private,
         creationContent: _isSpace ? {'type': 'm.space'} : null,
         initialState: initialState.isNotEmpty ? initialState : null,
       ),
@@ -782,7 +805,17 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
                   ? null
                   : (v) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) setState(() => _isPublic = v);
+                        if (mounted) {
+                          setState(() {
+                            _isPublic = v;
+                            // Sync join rule with the public toggle.
+                            if (v) {
+                              _joinRule = 'public';
+                            } else if (_joinRule == 'public') {
+                              _joinRule = 'invite';
+                            }
+                          });
+                        }
                       });
                     },
             ),
@@ -907,6 +940,84 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
                 ),
               ),
             if (!_isSpace) const SizedBox(height: 16),
+
+            // ── Join rules picker ────────────────────────────────
+            Text(
+              l10n.joinRuleLabel,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                children: [
+                  _JoinRuleTile(
+                    value: 'public',
+                    groupValue: _joinRule,
+                    icon: LucideIcons.globe,
+                    title: l10n.joinRulePublic,
+                    enabled: !_loading,
+                    onChanged: (v) => setState(() {
+                      _joinRule = v;
+                      _isPublic = v == 'public';
+                    }),
+                  ),
+                  _JoinRuleTile(
+                    value: 'invite',
+                    groupValue: _joinRule,
+                    icon: LucideIcons.lock,
+                    title: l10n.joinRuleInvite,
+                    enabled: !_loading,
+                    onChanged: (v) => setState(() {
+                      _joinRule = v;
+                      _isPublic = false;
+                    }),
+                  ),
+                  _JoinRuleTile(
+                    value: 'knock',
+                    groupValue: _joinRule,
+                    icon: LucideIcons.logIn,
+                    title: l10n.joinRuleKnock,
+                    enabled: !_loading,
+                    onChanged: (v) => setState(() {
+                      _joinRule = v;
+                      _isPublic = false;
+                    }),
+                  ),
+                  _JoinRuleTile(
+                    value: 'restricted',
+                    groupValue: _joinRule,
+                    icon: LucideIcons.shield,
+                    title: l10n.joinRuleRestricted,
+                    enabled: !_loading,
+                    onChanged: (v) => setState(() {
+                      _joinRule = v;
+                      _isPublic = false;
+                    }),
+                  ),
+                  _JoinRuleTile(
+                    value: 'knock_restricted',
+                    groupValue: _joinRule,
+                    icon: LucideIcons.shield,
+                    title: l10n.joinRuleKnockRestricted,
+                    enabled: !_loading,
+                    onChanged: (v) => setState(() {
+                      _joinRule = v;
+                      _isPublic = false;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
 
           const SizedBox(height: 32),
@@ -935,4 +1046,42 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
   }
 
   String get _typeLabel => _isSpace ? 'space' : 'room';
+}
+
+/// A radio list tile used inside the join rules picker.
+class _JoinRuleTile extends StatelessWidget {
+  const _JoinRuleTile({
+    required this.value,
+    required this.groupValue,
+    required this.icon,
+    required this.title,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String value;
+  final String groupValue;
+  final IconData icon;
+  final String title;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final selected = value == groupValue;
+
+    return ListTile(
+      leading: Icon(icon,
+          size: 20, color: selected ? cs.primary : cs.onSurfaceVariant),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      trailing: Icon(
+        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        size: 20,
+        color: selected ? cs.primary : cs.onSurfaceVariant,
+      ),
+      onTap: enabled ? () => onChanged(value) : null,
+      dense: true,
+    );
+  }
 }
