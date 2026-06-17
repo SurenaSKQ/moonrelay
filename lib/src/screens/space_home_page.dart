@@ -23,7 +23,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum number of child rooms to delete before showing a progress dialog.
@@ -994,10 +993,10 @@ class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
       child: ListTile(
         leading: CircleAvatar(
           radius: 18,
-          backgroundColor: widget.scheme.primaryContainer.withValues(alpha: 0.5),
-          backgroundImage: avatarUri != null
-              ? NetworkImage(avatarUri.toString())
-              : null,
+          backgroundColor:
+              widget.scheme.primaryContainer.withValues(alpha: 0.5),
+          backgroundImage:
+              avatarUri != null ? NetworkImage(avatarUri.toString()) : null,
           onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
           child: avatarUri == null
               ? Icon(
@@ -1016,7 +1015,8 @@ class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
             fontFamily: _loading || _summary?.name?.isNotEmpty != true
                 ? 'JetBrainsMono'
                 : null,
-            fontSize: _loading || _summary?.name?.isNotEmpty != true ? 13 : null,
+            fontSize:
+                _loading || _summary?.name?.isNotEmpty != true ? 13 : null,
           ),
         ),
         subtitle: isSuggested

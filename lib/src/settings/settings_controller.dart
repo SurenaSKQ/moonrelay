@@ -36,7 +36,8 @@ class SettingsController with ChangeNotifier, WindowListener {
   late List<String> _spaceOrder;
   late Set<String> _collapsedGroups;
   late Map<String, List<String>> _spaceGroups;
-
+  late double _fontSize;
+  late double _uiScale;
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
@@ -62,7 +63,8 @@ class SettingsController with ChangeNotifier, WindowListener {
   List<String> get spaceOrder => _spaceOrder;
   Set<String> get collapsedGroups => _collapsedGroups;
   Map<String, List<String>> get spaceGroups => _spaceGroups;
-
+  double get fontSize => _fontSize;
+  double get uiScale => _uiScale;
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
     _themeOption = await _settingsService.themeOption();
@@ -87,7 +89,8 @@ class SettingsController with ChangeNotifier, WindowListener {
     _spaceOrder = await _settingsService.spaceOrder();
     _collapsedGroups = await _settingsService.collapsedGroups();
     _spaceGroups = await _settingsService.spaceGroups();
-
+    _fontSize = await _settingsService.fontSize();
+    _uiScale = await _settingsService.uiScale();
     notifyListeners();
   }
 
@@ -423,6 +426,24 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       await _settingsService.updateSpaceGroups(_spaceGroups);
       await _settingsService.updateSpaceOrder(_spaceOrder);
+    }
+  }
+
+  Future<void> updateFontSize(double size) async {
+    size = size.clamp(10.0, 28.0);
+    if (size != _fontSize) {
+      _fontSize = size;
+      notifyListeners();
+      await _settingsService.updateFontSize(size);
+    }
+  }
+
+  Future<void> updateUiScale(double scale) async {
+    scale = scale.clamp(0.7, 2.0);
+    if (scale != _uiScale) {
+      _uiScale = scale;
+      notifyListeners();
+      await _settingsService.updateUiScale(scale);
     }
   }
 

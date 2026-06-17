@@ -28,6 +28,8 @@ class SettingsService {
   static const _pinnedSpacesKey = 'pinned_spaces';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
+  static const _fontSizeKey = 'font_size';
+  static const _uiScaleKey = 'ui_scale';
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -262,6 +264,28 @@ class SettingsService {
   Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
+  }
+
+  // ── Font size & UI scale ──────────────────────────────────────────
+
+  Future<double> fontSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_fontSizeKey) ?? 16.0;
+  }
+
+  Future<void> updateFontSize(double size) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_fontSizeKey, size);
+  }
+
+  Future<double> uiScale() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_uiScaleKey) ?? 1.0;
+  }
+
+  Future<void> updateUiScale(double scale) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_uiScaleKey, scale);
   }
 
   // ── Space groups ──────────────────────────────────────────────────

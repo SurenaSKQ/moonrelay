@@ -23,6 +23,7 @@ import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart'
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_notice_event.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_request_event.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
@@ -62,6 +63,9 @@ class MessageEventHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final fs = settings.fontSize;
+
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
       final enc = context.watch<EncryptionService>();
@@ -75,7 +79,7 @@ class MessageEventHandler extends StatelessWidget {
             children: [
               TrustIndicator(isVerified: isVerified, size: 14),
               const SizedBox(width: 4),
-              Expanded(child: _renderContent()),
+              Expanded(child: _renderContent(fs)),
             ],
           ),
         ],
@@ -99,14 +103,14 @@ class MessageEventHandler extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 2, right: 4),
                   child: TrustIndicator(isVerified: isVerified, size: 12),
                 ),
-              Expanded(child: _renderContent()),
+              Expanded(child: _renderContent(fs)),
             ],
           ),
         ],
       );
     }
 
-    return _renderContent();
+    return _renderContent(fs);
   }
 
   /// Checks whether the device that sent this event is verified via
@@ -149,7 +153,7 @@ class MessageEventHandler extends StatelessWidget {
     );
   }
 
-  Widget _renderContent() {
+  Widget _renderContent(double fontSize) {
     // Failed decryption — show the decryption-failed placeholder
     // with a manual key-request button.
     if (event.type == EventTypes.Encrypted) {
@@ -179,9 +183,9 @@ class MessageEventHandler extends StatelessWidget {
           case MessageTypes.Emote:
           case MessageTypes.Notice:
             if (isReply) {
-              return _buildReplyContent(replyId);
+              return _buildReplyContent(replyId, fontSize);
             }
-            return FormattedTextWidget(event: event);
+            return FormattedTextWidget(event: event, baseFontSize: fontSize);
           case MessageTypes.Image:
             return ImageMessageType(event: event);
           case MessageTypes.Audio:
@@ -220,7 +224,7 @@ class MessageEventHandler extends StatelessWidget {
 
   /// Builds the content for a reply event: a reply preview header followed
   /// by the actual message body (with the `<mx-reply>` wrapper stripped).
-  Widget _buildReplyContent(String replyId) {
+  Widget _buildReplyContent(String replyId, double fontSize) {
     // Strip reply HTML from the formatted body so we only render the
     // actual message.
     final rawFormatted = event.content['formatted_body'] as String?;
@@ -253,6 +257,7 @@ class MessageEventHandler extends StatelessWidget {
         FormattedTextWidget(
           event: event,
           formattedBodyOverride: strippedHtml,
+          baseFontSize: fontSize,
         ),
       ],
     );

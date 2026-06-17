@@ -1269,6 +1269,54 @@ class _AppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Font size
+              _SettingsSection(
+                title: 'Font size',
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.type),
+                    title: const Text('Message font size'),
+                    subtitle: Text('${controller.fontSize.round()} px'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.fontSize,
+                        min: 10,
+                        max: 28,
+                        divisions: 18,
+                        label: '${controller.fontSize.round()}',
+                        onChanged: (v) => controller.updateFontSize(v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // UI scale
+              _SettingsSection(
+                title: 'UI scale',
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.zoomIn),
+                    title: const Text('Interface scale'),
+                    subtitle: Text('${controller.uiScale.toStringAsFixed(1)}×'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.uiScale,
+                        min: 0.7,
+                        max: 2.0,
+                        divisions: 13,
+                        label: '${controller.uiScale.toStringAsFixed(1)}×',
+                        onChanged: (v) => controller.updateUiScale(v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );

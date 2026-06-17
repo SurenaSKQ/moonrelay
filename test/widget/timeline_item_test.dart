@@ -20,9 +20,12 @@ import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mocks.dart';
 
@@ -49,6 +52,7 @@ void main() {
     late MockUser sender;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       room = MockRoom();
       event = MockEvent();
       sender = MockUser();
@@ -77,10 +81,16 @@ void main() {
       final enc = MockEncryptionService();
       when(() => enc.isUserVerifiedById(any())).thenReturn(false);
 
+      final settingsController = SettingsController(SettingsService());
+      await settingsController.loadSettings();
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider<EncryptionService>.value(value: enc),
+            ChangeNotifierProvider<SettingsController>.value(
+              value: settingsController,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -109,10 +119,16 @@ void main() {
       final enc = MockEncryptionService();
       when(() => enc.isUserVerifiedById(any())).thenReturn(false);
 
+      final settingsController = SettingsController(SettingsService());
+      await settingsController.loadSettings();
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider<EncryptionService>.value(value: enc),
+            ChangeNotifierProvider<SettingsController>.value(
+              value: settingsController,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -142,10 +158,16 @@ void main() {
       final enc = MockEncryptionService();
       when(() => enc.isUserVerifiedById(any())).thenReturn(false);
 
+      final settingsController = SettingsController(SettingsService());
+      await settingsController.loadSettings();
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider<EncryptionService>.value(value: enc),
+            ChangeNotifierProvider<SettingsController>.value(
+              value: settingsController,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -175,10 +197,16 @@ void main() {
       final enc = MockEncryptionService();
       when(() => enc.isUserVerifiedById(any())).thenReturn(false);
 
+      final settingsController = SettingsController(SettingsService());
+      await settingsController.loadSettings();
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider<EncryptionService>.value(value: enc),
+            ChangeNotifierProvider<SettingsController>.value(
+              value: settingsController,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -208,10 +236,16 @@ void main() {
       final enc = MockEncryptionService();
       when(() => enc.isUserVerifiedById(any())).thenReturn(false);
 
+      final settingsController = SettingsController(SettingsService());
+      await settingsController.loadSettings();
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider<EncryptionService>.value(value: enc),
+            ChangeNotifierProvider<SettingsController>.value(
+              value: settingsController,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,

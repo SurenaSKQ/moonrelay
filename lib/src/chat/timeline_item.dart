@@ -20,10 +20,12 @@ import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
@@ -151,6 +153,8 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = context.watch<SettingsController>();
+    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -189,7 +193,7 @@ class TimelineItem extends StatelessWidget {
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: fs,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurface,
                             ),
@@ -200,7 +204,7 @@ class TimelineItem extends StatelessWidget {
                         Text(
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: fs * 0.6875,
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.45),
@@ -232,6 +236,8 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final settings = context.watch<SettingsController>();
+    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -267,8 +273,8 @@ class TimelineItem extends StatelessWidget {
                         Flexible(
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: fs,
                               fontWeight: FontWeight.w700,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -277,8 +283,8 @@ class TimelineItem extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           event.originServerTs.localizedTimeShort(context),
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: TextStyle(
+                            fontSize: fs * 0.6875,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -323,13 +329,15 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final fs = settings.fontSize;
     return _IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
           '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
-          style: const TextStyle(
-            fontSize: 14,
+          style: TextStyle(
+            fontSize: fs,
             fontWeight: FontWeight.w700,
           ),
           overflow: TextOverflow.ellipsis,
