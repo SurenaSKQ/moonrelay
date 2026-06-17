@@ -141,6 +141,8 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
     super.dispose();
   }
 
+  String? _knockingRoomId;
+
   Future<void> _addRoomFromID(
     Client client,
     String roomidOrAlias,
@@ -169,14 +171,71 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
       case RetrySuccess():
         context.push('/main/rooms/$roomidOrAlias');
       case RetryFailed(:final error):
-        setState(() {
-          _error = error is TimeoutException
-              ? l10n.joiningTimedOut
-              : l10n.couldNotJoinRoom('$error');
-        });
+        // Try to detect if the room requires knocking.
+        final joinRule = await _detectJoinRule(client, roomidOrAlias, log);
+        if (joinRule == 'knock' || joinRule == 'knock_restricted') {
+          if (mounted) {
+            setState(() {
+              _error = l10n.joinRequiresKnock;
+            });
+          }
+        } else {
+          setState(() {
+            _error = error is TimeoutException
+                ? l10n.joiningTimedOut
+                : l10n.couldNotJoinRoom('$error');
+          });
+        }
     }
 
     if (mounted) setState(() => _loading = false);
+  }
+
+  /// Tries to resolve the room's [join_rule] by fetching a room summary.
+  Future<String?> _detectJoinRule(
+    Client client,
+    String roomIdOrAlias,
+    Logger log,
+  ) async {
+    try {
+      final summary = await client.getRoomSummary(roomIdOrAlias);
+      log.i('Room summary for $roomIdOrAlias: join_rule=${summary.joinRule}');
+      return summary.joinRule;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Knocks on the room instead of joining it.
+  Future<void> _knockRoom(
+    Client client,
+    String roomIdOrAlias,
+    String? server,
+  ) async {
+    setState(() {
+      _knockingRoomId = roomIdOrAlias;
+      _error = null;
+    });
+
+    try {
+      await client.knockRoom(
+        roomIdOrAlias,
+        via: server != null && server.isNotEmpty ? [server] : null,
+      );
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.knockSent(roomIdOrAlias))),
+      );
+      context.push('/main/rooms/$roomIdOrAlias');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      setState(() {
+        _error = AppLocalizations.of(context)!.knockFailed('$e');
+      });
+    }
   }
 
   @override
@@ -294,29 +353,66 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
 
           const SizedBox(height: 24),
 
-          FilledButton.icon(
-            onPressed: _loading
-                ? null
-                : () => _addRoomFromID(
-                      client,
-                      _roomIdController.text,
-                      _serverController.text,
+          if (_error == l10n.joinRequiresKnock)
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _knockingRoomId != null
+                        ? null
+                        : () => _knockRoom(
+                              client,
+                              _roomIdController.text,
+                              _serverController.text,
+                            ),
+                    icon: _knockingRoomId != null
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(LucideIcons.logIn, size: 18),
+                    label: Text(
+                      _knockingRoomId != null
+                          ? l10n.knockingRoom
+                          : l10n.knockRoom,
                     ),
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(LucideIcons.plus, size: 18),
-            label: Text(_loading ? l10n.joining : l10n.addRoom),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            FilledButton.icon(
+              onPressed: _loading
+                  ? null
+                  : () => _addRoomFromID(
+                        client,
+                        _roomIdController.text,
+                        _serverController.text,
+                      ),
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.plus, size: 18),
+              label: Text(_loading ? l10n.joining : l10n.addRoom),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -518,7 +614,9 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
             ],
             selected: {_isSpace},
             onSelectionChanged: (selected) {
-              WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isSpace = selected.first); });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _isSpace = selected.first);
+              });
             },
             style: ButtonStyle(
               visualDensity: VisualDensity.compact,
@@ -566,9 +664,8 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
                   radius: 32,
                   backgroundColor:
                       scheme.primaryContainer.withValues(alpha: 0.5),
-                  backgroundImage: _avatarBytes != null
-                      ? MemoryImage(_avatarBytes!)
-                      : null,
+                  backgroundImage:
+                      _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                   child: _avatarBytes == null
                       ? Icon(
                           LucideIcons.camera,
@@ -681,8 +778,13 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
                 size: 22,
               ),
               value: _isPublic,
-              onChanged:
-                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPublic = v); }); },
+              onChanged: (_loading)
+                  ? null
+                  : (v) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => _isPublic = v);
+                      });
+                    },
             ),
           ),
 
@@ -702,8 +804,13 @@ class _CreateRoomTabState extends State<_CreateRoomTab> {
               ),
               secondary: const Icon(LucideIcons.settings2, size: 22),
               value: _showAdvanced,
-              onChanged:
-                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _showAdvanced = v); }); },
+              onChanged: (_loading)
+                  ? null
+                  : (v) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => _showAdvanced = v);
+                      });
+                    },
             ),
           ),
 

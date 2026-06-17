@@ -406,7 +406,12 @@ class _SidebarRoomInfo extends StatelessWidget {
             ? l10n.spaceType
             : room.joinRules == JoinRules.public
                 ? l10n.publicRoom
-                : l10n.privateRoom;
+                : room.joinRules == JoinRules.knock ||
+                        room.joinRules == JoinRules.knockRestricted
+                    ? l10n.roomTypeKnock
+                    : room.joinRules == JoinRules.restricted
+                        ? l10n.roomTypeRestricted
+                        : l10n.roomTypeInviteOnly;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

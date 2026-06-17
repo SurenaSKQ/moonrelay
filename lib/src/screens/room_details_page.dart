@@ -59,8 +59,13 @@ class _RoomInformationsState extends State<RoomInformations> {
     final l10n = AppLocalizations.of(context)!;
     if (room.isDirectChat) return l10n.directMessage;
     if (room.isSpace) return l10n.spaceType;
-    if (room.joinRules == JoinRules.public) return l10n.publicRoom;
-    return l10n.privateRoom;
+    return switch (room.joinRules) {
+      JoinRules.public => l10n.publicRoom,
+      JoinRules.knock || JoinRules.knockRestricted => l10n.roomTypeKnock,
+      JoinRules.restricted => l10n.roomTypeRestricted,
+      JoinRules.invite || JoinRules.private => l10n.roomTypeInviteOnly,
+      null => l10n.publicRoom,
+    };
   }
 
   /// Whether the room is encrypted.
@@ -542,7 +547,10 @@ class _RoomInformationsState extends State<RoomInformations> {
           _DetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
-                : LucideIcons.lock,
+                : room.joinRules == JoinRules.knock ||
+                        room.joinRules == JoinRules.knockRestricted
+                    ? LucideIcons.logIn
+                    : LucideIcons.lock,
             label: l10n.typeLabel,
             value: roomType,
             scheme: scheme,
@@ -795,7 +803,10 @@ class _RoomIdentityCard extends StatelessWidget {
                 _InfoChip(
                   icon: room.joinRules == JoinRules.public
                       ? Icons.public_rounded
-                      : Icons.lock_rounded,
+                      : room.joinRules == JoinRules.knock ||
+                              room.joinRules == JoinRules.knockRestricted
+                          ? Icons.meeting_room_rounded
+                          : Icons.lock_rounded,
                   label: roomType,
                   scheme: scheme,
                 ),

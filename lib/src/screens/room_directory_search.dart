@@ -59,6 +59,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
   Object? _error;
   String? _joinError;
   String? _joiningRoomId;
+  String? _knockingRoomId;
 
   @override
   void initState() {
@@ -191,6 +192,34 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
               ? l10n.joiningTimedOut
               : l10n.couldNotJoinRoom('$error');
         });
+    }
+  }
+
+  /// Knocks on a room that requires approval to join.
+  Future<void> _knockRoom(PublicRoomsChunk room) async {
+    final client = context.read<Client>();
+    final roomIdOrAlias = room.roomId;
+    final alias = room.canonicalAlias ?? roomIdOrAlias;
+
+    setState(() {
+      _knockingRoomId = alias;
+      _joinError = null;
+    });
+
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await client.knockRoom(alias);
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.knockSent(alias))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      setState(() {
+        _joinError = l10n.knockFailed('$e');
+      });
     }
   }
 
@@ -384,12 +413,20 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
           final room = _rooms[index];
           final isJoining =
               _joiningRoomId == (room.canonicalAlias ?? room.roomId);
+          final isKnocking =
+              _knockingRoomId == (room.canonicalAlias ?? room.roomId);
+          final joinRule = room.joinRule;
+          final requiresKnock =
+              joinRule == 'knock' || joinRule == 'knock_restricted';
 
           return _PublicRoomTile(
             room: room,
             isJoining: isJoining,
+            isKnocking: isKnocking,
+            requiresKnock: requiresKnock,
             scheme: scheme,
             onJoin: () => _joinRoom(room),
+            onKnock: requiresKnock ? () => _knockRoom(room) : null,
           );
         },
       ),
@@ -402,14 +439,20 @@ class _PublicRoomTile extends StatelessWidget {
   const _PublicRoomTile({
     required this.room,
     required this.isJoining,
+    required this.isKnocking,
+    required this.requiresKnock,
     required this.scheme,
     required this.onJoin,
+    this.onKnock,
   });
 
   final PublicRoomsChunk room;
   final bool isJoining;
+  final bool isKnocking;
+  final bool requiresKnock;
   final ColorScheme scheme;
   final VoidCallback onJoin;
+  final VoidCallback? onKnock;
 
   @override
   Widget build(BuildContext context) {
@@ -527,32 +570,50 @@ class _PublicRoomTile extends StatelessWidget {
               ),
             ),
 
-            // Join button
+            // Action button
             const SizedBox(width: 8),
-            isJoining
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: scheme.primary,
-                    ),
-                  )
-                : FilledButton.tonal(
-                    onPressed: onJoin,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      l10n.addRoom,
-                      style: const TextStyle(fontSize: 13),
-                    ),
+            if (isJoining || isKnocking)
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.primary,
+                ),
+              )
+            else if (requiresKnock)
+              FilledButton.tonalIcon(
+                onPressed: onKnock,
+                icon: Icon(LucideIcons.logIn, size: 14),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
                   ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                label: Text(
+                  l10n.knockRoom,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )
+            else
+              FilledButton.tonal(
+                onPressed: onJoin,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  l10n.addRoom,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
           ],
         ),
       ),

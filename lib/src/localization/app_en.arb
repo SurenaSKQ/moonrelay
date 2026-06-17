@@ -317,6 +317,67 @@
   },
   "roomIdCopied": "Room ID copied to clipboard",
 
+  "knockRoom": "Knock",
+  "@knockRoom": {
+    "description": "Button label for knocking (requesting to join) a room."
+  },
+  "knockRoomDescription": "Request to join this room",
+  "@knockRoomDescription": {
+    "description": "Subtitle for the knock action."
+  },
+  "knockingRoom": "Knocking…",
+  "@knockingRoom": {
+    "description": "Loading state while sending a knock request."
+  },
+  "knockSent": "Knock sent to {room}",
+  "@knockSent": {
+    "description": "Confirmation shown after successfully knocking on a room.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "knockFailed": "Failed to knock: {error}",
+  "@knockFailed": {
+    "description": "Error shown when knocking fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "knockRetracted": "Knock retracted",
+  "@knockRetracted": {
+    "description": "Confirmation after retracting a knock."
+  },
+  "knockRetractFailed": "Failed to retract knock: {error}",
+  "@knockRetractFailed": {
+    "description": "Error shown when retracting a knock fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "retractKnock": "Retract knock",
+  "@retractKnock": {
+    "description": "Button label to retract a pending knock request."
+  },
+  "roomTypeKnock": "Knock-based room",
+  "@roomTypeKnock": {
+    "description": "Label for rooms with knock join rules."
+  },
+  "roomTypeRestricted": "Restricted room",
+  "@roomTypeRestricted": {
+    "description": "Label for rooms with restricted join rules."
+  },
+  "roomTypeInviteOnly": "Invite only",
+  "@roomTypeInviteOnly": {
+    "description": "Label for invite-only rooms."
+  },
+  "joinRequiresKnock": "This room requires approval to join. Would you like to knock instead?",
+  "@joinRequiresKnock": {
+    "description": "Prompt shown when trying to join a room that requires knocking."
+  },
+  "knockReasonHint": "Optional reason for knocking…",
+  "@knockReasonHint": {
+    "description": "Hint text for the knock reason input field."
+  },
   "editRoomName": "Edit Room Name",
   "editRoomNameHint": "Enter a new name for this room",
   "editRoomTopic": "Edit Topic",
