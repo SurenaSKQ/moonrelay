@@ -9,6 +9,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 void main() {
   group('ReactionEmojiGrid', () {
     testWidgets('displays emoji grid', (tester) async {
+      // ignore: unused_local_variable
       String? selected;
       await tester.pumpWidget(
         MaterialApp(

@@ -30,6 +30,7 @@ class SettingsService {
   static const _collapsedGroupsKey = 'collapsed_groups';
   static const _fontSizeKey = 'font_size';
   static const _uiScaleKey = 'ui_scale';
+  static const _notificationsEnabledKey = 'notifications_enabled';
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -286,6 +287,18 @@ class SettingsService {
   Future<void> updateUiScale(double scale) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_uiScaleKey, scale);
+  }
+
+  // ── Notifications ───────────────────────────────────────────
+
+  Future<bool> notificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_notificationsEnabledKey) ?? true;
+  }
+
+  Future<void> updateNotificationsEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationsEnabledKey, value);
   }
 
   // ── Space groups ──────────────────────────────────────────────────

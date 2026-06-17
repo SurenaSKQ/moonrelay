@@ -42,6 +42,7 @@ import 'src/helpers/current_room.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/services/tray_service.dart';
+import 'src/services/notification_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'src/splash_screen.dart';
@@ -79,6 +80,8 @@ class _AppState {
     required this.settingsController,
     required this.encryptionService,
     required this.accountManager,
+    required this.currentRoom,
+    required this.notificationService,
   });
 
   final Client sdk;
@@ -87,6 +90,8 @@ class _AppState {
   final SettingsController settingsController;
   final EncryptionService encryptionService;
   final AccountManager accountManager;
+  final CurrentRoom currentRoom;
+  final NotificationService? notificationService;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,7 +257,27 @@ Future<_AppState> _initialize({
     await encryptionService.init();
   }
 
-  // ── 7. Tray service ────────────────────────────────────
+  // ── 7. CurrentRoom (needed by notification service) ────
+  final currentRoom = CurrentRoom();
+
+  // ── 8. Notification service ────────────────────────────
+  NotificationService? notificationService;
+  if (sdk.isLogged()) {
+    onStatus('Starting notification service…');
+    log.t('Initializing notifications…');
+    try {
+      notificationService = await NotificationService.init(
+        client: sdk,
+        settings: settingsController,
+        currentRoom: currentRoom,
+        log: log,
+      );
+    } catch (e) {
+      log.w('Notification service init failed', error: e);
+    }
+  }
+
+  // ── 9. Tray service ────────────────────────────────────
   if (isDesktop && settingsController.showTrayIcon) {
     onStatus('Setting up system tray…');
     log.t('Initializing tray…');
@@ -263,7 +288,7 @@ Future<_AppState> _initialize({
     }
   }
 
-  // ── 8. Wire up AccountManager ───────────────────────────────
+  // ── 10. Wire up AccountManager ──────────────────────────────
   // If the active account's session was restored, associate it with
   // the AccountManager.  Also set the factory callbacks so the
   // AccountManager can create new Clients when switching accounts.
@@ -294,6 +319,8 @@ Future<_AppState> _initialize({
     settingsController: settingsController,
     encryptionService: encryptionService,
     accountManager: accountManager,
+    currentRoom: currentRoom,
+    notificationService: notificationService,
   );
 }
 
@@ -427,9 +454,11 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
               value: _appState!.accountManager),
           ChangeNotifierProvider<EncryptionService>.value(
               value: _appState!.encryptionService),
-          ChangeNotifierProvider<CurrentRoom>(
-            create: (_) => CurrentRoom(),
-          ),
+          ChangeNotifierProvider<CurrentRoom>.value(
+              value: _appState!.currentRoom),
+          if (_appState!.notificationService != null)
+            Provider<NotificationService>.value(
+                value: _appState!.notificationService!),
         ],
         child: const MoonrelayApp(),
       );

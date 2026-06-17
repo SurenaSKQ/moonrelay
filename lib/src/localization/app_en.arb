@@ -1401,5 +1401,42 @@
   "removeAccount": "Remove account",
   "@removeAccount": {
     "description": "Button to remove a saved account."
+  },
+
+  "notifications": "Notifications",
+  "@notifications": {
+    "description": "Title for the notification settings page."
+  },
+  "notificationsDescription": "Control desktop notifications for incoming messages.",
+  "@notificationsDescription": {
+    "description": "Subtitle for the notification settings page."
+  },
+  "enableNotifications": "Enable notifications",
+  "@enableNotifications": {
+    "description": "Toggle label for enabling or disabling all notifications."
+  },
+  "enableNotificationsDescription": "Show desktop notifications for new messages",
+  "@enableNotificationsDescription": {
+    "description": "Subtitle for the global notification toggle."
+  },
+  "notificationSettings": "Notification Settings",
+  "@notificationSettings": {
+    "description": "Section header for per-room notification settings."
+  },
+  "muteRoom": "Mute this room",
+  "@muteRoom": {
+    "description": "Toggle to mute notifications for a specific room."
+  },
+  "muteRoomDescription": "Suppress desktop notifications from this room",
+  "@muteRoomDescription": {
+    "description": "Subtitle for the room mute toggle."
+  },
+  "roomMuted": "Room notifications muted",
+  "@roomMuted": {
+    "description": "Snackbar confirmation when muting a room."
+  },
+  "roomUnmuted": "Room notifications unmuted",
+  "@roomUnmuted": {
+    "description": "Snackbar confirmation when unmuting a room."
   }
 }

@@ -38,6 +38,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   late Map<String, List<String>> _spaceGroups;
   late double _fontSize;
   late double _uiScale;
+  late bool _notificationsEnabled;
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
@@ -65,6 +66,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   Map<String, List<String>> get spaceGroups => _spaceGroups;
   double get fontSize => _fontSize;
   double get uiScale => _uiScale;
+  bool get notificationsEnabled => _notificationsEnabled;
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
     _themeOption = await _settingsService.themeOption();
@@ -91,6 +93,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _spaceGroups = await _settingsService.spaceGroups();
     _fontSize = await _settingsService.fontSize();
     _uiScale = await _settingsService.uiScale();
+    _notificationsEnabled = await _settingsService.notificationsEnabled();
     notifyListeners();
   }
 
@@ -382,6 +385,14 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   /// Runs auto‑grouping from the Matrix hierarchy.
+  Future<void> updateNotificationsEnabled(bool value) async {
+    if (value != _notificationsEnabled) {
+      _notificationsEnabled = value;
+      notifyListeners();
+      await _settingsService.updateNotificationsEnabled(value);
+    }
+  }
+
   Future<void> sortIntoGroups(Map<String, List<String>> groups) async {
     _spaceGroups = Map.of(groups);
     final toRemove = <String>{};

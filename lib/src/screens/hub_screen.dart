@@ -148,6 +148,10 @@ class _HubScreenState extends State<HubScreen> {
             label: l10n.backgroundAndTray,
             icon: LucideIcons.minimize2,
           ),
+          _HubNavigationItem(
+            label: l10n.notifications,
+            icon: LucideIcons.bell,
+          ),
         ],
       ),
     ];
@@ -344,6 +348,8 @@ class _HubScreenState extends State<HubScreen> {
           return const LogsPage();
         case 6:
           return _BackgroundSettings();
+        case 7:
+          return _NotificationSettings();
         default:
           return const SizedBox.shrink();
       }
@@ -1688,6 +1694,59 @@ class _BackgroundSettings extends StatelessWidget {
                         ? (v) => controller.updateStartMinimized(v)
                         : null,
                     secondary: const Icon(LucideIcons.play, size: 22),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NotificationSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
+        final scheme = Theme.of(context).colorScheme;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.notifications,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.notificationsDescription,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SettingsSection(
+                title: l10n.notifications,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.enableNotifications),
+                    subtitle: Text(l10n.enableNotificationsDescription),
+                    value: controller.notificationsEnabled,
+                    onChanged: (v) => controller.updateNotificationsEnabled(v),
+                    secondary: const Icon(LucideIcons.bell, size: 22),
                   ),
                 ],
               ),
