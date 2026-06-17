@@ -22,6 +22,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
@@ -147,6 +148,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     Offset globalPosition,
   ) async {
     final l10n = AppLocalizations.of(context)!;
+    final settings = context.read<SettingsController>();
     final bool isMaxed = await windowManager.isMaximized();
 
     final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
@@ -197,7 +199,11 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
 
     switch (result) {
       case 'minimize':
-        await windowManager.minimize();
+        if (settings.minimizeToTray && TrayService.instance != null) {
+          await TrayService.instance!.hideWindow();
+        } else {
+          await windowManager.minimize();
+        }
       case 'maximize':
         if (await windowManager.isMaximized()) {
           await windowManager.unmaximize();
@@ -205,7 +211,11 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
           await windowManager.maximize();
         }
       case 'close':
-        await windowManager.close();
+        if (settings.closeToTray && TrayService.instance != null) {
+          await TrayService.instance!.hideWindow();
+        } else {
+          await windowManager.close();
+        }
       case 'system':
         try {
           await windowManager.popUpWindowMenu();
@@ -217,6 +227,15 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
 
   @override
   void onWindowClose() async {
+    if (!mounted) return;
+    final settings = context.read<SettingsController>();
+
+    // Close-to-tray overrides the confirm-close dialog.
+    if (settings.closeToTray && TrayService.instance != null) {
+      await TrayService.instance!.hideWindow();
+      return;
+    }
+
     final bool isPreventClose = await windowManager.isPreventClose();
     if (isPreventClose && mounted && context.mounted) {
       showDialog<void>(

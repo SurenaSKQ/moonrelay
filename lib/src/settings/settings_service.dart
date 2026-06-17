@@ -22,6 +22,10 @@ class SettingsService {
   static const _headerReversedKey = 'header_reversed';
   static const _showStateEventsKey = 'show_state_events';
   static const _showStatusBarKey = 'show_status_bar';
+  static const _showTrayIconKey = 'show_tray_icon';
+  static const _closeToTrayKey = 'close_to_tray';
+  static const _minimizeToTrayKey = 'minimize_to_tray';
+  static const _startMinimizedKey = 'start_minimized';
   static const _pinnedSpacesKey = 'pinned_spaces';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
@@ -163,6 +167,48 @@ class SettingsService {
     await prefs.setBool(_showStatusBarKey, value);
   }
 
+  // ── Tray & background ───────────────────────────────────────────────
+
+  Future<bool> showTrayIcon() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showTrayIconKey) ?? true;
+  }
+
+  Future<void> updateShowTrayIcon(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showTrayIconKey, value);
+  }
+
+  Future<bool> closeToTray() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_closeToTrayKey) ?? false;
+  }
+
+  Future<void> updateCloseToTray(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_closeToTrayKey, value);
+  }
+
+  Future<bool> minimizeToTray() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_minimizeToTrayKey) ?? false;
+  }
+
+  Future<void> updateMinimizeToTray(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_minimizeToTrayKey, value);
+  }
+
+  Future<bool> startMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_startMinimizedKey) ?? false;
+  }
+
+  Future<void> updateStartMinimized(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_startMinimizedKey, value);
+  }
+
   // ── Pinned spaces ───────────────────────────────────────────────────
 
   /// Loads the set of manually pinned subspace room IDs.
@@ -230,7 +276,6 @@ class SettingsService {
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
   }
 
-
   // ── Space groups ──────────────────────────────────────────────────
 
   Future<Map<String, List<String>>> spaceGroups() async {
@@ -241,7 +286,8 @@ class SettingsService {
     for (final entry in raw.split('|')) {
       final parts = entry.split(':');
       if (parts.length == 2) {
-        map[parts[0]] = parts[1].split(',').where((id) => id.isNotEmpty).toList();
+        map[parts[0]] =
+            parts[1].split(',').where((id) => id.isNotEmpty).toList();
       }
     }
     return map;

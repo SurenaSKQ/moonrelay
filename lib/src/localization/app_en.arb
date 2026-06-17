@@ -1292,5 +1292,54 @@
   "unjoinedRooms": "Unjoined rooms",
   "@unjoinedRooms": {
     "description": "Section header for unjoined rooms in a space."
+  },
+
+  "backgroundAndTray": "Background & Tray",
+  "@backgroundAndTray": {
+    "description": "Settings category for system tray and background behaviour."
+  },
+  "backgroundAndTrayDescription": "Control how Moonrelay behaves in the system tray and when the window is closed.",
+  "@backgroundAndTrayDescription": {
+    "description": "Subtitle for the Background & Tray settings page."
+  },
+  "systemTray": "System Tray",
+  "@systemTray": {
+    "description": "Section header for system tray settings."
+  },
+  "showTrayIcon": "Show tray icon",
+  "@showTrayIcon": {
+    "description": "Toggle label for showing the system tray icon."
+  },
+  "showTrayIconDescription": "Display Moonrelay in the system notification area",
+  "@showTrayIconDescription": {
+    "description": "Subtitle for the show tray icon toggle."
+  },
+  "windowBehaviour": "Window Behaviour",
+  "@windowBehaviour": {
+    "description": "Section header for window close/minimize behaviour."
+  },
+  "closeToTray": "Close to tray",
+  "@closeToTray": {
+    "description": "Toggle label for closing the window to the system tray."
+  },
+  "closeToTrayDescription": "Closing the window hides it to the system tray instead of quitting",
+  "@closeToTrayDescription": {
+    "description": "Subtitle for the close to tray toggle."
+  },
+  "minimizeToTray": "Minimize to tray",
+  "@minimizeToTray": {
+    "description": "Toggle label for minimizing to the system tray."
+  },
+  "minimizeToTrayDescription": "Minimizing hides to the system tray instead of the taskbar",
+  "@minimizeToTrayDescription": {
+    "description": "Subtitle for the minimize to tray toggle."
+  },
+  "startMinimized": "Start minimized",
+  "@startMinimized": {
+    "description": "Toggle label for starting the app minimized to tray."
+  },
+  "startMinimizedDescription": "Start Moonrelay in the system tray without showing the window",
+  "@startMinimizedDescription": {
+    "description": "Subtitle for the start minimized toggle."
   }
 }

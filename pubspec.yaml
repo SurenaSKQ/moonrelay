@@ -40,6 +40,7 @@ dependencies:
   flutter_vodozemac: ^0.5.0
   url_launcher: ^6.3.2
   meta: ^1.15.0
+  tray_manager: ^0.5.2
 
 dev_dependencies:
   flutter_test:

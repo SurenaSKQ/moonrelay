@@ -40,6 +40,7 @@ import 'src/helpers/log_service.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
+import 'src/services/tray_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'src/splash_screen.dart';
@@ -198,7 +199,9 @@ Future<_AppState> _initialize({
       );
     }
     await windowManager.setMinimumSize(const Size(500, 600));
-    await windowManager.show();
+    if (!settingsController.startMinimized) {
+      await windowManager.show();
+    }
     await windowManager.setPreventClose(true);
     await windowManager.setSkipTaskbar(false);
   }
@@ -209,6 +212,17 @@ Future<_AppState> _initialize({
   final encryptionService = EncryptionService(client: sdk, logger: log);
   if (sdk.isLogged()) {
     await encryptionService.init();
+  }
+
+  // ── 8. Tray service ────────────────────────────────────
+  if (isDesktop && settingsController.showTrayIcon) {
+    onStatus('Setting up system tray…');
+    log.t('Initializing tray…');
+    try {
+      await TrayService.init(client: sdk, log: log);
+    } catch (e) {
+      log.w('Tray service init failed', error: e);
+    }
   }
 
   log.i('Initialization complete');

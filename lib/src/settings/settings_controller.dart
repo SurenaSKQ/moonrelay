@@ -29,6 +29,10 @@ class SettingsController with ChangeNotifier, WindowListener {
   late bool _headerReversed;
   late bool _showStateEvents;
   late bool _showStatusBar;
+  late bool _showTrayIcon;
+  late bool _closeToTray;
+  late bool _minimizeToTray;
+  late bool _startMinimized;
   late Set<String> _pinnedSpaces;
   late List<String> _spaceOrder;
   late Set<String> _collapsedGroups;
@@ -52,6 +56,10 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get headerReversed => _headerReversed;
   bool get showStateEvents => _showStateEvents;
   bool get showStatusBar => _showStatusBar;
+  bool get showTrayIcon => _showTrayIcon;
+  bool get closeToTray => _closeToTray;
+  bool get minimizeToTray => _minimizeToTray;
+  bool get startMinimized => _startMinimized;
   Set<String> get pinnedSpaces => _pinnedSpaces;
   List<String> get spaceOrder => _spaceOrder;
   Set<String> get collapsedGroups => _collapsedGroups;
@@ -74,6 +82,10 @@ class SettingsController with ChangeNotifier, WindowListener {
     _headerReversed = await _settingsService.headerReversed();
     _showStateEvents = await _settingsService.showStateEvents();
     _showStatusBar = await _settingsService.showStatusBar();
+    _showTrayIcon = await _settingsService.showTrayIcon();
+    _closeToTray = await _settingsService.closeToTray();
+    _minimizeToTray = await _settingsService.minimizeToTray();
+    _startMinimized = await _settingsService.startMinimized();
     _pinnedSpaces = await _settingsService.pinnedSpaces();
     _spaceOrder = await _settingsService.spaceOrder();
     _collapsedGroups = await _settingsService.collapsedGroups();
@@ -217,6 +229,38 @@ class SettingsController with ChangeNotifier, WindowListener {
       _showStateEvents = value;
       notifyListeners();
       await _settingsService.updateShowStateEvents(value);
+    }
+  }
+
+  Future<void> updateShowTrayIcon(bool value) async {
+    if (value != _showTrayIcon) {
+      _showTrayIcon = value;
+      notifyListeners();
+      await _settingsService.updateShowTrayIcon(value);
+    }
+  }
+
+  Future<void> updateCloseToTray(bool value) async {
+    if (value != _closeToTray) {
+      _closeToTray = value;
+      notifyListeners();
+      await _settingsService.updateCloseToTray(value);
+    }
+  }
+
+  Future<void> updateMinimizeToTray(bool value) async {
+    if (value != _minimizeToTray) {
+      _minimizeToTray = value;
+      notifyListeners();
+      await _settingsService.updateMinimizeToTray(value);
+    }
+  }
+
+  Future<void> updateStartMinimized(bool value) async {
+    if (value != _startMinimized) {
+      _startMinimized = value;
+      notifyListeners();
+      await _settingsService.updateStartMinimized(value);
     }
   }
 

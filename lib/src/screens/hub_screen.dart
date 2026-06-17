@@ -144,6 +144,10 @@ class _HubScreenState extends State<HubScreen> {
             label: l10n.logs,
             icon: LucideIcons.fileText,
           ),
+          _HubNavigationItem(
+            label: l10n.backgroundAndTray,
+            icon: LucideIcons.minimize2,
+          ),
         ],
       ),
     ];
@@ -342,6 +346,8 @@ class _HubScreenState extends State<HubScreen> {
           return _NetworkSettings();
         case 5:
           return const LogsPage();
+        case 6:
+          return _BackgroundSettings();
         default:
           return const SizedBox.shrink();
       }
@@ -1509,6 +1515,92 @@ class _ChatSettings extends StatelessWidget {
                     value: controller.showStateEvents,
                     onChanged: (v) => controller.updateShowStateEvents(v),
                     secondary: const Icon(Icons.info_outline),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background & Tray Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BackgroundSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
+        final scheme = Theme.of(context).colorScheme;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.backgroundAndTray,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.backgroundAndTrayDescription,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Show tray icon
+              _SettingsSection(
+                title: l10n.systemTray,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.showTrayIcon),
+                    subtitle: Text(l10n.showTrayIconDescription),
+                    value: controller.showTrayIcon,
+                    onChanged: (v) => controller.updateShowTrayIcon(v),
+                    secondary: const Icon(LucideIcons.minimize2, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Close to tray
+              _SettingsSection(
+                title: l10n.windowBehaviour,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.closeToTray),
+                    subtitle: Text(l10n.closeToTrayDescription),
+                    value: controller.closeToTray,
+                    onChanged: (v) => controller.updateCloseToTray(v),
+                    secondary: const Icon(LucideIcons.xCircle, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.minimizeToTray),
+                    subtitle: Text(l10n.minimizeToTrayDescription),
+                    value: controller.minimizeToTray,
+                    onChanged: (v) => controller.updateMinimizeToTray(v),
+                    secondary: const Icon(LucideIcons.minimize, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.startMinimized),
+                    subtitle: Text(l10n.startMinimizedDescription),
+                    value: controller.startMinimized,
+                    onChanged: controller.showTrayIcon
+                        ? (v) => controller.updateStartMinimized(v)
+                        : null,
+                    secondary: const Icon(LucideIcons.play, size: 22),
                   ),
                 ],
               ),
