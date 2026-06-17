@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/create_room_form.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum number of child rooms to delete before showing a progress dialog.
@@ -160,6 +161,14 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               label: l10n.addRoomToSpace,
               description: l10n.spaceSettingsDescription,
               onTap: () => context.push('/main/space/${space.id}/settings'),
+              scheme: scheme,
+            ),
+            const SizedBox(height: 4),
+            _ActionTile(
+              icon: LucideIcons.wand2,
+              label: l10n.createNewRoom,
+              description: l10n.createRoom,
+              onTap: () => _showCreateRoomDialog(context),
               scheme: scheme,
             ),
             const SizedBox(height: 16),
@@ -675,6 +684,55 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             content: Text('${AppLocalizations.of(context)!.error}: $message')),
       );
     }
+  }
+
+  /// Shows a dialog with the [CreateRoomWidget] so the user can create a
+  /// new room and add it to this space.
+  void _showCreateRoomDialog(BuildContext context) {
+    final space = widget.space;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 32,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(ctx)!.createNewRoom,
+                      style: Theme.of(ctx).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: CreateRoomWidget(parentSpace: space),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
