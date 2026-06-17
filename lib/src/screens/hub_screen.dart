@@ -1242,23 +1242,6 @@ class _AppearanceSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Use system titlebar
-              _SettingsSection(
-                title: l10n.useSystemTitlebar,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.enable),
-                    subtitle: Text(
-                      l10n.useNativeTitlebar,
-                    ),
-                    value: controller.useSystemTitlebar,
-                    onChanged: (v) => controller.updateUseOfSystemTitlebar(v),
-                    secondary: const Icon(LucideIcons.monitor),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
               // Chat display type
               _SettingsSection(
                 title: l10n.chatDisplayType,

@@ -79,7 +79,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
         Provider.of<SettingsController>(context, listen: true);
     final ThemeData theme = Theme.of(context);
     final bool reversed = settings.headerReversed;
-    final bool showButtons = isDesktop && !settings.useSystemTitlebar;
+    final bool showButtons = isDesktop;
 
     final Widget sidebarToggle = IconButton(
       icon: Icon(

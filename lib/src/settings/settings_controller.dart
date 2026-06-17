@@ -17,7 +17,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   late MoonrelayThemeOption _themeOption;
   late DisplayType _displayType;
   // late AccentColor _accentColor;
-  late bool _useSystemTitlebar;
 
   // Layout state
   late bool _leftSidebarVisible;
@@ -44,7 +43,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   MoonrelayThemeOption get themeOption => _themeOption;
   DisplayType get displayType => _displayType;
   // AccentColor get accentColor => _accentColor;
-  bool get useSystemTitlebar => _useSystemTitlebar;
 
   // Layout getters
   bool get leftSidebarVisible => _leftSidebarVisible;
@@ -70,7 +68,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _themeOption = await _settingsService.themeOption();
     _displayType = await _settingsService.displayType();
     // _accentColor = await _settingsService.accentColor();
-    _useSystemTitlebar = await _settingsService.useSystemTitlebar();
 
     // Layout settings
     _leftSidebarVisible = await _settingsService.leftSidebarVisible();
@@ -92,19 +89,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _spaceGroups = await _settingsService.spaceGroups();
 
     notifyListeners();
-  }
-
-  Future<void> updateUseOfSystemTitlebar(bool useSystemTitlebar) async {
-    if (useSystemTitlebar != _useSystemTitlebar) {
-      _useSystemTitlebar = useSystemTitlebar;
-      notifyListeners();
-      if (useSystemTitlebar) {
-        windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      } else {
-        windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-      }
-      await _settingsService.updateTitlebarStatus(useSystemTitlebar);
-    }
   }
 
   // Future<void> updateAccentColor(AccentColor newAccentColor) async {

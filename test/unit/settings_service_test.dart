@@ -74,39 +74,16 @@ void main() {
       });
     });
 
-    group('useSystemTitlebar', () {
-      test('defaults to false', () async {
-        final useSystem = await service.useSystemTitlebar();
-        expect(useSystem, false);
-      });
-
-      test('returns true after setting to true', () async {
-        await service.updateTitlebarStatus(true);
-        final useSystem = await service.useSystemTitlebar();
-        expect(useSystem, true);
-      });
-
-      test('returns false after setting to false', () async {
-        await service.updateTitlebarStatus(true);
-        expect(await service.useSystemTitlebar(), true);
-
-        await service.updateTitlebarStatus(false);
-        expect(await service.useSystemTitlebar(), false);
-      });
-    });
-
     group('persistence', () {
       test('values persist across service instances', () async {
         // Set value in first instance
         await service.updateThemeMode(ThemeMode.dark);
         await service.updateDisplayType(DisplayType.bubbles);
-        await service.updateTitlebarStatus(true);
 
         // Read in new instance (SharedPreferences mock is global)
         final service2 = SettingsService();
         expect(await service2.themeMode(), ThemeMode.dark);
         expect(await service2.displayType(), DisplayType.bubbles);
-        expect(await service2.useSystemTitlebar(), true);
       });
     });
   });

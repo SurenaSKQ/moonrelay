@@ -192,12 +192,10 @@ Future<_AppState> _initialize({
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
-    if (!settingsController.useSystemTitlebar) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: false,
-      );
-    }
+    await windowManager.setTitleBarStyle(
+      TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+    );
     await windowManager.setMinimumSize(const Size(500, 600));
     if (!settingsController.startMinimized) {
       await windowManager.show();

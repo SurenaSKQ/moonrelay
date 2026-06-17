@@ -10,7 +10,6 @@ class SettingsService {
   static const _themeModeKey = 'theme_mode';
   static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
-  static const _useSystemTitlebarKey = 'system_title_bar';
 
   // Layout keys
   static const _leftSidebarVisibleKey = 'left_sidebar_visible';
@@ -29,17 +28,6 @@ class SettingsService {
   static const _pinnedSpacesKey = 'pinned_spaces';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
-
-  Future<bool> useSystemTitlebar() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool? useSystem = prefs.getBool(_useSystemTitlebarKey);
-    return useSystem ?? false;
-  }
-
-  Future<void> updateTitlebarStatus(bool useSystemTitlebar) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useSystemTitlebarKey, useSystemTitlebar);
-  }
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();

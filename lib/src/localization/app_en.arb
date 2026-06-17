@@ -496,9 +496,7 @@
   "light": "Light",
   "dark": "Dark",
   "colourTheme": "Colour theme",
-  "useSystemTitlebar": "Use system titlebar",
   "enable": "Enable",
-  "useNativeTitlebar": "Use the native window title bar instead of the custom one",
   "chatDisplayType": "Chat display type",
 
   "leftSidebar": "Left sidebar",
