@@ -16,24 +16,35 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../helpers/mocks.dart';
+
+Widget _buildApp() {
+  return ChangeNotifierProvider<SettingsController>.value(
+    value: SettingsController(SettingsService()),
+    child: ChangeNotifierProvider<AccountManager>.value(
+      value: AccountManager(log: MockLogger()),
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StartupScreen(),
+      ),
+    ),
+  );
+}
 
 void main() {
   group('StartupScreen', () {
-    Widget _buildApp() {
-      return ChangeNotifierProvider<SettingsController>.value(
-        value: SettingsController(SettingsService()),
-        child: const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
-    }
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
 
     testWidgets('renders login and sign up buttons', (tester) async {
       await tester.pumpWidget(_buildApp());
@@ -51,17 +62,20 @@ void main() {
       );
     });
 
-    testWidgets('renders Privacy Policy and Licenses buttons', (tester) async {
+    testWidgets('renders Privacy Policy and Licenses buttons',
+        (tester) async {
       await tester.pumpWidget(_buildApp());
 
       expect(find.text('Privacy and Your Data'), findsOneWidget);
       expect(find.text('Licenses'), findsOneWidget);
     });
 
-    testWidgets('has a Column layout with Wrap for buttons', (tester) async {
+    testWidgets('has a Column layout with Wrap for buttons',
+        (tester) async {
       await tester.pumpWidget(_buildApp());
 
-      // One FilledButton (Sign In) and one OutlinedButton (Create Account), footer has TextButtons
+      // One FilledButton (Sign In) and one OutlinedButton (Create Account),
+      // footer has TextButtons
       expect(find.byType(FilledButton), findsOneWidget);
       expect(find.byType(OutlinedButton), findsOneWidget);
       expect(find.byType(Wrap), findsWidgets);

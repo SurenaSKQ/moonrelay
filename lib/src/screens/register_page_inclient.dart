@@ -22,6 +22,8 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
@@ -402,6 +404,20 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
       case RetrySuccess(:final value):
         {
           log.i('Registration successful for ${value.userId}');
+
+          // ── Save this account for multi-account support ─────────
+          if (mounted) {
+            final accountManager = context.read<AccountManager>();
+            await accountManager.addOrUpdateAccount(
+              StoredAccount(
+                userId: client.userID!,
+                homeserver: client.homeserver?.toString() ?? '',
+              ),
+              client: client,
+              encryptionService: context.read<EncryptionService>(),
+            );
+          }
+
           context.go('/main/rooms');
         }
       case RetryFailed(:final error):

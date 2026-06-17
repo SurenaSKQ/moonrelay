@@ -1339,5 +1339,67 @@
   "startMinimizedDescription": "Start Moonrelay in the system tray without showing the window",
   "@startMinimizedDescription": {
     "description": "Subtitle for the start minimized toggle."
+  },
+
+  "addAccount": "Add Account",
+  "@addAccount": {
+    "description": "Button to add another Matrix account."
+  },
+  "addAccountDescription": "Sign in to another Matrix account",
+  "@addAccountDescription": {
+    "description": "Subtitle for the add account button in the hub."
+  },
+  "switchAccount": "Switch Account",
+  "@switchAccount": {
+    "description": "Button to switch between accounts."
+  },
+  "switchToAccount": "Switch to {userId}",
+  "@switchToAccount": {
+    "description": "Button label to switch to a specific account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "savedAccounts": "Saved Accounts",
+  "@savedAccounts": {
+    "description": "Section header for the list of saved accounts on the welcome screen."
+  },
+  "tapToSwitch": "Tap to switch",
+  "@tapToSwitch": {
+    "description": "Hint text shown on account cards on the welcome screen."
+  },
+  "signInAsDifferentUser": "Sign in with a different account",
+  "@signInAsDifferentUser": {
+    "description": "Button label to sign in with a new account on the welcome screen."
+  },
+  "noAccountsSaved": "No accounts saved",
+  "@noAccountsSaved": {
+    "description": "Empty state when no accounts are saved."
+  },
+  "accountSwitched": "Switched to {userId}",
+  "@accountSwitched": {
+    "description": "Snackbar message after switching accounts.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "activeAccount": "Active account",
+  "@activeAccount": {
+    "description": "Label shown next to the currently active account."
+  },
+  "loggedInAccounts": "Logged in",
+  "@loggedInAccounts": {
+    "description": "Section label for currently logged-in accounts."
+  },
+  "areYouSureRemoveAccount": "Are you sure you want to remove the account {userId}?",
+  "@areYouSureRemoveAccount": {
+    "description": "Confirmation dialog for removing an account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "removeAccount": "Remove account",
+  "@removeAccount": {
+    "description": "Button to remove a saved account."
   }
 }

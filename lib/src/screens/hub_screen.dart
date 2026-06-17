@@ -31,7 +31,7 @@ import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
-import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,25 +156,18 @@ class _HubScreenState extends State<HubScreen> {
   int get categoryCount => _categories.length;
 
   Future<void> _logout() async {
-    final client = Provider.of<Client>(context, listen: false);
-    final log = Provider.of<Logger>(context, listen: false);
-    final logService = context.read<LogService>();
-    final enc = context.read<EncryptionService>();
     final l10n = AppLocalizations.of(context)!;
     try {
-      await enc.onLogout();
-      await client.logout();
+      final accountManager = context.read<AccountManager>();
+      await accountManager.logout();
       // Wipe all log files now that the session has been torn down.
+      final logService = context.read<LogService>();
       await logService.wipeLogs();
       if (!mounted) return;
       context.go('/');
     } catch (e) {
-      log.e(
-        'Logout error',
-        error: e,
-        time: DateTime.now(),
-        stackTrace: StackTrace.current,
-      );
+      final log = context.read<Logger>();
+      log.e('Logout error', error: e, stackTrace: StackTrace.current);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -310,7 +303,10 @@ class _HubScreenState extends State<HubScreen> {
     // Render a top-level category page.
     switch (_selectedCategoryIndex) {
       case 0:
-        return _AccountsPage(onLogout: _logout);
+        return _AccountsPage(
+          onLogout: _logout,
+          onAddAccount: () => context.push('/add-account'),
+        );
       case 1:
         return _MyProfilePage(client: widget.client);
       case 2:
@@ -577,9 +573,13 @@ class _SubPageHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AccountsPage extends StatelessWidget {
-  const _AccountsPage({required this.onLogout});
+  const _AccountsPage({
+    required this.onLogout,
+    required this.onAddAccount,
+  });
 
   final VoidCallback onLogout;
+  final VoidCallback onAddAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -748,6 +748,62 @@ class _AccountsPage extends StatelessWidget {
                     ),
                     onTap: onLogout,
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Add account section ─────────────────────────────────
+              Text(
+                l10n.appSettings,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.dividerColor,
+                  ),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    radius: 22,
+                    backgroundColor:
+                        theme.colorScheme.secondaryContainer,
+                    child: Icon(
+                      LucideIcons.userPlus,
+                      size: 20,
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  title: Text(
+                    l10n.addAccount,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    l10n.addAccountDescription,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Icon(
+                    LucideIcons.chevronRight,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onTap: onAddAccount,
                 ),
               ),
             ],

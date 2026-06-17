@@ -39,30 +39,28 @@ import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
 class MoonRouter {
+  /// Returns `true` when the active account has a valid Matrix session.
+  static bool _isLoggedIn(BuildContext context) {
+    try {
+      final client = Provider.of<Client>(context, listen: false);
+      return client.isLogged();
+    } catch (_) {
+      return false;
+    }
+  }
+
   static FutureOr<String?> loggedInRedirect(
     BuildContext context,
     GoRouterState state,
   ) {
-    try {
-      return Provider.of<Client>(context, listen: false).isLogged()
-          ? '/rooms'
-          : null;
-    } catch (_) {
-      return null;
-    }
+    return _isLoggedIn(context) ? '/main/rooms' : null;
   }
 
   static FutureOr<String?> loggedOutRedirect(
     BuildContext context,
     GoRouterState state,
   ) {
-    try {
-      return Provider.of<Client>(context, listen: false).isLogged()
-          ? null
-          : '/welcome';
-    } catch (_) {
-      return '/welcome';
-    }
+    return _isLoggedIn(context) ? null : '/welcome';
   }
 
   MoonRouter();
@@ -110,6 +108,17 @@ class MoonRouter {
             ),
           ],
         ),
+    // Unauthenticated route for adding a new account while another is
+    // already active.  Bypasses the loggedInRedirect on the welcome
+    // shell by living outside that shell route hierarchy.
+    GoRoute(
+      path: '/add-account',
+      pageBuilder: (context, state) => genericPageBuilder(
+        context,
+        state,
+        const LoginPage(),
+      ),
+    ),
       ],
     ),
     ShellRoute(
@@ -122,9 +131,7 @@ class MoonRouter {
         GoRoute(
           path: '/',
           redirect: (context, state) =>
-              Provider.of<Client>(context, listen: false).isLogged()
-                  ? '/main/rooms'
-                  : '/welcome',
+              _isLoggedIn(context) ? '/main/rooms' : '/welcome',
         ),
         ShellRoute(
           pageBuilder: (context, state, child) => genericPageBuilder(
