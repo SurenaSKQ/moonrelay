@@ -33,6 +33,7 @@ class FormattedTextWidget extends StatelessWidget {
     super.key,
     required this.event,
     this.formattedBodyOverride,
+    this.baseFontSize = 16.0,
   });
 
   final Event event;
@@ -42,6 +43,12 @@ class FormattedTextWidget extends StatelessWidget {
   /// own formatted body entirely.
   final String? formattedBodyOverride;
 
+  /// The base font size for message body text (default 16.0).
+  /// All internal font sizes are scaled relative to this value.
+  final double baseFontSize;
+
+  double _fs(double defaultValue) => defaultValue * (baseFontSize / 16.0);
+
   @override
   Widget build(BuildContext context) {
     final formattedBody =
@@ -49,16 +56,24 @@ class FormattedTextWidget extends StatelessWidget {
     final format = event.content['format'] as String?;
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
-      final spans = _HtmlTagParser(formattedBody, context).parse();
+      final spans = _HtmlTagParser(formattedBody, context,
+              baseFontSize: baseFontSize)
+          .parse();
       if (spans.isNotEmpty) {
-        return SelectableText.rich(TextSpan(children: spans));
+        return SelectableText.rich(TextSpan(
+          style: TextStyle(fontSize: _fs(16)),
+          children: spans,
+        ));
       }
       // Parser produced nothing – fall through to plain-text rendering.
     }
 
     // Plain text with manual URL detection.
     final spans = _linkifyPlainText(event.body, context);
-    return SelectableText.rich(TextSpan(children: spans));
+    return SelectableText.rich(TextSpan(
+      style: TextStyle(fontSize: _fs(16)),
+      children: spans,
+    ));
   }
 
   /// Splits [text] on URL boundaries and wraps detected links in styled,
@@ -87,10 +102,10 @@ class FormattedTextWidget extends StatelessWidget {
 
       spans.add(TextSpan(
         text: rawUrl,
-        style: TextStyle(
+          style: TextStyle(
           color: accent,
           decoration: TextDecoration.underline,
-          fontSize: 16,
+          fontSize: _fs(16),
         ),
         recognizer: TapGestureRecognizer()..onTap = () => _openUrl(url),
       ));
@@ -131,14 +146,18 @@ class FormattedTextWidget extends StatelessWidget {
 /// - Void: `br`
 /// - Entities: `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;`, numeric
 class _HtmlTagParser {
-  _HtmlTagParser(this.source, this.context)
+  _HtmlTagParser(this.source, this.context, {required double baseFontSize})
       : _pos = 0,
-        _depth = 0;
+        _depth = 0,
+        _ratio = baseFontSize / 16.0;
 
   final String source;
   final BuildContext context;
+  final double _ratio;
   int _pos;
   int _depth;
+
+  double _fs(double defaultValue) => defaultValue * _ratio;
 
   static const int _maxParseDepth = 64;
 
@@ -151,7 +170,7 @@ class _HtmlTagParser {
       return [
         TextSpan(
           text: source.substring(_pos),
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: _fs(16)),
         )
       ];
     }
@@ -212,7 +231,7 @@ class _HtmlTagParser {
     if (buf.isNotEmpty) {
       out.add(TextSpan(
         text: buf.toString(),
-        style: const TextStyle(fontSize: 16),
+        style: TextStyle(fontSize: _fs(16)),
       ));
       buf.clear();
     }
@@ -224,9 +243,9 @@ class _HtmlTagParser {
     if (depth > _maxParseDepth) {
       _pos = source.length;
       return [
-        const TextSpan(
+        TextSpan(
           text: '…',
-          style: TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: _fs(16)),
         )
       ];
     }
@@ -294,9 +313,9 @@ class _HtmlTagParser {
     if (depth > _maxParseDepth) {
       _pos = source.length;
       return [
-        const TextSpan(
+        TextSpan(
           text: '…',
-          style: TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: _fs(16)),
         )
       ];
     }
@@ -380,7 +399,7 @@ class _HtmlTagParser {
     List<TextSpan> inner,
     Map<String, String> attrs,
   ) {
-    final base = TextStyle(fontSize: 16);
+    final base = TextStyle(fontSize: _fs(16));
 
     switch (tag) {
       case 'blockquote':
@@ -388,7 +407,7 @@ class _HtmlTagParser {
         final muted = base.copyWith(
           fontStyle: FontStyle.italic,
           color: scheme.onSurface.withValues(alpha: 0.75),
-          fontSize: 15,
+          fontSize: _fs(15),
         );
         return [
           const TextSpan(text: '\n'),
@@ -409,7 +428,7 @@ class _HtmlTagParser {
                 children: inner,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: _fs(13),
                   color: scheme.onSurface,
                   height: 1.5,
                 ),
@@ -427,7 +446,7 @@ class _HtmlTagParser {
         final scheme = Theme.of(context).colorScheme;
         final muted = base.copyWith(
           color: scheme.onSurface.withValues(alpha: 0.65),
-          fontSize: 14,
+          fontSize: _fs(14),
         );
         return [
           const TextSpan(text: '\n'),
@@ -437,7 +456,7 @@ class _HtmlTagParser {
                 text: '│ ',
                 style: TextStyle(
                   color: scheme.primary,
-                  fontSize: 14,
+                  fontSize: _fs(14),
                   fontWeight: FontWeight.bold,
                   height: 1.5,
                 ),
@@ -464,7 +483,7 @@ class _HtmlTagParser {
           const TextSpan(text: '\n'),
           TextSpan(
             children: inner,
-            style: base.copyWith(fontSize: size, fontWeight: FontWeight.bold),
+            style: base.copyWith(fontSize: _fs(size), fontWeight: FontWeight.bold),
           ),
           const TextSpan(text: '\n'),
         ];
@@ -507,7 +526,7 @@ class _HtmlTagParser {
     Map<String, String> attrs,
   ) {
     final accent = Theme.of(context).colorScheme.primary;
-    final base = const TextStyle(fontSize: 16);
+    final base = TextStyle(fontSize: _fs(16));
 
     switch (tag) {
       case 'b':
@@ -549,9 +568,9 @@ class _HtmlTagParser {
       case 'code':
         return TextSpan(
           children: inner,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'FiraCode',
-            fontSize: 14,
+            fontSize: _fs(14),
             backgroundColor: Color(0x33FFFFFF),
           ),
         );

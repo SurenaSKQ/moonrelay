@@ -28,6 +28,18 @@ class MockClient extends Mock implements Client {
   }
 }
 
+/// A stream of [SyncStatusUpdate] that can be used to simulate sync status
+/// changes in tests.
+class MockSyncStatusUpdate extends Mock implements SyncStatusUpdate {
+  @override
+  // ignore: overridden_fields
+  final SyncStatus status;
+  MockSyncStatusUpdate({this.status = SyncStatus.finished});
+
+  @override
+  String toString() => 'MockSyncStatusUpdate($status)';
+}
+
 class MockRoom extends Mock implements Room {}
 
 class MockTimeline extends Mock implements Timeline {}

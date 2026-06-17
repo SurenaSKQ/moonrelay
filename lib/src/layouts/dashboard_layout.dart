@@ -33,7 +33,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
-import 'package:moonrelay/src/widgets/permanent_pane_bottom_items.dart';
+
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import 'package:moonrelay/src/widgets/spaces_pane.dart';
@@ -159,7 +159,7 @@ class _DashboardView extends StatelessWidget {
                       minWidth: 200,
                       title: settings.leftPaneChoice.label,
                       body: _buildLeftPane(context, settings.leftPaneChoice),
-                      bottomBar: const PermanentPaneBottomItems(),
+                      bottomBar: null,
                       theme: theme,
                     ),
 
@@ -406,7 +406,12 @@ class _SidebarRoomInfo extends StatelessWidget {
             ? l10n.spaceType
             : room.joinRules == JoinRules.public
                 ? l10n.publicRoom
-                : l10n.privateRoom;
+                : room.joinRules == JoinRules.knock ||
+                        room.joinRules == JoinRules.knockRestricted
+                    ? l10n.roomTypeKnock
+                    : room.joinRules == JoinRules.restricted
+                        ? l10n.roomTypeRestricted
+                        : l10n.roomTypeInviteOnly;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

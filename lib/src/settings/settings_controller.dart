@@ -17,7 +17,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   late MoonrelayThemeOption _themeOption;
   late DisplayType _displayType;
   // late AccentColor _accentColor;
-  late bool _useSystemTitlebar;
 
   // Layout state
   late bool _leftSidebarVisible;
@@ -29,18 +28,23 @@ class SettingsController with ChangeNotifier, WindowListener {
   late bool _headerReversed;
   late bool _showStateEvents;
   late bool _showStatusBar;
+  late bool _showTrayIcon;
+  late bool _closeToTray;
+  late bool _minimizeToTray;
+  late bool _startMinimized;
   late Set<String> _pinnedSpaces;
   late List<String> _spaceOrder;
   late Set<String> _collapsedGroups;
   late Map<String, List<String>> _spaceGroups;
-
+  late double _fontSize;
+  late double _uiScale;
+  late bool _notificationsEnabled;
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
   MoonrelayThemeOption get themeOption => _themeOption;
   DisplayType get displayType => _displayType;
   // AccentColor get accentColor => _accentColor;
-  bool get useSystemTitlebar => _useSystemTitlebar;
 
   // Layout getters
   bool get leftSidebarVisible => _leftSidebarVisible;
@@ -52,17 +56,22 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get headerReversed => _headerReversed;
   bool get showStateEvents => _showStateEvents;
   bool get showStatusBar => _showStatusBar;
+  bool get showTrayIcon => _showTrayIcon;
+  bool get closeToTray => _closeToTray;
+  bool get minimizeToTray => _minimizeToTray;
+  bool get startMinimized => _startMinimized;
   Set<String> get pinnedSpaces => _pinnedSpaces;
   List<String> get spaceOrder => _spaceOrder;
   Set<String> get collapsedGroups => _collapsedGroups;
   Map<String, List<String>> get spaceGroups => _spaceGroups;
-
+  double get fontSize => _fontSize;
+  double get uiScale => _uiScale;
+  bool get notificationsEnabled => _notificationsEnabled;
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
     _themeOption = await _settingsService.themeOption();
     _displayType = await _settingsService.displayType();
     // _accentColor = await _settingsService.accentColor();
-    _useSystemTitlebar = await _settingsService.useSystemTitlebar();
 
     // Layout settings
     _leftSidebarVisible = await _settingsService.leftSidebarVisible();
@@ -74,25 +83,18 @@ class SettingsController with ChangeNotifier, WindowListener {
     _headerReversed = await _settingsService.headerReversed();
     _showStateEvents = await _settingsService.showStateEvents();
     _showStatusBar = await _settingsService.showStatusBar();
+    _showTrayIcon = await _settingsService.showTrayIcon();
+    _closeToTray = await _settingsService.closeToTray();
+    _minimizeToTray = await _settingsService.minimizeToTray();
+    _startMinimized = await _settingsService.startMinimized();
     _pinnedSpaces = await _settingsService.pinnedSpaces();
     _spaceOrder = await _settingsService.spaceOrder();
     _collapsedGroups = await _settingsService.collapsedGroups();
     _spaceGroups = await _settingsService.spaceGroups();
-
+    _fontSize = await _settingsService.fontSize();
+    _uiScale = await _settingsService.uiScale();
+    _notificationsEnabled = await _settingsService.notificationsEnabled();
     notifyListeners();
-  }
-
-  Future<void> updateUseOfSystemTitlebar(bool useSystemTitlebar) async {
-    if (useSystemTitlebar != _useSystemTitlebar) {
-      _useSystemTitlebar = useSystemTitlebar;
-      notifyListeners();
-      if (useSystemTitlebar) {
-        windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      } else {
-        windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-      }
-      await _settingsService.updateTitlebarStatus(useSystemTitlebar);
-    }
   }
 
   // Future<void> updateAccentColor(AccentColor newAccentColor) async {
@@ -217,6 +219,38 @@ class SettingsController with ChangeNotifier, WindowListener {
       _showStateEvents = value;
       notifyListeners();
       await _settingsService.updateShowStateEvents(value);
+    }
+  }
+
+  Future<void> updateShowTrayIcon(bool value) async {
+    if (value != _showTrayIcon) {
+      _showTrayIcon = value;
+      notifyListeners();
+      await _settingsService.updateShowTrayIcon(value);
+    }
+  }
+
+  Future<void> updateCloseToTray(bool value) async {
+    if (value != _closeToTray) {
+      _closeToTray = value;
+      notifyListeners();
+      await _settingsService.updateCloseToTray(value);
+    }
+  }
+
+  Future<void> updateMinimizeToTray(bool value) async {
+    if (value != _minimizeToTray) {
+      _minimizeToTray = value;
+      notifyListeners();
+      await _settingsService.updateMinimizeToTray(value);
+    }
+  }
+
+  Future<void> updateStartMinimized(bool value) async {
+    if (value != _startMinimized) {
+      _startMinimized = value;
+      notifyListeners();
+      await _settingsService.updateStartMinimized(value);
     }
   }
 
@@ -351,6 +385,14 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   /// Runs auto‑grouping from the Matrix hierarchy.
+  Future<void> updateNotificationsEnabled(bool value) async {
+    if (value != _notificationsEnabled) {
+      _notificationsEnabled = value;
+      notifyListeners();
+      await _settingsService.updateNotificationsEnabled(value);
+    }
+  }
+
   Future<void> sortIntoGroups(Map<String, List<String>> groups) async {
     _spaceGroups = Map.of(groups);
     final toRemove = <String>{};
@@ -395,6 +437,24 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       await _settingsService.updateSpaceGroups(_spaceGroups);
       await _settingsService.updateSpaceOrder(_spaceOrder);
+    }
+  }
+
+  Future<void> updateFontSize(double size) async {
+    size = size.clamp(10.0, 28.0);
+    if (size != _fontSize) {
+      _fontSize = size;
+      notifyListeners();
+      await _settingsService.updateFontSize(size);
+    }
+  }
+
+  Future<void> updateUiScale(double scale) async {
+    scale = scale.clamp(0.7, 2.0);
+    if (scale != _uiScale) {
+      _uiScale = scale;
+      notifyListeners();
+      await _settingsService.updateUiScale(scale);
     }
   }
 

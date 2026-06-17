@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'package:moonrelay/src/services/tray_service.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 
 /// Platform-style window caption buttons.
 ///
@@ -70,7 +74,14 @@ class _WindowButtonsState extends State<WindowButtons> with WindowListener {
       children: <Widget>[
         WindowCaptionButton.minimize(
           brightness: brightness,
-          onPressed: () => windowManager.minimize(),
+          onPressed: () {
+            final settings = context.read<SettingsController>();
+            if (settings.minimizeToTray && TrayService.instance != null) {
+              TrayService.instance!.hideWindow();
+            } else {
+              windowManager.minimize();
+            }
+          },
         ),
         if (_isMaximized)
           WindowCaptionButton.unmaximize(

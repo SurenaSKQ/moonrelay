@@ -36,10 +36,13 @@ import 'package:window_manager/window_manager.dart';
 
 import 'src/app.dart';
 import 'src/encryption/encryption_service.dart';
+import 'src/helpers/account_manager.dart';
 import 'src/helpers/log_service.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
+import 'src/services/tray_service.dart';
+import 'src/services/notification_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'src/splash_screen.dart';
@@ -76,6 +79,9 @@ class _AppState {
     required this.logService,
     required this.settingsController,
     required this.encryptionService,
+    required this.accountManager,
+    required this.currentRoom,
+    required this.notificationService,
   });
 
   final Client sdk;
@@ -83,6 +89,67 @@ class _AppState {
   final LogService logService;
   final SettingsController settingsController;
   final EncryptionService encryptionService;
+  final AccountManager accountManager;
+  final CurrentRoom currentRoom;
+  final NotificationService? notificationService;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Opens (or creates) a SQLite database for the given [dbName] and wraps it
+/// in a [MatrixSdkDatabase], wiping the file if the schema version changed.
+Future<MatrixSdkDatabase> _openDatabaseFor(
+  String dbName,
+  Logger log,
+) async {
+  const String schemaVersionKey = 'db_schema_version';
+  final prefs = await SharedPreferences.getInstance();
+  final int? storedVersion = prefs.getInt(schemaVersionKey);
+  final dbdir = await getApplicationSupportDirectory();
+  final String dbPath = p.join(dbdir.path, dbName);
+
+  if (storedVersion == null || storedVersion != kDbSchemaVersion) {
+    log.i(
+      'Database schema version changed ($storedVersion → $kDbSchemaVersion); '
+      'wiping $dbName',
+    );
+    if (await File(dbPath).exists()) {
+      try {
+        await sql.deleteDatabase(dbPath);
+      } catch (_) {
+        // best-effort
+      }
+    }
+    await prefs.setInt(schemaVersionKey, kDbSchemaVersion);
+  }
+
+  final database = await sql.openDatabase(dbPath);
+  final dbobj = await MatrixSdkDatabase.init('moonrelay',
+      database: database, sqfliteFactory: databaseFactoryFfi);
+  await dbobj.open();
+  return dbobj;
+}
+
+/// Create a fresh [Client] connected to the per-account database of
+/// [account].
+Future<Client> _createClientForAccount(StoredAccount account) async {
+  final dbobj = await _openDatabaseFor(account.databaseName, Logger()); // temp
+  final client = Client(
+    'Moonrelay (Alpha)',
+    database: dbobj,
+    verificationMethods: {
+      KeyVerificationMethod.numbers,
+      KeyVerificationMethod.emoji,
+    },
+    nativeImplementations: NativeImplementationsIsolate(
+      compute,
+      vodozemacInit: vdz.init,
+    ),
+  );
+  await client.init();
+  return client;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,42 +185,21 @@ Future<_AppState> _initialize({
   }
   databaseFactory = databaseFactoryFfi;
 
-  // ── 3. Database schema version check ────────────────────────
-  // During heavy development we wipe the database on every version
-  // bump so that subtle SDK migration bugs never accumulate.
-  onStatus('Checking database version…');
-  const String dbname = 'moonrelay.db';
-  const String schemaVersionKey = 'db_schema_version';
-  final prefs = await SharedPreferences.getInstance();
-  final int? storedVersion = prefs.getInt(schemaVersionKey);
-  final dbdir = await getApplicationSupportDirectory();
-  final String dbPath = p.join(dbdir.path, dbname);
+  // ── 3. Load saved accounts & prepare account manager ────────
+  final accountManager = AccountManager(log: log);
+  await accountManager.load();
+  log.i('Found ${accountManager.accounts.length} saved account(s)');
 
-  if (storedVersion == null || storedVersion != kDbSchemaVersion) {
-    log.i(
-      'Database schema version changed ($storedVersion → $kDbSchemaVersion); '
-      'wiping old database',
-    );
-    if (await File(dbPath).exists()) {
-      try {
-        await sql.deleteDatabase(dbPath);
-      } catch (_) {
-        // best-effort
-      }
-    }
-    await prefs.clear();
-    await prefs.setInt(schemaVersionKey, kDbSchemaVersion);
-  }
-
-  // ── 4. Open database & Matrix SDK store ─────────────────────
+  // ── 4. Open database & create Client ────────────────────────
+  // If we have an active (previously logged-in) account, use its
+  // per-account database so the session is restored automatically.
+  // Otherwise fall back to the legacy database name for first-time
+  // users that haven't migrated yet.
   onStatus('Opening database…');
-  log.t('Opening database…');
-  final database = await sql.openDatabase(dbPath);
-  final dbobj = await MatrixSdkDatabase.init('moonrelay',
-      database: database, sqfliteFactory: databaseFactoryFfi);
-  await dbobj.open();
+  final String dbName = accountManager.activeAccount?.databaseName ??
+      'moonrelay.db';
+  final dbobj = await _openDatabaseFor(dbName, log);
 
-  // ── 5. Matrix client ────────────────────────────────────────
   onStatus('Starting network client…');
   log.t('Starting Matrix client…');
   final sdk = Client(
@@ -175,7 +221,7 @@ Future<_AppState> _initialize({
     rethrow;
   }
 
-  // ── 6. Theming & window ─────────────────────────────────────
+  // ── 5. Theming & window ─────────────────────────────────────
   onStatus('Loading preferences…');
   log.t('Loading preferences…');
   if (!kIsWeb &&
@@ -191,25 +237,79 @@ Future<_AppState> _initialize({
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
-    if (!settingsController.useSystemTitlebar) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: false,
-      );
-    }
+    await windowManager.setTitleBarStyle(
+      TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+    );
     await windowManager.setMinimumSize(const Size(500, 600));
-    await windowManager.show();
+    if (!settingsController.startMinimized) {
+      await windowManager.show();
+    }
     await windowManager.setPreventClose(true);
     await windowManager.setSkipTaskbar(false);
   }
 
-  // ── 7. Encryption service ───────────────────────────────────
+  // ── 6. Encryption service ───────────────────────────────────
   onStatus('Preparing encryption…');
   log.t('Initializing encryption…');
   final encryptionService = EncryptionService(client: sdk, logger: log);
   if (sdk.isLogged()) {
     await encryptionService.init();
   }
+
+  // ── 7. CurrentRoom (needed by notification service) ────
+  final currentRoom = CurrentRoom();
+
+  // ── 8. Notification service ────────────────────────────
+  NotificationService? notificationService;
+  if (sdk.isLogged()) {
+    onStatus('Starting notification service…');
+    log.t('Initializing notifications…');
+    try {
+      notificationService = await NotificationService.init(
+        client: sdk,
+        settings: settingsController,
+        currentRoom: currentRoom,
+        log: log,
+      );
+    } catch (e) {
+      log.w('Notification service init failed', error: e);
+    }
+  }
+
+  // ── 9. Tray service ────────────────────────────────────
+  if (isDesktop && settingsController.showTrayIcon) {
+    onStatus('Setting up system tray…');
+    log.t('Initializing tray…');
+    try {
+      await TrayService.init(client: sdk, log: log);
+    } catch (e) {
+      log.w('Tray service init failed', error: e);
+    }
+  }
+
+  // ── 10. Wire up AccountManager ──────────────────────────────
+  // If the active account's session was restored, associate it with
+  // the AccountManager.  Also set the factory callbacks so the
+  // AccountManager can create new Clients when switching accounts.
+  if (accountManager.activeAccount != null && sdk.isLogged()) {
+    await accountManager.setActiveAccountDirect(
+      accountManager.activeAccount!,
+      client: sdk,
+      encryptionService: encryptionService,
+    );
+  }
+
+  // Factory for creating clients when switching accounts.
+  accountManager.clientFactory = _createClientForAccount;
+
+  // Hook called after a fresh client is created on account switch.
+  accountManager.onClientReady = (client) async {
+    if (client.isLogged()) {
+      final enc = EncryptionService(client: client, logger: log);
+      await enc.init();
+    }
+  };
 
   log.i('Initialization complete');
   return _AppState(
@@ -218,6 +318,9 @@ Future<_AppState> _initialize({
     logService: logService,
     settingsController: settingsController,
     encryptionService: encryptionService,
+    accountManager: accountManager,
+    currentRoom: currentRoom,
+    notificationService: notificationService,
   );
 }
 
@@ -265,9 +368,6 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       final state = await _initialize(
         onStatus: (msg) {
           log.t(msg);
-          // The splash can't receive status updates until we know
-          // the widget tree is stable.  We update the splash via
-          // its GlobalKey below.
         },
         log: log,
         logService: logService,
@@ -350,11 +450,15 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           ChangeNotifierProvider<NavigationState>(
             create: (_) => NavigationState(),
           ),
+          ChangeNotifierProvider<AccountManager>.value(
+              value: _appState!.accountManager),
           ChangeNotifierProvider<EncryptionService>.value(
               value: _appState!.encryptionService),
-          ChangeNotifierProvider<CurrentRoom>(
-            create: (_) => CurrentRoom(),
-          ),
+          ChangeNotifierProvider<CurrentRoom>.value(
+              value: _appState!.currentRoom),
+          if (_appState!.notificationService != null)
+            Provider<NotificationService>.value(
+                value: _appState!.notificationService!),
         ],
         child: const MoonrelayApp(),
       );

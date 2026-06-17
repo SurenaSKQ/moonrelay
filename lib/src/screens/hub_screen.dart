@@ -31,7 +31,7 @@ import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
-import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,6 +144,14 @@ class _HubScreenState extends State<HubScreen> {
             label: l10n.logs,
             icon: LucideIcons.fileText,
           ),
+          _HubNavigationItem(
+            label: l10n.backgroundAndTray,
+            icon: LucideIcons.minimize2,
+          ),
+          _HubNavigationItem(
+            label: l10n.notifications,
+            icon: LucideIcons.bell,
+          ),
         ],
       ),
     ];
@@ -152,25 +160,18 @@ class _HubScreenState extends State<HubScreen> {
   int get categoryCount => _categories.length;
 
   Future<void> _logout() async {
-    final client = Provider.of<Client>(context, listen: false);
-    final log = Provider.of<Logger>(context, listen: false);
-    final logService = context.read<LogService>();
-    final enc = context.read<EncryptionService>();
     final l10n = AppLocalizations.of(context)!;
     try {
-      await enc.onLogout();
-      await client.logout();
+      final accountManager = context.read<AccountManager>();
+      await accountManager.logout();
       // Wipe all log files now that the session has been torn down.
+      final logService = context.read<LogService>();
       await logService.wipeLogs();
       if (!mounted) return;
       context.go('/');
     } catch (e) {
-      log.e(
-        'Logout error',
-        error: e,
-        time: DateTime.now(),
-        stackTrace: StackTrace.current,
-      );
+      final log = context.read<Logger>();
+      log.e('Logout error', error: e, stackTrace: StackTrace.current);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -306,7 +307,10 @@ class _HubScreenState extends State<HubScreen> {
     // Render a top-level category page.
     switch (_selectedCategoryIndex) {
       case 0:
-        return _AccountsPage(onLogout: _logout);
+        return _AccountsPage(
+          onLogout: _logout,
+          onAddAccount: () => context.push('/add-account'),
+        );
       case 1:
         return _MyProfilePage(client: widget.client);
       case 2:
@@ -342,6 +346,10 @@ class _HubScreenState extends State<HubScreen> {
           return _NetworkSettings();
         case 5:
           return const LogsPage();
+        case 6:
+          return _BackgroundSettings();
+        case 7:
+          return _NotificationSettings();
         default:
           return const SizedBox.shrink();
       }
@@ -571,9 +579,13 @@ class _SubPageHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AccountsPage extends StatelessWidget {
-  const _AccountsPage({required this.onLogout});
+  const _AccountsPage({
+    required this.onLogout,
+    required this.onAddAccount,
+  });
 
   final VoidCallback onLogout;
+  final VoidCallback onAddAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -742,6 +754,62 @@ class _AccountsPage extends StatelessWidget {
                     ),
                     onTap: onLogout,
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Add account section ─────────────────────────────────
+              Text(
+                l10n.appSettings,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.dividerColor,
+                  ),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    radius: 22,
+                    backgroundColor:
+                        theme.colorScheme.secondaryContainer,
+                    child: Icon(
+                      LucideIcons.userPlus,
+                      size: 20,
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  title: Text(
+                    l10n.addAccount,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    l10n.addAccountDescription,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Icon(
+                    LucideIcons.chevronRight,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onTap: onAddAccount,
                 ),
               ),
             ],
@@ -1236,23 +1304,6 @@ class _AppearanceSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Use system titlebar
-              _SettingsSection(
-                title: l10n.useSystemTitlebar,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.enable),
-                    subtitle: Text(
-                      l10n.useNativeTitlebar,
-                    ),
-                    value: controller.useSystemTitlebar,
-                    onChanged: (v) => controller.updateUseOfSystemTitlebar(v),
-                    secondary: const Icon(LucideIcons.monitor),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
               // Chat display type
               _SettingsSection(
                 title: l10n.chatDisplayType,
@@ -1276,6 +1327,54 @@ class _AppearanceSettings extends StatelessWidget {
                           value: DisplayType.bubbles,
                         ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Font size
+              _SettingsSection(
+                title: 'Font size',
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.type),
+                    title: const Text('Message font size'),
+                    subtitle: Text('${controller.fontSize.round()} px'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.fontSize,
+                        min: 10,
+                        max: 28,
+                        divisions: 18,
+                        label: '${controller.fontSize.round()}',
+                        onChanged: (v) => controller.updateFontSize(v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // UI scale
+              _SettingsSection(
+                title: 'UI scale',
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.zoomIn),
+                    title: const Text('Interface scale'),
+                    subtitle: Text('${controller.uiScale.toStringAsFixed(1)}×'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.uiScale,
+                        min: 0.7,
+                        max: 2.0,
+                        divisions: 13,
+                        label: '${controller.uiScale.toStringAsFixed(1)}×',
+                        onChanged: (v) => controller.updateUiScale(v),
+                      ),
                     ),
                   ),
                 ],
@@ -1509,6 +1608,145 @@ class _ChatSettings extends StatelessWidget {
                     value: controller.showStateEvents,
                     onChanged: (v) => controller.updateShowStateEvents(v),
                     secondary: const Icon(Icons.info_outline),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background & Tray Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BackgroundSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
+        final scheme = Theme.of(context).colorScheme;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.backgroundAndTray,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.backgroundAndTrayDescription,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Show tray icon
+              _SettingsSection(
+                title: l10n.systemTray,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.showTrayIcon),
+                    subtitle: Text(l10n.showTrayIconDescription),
+                    value: controller.showTrayIcon,
+                    onChanged: (v) => controller.updateShowTrayIcon(v),
+                    secondary: const Icon(LucideIcons.minimize2, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Close to tray
+              _SettingsSection(
+                title: l10n.windowBehaviour,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.closeToTray),
+                    subtitle: Text(l10n.closeToTrayDescription),
+                    value: controller.closeToTray,
+                    onChanged: (v) => controller.updateCloseToTray(v),
+                    secondary: const Icon(LucideIcons.xCircle, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.minimizeToTray),
+                    subtitle: Text(l10n.minimizeToTrayDescription),
+                    value: controller.minimizeToTray,
+                    onChanged: (v) => controller.updateMinimizeToTray(v),
+                    secondary: const Icon(LucideIcons.minimize, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.startMinimized),
+                    subtitle: Text(l10n.startMinimizedDescription),
+                    value: controller.startMinimized,
+                    onChanged: controller.showTrayIcon
+                        ? (v) => controller.updateStartMinimized(v)
+                        : null,
+                    secondary: const Icon(LucideIcons.play, size: 22),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NotificationSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsController>(
+      builder: (context, controller, _) {
+        final l10n = AppLocalizations.of(context)!;
+        final scheme = Theme.of(context).colorScheme;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.notifications,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.notificationsDescription,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SettingsSection(
+                title: l10n.notifications,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.enableNotifications),
+                    subtitle: Text(l10n.enableNotificationsDescription),
+                    value: controller.notificationsEnabled,
+                    onChanged: (v) => controller.updateNotificationsEnabled(v),
+                    secondary: const Icon(LucideIcons.bell, size: 22),
                   ),
                 ],
               ),

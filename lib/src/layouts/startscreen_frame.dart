@@ -74,7 +74,7 @@ class _StartscreenFrameState extends State<StartscreenFrame>
         Provider.of<SettingsController>(context, listen: true);
     final ThemeData theme = Theme.of(context);
     final bool reversed = settings.headerReversed;
-    final bool showButtons = isDesktop && !settings.useSystemTitlebar;
+    final bool showButtons = isDesktop;
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),

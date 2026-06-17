@@ -15,38 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-/// Stubs the `window_manager` platform channel so tests that interact
-/// with [WindowListener] methods don't crash.
-void _stubWindowManagerChannel() {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-    const MethodChannel('window_manager'),
-    (MethodCall methodCall) async {
-      switch (methodCall.method) {
-        case 'addListener':
-        case 'removeListener':
-        case 'setPreventClose':
-        case 'setTitleBarStyle':
-        case 'show':
-        case 'setMinimumSize':
-        case 'setSkipTaskbar':
-        case 'waitUntilReadyToShow':
-        case 'destroy':
-        case 'isPreventClose':
-          return null;
-        default:
-          return null;
-      }
-    },
-  );
-}
 
 void main() {
   group('SettingsController', () {
@@ -68,14 +41,12 @@ void main() {
     test('loads default values', () {
       expect(controller.themeMode, ThemeMode.system);
       expect(controller.displayType, DisplayType.modern);
-      expect(controller.useSystemTitlebar, false);
     });
 
     test('loadSettings loads persisted values', () async {
       // First, set values via service
       await service.updateThemeMode(ThemeMode.dark);
       await service.updateDisplayType(DisplayType.irc);
-      await service.updateTitlebarStatus(true);
 
       // Create a new controller and load
       final newController = SettingsController(service);
@@ -83,7 +54,6 @@ void main() {
 
       expect(newController.themeMode, ThemeMode.dark);
       expect(newController.displayType, DisplayType.irc);
-      expect(newController.useSystemTitlebar, true);
     });
 
     test('updateThemeMode changes the theme and persists', () async {
@@ -103,17 +73,6 @@ void main() {
       expect(await service.displayType(), DisplayType.bubbles);
     });
 
-    testWidgets('updateUseOfSystemTitlebar changes the value and persists',
-        (tester) async {
-      _stubWindowManagerChannel();
-
-      expect(controller.useSystemTitlebar, false);
-
-      await controller.updateUseOfSystemTitlebar(true);
-      expect(controller.useSystemTitlebar, true);
-      expect(await service.useSystemTitlebar(), true);
-    });
-
     test('notifies listeners when theme mode changes', () async {
       int notificationCount = 0;
       controller.addListener(() => notificationCount++);
@@ -127,17 +86,6 @@ void main() {
       controller.addListener(() => notificationCount++);
 
       await controller.updateDisplayType(DisplayType.irc);
-      expect(notificationCount, greaterThanOrEqualTo(1));
-    });
-
-    testWidgets('notifies listeners when titlebar status changes',
-        (tester) async {
-      _stubWindowManagerChannel();
-
-      int notificationCount = 0;
-      controller.addListener(() => notificationCount++);
-
-      await controller.updateUseOfSystemTitlebar(true);
       expect(notificationCount, greaterThanOrEqualTo(1));
     });
 
@@ -161,19 +109,6 @@ void main() {
       final firstCount = notificationCount;
       // Try setting to irc again (no change)
       await controller.updateDisplayType(DisplayType.irc);
-      expect(notificationCount, firstCount);
-    });
-
-    testWidgets('does not notify when titlebar status is unchanged',
-        (tester) async {
-      _stubWindowManagerChannel();
-
-      int notificationCount = 0;
-      controller.addListener(() => notificationCount++);
-
-      await controller.updateUseOfSystemTitlebar(true);
-      final firstCount = notificationCount;
-      await controller.updateUseOfSystemTitlebar(true);
       expect(notificationCount, firstCount);
     });
   });

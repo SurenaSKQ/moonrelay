@@ -194,6 +194,44 @@
   "reactTooltip": "React",
   "replyTooltip": "Reply",
   "forwardTooltip": "Forward",
+  "forwardMessageTitle": "Forward Message",
+  "@forwardMessageTitle": {
+    "description": "Title of the forward message dialog."
+  },
+  "forwardSearchRooms": "Search rooms…",
+  "@forwardSearchRooms": {
+    "description": "Hint text for the room search field in the forward dialog."
+  },
+  "forwardNoRooms": "No other rooms to forward to",
+  "@forwardNoRooms": {
+    "description": "Empty state when the user has no other rooms."
+  },
+  "forwardNoMatchingRooms": "No rooms match your search",
+  "@forwardNoMatchingRooms": {
+    "description": "Empty state when the search filter matches no rooms."
+  },
+  "forwardMessagePreviewLabel": "Forwarding",
+  "@forwardMessagePreviewLabel": {
+    "description": "Label above the message preview in the forward dialog."
+  },
+  "forwardNonTextContent": "(non-text content)",
+  "@forwardNonTextContent": {
+    "description": "Fallback text shown when the forwarded message has no text body."
+  },
+  "forwardMessageSent": "Forwarded to {room}",
+  "@forwardMessageSent": {
+    "description": "Snackbar confirmation after forwarding a message.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "forwardFailed": "Failed to forward: {error}",
+  "@forwardFailed": {
+    "description": "Error shown when forwarding fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "copyTooltip": "Copy",
   "detailsTooltip": "Details",
   "deleteTooltip": "Delete",
@@ -279,6 +317,67 @@
   },
   "roomIdCopied": "Room ID copied to clipboard",
 
+  "knockRoom": "Knock",
+  "@knockRoom": {
+    "description": "Button label for knocking (requesting to join) a room."
+  },
+  "knockRoomDescription": "Request to join this room",
+  "@knockRoomDescription": {
+    "description": "Subtitle for the knock action."
+  },
+  "knockingRoom": "Knocking…",
+  "@knockingRoom": {
+    "description": "Loading state while sending a knock request."
+  },
+  "knockSent": "Knock sent to {room}",
+  "@knockSent": {
+    "description": "Confirmation shown after successfully knocking on a room.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "knockFailed": "Failed to knock: {error}",
+  "@knockFailed": {
+    "description": "Error shown when knocking fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "knockRetracted": "Knock retracted",
+  "@knockRetracted": {
+    "description": "Confirmation after retracting a knock."
+  },
+  "knockRetractFailed": "Failed to retract knock: {error}",
+  "@knockRetractFailed": {
+    "description": "Error shown when retracting a knock fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "retractKnock": "Retract knock",
+  "@retractKnock": {
+    "description": "Button label to retract a pending knock request."
+  },
+  "roomTypeKnock": "Knock-based room",
+  "@roomTypeKnock": {
+    "description": "Label for rooms with knock join rules."
+  },
+  "roomTypeRestricted": "Restricted room",
+  "@roomTypeRestricted": {
+    "description": "Label for rooms with restricted join rules."
+  },
+  "roomTypeInviteOnly": "Invite only",
+  "@roomTypeInviteOnly": {
+    "description": "Label for invite-only rooms."
+  },
+  "joinRequiresKnock": "This room requires approval to join. Would you like to knock instead?",
+  "@joinRequiresKnock": {
+    "description": "Prompt shown when trying to join a room that requires knocking."
+  },
+  "knockReasonHint": "Optional reason for knocking…",
+  "@knockReasonHint": {
+    "description": "Hint text for the knock reason input field."
+  },
   "editRoomName": "Edit Room Name",
   "editRoomNameHint": "Enter a new name for this room",
   "editRoomTopic": "Edit Topic",
@@ -397,9 +496,7 @@
   "light": "Light",
   "dark": "Dark",
   "colourTheme": "Colour theme",
-  "useSystemTitlebar": "Use system titlebar",
   "enable": "Enable",
-  "useNativeTitlebar": "Use the native window title bar instead of the custom one",
   "chatDisplayType": "Chat display type",
 
   "leftSidebar": "Left sidebar",
@@ -1057,6 +1154,30 @@
   "@deleteSpaceNotEnoughPower": {
     "description": "Message shown when user lacks power to delete a space."
   },
+  "joinRuleLabel": "Join rules",
+  "@joinRuleLabel": {
+    "description": "Label for the join rules selector."
+  },
+  "joinRulePublic": "Anyone can join",
+  "@joinRulePublic": {
+    "description": "Option for public join rule."
+  },
+  "joinRuleInvite": "Invite only",
+  "@joinRuleInvite": {
+    "description": "Option for invite-only join rule."
+  },
+  "joinRuleKnock": "Requires approval (knock)",
+  "@joinRuleKnock": {
+    "description": "Option for knock join rule."
+  },
+  "joinRuleRestricted": "Restricted",
+  "@joinRuleRestricted": {
+    "description": "Option for restricted join rule."
+  },
+  "joinRuleKnockRestricted": "Approval or restricted (knock + restricted)",
+  "@joinRuleKnockRestricted": {
+    "description": "Option for knock_restricted join rule."
+  },
   "deleteChildRoomFailed": "Failed to delete room \"{name}\": {error}",
   "@deleteChildRoomFailed": {
     "description": "Error when deleting a child room of a space fails.",
@@ -1128,5 +1249,194 @@
   "actionsDeleteSection": "Danger Zone",
   "@actionsDeleteSection": {
     "description": "Section header for destructive room actions."
+  },
+
+  "roomPreviewTitle": "Room Preview",
+  "@roomPreviewTitle": {
+    "description": "Title for the room preview screen."
+  },
+  "roomPreviewNotJoined": "You have not joined this room",
+  "@roomPreviewNotJoined": {
+    "description": "Label shown on room preview for unjoined rooms."
+  },
+  "roomPreviewJoin": "Join Room",
+  "@roomPreviewJoin": {
+    "description": "Button to join a room from the preview screen."
+  },
+  "roomPreviewLoading": "Loading room info…",
+  "@roomPreviewLoading": {
+    "description": "Loading state while fetching room summary."
+  },
+  "roomPreviewFailed": "Could not load room information",
+  "@roomPreviewFailed": {
+    "description": "Error when room summary fails to load."
+  },
+  "roomPreviewLastMessages": "Recent messages",
+  "@roomPreviewLastMessages": {
+    "description": "Section header for recent messages in the room preview."
+  },
+  "roomPreviewNoMessages": "No recent messages to display",
+  "@roomPreviewNoMessages": {
+    "description": "Empty state when there are no recent messages."
+  },
+  "roomPreviewView": "Preview",
+  "@roomPreviewView": {
+    "description": "Button label to preview an unjoined room."
+  },
+  "roomPreviewSuggested": "Suggested room",
+  "@roomPreviewSuggested": {
+    "description": "Badge for suggested rooms in a space."
+  },
+  "unjoinedRooms": "Unjoined rooms",
+  "@unjoinedRooms": {
+    "description": "Section header for unjoined rooms in a space."
+  },
+
+  "backgroundAndTray": "Background & Tray",
+  "@backgroundAndTray": {
+    "description": "Settings category for system tray and background behaviour."
+  },
+  "backgroundAndTrayDescription": "Control how Moonrelay behaves in the system tray and when the window is closed.",
+  "@backgroundAndTrayDescription": {
+    "description": "Subtitle for the Background & Tray settings page."
+  },
+  "systemTray": "System Tray",
+  "@systemTray": {
+    "description": "Section header for system tray settings."
+  },
+  "showTrayIcon": "Show tray icon",
+  "@showTrayIcon": {
+    "description": "Toggle label for showing the system tray icon."
+  },
+  "showTrayIconDescription": "Display Moonrelay in the system notification area",
+  "@showTrayIconDescription": {
+    "description": "Subtitle for the show tray icon toggle."
+  },
+  "windowBehaviour": "Window Behaviour",
+  "@windowBehaviour": {
+    "description": "Section header for window close/minimize behaviour."
+  },
+  "closeToTray": "Close to tray",
+  "@closeToTray": {
+    "description": "Toggle label for closing the window to the system tray."
+  },
+  "closeToTrayDescription": "Closing the window hides it to the system tray instead of quitting",
+  "@closeToTrayDescription": {
+    "description": "Subtitle for the close to tray toggle."
+  },
+  "minimizeToTray": "Minimize to tray",
+  "@minimizeToTray": {
+    "description": "Toggle label for minimizing to the system tray."
+  },
+  "minimizeToTrayDescription": "Minimizing hides to the system tray instead of the taskbar",
+  "@minimizeToTrayDescription": {
+    "description": "Subtitle for the minimize to tray toggle."
+  },
+  "startMinimized": "Start minimized",
+  "@startMinimized": {
+    "description": "Toggle label for starting the app minimized to tray."
+  },
+  "startMinimizedDescription": "Start Moonrelay in the system tray without showing the window",
+  "@startMinimizedDescription": {
+    "description": "Subtitle for the start minimized toggle."
+  },
+
+  "addAccount": "Add Account",
+  "@addAccount": {
+    "description": "Button to add another Matrix account."
+  },
+  "addAccountDescription": "Sign in to another Matrix account",
+  "@addAccountDescription": {
+    "description": "Subtitle for the add account button in the hub."
+  },
+  "switchAccount": "Switch Account",
+  "@switchAccount": {
+    "description": "Button to switch between accounts."
+  },
+  "switchToAccount": "Switch to {userId}",
+  "@switchToAccount": {
+    "description": "Button label to switch to a specific account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "savedAccounts": "Saved Accounts",
+  "@savedAccounts": {
+    "description": "Section header for the list of saved accounts on the welcome screen."
+  },
+  "tapToSwitch": "Tap to switch",
+  "@tapToSwitch": {
+    "description": "Hint text shown on account cards on the welcome screen."
+  },
+  "signInAsDifferentUser": "Sign in with a different account",
+  "@signInAsDifferentUser": {
+    "description": "Button label to sign in with a new account on the welcome screen."
+  },
+  "noAccountsSaved": "No accounts saved",
+  "@noAccountsSaved": {
+    "description": "Empty state when no accounts are saved."
+  },
+  "accountSwitched": "Switched to {userId}",
+  "@accountSwitched": {
+    "description": "Snackbar message after switching accounts.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "activeAccount": "Active account",
+  "@activeAccount": {
+    "description": "Label shown next to the currently active account."
+  },
+  "loggedInAccounts": "Logged in",
+  "@loggedInAccounts": {
+    "description": "Section label for currently logged-in accounts."
+  },
+  "areYouSureRemoveAccount": "Are you sure you want to remove the account {userId}?",
+  "@areYouSureRemoveAccount": {
+    "description": "Confirmation dialog for removing an account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "removeAccount": "Remove account",
+  "@removeAccount": {
+    "description": "Button to remove a saved account."
+  },
+
+  "notifications": "Notifications",
+  "@notifications": {
+    "description": "Title for the notification settings page."
+  },
+  "notificationsDescription": "Control desktop notifications for incoming messages.",
+  "@notificationsDescription": {
+    "description": "Subtitle for the notification settings page."
+  },
+  "enableNotifications": "Enable notifications",
+  "@enableNotifications": {
+    "description": "Toggle label for enabling or disabling all notifications."
+  },
+  "enableNotificationsDescription": "Show desktop notifications for new messages",
+  "@enableNotificationsDescription": {
+    "description": "Subtitle for the global notification toggle."
+  },
+  "notificationSettings": "Notification Settings",
+  "@notificationSettings": {
+    "description": "Section header for per-room notification settings."
+  },
+  "muteRoom": "Mute this room",
+  "@muteRoom": {
+    "description": "Toggle to mute notifications for a specific room."
+  },
+  "muteRoomDescription": "Suppress desktop notifications from this room",
+  "@muteRoomDescription": {
+    "description": "Subtitle for the room mute toggle."
+  },
+  "roomMuted": "Room notifications muted",
+  "@roomMuted": {
+    "description": "Snackbar confirmation when muting a room."
+  },
+  "roomUnmuted": "Room notifications unmuted",
+  "@roomUnmuted": {
+    "description": "Snackbar confirmation when unmuting a room."
   }
 }

@@ -24,6 +24,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
@@ -736,6 +737,17 @@ class _LoginPageState extends State<LoginPage> {
           final encryptionService = context.read<EncryptionService>();
           await encryptionService.init();
 
+          // ── Save this account for multi-account support ─────────
+          final accountManager = context.read<AccountManager>();
+          await accountManager.addOrUpdateAccount(
+            StoredAccount(
+              userId: client.userID!,
+              homeserver: client.homeserver?.toString() ?? '',
+            ),
+            client: client,
+            encryptionService: encryptionService,
+          );
+
           final syncResult = await _waitForInitialSync(client, log);
 
           if (!mounted) return;
@@ -1079,6 +1091,17 @@ class _LoginPageState extends State<LoginPage> {
           // ── Enable encryption now that we're logged in ──────────
           final encryptionService = context.read<EncryptionService>();
           await encryptionService.init();
+
+          // ── Save this account for multi-account support ─────────
+          final accountManager = context.read<AccountManager>();
+          await accountManager.addOrUpdateAccount(
+            StoredAccount(
+              userId: client.userID!,
+              homeserver: client.homeserver?.toString() ?? '',
+            ),
+            client: client,
+            encryptionService: encryptionService,
+          );
 
           final syncResult = await _waitForInitialSync(client, log);
 

@@ -10,7 +10,6 @@ class SettingsService {
   static const _themeModeKey = 'theme_mode';
   static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
-  static const _useSystemTitlebarKey = 'system_title_bar';
 
   // Layout keys
   static const _leftSidebarVisibleKey = 'left_sidebar_visible';
@@ -22,20 +21,16 @@ class SettingsService {
   static const _headerReversedKey = 'header_reversed';
   static const _showStateEventsKey = 'show_state_events';
   static const _showStatusBarKey = 'show_status_bar';
+  static const _showTrayIconKey = 'show_tray_icon';
+  static const _closeToTrayKey = 'close_to_tray';
+  static const _minimizeToTrayKey = 'minimize_to_tray';
+  static const _startMinimizedKey = 'start_minimized';
   static const _pinnedSpacesKey = 'pinned_spaces';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
-
-  Future<bool> useSystemTitlebar() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool? useSystem = prefs.getBool(_useSystemTitlebarKey);
-    return useSystem ?? false;
-  }
-
-  Future<void> updateTitlebarStatus(bool useSystemTitlebar) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useSystemTitlebarKey, useSystemTitlebar);
-  }
+  static const _fontSizeKey = 'font_size';
+  static const _uiScaleKey = 'ui_scale';
+  static const _notificationsEnabledKey = 'notifications_enabled';
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -163,6 +158,48 @@ class SettingsService {
     await prefs.setBool(_showStatusBarKey, value);
   }
 
+  // ── Tray & background ───────────────────────────────────────────────
+
+  Future<bool> showTrayIcon() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showTrayIconKey) ?? true;
+  }
+
+  Future<void> updateShowTrayIcon(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showTrayIconKey, value);
+  }
+
+  Future<bool> closeToTray() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_closeToTrayKey) ?? false;
+  }
+
+  Future<void> updateCloseToTray(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_closeToTrayKey, value);
+  }
+
+  Future<bool> minimizeToTray() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_minimizeToTrayKey) ?? false;
+  }
+
+  Future<void> updateMinimizeToTray(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_minimizeToTrayKey, value);
+  }
+
+  Future<bool> startMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_startMinimizedKey) ?? false;
+  }
+
+  Future<void> updateStartMinimized(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_startMinimizedKey, value);
+  }
+
   // ── Pinned spaces ───────────────────────────────────────────────────
 
   /// Loads the set of manually pinned subspace room IDs.
@@ -230,6 +267,39 @@ class SettingsService {
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
   }
 
+  // ── Font size & UI scale ──────────────────────────────────────────
+
+  Future<double> fontSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_fontSizeKey) ?? 16.0;
+  }
+
+  Future<void> updateFontSize(double size) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_fontSizeKey, size);
+  }
+
+  Future<double> uiScale() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_uiScaleKey) ?? 1.0;
+  }
+
+  Future<void> updateUiScale(double scale) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_uiScaleKey, scale);
+  }
+
+  // ── Notifications ───────────────────────────────────────────
+
+  Future<bool> notificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_notificationsEnabledKey) ?? true;
+  }
+
+  Future<void> updateNotificationsEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationsEnabledKey, value);
+  }
 
   // ── Space groups ──────────────────────────────────────────────────
 
@@ -241,7 +311,8 @@ class SettingsService {
     for (final entry in raw.split('|')) {
       final parts = entry.split(':');
       if (parts.length == 2) {
-        map[parts[0]] = parts[1].split(',').where((id) => id.isNotEmpty).toList();
+        map[parts[0]] =
+            parts[1].split(',').where((id) => id.isNotEmpty).toList();
       }
     }
     return map;

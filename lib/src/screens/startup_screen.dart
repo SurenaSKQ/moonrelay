@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
@@ -241,6 +242,7 @@ class StartupScreen extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _buildSavedAccounts(context, colors, l10n),
         _buildActionCard(context, colors, l10n),
         const SizedBox(height: 16),
         _buildProjectNewsCard(context, colors, l10n),
@@ -248,6 +250,85 @@ class StartupScreen extends StatelessWidget {
         _buildDonatorsCard(context, colors, l10n),
       ],
     );
+  }
+
+  // ── Saved accounts ───────────────────────────────────────────────────────
+
+  /// Shows a list of previously-logged-in accounts that the user can tap to
+  /// switch to.  Hidden when there are no saved accounts.
+  Widget _buildSavedAccounts(
+    BuildContext context,
+    ColorScheme colors,
+    AppLocalizations l10n,
+  ) {
+    final accountManager = context.watch<AccountManager>();
+    if (!accountManager.hasAccounts) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(LucideIcons.users, size: 18, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.savedAccounts,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...accountManager.accounts.map(
+                (account) => _AccountCard(
+                  account: account,
+                  isActive: account.userId == accountManager.activeAccount?.userId,
+                  onTap: () => _switchToAccount(context, accountManager, account),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _switchToAccount(
+    BuildContext context,
+    AccountManager accountManager,
+    StoredAccount account,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    // If it's already the active account, just go to rooms.
+    if (account.userId == accountManager.activeAccount?.userId) {
+      context.go('/main/rooms');
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.switchToAccount(account.userId)),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // The actual client switch happens in AccountManager.  When it
+    // completes, the provider tree rebuilds and the GoRouter redirect
+    // will send us to /main/rooms because the new client is logged in.
+    accountManager.switchToAccount(account.userId);
   }
 
   // ── Action card (login / register / SSO) ─────────────────────────────────
@@ -449,6 +530,105 @@ class StartupScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Account card for the saved-accounts list on the welcome screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A tappable row showing a saved Matrix account.
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({
+    required this.account,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final StoredAccount account;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? colors.primaryContainer.withValues(alpha: 0.3)
+                : colors.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: isActive
+                ? Border.all(color: colors.primary.withValues(alpha: 0.4))
+                : null,
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor:
+                    isActive ? colors.primaryContainer : colors.surfaceContainerHighest,
+                child: Text(
+                  account.userId.replaceAll(RegExp(r'@'), '').substring(0, 1).toUpperCase(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: isActive
+                        ? colors.onPrimaryContainer
+                        : colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.userId,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    Text(
+                      account.homeserver,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isActive)
+                Icon(
+                  LucideIcons.checkCircle2,
+                  size: 18,
+                  color: Colors.green,
+                )
+              else
+                Text(
+                  context.watch<AppLocalizations>().tapToSwitch,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.primary,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

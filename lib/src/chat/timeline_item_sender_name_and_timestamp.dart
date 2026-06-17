@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
   const TimelineItemSenderNameAndTimestamp({
@@ -17,6 +19,8 @@ class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final fs = settings.fontSize;
     return Row(
       // So get this
       // I can't just solve this the peaceful way when ommitting the name widget
@@ -34,16 +38,16 @@ class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
             : Expanded(
                 child: Text(
                   event.senderFromMemoryOrFallback.calcDisplayname(),
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: fs,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
         Text(
           event.originServerTs.localizedTimeShort(context),
-          style: const TextStyle(
-            fontSize: 12,
+          style: TextStyle(
+            fontSize: fs * 0.75,
             fontWeight: FontWeight.bold,
           ),
         ),

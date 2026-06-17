@@ -28,6 +28,7 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
+import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:provider/provider.dart';
 
 /// A full room information page built with Material 3 design tokens.
@@ -59,8 +60,13 @@ class _RoomInformationsState extends State<RoomInformations> {
     final l10n = AppLocalizations.of(context)!;
     if (room.isDirectChat) return l10n.directMessage;
     if (room.isSpace) return l10n.spaceType;
-    if (room.joinRules == JoinRules.public) return l10n.publicRoom;
-    return l10n.privateRoom;
+    return switch (room.joinRules) {
+      JoinRules.public => l10n.publicRoom,
+      JoinRules.knock || JoinRules.knockRestricted => l10n.roomTypeKnock,
+      JoinRules.restricted => l10n.roomTypeRestricted,
+      JoinRules.invite || JoinRules.private => l10n.roomTypeInviteOnly,
+      null => l10n.publicRoom,
+    };
   }
 
   /// Whether the room is encrypted.
@@ -507,6 +513,12 @@ class _RoomInformationsState extends State<RoomInformations> {
             ..._buildEditingActions(scheme, l10n, room),
           const SizedBox(height: 16),
 
+          // ── Notification settings ────────────────────────────────────
+          _SectionHeader(title: l10n.notificationSettings, scheme: scheme),
+          const SizedBox(height: 8),
+          _RoomNotificationTile(room: room),
+          const SizedBox(height: 16),
+
           // ── Danger zone (admin-only destructive actions) ──────────────
           if (_isAdmin || room.membership == Membership.leave)
             _SectionHeader(
@@ -542,7 +554,10 @@ class _RoomInformationsState extends State<RoomInformations> {
           _DetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
-                : LucideIcons.lock,
+                : room.joinRules == JoinRules.knock ||
+                        room.joinRules == JoinRules.knockRestricted
+                    ? LucideIcons.logIn
+                    : LucideIcons.lock,
             label: l10n.typeLabel,
             value: roomType,
             scheme: scheme,
@@ -795,7 +810,10 @@ class _RoomIdentityCard extends StatelessWidget {
                 _InfoChip(
                   icon: room.joinRules == JoinRules.public
                       ? Icons.public_rounded
-                      : Icons.lock_rounded,
+                      : room.joinRules == JoinRules.knock ||
+                              room.joinRules == JoinRules.knockRestricted
+                          ? Icons.meeting_room_rounded
+                          : Icons.lock_rounded,
                   label: roomType,
                   scheme: scheme,
                 ),
@@ -1283,5 +1301,77 @@ class _MemberTile extends StatelessWidget {
         );
       }
     });
+  }
+}
+
+/// A tile that toggles notification mute for the current room.
+class _RoomNotificationTile extends StatefulWidget {
+  const _RoomNotificationTile({required this.room});
+
+  final Room room;
+
+  @override
+  State<_RoomNotificationTile> createState() => _RoomNotificationTileState();
+}
+
+class _RoomNotificationTileState extends State<_RoomNotificationTile> {
+  bool _muted = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMutedState();
+  }
+
+  Future<void> _loadMutedState() async {
+    final notif = context.read<NotificationService>();
+    final muted = await notif.isRoomMuted(widget.room.id);
+    if (mounted) {
+      setState(() {
+        _muted = muted;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggle() async {
+    final notif = context.read<NotificationService>();
+    final newMuted = !_muted;
+    await notif.setRoomMuted(widget.room.id, newMuted);
+    if (mounted) {
+      setState(() => _muted = newMuted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newMuted
+                ? AppLocalizations.of(context)!.roomMuted
+                : AppLocalizations.of(context)!.roomUnmuted,
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerLow,
+      child: SwitchListTile(
+        secondary: Icon(
+          _muted ? LucideIcons.bellOff : LucideIcons.bell,
+          color: scheme.onSurfaceVariant,
+        ),
+        title: Text(l10n.muteRoom),
+        subtitle: Text(l10n.muteRoomDescription),
+        value: _muted,
+        onChanged: _loading ? null : (_) => _toggle(),
+      ),
+    );
   }
 }

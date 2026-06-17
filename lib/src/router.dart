@@ -26,6 +26,7 @@ import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
@@ -38,30 +39,28 @@ import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
 class MoonRouter {
+  /// Returns `true` when the active account has a valid Matrix session.
+  static bool _isLoggedIn(BuildContext context) {
+    try {
+      final client = Provider.of<Client>(context, listen: false);
+      return client.isLogged();
+    } catch (_) {
+      return false;
+    }
+  }
+
   static FutureOr<String?> loggedInRedirect(
     BuildContext context,
     GoRouterState state,
   ) {
-    try {
-      return Provider.of<Client>(context, listen: false).isLogged()
-          ? '/rooms'
-          : null;
-    } catch (_) {
-      return null;
-    }
+    return _isLoggedIn(context) ? '/main/rooms' : null;
   }
 
   static FutureOr<String?> loggedOutRedirect(
     BuildContext context,
     GoRouterState state,
   ) {
-    try {
-      return Provider.of<Client>(context, listen: false).isLogged()
-          ? null
-          : '/welcome';
-    } catch (_) {
-      return '/welcome';
-    }
+    return _isLoggedIn(context) ? null : '/welcome';
   }
 
   MoonRouter();
@@ -109,6 +108,17 @@ class MoonRouter {
             ),
           ],
         ),
+    // Unauthenticated route for adding a new account while another is
+    // already active.  Bypasses the loggedInRedirect on the welcome
+    // shell by living outside that shell route hierarchy.
+    GoRoute(
+      path: '/add-account',
+      pageBuilder: (context, state) => genericPageBuilder(
+        context,
+        state,
+        const LoginPage(),
+      ),
+    ),
       ],
     ),
     ShellRoute(
@@ -121,9 +131,7 @@ class MoonRouter {
         GoRoute(
           path: '/',
           redirect: (context, state) =>
-              Provider.of<Client>(context, listen: false).isLogged()
-                  ? '/main/rooms'
-                  : '/welcome',
+              _isLoggedIn(context) ? '/main/rooms' : '/welcome',
         ),
         ShellRoute(
           pageBuilder: (context, state, child) => genericPageBuilder(
@@ -132,8 +140,8 @@ class MoonRouter {
             // The DashboardLayout replaces the old TwoColumnLayout.
             // It reads sidebar visibility and pane choice from
             // SettingsController and uses LayoutBuilder for responsive
-            // breakpoints. The PermanentPaneBottomItems (user profile,
-            // logout) are now rendered by DashboardLayout itself.
+            // breakpoints. The user profile button is now rendered
+            // in the AppFrame header bar.
             DashboardLayout(child: child),
           ),
           routes: [
@@ -268,6 +276,18 @@ class MoonRouter {
                   },
                 ),
               ],
+            ),
+            GoRoute(
+              path: '/main/room_preview/:roomid',
+              pageBuilder: (context, state) {
+                final String roomId = state.pathParameters['roomid']!;
+                return genericPageBuilder(
+                  context,
+                  state,
+                  RoomPreviewScreen(roomId: roomId),
+                );
+              },
+              redirect: loggedOutRedirect,
             ),
             GoRoute(
               path: '/main/addroom',

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/chat/events/date_separator.dart';
+import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
@@ -101,11 +102,13 @@ class _TimelineViewState extends State<TimelineView> {
     if (newer.senderId != older.senderId) return false;
     return newer.originServerTs.sameEnvironment(older.originServerTs);
   }
+
   /// Returns the next non-state-event event that would be visible
   /// as a regular message, skipping past state events that may be
   /// hidden (when [showStateEvents] is false).
   /// Returns null if no visible message event follows.
-  Event? _nextVisibleMessage(List<int> visibleIndices, List<Event> events, int currentI) {
+  Event? _nextVisibleMessage(
+      List<int> visibleIndices, List<Event> events, int currentI) {
     int j = currentI + 1;
     while (j < visibleIndices.length) {
       final idx = visibleIndices[j];
@@ -197,10 +200,10 @@ class _TimelineViewState extends State<TimelineView> {
         // Walk past hidden state events so they don't incorrectly
         // absorb the sender info. A skipped state event can't
         // serve as the group-start avatar.
-        final effectiveNextEvent = _nextVisibleMessage(
-            visibleIndices, widget.timeline.events, i);
-        final isContinuation =
-            effectiveNextEvent != null && _isContinuation(event, effectiveNextEvent);
+        final effectiveNextEvent =
+            _nextVisibleMessage(visibleIndices, widget.timeline.events, i);
+        final isContinuation = effectiveNextEvent != null &&
+            _isContinuation(event, effectiveNextEvent);
 
         items.add(TimelineItem(
           event: event,
@@ -212,6 +215,11 @@ class _TimelineViewState extends State<TimelineView> {
           isGroupContinuation: isContinuation,
           timeline: widget.timeline,
           onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
+          onForward: () => showForwardDialog(
+            context: context,
+            event: event,
+            sourceRoom: widget.room,
+          ),
           onJumpToEvent:
               _jumpToEvent(widget.scrollController, eventIdToItemIndex),
           highlightedEventId: _highlightedEventId,

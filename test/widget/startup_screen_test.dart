@@ -16,32 +16,45 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../helpers/mocks.dart';
+
+Widget _buildApp() {
+  return ChangeNotifierProvider<SettingsController>.value(
+    value: SettingsController(SettingsService()),
+    child: ChangeNotifierProvider<AccountManager>.value(
+      value: AccountManager(log: MockLogger()),
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StartupScreen(),
+      ),
+    ),
+  );
+}
 
 void main() {
   group('StartupScreen', () {
-    testWidgets('renders login and sign up buttons', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
 
-      expect(find.text('Login'), findsOneWidget);
-      expect(find.text('Sign Up!'), findsOneWidget);
+    testWidgets('renders login and sign up buttons', (tester) async {
+      await tester.pumpWidget(_buildApp());
+
+      expect(find.text('Sign In'), findsOneWidget);
+      expect(find.text('Create Account'), findsOneWidget);
     });
 
     testWidgets('renders the app tagline', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
+      await tester.pumpWidget(_buildApp());
 
       expect(
         find.text('The Public Benefit Messenger'),
@@ -49,51 +62,22 @@ void main() {
       );
     });
 
-    testWidgets('renders license and DMCA notice', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
-
-      // License notice comes from AppLocalizations
-      expect(
-        find.textContaining('GNU Affero General Public License'),
-        findsOneWidget,
-      );
-      // DMCA notice is hardcoded
-      expect(
-        find.textContaining('DMCA'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('renders Privacy Policy and Licenses buttons', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
+    testWidgets('renders Privacy Policy and Licenses buttons',
+        (tester) async {
+      await tester.pumpWidget(_buildApp());
 
       expect(find.text('Privacy and Your Data'), findsOneWidget);
       expect(find.text('Licenses'), findsOneWidget);
     });
 
-    testWidgets('has a Column layout with Wrap for buttons', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: StartupScreen(),
-        ),
-      );
+    testWidgets('has a Column layout with Wrap for buttons',
+        (tester) async {
+      await tester.pumpWidget(_buildApp());
 
-      // Two ElevatedButtons in a Wrap
-      expect(find.byType(ElevatedButton), findsNWidgets(2));
+      // One FilledButton (Sign In) and one OutlinedButton (Create Account),
+      // footer has TextButtons
+      expect(find.byType(FilledButton), findsOneWidget);
+      expect(find.byType(OutlinedButton), findsOneWidget);
       expect(find.byType(Wrap), findsWidgets);
     });
   });

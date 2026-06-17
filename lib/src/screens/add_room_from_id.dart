@@ -15,9 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -26,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_directory_search.dart';
+import 'package:moonrelay/src/widgets/create_room_form.dart';
 import 'package:provider/provider.dart';
 
 /// The entry-point "Add Room" page that offers three methods:
@@ -141,6 +140,8 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
     super.dispose();
   }
 
+  String? _knockingRoomId;
+
   Future<void> _addRoomFromID(
     Client client,
     String roomidOrAlias,
@@ -169,14 +170,71 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
       case RetrySuccess():
         context.push('/main/rooms/$roomidOrAlias');
       case RetryFailed(:final error):
-        setState(() {
-          _error = error is TimeoutException
-              ? l10n.joiningTimedOut
-              : l10n.couldNotJoinRoom('$error');
-        });
+        // Try to detect if the room requires knocking.
+        final joinRule = await _detectJoinRule(client, roomidOrAlias, log);
+        if (joinRule == 'knock' || joinRule == 'knock_restricted') {
+          if (mounted) {
+            setState(() {
+              _error = l10n.joinRequiresKnock;
+            });
+          }
+        } else {
+          setState(() {
+            _error = error is TimeoutException
+                ? l10n.joiningTimedOut
+                : l10n.couldNotJoinRoom('$error');
+          });
+        }
     }
 
     if (mounted) setState(() => _loading = false);
+  }
+
+  /// Tries to resolve the room's [join_rule] by fetching a room summary.
+  Future<String?> _detectJoinRule(
+    Client client,
+    String roomIdOrAlias,
+    Logger log,
+  ) async {
+    try {
+      final summary = await client.getRoomSummary(roomIdOrAlias);
+      log.i('Room summary for $roomIdOrAlias: join_rule=${summary.joinRule}');
+      return summary.joinRule;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Knocks on the room instead of joining it.
+  Future<void> _knockRoom(
+    Client client,
+    String roomIdOrAlias,
+    String? server,
+  ) async {
+    setState(() {
+      _knockingRoomId = roomIdOrAlias;
+      _error = null;
+    });
+
+    try {
+      await client.knockRoom(
+        roomIdOrAlias,
+        via: server != null && server.isNotEmpty ? [server] : null,
+      );
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.knockSent(roomIdOrAlias))),
+      );
+      context.push('/main/rooms/$roomIdOrAlias');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _knockingRoomId = null);
+      setState(() {
+        _error = AppLocalizations.of(context)!.knockFailed('$e');
+      });
+    }
   }
 
   @override
@@ -294,29 +352,66 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
 
           const SizedBox(height: 24),
 
-          FilledButton.icon(
-            onPressed: _loading
-                ? null
-                : () => _addRoomFromID(
-                      client,
-                      _roomIdController.text,
-                      _serverController.text,
+          if (_error == l10n.joinRequiresKnock)
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _knockingRoomId != null
+                        ? null
+                        : () => _knockRoom(
+                              client,
+                              _roomIdController.text,
+                              _serverController.text,
+                            ),
+                    icon: _knockingRoomId != null
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(LucideIcons.logIn, size: 18),
+                    label: Text(
+                      _knockingRoomId != null
+                          ? l10n.knockingRoom
+                          : l10n.knockRoom,
                     ),
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(LucideIcons.plus, size: 18),
-            label: Text(_loading ? l10n.joining : l10n.addRoom),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            FilledButton.icon(
+              onPressed: _loading
+                  ? null
+                  : () => _addRoomFromID(
+                        client,
+                        _roomIdController.text,
+                        _serverController.text,
+                      ),
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.plus, size: 18),
+              label: Text(_loading ? l10n.joining : l10n.addRoom),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -325,507 +420,13 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
 
 // ── Tab 3: Create room / space ────────────────────────────────────────────────
 
-/// A form that lets the user create a new room or space with a custom name,
-/// topic, and visibility setting.
-class _CreateRoomTab extends StatefulWidget {
+/// A thin wrapper that embeds the reusable [CreateRoomWidget] inside the
+/// tab layout so the creation form is available from the \"Add Room\" page.
+class _CreateRoomTab extends StatelessWidget {
   const _CreateRoomTab();
 
   @override
-  State<_CreateRoomTab> createState() => _CreateRoomTabState();
-}
-
-class _CreateRoomTabState extends State<_CreateRoomTab> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _topicController = TextEditingController();
-  final TextEditingController _aliasController = TextEditingController();
-  final TextEditingController _inviteController = TextEditingController();
-  bool _isPublic = true;
-  bool _isSpace = false;
-  bool _enableEncryption = false;
-  bool _showAdvanced = false;
-  bool _loading = false;
-  String? _error;
-  Uint8List? _avatarBytes;
-  String? _avatarName;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _topicController.dispose();
-    _aliasController.dispose();
-    _inviteController.dispose();
-    super.dispose();
-  }
-
-  List<String> _parseInvites() {
-    final text = _inviteController.text.trim();
-    if (text.isEmpty) return [];
-    return text
-        .split(RegExp('[,\\n]'))
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-  }
-
-  Future<void> _pickAvatar() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.bytes == null) return;
-    setState(() {
-      _avatarBytes = file.bytes;
-      _avatarName = file.name;
-    });
-  }
-
-  Future<void> _createRoom() async {
-    final client = context.read<Client>();
-    final log = context.read<Logger>();
-
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    final name = _nameController.text.trim();
-    final topic = _topicController.text.trim();
-    final alias = _aliasController.text.trim();
-    final invites = _parseInvites();
-
-    // Build initial state for encryption.
-    final initialState = <StateEvent>[];
-    if (_enableEncryption && !_isSpace) {
-      initialState.add(
-        StateEvent(
-          type: 'm.room.encryption',
-          content: {'algorithm': 'm.megolm.v1.aes-sha2'},
-        ),
-      );
-    }
-
-    final result = await withRetry(
-      () => client.createRoom(
-        name: name.isNotEmpty ? name : null,
-        topic: topic.isNotEmpty ? topic : null,
-        roomAliasName: alias.isNotEmpty ? alias : null,
-        invite: invites.isNotEmpty ? invites : null,
-        preset: _isPublic
-            ? CreateRoomPreset.publicChat
-            : CreateRoomPreset.privateChat,
-        visibility: _isPublic ? Visibility.public : Visibility.private,
-        creationContent: _isSpace ? {'type': 'm.space'} : null,
-        initialState: initialState.isNotEmpty ? initialState : null,
-      ),
-      maxRetries: 1,
-      timeout: kDefaultTimeout,
-      log: log,
-      label: 'createRoom',
-    );
-
-    if (!mounted) return;
-
-    final l10n = AppLocalizations.of(context)!;
-
-    switch (result) {
-      case RetrySuccess(:final value):
-        // Set room avatar if one was picked.
-        if (_avatarBytes != null && mounted) {
-          try {
-            final room = client.getRoomById(value);
-            if (room != null) {
-              await room.setAvatar(
-                MatrixFile(
-                  bytes: _avatarBytes!,
-                  name: _avatarName ?? 'avatar',
-                ),
-              );
-            }
-          } catch (e) {
-            log.w('Failed to set room avatar after creation', error: e);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${l10n.error}: $e')),
-              );
-            }
-          }
-        }
-        if (!mounted) return;
-        if (_isSpace) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.spaceCreated)),
-          );
-          context.go('/main/space/$value');
-        } else {
-          context.go('/main/rooms/$value');
-        }
-      case RetryFailed(:final error):
-        setState(() {
-          _error = error is TimeoutException
-              ? l10n.creatingRoomTimedOut
-              : l10n.couldNotCreateRoom('$error');
-          _loading = false;
-        });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-
-    // Show transient error in a SnackBar, then clear it.
-    if (_error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_error!)),
-        );
-        _error = null;
-      });
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── Room type toggle (Room / Space) ──────────────────────
-          Text(
-            l10n.typeLabel,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                value: false,
-                icon: Icon(LucideIcons.messageSquare, size: 18),
-                label: Text('Room'),
-              ),
-              ButtonSegment(
-                value: true,
-                icon: Icon(LucideIcons.folder, size: 18),
-                label: Text('Space'),
-              ),
-            ],
-            selected: {_isSpace},
-            onSelectionChanged: (selected) {
-              WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isSpace = selected.first); });
-            },
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ── Room / Space name ────────────────────────────────────
-          Text(
-            l10n.displayName,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _nameController,
-            enabled: !_loading,
-            decoration: InputDecoration(
-              hintText: l10n.roomInfoTitle,
-              filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── Room avatar ──────────────────────────────────────────
-          GestureDetector(
-            onTap: _avatarBytes == null ? _pickAvatar : null,
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor:
-                      scheme.primaryContainer.withValues(alpha: 0.5),
-                  backgroundImage: _avatarBytes != null
-                      ? MemoryImage(_avatarBytes!)
-                      : null,
-                  child: _avatarBytes == null
-                      ? Icon(
-                          LucideIcons.camera,
-                          size: 28,
-                          color: scheme.onPrimaryContainer,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.changeRoomAvatar,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _avatarBytes != null
-                          ? _avatarName ?? ''
-                          : l10n.changeRoomAvatarDescription,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-                if (_avatarBytes != null) ...[
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      LucideIcons.x,
-                      size: 18,
-                      color: scheme.error,
-                    ),
-                    tooltip: l10n.removeRoomAvatar,
-                    onPressed: () => setState(() {
-                      _avatarBytes = null;
-                      _avatarName = null;
-                    }),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ── Topic ────────────────────────────────────────────────
-          Text(
-            l10n.roomInfoTitle,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _topicController,
-            enabled: !_loading,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: l10n.noTopicSet,
-              filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-            textInputAction: TextInputAction.done,
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── Visibility toggle ────────────────────────────────────
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: scheme.outlineVariant),
-            ),
-            child: SwitchListTile(
-              title: Text(
-                _isPublic ? l10n.publicRoom : l10n.privateRoom,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: Text(
-                _isPublic
-                    ? 'Anyone can find and join this $_typeLabel'
-                    : 'Only invited people can join this $_typeLabel',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              secondary: Icon(
-                _isPublic ? LucideIcons.globe : LucideIcons.lock,
-                size: 22,
-              ),
-              value: _isPublic,
-              onChanged:
-                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPublic = v); }); },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── Advanced options toggle ──────────────────────────────
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: scheme.outlineVariant),
-            ),
-            child: SwitchListTile(
-              title: Text(
-                l10n.advancedOptions,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              secondary: const Icon(LucideIcons.settings2, size: 22),
-              value: _showAdvanced,
-              onChanged:
-                  (_loading) ? null : (v) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _showAdvanced = v); }); },
-            ),
-          ),
-
-          if (_showAdvanced) ...[
-            const SizedBox(height: 16),
-
-            // Room alias
-            Text(
-              l10n.roomAlias,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _aliasController,
-              enabled: !_loading,
-              decoration: InputDecoration(
-                hintText: l10n.roomAliasHint,
-                filled: true,
-                fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 20),
-
-            // Invite users
-            Text(
-              l10n.inviteUsers,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _inviteController,
-              enabled: !_loading,
-              decoration: InputDecoration(
-                hintText: l10n.inviteUsersHint,
-                filled: true,
-                fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 20),
-
-            // Encryption toggle (only for non-space rooms)
-            if (!_isSpace)
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: scheme.outlineVariant),
-                ),
-                child: SwitchListTile(
-                  title: Text(
-                    l10n.enableEncryption,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Text(
-                    l10n.enableEncryptionDescription,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  secondary: const Icon(LucideIcons.shield, size: 22),
-                  value: _enableEncryption,
-                  onChanged: (_loading)
-                      ? null
-                      : (v) => setState(() => _enableEncryption = v),
-                ),
-              ),
-            if (!_isSpace) const SizedBox(height: 16),
-          ],
-
-          const SizedBox(height: 32),
-
-          // ── Create button ────────────────────────────────────────
-          FilledButton.icon(
-            onPressed: _loading ? null : _createRoom,
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(LucideIcons.plus, size: 18),
-            label: Text(_loading ? l10n.loading : l10n.createRoom),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const CreateRoomWidget();
   }
-
-  String get _typeLabel => _isSpace ? 'space' : 'room';
 }
