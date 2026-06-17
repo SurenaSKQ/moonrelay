@@ -548,8 +548,9 @@ class _SCMenuState extends State<_SCMenu> {
         case 'gdn':
           if (widget.groupId != null) widget.settings.moveDown(widget.groupId!);
         case 'ungroup':
-          if (widget.space != null)
+          if (widget.space != null) {
             widget.settings.removeFromGroup(widget.space!.id);
+          }
         case 'ug_all':
           if (widget.groupId != null) {
             for (final c

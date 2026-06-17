@@ -58,7 +58,7 @@ void main() {
       );
     });
 
-    Widget _buildApp() {
+    Widget buildApp() {
       final goRouter = GoRouter(
         initialLocation: '/login',
         routes: [
@@ -87,7 +87,7 @@ void main() {
     }
 
     testWidgets('renders login form with all fields', (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
 
       expect(find.text('Sign In'), findsWidgets);
       expect(find.text('Homeserver'), findsOneWidget);
@@ -96,7 +96,7 @@ void main() {
     });
 
     testWidgets('has a back button', (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
 
       // LoginPage uses LucideIcons.arrowLeft, verify a back navigation icon is present
       final backButtons = find.byType(IconButton);
@@ -106,7 +106,7 @@ void main() {
 
     testWidgets('has a homeserver text field with default value',
         (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
 
       // The homeserver controller now defaults to "matrix.org". Both the
       // EditableText and hint Text widgets contain this string.
