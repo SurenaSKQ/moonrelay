@@ -194,6 +194,44 @@
   "reactTooltip": "React",
   "replyTooltip": "Reply",
   "forwardTooltip": "Forward",
+  "forwardMessageTitle": "Forward Message",
+  "@forwardMessageTitle": {
+    "description": "Title of the forward message dialog."
+  },
+  "forwardSearchRooms": "Search rooms…",
+  "@forwardSearchRooms": {
+    "description": "Hint text for the room search field in the forward dialog."
+  },
+  "forwardNoRooms": "No other rooms to forward to",
+  "@forwardNoRooms": {
+    "description": "Empty state when the user has no other rooms."
+  },
+  "forwardNoMatchingRooms": "No rooms match your search",
+  "@forwardNoMatchingRooms": {
+    "description": "Empty state when the search filter matches no rooms."
+  },
+  "forwardMessagePreviewLabel": "Forwarding",
+  "@forwardMessagePreviewLabel": {
+    "description": "Label above the message preview in the forward dialog."
+  },
+  "forwardNonTextContent": "(non-text content)",
+  "@forwardNonTextContent": {
+    "description": "Fallback text shown when the forwarded message has no text body."
+  },
+  "forwardMessageSent": "Forwarded to {room}",
+  "@forwardMessageSent": {
+    "description": "Snackbar confirmation after forwarding a message.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "forwardFailed": "Failed to forward: {error}",
+  "@forwardFailed": {
+    "description": "Error shown when forwarding fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "copyTooltip": "Copy",
   "detailsTooltip": "Details",
   "deleteTooltip": "Delete",

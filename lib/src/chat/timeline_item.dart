@@ -50,6 +50,7 @@ class TimelineItem extends StatelessWidget {
     this.isGroupContinuation = false,
     this.timeline,
     this.onReply,
+    this.onForward,
     this.onJumpToEvent,
     this.highlightedEventId,
   });
@@ -71,6 +72,9 @@ class TimelineItem extends StatelessWidget {
 
   /// Called when the user wants to reply to this event.
   final VoidCallback? onReply;
+
+  /// Called when the user wants to forward this event to another room.
+  final VoidCallback? onForward;
 
   /// Called when the user taps a reply preview to jump to the replied-to
   /// event.  Receives the event ID of the target event.
@@ -211,6 +215,7 @@ class TimelineItem extends StatelessWidget {
                   event: event,
                   room: room,
                   onReply: onReply,
+                  onForward: onForward,
                   child: _messageContent(context),
                 ),
               ],
@@ -285,6 +290,7 @@ class TimelineItem extends StatelessWidget {
                   event: event,
                   room: room,
                   onReply: onReply,
+                  onForward: onForward,
                   child: Container(
                     decoration: BoxDecoration(
                       color: cs.primaryContainer.withValues(alpha: 0.3),
@@ -377,12 +383,14 @@ class _HoverActionsWrapper extends StatefulWidget {
     required this.event,
     required this.room,
     this.onReply,
+    this.onForward,
   });
 
   final Widget child;
   final Event event;
   final Room room;
   final VoidCallback? onReply;
+  final VoidCallback? onForward;
 
   @override
   State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
@@ -431,6 +439,7 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
                   event: widget.event,
                   room: widget.room,
                   onReply: widget.onReply!,
+                  onForward: widget.onForward,
                 ),
               ),
             ),

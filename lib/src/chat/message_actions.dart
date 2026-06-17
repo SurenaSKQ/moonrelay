@@ -32,11 +32,16 @@ class MessageActions extends StatelessWidget {
     required this.event,
     required this.room,
     required this.onReply,
+    this.onForward,
   });
 
   final Event event;
   final Room room;
   final VoidCallback onReply;
+
+  /// Optional callback to open the forward dialog.
+  /// When null, the forward button is hidden.
+  final VoidCallback? onForward;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +64,14 @@ class MessageActions extends StatelessWidget {
           color: cs.onSurface.withValues(alpha: 0.6),
           onTap: onReply,
         ),
+        const SizedBox(width: 2),
+        if (onForward != null)
+          _ActionIcon(
+            icon: Icons.shortcut_rounded,
+            tooltip: AppLocalizations.of(context)!.forwardTooltip,
+            color: cs.onSurface.withValues(alpha: 0.6),
+            onTap: onForward!,
+          ),
         const SizedBox(width: 2),
         _ActionIcon(
           icon: Icons.copy_rounded,
