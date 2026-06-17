@@ -22,6 +22,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
@@ -293,8 +294,8 @@ class _HeaderTitle extends StatelessWidget {
 
 /// Compact user profile button for the header bar.
 ///
-/// Shows the user's avatar (or initials) as a small tappable circle
-/// that navigates to the Hub/profile screen on tap.
+/// Shows the user's avatar, display name, and a [StatusPill] inside a
+/// highlighted container. Tapping navigates to the Hub/profile screen.
 class _HeaderProfile extends StatefulWidget {
   const _HeaderProfile();
 
@@ -330,37 +331,92 @@ class _HeaderProfileState extends State<_HeaderProfile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final avatarUrl = _profile?.avatarUrl;
+    final scheme = theme.colorScheme;
+    final displayName = _profile?.displayName ??
+        Provider.of<Client>(context, listen: false).userID ??
+        '';
 
-    final avatar = _buildAvatar(theme, avatarUrl);
-
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 4),
-      child: Tooltip(
-        message: _profile?.displayName ??
-            Provider.of<Client>(context, listen: false).userID ??
-            '',
-        child: GestureDetector(
-          onTap: () => context.push('/main/myprofile'),
-          child: avatar,
+    return GestureDetector(
+      onTap: () => context.push('/main/myprofile'),
+      child: Container(
+        margin: const EdgeInsetsDirectional.only(start: 8, end: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAvatar(scheme),
+            if (!_loading) ...[const SizedBox(width: 8) as Widget],
+            if (!_loading)
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    const StatusPill(),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildAvatar(ThemeData theme, Uri? avatarUrl) {
+  Widget _buildAvatar(ColorScheme scheme) {
     if (_loading) {
       return CircleAvatar(
         radius: 14,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        backgroundColor: scheme.surfaceContainerHighest,
       );
     }
 
+    final avatarUrl = _profile?.avatarUrl;
     if (avatarUrl != null) {
-      return CircleAvatar(
-        radius: 14,
-        backgroundImage: NetworkImage(avatarUrl.toString()),
-        onBackgroundImageError: (_, __) {},
+      final client = Provider.of<Client>(context, listen: false);
+      return FutureBuilder<Uri>(
+        future: withTimeoutOrFallback(
+          () => avatarUrl.getThumbnailUri(
+            client,
+            width: 28,
+            height: 28,
+          ),
+          timeout: kDefaultTimeout,
+          fallback: avatarUrl,
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return CircleAvatar(
+              radius: 14,
+              backgroundImage: NetworkImage(
+                snapshot.data.toString(),
+                headers: {
+                  'authorization': 'Bearer ${client.accessToken}',
+                },
+              ),
+              backgroundColor: scheme.surfaceContainerHighest,
+              onBackgroundImageError: (_, __) {},
+            );
+          }
+          return CircleAvatar(
+            radius: 14,
+            backgroundColor: scheme.surfaceContainerHighest,
+          );
+        },
       );
     }
 
@@ -371,13 +427,13 @@ class _HeaderProfileState extends State<_HeaderProfile> {
     );
     return CircleAvatar(
       radius: 14,
-      backgroundColor: theme.colorScheme.primary,
+      backgroundColor: scheme.primary,
       child: Text(
         initials,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: theme.colorScheme.onPrimary,
+          color: scheme.onPrimary,
         ),
       ),
     );
@@ -391,6 +447,48 @@ class _HeaderProfileState extends State<_HeaderProfile> {
         .map((s) => s[0])
         .take(2)
         .join();
+  }
+}
+
+/// A small pill showing the user's current presence status.
+///
+/// Displays a green dot and "Online" text by default. Proper presence
+/// integration will be added later.
+class StatusPill extends StatelessWidget {
+  const StatusPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            'Online',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: scheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
