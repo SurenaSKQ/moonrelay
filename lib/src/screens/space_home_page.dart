@@ -923,8 +923,9 @@ class _DeleteSpaceProgressDialogState
 
 /// A tile for a room in a space that the user has not yet joined.
 ///
-/// Shows the room ID with a preview button that opens [RoomPreviewScreen].
-class _UnjoinedRoomTile extends StatelessWidget {
+/// Fetches the room preview summary from the server to show the display name
+/// and avatar, falling back to the room ID when unavailable.
+class _UnjoinedRoomTile extends StatefulWidget {
   const _UnjoinedRoomTile({
     required this.child,
     required this.client,
@@ -938,55 +939,104 @@ class _UnjoinedRoomTile extends StatelessWidget {
   final AppLocalizations l10n;
 
   @override
+  State<_UnjoinedRoomTile> createState() => _UnjoinedRoomTileState();
+}
+
+class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
+  /// The room summary fetched from the server.
+  ///
+  /// Null while loading or if the fetch failed.
+  GetRoomSummaryResponse$3? _summary;
+  bool _loading = true;
+
+  String get _roomId => (widget.child.roomId as String?) ?? '?';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    try {
+      final summary = await widget.client.getRoomSummary(_roomId);
+      if (mounted) {
+        setState(() {
+          _summary = summary;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final roomId = child.roomId ?? '?';
-    final isSuggested = child.suggested == true;
+    final isSuggested = widget.child.suggested == true;
+
+    final displayName = _loading
+        ? _roomId
+        : (_summary?.name?.isNotEmpty == true
+            ? _summary!.name!
+            : _summary?.canonicalAlias ?? _roomId);
+
+    final avatarUri = _summary?.avatarUrl;
 
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+        side: BorderSide(
+            color: widget.scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
         leading: CircleAvatar(
           radius: 18,
-          backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
-          child: Icon(
-            LucideIcons.hash,
-            size: 18,
-            color: scheme.onPrimaryContainer,
-          ),
+          backgroundColor: widget.scheme.primaryContainer.withValues(alpha: 0.5),
+          backgroundImage: avatarUri != null
+              ? NetworkImage(avatarUri.toString())
+              : null,
+          onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
+          child: avatarUri == null
+              ? Icon(
+                  LucideIcons.hash,
+                  size: 18,
+                  color: widget.scheme.onPrimaryContainer,
+                )
+              : null,
         ),
         title: Text(
-          roomId,
+          displayName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            fontFamily: 'JetBrainsMono',
-            fontSize: 13,
+            fontFamily: _loading || _summary?.name?.isNotEmpty != true
+                ? 'JetBrainsMono'
+                : null,
+            fontSize: _loading || _summary?.name?.isNotEmpty != true ? 13 : null,
           ),
         ),
         subtitle: isSuggested
             ? Text(
-                l10n.roomPreviewSuggested,
+                widget.l10n.roomPreviewSuggested,
                 style: TextStyle(
                   fontSize: 12,
-                  color: scheme.tertiary,
+                  color: widget.scheme.tertiary,
                 ),
               )
             : null,
         trailing: FilledButton.tonal(
-          onPressed: () => context.push('/main/room_preview/$roomId'),
+          onPressed: () => context.push('/main/room_preview/$_roomId'),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           child: Text(
-            l10n.roomPreviewView,
+            widget.l10n.roomPreviewView,
             style: const TextStyle(fontSize: 12),
           ),
         ),
