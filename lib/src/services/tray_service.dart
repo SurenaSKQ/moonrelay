@@ -142,7 +142,12 @@ class TrayService with tray.TrayListener {
 
   @override
   void onTrayIconRightMouseDown() {
-    tray.trayManager.popUpContextMenu();
+    // On Linux, AppIndicator shows the context menu natively on right-click.
+    // The tray_manager plugin doesn't implement popUpContextMenu on Linux,
+    // so we skip the call entirely.
+    if (!Platform.isLinux) {
+      tray.trayManager.popUpContextMenu();
+    }
   }
 
   @override
