@@ -225,8 +225,9 @@ class AccountManager extends ChangeNotifier {
     final target = _accounts[idx];
 
     // Tear down the current session.
-    await _disposeActiveClient();
+    _encryptionService?.dispose();
     _encryptionService = null;
+    await _disposeActiveClient();
 
     // Create a fresh client for the target account.
     log.i('Switching to account $userId');

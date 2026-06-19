@@ -71,10 +71,56 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
     };
   }
 
-  @override
-  void dispose() {
-    _passphraseCtl.dispose();
-    super.dispose();
+  void _confirmWipeSsss(bool wipe) {
+    if (!wipe) {
+      // Keep existing — no destructive action, proceed directly.
+      try {
+        _bootstrap.wipeSsss(false);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+      return;
+    }
+
+    // Wiping SSSS is destructive and irreversible.  Show a confirmation
+    // dialog so the user understands they will lose access to all
+    // previously encrypted messages unless they have a recovery key.
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Wipe Existing Encryption Keys?'),
+        content: const Text(
+          'This will permanently delete your existing encryption keys.\n\n'
+          'You will not be able to read old encrypted messages on any '
+          'device unless you have saved a separate recovery key.\n\n'
+          'Are you sure you want to continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Wipe Keys'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed != true) return;
+      if (!mounted) return;
+      try {
+        _bootstrap.wipeSsss(true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    });
   }
 
   @override
@@ -123,30 +169,14 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
-                        try {
-                          _bootstrap.wipeSsss(true);
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
-                        }
-                      },
+                      onPressed: () => _confirmWipeSsss(true),
                       child: Text(loc.encryptionWipeExisting),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        try {
-                          _bootstrap.wipeSsss(false);
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
-                        }
-                      },
+                      onPressed: () => _confirmWipeSsss(false),
                       child: Text(loc.encryptionKeepExisting),
                     ),
                   ),

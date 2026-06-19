@@ -338,17 +338,10 @@ class EncryptionService extends ChangeNotifier {
 
       if (_keyBackupExists) {
         // ── Version ──────────────────────────────────────────
-        // The SDK's KeyManager may expose the version as a property
-        // or via a getter.  We try several patterns to avoid breaking
-        // on different SDK versions.
-        try {
-          _keyBackupVersion =
-              enc.keyManager.runtimeType.toString().contains('KeyManager')
-                  ? 'active'
-                  : null;
-        } catch (_) {
-          _keyBackupVersion = 'active';
-        }
+        // The SDK does not expose a stable version property on
+        // KeyManager.  Mark it as active when key backup is
+        // enabled — the server-side version is opaque to us.
+        _keyBackupVersion = 'active';
 
         // ── Key counts ───────────────────────────────────────
         // These properties may not exist on all SDK versions;

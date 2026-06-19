@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:logger/logger.dart';
+
 /// Manages a temporary local HTTP server that receives the SSO login token
 /// callback from the browser.
 ///
@@ -37,6 +39,12 @@ class SsoCallbackServer {
 
   /// The randomly generated CSRF nonce that must appear in the callback.
   String? _expectedState;
+
+  /// Timer that closes the server after 120 seconds if no callback arrives.
+  Timer? _autoShutdownTimer;
+
+  /// Logger for forensic logging of incoming requests.
+  final Logger _log = Logger();
 
   /// The port the server is listening on, or 0 if not started.
   int get port => _port;
@@ -57,7 +65,7 @@ class SsoCallbackServer {
         List<int>.generate(32, (_) => _secureRandom.nextInt(256));
     _expectedState = base64Url.encode(nonceBytes);
 
-    // Bind to any available port on localhost.
+    // Bind to any available port on localhost (IPv4 loopback only).
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
 
@@ -72,6 +80,13 @@ class SsoCallbackServer {
     // Listen for exactly one request — the SSO redirect.
     _server!.listen(_handleRequest);
 
+    // Self-destruct timer: close server after 120 seconds even without callback.
+    _autoShutdownTimer?.cancel();
+    _autoShutdownTimer = Timer(const Duration(seconds: 120), () {
+      _log.w('SSO callback server timed out after 120s');
+      stop();
+    });
+
     return redirectUri;
   }
 
@@ -81,6 +96,8 @@ class SsoCallbackServer {
 
   /// Stops the local server if it is running.
   Future<void> stop() async {
+    _autoShutdownTimer?.cancel();
+    _autoShutdownTimer = null;
     await _server?.close(force: true);
     _server = null;
     _port = 0;
@@ -91,6 +108,14 @@ class SsoCallbackServer {
   }
 
   void _handleRequest(HttpRequest request) {
+    // ── Validate the Host header ────────────────────────────
+    final host = request.headers.value('host');
+    if (host == null || host != 'localhost:$_port') {
+      _log.w('SSO: rejected request with Host header "$host"');
+      _respondWithText(request, 403, 'Invalid host');
+      return;
+    }
+
     // ── Only accept GET ───────────────────────────────────────────
     if (request.method.toUpperCase() != 'GET') {
       _respondWithText(request, 405, 'Method Not Allowed');
@@ -108,11 +133,12 @@ class SsoCallbackServer {
       return;
     }
 
+    // ── Invalidate state immediately + close server (single-use) ──
+    _expectedState = null;
+    stop();
+
     // ── Try to extract the login token ────────────────────────────
     final String? loginToken = uri.queryParameters['loginToken'];
-
-    // Invalidate the state immediately — it's single-use.
-    _expectedState = null;
 
     if (loginToken != null && loginToken.isNotEmpty) {
       // ── Success path ──

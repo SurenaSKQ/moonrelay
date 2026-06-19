@@ -185,10 +185,21 @@ class NotificationService {
   Future<void> loadMutedRooms() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_mutedRoomsKey);
-      if (raw != null && raw.isNotEmpty) {
-        _mutedRooms = raw.split(',').where((id) => id.isNotEmpty).toSet();
+
+      // ── Migration from old comma-separated format ──────────
+      final oldRaw = prefs.getString(_mutedRoomsKey);
+      if (oldRaw != null) {
+        _mutedRooms = oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
+        // Migrate to StringList format.
+        await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
+        await prefs.remove('${_mutedRoomsKey}_legacy');
+      } else {
+        final raw = prefs.getStringList(_mutedRoomsKey);
+        if (raw != null) {
+          _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
+        }
       }
+
       _loadedMuted = true;
     } catch (e) {
       _log.w('Failed to load muted rooms', error: e);
@@ -210,7 +221,7 @@ class NotificationService {
     }
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_mutedRoomsKey, _mutedRooms.join(','));
+      await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
     } catch (e) {
       _log.w('Failed to save muted rooms', error: e);
     }

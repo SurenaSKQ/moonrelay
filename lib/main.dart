@@ -116,6 +116,14 @@ Future<MatrixSdkDatabase> _openDatabaseFor(
       'wiping $dbName',
     );
     if (await File(dbPath).exists()) {
+      // ── Backup before wipe ────────────────────────────
+      final backupPath = '$dbPath.bak';
+      try {
+        await File(dbPath).copy(backupPath);
+        log.i('Backed up old database to $backupPath');
+      } catch (e) {
+        log.w('Could not create database backup', error: e);
+      }
       try {
         await sql.deleteDatabase(dbPath);
       } catch (_) {

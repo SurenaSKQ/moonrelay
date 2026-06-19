@@ -279,6 +279,19 @@ class MarkdownToHtml {
     );
   }
 
+  /// Known HTML tags that the Markdown converter legitimately produces.
+  /// Any `<...>` not matching this pattern is treated as raw user input
+  /// and escaped so it cannot be interpreted as HTML by the renderer.
+  ///
+  /// This prevents raw `<script>`, `<iframe>`, `<img onerror>`, etc.
+  /// in user input from passing through to `FormattedTextWidget`.
+  static final _knownTag = RegExp(
+    r'^</?(b|i|s|code|pre|blockquote|p|h[1-6]|ul|ol|li|br'
+    r'|a(\s+href="[^"]*")?)'
+    r'\s*/?>$',
+    caseSensitive: false,
+  );
+
   /// HTML-entity-encodes the plain-text parts of the body.
   ///
   /// The passed-in [processed] string already has tags; the original [raw]
@@ -293,7 +306,16 @@ class MarkdownToHtml {
       if (processed[i] == '<') {
         final close = processed.indexOf('>', i);
         if (close != -1) {
-          result.write(processed.substring(i, close + 1));
+          final tag = processed.substring(i, close + 1);
+          if (_knownTag.hasMatch(tag)) {
+            // Legitimate converter-generated tag — pass through.
+            result.write(tag);
+          } else {
+            // Raw user-input HTML — escape it.
+            result.write('&lt;');
+            result.write(_escapeHtmlRaw(processed.substring(i + 1, close)));
+            result.write('&gt;');
+          }
           i = close + 1;
           continue;
         }

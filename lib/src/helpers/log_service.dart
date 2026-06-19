@@ -43,6 +43,13 @@ const _redactionPatterns = <_RedactionPattern>[
   _RedactionPattern(
       pattern: r'loginToken=[A-Za-z0-9+/=]{20,}',
       replacement: 'loginToken=[REDACTED]'),
+  // Device IDs and session IDs (high-entropy identifiers)
+  _RedactionPattern(
+      pattern: r'\bdevice_id[=:]"?([A-Za-z0-9]{10,})"?',
+      replacement: 'device_id=[REDACTED]'),
+  _RedactionPattern(
+      pattern: r'\bsession_id[=:]"?([A-Za-z0-9]{10,})"?',
+      replacement: 'session_id=[REDACTED]'),
 ];
 
 /// A token-length-sensitive, memory-constrained log sink that writes

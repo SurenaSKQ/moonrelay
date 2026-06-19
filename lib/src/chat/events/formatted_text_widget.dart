@@ -125,11 +125,28 @@ class FormattedTextWidget extends StatelessWidget {
     return spans;
   }
 
-  /// Opens [url] in the system default browser via [url_launcher].
-  static void _openUrl(String url) {
+  /// URI schemes allowed for external navigation via [launchUrl].
+  static const _allowedSchemes = <String>{
+    'https',
+    'http',
+    'mailto',
+    'matrix',
+  };
+
+  /// Opens [url] in the system default browser, but only if the scheme is
+  /// in the allowlist.  Rejects `javascript:`, `data:`, `file:`, and any
+  /// other scheme not in [_allowedSchemes].
+  static Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    launchUrl(uri, mode: LaunchMode.externalApplication);
+    final scheme = uri.scheme.toLowerCase();
+    if (!_allowedSchemes.contains(scheme)) {
+      // Silently reject dangerous URI schemes.
+      return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
