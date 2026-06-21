@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/logs_page.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -1747,6 +1748,37 @@ class _NotificationSettings extends StatelessWidget {
                     value: controller.notificationsEnabled,
                     onChanged: (v) => controller.updateNotificationsEnabled(v),
                     secondary: const Icon(LucideIcons.bell, size: 22),
+                  ),
+                  const Divider(height: 1, indent: 72),
+                  ListTile(
+                    leading: const Icon(LucideIcons.play, size: 22),
+                    title: const Text('Test notification'),
+                    subtitle: const Text(
+                      'Send a test notification to verify delivery',
+                    ),
+                    onTap: () async {
+                      final notif = context.read<NotificationService>();
+                      try {
+                        await notif.showTestNotification();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Test notification fired — check logs',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Notification failed: $e'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ],
               ),

@@ -16,6 +16,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -71,6 +72,14 @@ class NotificationService {
     try {
       _plugin = FlutterLocalNotificationsPlugin();
 
+      // Register the platform-specific implementation manually — FFI
+      // plugins don't go through GeneratedPluginRegistrant and the
+      // default FlutterLocalNotificationsPlatform.instance stays unset.
+      if (defaultTargetPlatform == TargetPlatform.windows) {
+        FlutterLocalNotificationsPlatform.instance =
+            FlutterLocalNotificationsWindows();
+      }
+
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings();
       const linuxSettings = LinuxInitializationSettings(
@@ -79,7 +88,7 @@ class NotificationService {
       const windowsSettings = WindowsInitializationSettings(
         appName: 'Moonrelay',
         appUserModelId: 'Moonrelay',
-        guid: '{4a8b9c7d-3e2f-1a5b-8d6c-9f0e7a2b3c4d}',
+        guid: '4a8b9c7d-3e2f-1a5b-8d6c-9f0e7a2b3c4d',
       );
 
       const initSettings = InitializationSettings(
@@ -153,8 +162,12 @@ class NotificationService {
   }
 
   Future<void> _showNotification(String eventId, String title, String body) async {
-    if (_plugin == null) return;
+    if (_plugin == null) {
+      _log.w('_showNotification: _plugin is null');
+      return;
+    }
     try {
+      _log.d('_showNotification: calling plugin.show(id=${eventId.hashCode})');
       await _plugin!.show(
         id: eventId.hashCode,
         title: title,
@@ -175,9 +188,39 @@ class NotificationService {
           windows: WindowsNotificationDetails(),
         ),
       );
+      _log.d('_showNotification: plugin.show completed');
     } catch (e) {
-      _log.w('Failed to show notification', error: e);
+      _log.w('_showNotification: plugin.show threw', error: e);
     }
+  }
+
+  /// Show a test notification (for debugging notification delivery).
+  Future<void> showTestNotification() async {
+    _log.d('showTestNotification: starting');
+    if (_plugin == null) {
+      throw StateError('Notification plugin not initialised');
+    }
+    await _plugin!.show(
+      id: 'test'.hashCode,
+      title: 'Moonrelay',
+      body: 'This is a test notification from Moonrelay.',
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'moonrelay_channel',
+          'Moonrelay',
+          channelDescription: 'Matrix message notifications',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+        linux: LinuxNotificationDetails(
+          defaultActionName: 'Open',
+        ),
+        macOS: DarwinNotificationDetails(),
+        windows: WindowsNotificationDetails(),
+      ),
+    );
+    _log.d('showTestNotification: completed without error');
   }
 
   // ── Per-room mute preferences ───────────
