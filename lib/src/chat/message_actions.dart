@@ -21,9 +21,10 @@ import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
-/// A row of small icon buttons for **React**, **Reply**, **Copy**,
-/// **Details**, and **Delete** (if permitted).
+/// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
+/// **Details**, **Forward**, and **Delete** (if permitted).
 ///
+/// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
 /// This widget does **not** manage its own visibility — the parent controls
 /// when it appears (e.g. via a hover wrapper).
 class MessageActions extends StatelessWidget {
@@ -54,44 +55,44 @@ class MessageActions extends StatelessWidget {
         _ActionIcon(
           icon: Icons.add_reaction_rounded,
           tooltip: AppLocalizations.of(context)!.reactTooltip,
-          color: cs.onSurface.withValues(alpha: 0.6),
+          color: cs.onSurfaceVariant,
           onTap: () => _react(context),
         ),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.reply_rounded,
           tooltip: AppLocalizations.of(context)!.replyTooltip,
-          color: cs.onSurface.withValues(alpha: 0.6),
+          color: cs.onSurfaceVariant,
           onTap: onReply,
         ),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         if (onForward != null)
           _ActionIcon(
             icon: Icons.shortcut_rounded,
             tooltip: AppLocalizations.of(context)!.forwardTooltip,
-            color: cs.onSurface.withValues(alpha: 0.6),
+            color: cs.onSurfaceVariant,
             onTap: onForward!,
           ),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.copy_rounded,
           tooltip: AppLocalizations.of(context)!.copyTooltip,
-          color: cs.onSurface.withValues(alpha: 0.6),
+          color: cs.onSurfaceVariant,
           onTap: () => _copyMessage(context),
         ),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.info_outline_rounded,
           tooltip: AppLocalizations.of(context)!.detailsTooltip,
-          color: cs.onSurface.withValues(alpha: 0.6),
+          color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
         ),
         if (canDelete) ...[
-          const SizedBox(width: 2),
+          const SizedBox(width: 4),
           _ActionIcon(
             icon: Icons.delete_outline_rounded,
             tooltip: AppLocalizations.of(context)!.deleteTooltip,
-            color: cs.error.withValues(alpha: 0.7),
+            color: cs.error,
             onTap: () => _confirmDelete(context),
           ),
         ],
@@ -178,6 +179,10 @@ class MessageActions extends StatelessWidget {
 // Small icon button used inside the actions row
 // ---------------------------------------------------------------------------
 
+/// A larger icon button used inside the hover toolbar.
+///
+/// Shows a subtle circular hover/ripple via [InkWell] and adapts its
+/// highlight color to the current theme.
 class _ActionIcon extends StatelessWidget {
   const _ActionIcon({
     required this.icon,
@@ -193,16 +198,22 @@ class _ActionIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Tooltip(
       message: tooltip,
+      preferBelow: false,
+      verticalOffset: 6,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
+          hoverColor: cs.onSurfaceVariant.withValues(alpha: 0.08),
+          splashColor: cs.onSurfaceVariant.withValues(alpha: 0.12),
           child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Icon(icon, size: 16, color: color),
+            padding: const EdgeInsets.all(6),
+            child: Icon(icon, size: 20, color: color),
           ),
         ),
       ),

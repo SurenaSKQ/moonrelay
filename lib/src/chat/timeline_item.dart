@@ -422,26 +422,32 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
           widget.child,
           if (_isHovered)
             Positioned(
-              top: 0,
+              top: -4,
               right: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: cs.primary.withValues(alpha: 0.25),
+                    color: cs.outlineVariant,
+                    width: 0.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 4,
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
                       offset: const Offset(0, 2),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 2,
+                  horizontal: 6,
+                  vertical: 4,
                 ),
                 child: MessageActions(
                   event: widget.event,
@@ -505,6 +511,9 @@ class _RedactedEvent extends StatelessWidget {
 /// Wraps a chat item and applies a subtle background tint when the mouse
 /// hovers over it, plus a stronger flash when [isHighlighted] is true
 /// (triggered by a reply jump-to).
+///
+/// Uses [ColorScheme.surfaceContainerHighest] tones that adapt cleanly
+/// to both light and dark themes.
 class _HoverHighlight extends StatefulWidget {
   const _HoverHighlight({
     required this.isHighlighted,
@@ -529,7 +538,7 @@ class _HoverHighlightState extends State<_HoverHighlight> {
     if (widget.isHighlighted) {
       bgColor = cs.primary.withValues(alpha: 0.15);
     } else if (_isHovered) {
-      bgColor = cs.primary.withValues(alpha: 0.06);
+      bgColor = cs.surfaceContainerHighest.withValues(alpha: 0.5);
     } else {
       bgColor = Colors.transparent;
     }

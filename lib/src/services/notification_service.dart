@@ -35,6 +35,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 /// Per-room mute preferences are persisted via SharedPreferences.
 class NotificationService {
   static const String _mutedRoomsKey = 'notification_muted_rooms';
+  static const String _lastEventIdsKey = 'notification_last_event_ids';
 
   final Client _client;
   final SettingsController _settings;
@@ -44,6 +45,7 @@ class NotificationService {
   StreamSubscription? _syncSubscription;
   final Set<String> _notifiedEventIds = {};
   Set<String> _mutedRooms = {};
+  final Map<String, String> _lastNotifiedEventIds = {};
   bool _loadedMuted = false;
 
   NotificationService._(
@@ -63,6 +65,7 @@ class NotificationService {
     final service = NotificationService._(client, settings, currentRoom, log);
     await service._initPlugin();
     await service.loadMutedRooms();
+    await service._loadLastEventIds();
     service._startListening();
     log.i('Notification service initialised');
     return service;
@@ -126,15 +129,33 @@ class NotificationService {
   void _processRooms() {
     if (!_settings.notificationsEnabled) return;
 
+    bool changed = false;
+
     for (final room in _client.rooms) {
       if (room.membership != Membership.join) continue;
       if (_mutedRooms.contains(room.id)) continue;
 
-      // Only process if there's a new last event
       final event = room.lastEvent;
       if (event == null) continue;
 
+      final lastSeenId = _lastNotifiedEventIds[room.id];
+      if (event.eventId == lastSeenId) continue;
+
+      // Persist the new event id immediately so a restart or crash
+      // during the notification call won't re-notify for this event.
+      _lastNotifiedEventIds[room.id] = event.eventId;
+      changed = true;
+
+      // First time seeing this room (fresh install or newly joined).
+      // Record the baseline event id without notifying so we don't
+      // spam notifications for pre-existing messages.
+      if (lastSeenId == null) continue;
+
       _processEvent(room, event);
+    }
+
+    if (changed) {
+      _persistLastEventIds();
     }
   }
 
@@ -221,6 +242,37 @@ class NotificationService {
       ),
     );
     _log.d('showTestNotification: completed without error');
+  }
+
+  // ── Persisted last-notified event IDs ──
+
+  Future<void> _loadLastEventIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_lastEventIdsKey);
+      if (raw != null) {
+        for (final entry in raw) {
+          final bar = entry.indexOf('|');
+          if (bar == -1) continue;
+          _lastNotifiedEventIds[entry.substring(0, bar)] =
+              entry.substring(bar + 1);
+        }
+      }
+      _log.d('Loaded ${_lastNotifiedEventIds.length} last-notified event IDs');
+    } catch (e) {
+      _log.w('Failed to load last-notified event IDs', error: e);
+    }
+  }
+
+  Future<void> _persistLastEventIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final serialized =
+          _lastNotifiedEventIds.entries.map((e) => '${e.key}|${e.value}').toList();
+      await prefs.setStringList(_lastEventIdsKey, serialized);
+    } catch (e) {
+      _log.w('Failed to persist last-notified event IDs', error: e);
+    }
   }
 
   // ── Per-room mute preferences ───────────
