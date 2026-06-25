@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/chat/thread_list_sidebar.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
@@ -307,6 +308,8 @@ class _RightSidebarWithSwitcher extends StatelessWidget {
             RightPaneChoice.roomInfo => _SidebarRoomInfo(room: room),
             RightPaneChoice.members =>
               _SidebarMembersList(key: ValueKey(room.id), room: room),
+            RightPaneChoice.threads =>
+              SidebarThreadList(key: ValueKey(room.id), room: room),
           },
         ),
       ],
@@ -340,6 +343,7 @@ class _RightSidebarHeader extends StatelessWidget {
             switch (currentChoice) {
               RightPaneChoice.roomInfo => LucideIcons.info,
               RightPaneChoice.members => LucideIcons.users,
+              RightPaneChoice.threads => LucideIcons.messageSquare,
               RightPaneChoice.none => LucideIcons.panelRight,
             },
             size: 16,
@@ -366,6 +370,10 @@ class _RightSidebarHeader extends StatelessWidget {
                   DropdownMenuItem(
                     value: RightPaneChoice.members,
                     child: Text('Members'),
+                  ),
+                  DropdownMenuItem(
+                    value: RightPaneChoice.threads,
+                    child: Text('Threads'),
                   ),
                   DropdownMenuItem(
                     value: RightPaneChoice.none,

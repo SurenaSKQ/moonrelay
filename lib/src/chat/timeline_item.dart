@@ -18,6 +18,7 @@ import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -53,6 +54,7 @@ class TimelineItem extends StatelessWidget {
     this.timeline,
     this.onReply,
     this.onForward,
+    this.onThread,
     this.onJumpToEvent,
     this.highlightedEventId,
   });
@@ -77,6 +79,9 @@ class TimelineItem extends StatelessWidget {
 
   /// Called when the user wants to forward this event to another room.
   final VoidCallback? onForward;
+
+  /// Called when the user wants to view the thread for this event.
+  final VoidCallback? onThread;
 
   /// Called when the user taps a reply preview to jump to the replied-to
   /// event.  Receives the event ID of the target event.
@@ -127,6 +132,11 @@ class TimelineItem extends StatelessWidget {
 
   /// Message body + reactions bar (shared between all display modes).
   Widget _messageContent(BuildContext context) {
+    final hasThread =
+        timeline != null && ThreadUtils.hasThreadReplies(event, timeline!);
+    final replyCount =
+        hasThread ? ThreadUtils.threadReplyCount(event, timeline!) : 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -142,6 +152,11 @@ class TimelineItem extends StatelessWidget {
             event: event,
             timeline: timeline!,
             room: room,
+          ),
+        if (hasThread && replyCount > 0)
+          _ThreadIndicator(
+            replyCount: replyCount,
+            onTap: onThread,
           ),
       ],
     );
@@ -220,6 +235,7 @@ class TimelineItem extends StatelessWidget {
                   room: room,
                   onReply: onReply,
                   onForward: onForward,
+                  onThread: onThread,
                   child: _messageContent(context),
                 ),
               ],
@@ -297,6 +313,7 @@ class TimelineItem extends StatelessWidget {
                   room: room,
                   onReply: onReply,
                   onForward: onForward,
+                  onThread: onThread,
                   child: Container(
                     decoration: BoxDecoration(
                       color: cs.primaryContainer.withValues(alpha: 0.3),
@@ -392,6 +409,7 @@ class _HoverActionsWrapper extends StatefulWidget {
     required this.room,
     this.onReply,
     this.onForward,
+    this.onThread,
   });
 
   final Widget child;
@@ -399,6 +417,7 @@ class _HoverActionsWrapper extends StatefulWidget {
   final Room room;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
+  final VoidCallback? onThread;
 
   @override
   State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
@@ -454,6 +473,7 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
                   room: widget.room,
                   onReply: widget.onReply!,
                   onForward: widget.onForward,
+                  onThread: widget.onThread,
                 ),
               ),
             ),
@@ -499,6 +519,70 @@ class _RedactedEvent extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Thread indicator ──────────────────────────────────────────────────────────
+
+/// A clickable indicator shown below a message when it has thread replies.
+/// Shows the reply count and navigates to the thread view on tap.
+class _ThreadIndicator extends StatelessWidget {
+  const _ThreadIndicator({
+    required this.replyCount,
+    this.onTap,
+  });
+
+  final int replyCount;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: scheme.primary.withValues(alpha: 0.3),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.forum_rounded,
+                size: 14,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                l10n.threadReplies(replyCount),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: scheme.primary.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -30,6 +30,7 @@ import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
+import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -202,6 +203,24 @@ class MoonRouter {
                           },
                         ),
                       ],
+                    ),
+                    GoRoute(
+                      path: 'thread/:threadRootId',
+                      pageBuilder: (context, state) {
+                        final roomId = state.pathParameters['roomid']!;
+                        final threadRootId =
+                            state.pathParameters['threadRootId']!;
+                        final client = Provider.of<Client>(context);
+                        final room = client.getRoomById(roomId)!;
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          ThreadViewPage(
+                            room: room,
+                            threadRootEventId: threadRootId,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

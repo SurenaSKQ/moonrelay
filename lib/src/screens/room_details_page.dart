@@ -22,12 +22,17 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
+import 'package:moonrelay/src/screens/room_threads_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
+import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:provider/provider.dart';
 
@@ -598,6 +603,15 @@ class _RoomInformationsState extends State<RoomInformations> {
             scheme: scheme,
           ),
           const SizedBox(height: 16),
+
+          // ── Threads ─────────────────────────────────────────────────
+          _SectionHeader(title: l10n.threads, scheme: scheme),
+          const SizedBox(height: 8),
+          _TopThreadsSection(
+            room: room,
+            scheme: scheme,
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1080,6 +1094,210 @@ class _TopMembersSection extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FullRoomMembersList(room: room),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Top threads section
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Displays recent thread roots in the room and a button to open the full
+/// thread list in the sidebar.
+class _TopThreadsSection extends StatefulWidget {
+  const _TopThreadsSection({
+    required this.room,
+    required this.scheme,
+  });
+
+  final Room room;
+  final ColorScheme scheme;
+
+  @override
+  State<_TopThreadsSection> createState() => _TopThreadsSectionState();
+}
+
+class _TopThreadsSectionState extends State<_TopThreadsSection> {
+  List<Event> _threadRoots = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThreadRoots();
+  }
+
+  Future<void> _loadThreadRoots() async {
+    try {
+      final response = await widget.room.client.getThreadRoots(
+        widget.room.id,
+        include: Include.all,
+        limit: 10,
+      );
+      if (!mounted) return;
+      setState(() {
+        _threadRoots = response.chunk
+            .map((m) => Event.fromMatrixEvent(m, widget.room))
+            .toList();
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Column(
+      children: [
+        ..._threadRoots.map((event) {
+          final sender = event.senderFromMemoryOrFallback;
+          return _ThreadRootTile(
+            event: event,
+            sender: sender,
+            room: widget.room,
+            scheme: widget.scheme,
+          );
+        }),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(LucideIcons.messageSquare, size: 18),
+              label: Text(
+                l10n.showAllThreads(_threadRoots.length),
+              ),
+              onPressed: () => _openFullThreadList(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: widget.scheme.primary,
+                side: BorderSide(color: widget.scheme.outline),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openFullThreadList(BuildContext context) {
+    // If the right sidebar is visible and already showing threads, navigate
+    // back to the room page with the threads sidebar active.
+    final settings = context.read<SettingsController>();
+    if (settings.rightSidebarVisible &&
+        settings.rightPaneChoice == RightPaneChoice.threads) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    // Otherwise, open the dedicated full-screen threads list.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FullRoomThreadsList(room: widget.room),
+      ),
+    );
+  }
+}
+
+/// A single thread root tile in the room details page.
+class _ThreadRootTile extends StatelessWidget {
+  const _ThreadRootTile({
+    required this.event,
+    required this.sender,
+    required this.room,
+    required this.scheme,
+  });
+
+  final Event event;
+  final User sender;
+  final Room room;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openThread(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.transparent,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _openThread(context),
+          child: Row(
+            children: [
+              // Avatar
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: AvatarFromUriOrFallbackImage(
+                  client: room.client,
+                  avatarUri: sender.avatarUrl,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Preview
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sender.calcDisplayname(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      event.body.isNotEmpty ? event.body : '(image or file)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                event.originServerTs.localizedTimeShort(context),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openThread(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ThreadViewPage(
+          room: room,
+          threadRootEventId: event.eventId,
+        ),
       ),
     );
   }

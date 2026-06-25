@@ -34,6 +34,7 @@ class MessageActions extends StatelessWidget {
     required this.room,
     required this.onReply,
     this.onForward,
+    this.onThread,
   });
 
   final Event event;
@@ -43,6 +44,10 @@ class MessageActions extends StatelessWidget {
   /// Optional callback to open the forward dialog.
   /// When null, the forward button is hidden.
   final VoidCallback? onForward;
+
+  /// Optional callback to open the thread view for this event.
+  /// When null, the thread button is hidden.
+  final VoidCallback? onThread;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +77,14 @@ class MessageActions extends StatelessWidget {
             tooltip: AppLocalizations.of(context)!.forwardTooltip,
             color: cs.onSurfaceVariant,
             onTap: onForward!,
+          ),
+        const SizedBox(width: 4),
+        if (onThread != null)
+          _ActionIcon(
+            icon: Icons.forum_rounded,
+            tooltip: AppLocalizations.of(context)!.openThread,
+            color: cs.onSurfaceVariant,
+            onTap: onThread!,
           ),
         const SizedBox(width: 4),
         _ActionIcon(

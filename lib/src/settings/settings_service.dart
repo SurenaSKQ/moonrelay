@@ -128,6 +128,19 @@ class SettingsService {
     await prefs.setBool(_rightSidebarVisibleKey, visible);
   }
 
+  Future<RightPaneChoice> rightPaneChoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? index = prefs.getInt(_rightPaneChoiceKey);
+    return index != null
+        ? RightPaneChoice.values[index]
+        : RightPaneChoice.roomInfo;
+  }
+
+  Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_rightPaneChoiceKey, choice.index);
+  }
+
   Future<bool> headerReversed() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_headerReversedKey) ?? false;
@@ -252,19 +265,6 @@ class SettingsService {
   Future<void> updateRightSidebarWidth(double width) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_rightSidebarWidthKey, width);
-  }
-
-  Future<RightPaneChoice> rightPaneChoice() async {
-    final prefs = await SharedPreferences.getInstance();
-    final int? index = prefs.getInt(_rightPaneChoiceKey);
-    return index != null
-        ? RightPaneChoice.values[index]
-        : RightPaneChoice.roomInfo;
-  }
-
-  Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_rightPaneChoiceKey, choice.index);
   }
 
   // ── Font size & UI scale ──────────────────────────────────────────

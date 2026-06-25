@@ -1878,5 +1878,7 @@ String _localizedRightPaneChoice(
       return l10n.paneRoomInfo;
     case RightPaneChoice.members:
       return l10n.paneMembers;
+    case RightPaneChoice.threads:
+      return l10n.thread;
   }
 }

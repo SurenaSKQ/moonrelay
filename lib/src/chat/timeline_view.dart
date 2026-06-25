@@ -19,6 +19,7 @@ import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:flutter/material.dart';
@@ -36,8 +37,10 @@ import 'package:matrix/matrix.dart';
 /// ## Event filtering
 ///
 /// Events with a non-null [relationshipEventId] (replies, reactions, edits,
-/// threads) are excluded from the visible list because they are rendered
-/// inline with their parent event.
+/// thread replies) are excluded from the visible list because they are rendered
+/// inline with their parent event.  Thread roots (events whose relationship
+/// type is `m.thread` and that reference themselves) are kept visible because
+/// they are the start of a thread and appear as regular messages.
 class TimelineView extends StatefulWidget {
   const TimelineView({
     super.key,
@@ -81,10 +84,15 @@ class _TimelineViewState extends State<TimelineView> {
 
   /// Indices (into `timeline.events`) of events that should appear as
   /// standalone items.  Events are in SDK order (newest → oldest).
+  ///
+  /// Thread roots (self-referencing `m.thread` events) are kept visible;
+  /// all other related events (reactions, edits, thread replies) are hidden.
   List<int> _visibleIndices() {
     final indices = List<int>.generate(widget.timeline.events.length, (i) => i);
-    indices.removeWhere(
-        (i) => widget.timeline.events[i].relationshipEventId != null);
+    indices.removeWhere((i) {
+      final event = widget.timeline.events[i];
+      return !ThreadUtils.isVisibleInMainTimeline(event);
+    });
     return indices;
   }
 

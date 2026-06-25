@@ -1438,5 +1438,44 @@
   "roomUnmuted": "Room notifications unmuted",
   "@roomUnmuted": {
     "description": "Snackbar confirmation when unmuting a room."
+  },
+
+  "thread": "Thread",
+  "@thread": {
+    "description": "Label for a single thread."
+  },
+  "threads": "Threads",
+  "@threads": {
+    "description": "Label for threads."
+  },
+  "openThread": "Open thread",
+  "@openThread": {
+    "description": "Tooltip for the button to open a thread view."
+  },
+  "threadReplies": "{count} replies",
+  "@threadReplies": {
+    "description": "Label showing the number of replies in a thread.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noRepliesYet": "No replies yet",
+  "@noRepliesYet": {
+    "description": "Shown when a thread has no replies yet."
+  },
+  "noThreadsYet": "No threads yet",
+  "@noThreadsYet": {
+    "description": "Shown when a room has no threads yet."
+  },
+  "showAllThreads": "Show all threads ({count})",
+  "@showAllThreads": {
+    "description": "Button to show all threads in the room.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchThreadsHint": "Search threads…",
+  "@searchThreadsHint": {
+    "description": "Hint text for the thread search field."
   }
 }

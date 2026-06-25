@@ -37,13 +37,21 @@ import 'package:provider/provider.dart';
 /// (bold, italic, strikethrough, inline code, blockquote, heading,
 /// unordered list, link), an attach button, and a send button.
 class ChatBox extends StatefulWidget {
-  const ChatBox({super.key, required this.room, this.replyTarget});
+  const ChatBox({
+    super.key,
+    required this.room,
+    this.replyTarget,
+    this.threadRootEventId,
+  });
 
   final Room room;
 
   /// A notifier that signals which event (if any) the user is currently
   /// replying to.  Set to `null` to clear the reply preview.
   final ValueNotifier<Event?>? replyTarget;
+
+  /// When non-null, messages are sent as replies in this thread.
+  final String? threadRootEventId;
 
   @override
   State<ChatBox> createState() => _ChatBoxState();
@@ -129,9 +137,13 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         await widget.room.sendTextEvent(
           text,
           inReplyTo: replyTo,
+          threadRootEventId: widget.threadRootEventId,
         );
       } else if (html == text || html.isEmpty) {
-        await widget.room.sendTextEvent(text);
+        await widget.room.sendTextEvent(
+          text,
+          threadRootEventId: widget.threadRootEventId,
+        );
       } else {
         await widget.room.sendEvent({
           'body': text,
