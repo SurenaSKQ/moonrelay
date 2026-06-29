@@ -1501,5 +1501,90 @@
   "searchThreadsHint": "Search threads…",
   "@searchThreadsHint": {
     "description": "Hint text for the thread search field."
+  },
+
+  "globalSearch": "Search rooms, spaces, and messages…",
+  "@globalSearch": {
+    "description": "Placeholder text for the global search field."
+  },
+  "searchMessages": "Messages",
+  "@searchMessages": {
+    "description": "Section header for message search results."
+  },
+  "searchRooms": "Rooms",
+  "@searchRooms": {
+    "description": "Section header for room search results."
+  },
+  "searchSpaces": "Spaces",
+  "@searchSpaces": {
+    "description": "Section header for space search results."
+  },
+  "searchHomeserver": "Search homeserver…",
+  "@searchHomeserver": {
+    "description": "Placeholder text for the homeserver-wide search field."
+  },
+  "searchNoResults": "No results found",
+  "@searchNoResults": {
+    "description": "Message shown when search returns no results."
+  },
+  "searchInRoom": "Search in room",
+  "@searchInRoom": {
+    "description": "Tooltip for the in-room search button."
+  },
+  "inRoomSearch": "Search this room",
+  "@inRoomSearch": {
+    "description": "Title for the in-room search panel."
+  },
+  "inRoomSearchHint": "Search messages in this room…",
+  "@inRoomSearchHint": {
+    "description": "Placeholder text for the in-room search field."
+  },
+  "inRoomSearchAll": "All",
+  "@inRoomSearchAll": {
+    "description": "Filter chip label to search all message types."
+  },
+  "inRoomSearchText": "Text",
+  "@inRoomSearchText": {
+    "description": "Filter chip label to search only text messages."
+  },
+  "inRoomSearchImages": "Images",
+  "@inRoomSearchImages": {
+    "description": "Filter chip label to search only image messages."
+  },
+  "inRoomSearchFiles": "Files",
+  "@inRoomSearchFiles": {
+    "description": "Filter chip label to search only file messages."
+  },
+  "inRoomSearchAudio": "Audio",
+  "@inRoomSearchAudio": {
+    "description": "Filter chip label to search only audio messages."
+  },
+  "inRoomSearchVideo": "Video",
+  "@inRoomSearchVideo": {
+    "description": "Filter chip label to search only video messages."
+  },
+  "inRoomSearchByUser": "Filter by sender…",
+  "@inRoomSearchByUser": {
+    "description": "Placeholder for the sender filter field in in-room search."
+  },
+  "inRoomSearchNoResults": "No messages match your search",
+  "@inRoomSearchNoResults": {
+    "description": "Message shown when in-room search returns no results."
+  },
+  "inRoomSearchResults": "{count} results",
+  "@inRoomSearchResults": {
+    "description": "Label showing number of search results.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchingMessages": "Searching messages…",
+  "@searchingMessages": {
+    "description": "Message shown while searching messages."
+  },
+
+  "loadMore": "Load more",
+  "@loadMore": {
+    "description": "Button to load more search results."
   }
 }

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
@@ -35,9 +36,20 @@ import 'package:provider/provider.dart';
 ///   opens the sidebar (or does nothing if already open).
 /// - Otherwise, tapping navigates to the full [RoomInformations] page.
 class ChatRoomHeader extends StatefulWidget {
-  const ChatRoomHeader({super.key, required this.room});
+  const ChatRoomHeader({
+    super.key,
+    required this.room,
+    this.onSearchToggle,
+    this.isSearchActive = false,
+  });
 
   final Room room;
+
+  /// Called when the user taps the search button.
+  final VoidCallback? onSearchToggle;
+
+  /// Whether the in-room search panel is currently visible.
+  final bool isSearchActive;
 
   @override
   State<ChatRoomHeader> createState() => _ChatRoomHeaderState();
@@ -177,6 +189,22 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 // Member count badge
                 _MemberCountBadge(count: _memberCount, scheme: scheme),
                 const SizedBox(width: 4),
+
+                // In-room search toggle
+                IconButton(
+                  icon: Icon(
+                    widget.isSearchActive
+                        ? LucideIcons.searchX
+                        : LucideIcons.search,
+                    size: 18,
+                  ),
+                  onPressed: widget.onSearchToggle,
+                  tooltip: AppLocalizations.of(context)!.searchInRoom,
+                  visualDensity: VisualDensity.compact,
+                  color: widget.isSearchActive
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
 
                 // Chevron indicating tappable
                 Icon(

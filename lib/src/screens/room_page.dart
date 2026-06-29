@@ -16,6 +16,7 @@
 
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
+import 'package:moonrelay/src/chat/in_room_search_panel.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +34,9 @@ class RoomPage extends StatefulWidget {
 class _RoomPageState extends State<RoomPage> {
   /// The event the user is currently replying to (or null).
   final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
+
+  /// Whether the in-room search panel is visible.
+  bool _showInRoomSearch = false;
 
   /// Navigates to the thread view for [event].
   void _onThread(Event event) {
@@ -63,6 +67,8 @@ class _RoomPageState extends State<RoomPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           context.read<CurrentRoom>().setRoom(widget.room);
+          // Close search when switching rooms
+          setState(() => _showInRoomSearch = false);
         }
       });
     }
@@ -80,12 +86,29 @@ class _RoomPageState extends State<RoomPage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
-          ChatRoomHeader(room: widget.room),
+          ChatRoomHeader(
+            room: widget.room,
+            onSearchToggle: () =>
+                setState(() => _showInRoomSearch = !_showInRoomSearch),
+            isSearchActive: _showInRoomSearch,
+          ),
           Expanded(
-            child: ChatTimeline(
-              room: widget.room,
-              onReply: (event) => _replyTarget.value = event,
-              onThread: _onThread,
+            child: Row(
+              children: [
+                Expanded(
+                  child: ChatTimeline(
+                    room: widget.room,
+                    onReply: (event) => _replyTarget.value = event,
+                    onThread: _onThread,
+                  ),
+                ),
+                if (_showInRoomSearch)
+                  InRoomSearchPanel(
+                    room: widget.room,
+                    onClose: () => setState(() => _showInRoomSearch = false),
+                    key: ValueKey('search_${widget.room.id}'),
+                  ),
+              ],
             ),
           ),
           const Divider(thickness: 1),

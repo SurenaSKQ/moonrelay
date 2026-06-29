@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/global_search_overlay.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Main application frame shown after authentication.
@@ -111,6 +112,11 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
             children: <Widget>[
               // ── Leading slot ──────────────────────────────────
               const _HeaderProfile(),
+              IconButton(
+                icon: const Icon(LucideIcons.search, size: 20),
+                onPressed: () => _openGlobalSearch(context),
+                tooltip: AppLocalizations.of(context)!.globalSearch,
+              ),
               if (reversed && showButtons)
                 const WindowButtons()
               else
@@ -227,6 +233,21 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
           // popUpWindowMenu may not be available on all platforms.
         }
     }
+  }
+
+  /// Opens the global search overlay as a full-screen dialog.
+  void _openGlobalSearch(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const GlobalSearchOverlay(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+        reverseTransitionDuration: const Duration(milliseconds: 150),
+      ),
+    );
   }
 
   @override
