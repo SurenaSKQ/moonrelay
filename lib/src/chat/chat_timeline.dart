@@ -52,12 +52,15 @@ import 'package:provider/provider.dart';
 /// for two frames while the list stabilises, stopping the "load → layout
 /// change → scroll event → load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline({super.key, required this.room, this.onReply, this.filterEvents});
+  const ChatTimeline({super.key, required this.room, this.onReply, this.onThread, this.filterEvents});
 
   final Room room;
 
   /// Called when the user wants to reply to a specific timeline event.
   final void Function(Event event)? onReply;
+
+  /// Called when the user wants to open or create a thread for an event.
+  final void Function(Event event)? onThread;
 
   /// When non-null, passed through to [TimelineView.filterEvents] to
   /// override the default event visibility filter.
@@ -265,6 +268,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           scrollController: _scrollController,
           timelineVersion: _timelineVersion,
           onReply: widget.onReply,
+          onThread: widget.onThread,
           showStateEvents: settings.showStateEvents,
           filterEvents: widget.filterEvents,
         );

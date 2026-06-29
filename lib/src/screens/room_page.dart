@@ -19,6 +19,7 @@ import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -32,6 +33,13 @@ class RoomPage extends StatefulWidget {
 class _RoomPageState extends State<RoomPage> {
   /// The event the user is currently replying to (or null).
   final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
+
+  /// Navigates to the thread view for [event].
+  void _onThread(Event event) {
+    context.push(
+      '/main/rooms/${widget.room.id}/thread/${event.eventId}',
+    );
+  }
 
   @override
   void initState() {
@@ -77,6 +85,7 @@ class _RoomPageState extends State<RoomPage> {
             child: ChatTimeline(
               room: widget.room,
               onReply: (event) => _replyTarget.value = event,
+              onThread: _onThread,
             ),
           ),
           const Divider(thickness: 1),

@@ -50,6 +50,7 @@ class TimelineView extends StatefulWidget {
     required this.scrollController,
     this.timelineVersion,
     this.onReply,
+    this.onThread,
     this.showStateEvents = true,
     this.filterEvents,
   });
@@ -65,6 +66,9 @@ class TimelineView extends StatefulWidget {
 
   /// Called when the user replies to a specific event.
   final void Function(Event event)? onReply;
+
+  /// Called when the user wants to open or create a thread for an event.
+  final void Function(Event event)? onThread;
 
   /// Whether to render state events (join/leave/room metadata changes).
   /// When false, state events are hidden from the timeline.
@@ -231,6 +235,7 @@ class _TimelineViewState extends State<TimelineView> {
           isGroupContinuation: isContinuation,
           timeline: widget.timeline,
           onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
+          onThread: widget.onThread != null ? () => widget.onThread!(event) : null,
           onForward: () => showForwardDialog(
             context: context,
             event: event,
