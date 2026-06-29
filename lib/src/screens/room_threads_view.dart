@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/threads_provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -27,7 +28,7 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 ///
 /// Provides:
 /// - A search bar at the top for filtering by sender name or message text
-/// - Progressive loading via `getThreadRoots` API
+/// - Progressive loading via the [ThreadsProvider]
 /// - Pull-to-refresh to re-fetch the thread list
 class FullRoomThreadsList extends StatefulWidget {
   const FullRoomThreadsList({super.key, required this.room});
@@ -39,24 +40,18 @@ class FullRoomThreadsList extends StatefulWidget {
 }
 
 class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
+  late final ThreadsProvider _provider;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
 
-  final List<Event> _threadRoots = [];
-  bool _isLoading = true;
-  bool _isFetchingMore = false;
-  bool _hasMore = true;
-  String? _nextBatch;
-
-  static const int _batchSize = 30;
-
   @override
   void initState() {
     super.initState();
+    _provider = ThreadsProvider(room: widget.room);
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
-    _fetchThreads();
+    _provider.fetch(firstPage: true);
   }
 
   @override
@@ -65,6 +60,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _provider.dispose();
     super.dispose();
   }
 
@@ -76,18 +72,19 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
 
   void _onScroll() {
     if (_searchQuery.isNotEmpty) return;
-    if (!_hasMore || _isFetchingMore) return;
+    if (!_provider.hasMore || _provider.isLoading) return;
     if (!_scrollController.hasClients) return;
 
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
-      _fetchThreads();
+      _provider.fetch();
     }
   }
 
   List<Event> get _filteredThreads {
-    if (_searchQuery.isEmpty) return _threadRoots;
-    return _threadRoots.where((event) {
+    final threads = _provider.threadRoots;
+    if (_searchQuery.isEmpty) return threads;
+    return threads.where((event) {
       final sender =
           event.senderFromMemoryOrFallback.calcDisplayname().toLowerCase();
       final body = event.body.toLowerCase();
@@ -95,55 +92,8 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
     }).toList();
   }
 
-  Future<void> _fetchThreads({bool refresh = false}) async {
-    if (_isFetchingMore) return;
-    if (!refresh && !_hasMore) return;
-
-    setState(() {
-      if (refresh) {
-        _isLoading = true;
-      } else {
-        _isFetchingMore = true;
-      }
-    });
-
-    try {
-      final response = await widget.room.client.getThreadRoots(
-        widget.room.id,
-        include: Include.all,
-        limit: _batchSize,
-        from: refresh ? null : _nextBatch,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        if (refresh) {
-          _threadRoots.clear();
-        }
-        _threadRoots.addAll(
-          response.chunk
-              .map((m) => Event.fromMatrixEvent(m, widget.room)),
-        );
-        _nextBatch = response.nextBatch;
-        _hasMore = response.nextBatch != null;
-        _isLoading = false;
-        _isFetchingMore = false;
-      });
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isFetchingMore = false;
-        });
-      }
-    }
-  }
-
   Future<void> _onRefresh() async {
-    _nextBatch = null;
-    _hasMore = true;
-    await _fetchThreads(refresh: true);
+    await _provider.fetch(firstPage: true);
   }
 
   @override
@@ -177,40 +127,49 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _threadRoots.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        LucideIcons.messageSquare,
-                        size: 48,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.noThreadsYet,
-                        style: TextStyle(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
+      body: ListenableBuilder(
+        listenable: _provider,
+        builder: (context, _) {
+          if (_provider.isLoading && _provider.threadRoots.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (_provider.threadRoots.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.messageSquare,
+                    size: 48,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: _filteredThreads.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= _filteredThreads.length) {
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.noThreadsYet,
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final filtered = _filteredThreads;
+
+          return RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: ListView.builder(
+                controller: _scrollController,
+                itemCount:
+                    filtered.length + (_provider.hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                      if (index >= filtered.length) {
                         return const Padding(
                           padding: EdgeInsets.all(16),
                           child: Center(
                             child: SizedBox(
-                              width: 24,
-                              height: 24,
+                              width: 20,
+                              height: 20,
                               child:
                                   CircularProgressIndicator(strokeWidth: 2),
                             ),
@@ -218,21 +177,23 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
                         );
                       }
 
-                      final event = _filteredThreads[index];
+                      final event = filtered[index];
+
                       return _ThreadListTile(
                         event: event,
                         room: widget.room,
                       );
                     },
                   ),
-                ),
+          );
+        },
+      ),
     );
   }
 }
 
 // ─── Thread list tile ──────────────────────────────────────────────────────────
 
-/// A single tile in the thread list showing the thread root preview.
 class _ThreadListTile extends StatelessWidget {
   const _ThreadListTile({
     required this.event,
@@ -245,81 +206,43 @@ class _ThreadListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sender = event.senderFromMemoryOrFallback;
 
-    return InkWell(
-      onTap: () => _openThread(context),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AvatarFromUriOrFallbackImage(
-              client: room.client,
-              avatarUri: sender.avatarUrl,
-              radius: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          sender.calcDisplayname(),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        event.originServerTs.localizedTimeShort(context),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: scheme.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    event.body.isNotEmpty ? event.body : '(image or file)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              LucideIcons.chevronRight,
-              size: 18,
-              color: scheme.onSurface.withValues(alpha: 0.3),
-            ),
-          ],
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: AvatarFromUriOrFallbackImage(
+        client: room.client,
+        avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+        radius: 18,
+      ),
+      title: Text(
+        event.senderFromMemoryOrFallback.calcDisplayname(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        event.body.isNotEmpty ? event.body : event.type,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: scheme.onSurfaceVariant),
+      ),
+      trailing: Text(
+        event.originServerTs.localizedTimeShort(context),
+        style: TextStyle(
+          fontSize: 12,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
         ),
       ),
-    );
-  }
-
-  void _openThread(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ThreadViewPage(
-          room: room,
-          threadRootEventId: event.eventId,
-        ),
-      ),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ThreadViewPage(
+              room: room,
+              threadRootEventId: event.eventId,
+            ),
+          ),
+        );
+      },
     );
   }
 }

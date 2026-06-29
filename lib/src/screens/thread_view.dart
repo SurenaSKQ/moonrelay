@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
@@ -29,8 +28,9 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
-/// Full-screen view showing a single thread: the root event, all replies,
-/// and a chat box to respond in the thread.
+/// Full-screen view showing a single thread: the root event, a reply
+/// timeline powered by [ChatTimeline] (with scroll-to-load, display modes,
+/// and hover actions), and a chat box to respond in the thread.
 class ThreadViewPage extends StatefulWidget {
   const ThreadViewPage({
     super.key,
@@ -46,30 +46,22 @@ class ThreadViewPage extends StatefulWidget {
 }
 
 class _ThreadViewPageState extends State<ThreadViewPage> {
-  Timeline? _timeline;
   Event? _rootEvent;
-  List<Event> _replies = [];
+  Timeline? _timeline;
   bool _loading = true;
-  StreamSubscription? _syncSub;
 
   @override
   void initState() {
     super.initState();
-    _initThread();
+    _findRootEvent();
   }
 
-  @override
-  void dispose() {
-    _syncSub?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _initThread() async {
+  Future<void> _findRootEvent() async {
     try {
+      // Try the fast path: look in the room's existing timeline.
       final timeline = await widget.room.getTimeline();
       if (!mounted) return;
 
-      // Find the root event in the timeline (fast path).
       Event? root;
       for (final e in timeline.events) {
         if (e.eventId == widget.threadRootEventId) {
@@ -83,6 +75,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
         try {
           final chunk =
               await widget.room.getEventContext(widget.threadRootEventId);
+          if (!mounted) return;
           if (chunk != null) {
             root = chunk.events.firstWhere(
               (e) => e.eventId == widget.threadRootEventId,
@@ -93,30 +86,15 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
         }
       }
 
+      if (!mounted) return;
       setState(() {
-        _timeline = timeline;
         _rootEvent = root;
+        _timeline = timeline;
         _loading = false;
-        if (root != null) {
-          _replies = ThreadUtils.threadReplies(root, timeline);
-        }
-      });
-
-      // Listen for new events via sync.
-      _syncSub = widget.room.client.onSync.stream.listen((_) {
-        if (!mounted) return;
-        _refreshReplies();
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _refreshReplies() {
-    if (_timeline == null || _rootEvent == null) return;
-    setState(() {
-      _replies = ThreadUtils.threadReplies(_rootEvent!, _timeline!);
-    });
   }
 
   @override
@@ -125,6 +103,13 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsController>();
     final fs = settings.fontSize;
+
+    // Count replies via the stored timeline.
+    final replyCount = _rootEvent != null && _timeline != null
+        ? _rootEvent!
+            .aggregatedEvents(_timeline!, RelationshipTypes.thread)
+            .length
+        : 0;
 
     return Scaffold(
       backgroundColor: scheme.surface,
@@ -143,7 +128,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Text(
-                  '${_replies.length} ${l10n.threadReplies(_replies.length)}',
+                  '$replyCount ${l10n.threadReplies(replyCount)}',
                   style: TextStyle(
                     fontSize: fs * 0.8,
                     color: scheme.onSurfaceVariant,
@@ -164,23 +149,22 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
                 )
               : Column(
                   children: [
-                    // Thread root event (non-interactive)
                     _ThreadRootTile(
                       event: _rootEvent!,
                       room: widget.room,
                       timeline: _timeline!,
                     ),
                     const Divider(height: 1),
-                    // Reply count header
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      color: scheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                       child: Text(
-                        '${_replies.length} ${l10n.threadReplies(_replies.length)}',
+                        '$replyCount ${l10n.threadReplies(replyCount)}',
                         style: TextStyle(
                           fontSize: fs * 0.85,
                           fontWeight: FontWeight.w600,
@@ -188,35 +172,16 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
                         ),
                       ),
                     ),
-                    // Thread replies list
                     Expanded(
-                      child: _replies.isEmpty
-                          ? Center(
-                              child: Text(
-                                l10n.noRepliesYet,
-                                style: TextStyle(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              reverse: true,
-                              padding: const EdgeInsets.only(top: 4),
-                              itemCount: _replies.length,
-                              itemBuilder: (context, index) {
-                                // _replies is oldest-first, so reverse for ListView.
-                                final reply =
-                                    _replies.reversed.toList()[index];
-                                return _ThreadReplyTile(
-                                  event: reply,
-                                  room: widget.room,
-                                  timeline: _timeline!,
-                                );
-                              },
-                            ),
+                      child: ChatTimeline(
+                        room: widget.room,
+                        filterEvents: (event) =>
+                            ThreadUtils.isThreadReply(event) &&
+                            event.relationshipEventId ==
+                                widget.threadRootEventId,
+                      ),
                     ),
                     const Divider(height: 1),
-                    // Chat box for thread replies
                     ChatBox(
                       room: widget.room,
                       threadRootEventId: widget.threadRootEventId,
@@ -303,90 +268,10 @@ class _ThreadRootTile extends StatelessWidget {
                   room: room,
                 ),
                 ReactionsBar(
-                    event: event,
-                    timeline: timeline,
-                    room: room,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Thread reply tile ─────────────────────────────────────────────────────────
-
-/// Renders a single reply within a thread.
-class _ThreadReplyTile extends StatelessWidget {
-  const _ThreadReplyTile({
-    required this.event,
-    required this.room,
-    required this.timeline,
-  });
-
-  final Event event;
-  final Room room;
-  final Timeline timeline;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: AvatarFromUriOrFallbackImage(
-              client: room.client,
-              avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-              radius: 16,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        event.senderFromMemoryOrFallback.calcDisplayname(),
-                        style: TextStyle(
-                          fontSize: fs * 0.85,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      event.originServerTs.localizedTimeShort(context),
-                      style: TextStyle(
-                        fontSize: fs * 0.7,
-                        color: scheme.onSurface.withValues(alpha: 0.45),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                MessageEventHandler(
                   event: event,
                   timeline: timeline,
                   room: room,
                 ),
-                ReactionsBar(
-                    event: event,
-                    timeline: timeline,
-                    room: room,
-                  ),
               ],
             ),
           ),

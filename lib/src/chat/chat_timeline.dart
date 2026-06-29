@@ -52,12 +52,16 @@ import 'package:provider/provider.dart';
 /// for two frames while the list stabilises, stopping the "load → layout
 /// change → scroll event → load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline({super.key, required this.room, this.onReply});
+  const ChatTimeline({super.key, required this.room, this.onReply, this.filterEvents});
 
   final Room room;
 
   /// Called when the user wants to reply to a specific timeline event.
   final void Function(Event event)? onReply;
+
+  /// When non-null, passed through to [TimelineView.filterEvents] to
+  /// override the default event visibility filter.
+  final bool Function(Event)? filterEvents;
 
   @override
   State<ChatTimeline> createState() => _ChatTimelineState();
@@ -168,6 +172,9 @@ class _ChatTimelineState extends State<ChatTimeline> {
         if (mounted) setState(() => _scrollDebounce = false);
       });
     });
+    // Release the auto-fill guard so that _ensureContentFillsScreen
+    // can re-evaluate whether the viewport is full.
+    _isFillingViewport = false;
     // Also re-check auto-fill after this load finishes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureContentFillsScreen();
@@ -259,6 +266,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           timelineVersion: _timelineVersion,
           onReply: widget.onReply,
           showStateEvents: settings.showStateEvents,
+          filterEvents: widget.filterEvents,
         );
       },
     );

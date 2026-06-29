@@ -150,7 +150,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           'msgtype': MessageTypes.Text,
           'format': 'org.matrix.custom.html',
           'formatted_body': html,
-        });
+        }, threadRootEventId: widget.threadRootEventId);
       }
     }
 

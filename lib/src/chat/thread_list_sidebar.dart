@@ -14,16 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/threads_provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
 /// Displays a list of all threads in the room, fetched from the server via
@@ -38,57 +36,20 @@ class SidebarThreadList extends StatefulWidget {
 }
 
 class _SidebarThreadListState extends State<SidebarThreadList> {
-  final List<MatrixEvent> _threads = [];
-  bool _isLoading = false;
-  bool _hasMore = true;
-  String? _nextBatch;
-  StreamSubscription? _syncSub;
-
-  static const int _batchSize = 20;
+  late final ThreadsProvider _provider;
 
   @override
   void initState() {
     super.initState();
-    _fetchThreads();
-    _syncSub = widget.room.client.onSync.stream.listen((_) {
-      if (mounted) _fetchThreads(forceRefresh: true);
-    });
+    _provider = ThreadsProvider(room: widget.room);
+    _provider.listenToSync();
+    _provider.fetch(firstPage: true);
   }
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    _provider.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchThreads({bool forceRefresh = false}) async {
-    if (_isLoading) return;
-    if (!forceRefresh && !_hasMore) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final response = await widget.room.client.getThreadRoots(
-        widget.room.id,
-        include: Include.all,
-        limit: _batchSize,
-        from: forceRefresh ? null : _nextBatch,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        if (forceRefresh) {
-          _threads.clear();
-        }
-        _threads.addAll(response.chunk);
-        _nextBatch = response.nextBatch;
-        _hasMore = response.nextBatch != null;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -98,88 +59,94 @@ class _SidebarThreadListState extends State<SidebarThreadList> {
     final settings = context.watch<SettingsController>();
     final fs = settings.fontSize;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            l10n.threads,
-            style: TextStyle(
-              fontSize: fs * 0.9,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: _threads.isEmpty && !_isLoading
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          LucideIcons.messageSquare,
-                          size: 32,
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.noThreadsYet,
-                          style: TextStyle(
-                            fontSize: fs * 0.85,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : NotificationListener<ScrollEndNotification>(
-                  onNotification: (notification) {
-                    if (notification.metrics.pixels >=
-                        notification.metrics.maxScrollExtent - 100) {
-                      _fetchThreads();
-                    }
-                    return false;
-                  },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: _threads.length + (_hasMore ? 1 : 0),
-                    separatorBuilder: (_, __) =>
-                        Divider(height: 1, indent: 12, endIndent: 12),
-                    itemBuilder: (context, index) {
-                      if (index >= _threads.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        );
-                      }
+    return ListenableBuilder(
+      listenable: _provider,
+      builder: (context, _) {
+        final threads = _provider.threadRoots;
 
-                      final matrixEvent = _threads[index];
-                      final event = Event.fromMatrixEvent(
-                        matrixEvent,
-                        widget.room,
-                      );
-
-                      return _ThreadListTile(
-                        event: event,
-                        room: widget.room,
-                      );
-                    },
-                  ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Text(
+                l10n.threads,
+                style: TextStyle(
+                  fontSize: fs * 0.9,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
                 ),
-        ),
-      ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: threads.isEmpty && !_provider.isLoading
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              LucideIcons.messageSquare,
+                              size: 32,
+                              color: scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.3),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              l10n.noThreadsYet,
+                              style: TextStyle(
+                                fontSize: fs * 0.85,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : NotificationListener<ScrollEndNotification>(
+                      onNotification: (notification) {
+                        if (notification.metrics.pixels >=
+                            notification.metrics.maxScrollExtent - 100) {
+                          _provider.fetch();
+                        }
+                        return false;
+                      },
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemCount:
+                            threads.length + (_provider.hasMore ? 1 : 0),
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 12, endIndent: 12),
+                        itemBuilder: (context, index) {
+                          if (index >= threads.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final event = threads[index];
+
+                          return _ThreadListTile(
+                            event: event,
+                            room: widget.room,
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -201,83 +168,55 @@ class _ThreadListTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final settings = context.watch<SettingsController>();
     final fs = settings.fontSize;
-    final sender = event.senderFromMemoryOrFallback;
 
-    return InkWell(
-      onTap: () => _openThread(context),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AvatarFromUriOrFallbackImage(
-              client: room.client,
-              avatarUri: sender.avatarUrl,
-              radius: 16,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          sender.calcDisplayname(),
-                          style: TextStyle(
-                            fontSize: fs * 0.85,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        event.originServerTs.localizedTimeShort(context),
-                        style: TextStyle(
-                          fontSize: fs * 0.7,
-                          color: scheme.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    event.body.isNotEmpty
-                        ? event.body
-                        : '(image or file)',
-                    style: TextStyle(
-                      fontSize: fs * 0.8,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              LucideIcons.chevronRight,
-              size: 16,
-              color: scheme.onSurface.withValues(alpha: 0.3),
-            ),
-          ],
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      leading: CircleAvatar(
+        radius: 14,
+        backgroundImage: event.senderFromMemoryOrFallback.avatarUrl != null
+            ? NetworkImage(
+                event.senderFromMemoryOrFallback.avatarUrl.toString(),
+              )
+            : null,
+        child: event.senderFromMemoryOrFallback.avatarUrl == null
+            ? Icon(Icons.person, size: 14, color: scheme.onSurfaceVariant)
+            : null,
+      ),
+      title: Text(
+        event.senderFromMemoryOrFallback.calcDisplayname(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: fs * 0.85,
+          fontWeight: FontWeight.w500,
         ),
       ),
-    );
-  }
-
-  void _openThread(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ThreadViewPage(
-          room: room,
-          threadRootEventId: event.eventId,
+      subtitle: Text(
+        event.body.isNotEmpty ? event.body : event.type,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: fs * 0.75,
+          color: scheme.onSurfaceVariant,
         ),
       ),
+      trailing: Text(
+        event.originServerTs.localizedTimeShort(context),
+        style: TextStyle(
+          fontSize: fs * 0.65,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ThreadViewPage(
+              room: room,
+              threadRootEventId: event.eventId,
+            ),
+          ),
+        );
+      },
     );
   }
 }

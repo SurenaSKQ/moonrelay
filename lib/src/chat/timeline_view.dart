@@ -51,6 +51,7 @@ class TimelineView extends StatefulWidget {
     this.timelineVersion,
     this.onReply,
     this.showStateEvents = true,
+    this.filterEvents,
   });
 
   final Timeline timeline;
@@ -68,6 +69,11 @@ class TimelineView extends StatefulWidget {
   /// Whether to render state events (join/leave/room metadata changes).
   /// When false, state events are hidden from the timeline.
   final bool showStateEvents;
+
+  /// When non-null, overrides the default visibility filter.  The function
+  /// receives each event and should return `true` to make it visible.
+  /// When null, [ThreadUtils.isVisibleInMainTimeline] is used.
+  final bool Function(Event)? filterEvents;
 
   @override
   State<TimelineView> createState() => _TimelineViewState();
@@ -89,8 +95,10 @@ class _TimelineViewState extends State<TimelineView> {
   /// all other related events (reactions, edits, thread replies) are hidden.
   List<int> _visibleIndices() {
     final indices = List<int>.generate(widget.timeline.events.length, (i) => i);
+    final filter = widget.filterEvents;
     indices.removeWhere((i) {
       final event = widget.timeline.events[i];
+      if (filter != null) return !filter(event);
       return !ThreadUtils.isVisibleInMainTimeline(event);
     });
     return indices;
