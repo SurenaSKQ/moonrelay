@@ -17,6 +17,7 @@
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
+import 'package:moonrelay/src/widgets/deep_link_listener.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -76,6 +77,6 @@ class MoonrelayApp extends StatelessWidget {
       app = ChangeNotifierProvider<EncryptionService>.value(value: enc, child: app);
     }
 
-    return app;
+    return DeepLinkListener(child: app);
   }
 }

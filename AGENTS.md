@@ -43,10 +43,16 @@ lib/
       events/matrix_events/   # Message type renderers (text, image, audio, file, video)
       events/matrix_events/Message/   # Modern, Bubble, IRC display styles
       events/matrix_events/State/     # State event renderers, verification events
+      events/
+        matrix_url_banner.dart           # Banner for matrix:// / matrix.to URLs in messages
+        matrix_url_banner_wrapper.dart   # Scans message body & appends banners
     widgets/                  # Reusable UI components
       encryption/             # Incoming verification listener, trust indicators
+      deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
     helpers/                  # Data-free utility classes & shared state
+      matrix_uri_parser.dart  # Parses matrix: and matrix.to URIs
     services/                 # SSO callback server (only service)
+      deep_link_service.dart  # Handles incoming matrix:// URLs via method channel
     layouts/                  # Frame and dashboard layout widgets
     settings/                 # Controller, service, theme, display/layout enums
     encryption/               # EncryptionService (cross-signing, key backup, devices)
@@ -55,6 +61,7 @@ lib/
     matrix/                   # (empty — reserved for future use)
 test/
   unit/                       # Pure Dart tests (no Flutter dependency)
+    matrix_uri_parser_test.dart  # 25 tests for MatrixUriParser
   widget/                     # Flutter widget tests
   helpers/                    # Shared test utilities (mocks, wrapWithProviders)
 ```
@@ -75,9 +82,15 @@ main() → MoonrelayBootstrap → _boot()
      f. System theme + SettingsController load
      g. Window manager setup (custom titlebar on desktop)
      h. EncryptionService init
+     i. CurrentRoom init
+     j. NotificationService init
+     k. TrayService init (desktop only)
+     l. DeepLinkService init (method channel for matrix:// URLs)
+     m. AccountManager wiring
   3. MultiProvider wraps MoonrelayApp with:
      - Client, Logger, LogService (Provider)
-     - SettingsController, NavigationState, EncryptionService, CurrentRoom (ChangeNotifierProvider)
+     - SettingsController, NavigationState, EncryptionService, CurrentRoom, AccountManager (ChangeNotifierProvider)
+     - NotificationService, DeepLinkService (Provider)
 ```
 
 Key: `kDbSchemaVersion` constant controls DB wipe. Bump on every release during alpha.
@@ -226,6 +239,12 @@ testWidgets('description', (tester) async {
 11. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
 
 12. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
+
+13. **Matrix URL banners in chat**: `ModernMessageItem`, `BubbleMessageItem`, and `IRCMessageItem` wrap text content with `MatrixUrlBannerWrapper`, which scans the message body for `matrix:` and `matrix.to` URLs and appends `MatrixUrlBanner` widgets. The banner shows room/user info and a "Go to Room" / "Preview Room" / "Open Profile" button. Detection uses `MatrixUriParser.parseAll()`.
+
+14. **Deep link service**: `DeepLinkService` listens on a method channel (`moonrelay/deep_links`) for `openUri` calls and also checks command-line args for `matrix:` URIs on startup. The `DeepLinkListener` widget (inside the MaterialApp.router tree) registers the navigation callback. Platform registration files are in `windows/runner/register_matrix_protocol.reg` and `linux/runner/moonrelay.desktop`.
+
+15. **Windows protocol registration**: Run `windows/runner/register_matrix_protocol.reg` as Administrator to register `matrix://` URL handling. On Linux, run `xdg-desktop-menu install linux/runner/moonrelay.desktop && xdg-mime default moonrelay.desktop x-scheme-handler/matrix`.
 
 ## Edge Cases When Editing
 

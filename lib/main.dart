@@ -43,6 +43,7 @@ import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/services/tray_service.dart';
 import 'src/services/notification_service.dart';
+import 'src/services/deep_link_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/settings_service.dart';
 import 'src/splash_screen.dart';
@@ -82,6 +83,7 @@ class _AppState {
     required this.accountManager,
     required this.currentRoom,
     required this.notificationService,
+    required this.deepLinkService,
   });
 
   final Client sdk;
@@ -92,6 +94,7 @@ class _AppState {
   final AccountManager accountManager;
   final CurrentRoom currentRoom;
   final NotificationService? notificationService;
+  final DeepLinkService deepLinkService;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,7 +299,17 @@ Future<_AppState> _initialize({
     }
   }
 
-  // ── 10. Wire up AccountManager ──────────────────────────────
+  // ── 10. Deep link service ───────────────────────────────
+  onStatus('Setting up deep link handler…');
+  log.t('Initializing deep link service…');
+  final deepLinkService = DeepLinkService(log: log);
+  try {
+    await deepLinkService.init();
+  } catch (e) {
+    log.w('Deep link service init failed', error: e);
+  }
+
+  // ── 11. Wire up AccountManager ──────────────────────────────
   // If the active account's session was restored, associate it with
   // the AccountManager.  Also set the factory callbacks so the
   // AccountManager can create new Clients when switching accounts.
@@ -329,6 +342,7 @@ Future<_AppState> _initialize({
     accountManager: accountManager,
     currentRoom: currentRoom,
     notificationService: notificationService,
+    deepLinkService: deepLinkService,
   );
 }
 
@@ -467,6 +481,8 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           if (_appState!.notificationService != null)
             Provider<NotificationService>.value(
                 value: _appState!.notificationService!),
+          Provider<DeepLinkService>.value(
+              value: _appState!.deepLinkService),
         ],
         child: const MoonrelayApp(),
       );
