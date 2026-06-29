@@ -15,12 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/user_search_widget.dart';
 
 class FriendsChatsPane extends StatelessWidget {
   const FriendsChatsPane({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return const UserSearchWidget(embedded: true);
   }
 }

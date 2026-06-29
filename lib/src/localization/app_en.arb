@@ -421,6 +421,30 @@
   "searchMembers": "Search members…",
   "noMembersMatchSearch": "No members match your search",
   "noMembersFound": "No members found",
+  "searchUsers": "Search users…",
+  "@searchUsers": {
+    "description": "Placeholder text for the user search field."
+  },
+  "searchUsersHint": "Search for users by name or Matrix ID to start a direct chat.",
+  "@searchUsersHint": {
+    "description": "Hint shown when the user search field is empty."
+  },
+  "noUsersFound": "No users match your search",
+  "@noUsersFound": {
+    "description": "Message shown when the user search returns no results."
+  },
+  "searching": "Searching…",
+  "@searching": {
+    "description": "Message shown while searching the user directory."
+  },
+  "startDirectChat": "Start DM",
+  "@startDirectChat": {
+    "description": "Button label to start a direct chat with a user."
+  },
+  "directChatSearch": "Direct Messages",
+  "@directChatSearch": {
+    "description": "Tab title for finding users and starting direct chats."
+  },
   "couldNotStartChatTimeout": "Could not start chat: The server did not respond in time.",
   "couldNotStartChat": "Could not start chat: {error}",
   "@couldNotStartChat": {
