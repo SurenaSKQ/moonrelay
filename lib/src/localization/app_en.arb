@@ -1511,6 +1511,10 @@
   "@searchMessages": {
     "description": "Section header for message search results."
   },
+  "searchUsersResults": "Users",
+  "@searchUsersResults": {
+    "description": "Section header for user directory search results."
+  },
   "searchRooms": "Rooms",
   "@searchRooms": {
     "description": "Section header for room search results."

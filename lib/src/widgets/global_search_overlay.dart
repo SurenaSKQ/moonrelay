@@ -61,6 +61,10 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
   List<PublishedRoomsChunk> _homeserverResults = [];
   bool _isSearchingHomeserver = false;
 
+  // User directory search
+  List<Profile> _userResults = [];
+  bool _isSearchingUsers = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,8 +99,10 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
         _matchedSpaces = [];
         _messageResults = [];
         _homeserverResults = [];
+        _userResults = [];
         _isSearchingMessages = false;
         _isSearchingHomeserver = false;
+        _isSearchingUsers = false;
       });
       return;
     }
@@ -104,6 +110,7 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
     _searchLocalRooms();
     _searchMessages();
     _searchHomeserver();
+    _searchUsers();
   }
 
   // ── Local room/space search ───────────────────────────────────────
@@ -210,6 +217,32 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
     }
   }
 
+  // ── User directory search ─────────────────────────────────────────
+
+  Future<void> _searchUsers() async {
+    if (_query.isEmpty) return;
+
+    setState(() => _isSearchingUsers = true);
+
+    try {
+      final client = context.read<Client>();
+      final response = await client.searchUserDirectory(
+        _query,
+        limit: 10,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _userResults = response.results;
+        _isSearchingUsers = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSearchingUsers = false);
+    }
+  }
+
   // ── Navigation ────────────────────────────────────────────────────
 
   void _openRoom(Room room) {
@@ -226,6 +259,12 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
   void _openMessageEvent(_MessageSearchResult msg) {
     context.pop();
     context.go('/main/rooms/${msg.room.id}');
+  }
+
+  /// Opens the profile or starts a DM for [user].
+  void _openUser(Profile user) {
+    context.pop();
+    context.push('/main/myprofile?user=${user.userId}');
   }
 
   // ── Build ─────────────────────────────────────────────────────────
@@ -345,10 +384,11 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
     final hasLocalResults =
         _matchedRooms.isNotEmpty || _matchedSpaces.isNotEmpty;
     final hasMessageResults = _messageResults.isNotEmpty;
+    final hasUserResults = _userResults.isNotEmpty;
     final hasHomeserverResults = _homeserverResults.isNotEmpty;
-    final hasAny = hasLocalResults || hasMessageResults || hasHomeserverResults;
+    final hasAny = hasLocalResults || hasMessageResults || hasUserResults || hasHomeserverResults;
 
-    if (!hasAny && !_isSearchingMessages && !_isSearchingHomeserver) {
+    if (!hasAny && !_isSearchingMessages && !_isSearchingHomeserver && !_isSearchingUsers) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -400,6 +440,20 @@ class _GlobalSearchOverlayState extends State<GlobalSearchOverlay> {
           ..._messageResults.map((msg) => _MessageSearchTile(
                 result: msg,
                 onTap: () => _openMessageEvent(msg),
+              )),
+        ],
+
+        // ── Users section ────────────────────────────────────────
+        if (_isSearchingUsers)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_userResults.isNotEmpty) ...[
+          _SectionHeader(icon: LucideIcons.users, title: l10n.searchUsersResults),
+          ..._userResults.map((user) => _UserSearchTile(
+                user: user,
+                onTap: () => _openUser(user),
               )),
         ],
 
@@ -629,6 +683,59 @@ class _HomeserverRoomTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      dense: true,
+      onTap: onTap,
+    );
+  }
+}
+
+// ─── User search tile ─────────────────────────────────────────────────────────
+
+class _UserSearchTile extends StatelessWidget {
+  final Profile user;
+  final VoidCallback onTap;
+  const _UserSearchTile({required this.user, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final displayName = user.displayName ?? user.userId;
+
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 16,
+        backgroundColor: scheme.primaryContainer,
+        backgroundImage: user.avatarUrl != null
+            ? NetworkImage(user.avatarUrl.toString())
+            : null,
+        child: user.avatarUrl == null
+            ? Icon(
+                LucideIcons.user,
+                size: 16,
+                color: scheme.onPrimaryContainer,
+              )
+            : null,
+      ),
+      title: Text(
+        displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text(
+        user.userId,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Icon(
+        LucideIcons.externalLink,
+        size: 14,
+        color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
       ),
       dense: true,
       onTap: onTap,
