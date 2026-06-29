@@ -46,7 +46,12 @@ class NotificationService {
   final Set<String> _notifiedEventIds = {};
   Set<String> _mutedRooms = {};
   final Map<String, String> _lastNotifiedEventIds = {};
+  final Map<String, int> _groupNotifiedCounts = {};
   bool _loadedMuted = false;
+
+  /// Fixed notification ID for group chat summaries so each new summary
+  /// replaces the previous one rather than stacking.
+  static const int _groupSummaryNotificationId = 0x47727570; // 'Group' crc-ish
 
   NotificationService._(
     this._client,
@@ -66,6 +71,7 @@ class NotificationService {
     await service._initPlugin();
     await service.loadMutedRooms();
     await service._loadLastEventIds();
+    await service._loadGroupNotifiedCounts();
     service._startListening();
     log.i('Notification service initialised');
     return service;
@@ -130,32 +136,73 @@ class NotificationService {
     if (!_settings.notificationsEnabled) return;
 
     bool changed = false;
+    bool groupChanged = false;
+
+    // Group summary accumulators.
+    int totalGroupUnread = 0;
+    int groupRoomCount = 0;
+    String? singleGroupName;
 
     for (final room in _client.rooms) {
       if (room.membership != Membership.join) continue;
       if (_mutedRooms.contains(room.id)) continue;
 
-      final event = room.lastEvent;
-      if (event == null) continue;
+      if (room.isDirectChat) {
+        // ── Direct message: per-message notification ──
+        final event = room.lastEvent;
+        if (event == null) continue;
 
-      final lastSeenId = _lastNotifiedEventIds[room.id];
-      if (event.eventId == lastSeenId) continue;
+        final lastSeenId = _lastNotifiedEventIds[room.id];
+        if (event.eventId == lastSeenId) continue;
 
-      // Persist the new event id immediately so a restart or crash
-      // during the notification call won't re-notify for this event.
-      _lastNotifiedEventIds[room.id] = event.eventId;
-      changed = true;
+        // Persist the new event id immediately so a restart or crash
+        // during the notification call won't re-notify for this event.
+        _lastNotifiedEventIds[room.id] = event.eventId;
+        changed = true;
 
-      // First time seeing this room (fresh install or newly joined).
-      // Record the baseline event id without notifying so we don't
-      // spam notifications for pre-existing messages.
-      if (lastSeenId == null) continue;
+        // First time seeing this room (fresh install or newly joined).
+        // Record the baseline event id without notifying so we don't
+        // spam notifications for pre-existing messages.
+        if (lastSeenId == null) continue;
 
-      _processEvent(room, event);
+        _processEvent(room, event);
+      } else {
+        // ── Group chat: accumulate for summary notification ──
+        final currentCount = room.notificationCount;
+        final lastCount = _groupNotifiedCounts[room.id];
+
+        if (currentCount == lastCount) continue;
+
+        _groupNotifiedCounts[room.id] = currentCount;
+        groupChanged = true;
+
+        // First time seeing this room — record the baseline count
+        // without notifying so we don't spam for pre-existing messages.
+        if (lastCount == null) continue;
+
+        final delta = currentCount - lastCount;
+        if (delta <= 0) continue; // count decreased (user read messages)
+
+        final roomName = room.getLocalizedDisplayname();
+        totalGroupUnread += delta;
+        groupRoomCount++;
+        singleGroupName = roomName; // last room with new messages wins for single-room case
+      }
     }
 
     if (changed) {
       _persistLastEventIds();
+    }
+    if (groupChanged) {
+      _persistGroupNotifiedCounts();
+    }
+
+    if (groupRoomCount > 0) {
+      _sendGroupSummary(
+        roomCount: groupRoomCount,
+        totalUnread: totalGroupUnread,
+        singleGroupName: groupRoomCount == 1 ? singleGroupName : null,
+      );
     }
   }
 
@@ -180,6 +227,29 @@ class NotificationService {
       roomName,
       '$senderName: $body',
     );
+  }
+
+  /// Send a summary notification for group chat unread messages.
+  ///
+  /// For a single group: body shows the room name and count.
+  /// For multiple groups: body shows the total unread and number of chats.
+  void _sendGroupSummary({
+    required int roomCount,
+    required int totalUnread,
+    String? singleGroupName,
+  }) {
+    final String title;
+    final String body;
+
+    if (singleGroupName != null) {
+      title = singleGroupName;
+      body = 'You have $totalUnread unread ${totalUnread == 1 ? 'message' : 'messages'} in $singleGroupName';
+    } else {
+      title = 'Moonrelay';
+      body = 'You have $totalUnread unread ${totalUnread == 1 ? 'message' : 'messages'} in $roomCount ${roomCount == 1 ? 'chat' : 'chats'}';
+    }
+
+    _showNotification(_groupSummaryNotificationId.toString(), title, body);
   }
 
   Future<void> _showNotification(String eventId, String title, String body) async {
@@ -242,6 +312,39 @@ class NotificationService {
       ),
     );
     _log.d('showTestNotification: completed without error');
+  }
+
+  // ── Persisted group notified counts ────
+
+  Future<void> _loadGroupNotifiedCounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList('notification_group_counts');
+      if (raw != null) {
+        for (final entry in raw) {
+          final bar = entry.indexOf('|');
+          if (bar == -1) continue;
+          final count = int.tryParse(entry.substring(bar + 1));
+          if (count == null) continue;
+          _groupNotifiedCounts[entry.substring(0, bar)] = count;
+        }
+      }
+      _log.d('Loaded ${_groupNotifiedCounts.length} group notified counts');
+    } catch (e) {
+      _log.w('Failed to load group notified counts', error: e);
+    }
+  }
+
+  Future<void> _persistGroupNotifiedCounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final serialized = _groupNotifiedCounts.entries
+          .map((e) => '${e.key}|${e.value}')
+          .toList();
+      await prefs.setStringList('notification_group_counts', serialized);
+    } catch (e) {
+      _log.w('Failed to persist group notified counts', error: e);
+    }
   }
 
   // ── Persisted last-notified event IDs ──
