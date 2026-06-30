@@ -27,6 +27,7 @@ import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
+import 'package:moonrelay/src/screens/room_settings_page.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
@@ -178,16 +179,9 @@ class MoonRouter {
                         ),
                       ),
                       routes: [
-                        GoRoute(
-                          path: ':userid',
-                          pageBuilder: (context, state) => genericPageBuilder(
-                            context,
-                            state,
-                            ProfileDelegate(
-                              userid: state.pathParameters['userid'],
-                            ),
-                          ),
-                        ),
+                        // IMPORTANT: literal paths must come before
+                        // parameterized ones so GoRouter matches them
+                        // first (e.g. "roomDetails" must precede :userid).
                         GoRoute(
                           path: 'roomDetails',
                           pageBuilder: (context, state) {
@@ -201,6 +195,28 @@ class MoonRouter {
                               ),
                             );
                           },
+                        ),
+                        GoRoute(
+                          path: ':userid',
+                          redirect: (context, state) {
+                            final userid = state.pathParameters['userid'];
+                            if (userid == null) return null;
+                            try {
+                              final client =
+                                  Provider.of<Client>(context, listen: false);
+                              if (userid == client.userID) {
+                                return '/main/myprofile';
+                              }
+                            } catch (_) {}
+                            return null;
+                          },
+                          pageBuilder: (context, state) => genericPageBuilder(
+                            context,
+                            state,
+                            ProfileDelegate(
+                              userid: state.pathParameters['userid'],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -219,6 +235,19 @@ class MoonRouter {
                             room: room,
                             threadRootEventId: threadRootId,
                           ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'settings',
+                      pageBuilder: (context, state) {
+                        final roomId = state.pathParameters['roomid']!;
+                        final client = Provider.of<Client>(context);
+                        final room = client.getRoomById(roomId)!;
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          RoomSettingsPage(room: room),
                         );
                       },
                     ),

@@ -14,14 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
@@ -96,46 +93,6 @@ class _RoomInformationsState extends State<RoomInformations> {
     return AppLocalizations.of(context)!.unknownDate;
   }
 
-  void _leaveRoom() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.leaveRoomTitle),
-        content: Text(
-          AppLocalizations.of(context)!
-              .leaveRoomConfirm(widget.room.getLocalizedDisplayname()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(AppLocalizations.of(context)!.leave),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      try {
-        await widget.room.leave();
-        if (mounted) context.go('/main/rooms');
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)!.failedToLeaveRoom('$e'))),
-          );
-        }
-      }
-    }
-  }
-
   void _copyRoomId() {
     Clipboard.setData(ClipboardData(text: widget.room.id));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -150,295 +107,9 @@ class _RoomInformationsState extends State<RoomInformations> {
   // Room editing helpers
   // ---------------------------------------------------------------------------
 
-  /// Whether the current user can change the [eventType] state event.
-  bool _canChange(String eventType) =>
-      widget.room.canChangeStateEvent(eventType);
-
-  /// Shows a dialog to edit the room name, then calls [room.setName].
-  Future<void> _editRoomName() async {
-    final room = widget.room;
-    final l10n = AppLocalizations.of(context)!;
-    final controller =
-        TextEditingController(text: room.getLocalizedDisplayname());
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.editRoomName),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.editRoomNameHint,
-          ),
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final newName = controller.text.trim();
-    if (newName.isEmpty || newName == room.getLocalizedDisplayname()) return;
-
-    try {
-      await room.setName(newName);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.roomNameUpdated),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  /// Shows a dialog to edit the room topic, then calls [room.setDescription].
-  Future<void> _editRoomTopic() async {
-    final room = widget.room;
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController(text: room.topic);
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.editRoomTopic),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: l10n.editRoomTopicHint,
-          ),
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final newTopic = controller.text.trim();
-    if (newTopic == room.topic) return;
-
-    try {
-      await room.setDescription(newTopic);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.roomTopicUpdated),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  /// Opens a file picker for images and uploads a new room avatar.
-  Future<void> _changeRoomAvatar() async {
-    final room = widget.room;
-    final l10n = AppLocalizations.of(context)!;
-
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
-
-    try {
-      await room.setAvatar(MatrixFile(bytes: bytes, name: file.name));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.roomAvatarUpdated),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Room deletion / forgetting
   // ---------------------------------------------------------------------------
-
-  /// Whether the current user has admin power (can change power levels).
-  bool get _isAdmin => widget.room.canChangeStateEvent('m.room.power_levels');
-
-  /// Permanently delete the room via the server admin API, then leave it.
-  Future<void> _deleteRoom() async {
-    final room = widget.room;
-    final l10n = AppLocalizations.of(context)!;
-
-    if (!_isAdmin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteRoomAdminOnly),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteRoom),
-        content: Text(l10n.deleteRoomConfirm(
-          room.getLocalizedDisplayname(),
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final log = context.read<Logger>();
-    final client = context.read<Client>();
-
-    try {
-      // Attempt to delete via the Synapse admin API.
-      // The endpoint may not exist on all homeserver implementations.
-      final serverUrl = client.homeserver.toString();
-      final url = serverUrl.endsWith('/')
-          ? '${serverUrl}_synapse/admin/v2/rooms/${room.id}/delete'
-          : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
-
-      await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'deleteRoom',
-      );
-
-      // Leave the room locally in case the server doesn't support deletion.
-      await room.leave();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteRoomSuccess),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.go('/main/rooms');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteRoomFailed('$e')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  /// Forget the room (remove it from the local account).
-  Future<void> _forgetRoom() async {
-    final room = widget.room;
-    final l10n = AppLocalizations.of(context)!;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.forgetRoom),
-        content: Text(l10n.forgetRoomConfirm(
-          room.getLocalizedDisplayname(),
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.forgetRoom),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      await room.leave();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.forgetRoomSuccess),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.go('/main/rooms');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.forgetRoomFailed('$e')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Build
@@ -496,11 +167,10 @@ class _RoomInformationsState extends State<RoomInformations> {
           _SectionHeader(title: l10n.actionsSection, scheme: scheme),
           const SizedBox(height: 8),
           _ActionTile(
-            icon: LucideIcons.logOut,
-            label: l10n.leaveRoom,
-            description: l10n.leaveRoomDescription,
-            color: scheme.error,
-            onTap: _leaveRoom,
+            icon: LucideIcons.settings,
+            label: l10n.roomSettings,
+            description: l10n.roomSettingsDescription,
+            onTap: () => context.push('/main/rooms/${room.id}/settings'),
             scheme: scheme,
           ),
           _ActionTile(
@@ -511,46 +181,6 @@ class _RoomInformationsState extends State<RoomInformations> {
             scheme: scheme,
           ),
 
-          // ── Room editing (permission-gated) ──────────────────────────
-          if (_canChange('m.room.name') ||
-              _canChange('m.room.topic') ||
-              _canChange('m.room.avatar'))
-            ..._buildEditingActions(scheme, l10n, room),
-          const SizedBox(height: 16),
-
-          // ── Notification settings ────────────────────────────────────
-          _SectionHeader(title: l10n.notificationSettings, scheme: scheme),
-          const SizedBox(height: 8),
-          _RoomNotificationTile(room: room),
-          const SizedBox(height: 16),
-
-          // ── Danger zone (admin-only destructive actions) ──────────────
-          if (_isAdmin || room.membership == Membership.leave)
-            _SectionHeader(
-              title: l10n.actionsDeleteSection,
-              scheme: scheme,
-            ),
-          if (_isAdmin) ...[
-            const SizedBox(height: 8),
-            _ActionTile(
-              icon: LucideIcons.trash2,
-              label: l10n.deleteRoom,
-              description: l10n.deleteRoomDescription,
-              color: scheme.error,
-              onTap: _deleteRoom,
-              scheme: scheme,
-            ),
-          ],
-          if (room.membership == Membership.leave) ...[
-            const SizedBox(height: 8),
-            _ActionTile(
-              icon: LucideIcons.eyeOff,
-              label: l10n.forgetRoom,
-              description: l10n.forgetRoomDescription,
-              onTap: _forgetRoom,
-              scheme: scheme,
-            ),
-          ],
           const SizedBox(height: 16),
 
           // ── Room details ─────────────────────────────────────────────
@@ -615,47 +245,6 @@ class _RoomInformationsState extends State<RoomInformations> {
         ],
       ),
     );
-  }
-
-  /// Builds permission-gated editing actions for room name, topic, and avatar.
-  List<Widget> _buildEditingActions(
-    ColorScheme scheme,
-    AppLocalizations l10n,
-    Room room,
-  ) {
-    final actions = <Widget>[];
-
-    if (_canChange('m.room.name')) {
-      actions.add(_ActionTile(
-        icon: LucideIcons.pencil,
-        label: l10n.editRoomName,
-        description: room.getLocalizedDisplayname(),
-        onTap: _editRoomName,
-        scheme: scheme,
-      ));
-    }
-
-    if (_canChange('m.room.topic')) {
-      actions.add(_ActionTile(
-        icon: LucideIcons.alignLeft,
-        label: l10n.editRoomTopic,
-        description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
-        onTap: _editRoomTopic,
-        scheme: scheme,
-      ));
-    }
-
-    if (_canChange('m.room.avatar')) {
-      actions.add(_ActionTile(
-        icon: LucideIcons.image,
-        label: l10n.changeRoomAvatar,
-        description: l10n.changeRoomAvatarDescription,
-        onTap: _changeRoomAvatar,
-        scheme: scheme,
-      ));
-    }
-
-    return actions;
   }
 
   Widget _buildSecuritySection(
@@ -916,10 +505,9 @@ class _ActionTile extends StatelessWidget {
     required this.icon,
     required this.label,
     this.description,
-    this.color,
     required this.onTap,
     required this.scheme,
-  });
+  }) : color = null;
 
   final IconData icon;
   final String label;
@@ -1312,7 +900,7 @@ class _ThreadRootTile extends StatelessWidget {
 ///
 /// On desktop this widget responds to right-click; on mobile a long press
 /// triggers the context menu.
-class _MemberTile extends StatelessWidget {
+class _MemberTile extends StatefulWidget {
   const _MemberTile({
     required this.member,
     required this.displayName,
@@ -1326,15 +914,38 @@ class _MemberTile extends StatelessWidget {
   final ColorScheme scheme;
 
   @override
+  State<_MemberTile> createState() => _MemberTileState();
+}
+
+class _MemberTileState extends State<_MemberTile> {
+  CachedPresence? _presence;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPresence();
+  }
+
+  Future<void> _fetchPresence() async {
+    try {
+      final presence = await widget.member.room.client
+          .fetchCurrentPresence(widget.member.id);
+      if (mounted) setState(() => _presence = presence);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final membershipLabel = switch (member.membership) {
+    final membershipLabel = switch (widget.member.membership) {
       Membership.ban => l10n.bannedBadge,
       Membership.invite => l10n.invitedBadge,
       Membership.join => null,
       Membership.knock => l10n.knockingBadge,
       Membership.leave => l10n.leftBadge,
     };
+
+    final lastSeenText = _buildLastSeenText(context);
 
     return GestureDetector(
       onLongPress: () => _showContextMenu(context),
@@ -1358,13 +969,13 @@ class _MemberTile extends StatelessWidget {
                   width: 40,
                   height: 40,
                   child: AvatarFromUriOrFallbackImage(
-                    client: member.room.client,
-                    avatarUri: member.avatarUrl,
+                    client: widget.member.room.client,
+                    avatarUri: widget.member.avatarUrl,
                   ),
                 ),
                 const SizedBox(width: 12),
 
-                // Name + ID
+                // Name + ID + last seen
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1373,7 +984,7 @@ class _MemberTile extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              displayName,
+                              widget.displayName,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -1382,7 +993,7 @@ class _MemberTile extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (permissionLabel != null) ...[
+                          if (widget.permissionLabel != null) ...[
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1390,15 +1001,15 @@ class _MemberTile extends StatelessWidget {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: scheme.primaryContainer
+                                color: widget.scheme.primaryContainer
                                     .withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                permissionLabel!,
+                                widget.permissionLabel!,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: scheme.onPrimaryContainer,
+                                  color: widget.scheme.onPrimaryContainer,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1407,14 +1018,28 @@ class _MemberTile extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        member.id,
+                        widget.member.id,
                         style: TextStyle(
                           fontSize: 12,
-                          color: scheme.onSurfaceVariant,
+                          color: widget.scheme.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (lastSeenText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            lastSeenText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: widget.scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -1427,14 +1052,15 @@ class _MemberTile extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: scheme.tertiaryContainer.withValues(alpha: 0.5),
+                      color: widget.scheme.tertiaryContainer
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       membershipLabel,
                       style: TextStyle(
                         fontSize: 11,
-                        color: scheme.onTertiaryContainer,
+                        color: widget.scheme.onTertiaryContainer,
                       ),
                     ),
                   ),
@@ -1494,9 +1120,9 @@ class _MemberTile extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ProfilePage(
-          client: member.room.client,
-          userID: member.id,
-          room: member.room,
+          client: widget.member.room.client,
+          userID: widget.member.id,
+          room: widget.member.room,
         ),
       ),
     );
@@ -1506,7 +1132,7 @@ class _MemberTile extends StatelessWidget {
     // Open a direct chat with this user, or navigate to an existing one.
     final goRouter = GoRouter.of(context);
     final navigator = Navigator.of(context);
-    member.startDirectChat().then((roomId) {
+    widget.member.startDirectChat().then((roomId) {
       // Pop this page first, then navigate via GoRouter.
       navigator.pop();
       goRouter.go('/main/rooms/$roomId');
@@ -1519,6 +1145,17 @@ class _MemberTile extends StatelessWidget {
         );
       }
     });
+  }
+
+  String? _buildLastSeenText(BuildContext context) {
+    final ts = _presence?.lastActiveTimestamp;
+    if (ts == null) return null;
+    final l10n = AppLocalizations.of(context)!;
+    final timeStr = ts.relativeTimeShort(context);
+    return switch (_presence!.presence) {
+      PresenceType.online => l10n.activeAgo(timeStr),
+      _ => l10n.lastSeenAgo(timeStr),
+    };
   }
 }
 

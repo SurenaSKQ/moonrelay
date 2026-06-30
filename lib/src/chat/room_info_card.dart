@@ -15,10 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -103,14 +103,9 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
     _openRoomInfo();
   }
 
-  /// Navigate to the full room information page.
+  /// Navigate to the room info page via go_router.
   void _openRoomInfo() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => RoomInformations(room: widget.room),
-      ),
-    );
+    context.push('/main/rooms/${widget.room.id}/profile/roomDetails');
   }
 
   @override
@@ -204,6 +199,19 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                   color: widget.isSearchActive
                       ? scheme.primary
                       : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+
+                // Settings gear — navigate to room settings
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.settings,
+                    size: 18,
+                  ),
+                  onPressed: () =>
+                      context.push('/main/rooms/${widget.room.id}/settings'),
+                  tooltip: AppLocalizations.of(context)!.roomSettings,
+                  visualDensity: VisualDensity.compact,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
 
                 // Chevron indicating tappable
