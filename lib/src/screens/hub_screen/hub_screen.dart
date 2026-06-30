@@ -37,6 +37,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/layout_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/network_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/background_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/blocked_users_page.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
@@ -127,6 +128,10 @@ class _HubScreenState extends State<HubScreen> {
           HubNavigationItem(
             label: l10n.notifications,
             icon: LucideIcons.bell,
+          ),
+          HubNavigationItem(
+            label: l10n.blockedUsers,
+            icon: LucideIcons.ban,
           ),
         ],
       ),
@@ -333,6 +338,8 @@ class _HubScreenState extends State<HubScreen> {
           return const HubBackgroundSettings();
         case 7:
           return const HubNotificationSettings();
+        case 8:
+          return const HubBlockedUsersPage();
         default:
           return const SizedBox.shrink();
       }
