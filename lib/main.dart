@@ -57,7 +57,7 @@ import 'src/splash_screen.dart';
 ///
 /// During heavy development this is bumped on every release to avoid
 /// subtle migration bugs.
-const int kDbSchemaVersion = 1;
+const int kDbSchemaVersion = 2;
 
 /// Whether the current platform is a desktop OS.
 bool get isDesktop {

@@ -3,21 +3,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 void main() {
   group('FriendsChatsPane', () {
-    testWidgets('renders Placeholder', (tester) async {
+    testWidgets('renders without error', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: const Scaffold(
             body: FriendsChatsPane(),
           ),
         ),
       );
 
-      expect(find.byType(Placeholder), findsOneWidget);
+      expect(find.byType(FriendsChatsPane), findsOneWidget);
     });
   });
 
