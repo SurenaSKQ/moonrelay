@@ -384,17 +384,18 @@ class NotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // ── Migration from old comma-separated format ──────────
-      final oldRaw = prefs.getString(_mutedRoomsKey);
-      if (oldRaw != null) {
-        _mutedRooms = oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
-        // Migrate to StringList format.
-        await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
-        await prefs.remove('${_mutedRoomsKey}_legacy');
+      // ── Current format (StringList) ────────────────────────
+      final raw = prefs.getStringList(_mutedRoomsKey);
+      if (raw != null) {
+        _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
       } else {
-        final raw = prefs.getStringList(_mutedRoomsKey);
-        if (raw != null) {
-          _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
+        // ── Migration from old comma-separated format ────────
+        final oldRaw = prefs.getString(_mutedRoomsKey);
+        if (oldRaw != null) {
+          _mutedRooms =
+              oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
+          await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
+          await prefs.remove('${_mutedRoomsKey}_legacy');
         }
       }
 
