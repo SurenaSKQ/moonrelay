@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
@@ -463,7 +464,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
 }
 
 /// A member tile used in the full list with context menu support.
-class _FullMemberTile extends StatelessWidget {
+class _FullMemberTile extends StatefulWidget {
   const _FullMemberTile({
     required this.member,
     required this.displayName,
@@ -477,9 +478,31 @@ class _FullMemberTile extends StatelessWidget {
   final ColorScheme scheme;
 
   @override
+  State<_FullMemberTile> createState() => _FullMemberTileState();
+}
+
+class _FullMemberTileState extends State<_FullMemberTile> {
+  CachedPresence? _presence;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPresence();
+  }
+
+  Future<void> _fetchPresence() async {
+    try {
+      final presence = await widget.member.room.client
+          .fetchCurrentPresence(widget.member.id);
+      if (mounted) setState(() => _presence = presence);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final membershipLabel = switch (member.membership) {
+    final lastSeenText = _buildLastSeenText(context);
+    final membershipLabel = switch (widget.member.membership) {
       Membership.ban => l10n.bannedBadge,
       Membership.invite => l10n.invitedBadge,
       Membership.join => null,
@@ -504,8 +527,8 @@ class _FullMemberTile extends StatelessWidget {
                   width: 40,
                   height: 40,
                   child: AvatarFromUriOrFallbackImage(
-                    client: member.room.client,
-                    avatarUri: member.avatarUrl,
+                    client: widget.member.room.client,
+                    avatarUri: widget.member.avatarUrl,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -519,7 +542,7 @@ class _FullMemberTile extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              displayName,
+                              widget.displayName,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -528,7 +551,7 @@ class _FullMemberTile extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (permissionLabel != null) ...[
+                          if (widget.permissionLabel != null) ...[
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -536,15 +559,15 @@ class _FullMemberTile extends StatelessWidget {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: scheme.primaryContainer
+                                color: widget.scheme.primaryContainer
                                     .withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                permissionLabel!,
+                                widget.permissionLabel!,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: scheme.onPrimaryContainer,
+                                  color: widget.scheme.onPrimaryContainer,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -554,14 +577,28 @@ class _FullMemberTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        member.id,
+                        widget.member.id,
                         style: TextStyle(
                           fontSize: 12,
-                          color: scheme.onSurfaceVariant,
+                          color: widget.scheme.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (lastSeenText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            lastSeenText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: widget.scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -574,14 +611,14 @@ class _FullMemberTile extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: scheme.tertiaryContainer.withValues(alpha: 0.5),
+                      color: widget.scheme.tertiaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       membershipLabel,
                       style: TextStyle(
                         fontSize: 11,
-                        color: scheme.onTertiaryContainer,
+                        color: widget.scheme.onTertiaryContainer,
                       ),
                     ),
                   ),
@@ -641,9 +678,9 @@ class _FullMemberTile extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ProfilePage(
-          client: member.room.client,
-          userID: member.id,
-          room: member.room,
+          client: widget.member.room.client,
+          userID: widget.member.id,
+          room: widget.member.room,
         ),
       ),
     );
@@ -655,7 +692,7 @@ class _FullMemberTile extends StatelessWidget {
     final navigator = Navigator.of(context);
 
     final result = await withRetry(
-      () => member.startDirectChat(),
+      () => widget.member.startDirectChat(),
       maxRetries: 1,
       timeout: kDefaultTimeout,
       log: log,
@@ -677,5 +714,16 @@ class _FullMemberTile extends StatelessWidget {
           ),
         );
     }
+  }
+
+  String? _buildLastSeenText(BuildContext context) {
+    final ts = _presence?.lastActiveTimestamp;
+    if (ts == null) return null;
+    final l10n = AppLocalizations.of(context)!;
+    final timeStr = ts.relativeTimeShort(context);
+    return switch (_presence!.presence) {
+      PresenceType.online => l10n.activeAgo(timeStr),
+      _ => l10n.lastSeenAgo(timeStr),
+    };
   }
 }
