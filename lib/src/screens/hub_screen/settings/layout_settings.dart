@@ -74,30 +74,6 @@ class HubLayoutSettings extends StatelessWidget {
                   ),
                   if (controller.leftSidebarVisible) ...[
                     ListTile(
-                      title: Text(l10n.content),
-                      subtitle: Text(
-                        localizedLeftPaneChoice(
-                            controller.leftPaneChoice, l10n),
-                      ),
-                      leading: const Icon(LucideIcons.layoutList),
-                      trailing: DropdownButton<LeftPaneChoice>(
-                        value: controller.leftPaneChoice,
-                        onChanged: (v) {
-                          if (v != null) {
-                            controller.setLeftPaneChoice(v);
-                          }
-                        },
-                        items: LeftPaneChoice.values
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(localizedLeftPaneChoice(c, l10n)),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                    ListTile(
                       title: Text(l10n.widthLabel),
                       subtitle: Text(
                         '${controller.leftSidebarWidth.round()} px',
