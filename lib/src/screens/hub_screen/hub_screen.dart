@@ -38,6 +38,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/network_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/background_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The main Hub screen — two-column layout
@@ -128,6 +129,11 @@ class _HubScreenState extends State<HubScreen> {
             icon: LucideIcons.bell,
           ),
         ],
+      ),
+      HubCategory(
+        label: l10n.about,
+        icon: LucideIcons.info,
+        isExpandable: false,
       ),
     ];
   }
@@ -302,6 +308,8 @@ class _HubScreenState extends State<HubScreen> {
             },
           ),
         );
+      case 3:
+        return HubAboutPage(client: widget.client);
       default:
         return Center(child: Text(l10n.selectCategory));
     }

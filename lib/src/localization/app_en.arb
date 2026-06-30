@@ -2,7 +2,7 @@
   "@@locale": "en",
   "@@author": "Surena Karimpour Ghannadi",
 
-  "appLicenseNotice": "This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not received the license alongside the program, please consult the Moonrelay website for more information.",
+  "appLicenseNotice": "This application is provided to you under the GNU Affero General Public License version 3.0 or higher. If you have not received the license alongside the program, please consult the Moonrelay repository for more information.",
   "@appLicenseNotice": {
     "description": "Inform the user of the license and how to obtain it."
   },
@@ -1606,5 +1606,34 @@
   "loadMore": "Load more",
   "@loadMore": {
     "description": "Button to load more search results."
+  },
+
+  "about": "About",
+  "@about": {
+    "description": "Hub navigation item for the About page."
+  },
+  "aboutRepository": "Repository",
+  "@aboutRepository": {
+    "description": "Title for the repository card on the About page."
+  },
+  "aboutRepositoryDescription": "The complete source code is available for inspection, audit, and contribution at the project repository:",
+  "@aboutRepositoryDescription": {
+    "description": "Description for the repository card on the About page."
+  },
+  "aboutSupport": "Moonrelay Support",
+  "@aboutSupport": {
+    "description": "Title for the support card on the About page."
+  },
+  "aboutSupportDescription": "Get help, report issues, and discuss the project with the community in our Matrix space.",
+  "@aboutSupportDescription": {
+    "description": "Description for the support card on the About page."
+  },
+  "aboutJoinSupportSpace": "Join Support Space",
+  "@aboutJoinSupportSpace": {
+    "description": "Button to navigate to the Moonrelay support Matrix space home."
+  },
+  "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
+  "@aboutJoinedSupportSpace": {
+    "description": "Snackbar confirmation after joining the support space."
   }
 }
