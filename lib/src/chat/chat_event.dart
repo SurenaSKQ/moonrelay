@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
+import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
@@ -188,7 +189,7 @@ class MessageEventHandler extends StatelessWidget {
             if (isReply) {
               return _buildReplyContent(replyId, fontSize);
             }
-            return FormattedTextWidget(event: event, baseFontSize: fontSize);
+            return _buildTextContent(fontSize);
           case MessageTypes.Image:
             return ImageMessageType(event: event);
           case MessageTypes.Audio:
@@ -229,6 +230,21 @@ class MessageEventHandler extends StatelessWidget {
     }
   }
 
+  /// Builds the content for a text/emote/notice event that is not a reply.
+  ///
+  /// Wraps the formatted text widget with [MatrixUrlBannerWrapper] so that
+  /// any Matrix URLs (room aliases, user IDs, permalinks) found in the body
+  /// render as interactive banners below the message.
+  Widget _buildTextContent(double fontSize) {
+    final textWidget = FormattedTextWidget(event: event, baseFontSize: fontSize);
+    if (room == null) return textWidget;
+    return MatrixUrlBannerWrapper(
+      textBody: event.body,
+      room: room!,
+      child: textWidget,
+    );
+  }
+
   /// Builds the content for a reply event: a reply preview header followed
   /// by the actual message body (with the `<mx-reply>` wrapper stripped).
   Widget _buildReplyContent(String replyId, double fontSize) {
@@ -250,7 +266,7 @@ class MessageEventHandler extends StatelessWidget {
       }
     }
 
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -267,6 +283,13 @@ class MessageEventHandler extends StatelessWidget {
           baseFontSize: fontSize,
         ),
       ],
+    );
+
+    if (room == null) return content;
+    return MatrixUrlBannerWrapper(
+      textBody: event.body,
+      room: room!,
+      child: content,
     );
   }
 }

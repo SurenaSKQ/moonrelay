@@ -196,7 +196,9 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
 
     switch (result) {
       case RetrySuccess():
-        context.pushReplacement('/main/rooms/$roomIdOrAlias');
+        context.pushReplacement(
+          '/main/rooms/${Uri.encodeComponent(roomIdOrAlias)}',
+        );
       case RetryFailed(:final error):
         setState(() {
           _joinError = error is TimeoutException

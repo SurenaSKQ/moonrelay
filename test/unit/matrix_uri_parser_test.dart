@@ -193,7 +193,116 @@ void main() {
       });
     });
 
-    // ── MatrixUriResult helpers ─────────────────────────────────
+    // ── Bare Matrix ID parsing ──────────────────────────────────
+    group('bare Matrix IDs', () {
+      test('parses @user:domain as user', () {
+        final result = MatrixUriParser.parse('@user:example.org');
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.user);
+        expect(result.entityId, '@user:example.org');
+      });
+
+      test('parses !room:domain as room', () {
+        final result = MatrixUriParser.parse('!roomid:example.org');
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.room);
+        expect(result.entityId, '!roomid:example.org');
+      });
+
+      test('parses #alias:domain as room alias', () {
+        final result = MatrixUriParser.parse('#alias:example.org');
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.roomAlias);
+        expect(result.entityId, '#alias:example.org');
+        expect(result.displayAlias, '#alias:example.org');
+      });
+
+      test('rejects bare ID without colon', () {
+        expect(MatrixUriParser.parse('@user'), isNull);
+        expect(MatrixUriParser.parse('!room'), isNull);
+        expect(MatrixUriParser.parse('#alias'), isNull);
+      });
+
+      test('rejects bare ID with only sigil before colon', () {
+        expect(MatrixUriParser.parse('@:domain'), isNull);
+        expect(MatrixUriParser.parse('!:domain'), isNull);
+        expect(MatrixUriParser.parse('#:domain'), isNull);
+      });
+
+      test('returns null for non-matrix text', () {
+        expect(MatrixUriParser.parse('hello'), isNull);
+        expect(MatrixUriParser.parse('email@example.com'), isNull);
+      });
+
+      test('strips trailing punctuation', () {
+        final result = MatrixUriParser.parse('@user:example.org!');
+        expect(result, isNotNull);
+        expect(result!.entityId, '@user:example.org');
+      });
+
+      test('strips multiple trailing punctuation chars', () {
+        final result = MatrixUriParser.parse('!room:example.org,.)');
+        expect(result, isNotNull);
+        expect(result!.entityId, '!room:example.org');
+      });
+    });
+
+    group('parseAll with bare IDs', () {
+      test('finds bare user ID in plain text', () {
+        final results = MatrixUriParser.parseAll(
+          'Contact @user:example.org for details',
+        );
+        expect(results, hasLength(1));
+        expect(results.first.entityType, MatrixUriEntity.user);
+        expect(results.first.entityId, '@user:example.org');
+      });
+
+      test('finds bare room ID in plain text', () {
+        final results = MatrixUriParser.parseAll(
+          'Join !room:example.org for discussion',
+        );
+        expect(results, hasLength(1));
+        expect(results.first.entityType, MatrixUriEntity.room);
+        expect(results.first.entityId, '!room:example.org');
+      });
+
+      test('finds bare alias in plain text', () {
+        final results = MatrixUriParser.parseAll(
+          'Come to #alias:example.org',
+        );
+        expect(results, hasLength(1));
+        expect(results.first.entityType, MatrixUriEntity.roomAlias);
+        expect(results.first.entityId, '#alias:example.org');
+      });
+
+      test('finds bare IDs alongside matrix URLs', () {
+        final results = MatrixUriParser.parseAll(
+          'See matrix:r/!a:org and contact @user:domain.org',
+        );
+        expect(results, hasLength(2));
+      });
+
+      test('finds bare IDs near brackets and quotes', () {
+        final results = MatrixUriParser.parseAll(
+          'text (@user:example.org) more "!room:example.org" end',
+        );
+        expect(results, hasLength(2));
+      });
+
+      test('does not match hashtags without domain', () {
+        final results = MatrixUriParser.parseAll(
+          'This is a #hashtag not a matrix alias',
+        );
+        expect(results, isEmpty);
+      });
+
+      test('does not match email addresses', () {
+        final results = MatrixUriParser.parseAll(
+          'Send email to user@example.com for info',
+        );
+        expect(results, isEmpty);
+      });
+    });
     group('MatrixUriResult', () {
       test('isRoom returns true for room entities', () {
         const roomResult = MatrixUriResult(

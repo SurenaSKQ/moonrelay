@@ -177,7 +177,7 @@ class MatrixUrlBanner extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               FilledButton.tonalIcon(
-                onPressed: () => _openRoom(context, isJoined),
+                onPressed: () => _openRoom(context, isJoined ? room : null),
                 icon: Icon(
                   isJoined ? LucideIcons.messageSquare : LucideIcons.eye,
                   size: 16,
@@ -223,11 +223,15 @@ class MatrixUrlBanner extends StatelessWidget {
   }
 
   /// Navigates to a joined room or opens the preview screen.
-  void _openRoom(BuildContext context, bool isJoined) {
-    if (isJoined) {
-      context.push('/main/rooms/${result.entityId}');
+  void _openRoom(BuildContext context, Room? room) {
+    if (room != null) {
+      // Navigate by resolved room ID (not alias) so RoomDelegate can
+      // find it via getRoomById().
+      context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
     } else {
-      context.push('/main/room_preview/${result.entityId}');
+      context.push(
+        '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+      );
     }
   }
 
@@ -235,7 +239,7 @@ class MatrixUrlBanner extends StatelessWidget {
   void _openUser(BuildContext context) {
     // Navigate using the user's Matrix ID as a profile target.
     // The RoomDelegate will handle the lookup.
-    context.push('/main/rooms/${result.entityId}');
+    context.push('/main/rooms/${Uri.encodeComponent(result.entityId)}');
   }
 
   /// Searches joined rooms by canonical alias to find a matching room.

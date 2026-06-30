@@ -74,10 +74,11 @@ class MatrixUriResult {
 class MatrixUriParser {
   MatrixUriParser._();
 
-  /// Combined pattern for detecting any matrix URL in text.
+  /// Combined pattern for detecting any matrix URL or bare Matrix ID in text.
   static final RegExp detectPattern = RegExp(
     r'(?:matrix:(?:\/\/)?(?:r|u|roomid)\/[^\s<>")()]+'
-    r'|https:\/\/matrix\.to\/#\/[^\s<>")()]+)',
+    r'|https:\/\/matrix\.to\/#\/[^\s<>")()]+'
+    r'|(?<![a-zA-Z0-9])([@!#][^\s<>")()]+:[^\s<>")()]+))',
     caseSensitive: false,
   );
 
@@ -110,6 +111,10 @@ class MatrixUriParser {
     }
     if (lower.startsWith('https://matrix.to/')) {
       return _parseMatrixTo(uri);
+    }
+    final firstChar = uri.isNotEmpty ? uri[0] : '';
+    if (firstChar == '@' || firstChar == '!' || firstChar == '#') {
+      return _parseBareId(uri);
     }
     return null;
   }
@@ -209,6 +214,49 @@ class MatrixUriParser {
       entityType: entityType,
       entityId: fragment,
       viaServers: viaServers,
+      displayAlias: displayAlias,
+    );
+  }
+
+  /// Parses a bare Matrix identifier (room ID, user ID, or room alias)
+  /// found as plain text (not inside a matrix:// or matrix.to URL).
+  ///
+  /// Supported formats:
+  /// - `!roomid:domain` — room ID
+  /// - `@user:domain` — user ID
+  /// - `#alias:domain` — room alias
+  static MatrixUriResult? _parseBareId(String id) {
+    // Strip common trailing punctuation that might be adjacent in text.
+    id = id.replaceAll(RegExp(r'[.,;!?)\]}]+$'), '');
+
+    if (id.length < 4) return null;
+
+    final firstChar = id[0];
+    late final MatrixUriEntity entityType;
+    String? displayAlias;
+
+    switch (firstChar) {
+      case '@':
+        entityType = MatrixUriEntity.user;
+        break;
+      case '!':
+        entityType = MatrixUriEntity.room;
+        break;
+      case '#':
+        entityType = MatrixUriEntity.roomAlias;
+        displayAlias = id;
+        break;
+      default:
+        return null;
+    }
+
+    // Must contain a colon with content on both sides.
+    final colonIdx = id.indexOf(':');
+    if (colonIdx < 2 || colonIdx >= id.length - 1) return null;
+
+    return MatrixUriResult(
+      entityType: entityType,
+      entityId: id,
       displayAlias: displayAlias,
     );
   }
