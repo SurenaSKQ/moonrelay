@@ -154,8 +154,9 @@ class _TimelineViewState extends State<TimelineView> {
     return indices;
   }
 
-  /// True when [event] is a state event (not a regular message).
-  bool _isStateEvent(Event event) => event.type != EventTypes.Message;
+  /// True when [event] is a state event (not a regular message or sticker).
+  bool _isStateEvent(Event event) =>
+      event.type != EventTypes.Message && event.type != EventTypes.Sticker;
 
   /// True when [newer] and [older] belong to the same sender and fall within
   /// the same ~10‑minute environment, i.e. they should share a visual group.

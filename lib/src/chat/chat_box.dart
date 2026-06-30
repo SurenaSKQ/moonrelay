@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/chat_box_sticker_picker.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -358,7 +359,17 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
+
+                // Sticker button
+                _IconButton(
+                  icon: Icons.emoji_emotions_outlined,
+                  tooltip: l10n.chatBoxSticker,
+                  onPressed: () => showStickerPicker(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                const SizedBox(width: 2),
 
                 // Text field
                 Expanded(

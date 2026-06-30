@@ -18,6 +18,7 @@ import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/sticker/sticker_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_notice_event.dart';
@@ -196,6 +197,8 @@ class MessageEventHandler extends StatelessWidget {
             return VideoMessageType(event: event);
           case MessageTypes.File:
             return FileAttachedMessage(event: event);
+          case MessageTypes.Sticker:
+            return StickerMessageType(event: event);
           default:
             return UnsupportedEventType(event: event);
         }
@@ -210,6 +213,8 @@ class MessageEventHandler extends StatelessWidget {
       case 'm.room.power_levels':
       case 'm.room.tombstone':
         return StateEvents(event: event);
+      case EventTypes.Sticker:
+        return StickerMessageType(event: event);
       default:
         // Fallback: check if the event type itself looks like a
         // verification event (some legacy servers may send them as
