@@ -348,6 +348,8 @@ class _RightSidebarWithSwitcher extends StatelessWidget {
               _SidebarMembersList(key: ValueKey(room.id), room: room),
             RightPaneChoice.threads =>
               SidebarThreadList(key: ValueKey(room.id), room: room),
+            RightPaneChoice.pinned =>
+              _SidebarPinnedMessages(key: ValueKey(room.id), room: room),
           },
         ),
       ],
@@ -382,6 +384,7 @@ class _RightSidebarHeader extends StatelessWidget {
               RightPaneChoice.roomInfo => LucideIcons.info,
               RightPaneChoice.members => LucideIcons.users,
               RightPaneChoice.threads => LucideIcons.messageSquare,
+              RightPaneChoice.pinned => Icons.push_pin_outlined,
               RightPaneChoice.none => LucideIcons.panelRight,
             },
             size: 16,
@@ -412,6 +415,10 @@ class _RightSidebarHeader extends StatelessWidget {
                   DropdownMenuItem(
                     value: RightPaneChoice.threads,
                     child: Text('Threads'),
+                  ),
+                  DropdownMenuItem(
+                    value: RightPaneChoice.pinned,
+                    child: Text('Pinned'),
                   ),
                   DropdownMenuItem(
                     value: RightPaneChoice.none,
@@ -542,6 +549,11 @@ class _SidebarRoomInfo extends StatelessWidget {
             color: room.encrypted ? scheme.primary : scheme.error,
             scheme: scheme,
           ),
+
+          const SizedBox(height: 24),
+
+          // ── Pinned messages section ─────────────────────────────────
+          _PinnedSection(room: room),
         ],
       ),
     );
@@ -1257,6 +1269,483 @@ class _SidebarPane extends StatelessWidget {
             bottomBar!,
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ─── Pinned messages section (embedded in room info) ─────────────────────────
+
+/// A compact pinned-messages section rendered inside the room-info sidebar.
+///
+/// Shows a header with pin count and a list of pinned message previews.
+/// Tapping a preview filters the timeline to show only pinned messages.
+class _PinnedSection extends StatefulWidget {
+  const _PinnedSection({required this.room});
+
+  final Room room;
+
+  @override
+  State<_PinnedSection> createState() => _PinnedSectionState();
+}
+
+class _PinnedSectionState extends State<_PinnedSection> {
+  Map<String, Event> _pinnedEvents = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinnedEvents();
+  }
+
+  @override
+  void didUpdateWidget(_PinnedSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      _loadPinnedEvents();
+    }
+  }
+
+  Future<void> _loadPinnedEvents() async {
+    final r = widget.room;
+    final state = r.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    // Try to look up events from the timeline.
+    final Map<String, Event> result = {};
+    try {
+      final timeline = await r.getTimeline();
+      for (final id in pinnedIds) {
+        final event = timeline.events.where((e) => e.eventId == id).firstOrNull;
+        if (event != null) result[id] = event;
+      }
+    } catch (_) {
+      // Timeline not available — show just IDs.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pinnedEvents = result;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final currentRoom = context.watch<CurrentRoom>();
+
+    final state = widget.room.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+    final count = pinnedIds.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Section header ─────────────────────────────────────────
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            if (count > 0) {
+              final settings = context.read<SettingsController>();
+              settings.setRightPaneChoice(RightPaneChoice.pinned);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 16,
+                  color:
+                      currentRoom.pinnedFilterActive
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.pinnedMessages,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        if (count == 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              l10n.noPinnedMessages,
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          )
+        else if (_loading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: LinearProgressIndicator(
+              color: scheme.primary,
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
+          )
+        else
+          ...pinnedIds.take(3).map((eventId) {
+            return _PinnedPreview(
+              room: widget.room,
+              eventId: eventId,
+              event: _pinnedEvents[eventId],
+              scheme: scheme,
+              l10n: l10n,
+            );
+          }),
+        if (count > 3) ...[
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () {
+              final settings = context.read<SettingsController>();
+              settings.setRightPaneChoice(RightPaneChoice.pinned);
+            },
+            child: Text(
+              l10n.pinnedMessagesCount(count),
+              style: TextStyle(fontSize: 12, color: scheme.primary),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A one-line preview of a pinned event used inside the room-info sidebar.
+class _PinnedPreview extends StatelessWidget {
+  const _PinnedPreview({
+    required this.room,
+    required this.eventId,
+    this.event,
+    required this.scheme,
+    required this.l10n,
+  });
+
+  final Room room;
+  final String eventId;
+  final Event? event;
+  final ColorScheme scheme;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final senderName =
+        event?.senderFromMemoryOrFallback.calcDisplayname() ?? '…';
+    final body = event?.body.isNotEmpty == true
+        ? event!.body.replaceAll('\n', ' ')
+        : '…';
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () {
+        context.read<CurrentRoom>().togglePinnedFilter();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.push_pin_outlined,
+              size: 12,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    senderName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pinned messages sidebar (full pane) ─────────────────────────────────────
+
+/// Full sidebar pane that lists all pinned messages for the room.
+class _SidebarPinnedMessages extends StatefulWidget {
+  const _SidebarPinnedMessages({super.key, required this.room});
+
+  final Room room;
+
+  @override
+  State<_SidebarPinnedMessages> createState() => _SidebarPinnedMessagesState();
+}
+
+class _SidebarPinnedMessagesState extends State<_SidebarPinnedMessages> {
+  Map<String, Event> _pinnedEvents = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinnedEvents();
+  }
+
+  @override
+  void didUpdateWidget(_SidebarPinnedMessages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      _loadPinnedEvents();
+    }
+  }
+
+  Future<void> _loadPinnedEvents() async {
+    final r = widget.room;
+    final state = r.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    final Map<String, Event> result = {};
+    try {
+      final timeline = await r.getTimeline();
+      for (final id in pinnedIds) {
+        final event =
+            timeline.events.where((e) => e.eventId == id).firstOrNull;
+        if (event != null) result[id] = event;
+      }
+    } catch (_) {
+      // Timeline not available — previews will show generic text.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pinnedEvents = result;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final currentRoom = context.watch<CurrentRoom>();
+
+    final state = widget.room.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    if (pinnedIds.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.push_pin_outlined,
+                size: 40,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l10n.noPinnedMessages,
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_loading) {
+      return Center(child: CircularProgressIndicator(color: scheme.primary));
+    }
+
+    return Column(
+      children: [
+        // ── Filter toggle bar ─────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: FilledButton.tonalIcon(
+            onPressed: () => currentRoom.togglePinnedFilter(),
+            icon: Icon(
+              currentRoom.pinnedFilterActive
+                  ? Icons.push_pin_outlined
+                  : Icons.visibility_outlined,
+              size: 16,
+            ),
+            label: Text(
+              currentRoom.pinnedFilterActive
+                  ? l10n.showAllMessages
+                  : l10n.showPinnedOnly,
+              style: const TextStyle(fontSize: 12),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: currentRoom.pinnedFilterActive
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHighest,
+              foregroundColor: currentRoom.pinnedFilterActive
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            itemCount: pinnedIds.length,
+            itemBuilder: (context, index) {
+              final eventId = pinnedIds[index];
+              return _SidebarPinnedTile(
+                room: widget.room,
+                eventId: eventId,
+                event: _pinnedEvents[eventId],
+                scheme: scheme,
+                l10n: l10n,
+                currentRoom: currentRoom,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single pinned message tile in the full pinned sidebar.
+class _SidebarPinnedTile extends StatelessWidget {
+  const _SidebarPinnedTile({
+    required this.room,
+    required this.eventId,
+    this.event,
+    required this.scheme,
+    required this.l10n,
+    required this.currentRoom,
+  });
+
+  final Room room;
+  final String eventId;
+  final Event? event;
+  final ColorScheme scheme;
+  final AppLocalizations l10n;
+  final CurrentRoom currentRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final senderName =
+        event?.senderFromMemoryOrFallback.calcDisplayname() ?? 'Unknown';
+    final body = event?.body.isNotEmpty == true
+        ? event!.body
+        : '(no content)';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      color: currentRoom.pinnedFilterActive &&
+              currentRoom.pinnedEventIds.contains(eventId)
+          ? scheme.primaryContainer.withValues(alpha: 0.3)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => currentRoom.togglePinnedFilter(),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.push_pin_outlined,
+                size: 14,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      senderName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

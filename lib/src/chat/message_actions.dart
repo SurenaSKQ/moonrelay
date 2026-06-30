@@ -62,6 +62,15 @@ class MessageActions extends StatelessWidget {
     }
   }
 
+  /// Whether the given [eventId] is in the room's pinned-events list.
+  bool _isPinned(Room room, String eventId) {
+    final state = room.getState('m.room.pinned_events');
+    if (state == null) return false;
+    final pinned = state.content['pinned'];
+    if (pinned is! List) return false;
+    return pinned.contains(eventId);
+  }
+
   /// Whether the current user can ban the sender of this event.
   bool _canBan(Client client) {
     if (event.senderId == client.userID) return false;
@@ -82,6 +91,8 @@ class MessageActions extends StatelessWidget {
     final canModerate = _canModerate(client);
     final canBanUser = _canBan(client);
     final isOwnMessage = event.senderId == client.userID;
+    final canPin = room.canChangeStateEvent('m.room.pinned_events');
+    final isPinned = _isPinned(room, event.eventId);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -129,6 +140,15 @@ class MessageActions extends StatelessWidget {
           color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
         ),
+        if (canPin) ...[
+          const SizedBox(width: 4),
+          _ActionIcon(
+            icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+            tooltip: isPinned ? l10n.unpinMessage : l10n.pinMessage,
+            color: isPinned ? cs.primary : cs.onSurfaceVariant,
+            onTap: () => _togglePin(context),
+          ),
+        ],
         if (canDelete) ...[
           const SizedBox(width: 4),
           _ActionIcon(
@@ -188,6 +208,42 @@ class MessageActions extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Toggles the pin state of this event.
+  Future<void> _togglePin(BuildContext context) async {
+    final state = room.getState('m.room.pinned_events');
+    final existing = state?.content['pinned'];
+    final pinned = existing is List ? List<String>.from(existing.map((e) => e.toString())) : <String>[];
+    final eventId = event.eventId;
+
+    List<String> updated;
+    if (pinned.contains(eventId)) {
+      updated = pinned.where((id) => id != eventId).toList();
+    } else {
+      updated = [...pinned, eventId];
+    }
+
+    try {
+      await room.setPinnedEvents(updated);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              pinned.contains(eventId)
+                  ? AppLocalizations.of(context)!.unpinMessage
+                  : AppLocalizations.of(context)!.pinMessage,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
+        );
+      }
+    }
   }
 
   /// Shows a confirmation dialog before redacting the event.

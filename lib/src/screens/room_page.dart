@@ -45,6 +45,12 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
+  /// Stable filter function for pinned-only timeline view.
+  bool _pinnedFilter(Event event) {
+    final ids = context.read<CurrentRoom>().pinnedEventIds;
+    return ids.contains(event.eventId);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +88,9 @@ class _RoomPageState extends State<RoomPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRoom = context.watch<CurrentRoom>();
+    final pinnedFilterActive = currentRoom.pinnedFilterActive;
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
@@ -100,6 +109,7 @@ class _RoomPageState extends State<RoomPage> {
                     room: widget.room,
                     onReply: (event) => _replyTarget.value = event,
                     onThread: _onThread,
+                    filterEvents: pinnedFilterActive ? _pinnedFilter : null,
                   ),
                 ),
                 if (_showInRoomSearch)

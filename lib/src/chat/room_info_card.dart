@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -185,6 +186,10 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 _MemberCountBadge(count: _memberCount, scheme: scheme),
                 const SizedBox(width: 4),
 
+                // Pinned messages toggle
+                _PinnedFilterButton(room: widget.room),
+                const SizedBox(width: 4),
+
                 // In-room search toggle
                 IconButton(
                   icon: Icon(
@@ -320,6 +325,47 @@ class _MemberCountBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A toggle button that filters the timeline to show only pinned messages.
+///
+/// Shows an active (filled) style when the pinned filter is on and an
+/// inactive (outlined) style when off, so the user knows they can tap
+/// again to return to the full timeline.
+class _PinnedFilterButton extends StatelessWidget {
+  const _PinnedFilterButton({required this.room});
+
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final currentRoom = context.watch<CurrentRoom>();
+    final isActive = currentRoom.pinnedFilterActive;
+    final hasPinned = currentRoom.pinnedEventIds.isNotEmpty;
+
+    // Only show the button if there are pinned messages or the filter
+    // is already active.
+    if (!hasPinned && !isActive) return const SizedBox.shrink();
+
+    return IconButton(
+      icon: Icon(
+        isActive ? Icons.push_pin : Icons.push_pin_outlined,
+        size: 18,
+      ),
+      onPressed: () => currentRoom.togglePinnedFilter(),
+      tooltip: isActive
+          ? AppLocalizations.of(context)!.showPinnedOnly
+          : AppLocalizations.of(context)!.showAllMessages,
+      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        backgroundColor:
+            isActive ? scheme.primaryContainer : Colors.transparent,
+        foregroundColor:
+            isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant.withValues(alpha: 0.6),
       ),
     );
   }

@@ -32,6 +32,7 @@ enum RightPaneChoice {
   roomInfo,
   members,
   threads,
+  pinned,
 }
 
 extension RightPaneChoiceExtension on RightPaneChoice {
@@ -45,6 +46,8 @@ extension RightPaneChoiceExtension on RightPaneChoice {
         return 'Members';
       case RightPaneChoice.threads:
         return 'Threads';
+      case RightPaneChoice.pinned:
+        return 'Pinned';
     }
   }
 }

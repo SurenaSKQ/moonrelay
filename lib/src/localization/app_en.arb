@@ -1796,5 +1796,37 @@
   "blockedUsersLoadError": "Failed to load blocked users list.",
   "@blockedUsersLoadError": {
     "description": "Error shown when the blocked users list fails to load."
+  },
+
+  "pinnedMessages": "Pinned Messages",
+  "@pinnedMessages": {
+    "description": "Section header for pinned messages."
+  },
+  "pinnedMessagesCount": "{count} pinned",
+  "@pinnedMessagesCount": {
+    "description": "Label showing the number of pinned messages.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noPinnedMessages": "No pinned messages",
+  "@noPinnedMessages": {
+    "description": "Label shown when there are no pinned messages."
+  },
+  "pinMessage": "Pin message",
+  "@pinMessage": {
+    "description": "Tooltip for the pin message action."
+  },
+  "unpinMessage": "Unpin message",
+  "@unpinMessage": {
+    "description": "Tooltip for the unpin message action."
+  },
+  "showPinnedOnly": "Viewing pinned messages only — tap to show all",
+  "@showPinnedOnly": {
+    "description": "Tooltip for the pinned filter toggle when active."
+  },
+  "showAllMessages": "Show all messages",
+  "@showAllMessages": {
+    "description": "Tooltip for the pinned filter toggle when inactive."
   }
 }

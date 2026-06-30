@@ -64,5 +64,7 @@ String localizedRightPaneChoice(
       return l10n.paneMembers;
     case RightPaneChoice.threads:
       return l10n.thread;
+    case RightPaneChoice.pinned:
+      return l10n.pinnedMessages;
   }
 }

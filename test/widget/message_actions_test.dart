@@ -45,6 +45,10 @@ void main() {
       when(() => user.canBan).thenReturn(false);
       return user;
     });
+    // Prevent the pin button from appearing in baseline tests.
+    when(() => room.canChangeStateEvent('m.room.pinned_events'))
+        .thenReturn(false);
+    when(() => room.getState('m.room.pinned_events')).thenReturn(null);
   });
 
   group('MessageActions', () {
