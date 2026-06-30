@@ -13,21 +13,37 @@ import '../helpers/mocks.dart';
 void main() {
   late MockEvent event;
   late MockRoom room;
+  late MockClient client;
 
   setUp(() {
     event = MockEvent();
     room = MockRoom();
+    client = MockClient();
 
     when(() => event.eventId).thenReturn('evt_123');
     when(() => event.body).thenReturn('Test message body');
     when(() => event.canRedact).thenReturn(false);
-    when(() => event.senderId).thenReturn('@user:matrix.org');
+    when(() => event.senderId).thenReturn('@user2:matrix.org');
     when(() => event.type).thenReturn(EventTypes.Message);
     when(() => event.messageType).thenReturn(MessageTypes.Text);
     when(() => event.redacted).thenReturn(false);
-    when(() => event.content).thenReturn({'body': 'Test message body', 'msgtype': 'm.text'});
+    when(() => event.content).thenReturn({
+      'body': 'Test message body',
+      'msgtype': 'm.text',
+    });
     when(() => room.sendReaction(any(), any())).thenAnswer((_) async {
       return null;
+    });
+    when(() => room.client).thenReturn(client);
+    when(() => client.userID).thenReturn('@me:matrix.org');
+    // Return a mock user that has no moderation permissions to avoid
+    // showing the moderation button in unrelated tests.
+    when(() => room.unsafeGetUserFromMemoryOrFallback(any()))
+        .thenAnswer((_) {
+      final user = MockUser();
+      when(() => user.canKick).thenReturn(false);
+      when(() => user.canBan).thenReturn(false);
+      return user;
     });
   });
 

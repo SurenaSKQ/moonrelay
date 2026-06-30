@@ -18,11 +18,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
 /// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
-/// **Details**, **Forward**, and **Delete** (if permitted).
+/// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
+/// actions (kick, ban, report) for users with sufficient permissions.
 ///
 /// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
 /// This widget does **not** manage its own visibility — the parent controls
@@ -49,24 +51,51 @@ class MessageActions extends StatelessWidget {
   /// When null, the thread button is hidden.
   final VoidCallback? onThread;
 
+  /// Whether the current user can moderate the sender of this event.
+  bool _canModerate(Client client) {
+    if (event.senderId == client.userID) return false;
+    try {
+      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
+      return sender.canKick;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Whether the current user can ban the sender of this event.
+  bool _canBan(Client client) {
+    if (event.senderId == client.userID) return false;
+    try {
+      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
+      return sender.canBan;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final client = room.client;
     final canDelete = event.canRedact;
+    final canModerate = _canModerate(client);
+    final canBanUser = _canBan(client);
+    final isOwnMessage = event.senderId == client.userID;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionIcon(
           icon: Icons.add_reaction_rounded,
-          tooltip: AppLocalizations.of(context)!.reactTooltip,
+          tooltip: l10n.reactTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _react(context),
         ),
         const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.reply_rounded,
-          tooltip: AppLocalizations.of(context)!.replyTooltip,
+          tooltip: l10n.replyTooltip,
           color: cs.onSurfaceVariant,
           onTap: onReply,
         ),
@@ -74,7 +103,7 @@ class MessageActions extends StatelessWidget {
         if (onForward != null)
           _ActionIcon(
             icon: Icons.shortcut_rounded,
-            tooltip: AppLocalizations.of(context)!.forwardTooltip,
+            tooltip: l10n.forwardTooltip,
             color: cs.onSurfaceVariant,
             onTap: onForward!,
           ),
@@ -82,21 +111,21 @@ class MessageActions extends StatelessWidget {
         if (onThread != null)
           _ActionIcon(
             icon: Icons.forum_rounded,
-            tooltip: AppLocalizations.of(context)!.openThread,
+            tooltip: l10n.openThread,
             color: cs.onSurfaceVariant,
             onTap: onThread!,
           ),
         const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.copy_rounded,
-          tooltip: AppLocalizations.of(context)!.copyTooltip,
+          tooltip: l10n.copyTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _copyMessage(context),
         ),
         const SizedBox(width: 4),
         _ActionIcon(
           icon: Icons.info_outline_rounded,
-          tooltip: AppLocalizations.of(context)!.detailsTooltip,
+          tooltip: l10n.detailsTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
         ),
@@ -104,9 +133,21 @@ class MessageActions extends StatelessWidget {
           const SizedBox(width: 4),
           _ActionIcon(
             icon: Icons.delete_outline_rounded,
-            tooltip: AppLocalizations.of(context)!.deleteTooltip,
+            tooltip: l10n.deleteTooltip,
             color: cs.error,
             onTap: () => _confirmDelete(context),
+          ),
+        ],
+        // ── Moderation actions ───────────────────────────────────────────
+        if (!isOwnMessage && (canModerate || canBanUser)) ...[
+          const SizedBox(width: 4),
+          _ModerationMenu(
+            event: event,
+            room: room,
+            canKick: canModerate,
+            canBan: canBanUser,
+            l10n: l10n,
+            cs: cs,
           ),
         ],
       ],
@@ -231,5 +272,198 @@ class _ActionIcon extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Moderation popup menu
+// ---------------------------------------------------------------------------
+
+/// A popup menu button that shows moderation actions (kick, ban, report)
+/// for users with sufficient permissions in the room.
+class _ModerationMenu extends StatelessWidget {
+  const _ModerationMenu({
+    required this.event,
+    required this.room,
+    required this.canKick,
+    required this.canBan,
+    required this.l10n,
+    required this.cs,
+  });
+
+  final Event event;
+  final Room room;
+  final bool canKick;
+  final bool canBan;
+  final AppLocalizations l10n;
+  final ColorScheme cs;
+
+  String get _senderName =>
+      event.senderFromMemoryOrFallback.calcDisplayname();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: l10n.moderationTooltip,
+      icon: Icon(Icons.more_vert_rounded, size: 20, color: cs.onSurfaceVariant),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: cs.surfaceContainerHighest,
+      onSelected: (value) {
+        switch (value) {
+          case 'kick':
+            _confirmKick(context);
+          case 'ban':
+            _confirmBan(context);
+          case 'report':
+            _reportUser(context);
+        }
+      },
+      itemBuilder: (_) => <PopupMenuEntry<String>>[
+        if (canKick)
+          PopupMenuItem(
+            value: 'kick',
+            child: Row(
+              children: [
+                Icon(Icons.person_remove_outlined, size: 18, color: cs.tertiary),
+                const SizedBox(width: 8),
+                Text(l10n.actionKick),
+              ],
+            ),
+          ),
+        if (canBan)
+          PopupMenuItem(
+            value: 'ban',
+            child: Row(
+              children: [
+                Icon(Icons.block_outlined, size: 18, color: cs.error),
+                const SizedBox(width: 8),
+                Text(l10n.actionBan),
+              ],
+            ),
+          ),
+        PopupMenuItem(
+          value: 'report',
+          child: Row(
+            children: [
+              Icon(Icons.flag_outlined, size: 18, color: cs.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text(l10n.actionReport),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmKick(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.actionKick),
+        content: Text(l10n.kickConfirm(_senderName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.actionKick),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await withTimeout(() => room.kick(event.senderId));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.userKicked(_senderName))),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.actionFailed('$e'))),
+      );
+    }
+  }
+
+  Future<void> _confirmBan(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.actionBan),
+        content: Text(l10n.banConfirm(_senderName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.actionBan),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await withTimeout(() => room.ban(event.senderId));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.userBanned(_senderName))),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.actionFailed('$e'))),
+      );
+    }
+  }
+
+  Future<void> _reportUser(BuildContext context) async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.actionReport),
+        content: TextField(
+          controller: reasonController,
+          decoration: InputDecoration(
+            hintText: l10n.reportUserHint,
+            border: const OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.actionReport),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await room.client.reportEvent(
+        room.id,
+        event.eventId,
+        reason: reasonController.text.trim(),
+        score: -100,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.userReported)),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.actionFailed('$e'))),
+      );
+    }
   }
 }
