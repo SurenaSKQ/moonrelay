@@ -56,6 +56,10 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
 
   int? get _fileSize => _infoMap['size'] as int?;
 
+  /// Whether this image is a GIF (animated or static).
+  bool get _isGif =>
+      (_infoMap['mimetype'] as String?)?.toLowerCase() == 'image/gif';
+
   /// Computes a constrained box size that preserves aspect ratio.
   BoxConstraints _imageConstraints() {
     if (_imgWidth == null || _imgHeight == null) {
@@ -221,6 +225,32 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                     size: 40, color: cs.onSurfaceVariant),
               ),
             ),
+
+            // ── GIF badge ──────────────────────────────────────────────
+            if (_isGif)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'GIF',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
 
             // ── Hover / tap hint overlay ────────────────────────────────
             Positioned(
