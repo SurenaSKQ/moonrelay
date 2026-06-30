@@ -71,6 +71,6 @@ class RoomDelegate extends StatelessWidget {
 
   void _log(BuildContext context, String message) {
     final Logger log = Provider.of<Logger>(context, listen: false);
-    log.w(message);
+    log.t(message);
   }
 }

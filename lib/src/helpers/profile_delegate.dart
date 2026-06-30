@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -27,8 +26,9 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 /// Validates that:
 /// - [userid] is non-null and non-empty.
 /// - [userid] looks like a valid Matrix user ID (`@user:domain`).
-/// - If the provided ID matches the logged-in user, redirects to the
-///   hub screen instead of opening a self-profile.
+///
+/// Own-profile redirects are handled by GoRouter redirect on the route
+/// definition itself, keeping this widget free of layout-time navigation.
 ///
 /// If validation fails, an error is logged and a snackbar is shown.
 class ProfileDelegate extends StatelessWidget {
@@ -53,15 +53,6 @@ class ProfileDelegate extends StatelessWidget {
     // ── Format validation ────────────────────────────────────────
     if (!_userIdPattern.hasMatch(userid!)) {
       _showError(context, log, l10n.profileIdInvalid('$userid'));
-      return const SizedBox.shrink();
-    }
-
-    // ── Own profile → redirect to hub ───────────────────────────
-    if (userid == client.userID) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        context.pushReplacement('/main/myprofile');
-      });
       return const SizedBox.shrink();
     }
 
