@@ -23,11 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/create_room_form.dart';
 import 'package:provider/provider.dart';
-
-/// Maximum number of child rooms to delete before showing a progress dialog.
-const int _maxDeleteWithoutProgress = 5;
 
 /// The main landing page for a space, showing its avatar, name, topic,
 /// member count, child rooms, and child subspaces.
@@ -161,32 +157,6 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               label: l10n.addRoomToSpace,
               description: l10n.spaceSettingsDescription,
               onTap: () => context.push('/main/space/${space.id}/settings'),
-              scheme: scheme,
-            ),
-            const SizedBox(height: 4),
-            _ActionTile(
-              icon: LucideIcons.wand2,
-              label: l10n.createNewRoom,
-              description: l10n.createRoom,
-              onTap: () => _showCreateRoomDialog(context),
-              scheme: scheme,
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // ── Danger zone (space deletion) ──────────────────────────────
-          if (_canDeleteSpace()) ...[
-            _SectionHeader(
-              title: l10n.actionsDeleteSection,
-              scheme: scheme,
-            ),
-            const SizedBox(height: 8),
-            _ActionTile(
-              icon: LucideIcons.trash2,
-              label: l10n.deleteSpace,
-              description: l10n.deleteSpaceDescription,
-              color: scheme.error,
-              onTap: _deleteSpace,
               scheme: scheme,
             ),
             const SizedBox(height: 16),
@@ -496,170 +466,6 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Space deletion
-  // ---------------------------------------------------------------------------
-
-  /// Whether the current user is admin of the space and all its child rooms.
-  bool _canDeleteSpace() {
-    final space = widget.space;
-    if (space.membership != Membership.join) return false;
-
-    // Room must have a power levels state event.  Without it
-    // canChangeStateEvent defaults to requiring power level 0, which
-    // would let any joined user see the delete button.
-    if (space.getState(EventTypes.RoomPowerLevels) == null) return false;
-    // Must be admin of the space itself.
-    if (!space.canChangeStateEvent('m.room.power_levels')) return false;
-
-    // Must be admin of all joined child rooms.
-    final client = space.client;
-    for (final child in space.spaceChildren) {
-      final cid = child.roomId;
-      if (cid == null) continue;
-      final childRoom = client.getRoomById(cid);
-      if (childRoom == null) continue;
-      if (childRoom.membership != Membership.join) continue;
-      // Same guard for each child room.
-      if (childRoom.getState(EventTypes.RoomPowerLevels) == null) return false;
-      if (!childRoom.canChangeStateEvent('m.room.power_levels')) return false;
-    }
-    return true;
-  }
-
-  /// Delete a child room via the admin API.
-  Future<void> _deleteChildRoom(Room room, Logger log) async {
-    final client = room.client;
-    final serverUrl = client.homeserver.toString();
-    final url = serverUrl.endsWith('/')
-        ? '${serverUrl}_synapse/admin/v2/rooms/${room.id}/delete'
-        : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
-
-    await withRetry(
-      () => client.httpClient.post(Uri.parse(url), body: '{}'),
-      maxRetries: 1,
-      timeout: kDefaultTimeout,
-      log: log,
-      label: 'deleteChildRoom',
-    );
-  }
-
-  /// Permanently delete this space and all its child rooms.
-  Future<void> _deleteSpace() async {
-    final space = widget.space;
-    final l10n = AppLocalizations.of(context)!;
-    final log = context.read<Logger>();
-
-    if (!_canDeleteSpace()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteSpaceNotEnoughPower),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteSpace),
-        content: Text(l10n.deleteSpaceConfirm(
-          space.getLocalizedDisplayname(),
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final client = space.client;
-    final childRooms = space.spaceChildren
-        .map((c) => c.roomId != null ? client.getRoomById(c.roomId!) : null)
-        .whereType<Room>()
-        .where((r) => r.membership == Membership.join)
-        .toList();
-
-    // For many children, show a progress dialog.
-    if (childRooms.length > _maxDeleteWithoutProgress && mounted) {
-      return showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => _DeleteSpaceProgressDialog(
-          space: space,
-          childRooms: childRooms,
-          l10n: l10n,
-          log: log,
-        ),
-      );
-    }
-
-    try {
-      // Delete children first.
-      for (final child in childRooms) {
-        try {
-          await _deleteChildRoom(child, log);
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.deleteChildRoomFailed(
-                child.getLocalizedDisplayname(),
-                '$e',
-              )),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-
-      // Delete the space itself.
-      final serverUrl = client.homeserver.toString();
-      final url = serverUrl.endsWith('/')
-          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
-          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
-
-      await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'deleteSpace',
-      );
-
-      await space.leave();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteSpaceSuccess),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.go('/main/rooms');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteSpaceFailed('$e')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   Future<void> _joinSpace(BuildContext context, Room space) async {
     final log = context.read<Logger>();
     try {
@@ -685,56 +491,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       );
     }
   }
-
-  /// Shows a dialog with the [CreateRoomWidget] so the user can create a
-  /// new room and add it to this space.
-  void _showCreateRoomDialog(BuildContext context) {
-    final space = widget.space;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 32,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 24,
-            bottom: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(ctx)!.createNewRoom,
-                      style: Theme.of(ctx).textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(LucideIcons.x, size: 20),
-                    onPressed: () => Navigator.of(ctx).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: CreateRoomWidget(parentSpace: space),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+} // End of _SpaceHomePageState
 
 // ── Internal widgets ──────────────────────────────────────────────────────────
 
@@ -803,8 +560,7 @@ class _ActionTile extends StatelessWidget {
     this.description,
     required this.onTap,
     required this.scheme,
-    this.color,
-  });
+  }) : color = null;
 
   final IconData icon;
   final String label;
@@ -840,139 +596,6 @@ class _ActionTile extends StatelessWidget {
           color: scheme.onSurfaceVariant,
         ),
         onTap: onTap,
-      ),
-    );
-  }
-}
-
-/// A modal dialog that shows deletion progress for a space with many children.
-class _DeleteSpaceProgressDialog extends StatefulWidget {
-  const _DeleteSpaceProgressDialog({
-    required this.space,
-    required this.childRooms,
-    required this.l10n,
-    required this.log,
-  });
-
-  final Room space;
-  final List<Room> childRooms;
-  final AppLocalizations l10n;
-  final Logger log;
-
-  @override
-  State<_DeleteSpaceProgressDialog> createState() =>
-      _DeleteSpaceProgressDialogState();
-}
-
-class _DeleteSpaceProgressDialogState
-    extends State<_DeleteSpaceProgressDialog> {
-  int _deleted = 0;
-  String? _error;
-  bool _done = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _deleteAll());
-  }
-
-  Future<void> _deleteAll() async {
-    final l10n = widget.l10n;
-    final log = widget.log;
-    final space = widget.space;
-    final client = space.client;
-
-    // Delete children.
-    for (final child in widget.childRooms) {
-      try {
-        final serverUrl = client.homeserver.toString();
-        final url = serverUrl.endsWith('/')
-            ? '${serverUrl}_synapse/admin/v2/rooms/${child.id}/delete'
-            : '$serverUrl/_synapse/admin/v2/rooms/${child.id}/delete';
-
-        await withRetry(
-          () => client.httpClient.post(Uri.parse(url), body: '{}'),
-          maxRetries: 1,
-          timeout: kDefaultTimeout,
-          log: log,
-          label: 'deleteChildRoom',
-        );
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _error = l10n.deleteChildRoomFailed(
-            child.getLocalizedDisplayname(),
-            '$e',
-          );
-        });
-        // Continue trying the rest.
-      }
-
-      if (!mounted) return;
-      setState(() => _deleted++);
-    }
-
-    // Delete the space itself.
-    try {
-      final serverUrl = client.homeserver.toString();
-      final url = serverUrl.endsWith('/')
-          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
-          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
-
-      await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'deleteSpace',
-      );
-
-      await space.leave();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = l10n.deleteSpaceFailed('$e');
-      });
-    }
-
-    if (!mounted) return;
-    setState(() => _done = true);
-
-    // Close dialog and navigate after a brief delay.
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_error ?? l10n.deleteSpaceSuccess),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    if (context.mounted) context.go('/main/rooms');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final total = widget.childRooms.length + 1; // +1 for the space itself
-
-    return AlertDialog(
-      title: Text(widget.l10n.deleteSpace),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          LinearProgressIndicator(
-            value: _done ? 1.0 : _deleted / total,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _done
-                ? widget.l10n.deleteSpaceSuccess
-                : _error ??
-                    '$_deleted / $total ${widget.l10n.delete.toLowerCase()}',
-            style: TextStyle(color: scheme.onSurfaceVariant),
-          ),
-        ],
       ),
     );
   }

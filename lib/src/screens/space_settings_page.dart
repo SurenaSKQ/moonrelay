@@ -16,6 +16,7 @@
 
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -23,12 +24,15 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
-/// A settings page for a space that lets the user add and remove rooms.
-///
-/// Shows the list of current child rooms with a "remove" action, and
-/// provides a "Add Room to Space" button that opens a room picker.
+/// Maximum number of child rooms to delete before showing a progress dialog.
+const int _maxDeleteWithoutProgress = 5;
+
+/// A settings page for a space that provides full administration: viewing
+/// technical details, editing name/topic/avatar, managing child rooms, and
+/// deleting the space.
 class SpaceSettingsPage extends StatefulWidget {
   const SpaceSettingsPage({super.key, required this.space});
 
@@ -58,6 +62,17 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // Permission helpers
+  // ---------------------------------------------------------------------------
+
+  bool _canChange(String eventType) =>
+      widget.space.canChangeStateEvent(eventType);
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -72,7 +87,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     // Rooms that the user has joined and that are NOT already children.
     final availableRooms = client.rooms.where((r) {
       if (r.id == space.id) return false;
-      if (r.isSpace) return false; // Only show regular rooms for adding.
+      if (r.isSpace) return false;
       return !children.any((c) => c.roomId == r.id);
     }).toList()
       ..sort((a, b) => a
@@ -80,7 +95,17 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           .toLowerCase()
           .compareTo(b.getLocalizedDisplayname().toLowerCase()));
 
-    final canEdit = space.canChangeStateEvent('m.space.child');
+    final canEdit = _canChange('m.space.child');
+
+    final isEncrypted = _isSpaceEncrypted(space);
+
+    final creationDate = _creationDate(space);
+
+    final canonicalAlias =
+        space.canonicalAlias.isNotEmpty ? space.canonicalAlias : null;
+
+    final totalMembers = (space.summary.mInvitedMemberCount ?? 0) +
+        (space.summary.mJoinedMemberCount ?? 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -96,22 +121,100 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // ── Description ────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              l10n.spaceSettingsDescription,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-            ),
+          // ── Space identity card ──────────────────────────────────────────
+          _SpaceIdentityCard(
+            space: space,
+            displayName: space.getLocalizedDisplayname(),
+            topic: space.topic,
+            totalMembers: totalMembers,
+            scheme: scheme,
+            textTheme: textTheme,
           ),
+          const SizedBox(height: 16),
+
+          // ── Technical details ────────────────────────────────────────────
+          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
+          const SizedBox(height: 4),
+          _DetailRow(
+            icon: LucideIcons.hash,
+            label: l10n.roomIdLabel,
+            value: space.id,
+            scheme: scheme,
+          ),
+          if (canonicalAlias != null)
+            _DetailRow(
+              icon: LucideIcons.atSign,
+              label: l10n.addressLabel,
+              value: canonicalAlias,
+              scheme: scheme,
+            ),
+          _DetailRow(
+            icon: LucideIcons.folder,
+            label: l10n.typeLabel,
+            value: l10n.spaceType,
+            scheme: scheme,
+          ),
+          _DetailRow(
+            icon: isEncrypted
+                ? LucideIcons.shieldCheck
+                : LucideIcons.shieldOff,
+            label: l10n.encryptionLabel,
+            value: isEncrypted
+                ? l10n.endToEndEncrypted
+                : l10n.notEncrypted,
+            scheme: scheme,
+          ),
+          _DetailRow(
+            icon: LucideIcons.calendar,
+            label: l10n.createdLabel,
+            value: creationDate,
+            scheme: scheme,
+          ),
+          _DetailRow(
+            icon: LucideIcons.users,
+            label: l10n.members,
+            value: '$totalMembers',
+            scheme: scheme,
+          ),
+          const SizedBox(height: 16),
+
+          // ── Space editing (permission-gated) ────────────────────────────
+          if (_canChange('m.room.name') ||
+              _canChange('m.room.topic') ||
+              _canChange('m.room.avatar')) ...[
+            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            const SizedBox(height: 4),
+            if (_canChange('m.room.name'))
+              _ActionTile(
+                icon: LucideIcons.pencil,
+                label: l10n.editSpaceName,
+                description: space.getLocalizedDisplayname(),
+                onTap: _editSpaceName,
+                scheme: scheme,
+              ),
+            if (_canChange('m.room.topic'))
+              _ActionTile(
+                icon: LucideIcons.alignLeft,
+                label: l10n.editSpaceTopic,
+                description: space.topic.isNotEmpty ? space.topic : l10n.notSet,
+                onTap: _editSpaceTopic,
+                scheme: scheme,
+              ),
+            if (_canChange('m.room.avatar'))
+              _ActionTile(
+                icon: LucideIcons.image,
+                label: l10n.changeSpaceAvatar,
+                description: l10n.changeSpaceAvatarDescription,
+                onTap: _changeSpaceAvatar,
+                scheme: scheme,
+              ),
+            const SizedBox(height: 8),
+          ],
 
           // ── Child rooms / subspaces ────────────────────────────────────
           if (children.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...children.map((child) {
               final childRoomId = child.roomId;
               if (childRoomId == null) return const SizedBox.shrink();
@@ -166,13 +269,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                 ),
               );
             }),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
           ],
 
           // ── Add room section ──────────────────────────────────────────
           if (canEdit) ...[
             _SectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             if (availableRooms.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -221,11 +324,209 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                   ),
                 );
               }),
+            const SizedBox(height: 8),
           ],
+
+          // ── Danger zone ────────────────────────────────────────────────
+          if (_canDeleteSpace()) ...[
+            _SectionHeader(
+              title: l10n.actionsDeleteSection,
+              scheme: scheme,
+            ),
+            const SizedBox(height: 4),
+            _ActionTile(
+              icon: LucideIcons.trash2,
+              label: l10n.deleteSpace,
+              description: l10n.deleteSpaceDescription,
+              color: scheme.error,
+              onTap: _deleteSpace,
+              scheme: scheme,
+            ),
+          ],
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  bool _isSpaceEncrypted(Room room) {
+    try {
+      return room.encrypted;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _creationDate(Room room) {
+    final createEvent =
+        room.getState(EventTypes.RoomCreate)?.content.tryGet('created_at');
+    if (createEvent is String && createEvent.isNotEmpty) {
+      final dt = DateTime.tryParse(createEvent);
+      if (dt != null) {
+        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      }
+    }
+    return AppLocalizations.of(context)!.unknownDate;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Space editing
+  // ---------------------------------------------------------------------------
+
+  Future<void> _editSpaceName() async {
+    final space = widget.space;
+    final l10n = AppLocalizations.of(context)!;
+    final controller =
+        TextEditingController(text: space.getLocalizedDisplayname());
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.editSpaceName),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.editSpaceNameHint,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final newName = controller.text.trim();
+    if (newName.isEmpty || newName == space.getLocalizedDisplayname()) return;
+
+    try {
+      await space.setName(newName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.spaceNameUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _editSpaceTopic() async {
+    final space = widget.space;
+    final l10n = AppLocalizations.of(context)!;
+    final controller = TextEditingController(text: space.topic);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.editSpaceTopic),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: l10n.editSpaceTopicHint,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final newTopic = controller.text.trim();
+    if (newTopic == space.topic) return;
+
+    try {
+      await space.setDescription(newTopic);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.spaceTopicUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _changeSpaceAvatar() async {
+    final space = widget.space;
+    final l10n = AppLocalizations.of(context)!;
+
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+      allowMultiple: false,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    try {
+      await space.setAvatar(MatrixFile(bytes: bytes, name: file.name));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.spaceAvatarUpdated),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Child room management
+  // ---------------------------------------------------------------------------
 
   Future<void> _addChild(BuildContext context, String roomId) async {
     final l10n = AppLocalizations.of(context)!;
@@ -284,6 +585,290 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
       );
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Space deletion
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current user is admin of the space and all its child rooms.
+  bool _canDeleteSpace() {
+    final space = widget.space;
+    if (space.membership != Membership.join) return false;
+
+    if (space.getState(EventTypes.RoomPowerLevels) == null) return false;
+    if (!space.canChangeStateEvent('m.room.power_levels')) return false;
+
+    final client = space.client;
+    for (final child in space.spaceChildren) {
+      final cid = child.roomId;
+      if (cid == null) continue;
+      final childRoom = client.getRoomById(cid);
+      if (childRoom == null) continue;
+      if (childRoom.membership != Membership.join) continue;
+      if (childRoom.getState(EventTypes.RoomPowerLevels) == null) return false;
+      if (!childRoom.canChangeStateEvent('m.room.power_levels')) return false;
+    }
+    return true;
+  }
+
+  /// Delete a child room via the admin API.
+  Future<void> _deleteChildRoom(Room room, Logger log) async {
+    final client = room.client;
+    final serverUrl = client.homeserver.toString();
+    final url = serverUrl.endsWith('/')
+        ? '${serverUrl}_synapse/admin/v2/rooms/${room.id}/delete'
+        : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
+
+    await withRetry(
+      () => client.httpClient.post(Uri.parse(url), body: '{}'),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'deleteChildRoom',
+    );
+  }
+
+  /// Permanently delete this space and all its child rooms.
+  Future<void> _deleteSpace() async {
+    final space = widget.space;
+    final l10n = AppLocalizations.of(context)!;
+    final log = context.read<Logger>();
+
+    if (!_canDeleteSpace()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceNotEnoughPower),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteSpace),
+        content: Text(l10n.deleteSpaceConfirm(
+          space.getLocalizedDisplayname(),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final client = space.client;
+    final childRooms = space.spaceChildren
+        .map((c) => c.roomId != null ? client.getRoomById(c.roomId!) : null)
+        .whereType<Room>()
+        .where((r) => r.membership == Membership.join)
+        .toList();
+
+    if (childRooms.length > _maxDeleteWithoutProgress && mounted) {
+      return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _DeleteSpaceProgressDialog(
+          space: space,
+          childRooms: childRooms,
+          l10n: l10n,
+          log: log,
+        ),
+      );
+    }
+
+    try {
+      for (final child in childRooms) {
+        try {
+          await _deleteChildRoom(child, log);
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.deleteChildRoomFailed(
+                child.getLocalizedDisplayname(),
+                '$e',
+              )),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+
+      final serverUrl = client.homeserver.toString();
+      final url = serverUrl.endsWith('/')
+          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
+          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
+
+      await withRetry(
+        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'deleteSpace',
+      );
+
+      await space.leave();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceSuccess),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/main/rooms');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.deleteSpaceFailed('$e')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Internal widgets
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Space identity card shown at the top of the settings page.
+class _SpaceIdentityCard extends StatelessWidget {
+  const _SpaceIdentityCard({
+    required this.space,
+    required this.displayName,
+    required this.topic,
+    required this.totalMembers,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final Room space;
+  final String displayName;
+  final String topic;
+  final int totalMembers;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: AvatarFromUriOrFallbackImage(
+                client: space.client,
+                avatarUri: space.avatar,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              displayName,
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (topic.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                topic,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _InfoChip(
+                  icon: LucideIcons.folder,
+                  label: l10n.spaceType,
+                  scheme: scheme,
+                ),
+                _InfoChip(
+                  icon: LucideIcons.users,
+                  label: '$totalMembers ${l10n.members}',
+                  scheme: scheme,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small chip used for room metadata badges.
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// A section header label.
@@ -301,6 +886,234 @@ class _SectionHeader extends StatelessWidget {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: scheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+/// A tappable action row.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    this.description,
+    this.color,
+    required this.onTap,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? description;
+  final Color? color;
+  final VoidCallback onTap;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? scheme.primary;
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        leading: Icon(icon, size: 22, color: effectiveColor),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: description != null
+            ? Text(
+                description!,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+              )
+            : null,
+        trailing: Icon(
+          LucideIcons.chevronRight,
+          size: 18,
+          color: scheme.onSurfaceVariant,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// A read-only detail row with icon, label, and value.
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurface,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A modal dialog that shows deletion progress for a space with many children.
+class _DeleteSpaceProgressDialog extends StatefulWidget {
+  const _DeleteSpaceProgressDialog({
+    required this.space,
+    required this.childRooms,
+    required this.l10n,
+    required this.log,
+  });
+
+  final Room space;
+  final List<Room> childRooms;
+  final AppLocalizations l10n;
+  final Logger log;
+
+  @override
+  State<_DeleteSpaceProgressDialog> createState() =>
+      _DeleteSpaceProgressDialogState();
+}
+
+class _DeleteSpaceProgressDialogState
+    extends State<_DeleteSpaceProgressDialog> {
+  int _deleted = 0;
+  String? _error;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _deleteAll());
+  }
+
+  Future<void> _deleteAll() async {
+    final l10n = widget.l10n;
+    final log = widget.log;
+    final space = widget.space;
+    final client = space.client;
+
+    for (final child in widget.childRooms) {
+      try {
+        final serverUrl = client.homeserver.toString();
+        final url = serverUrl.endsWith('/')
+            ? '${serverUrl}_synapse/admin/v2/rooms/${child.id}/delete'
+            : '$serverUrl/_synapse/admin/v2/rooms/${child.id}/delete';
+
+        await withRetry(
+          () => client.httpClient.post(Uri.parse(url), body: '{}'),
+          maxRetries: 1,
+          timeout: kDefaultTimeout,
+          log: log,
+          label: 'deleteChildRoom',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = l10n.deleteChildRoomFailed(
+            child.getLocalizedDisplayname(),
+            '$e',
+          );
+        });
+      }
+
+      if (!mounted) return;
+      setState(() => _deleted++);
+    }
+
+    try {
+      final serverUrl = client.homeserver.toString();
+      final url = serverUrl.endsWith('/')
+          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
+          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
+
+      await withRetry(
+        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        maxRetries: 1,
+        timeout: kDefaultTimeout,
+        log: log,
+        label: 'deleteSpace',
+      );
+
+      await space.leave();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = l10n.deleteSpaceFailed('$e');
+      });
+    }
+
+    if (!mounted) return;
+    setState(() => _done = true);
+
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_error ?? l10n.deleteSpaceSuccess),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    if (context.mounted) context.go('/main/rooms');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = widget.childRooms.length + 1;
+
+    return AlertDialog(
+      title: Text(widget.l10n.deleteSpace),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(
+            value: _done ? 1.0 : _deleted / total,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _done
+                ? widget.l10n.deleteSpaceSuccess
+                : _error ??
+                    '$_deleted / $total ${widget.l10n.delete.toLowerCase()}',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
