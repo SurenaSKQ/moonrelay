@@ -214,13 +214,14 @@ class AccountManager extends ChangeNotifier {
   ///
   /// Disposes the current [Client] (if any), creates a fresh one for the
   /// target account via [clientFactory], and notifies listeners.
-  Future<void> switchToAccount(String userId) async {
+  /// Returns `true` if the new client has a valid session.
+  Future<bool> switchToAccount(String userId) async {
     final idx = _accounts.indexWhere((a) => a.userId == userId);
     if (idx < 0) {
       log.w('switchToAccount: account not found $userId');
-      return;
+      return false;
     }
-    if (_activeAccount?.userId == userId) return; // already active
+    if (_activeAccount?.userId == userId) return false; // already active
 
     final target = _accounts[idx];
 
@@ -233,11 +234,13 @@ class AccountManager extends ChangeNotifier {
     log.i('Switching to account $userId');
     _activeAccount = target;
     _activeClient = await clientFactory!(target);
-    if (_activeClient!.isLogged()) {
+    final loggedIn = _activeClient!.isLogged();
+    if (loggedIn) {
       await onClientReady?.call(_activeClient!);
     }
     await _save();
     notifyListeners();
+    return loggedIn;
   }
 
   /// Remove a saved account (does NOT log out from the server).

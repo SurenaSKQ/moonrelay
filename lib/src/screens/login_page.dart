@@ -90,6 +90,15 @@ class _LoginPageState extends State<LoginPage> {
           _ssoMode = true;
           _showManualTokenEntry = false;
         });
+      } else if (extra is Map<String, String>) {
+        final hs = extra['homeserver'];
+        final username = extra['username'];
+        if (hs != null && hs.isNotEmpty) {
+          _homeserverCtrl.text = hs;
+        }
+        if (username != null && username.isNotEmpty) {
+          _usernameCtrl.text = username;
+        }
       }
     }
   }
