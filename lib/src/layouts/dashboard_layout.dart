@@ -137,8 +137,14 @@ class _DashboardView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth >= 1100;
+        const double unifiedSidebarBreakpoint = 900;
+        final bool isBelowBreakpoint =
+            constraints.maxWidth < unifiedSidebarBreakpoint;
 
-        final bool showLeft = settings.leftSidebarVisible;
+        // Show the unified sidebar only when the user hasn't hidden it
+        // AND the window is wide enough.
+        final bool showLeft =
+            settings.leftSidebarVisible && !isBelowBreakpoint;
         final bool showRight = settings.rightSidebarVisible && isWide;
         final bool showStatus = settings.showStatusBar;
 
@@ -150,24 +156,14 @@ class _DashboardView extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Navigation pane (always visible) ─────────────────
-                  const NavigationPane(),
-
-                  // ── Left sidebar (rooms pane, collapsible) ───────────
+                  // ── Unified sidebar (nav pane + rooms pane) ──────────
                   if (showLeft)
-                    _SidebarPane(
-                      width: leftWidth ?? settings.leftSidebarWidth,
-                      minWidth: 200,
-                      title: settings.leftPaneChoice.label,
-                      body: _buildLeftPane(context, settings.leftPaneChoice),
-                      bottomBar: null,
+                    _UnifiedSidebar(
+                      leftWidth: leftWidth,
+                      settings: settings,
                       theme: theme,
-                    ),
-
-                  if (showLeft)
-                    _ResizeHandle(
-                      onDrag: onLeftResize,
-                      onDragEnd: onLeftResizeEnd,
+                      onLeftResize: onLeftResize,
+                      onLeftResizeEnd: onLeftResizeEnd,
                     ),
 
                   // ── Main content ──────────────────────────────────────
@@ -205,16 +201,60 @@ class _DashboardView extends StatelessWidget {
       },
     );
   }
+}
 
-  /// Build the left pane widget based on the user's choice,
+// ─── Unified sidebar (combines nav pane + rooms pane) ────────────────────────
+
+/// A single widget that groups the navigation pane (Home, All, +, space icons)
+/// with the left sidebar content (room list, space tree, spaces, or friends).
+///
+/// Hiding/showing this widget via the enclosing layout hides or shows the
+/// entire left-hand side of the dashboard at once.
+class _UnifiedSidebar extends StatelessWidget {
+  const _UnifiedSidebar({
+    required this.leftWidth,
+    required this.settings,
+    required this.theme,
+    required this.onLeftResize,
+    required this.onLeftResizeEnd,
+  });
+
+  final double? leftWidth;
+  final SettingsController settings;
+  final ThemeData theme;
+  final void Function(double) onLeftResize;
+  final VoidCallback onLeftResizeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const NavigationPane(),
+        _ResizeHandle(
+          onDrag: onLeftResize,
+          onDragEnd: onLeftResizeEnd,
+        ),
+        _SidebarPane(
+          width: leftWidth ?? settings.leftSidebarWidth,
+          minWidth: 200,
+          title: settings.leftPaneChoice.label,
+          body: _buildLeftPane(context, settings.leftPaneChoice),
+          bottomBar: null,
+          theme: theme,
+        ),
+      ],
+    );
+  }
+
+  /// Build the left pane content based on the user's choice,
   /// applying the current navigation filter.
   static Widget _buildLeftPane(BuildContext context, LeftPaneChoice choice) {
     switch (choice) {
       case LeftPaneChoice.rooms:
         return Consumer<NavigationState>(
           builder: (context, nav, _) {
-            // When a specific space is selected, show the hierarchical
-            // tree view with expandable subspace groups.
             if (nav.isSpace) {
               final Client client = Provider.of<Client>(context, listen: false);
               final Room? space = client.getRoomById(nav.selectedId);
@@ -223,8 +263,6 @@ class _DashboardView extends StatelessWidget {
               }
             }
 
-            // For Home (direct messages) and All Channels, show the
-            // traditional flat room list.
             return RoomsPane(roomFilter: (Room room) {
               if (nav.isAll) return !room.isSpace;
               if (nav.isHome) return room.isDirectChat;

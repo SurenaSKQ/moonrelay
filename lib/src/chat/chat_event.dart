@@ -241,6 +241,7 @@ class MessageEventHandler extends StatelessWidget {
     return MatrixUrlBannerWrapper(
       textBody: event.body,
       room: room!,
+      event: event,
       child: textWidget,
     );
   }
@@ -289,6 +290,7 @@ class MessageEventHandler extends StatelessWidget {
     return MatrixUrlBannerWrapper(
       textBody: event.body,
       room: room!,
+      event: event,
       child: content,
     );
   }

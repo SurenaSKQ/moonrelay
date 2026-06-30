@@ -77,6 +77,7 @@ class ModernMessageItem implements MessageItemBase {
             return MatrixUrlBannerWrapper(
               textBody: event.body,
               room: room,
+              event: event,
               child: textWidget,
             );
           case MessageTypes.Image:

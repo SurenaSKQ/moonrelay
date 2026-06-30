@@ -22,6 +22,11 @@ import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 /// Wraps a message's [child] (the text/rich-content widget) and appends one
 /// [MatrixUrlBanner] per distinct Matrix URL detected in [textBody].
 ///
+/// When [event] is provided and the event is a reply (contains
+/// `m.relates_to` / `m.in_reply_to`), the reply-quoted portion of
+/// [textBody] is excluded from URL scanning so that `@user:domain`
+/// mentions inside the replied‑to quote don't trigger preview banners.
+///
 /// If no Matrix URLs are found the [child] is returned unchanged.
 class MatrixUrlBannerWrapper extends StatelessWidget {
   const MatrixUrlBannerWrapper({
@@ -29,6 +34,7 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
     required this.textBody,
     required this.room,
     required this.child,
+    this.event,
   });
 
   /// The rendered text/rich-content widget.
@@ -40,9 +46,13 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
   /// The current room (provides the [Client] for lookups).
   final Room room;
 
+  /// The event this message belongs to, used to detect replies.
+  final Event? event;
+
   @override
   Widget build(BuildContext context) {
-    final results = MatrixUriParser.parseAll(textBody);
+    final scanText = _stripReplyQuote(textBody);
+    final results = MatrixUriParser.parseAll(scanText);
     if (results.isEmpty) return child;
 
     return Column(
@@ -57,5 +67,39 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  /// Strips the reply‑quote prefix from [text] when this event is a reply.
+  ///
+  /// Matrix replies prefix the body with one or more lines starting with
+  /// `> ` followed by `\n\n` and the actual message.  Only the actual
+  /// message portion is returned so that user IDs inside the quote don't
+  /// produce spurious Matrix URL banners.
+  String _stripReplyQuote(String text) {
+    if (event == null) return text;
+
+    // Check if this event is a reply.
+    final relatesTo = event!.content['m.relates_to'] as Map?;
+    final inReplyTo = relatesTo?['m.in_reply_to'] as Map?;
+    if (inReplyTo == null || inReplyTo['event_id'] == null) return text;
+
+    final lines = text.split('\n');
+    if (lines.isEmpty) return text;
+
+    // Count consecutive leading lines that start with "> ".
+    int quoteEnd = 0;
+    while (quoteEnd < lines.length && lines[quoteEnd].startsWith('> ')) {
+      quoteEnd++;
+    }
+    if (quoteEnd == 0) return text;
+
+    // Skip the blank line that separates the quote from the reply body.
+    int bodyStart = quoteEnd;
+    while (bodyStart < lines.length && lines[bodyStart].trim().isEmpty) {
+      bodyStart++;
+    }
+    if (bodyStart >= lines.length) return text;
+
+    return lines.sublist(bodyStart).join('\n').trim();
   }
 }
