@@ -279,6 +279,14 @@
   },
 
   "roomInfoTitle": "Room Info",
+  "roomSettings": "Room Settings",
+  "@roomSettings": {
+    "description": "Title for the room settings page."
+  },
+  "roomSettingsDescription": "Manage room settings and moderation",
+  "@roomSettingsDescription": {
+    "description": "Subtitle for the room settings action."
+  },
   "copyRoomIdTooltip": "Copy Room ID",
   "actionsSection": "Actions",
 
@@ -291,6 +299,10 @@
   "leaveRoomDescription": "Remove yourself from this room",
   "copyRoomId": "Copy Room ID",
   "detailsSection": "Details",
+  "roomIdLabel": "Room ID",
+  "@roomIdLabel": {
+    "description": "Label for the room/space ID field."
+  },
   "typeLabel": "Type",
   "encryptionLabel": "Encryption",
   "addressLabel": "Address",
@@ -880,6 +892,11 @@
   "presenceUnavailable": "Unavailable",
   "presenceUnknown": "Unknown",
 
+  "lastActive": "Last Active",
+  "@lastActive": {
+    "description": "Label for the last active timestamp field."
+  },
+
   "sectionAbout": "About",
   "sectionModeration": "Moderation",
 
@@ -1091,6 +1108,44 @@
   "@openSpaceSettings": {
     "description": "Button to open the space settings page."
   },
+
+  "editSpaceName": "Edit Space Name",
+  "@editSpaceName": {
+    "description": "Button to edit the space name."
+  },
+  "editSpaceNameHint": "Enter a new name for this space",
+  "@editSpaceNameHint": {
+    "description": "Hint text for the space name edit dialog."
+  },
+  "editSpaceTopic": "Edit Space Topic",
+  "@editSpaceTopic": {
+    "description": "Button to edit the space topic."
+  },
+  "editSpaceTopicHint": "Enter a new topic for this space",
+  "@editSpaceTopicHint": {
+    "description": "Hint text for the space topic edit dialog."
+  },
+  "changeSpaceAvatar": "Change Space Avatar",
+  "@changeSpaceAvatar": {
+    "description": "Button to change the space avatar."
+  },
+  "changeSpaceAvatarDescription": "Upload a new avatar image",
+  "@changeSpaceAvatarDescription": {
+    "description": "Description for the change space avatar action."
+  },
+  "spaceNameUpdated": "Space name updated",
+  "@spaceNameUpdated": {
+    "description": "Confirmation shown after updating the space name."
+  },
+  "spaceTopicUpdated": "Space topic updated",
+  "@spaceTopicUpdated": {
+    "description": "Confirmation shown after updating the space topic."
+  },
+  "spaceAvatarUpdated": "Space avatar updated",
+  "@spaceAvatarUpdated": {
+    "description": "Confirmation shown after updating the space avatar."
+  },
+
   "addToSpace": "Add to Space",
   "@addToSpace": {
     "description": "Context menu item to add the current room to a space."
@@ -1543,6 +1598,53 @@
   "@searchHomeserver": {
     "description": "Placeholder text for the homeserver-wide search field."
   },
+  "activeAgo": "Active {time} ago",
+  "@activeAgo": {
+    "description": "Shown when a user was active a certain time ago.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "lastSeenAgo": "Last seen {time} ago",
+  "@lastSeenAgo": {
+    "description": "Shown when a user was last seen a certain time ago.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "timeJustNow": "just now",
+  "@timeJustNow": {
+    "description": "Relative time label for less than a minute ago."
+  },
+  "timeMinutes": "{count}m",
+  "@timeMinutes": {
+    "description": "Short relative time in minutes.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeHours": "{count}h",
+  "@timeHours": {
+    "description": "Short relative time in hours.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeDays": "{count}d",
+  "@timeDays": {
+    "description": "Short relative time in days.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeWeeks": "{count}w",
+  "@timeWeeks": {
+    "description": "Short relative time in weeks.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
   "searchNoResults": "No results found",
   "@searchNoResults": {
     "description": "Message shown when search returns no results."
@@ -1635,5 +1737,64 @@
   "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
   "@aboutJoinedSupportSpace": {
     "description": "Snackbar confirmation after joining the support space."
+  },
+
+  "actionBlockUser": "Block User",
+  "@actionBlockUser": {
+    "description": "Button to block/ignore a user."
+  },
+  "actionUnblockUser": "Unblock User",
+  "@actionUnblockUser": {
+    "description": "Button to unblock a previously blocked user."
+  },
+  "blockUserConfirm": "Are you sure you want to block {displayName}? You will no longer receive messages from them.",
+  "@blockUserConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userBlocked": "Blocked {displayName}.",
+  "@userBlocked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userUnblocked": "Unblocked {displayName}.",
+  "@userUnblocked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "actionRemoveContact": "Remove from Contacts",
+  "@actionRemoveContact": {
+    "description": "Button to remove a user from the contact list (m.direct)."
+  },
+  "removeContactConfirm": "Remove {displayName} from your contacts? This will leave the direct message room.",
+  "@removeContactConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "contactRemoved": "Removed {displayName} from contacts.",
+  "@contactRemoved": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "blockedUsers": "Blocked Users",
+  "@blockedUsers": {
+    "description": "Title for the blocked users list page."
+  },
+  "blockedUsersDescription": "Users you have blocked will not be able to send you messages.",
+  "@blockedUsersDescription": {
+    "description": "Description for the blocked users list page."
+  },
+  "blockedUsersEmpty": "You haven't blocked anyone yet.",
+  "@blockedUsersEmpty": {
+    "description": "Empty state shown when the blocked users list is empty."
+  },
+  "blockedUsersLoadError": "Failed to load blocked users list.",
+  "@blockedUsersLoadError": {
+    "description": "Error shown when the blocked users list fails to load."
   }
 }
