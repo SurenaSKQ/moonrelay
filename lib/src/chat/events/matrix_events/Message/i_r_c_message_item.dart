@@ -7,13 +7,12 @@ import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/message_event_base.dart';
 import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/timeline_item_sender_name_and_timestamp.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:provider/provider.dart';
 
 class IRCMessageItem implements MessageItemBase {
   IRCMessageItem({
     required this.event,
     required this.room,
+    this.fontSize = 16.0,
   });
 
   @override
@@ -21,6 +20,8 @@ class IRCMessageItem implements MessageItemBase {
 
   @override
   final Room room;
+
+  final double fontSize;
 
   @override
   Widget buildAvatar(BuildContext context) => SizedBox.shrink();
@@ -32,19 +33,19 @@ class IRCMessageItem implements MessageItemBase {
 
   @override
   Widget buildSubtitle(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    final fs = fontSize;
     final formattedBody = event.content['formatted_body'] as String?;
     final format = event.content['format'] as String?;
-    final textWidget = formattedBody != null && format == 'org.matrix.custom.html'
-        ? FormattedTextWidget(
-            event: event,
-            baseFontSize: fs,
-          ) as Widget
-        : Text(
-            event.body,
-            style: TextStyle(fontSize: fs),
-          );
+    final textWidget =
+        formattedBody != null && format == 'org.matrix.custom.html'
+            ? FormattedTextWidget(
+                event: event,
+                baseFontSize: fs,
+              ) as Widget
+            : Text(
+                event.body,
+                style: TextStyle(fontSize: fs),
+              );
     return MatrixUrlBannerWrapper(
       textBody: event.body,
       room: room,

@@ -56,9 +56,15 @@ class FormattedTextWidget extends StatelessWidget {
     final format = event.content['format'] as String?;
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
-      final spans = _HtmlTagParser(formattedBody, context,
-              baseFontSize: baseFontSize)
-          .parse();
+      // Check the parse cache before re-parsing.
+      final cacheKey = formattedBody.hashCode ^ baseFontSize.hashCode;
+      List<TextSpan>? spans = _HtmlParseCache.get(cacheKey);
+      if (spans == null) {
+        spans =
+            _HtmlTagParser(formattedBody, context, baseFontSize: baseFontSize)
+                .parse();
+        _HtmlParseCache.set(cacheKey, spans);
+      }
       if (spans.isNotEmpty) {
         return SelectableText.rich(TextSpan(
           style: TextStyle(fontSize: _fs(16)),
@@ -102,7 +108,7 @@ class FormattedTextWidget extends StatelessWidget {
 
       spans.add(TextSpan(
         text: rawUrl,
-          style: TextStyle(
+        style: TextStyle(
           color: accent,
           decoration: TextDecoration.underline,
           fontSize: _fs(16),
@@ -153,6 +159,31 @@ class FormattedTextWidget extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Lightweight recursive-descent HTML parser for Matrix custom HTML.
 // ---------------------------------------------------------------------------
+
+/// Simple bounded cache for HTML parse results keyed by formatted body text.
+///
+/// Prevents re-parsing the same HTML string on every timeline rebuild.
+/// Only the most recent [kMaxCacheEntries] entries are kept.
+class _HtmlParseCache {
+  _HtmlParseCache._();
+  static const int kMaxCacheEntries = 200;
+  static final Map<int, List<TextSpan>> _cache = {};
+  static final List<int> _keys = [];
+
+  /// Returns cached spans for [key], or `null` if not in cache.
+  static List<TextSpan>? get(int key) => _cache[key];
+
+  /// Stores [spans] for [key], evicting the oldest entry if over capacity.
+  static void set(int key, List<TextSpan> spans) {
+    if (_cache.containsKey(key)) return;
+    if (_keys.length >= kMaxCacheEntries) {
+      final oldest = _keys.removeAt(0);
+      _cache.remove(oldest);
+    }
+    _keys.add(key);
+    _cache[key] = spans;
+  }
+}
 
 /// Converts a subset of Matrix HTML into [TextSpan] lists.
 ///
@@ -500,7 +531,8 @@ class _HtmlTagParser {
           const TextSpan(text: '\n'),
           TextSpan(
             children: inner,
-            style: base.copyWith(fontSize: _fs(size), fontWeight: FontWeight.bold),
+            style:
+                base.copyWith(fontSize: _fs(size), fontWeight: FontWeight.bold),
           ),
           const TextSpan(text: '\n'),
         ];

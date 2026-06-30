@@ -68,32 +68,32 @@ class SettingsController with ChangeNotifier, WindowListener {
   double get uiScale => _uiScale;
   bool get notificationsEnabled => _notificationsEnabled;
   Future<void> loadSettings() async {
-    _themeMode = await _settingsService.themeMode();
-    _themeOption = await _settingsService.themeOption();
-    _displayType = await _settingsService.displayType();
-    // _accentColor = await _settingsService.accentColor();
+    final snapshot = await _settingsService.loadAll();
+    _themeMode = snapshot.themeMode;
+    _themeOption = snapshot.themeOption;
+    _displayType = snapshot.displayType;
 
     // Layout settings
-    _leftSidebarVisible = await _settingsService.leftSidebarVisible();
-    _leftSidebarWidth = await _settingsService.leftSidebarWidth();
-    _leftPaneChoice = await _settingsService.leftPaneChoice();
-    _rightSidebarVisible = await _settingsService.rightSidebarVisible();
-    _rightSidebarWidth = await _settingsService.rightSidebarWidth();
-    _rightPaneChoice = await _settingsService.rightPaneChoice();
-    _headerReversed = await _settingsService.headerReversed();
-    _showStateEvents = await _settingsService.showStateEvents();
-    _showStatusBar = await _settingsService.showStatusBar();
-    _showTrayIcon = await _settingsService.showTrayIcon();
-    _closeToTray = await _settingsService.closeToTray();
-    _minimizeToTray = await _settingsService.minimizeToTray();
-    _startMinimized = await _settingsService.startMinimized();
-    _pinnedSpaces = await _settingsService.pinnedSpaces();
-    _spaceOrder = await _settingsService.spaceOrder();
-    _collapsedGroups = await _settingsService.collapsedGroups();
-    _spaceGroups = await _settingsService.spaceGroups();
-    _fontSize = await _settingsService.fontSize();
-    _uiScale = await _settingsService.uiScale();
-    _notificationsEnabled = await _settingsService.notificationsEnabled();
+    _leftSidebarVisible = snapshot.leftSidebarVisible;
+    _leftSidebarWidth = snapshot.leftSidebarWidth;
+    _leftPaneChoice = snapshot.leftPaneChoice;
+    _rightSidebarVisible = snapshot.rightSidebarVisible;
+    _rightSidebarWidth = snapshot.rightSidebarWidth;
+    _rightPaneChoice = snapshot.rightPaneChoice;
+    _headerReversed = snapshot.headerReversed;
+    _showStateEvents = snapshot.showStateEvents;
+    _showStatusBar = snapshot.showStatusBar;
+    _showTrayIcon = snapshot.showTrayIcon;
+    _closeToTray = snapshot.closeToTray;
+    _minimizeToTray = snapshot.minimizeToTray;
+    _startMinimized = snapshot.startMinimized;
+    _pinnedSpaces = snapshot.pinnedSpaces;
+    _spaceOrder = snapshot.spaceOrder;
+    _collapsedGroups = snapshot.collapsedGroups;
+    _spaceGroups = snapshot.spaceGroups;
+    _fontSize = snapshot.fontSize;
+    _uiScale = snapshot.uiScale;
+    _notificationsEnabled = snapshot.notificationsEnabled;
     notifyListeners();
   }
 

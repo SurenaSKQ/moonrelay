@@ -4,6 +4,60 @@ import 'package:moonrelay/src/settings/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// All persisted settings loaded in one batch.  Individual getters remain
+/// available for granular reads after the initial load.
+class SettingsSnapshot {
+  final MoonrelayThemeOption themeOption;
+  final ThemeMode themeMode;
+  final DisplayType displayType;
+  final bool leftSidebarVisible;
+  final double leftSidebarWidth;
+  final LeftPaneChoice leftPaneChoice;
+  final bool rightSidebarVisible;
+  final double rightSidebarWidth;
+  final RightPaneChoice rightPaneChoice;
+  final bool headerReversed;
+  final bool showStateEvents;
+  final bool showStatusBar;
+  final bool showTrayIcon;
+  final bool closeToTray;
+  final bool minimizeToTray;
+  final bool startMinimized;
+  final Set<String> pinnedSpaces;
+  final List<String> spaceOrder;
+  final Set<String> collapsedGroups;
+  final Map<String, List<String>> spaceGroups;
+  final double fontSize;
+  final double uiScale;
+  final bool notificationsEnabled;
+
+  const SettingsSnapshot({
+    this.themeOption = MoonrelayThemeOption.indigo,
+    this.themeMode = ThemeMode.system,
+    this.displayType = DisplayType.modern,
+    this.leftSidebarVisible = true,
+    this.leftSidebarWidth = 320.0,
+    this.leftPaneChoice = LeftPaneChoice.rooms,
+    this.rightSidebarVisible = true,
+    this.rightSidebarWidth = 280.0,
+    this.rightPaneChoice = RightPaneChoice.roomInfo,
+    this.headerReversed = false,
+    this.showStateEvents = true,
+    this.showStatusBar = true,
+    this.showTrayIcon = true,
+    this.closeToTray = false,
+    this.minimizeToTray = false,
+    this.startMinimized = false,
+    this.pinnedSpaces = const {},
+    this.spaceOrder = const [],
+    this.collapsedGroups = const {},
+    this.spaceGroups = const {},
+    this.fontSize = 16.0,
+    this.uiScale = 1.0,
+    this.notificationsEnabled = true,
+  });
+}
+
 /// A service that stores and retrieves user settings.
 class SettingsService {
   // static const _accentColorKey = 'accent_color';
@@ -83,6 +137,95 @@ class SettingsService {
   Future<void> updateDisplayType(DisplayType displayType) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_displayTypeKey, displayType.index);
+  }
+
+  // ── Batch load ────────────────────────────────────────────────────────
+
+  /// Loads all settings in a single [SharedPreferences] read, returning a
+  /// [SettingsSnapshot] with all keys populated.  This replaces the 27
+  /// individual async getter calls used on startup.
+  Future<SettingsSnapshot> loadAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    return SettingsSnapshot(
+      themeOption: _readThemeOption(prefs),
+      themeMode: _readThemeMode(prefs),
+      displayType: _readDisplayType(prefs),
+      leftSidebarVisible: prefs.getBool(_leftSidebarVisibleKey) ?? true,
+      leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ?? 320.0,
+      leftPaneChoice: _readLeftPaneChoice(prefs),
+      rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
+      rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
+      rightPaneChoice: _readRightPaneChoice(prefs),
+      headerReversed: prefs.getBool(_headerReversedKey) ?? false,
+      showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
+      showStatusBar: prefs.getBool(_showStatusBarKey) ?? true,
+      showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
+      closeToTray: prefs.getBool(_closeToTrayKey) ?? false,
+      minimizeToTray: prefs.getBool(_minimizeToTrayKey) ?? false,
+      startMinimized: prefs.getBool(_startMinimizedKey) ?? false,
+      pinnedSpaces: _readCommaSet(prefs, _pinnedSpacesKey),
+      spaceOrder: _readCommaList(prefs, _spaceOrderKey),
+      collapsedGroups: _readCommaSet(prefs, _collapsedGroupsKey),
+      spaceGroups: _readSpaceGroups(prefs),
+      fontSize: prefs.getDouble(_fontSizeKey) ?? 16.0,
+      uiScale: prefs.getDouble(_uiScaleKey) ?? 1.0,
+      notificationsEnabled: prefs.getBool(_notificationsEnabledKey) ?? true,
+    );
+  }
+
+  static MoonrelayThemeOption _readThemeOption(SharedPreferences prefs) {
+    final index = prefs.getInt(_themeOptionKey);
+    return index != null
+        ? MoonrelayThemeOption.values[index]
+        : MoonrelayThemeOption.indigo;
+  }
+
+  static ThemeMode _readThemeMode(SharedPreferences prefs) {
+    final index = prefs.getInt(_themeModeKey);
+    return index != null ? ThemeMode.values[index] : ThemeMode.system;
+  }
+
+  static DisplayType _readDisplayType(SharedPreferences prefs) {
+    final index = prefs.getInt(_displayTypeKey);
+    return index != null ? DisplayType.values[index] : DisplayType.modern;
+  }
+
+  static LeftPaneChoice _readLeftPaneChoice(SharedPreferences prefs) {
+    final index = prefs.getInt(_leftPaneChoiceKey);
+    return index != null ? LeftPaneChoice.values[index] : LeftPaneChoice.rooms;
+  }
+
+  static RightPaneChoice _readRightPaneChoice(SharedPreferences prefs) {
+    final index = prefs.getInt(_rightPaneChoiceKey);
+    return index != null
+        ? RightPaneChoice.values[index]
+        : RightPaneChoice.roomInfo;
+  }
+
+  static Set<String> _readCommaSet(SharedPreferences prefs, String key) {
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) return {};
+    return raw.split(',').where((id) => id.isNotEmpty).toSet();
+  }
+
+  static List<String> _readCommaList(SharedPreferences prefs, String key) {
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) return [];
+    return raw.split(',').where((id) => id.isNotEmpty).toList();
+  }
+
+  static Map<String, List<String>> _readSpaceGroups(SharedPreferences prefs) {
+    final raw = prefs.getString('space_groups');
+    if (raw == null || raw.isEmpty) return {};
+    final map = <String, List<String>>{};
+    for (final entry in raw.split('|')) {
+      final parts = entry.split(':');
+      if (parts.length == 2) {
+        map[parts[0]] =
+            parts[1].split(',').where((id) => id.isNotEmpty).toList();
+      }
+    }
+    return map;
   }
 
   // ── Layout settings ──────────────────────────────────────────────────

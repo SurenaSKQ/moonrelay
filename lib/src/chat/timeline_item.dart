@@ -18,15 +18,12 @@ import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
-import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
 
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
@@ -52,6 +49,8 @@ class TimelineItem extends StatelessWidget {
     this.isGroupStart = true,
     this.isGroupContinuation = false,
     this.timeline,
+    required this.fontSize,
+    this.threadReplyCount = 0,
     this.onReply,
     this.onForward,
     this.onThread,
@@ -64,6 +63,13 @@ class TimelineItem extends StatelessWidget {
   final Room room;
   final DisplayType displayType;
   final Timeline? timeline;
+
+  /// Font size for message text, passed from the parent to avoid
+  /// a per-event [context.watch] on [SettingsController].
+  final double fontSize;
+
+  /// Precomputed number of thread replies (0 = no thread).
+  final int threadReplyCount;
 
   /// True when this event is the first in a group from the same sender.
   /// Grouped events from the same sender within ~10 min share a single
@@ -131,12 +137,10 @@ class TimelineItem extends StatelessWidget {
   }
 
   /// Message body + reactions bar (shared between all display modes).
+  ///
+  /// Uses the precomputed [threadReplyCount] and passed [fontSize] instead
+  /// of scanning the timeline or watching [SettingsController] on every build.
   Widget _messageContent(BuildContext context) {
-    final hasThread =
-        timeline != null && ThreadUtils.hasThreadReplies(event, timeline!);
-    final replyCount =
-        hasThread ? ThreadUtils.threadReplyCount(event, timeline!) : 0;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -145,6 +149,7 @@ class TimelineItem extends StatelessWidget {
           event: event,
           timeline: timeline,
           room: room,
+          fontSize: fontSize,
           onJumpToEvent: onJumpToEvent,
         ),
         if (timeline != null)
@@ -153,9 +158,9 @@ class TimelineItem extends StatelessWidget {
             timeline: timeline!,
             room: room,
           ),
-        if (hasThread && replyCount > 0)
+        if (threadReplyCount > 0)
           _ThreadIndicator(
-            replyCount: replyCount,
+            replyCount: threadReplyCount,
             onTap: onThread,
           ),
       ],
@@ -168,8 +173,6 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -208,7 +211,7 @@ class TimelineItem extends StatelessWidget {
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
                             style: TextStyle(
-                              fontSize: fs,
+                              fontSize: fontSize,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurface,
                             ),
@@ -219,7 +222,7 @@ class TimelineItem extends StatelessWidget {
                         Text(
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: fs * 0.6875,
+                            fontSize: fontSize * 0.6875,
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.45),
@@ -229,7 +232,7 @@ class TimelineItem extends StatelessWidget {
                     ),
                   ),
                 // No timestamp for continuation messages (time shown on group start)
-                // Hover actions (right-aligned — away from sender info)
+                // Hover actions (right-aligned -- away from sender info)
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
@@ -252,8 +255,6 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -290,7 +291,7 @@ class TimelineItem extends StatelessWidget {
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
                             style: TextStyle(
-                              fontSize: fs,
+                              fontSize: fontSize,
                               fontWeight: FontWeight.w700,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -300,7 +301,7 @@ class TimelineItem extends StatelessWidget {
                         Text(
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: fs * 0.6875,
+                            fontSize: fontSize * 0.6875,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -346,15 +347,13 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     return _IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
           '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
           style: TextStyle(
-            fontSize: fs,
+            fontSize: fontSize,
             fontWeight: FontWeight.w700,
           ),
           overflow: TextOverflow.ellipsis,
@@ -376,6 +375,7 @@ class TimelineItem extends StatelessWidget {
             event: event,
             timeline: timeline,
             room: room,
+            fontSize: fontSize,
             onJumpToEvent: onJumpToEvent,
           ),
           if (timeline != null)

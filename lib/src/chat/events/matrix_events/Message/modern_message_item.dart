@@ -10,14 +10,13 @@ import 'package:moonrelay/src/chat/events/matrix_events/Message/message_event_ba
 import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:moonrelay/src/chat/timeline_item_sender_name_and_timestamp.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:provider/provider.dart';
 
 class ModernMessageItem implements MessageItemBase {
   ModernMessageItem({
     required this.event,
     required this.room,
+    this.fontSize = 16.0,
   });
 
   @override
@@ -25,6 +24,8 @@ class ModernMessageItem implements MessageItemBase {
 
   @override
   final Room room;
+
+  final double fontSize;
 
   // TODO: Multiple file download; split download utility; (future work) bind FFI to windows defender / ClamAV
 
@@ -55,26 +56,24 @@ class ModernMessageItem implements MessageItemBase {
 
   @override
   Widget buildSubtitle(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    final fs = fontSize;
     switch (event.type) {
       case EventTypes.Message:
         // TODO: Stickers, emotes; event relationships
         switch (event.messageType) {
           case MessageTypes.Text:
-            final formattedBody =
-                event.content['formatted_body'] as String?;
+            final formattedBody = event.content['formatted_body'] as String?;
             final format = event.content['format'] as String?;
-            final textWidget = formattedBody != null &&
-                    format == 'org.matrix.custom.html'
-                ? FormattedTextWidget(
-                    event: event,
-                    baseFontSize: fs,
-                  ) as Widget
-                : Text(
-                    event.body,
-                    style: TextStyle(fontSize: fs),
-                  );
+            final textWidget =
+                formattedBody != null && format == 'org.matrix.custom.html'
+                    ? FormattedTextWidget(
+                        event: event,
+                        baseFontSize: fs,
+                      ) as Widget
+                    : Text(
+                        event.body,
+                        style: TextStyle(fontSize: fs),
+                      );
             return MatrixUrlBannerWrapper(
               textBody: event.body,
               room: room,

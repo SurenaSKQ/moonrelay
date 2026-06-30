@@ -48,6 +48,7 @@ class TimelineView extends StatefulWidget {
     required this.room,
     required this.displayType,
     required this.scrollController,
+    required this.fontSize,
     this.timelineVersion,
     this.onReply,
     this.onThread,
@@ -59,6 +60,10 @@ class TimelineView extends StatefulWidget {
   final Room room;
   final DisplayType displayType;
   final ScrollController scrollController;
+
+  /// Font size for message text, propagated from [SettingsController]
+  /// once at the top level instead of watched inside each item.
+  final double fontSize;
 
   /// Included so the parent can signal data changes without tearing down
   /// the ListView (no [ValueKey] used).
@@ -89,15 +94,55 @@ class _TimelineViewState extends State<TimelineView> {
   String? _highlightedEventId;
 
   // ---------------------------------------------------------------------------
+  // Cached computed values
+  // ---------------------------------------------------------------------------
+
+  /// Cached result of [_buildItemList], invalidated when the timeline version
+  /// or any display-affecting prop changes.  This prevents O(n) rebuilds of
+  /// the entire visible item list on every sync tick.
+  List<Widget>? _cachedItems;
+
+  /// Cached result of [_visibleIndices].
+  List<int>? _cachedVisibleIndices;
+
+  /// Cached event-id-to-item-index map for jump-to-event.
+  Map<String, int>? _cachedEventIdToItemIndex;
+
+  /// The [widget.timelineVersion] when the cache was last built.  Also
+  /// embeds other display-affecting props so the cache is invalidated
+  /// when font size, display type, or state-event visibility changes.
+  String get _cacheKey =>
+      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}';
+
+  String _lastCacheKey = '';
+
+  /// Invalidates all cached values so they are recomputed on the next build.
+  void _invalidateCache() {
+    _cachedItems = null;
+    _cachedVisibleIndices = null;
+    _cachedEventIdToItemIndex = null;
+  }
+
+  @override
+  void didUpdateWidget(TimelineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newKey = _cacheKey;
+    if (newKey != _lastCacheKey) {
+      _invalidateCache();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Index helpers
   // ---------------------------------------------------------------------------
 
   /// Indices (into `timeline.events`) of events that should appear as
-  /// standalone items.  Events are in SDK order (newest → oldest).
+  /// standalone items.  Events are in SDK order (newest -> oldest).
   ///
   /// Thread roots (self-referencing `m.thread` events) are kept visible;
   /// all other related events (reactions, edits, thread replies) are hidden.
   List<int> _visibleIndices() {
+    if (_cachedVisibleIndices != null) return _cachedVisibleIndices!;
     final indices = List<int>.generate(widget.timeline.events.length, (i) => i);
     final filter = widget.filterEvents;
     indices.removeWhere((i) {
@@ -105,6 +150,7 @@ class _TimelineViewState extends State<TimelineView> {
       if (filter != null) return !filter(event);
       return !ThreadUtils.isVisibleInMainTimeline(event);
     });
+    _cachedVisibleIndices = indices;
     return indices;
   }
 
@@ -163,10 +209,17 @@ class _TimelineViewState extends State<TimelineView> {
   /// If any visible events are undecryptable (type == `m.room.encrypted`), an
   /// info banner is prepended to alert the user that some messages can't be
   /// read and suggest verification or key request.
+  ///
+  /// Results are cached in [_cachedItems] and [_cachedEventIdToItemIndex] so
+  /// that the same timeline version produces the same widget list without
+  /// re-scanning every event.  The cache is invalidated when [widget.timelineVersion]
+  /// or any display-affecting prop changes.
   List<Widget> _buildItemList(BuildContext context) {
-    final visibleIndices = _visibleIndices(); // newest → oldest
+    if (_cachedItems != null) return _cachedItems!;
+
+    final visibleIndices = _visibleIndices(); // newest -> oldest
     final items = <Widget>[];
-    // Map of eventId → item index in [items], built as we go.
+    // Map of eventId -> item index in [items], built as we go.
     final eventIdToItemIndex = <String, int>{};
     Event? previousVisible; // the *newer* neighbour (non-state events only)
     int undecryptableCount = 0;
@@ -200,7 +253,7 @@ class _TimelineViewState extends State<TimelineView> {
           }
 
           items.add(StateEventTile(events: batch));
-          // Do NOT update previousVisible — state events don't participate
+          // Do NOT update previousVisible -- state events don't participate
           // in regular message grouping/continuation.
         } else {
           // Skip state events entirely.
@@ -225,6 +278,13 @@ class _TimelineViewState extends State<TimelineView> {
         final isContinuation = effectiveNextEvent != null &&
             _isContinuation(event, effectiveNextEvent);
 
+        // Precompute thread reply data once instead of scanning
+        // the timeline per-item on every build.
+        final hasThread = ThreadUtils.hasThreadReplies(event, widget.timeline);
+        final replyCount = hasThread
+            ? ThreadUtils.threadReplyCount(event, widget.timeline)
+            : 0;
+
         items.add(TimelineItem(
           event: event,
           room: widget.room,
@@ -234,8 +294,11 @@ class _TimelineViewState extends State<TimelineView> {
           isGroupStart: !isContinuation,
           isGroupContinuation: isContinuation,
           timeline: widget.timeline,
+          fontSize: widget.fontSize,
+          threadReplyCount: replyCount,
           onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
-          onThread: widget.onThread != null ? () => widget.onThread!(event) : null,
+          onThread:
+              widget.onThread != null ? () => widget.onThread!(event) : null,
           onForward: () => showForwardDialog(
             context: context,
             event: event,
@@ -259,7 +322,17 @@ class _TimelineViewState extends State<TimelineView> {
       items.insert(0, _UndecryptableBanner(count: undecryptableCount));
     }
 
+    _cachedItems = items;
+    _cachedEventIdToItemIndex = eventIdToItemIndex;
+    _lastCacheKey = _cacheKey;
+
     return items;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _lastCacheKey = _cacheKey;
   }
 
   // ---------------------------------------------------------------------------
@@ -294,7 +367,10 @@ class _TimelineViewState extends State<TimelineView> {
     Map<String, int> eventIdToItemIndex,
   ) {
     return (String eventId) {
-      final targetIdx = eventIdToItemIndex[eventId];
+      // Use the cached map if available (avoids passing the ephemeral
+      // map through the closure on every rebuild).
+      final map = _cachedEventIdToItemIndex ?? eventIdToItemIndex;
+      final targetIdx = map[eventId];
       if (targetIdx == null) return;
       if (!controller.hasClients) return;
 

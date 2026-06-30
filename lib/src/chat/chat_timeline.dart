@@ -52,7 +52,12 @@ import 'package:provider/provider.dart';
 /// for two frames while the list stabilises, stopping the "load → layout
 /// change → scroll event → load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline({super.key, required this.room, this.onReply, this.onThread, this.filterEvents});
+  const ChatTimeline(
+      {super.key,
+      required this.room,
+      this.onReply,
+      this.onThread,
+      this.filterEvents});
 
   final Room room;
 
@@ -265,6 +270,7 @@ class _ChatTimelineState extends State<ChatTimeline> {
           timeline: _timeline!,
           room: widget.room,
           displayType: settings.displayType,
+          fontSize: settings.fontSize,
           scrollController: _scrollController,
           timelineVersion: _timelineVersion,
           onReply: widget.onReply,

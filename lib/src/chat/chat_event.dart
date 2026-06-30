@@ -23,7 +23,6 @@ import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart'
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_notice_event.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_request_event.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
@@ -45,6 +44,7 @@ class MessageEventHandler extends StatelessWidget {
     required this.event,
     this.timeline,
     this.room,
+    this.fontSize = 16.0,
     this.onJumpToEvent,
   });
 
@@ -57,14 +57,16 @@ class MessageEventHandler extends StatelessWidget {
   /// The room this event belongs to, used to fetch replied-to events.
   final Room? room;
 
+  /// Font size for message text, propagated from the parent.
+  final double fontSize;
+
   /// Called when the user taps a reply preview to jump to the replied-to
   /// event.  Receives the event ID of the target event.
   final void Function(String eventId)? onJumpToEvent;
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    final fs = fontSize;
 
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
