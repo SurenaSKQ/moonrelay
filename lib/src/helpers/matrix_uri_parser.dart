@@ -84,6 +84,9 @@ class MatrixUriParser {
 
   /// Scans [text] for all matrix URIs and returns a parsed result for each
   /// one found.  Returns an empty list if none are found.
+  ///
+  /// Multiple URIs that resolve to the same entity (e.g. a bare user mention
+  /// and a `matrix.to` permalink for the same user) produce a single result.
   static List<MatrixUriResult> parseAll(String text) {
     final results = <MatrixUriResult>[];
     final seen = <String>{};
@@ -95,6 +98,13 @@ class MatrixUriParser {
 
       final parsed = parse(uri);
       if (parsed != null) {
+        // Deduplicate by canonical entity identity so that a bare user
+        // mention (`@user:domain`) and a `matrix.to` permalink to the
+        // same user don't produce separate banners.
+        final key = '${parsed.entityType}|${parsed.entityId}';
+        if (seen.contains(key)) continue;
+        seen.add(key);
+
         results.add(parsed);
       }
     }
