@@ -22,7 +22,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:provider/provider.dart';
 
 const double _pw = 80;
@@ -61,7 +61,7 @@ class _NavigationPaneState extends State<NavigationPane> {
   void _runPendingAutoGroup() {
     if (!_pendingAutoGroup || !mounted) return;
     _pendingAutoGroup = false;
-    final s = context.read<SettingsController>();
+    final sp = context.read<SpacePreferences>();
     final c = context.read<Client>();
     final ids = c.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
     final newIds = ids.difference(_knownIds);
@@ -75,18 +75,18 @@ class _NavigationPaneState extends State<NavigationPane> {
         rel[e.key] = e.value;
       }
     }
-    if (rel.isNotEmpty) s.mergeIntoGroups(rel);
+    if (rel.isNotEmpty) sp.mergeIntoGroups(rel);
   }
 
-  bool _inGroup(SettingsController s, String id) =>
-      s.spaceGroups.values.any((v) => v.contains(id));
+  bool _inGroup(SpacePreferences sp, String id) =>
+      sp.spaceGroups.values.any((v) => v.contains(id));
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final client = Provider.of<Client>(context);
     final l10n = AppLocalizations.of(context)!;
-    final settings = context.watch<SettingsController>();
+    final spacePrefs = context.watch<SpacePreferences>();
 
     // Track new spaces (deferred to avoid setState during build).
     final ids = client.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
@@ -100,9 +100,9 @@ class _NavigationPaneState extends State<NavigationPane> {
     return Consumer<NavigationState>(
       builder: (context, nav, _) {
         final items = buildNavItems(client.rooms,
-            collapsedGroupIds: settings.collapsedGroups,
-            spaceGroups: settings.spaceGroups,
-            order: settings.spaceOrder);
+            collapsedGroupIds: spacePrefs.collapsedGroups,
+            spaceGroups: spacePrefs.spaceGroups,
+            order: spacePrefs.spaceOrder);
 
         return Container(
           width: _pw,
@@ -145,14 +145,16 @@ class _NavigationPaneState extends State<NavigationPane> {
                     children: items
                         .map((item) => switch (item) {
                               NavSpaceLeaf(:final space) => _buildLeaf(
-                                  context, space, nav, theme, settings, l10n),
+                                  context, space, nav, theme,
+                                  spacePrefs, l10n),
                               NavSpaceGroup(
                                 :final groupId,
                                 :final children,
                                 :final isExpanded
                               ) =>
                                 _buildGroup(context, groupId, children,
-                                    isExpanded, nav, theme, settings, l10n),
+                                    isExpanded, nav, theme,
+                                    spacePrefs, l10n),
                             })
                         .toList())),
           ]),
@@ -162,10 +164,10 @@ class _NavigationPaneState extends State<NavigationPane> {
   }
 
   Widget _buildLeaf(BuildContext ctx, Room space, NavigationState nav,
-      ThemeData theme, SettingsController settings, AppLocalizations l10n) {
+      ThemeData theme, SpacePreferences spacePrefs, AppLocalizations l10n) {
     final sel = nav.isSpace && nav.selectedId == space.id;
     final hover = _dragHoverId == space.id;
-    final inG = _inGroup(settings, space.id);
+    final inG = _inGroup(spacePrefs, space.id);
     return _SDT(
       id: space.id,
       hover: hover,
@@ -181,17 +183,17 @@ class _NavigationPaneState extends State<NavigationPane> {
         if (id == space.id) return; // prevent self-grouping
         if (id.startsWith('_grp_')) {
           // Group dropped on leaf = reorder group before this leaf.
-          final order = List<String>.of(settings.spaceOrder);
+          final order = List<String>.of(spacePrefs.spaceOrder);
           final srcIdx = order.indexOf(id);
           final dstIdx = order.indexOf(space.id);
           if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
             order.removeAt(srcIdx);
             final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
             order.insert(adjustedDst, id);
-            settings.setSpaceOrder(order);
+            spacePrefs.updateSpaceOrder(order);
           }
         } else {
-          settings.createGroup(
+          spacePrefs.createGroup(
               '_grp_${DateTime.now().millisecondsSinceEpoch}', [id, space.id]);
         }
       },
@@ -206,7 +208,7 @@ class _NavigationPaneState extends State<NavigationPane> {
             ctx: ctx,
             space: space,
             inGroup: inG,
-            settings: settings,
+            spacePrefs: spacePrefs,
             l10n: l10n,
             nav: nav,
             child: _leafIcon(sel, space, theme)),
@@ -231,7 +233,7 @@ class _NavigationPaneState extends State<NavigationPane> {
       bool expanded,
       NavigationState nav,
       ThemeData theme,
-      SettingsController settings,
+      SpacePreferences spacePrefs,
       AppLocalizations l10n) {
     final scheme = theme.colorScheme;
     final hover = _dragHoverId == gid;
@@ -249,17 +251,17 @@ class _NavigationPaneState extends State<NavigationPane> {
         setState(() => _dragHoverId = null);
         if (id.startsWith('_grp_')) {
           // Group-to-group drop = reorder: move dropped group before this one.
-          final order = List<String>.of(settings.spaceOrder);
+          final order = List<String>.of(spacePrefs.spaceOrder);
           final srcIdx = order.indexOf(id);
           final dstIdx = order.indexOf(gid);
           if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
             order.removeAt(srcIdx);
             final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
             order.insert(adjustedDst, id);
-            settings.setSpaceOrder(order);
+            spacePrefs.updateSpaceOrder(order);
           }
         } else {
-          settings.addToGroup(gid, id);
+          spacePrefs.addToGroup(gid, id);
         }
       },
       child: Padding(
@@ -275,7 +277,7 @@ class _NavigationPaneState extends State<NavigationPane> {
           child: Column(children: [
             _SCMenu(
               ctx: ctx,
-              settings: settings,
+              spacePrefs: spacePrefs,
               l10n: l10n,
               nav: nav,
               groupId: gid,
@@ -283,7 +285,7 @@ class _NavigationPaneState extends State<NavigationPane> {
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: GestureDetector(
-                      onTap: () => settings.toggleGroupCollapsed(gid),
+                      onTap: () => spacePrefs.toggleGroupCollapsed(gid),
                       child: _groupIcon(theme, expanded, gid, onDragEnd: () {
                         if (mounted) setState(() => _dragHoverId = null);
                       })),
@@ -292,7 +294,7 @@ class _NavigationPaneState extends State<NavigationPane> {
                   right: 4,
                   bottom: 4,
                   child: GestureDetector(
-                    onTap: () => settings.toggleGroupCollapsed(gid),
+                    onTap: () => spacePrefs.toggleGroupCollapsed(gid),
                     child: Container(
                         width: 18,
                         height: 18,
@@ -317,7 +319,7 @@ class _NavigationPaneState extends State<NavigationPane> {
             if (expanded)
               ...children.map((c) => Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: _buildLeaf(ctx, c.space, nav, theme, settings, l10n),
+                    child: _buildLeaf(ctx, c.space, nav, theme, spacePrefs, l10n),
                   )),
             if (!expanded && children.isNotEmpty)
               Padding(
@@ -446,7 +448,7 @@ class _DFeedback extends StatelessWidget {
 class _SCMenu extends StatefulWidget {
   const _SCMenu({
     required this.ctx,
-    required this.settings,
+    required this.spacePrefs,
     required this.l10n,
     required this.nav,
     this.space,
@@ -455,7 +457,7 @@ class _SCMenu extends StatefulWidget {
     required this.child,
   });
   final BuildContext ctx;
-  final SettingsController settings;
+  final SpacePreferences spacePrefs;
   final AppLocalizations l10n;
   final NavigationState nav;
   final Room? space;
@@ -540,29 +542,29 @@ class _SCMenuState extends State<_SCMenu> {
             widget.ctx.push('/main/space/${widget.space!.id}');
           }
         case 'up':
-          if (widget.space != null) widget.settings.moveUp(widget.space!.id);
+          if (widget.space != null) widget.spacePrefs.moveUp(widget.space!.id);
         case 'dn':
-          if (widget.space != null) widget.settings.moveDown(widget.space!.id);
+          if (widget.space != null) widget.spacePrefs.moveDown(widget.space!.id);
         case 'gup':
-          if (widget.groupId != null) widget.settings.moveUp(widget.groupId!);
+          if (widget.groupId != null) widget.spacePrefs.moveUp(widget.groupId!);
         case 'gdn':
-          if (widget.groupId != null) widget.settings.moveDown(widget.groupId!);
+          if (widget.groupId != null) widget.spacePrefs.moveDown(widget.groupId!);
         case 'ungroup':
           if (widget.space != null) {
-            widget.settings.removeFromGroup(widget.space!.id);
+            widget.spacePrefs.removeFromGroup(widget.space!.id);
           }
         case 'ug_all':
           if (widget.groupId != null) {
             for (final c
-                in List.of(widget.settings.spaceGroups[widget.groupId] ?? [])) {
-              widget.settings.removeFromGroup(c);
+                in List.of(widget.spacePrefs.spaceGroups[widget.groupId] ?? [])) {
+              widget.spacePrefs.removeFromGroup(c);
             }
           }
         case 'sort':
           final c = Provider.of<Client>(widget.ctx, listen: false);
-          widget.settings.sortIntoGroups(computeAutoGroups(c.rooms));
+          widget.spacePrefs.sortIntoGroups(computeAutoGroups(c.rooms));
         case 'reset':
-          widget.settings.resetSpaceLayout();
+          widget.spacePrefs.resetSpaceLayout();
       }
     });
   }

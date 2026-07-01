@@ -1,3 +1,19 @@
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/theme.dart';
@@ -60,7 +76,6 @@ class SettingsSnapshot {
 
 /// A service that stores and retrieves user settings.
 class SettingsService {
-  // static const _accentColorKey = 'accent_color';
   static const _themeModeKey = 'theme_mode';
   static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
@@ -98,22 +113,6 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeOptionKey, option.index);
   }
-
-  // TODO Own accent color representation + serialization
-  // Future<AccentColor> accentColor() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final int? accentColorIdx = prefs.getInt(_accentColorKey);
-  //   return accentColorIdx != null
-  //       ? Colors.accentColors[accentColorIdx]
-  //       : systemAccentColor;
-  // }
-
-  // REVIEW - Potential bug on accent colors not in list?
-  // Future<void> updateAccentColor(AccentColor accentColor) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final int index = Colors.accentColors.indexOf(accentColor);
-  //   await prefs.setInt(_accentColorKey, index);
-  // }
 
   Future<ThemeMode> themeMode() async {
     final prefs = await SharedPreferences.getInstance();
