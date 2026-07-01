@@ -20,32 +20,23 @@
 
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart' as sql;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:system_theme/system_theme.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'src/app.dart';
+import 'src/boot.dart';
 import 'src/encryption/encryption_service.dart';
 import 'src/helpers/account_manager.dart';
-import 'src/helpers/log_service.dart';
 import 'src/helpers/current_room.dart';
+import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
-import 'src/services/tray_service.dart';
-import 'src/services/notification_service.dart';
 import 'src/services/deep_link_service.dart';
+import 'src/services/notification_service.dart';
 import 'src/settings/settings_controller.dart';
-import 'src/settings/settings_service.dart';
+import 'src/settings/space_preferences.dart';
 import 'src/splash_screen.dart';
 
 /// Current schema version for the local database.
@@ -59,18 +50,8 @@ import 'src/splash_screen.dart';
 /// subtle migration bugs.
 const int kDbSchemaVersion = 2;
 
-/// Whether the current platform is a desktop OS.
-bool get isDesktop {
-  if (kIsWeb) return false;
-  return [
-    TargetPlatform.windows,
-    TargetPlatform.linux,
-    TargetPlatform.macOS,
-  ].contains(defaultTargetPlatform);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Init state — populated by the init pipeline, consumed by the app on success
+// Init state — populated by the boot pipeline, consumed by the app on success
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppState {
@@ -79,6 +60,7 @@ class _AppState {
     required this.log,
     required this.logService,
     required this.settingsController,
+    required this.spacePreferences,
     required this.encryptionService,
     required this.accountManager,
     required this.currentRoom,
@@ -90,6 +72,7 @@ class _AppState {
   final Logger log;
   final LogService logService;
   final SettingsController settingsController;
+  final SpacePreferences spacePreferences;
   final EncryptionService encryptionService;
   final AccountManager accountManager;
   final CurrentRoom currentRoom;
@@ -98,251 +81,40 @@ class _AppState {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Opens (or creates) a SQLite database for the given [dbName] and wraps it
-/// in a [MatrixSdkDatabase], wiping the file if the schema version changed.
-Future<MatrixSdkDatabase> _openDatabaseFor(
-  String dbName,
-  Logger log,
-) async {
-  const String schemaVersionKey = 'db_schema_version';
-  final prefs = await SharedPreferences.getInstance();
-  final int? storedVersion = prefs.getInt(schemaVersionKey);
-  final dbdir = await getApplicationSupportDirectory();
-  final String dbPath = p.join(dbdir.path, dbName);
-
-  if (storedVersion == null || storedVersion != kDbSchemaVersion) {
-    log.i(
-      'Database schema version changed ($storedVersion → $kDbSchemaVersion); '
-      'wiping $dbName',
-    );
-    if (await File(dbPath).exists()) {
-      // ── Backup before wipe ────────────────────────────
-      final backupPath = '$dbPath.bak';
-      try {
-        await File(dbPath).copy(backupPath);
-        log.i('Backed up old database to $backupPath');
-      } catch (e) {
-        log.w('Could not create database backup', error: e);
-      }
-      try {
-        await sql.deleteDatabase(dbPath);
-      } catch (_) {
-        // best-effort
-      }
-    }
-    await prefs.setInt(schemaVersionKey, kDbSchemaVersion);
-  }
-
-  final database = await sql.openDatabase(dbPath);
-  final dbobj = await MatrixSdkDatabase.init('moonrelay',
-      database: database, sqfliteFactory: databaseFactoryFfi);
-  await dbobj.open();
-  return dbobj;
-}
-
-/// Create a fresh [Client] connected to the per-account database of
-/// [account].
-Future<Client> _createClientForAccount(StoredAccount account) async {
-  final dbobj = await _openDatabaseFor(account.databaseName, Logger()); // temp
-  final client = Client(
-    'Moonrelay (Alpha)',
-    database: dbobj,
-    verificationMethods: {
-      KeyVerificationMethod.numbers,
-      KeyVerificationMethod.emoji,
-    },
-    nativeImplementations: NativeImplementationsIsolate(
-      compute,
-      vodozemacInit: vdz.init,
-    ),
-  );
-  await client.init();
-  return client;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Init pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Runs all blocking initialisation steps.  Each step updates [onStatus] so
-/// the splash screen can show progress.  Returns an [_AppState] on success
-/// or throws on failure.
+/// Runs the full boot pipeline via [runBootPipeline] in [boot.dart].
 Future<_AppState> _initialize({
   required void Function(String) onStatus,
   required Logger log,
   required LogService logService,
 }) async {
-  // ── 1. Vodozemac (native crypto) ────────────────────────────
-  onStatus('Initializing encryption engine…');
-  log.t('Initializing Vodozemac…');
-  try {
-    await vdz.init();
-  } catch (e) {
-    log.f('Vodozemac failed', error: e);
-    rethrow;
-  }
-
-  // ── 2. SQLite FFI ───────────────────────────────────────────
-  onStatus('Initializing database…');
-  log.t('Initializing SQLite FFI…');
-  try {
-    sqfliteFfiInit();
-  } catch (e) {
-    log.f('SQLite FFI failed', error: e);
-    rethrow;
-  }
-  databaseFactory = databaseFactoryFfi;
-
-  // ── 3. Load saved accounts & prepare account manager ────────
+  // Load saved accounts first — the boot pipeline needs them to know
+  // which database to open.
   final accountManager = AccountManager(log: log);
   await accountManager.load();
   log.i('Found ${accountManager.accounts.length} saved account(s)');
 
-  // ── 4. Open database & create Client ────────────────────────
-  // If we have an active (previously logged-in) account, use its
-  // per-account database so the session is restored automatically.
-  // Otherwise fall back to the legacy database name for first-time
-  // users that haven't migrated yet.
-  onStatus('Opening database…');
-  final String dbName = accountManager.activeAccount?.databaseName ??
-      'moonrelay.db';
-  final dbobj = await _openDatabaseFor(dbName, log);
-
-  onStatus('Starting network client…');
-  log.t('Starting Matrix client…');
-  final sdk = Client(
-    'Moonrelay (Alpha)',
-    database: dbobj,
-    verificationMethods: {
-      KeyVerificationMethod.numbers,
-      KeyVerificationMethod.emoji,
-    },
-    nativeImplementations: NativeImplementationsIsolate(
-      compute,
-      vodozemacInit: vdz.init,
-    ),
-  );
-  try {
-    await sdk.init();
-  } catch (e) {
-    log.e('Client.init() failed', error: e);
-    rethrow;
-  }
-
-  // ── 5. Theming & window ─────────────────────────────────────
-  onStatus('Loading preferences…');
-  log.t('Loading preferences…');
-  if (!kIsWeb &&
-      [
-        TargetPlatform.windows,
-        TargetPlatform.android,
-      ].contains(defaultTargetPlatform)) {
-    SystemTheme.accentColor.load();
-  }
-  final settingsController = SettingsController(SettingsService());
-  await settingsController.loadSettings();
-
-  if (isDesktop) {
-    await WindowManager.instance.ensureInitialized();
-    await windowManager.waitUntilReadyToShow();
-    await windowManager.setTitleBarStyle(
-      TitleBarStyle.hidden,
-      windowButtonVisibility: false,
-    );
-    await windowManager.setMinimumSize(const Size(500, 600));
-    if (!settingsController.startMinimized) {
-      await windowManager.show();
-    }
-    await windowManager.setPreventClose(true);
-    await windowManager.setSkipTaskbar(false);
-  }
-
-  // ── 6. Encryption service ───────────────────────────────────
-  onStatus('Preparing encryption…');
-  log.t('Initializing encryption…');
-  final encryptionService = EncryptionService(client: sdk, logger: log);
-  if (sdk.isLogged()) {
-    await encryptionService.init();
-  }
-
-  // ── 7. CurrentRoom (needed by notification service) ────
-  final currentRoom = CurrentRoom();
-
-  // ── 8. Notification service ────────────────────────────
-  NotificationService? notificationService;
-  if (sdk.isLogged()) {
-    onStatus('Starting notification service…');
-    log.t('Initializing notifications…');
-    try {
-      notificationService = await NotificationService.init(
-        client: sdk,
-        settings: settingsController,
-        currentRoom: currentRoom,
-        log: log,
-      );
-    } catch (e) {
-      log.w('Notification service init failed', error: e);
-    }
-  }
-
-  // ── 9. Tray service ────────────────────────────────────
-  if (isDesktop && settingsController.showTrayIcon) {
-    onStatus('Setting up system tray…');
-    log.t('Initializing tray…');
-    try {
-      await TrayService.init(client: sdk, log: log);
-    } catch (e) {
-      log.w('Tray service init failed', error: e);
-    }
-  }
-
-  // ── 10. Deep link service ───────────────────────────────
-  onStatus('Setting up deep link handler…');
-  log.t('Initializing deep link service…');
-  final deepLinkService = DeepLinkService(log: log);
-  try {
-    await deepLinkService.init();
-  } catch (e) {
-    log.w('Deep link service init failed', error: e);
-  }
-
-  // ── 11. Wire up AccountManager ──────────────────────────────
-  // If the active account's session was restored, associate it with
-  // the AccountManager.  Also set the factory callbacks so the
-  // AccountManager can create new Clients when switching accounts.
-  if (accountManager.activeAccount != null && sdk.isLogged()) {
-    await accountManager.setActiveAccountDirect(
-      accountManager.activeAccount!,
-      client: sdk,
-      encryptionService: encryptionService,
-    );
-  }
-
-  // Factory for creating clients when switching accounts.
-  accountManager.clientFactory = _createClientForAccount;
-
-  // Hook called after a fresh client is created on account switch.
-  accountManager.onClientReady = (client) async {
-    if (client.isLogged()) {
-      final enc = EncryptionService(client: client, logger: log);
-      await enc.init();
-    }
-  };
-
-  log.i('Initialization complete');
-  return _AppState(
-    sdk: sdk,
+  final ctx = await runBootPipeline(
+    schemaVersion: kDbSchemaVersion,
     log: log,
     logService: logService,
-    settingsController: settingsController,
-    encryptionService: encryptionService,
     accountManager: accountManager,
-    currentRoom: currentRoom,
-    notificationService: notificationService,
-    deepLinkService: deepLinkService,
+    onStatus: onStatus,
+  );
+
+  return _AppState(
+    sdk: ctx.client,
+    log: ctx.log,
+    logService: ctx.logService,
+    settingsController: ctx.settingsController,
+    spacePreferences: ctx.spacePreferences,
+    encryptionService: ctx.encryptionService,
+    accountManager: ctx.accountManager,
+    currentRoom: ctx.currentRoom,
+    notificationService: ctx.notificationService,
+    deepLinkService: ctx.deepLinkService,
   );
 }
 
@@ -476,6 +248,8 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
               value: _appState!.accountManager),
           ChangeNotifierProvider<EncryptionService>.value(
               value: _appState!.encryptionService),
+          ChangeNotifierProvider<SpacePreferences>.value(
+              value: _appState!.spacePreferences),
           ChangeNotifierProvider<CurrentRoom>.value(
               value: _appState!.currentRoom),
           if (_appState!.notificationService != null)
