@@ -66,6 +66,28 @@ class MoonRouter {
   }
 
   MoonRouter();
+
+  /// Resolves a space room from route parameters, or null if not found.
+  static Room? _spaceFromState(BuildContext context, GoRouterState state) {
+    final spaceId = state.pathParameters['spaceid'];
+    if (spaceId == null) return null;
+    return Provider.of<Client>(context, listen: false).getRoomById(spaceId);
+  }
+
+  /// Resolves a room from the route's :roomid parameter.
+  static Room _roomFromState(BuildContext context, GoRouterState state) {
+    final roomId = state.pathParameters['roomid']!;
+    return Provider.of<Client>(context, listen: false).getRoomById(roomId)!;
+  }
+
+  /// Builds a "not found" fallback page for missing rooms/spaces.
+  static Page _notFoundPage(
+    BuildContext context,
+    GoRouterState state,
+    String label,
+  ) =>
+      genericPageBuilder(context, state, Center(child: Text(label)));
+
   // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
   static final List<RouteBase> routes = [
     ShellRoute(
@@ -185,14 +207,11 @@ class MoonRouter {
                         GoRoute(
                           path: 'roomDetails',
                           pageBuilder: (context, state) {
-                            String roomid = state.pathParameters['roomid']!;
-                            Client client = Provider.of<Client>(context);
+                            final room = _roomFromState(context, state);
                             return genericPageBuilder(
                               context,
                               state,
-                              RoomInformations(
-                                room: client.getRoomById(roomid)!,
-                              ),
+                              RoomInformations(room: room),
                             );
                           },
                         ),
@@ -223,11 +242,9 @@ class MoonRouter {
                     GoRoute(
                       path: 'thread/:threadRootId',
                       pageBuilder: (context, state) {
-                        final roomId = state.pathParameters['roomid']!;
+                        final room = _roomFromState(context, state);
                         final threadRootId =
                             state.pathParameters['threadRootId']!;
-                        final client = Provider.of<Client>(context);
-                        final room = client.getRoomById(roomId)!;
                         return genericPageBuilder(
                           context,
                           state,
@@ -241,9 +258,7 @@ class MoonRouter {
                     GoRoute(
                       path: 'settings',
                       pageBuilder: (context, state) {
-                        final roomId = state.pathParameters['roomid']!;
-                        final client = Provider.of<Client>(context);
-                        final room = client.getRoomById(roomId)!;
+                        final room = _roomFromState(context, state);
                         return genericPageBuilder(
                           context,
                           state,
@@ -283,16 +298,9 @@ class MoonRouter {
             GoRoute(
               path: '/main/space/:spaceid',
               pageBuilder: (context, state) {
-                final String spaceId = state.pathParameters['spaceid']!;
-                final Client client =
-                    Provider.of<Client>(context, listen: false);
-                final Room? space = client.getRoomById(spaceId);
+                final space = _spaceFromState(context, state);
                 if (space == null) {
-                  return genericPageBuilder(
-                    context,
-                    state,
-                    const Center(child: Text('Space not found')),
-                  );
+                  return _notFoundPage(context, state, 'Space not found');
                 }
                 return genericPageBuilder(
                   context,
@@ -305,16 +313,10 @@ class MoonRouter {
                 GoRoute(
                   path: 'settings',
                   pageBuilder: (context, state) {
-                    final String spaceId = state.pathParameters['spaceid']!;
-                    final Client client =
-                        Provider.of<Client>(context, listen: false);
-                    final Room? space = client.getRoomById(spaceId);
+                    final space = _spaceFromState(context, state);
                     if (space == null) {
-                      return genericPageBuilder(
-                        context,
-                        state,
-                        const Center(child: Text('Space not found')),
-                      );
+                      return _notFoundPage(
+                          context, state, 'Space not found');
                     }
                     return genericPageBuilder(
                       context,
