@@ -17,6 +17,9 @@
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 
 // ---------------------------------------------------------------------------
 // Mocktail-based mocks for Matrix SDK types and app dependencies
@@ -53,3 +56,9 @@ class MockProfile extends Mock implements Profile {}
 class MockLogger extends Mock implements Logger {}
 
 class MockSyncUpdate extends Mock implements SyncUpdate {}
+
+class MockAccountManager extends Mock implements AccountManager {}
+
+class MockEncryptionService extends Mock implements EncryptionService {}
+
+class MockDeepLinkService extends Mock implements DeepLinkService {}

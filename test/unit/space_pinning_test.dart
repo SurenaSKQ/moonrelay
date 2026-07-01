@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moonrelay/src/settings/settings_service.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/space_preferences.dart';
 
 void main() {
   group('SettingsService pinnedSpaces', () {
@@ -55,51 +55,51 @@ void main() {
     });
   });
 
-  group('SettingsController pinning', () {
-    late SettingsController controller;
+  group('SpacePreferences pinning', () {
+    late SpacePreferences prefs;
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
       final service = SettingsService();
-      controller = SettingsController(service);
+      prefs = SpacePreferences(service);
     });
 
     test('starts with empty pinned set', () async {
-      await controller.loadSettings();
-      expect(controller.pinnedSpaces, isEmpty);
+      await prefs.load();
+      expect(prefs.pinnedSpaces, isEmpty);
     });
 
     test('togglePinSpace adds a space ID', () async {
-      await controller.loadSettings();
-      expect(controller.isSpacePinned('!s:test'), isFalse);
+      await prefs.load();
+      expect(prefs.isSpacePinned('!s:test'), isFalse);
 
-      await controller.togglePinSpace('!s:test');
-      expect(controller.isSpacePinned('!s:test'), isTrue);
+      await prefs.togglePinSpace('!s:test');
+      expect(prefs.isSpacePinned('!s:test'), isTrue);
     });
 
     test('togglePinSpace removes an existing pin', () async {
-      await controller.loadSettings();
-      await controller.togglePinSpace('!s:test');
-      expect(controller.isSpacePinned('!s:test'), isTrue);
+      await prefs.load();
+      await prefs.togglePinSpace('!s:test');
+      expect(prefs.isSpacePinned('!s:test'), isTrue);
 
-      await controller.togglePinSpace('!s:test');
-      expect(controller.isSpacePinned('!s:test'), isFalse);
+      await prefs.togglePinSpace('!s:test');
+      expect(prefs.isSpacePinned('!s:test'), isFalse);
     });
 
     test('togglePinSpace notifies listeners', () async {
-      await controller.loadSettings();
+      await prefs.load();
       int calls = 0;
-      controller.addListener(() => calls++);
+      prefs.addListener(() => calls++);
 
-      await controller.togglePinSpace('!s:test');
+      await prefs.togglePinSpace('!s:test');
       expect(calls, greaterThanOrEqualTo(1));
     });
 
-    test('pinnedSpaces returns the same instance as isSpacePinned', () async {
-      await controller.loadSettings();
-      await controller.togglePinSpace('!s:test');
+    test('pinnedSpaces returns values matching isSpacePinned', () async {
+      await prefs.load();
+      await prefs.togglePinSpace('!s:test');
 
-      expect(controller.pinnedSpaces, contains('!s:test'));
+      expect(prefs.pinnedSpaces, contains('!s:test'));
     });
   });
 }
