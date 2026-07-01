@@ -128,7 +128,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Text(
-                  '$replyCount ${l10n.threadReplies(replyCount)}',
+                  l10n.threadReplies(replyCount),
                   style: TextStyle(
                     fontSize: fs * 0.8,
                     color: scheme.onSurfaceVariant,
@@ -164,7 +164,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
                       color: scheme.surfaceContainerHighest
                           .withValues(alpha: 0.5),
                       child: Text(
-                        '$replyCount ${l10n.threadReplies(replyCount)}',
+                        l10n.threadReplies(replyCount),
                         style: TextStyle(
                           fontSize: fs * 0.85,
                           fontWeight: FontWeight.w600,
