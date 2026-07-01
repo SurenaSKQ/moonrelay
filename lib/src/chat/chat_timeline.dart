@@ -19,9 +19,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/chat/forward_message_dialog.dart';
+import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -106,10 +109,30 @@ class _ChatTimelineState extends State<ChatTimeline> {
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
 
+  /// Events explicitly fetched for the pinned filter (fetched by ID from
+  /// the server when they aren't in the local timeline batch).
+  List<Event>? _fetchedFilteredEvents;
+
+  /// True while [fetchFilteredEvents] is in flight.
+  bool _isFetchingFilteredEvents = false;
+
   @override
   void initState() {
     super.initState();
     _initTimeline();
+  }
+
+  @override
+  void didUpdateWidget(ChatTimeline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.filterEvents != null && oldWidget.filterEvents == null) {
+      _fetchFilteredEvents();
+    } else if (widget.filterEvents == null &&
+        oldWidget.filterEvents != null) {
+      if (_fetchedFilteredEvents != null) {
+        setState(() => _fetchedFilteredEvents = null);
+      }
+    }
   }
 
   Future<void> _initTimeline() async {
@@ -247,6 +270,53 @@ class _ChatTimelineState extends State<ChatTimeline> {
   // Build
   // ---------------------------------------------------------------------------
 
+  /// Fetches events that pass the active filter by their event IDs.
+  ///
+  /// When the pinned-only filter is active, the regular timeline may not
+  /// contain the pinned events (they may be outside the loaded window).
+  /// This method reads the pinned event IDs from room state and fetches
+  /// each event directly via [Room.getEventById], which hits the server
+  /// if the event isn't already cached locally.
+  Future<void> _fetchFilteredEvents() async {
+    if (_isFetchingFilteredEvents) return;
+    _isFetchingFilteredEvents = true;
+
+    if (!mounted) return;
+    setState(() => _fetchedFilteredEvents = null);
+
+    try {
+      final state = widget.room.getState('m.room.pinned_events');
+      final pinnedList = state?.content['pinned'];
+      final pinnedIds =
+          pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+      if (pinnedIds.isEmpty) {
+        _isFetchingFilteredEvents = false;
+        if (mounted) setState(() => _fetchedFilteredEvents = []);
+        return;
+      }
+
+      final events = <Event>[];
+      for (final id in pinnedIds) {
+        try {
+          final event = await widget.room.getEventById(id);
+          if (event != null) events.add(event);
+        } catch (_) {
+          // Event not accessible — skip.
+        }
+      }
+
+      // Sort oldest-first so the reversed ListView places the newest at
+      // the bottom.
+      events.sort((a, b) => a.originServerTs.compareTo(b.originServerTs));
+
+      if (!mounted) return;
+      setState(() => _fetchedFilteredEvents = events);
+    } finally {
+      _isFetchingFilteredEvents = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Reset auto-fill counter when content becomes scrollable.
@@ -264,6 +334,57 @@ class _ChatTimelineState extends State<ChatTimeline> {
           // Still loading – sync indicator in ChatRoomHeader handles the
           // visual feedback, so we just show an empty container.
           return const SizedBox.shrink();
+        }
+
+        // When a filter is active and we've explicitly fetched the matching
+        // events, render those instead of the regular timeline view (which
+        // would show nothing if the target events aren't in the loaded batch).
+        if (widget.filterEvents != null) {
+          if (_fetchedFilteredEvents != null) {
+            if (_fetchedFilteredEvents!.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.push_pin_outlined,
+                      size: 40,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppLocalizations.of(context)!.noPinnedMessages,
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return _PinnedEventsList(
+              events: _fetchedFilteredEvents!,
+              room: widget.room,
+              displayType: settings.displayType,
+              fontSize: settings.fontSize,
+              scrollController: _scrollController,
+              onReply: widget.onReply,
+              onThread: widget.onThread,
+              onForward: (event) => showForwardDialog(
+                context: context,
+                event: event,
+                sourceRoom: widget.room,
+              ),
+            );
+          }
+
+          // Still fetching...
+          return const Center(child: CircularProgressIndicator());
         }
 
         return TimelineView(
@@ -359,5 +480,105 @@ class _ChatTimelineState extends State<ChatTimeline> {
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
     super.dispose();
+  }
+}
+
+/// Renders a list of events fetched by ID for the pinned-only filter.
+///
+/// These events are not necessarily present in the room's [Timeline.events]
+/// list, so they cannot be rendered by [TimelineView]'s filter mechanism.
+/// Instead, this widget takes the pre-fetched events and renders each one
+/// with a [TimelineItem], computing sender grouping from their timestamps.
+class _PinnedEventsList extends StatelessWidget {
+  const _PinnedEventsList({
+    required this.events,
+    required this.room,
+    required this.displayType,
+    required this.fontSize,
+    required this.scrollController,
+    this.onReply,
+    this.onThread,
+    this.onForward,
+  });
+
+  final List<Event> events;
+  final Room room;
+  final DisplayType displayType;
+  final double fontSize;
+  final ScrollController scrollController;
+  final void Function(Event event)? onReply;
+  final void Function(Event event)? onThread;
+  final void Function(Event event)? onForward;
+
+  @override
+  Widget build(BuildContext context) {
+    // Events are already sorted oldest-first.  Compute sender grouping:
+    // each event is a continuation of the *newer* event below it
+    // (which appears later in the list).  Since the ListView is reversed,
+    // index 0 appears at the bottom (newest message) of the viewport.
+    final Map<String, int> eventIdToItemIndex = {};
+    final itemCount = events.length;
+
+    return ListView.builder(
+      controller: scrollController,
+      reverse: true,
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        // index 0 = last in list (newest), index n-1 = first (oldest)
+        final event = events[itemCount - 1 - index];
+
+        // Determine if this event is a continuation of the older event
+        // above it in the list (the *next* newer event in reversed order).
+        final isContinuation = index + 1 < itemCount &&
+            _isSameSenderAndCloseInTime(
+              events[itemCount - 1 - index],
+              events[itemCount - 2 - index],
+            );
+
+        eventIdToItemIndex[event.eventId] = index;
+
+        return TimelineItem(
+          event: event,
+          room: room,
+          displayType: displayType,
+          isGroupStart: !isContinuation,
+          isGroupContinuation: isContinuation,
+          fontSize: fontSize,
+          onReply: onReply != null ? () => onReply!(event) : null,
+          onThread: onThread != null ? () => onThread!(event) : null,
+          onForward:
+              onForward != null ? () => onForward!(event) : null,
+          onJumpToEvent: (String eventId) {
+            final targetIdx = eventIdToItemIndex[eventId];
+            if (targetIdx == null) return;
+            if (!scrollController.hasClients) return;
+            final position = scrollController.position;
+            final range =
+                position.maxScrollExtent - position.minScrollExtent;
+            final fraction =
+                itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
+            final targetOffset =
+                position.minScrollExtent + range * fraction;
+            scrollController.animateTo(
+              targetOffset,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// True when [newer] and [older] are from the same sender within ~10 min.
+  bool _isSameSenderAndCloseInTime(Event newer, Event older) {
+    if (newer.senderId != older.senderId) return false;
+    return _sameEnvironment(newer.originServerTs, older.originServerTs);
+  }
+
+  /// True when two timestamps fall within 10 minutes of each other.
+  bool _sameEnvironment(DateTime a, DateTime b) {
+    final diff = a.difference(b).inMinutes.abs();
+    return diff <= 10;
   }
 }

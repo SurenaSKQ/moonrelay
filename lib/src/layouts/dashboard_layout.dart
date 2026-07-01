@@ -1562,15 +1562,13 @@ class _SidebarPinnedMessagesState extends State<_SidebarPinnedMessages> {
         pinnedList is List ? pinnedList.cast<String>() : <String>[];
 
     final Map<String, Event> result = {};
-    try {
-      final timeline = await r.getTimeline();
-      for (final id in pinnedIds) {
-        final event =
-            timeline.events.where((e) => e.eventId == id).firstOrNull;
+    for (final id in pinnedIds) {
+      try {
+        final event = await r.getEventById(id);
         if (event != null) result[id] = event;
+      } catch (_) {
+        // Event not found — previews will show generic text.
       }
-    } catch (_) {
-      // Timeline not available — previews will show generic text.
     }
 
     if (!mounted) return;
