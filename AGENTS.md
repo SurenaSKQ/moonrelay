@@ -40,10 +40,10 @@ lib/
     screens/                  # Full-page views (rooms, profiles, settings, etc.)
       encryption/             # Encryption setup screens
     chat/                     # Chat widgets (timeline, chat box, events)
-      events/matrix_events/   # Message type renderers (text, image, audio, file, video)
-      events/matrix_events/Message/   # Modern, Bubble, IRC display styles
+      events/matrix_events/     # Message type renderers (image, audio, file, video, sticker)
       events/matrix_events/State/     # State event renderers, verification events
       events/
+        message_body.dart               # Shared text/HTML body renderer for all display styles
         matrix_url_banner.dart           # Banner for matrix:// / matrix.to URLs in messages
         matrix_url_banner_wrapper.dart   # Scans message body & appends banners
     widgets/                  # Reusable UI components
@@ -51,14 +51,15 @@ lib/
       deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
     helpers/                  # Data-free utility classes & shared state
       matrix_uri_parser.dart  # Parses matrix: and matrix.to URIs
-    services/                 # SSO callback server (only service)
+    services/                 # Database lifecycle, SSO callback, deep links, notifications
+      database_service.dart  # Schema version checks, backup-before-wipe, MatrixSdkDatabase creation
       deep_link_service.dart  # Handles incoming matrix:// URLs via method channel
     layouts/                  # Frame and dashboard layout widgets
     settings/                 # Controller, service, theme, display/layout enums
     encryption/               # EncryptionService (cross-signing, key backup, devices)
     localization/             # ARB file + generated l10n code
-    core/                     # (empty — reserved for future use)
-    matrix/                   # (empty — reserved for future use)
+    events/
+      message_body.dart       # Shared text/HTML body renderer for all display styles
 test/
   unit/                       # Pure Dart tests (no Flutter dependency)
     matrix_uri_parser_test.dart  # 25 tests for MatrixUriParser
@@ -232,19 +233,17 @@ testWidgets('description', (tester) async {
 
 8. **No CI found**: No `.github/` workflows. `dart analyze` must pass before PRs (per README).
 
-9. **`lib/src/core/` and `lib/src/matrix/` are empty**: Reserved for future refactoring — don't assume they contain anything.
+9. **`metadata` file exists**: Don't modify `.metadata` — Flutter uses it internally.
 
-10. **`metadata` file exists**: Don't modify `.metadata` — Flutter uses it internally.
+10. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
 
-11. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
+11. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
 
-12. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
+12. **Matrix URL banners in chat**: Text content wraps with `MatrixUrlBannerWrapper`, which scans the message body for `matrix:` and `matrix.to` URLs and appends `MatrixUrlBanner` widgets. The banner shows room/user info and a "Go to Room" / "Preview Room" / "Open Profile" button. Detection uses `MatrixUriParser.parseAll()`. The text body itself is rendered by the shared `MessageBody` widget.
 
-13. **Matrix URL banners in chat**: `ModernMessageItem`, `BubbleMessageItem`, and `IRCMessageItem` wrap text content with `MatrixUrlBannerWrapper`, which scans the message body for `matrix:` and `matrix.to` URLs and appends `MatrixUrlBanner` widgets. The banner shows room/user info and a "Go to Room" / "Preview Room" / "Open Profile" button. Detection uses `MatrixUriParser.parseAll()`.
+13. **Deep link service**: `DeepLinkService` listens on a method channel (`moonrelay/deep_links`) for `openUri` calls and also checks command-line args for `matrix:` URIs on startup. The `DeepLinkListener` widget (inside the MaterialApp.router tree) registers the navigation callback. Platform registration files are in `windows/runner/register_matrix_protocol.reg` and `linux/runner/moonrelay.desktop`.
 
-14. **Deep link service**: `DeepLinkService` listens on a method channel (`moonrelay/deep_links`) for `openUri` calls and also checks command-line args for `matrix:` URIs on startup. The `DeepLinkListener` widget (inside the MaterialApp.router tree) registers the navigation callback. Platform registration files are in `windows/runner/register_matrix_protocol.reg` and `linux/runner/moonrelay.desktop`.
-
-15. **Windows protocol registration**: Run `windows/runner/register_matrix_protocol.reg` as Administrator to register `matrix://` URL handling. On Linux, run `xdg-desktop-menu install linux/runner/moonrelay.desktop && xdg-mime default moonrelay.desktop x-scheme-handler/matrix`.
+14. **Windows protocol registration**: Run `windows/runner/register_matrix_protocol.reg` as Administrator to register `matrix://` URL handling. On Linux, run `xdg-desktop-menu install linux/runner/moonrelay.desktop && xdg-mime default moonrelay.desktop x-scheme-handler/matrix`.
 
 ## Edge Cases When Editing
 
