@@ -21,6 +21,13 @@ flutter test test/unit/
 # Run only widget tests
 flutter test test/widget/
 
+# Run E2E (integration) tests on desktop
+flutter test integration_test/ -d windows   # Windows
+flutter test integration_test/ -d linux     # Linux
+
+# Run a single E2E test file
+flutter test integration_test/login_test.dart -d windows
+
 # Generate localization code (after editing .arb files)
 flutter gen-l10n
 
@@ -176,6 +183,9 @@ final result = await withRetry(() => someOperation(), log: log, label: 'op');
 - `test/unit/` — pure Dart tests (no Flutter dependency needed)
 - `test/widget/` — Flutter widget tests
 - `test/helpers/` — shared mocks and provider wrappers
+- `integration_test/` — E2E (integration) tests that run against a real app on desktop
+  - `integration_test/helpers/mock_matrix_http_client.dart` — mock HTTP for the Matrix SDK
+  - `integration_test/helpers/test_app_boot.dart` — `buildTestApp()` helper that wires providers + mocked Client
 
 ### Mocking
 - **mocktail** (not mockito) — no code generation needed
@@ -195,6 +205,39 @@ testWidgets('description', (tester) async {
   await tester.pumpWidget(wrapWithProviders(child: MyWidget()));
   await tester.pump();
   expect(find.text('expected'), findsOneWidget);
+});
+```
+
+### E2E (integration) test patterns
+
+E2E tests live in `integration_test/` and use the `integration_test` package. They compile into the app binary and run on a real desktop target.
+
+**Architecture:** The Matrix SDK's `Client` accepts an `http.Client?` parameter. E2E tests inject a `MockMatrixHttpClient` that intercepts all Matrix HTTP calls (login, sync, send, etc.) and returns pre-configured JSON responses. This makes tests deterministic, fast, and independent of a real Matrix server.
+
+**Key files:**
+- `integration_test/helpers/mock_matrix_http_client.dart` — stateful mock that holds room data and builds sync responses
+- `integration_test/helpers/test_app_boot.dart` — `buildTestApp(mockHttp:)` performs a minimal boot (native crypto + SQLite + mock Client) and returns a provider-wrapped widget tree
+
+**Sync loop note:** The Matrix SDK runs a periodic sync timer. Use `tester.pump()` (not `pumpAndSettle()`) to advance the fake clock without blocking on the active timer. Multiple pumps flush the async login → sync → navigation chain.
+
+```dart
+IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+testWidgets('login then see rooms', (tester) async {
+  final mockHttp = MockMatrixHttpClient();
+  mockHttp.addRoom(id: '!room:dom', name: 'General', topic: 'Chat', timelineEvents: []);
+  // Register HTTP handlers
+  mockHttp.on(RegExp(r'_matrix/client/v3/login$'), handler: (req) => ...);
+  mockHttp.on(RegExp(r'_matrix/client/v3/sync'), handler: (_) => jsonResponse(200, mockHttp.buildSyncResponse()));
+
+  await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
+  // Flush redirect chain
+  await tester.pump(); await tester.pump(); await tester.pump();
+
+  // Interact with the real app UI
+  await tester.tap(find.text('Sign In'));
+  await tester.pump(); await tester.pump();
+  // ...enter credentials, tap sign in, verify room list...
 });
 ```
 
