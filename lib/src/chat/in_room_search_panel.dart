@@ -266,11 +266,15 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
           _results.addAll(matches);
         }
         _nextBatch = result.nextBatch;
+        _isSearching = false;
         _isLoadingMore = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isLoadingMore = false);
+      setState(() {
+        _isSearching = false;
+        _isLoadingMore = false;
+      });
     }
   }
 
