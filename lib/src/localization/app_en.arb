@@ -1898,5 +1898,577 @@
   "showAllMessages": "Show all messages",
   "@showAllMessages": {
     "description": "Tooltip for the pinned filter toggle when inactive."
+  },
+
+  "editTooltip": "Edit",
+  "@editTooltip": {
+    "description": "Tooltip for the edit message action."
+  },
+  "editMessageTitle": "Edit Message",
+  "@editMessageTitle": {
+    "description": "Title of the message edit dialog."
+  },
+  "editedIndicator": "(edited)",
+  "@editedIndicator": {
+    "description": "Inline marker shown next to an edited message body."
+  },
+  "viewEditHistory": "View edit history",
+  "@viewEditHistory": {
+    "description": "Button on a message's overflow menu to view its edit history."
+  },
+  "noEditHistory": "No prior versions.",
+  "@noEditHistory": {
+    "description": "Shown in the edit-history view when no edits exist."
+  },
+  "editHistoryTitle": "Edit history",
+  "@editHistoryTitle": {
+    "description": "Title for the edit history dialog."
+  },
+  "editedBy": "Last edited {when} by {name}",
+  "@editedBy": {
+    "description": "Subtitle in the edit history dialog describing the most recent edit.",
+    "placeholders": {
+      "when": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+  "editSave": "Save",
+  "@editSave": {
+    "description": "Save action for the message edit dialog."
+  },
+  "editFailed": "Could not save edit: {error}",
+  "@editFailed": {
+    "description": "Snackbar when sending an edit fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "recordVoiceNote": "Record voice note",
+  "@recordVoiceNote": {
+    "description": "Tooltip on the chat-box voice record button."
+  },
+  "stopRecording": "Stop recording",
+  "@stopRecording": {
+    "description": "Tooltip on the chat-box voice record button while recording."
+  },
+  "voiceRecorderTitle": "Voice note",
+  "@voiceRecorderTitle": {
+    "description": "Title of the voice note recorder dialog."
+  },
+  "voiceRecorderHint": "Click the microphone to start recording.",
+  "@voiceRecorderHint": {
+    "description": "Hint shown in the voice note recorder before recording starts."
+  },
+  "voiceRecorderSending": "Sending voice note…",
+  "@voiceRecorderSending": {
+    "description": "Shown while uploading a voice note."
+  },
+  "voiceRecorderCancelled": "Recording discarded.",
+  "@voiceRecorderCancelled": {
+    "description": "Snackbar shown when a voice recording is discarded."
+  },
+  "voiceRecorderPermissionDenied": "Microphone permission was denied.",
+  "@voiceRecorderPermissionDenied": {
+    "description": "Snackbar shown when the microphone permission is missing."
+  },
+  "voiceRecorderDuration": "{duration} s",
+  "@voiceRecorderDuration": {
+    "description": "Live duration shown in the voice recorder.",
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "voiceRecorderDiscard": "Discard",
+  "@voiceRecorderDiscard": {
+    "description": "Discard action in the voice recorder dialog."
+  },
+  "voiceRecorderSend": "Send",
+  "@voiceRecorderSend": {
+    "description": "Send action in the voice recorder dialog."
+  },
+
+  "playAudio": "Play",
+  "@playAudio": {
+    "description": "Tooltip for the audio message play button."
+  },
+  "pauseAudio": "Pause",
+  "@pauseAudio": {
+    "description": "Tooltip for the audio message pause button."
+  },
+
+  "playVideo": "Play",
+  "@playVideo": {
+    "description": "Tooltip for the video message play button."
+  },
+  "pauseVideo": "Pause",
+  "@pauseVideo": {
+    "description": "Tooltip for the video message pause button."
+  },
+  "fullscreenVideo": "Fullscreen",
+  "@fullscreenVideo": {
+    "description": "Tooltip for the fullscreen video button."
+  },
+
+  "shareLocation": "Share location",
+  "@shareLocation": {
+    "description": "Tooltip on the chat-box location-share button."
+  },
+  "sendCurrentLocation": "Send current location",
+  "@sendCurrentLocation": {
+    "description": "Confirm-label button on the location dialog."
+  },
+  "locationPermissionDenied": "Location permission was denied.",
+  "@locationPermissionDenied": {
+    "description": "Snackbar shown when the location permission is missing."
+  },
+  "locationFailedToFetch": "Could not fetch current location.",
+  "@locationFailedToFetch": {
+    "description": "Snackbar shown when geolocation fails."
+  },
+  "openInMaps": "Open in maps",
+  "@openInMaps": {
+    "description": "Button on a location message to open the coordinates in a maps app."
+  },
+  "locationAccuracyMeters": "±{m} m",
+  "@locationAccuracyMeters": {
+    "description": "Accuracy indicator for a shared location.",
+    "placeholders": {
+      "m": { "type": "int" }
+    }
+  },
+
+  "createPoll": "Create poll",
+  "@createPoll": {
+    "description": "Tooltip on the chat-box poll-creation button."
+  },
+  "pollQuestion": "Question",
+  "@pollQuestion": {
+    "description": "Field label for the poll question."
+  },
+  "pollQuestionHint": "What do you want to ask?",
+  "@pollQuestionHint": {
+    "description": "Placeholder text for the poll question field."
+  },
+  "pollOptions": "Options",
+  "@pollOptions": {
+    "description": "Field label for the list of poll options."
+  },
+  "pollOptionHint": "Option text",
+  "@pollOptionHint": {
+    "description": "Placeholder for an empty poll option field."
+  },
+  "pollAddOption": "Add option",
+  "@pollAddOption": {
+    "description": "Button to add another option field to the poll."
+  },
+  "pollSend": "Send poll",
+  "@pollSend": {
+    "description": "Button to send the poll."
+  },
+  "pollVote": "Vote",
+  "@pollVote": {
+    "description": "Action label on a poll option the user has not voted for."
+  },
+  "pollVotedFor": "Voted",
+  "@pollVotedFor": {
+    "description": "Action label on a poll option the user has voted for."
+  },
+  "pollClosed": "Closed",
+  "@pollClosed": {
+    "description": "Label shown next to a closed poll."
+  },
+  "pollResults": "{count} votes",
+  "@pollResults": {
+    "description": "Label showing the number of votes on a poll option.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollTotalVotes": "{count} votes total",
+  "@pollTotalVotes": {
+    "description": "Summary of total votes for a poll.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollInvalid": "Need a question and at least two non-empty options.",
+  "@pollInvalid": {
+    "description": "Validation error message for invalid poll input."
+  },
+
+  "typingIndicatorOne": "{name} is typing…",
+  "@typingIndicatorOne": {
+    "description": "Shown in the timeline footer when exactly one user is typing.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "typingIndicatorTwo": "{a} and {b} are typing…",
+  "@typingIndicatorTwo": {
+    "description": "Shown in the timeline footer when two users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" }
+    }
+  },
+  "typingIndicatorMany": "{a}, {b} and {count} more are typing…",
+  "@typingIndicatorMany": {
+    "description": "Shown in the timeline footer when many users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "seenBy": "Seen by {count}",
+  "@seenBy": {
+    "description": "Tooltip for the read-receipt avatar stack on a message.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "newMessagesBelow": "New messages",
+  "@newMessagesBelow": {
+    "description": "Label shown above the read marker / new-messages divider in the timeline."
+  },
+
+  "unreadCount": "{count}",
+  "@unreadCount": {
+    "description": "Compact unread message count badge (e.g. 3, 12, 99+).",
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+
+  "upgradeRoom": "Upgrade room version",
+  "@upgradeRoom": {
+    "description": "Button in room settings to upgrade the room version."
+  },
+  "upgradeRoomDescription": "Move this room to a newer room version. Existing members will keep their access.",
+  "@upgradeRoomDescription": {
+    "description": "Subtitle for the upgrade-room action."
+  },
+  "upgradeRoomConfirm": "Upgrade \"{roomName}\" to version {version}?",
+  "@upgradeRoomConfirm": {
+    "description": "Confirmation prompt when upgrading a room.",
+    "placeholders": {
+      "roomName": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+  "roomVersion": "Room version",
+  "@roomVersion": {
+    "description": "Detail-row label for the room version."
+  },
+  "roomUpgraded": "Room upgraded to version {version}",
+  "@roomUpgraded": {
+    "description": "Snackbar after upgrading the room.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "openUpgradedRoom": "Open the new room",
+  "@openUpgradedRoom": {
+    "description": "Snackbar action after upgrading the room."
+  },
+
+  "pendingKnocks": "Pending knock requests",
+  "@pendingKnocks": {
+    "description": "Section header for pending knock requests on a room."
+  },
+  "noPendingKnocks": "No pending knock requests.",
+  "@noPendingKnocks": {
+    "description": "Empty state for the pending-knocks list."
+  },
+  "approveKnock": "Approve",
+  "@approveKnock": {
+    "description": "Action to approve a pending knock request."
+  },
+  "denyKnock": "Deny",
+  "@denyKnock": {
+    "description": "Action to deny a pending knock request."
+  },
+  "knockApproved": "{displayName} was approved to join.",
+  "@knockApproved": {
+    "description": "Snackbar shown after approving a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "knockDenied": "{displayName} was denied.",
+  "@knockDenied": {
+    "description": "Snackbar shown after denying a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+
+  "joinRulesSection": "Who can join",
+  "@joinRulesSection": {
+    "description": "Section header in room settings for join rule editing."
+  },
+  "historyVisibilitySection": "History visibility",
+  "@historyVisibilitySection": {
+    "description": "Section header in room settings for history visibility."
+  },
+  "encryptionSection": "Encryption",
+  "@encryptionSection": {
+    "description": "Section header in room settings for encryption options."
+  },
+  "guestAccessSection": "Guest access",
+  "@guestAccessSection": {
+    "description": "Section header in room settings for guest-access options."
+  },
+  "directoryVisibilitySection": "Directory visibility",
+  "@directoryVisibilitySection": {
+    "description": "Section header in room settings for room directory visibility."
+  },
+  "canonicalAliasSection": "Main address",
+  "@canonicalAliasSection": {
+    "description": "Section header for the canonical alias editor."
+  },
+  "powerLevelsSection": "Power levels",
+  "@powerLevelsSection": {
+    "description": "Section header for the power-level editor."
+  },
+
+  "historyVisibilityWorldReadable": "Anyone (history is world-readable)",
+  "@historyVisibilityWorldReadable": {
+    "description": "Option for world_readable history visibility."
+  },
+  "historyVisibilityShared": "Members (since they joined)",
+  "@historyVisibilityShared": {
+    "description": "Option for shared history visibility."
+  },
+  "historyVisibilityInvited": "Members (since they were invited)",
+  "@historyVisibilityInvited": {
+    "description": "Option for invited history visibility."
+  },
+  "historyVisibilityJoined": "Members (since they joined)",
+  "@historyVisibilityJoined": {
+    "description": "Option for joined history visibility."
+  },
+  "historyVisibilityUpdated": "History visibility updated.",
+  "@historyVisibilityUpdated": {
+    "description": "Snackbar after updating history visibility."
+  },
+  "joinRulesUpdated": "Join rules updated.",
+  "@joinRulesUpdated": {
+    "description": "Snackbar after changing the join rules of a room."
+  },
+  "canonicalAliasUpdated": "Main address updated.",
+  "@canonicalAliasUpdated": {
+    "description": "Snackbar after updating canonical alias."
+  },
+  "canonicalAliasHint": "e.g. #room:matrix.org",
+  "@canonicalAliasHint": {
+    "description": "Hint for canonical alias input."
+  },
+  "encryptionUpdated": "Encryption settings updated.",
+  "@encryptionUpdated": {
+    "description": "Snackbar after enabling encryption on a room."
+  },
+  "guestAccessUpdated": "Guest access updated.",
+  "@guestAccessUpdated": {
+    "description": "Snackbar after updating guest access."
+  },
+  "directoryVisibilityUpdated": "Directory visibility updated.",
+  "@directoryVisibilityUpdated": {
+    "description": "Snackbar after updating directory visibility."
+  },
+  "directoryVisibilityPublic": "Listed in the public room directory",
+  "@directoryVisibilityPublic": {
+    "description": "Option to publish a room in the public directory."
+  },
+  "directoryVisibilityPrivate": "Hidden from the public room directory",
+  "@directoryVisibilityPrivate": {
+    "description": "Option to hide a room from the public directory."
+  },
+  "guestAccessCanJoin": "Guests can join",
+  "@guestAccessCanJoin": {
+    "description": "Option to allow guest access."
+  },
+  "guestAccessForbidden": "Guests are not allowed",
+  "@guestAccessForbidden": {
+    "description": "Option to forbid guest access."
+  },
+  "powerLevelUsersDefault": "Default user power level",
+  "@powerLevelUsersDefault": {
+    "description": "Slider label for the default user power level."
+  },
+  "powerLevelEventsDefault": "Default event power level",
+  "@powerLevelEventsDefault": {
+    "description": "Slider label for the default event power level."
+  },
+  "powerLevelStateDefault": "Default state-event power level",
+  "@powerLevelStateDefault": {
+    "description": "Slider label for the default state-event power level."
+  },
+  "powerLevelBan": "Ban power level",
+  "@powerLevelBan": {
+    "description": "Slider label for the ban power level."
+  },
+  "powerLevelKick": "Kick power level",
+  "@powerLevelKick": {
+    "description": "Slider label for the kick power level."
+  },
+  "powerLevelInvite": "Invite power level",
+  "@powerLevelInvite": {
+    "description": "Slider label for the invite power level."
+  },
+  "powerLevelRedact": "Redact power level",
+  "@powerLevelRedact": {
+    "description": "Slider label for the redact power level."
+  },
+  "powerLevelUpdated": "Power levels updated.",
+  "@powerLevelUpdated": {
+    "description": "Snackbar after updating power levels."
+  },
+  "powerLevelUserOverride": "Power level for {userId}",
+  "@powerLevelUserOverride": {
+    "description": "Per-user power-level override row.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "powerLevelAddOverride": "Add user override…",
+  "@powerLevelAddOverride": {
+    "description": "Button to add a per-user power level override."
+  },
+
+  "editOwnProfile": "Edit profile",
+  "@editOwnProfile": {
+    "description": "Button to open the own-profile editor in the hub."
+  },
+  "editDisplayName": "Edit display name",
+  "@editDisplayName": {
+    "description": "Title of the edit-displayname dialog."
+  },
+  "displayNameHint": "How you want others to see your name.",
+  "@displayNameHint": {
+    "description": "Hint for the display-name field."
+  },
+  "editStatusMessage": "Edit status message",
+  "@editStatusMessage": {
+    "description": "Title of the edit-status dialog."
+  },
+  "statusMessageHint": "Optional short note about what you're up to.",
+  "@statusMessageHint": {
+    "description": "Hint for the status-message field."
+  },
+  "statusMessage": "Status message",
+  "@statusMessage": {
+    "description": "Field label for the status message field."
+  },
+  "presence": "Presence",
+  "@presence": {
+    "description": "Section header for presence settings in the hub."
+  },
+  "presenceDescription": "Control which users see your online status.",
+  "@presenceDescription": {
+    "description": "Description for the presence section in the hub."
+  },
+  "presenceStatusOnline": "Online",
+  "@presenceStatusOnline": {
+    "description": "Presence option: Online."
+  },
+  "presenceStatusUnavailable": "Away",
+  "@presenceStatusUnavailable": {
+    "description": "Presence option: Away / Unavailable."
+  },
+  "presenceStatusOffline": "Appear offline",
+  "@presenceStatusOffline": {
+    "description": "Presence option: appear Offline."
+  },
+  "presenceStatusUpdated": "Presence updated.",
+  "@presenceStatusUpdated": {
+    "description": "Snackbar after updating presence."
+  },
+  "statusMessageUpdated": "Status message updated.",
+  "@statusMessageUpdated": {
+    "description": "Snackbar after updating status message."
+  },
+  "displayNameUpdated": "Display name updated.",
+  "@displayNameUpdated": {
+    "description": "Snackbar after updating display name."
+  },
+  "sharePresence": "Share presence",
+  "@sharePresence": {
+    "description": "Toggle to share presence with other users."
+  },
+  "sharePresenceDescription": "Allow other users to see your online status.",
+  "@sharePresenceDescription": {
+    "description": "Description for the share-presence toggle."
+  },
+
+  "expandReplies": "Show thread context",
+  "@expandReplies": {
+    "description": "Hover/click action to expand a collapsed reply chain."
+  },
+  "collapseReplies": "Hide thread context",
+  "@collapseReplies": {
+    "description": "Hover/click action to collapse an expanded reply chain."
+  },
+  "showMore": "Show more",
+  "@showMore": {
+    "description": "Generic show-more button."
+  },
+
+  "dateFilter": "Date filter",
+  "@dateFilter": {
+    "description": "Section header for the date-range filter in in-room search."
+  },
+  "afterDate": "After",
+  "@afterDate": {
+    "description": "Label of the 'after' date input."
+  },
+  "beforeDate": "Before",
+  "@beforeDate": {
+    "description": "Label of the 'before' date input."
+  },
+  "clearDateFilter": "Clear date filter",
+  "@clearDateFilter": {
+    "description": "Button to clear the date-range filter."
+  },
+
+  "reportRoom": "Report room",
+  "@reportRoom": {
+    "description": "Action to report a room for moderation."
+  },
+  "reportRoomReason": "Reason for reporting this room",
+  "@reportRoomReason": {
+    "description": "Prompt for the reason text when reporting a room."
+  },
+  "roomReported": "Room reported.",
+  "@roomReported": {
+    "description": "Snackbar after reporting a room."
+  },
+
+  "unsupportedSlashCommand": "Unknown command: {command}",
+  "@unsupportedSlashCommand": {
+    "description": "Snackbar shown when a slash command is not recognised.",
+    "placeholders": {
+      "command": { "type": "String" }
+    }
+  },
+  "slashCommandMe": "Send as emote (/me)",
+  "@slashCommandMe": {
+    "description": "Tooltip for the /me emote toggle in the chat box formatting toolbar."
+  },
+  "sendAsEmote": "Send as emote",
+  "@sendAsEmote": {
+    "description": "Indicator that the message will be sent as an emote (m.emote)."
+  },
+
+  "membersListSearchByUser": "Search members",
+  "@membersListSearchByUser": {
+    "description": "Search field hint for the members list."
+  },
+
+  "ensureDMPermission": "Send a direct message",
+  "@ensureDMPermission": {
+    "description": "Action label for the DM shortcut on a profile."
   }
 }

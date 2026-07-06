@@ -1833,5 +1833,577 @@
   "showAllMessages": "Show all messages",
   "@showAllMessages": {
     "description": "Tooltip for the pinned filter toggle when inactive."
+  },
+
+  "editTooltip": "ویرایش",
+  "@editTooltip": {
+    "description": "Tooltip for the edit message action."
+  },
+  "editMessageTitle": "ویرایش پیام",
+  "@editMessageTitle": {
+    "description": "Title of the message edit dialog."
+  },
+  "editedIndicator": "(ویرایش‌شده)",
+  "@editedIndicator": {
+    "description": "Inline marker shown next to an edited message body."
+  },
+  "viewEditHistory": "دیدن تاریخچه ویرایش",
+  "@viewEditHistory": {
+    "description": "Button on a message's overflow menu to view its edit history."
+  },
+  "noEditHistory": "نسخه قبلی موجود نیست.",
+  "@noEditHistory": {
+    "description": "Shown in the edit-history view when no edits exist."
+  },
+  "editHistoryTitle": "تاریخچه ویرایش",
+  "@editHistoryTitle": {
+    "description": "Title for the edit history dialog."
+  },
+  "editedBy": "آخرین ویرایش توسط {name} در {when}",
+  "@editedBy": {
+    "description": "Subtitle in the edit history dialog describing the most recent edit.",
+    "placeholders": {
+      "when": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+  "editSave": "ذخیره",
+  "@editSave": {
+    "description": "Save action for the message edit dialog."
+  },
+  "editFailed": "ذخیره ویرایش ممکن نشد: {error}",
+  "@editFailed": {
+    "description": "Snackbar when sending an edit fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "recordVoiceNote": "ضبط پیام صوتی",
+  "@recordVoiceNote": {
+    "description": "Tooltip on the chat-box voice record button."
+  },
+  "stopRecording": "توقف ضبط",
+  "@stopRecording": {
+    "description": "Tooltip on the chat-box voice record button while recording."
+  },
+  "voiceRecorderTitle": "پیام صوتی",
+  "@voiceRecorderTitle": {
+    "description": "Title of the voice note recorder dialog."
+  },
+  "voiceRecorderHint": "برای شروع ضبط روی میکروفون بزنید.",
+  "@voiceRecorderHint": {
+    "description": "Hint shown in the voice note recorder before recording starts."
+  },
+  "voiceRecorderSending": "در حال ارسال پیام صوتی…",
+  "@voiceRecorderSending": {
+    "description": "Shown while uploading a voice note."
+  },
+  "voiceRecorderCancelled": "ضبط لغو شد.",
+  "@voiceRecorderCancelled": {
+    "description": "Snackbar shown when a voice recording is discarded."
+  },
+  "voiceRecorderPermissionDenied": "اجازه دسترسی به میکروفون داده نشد.",
+  "@voiceRecorderPermissionDenied": {
+    "description": "Snackbar shown when the microphone permission is missing."
+  },
+  "voiceRecorderDuration": "{duration} ثانیه",
+  "@voiceRecorderDuration": {
+    "description": "Live duration shown in the voice recorder.",
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "voiceRecorderDiscard": "دور انداختن",
+  "@voiceRecorderDiscard": {
+    "description": "Discard action in the voice recorder dialog."
+  },
+  "voiceRecorderSend": "ارسال",
+  "@voiceRecorderSend": {
+    "description": "Send action in the voice recorder dialog."
+  },
+
+  "playAudio": "پخش",
+  "@playAudio": {
+    "description": "Tooltip for the audio message play button."
+  },
+  "pauseAudio": "توقف",
+  "@pauseAudio": {
+    "description": "Tooltip for the audio message pause button."
+  },
+
+  "playVideo": "پخش",
+  "@playVideo": {
+    "description": "Tooltip for the video message play button."
+  },
+  "pauseVideo": "توقف",
+  "@pauseVideo": {
+    "description": "Tooltip for the video message pause button."
+  },
+  "fullscreenVideo": "تمام‌صفحه",
+  "@fullscreenVideo": {
+    "description": "Tooltip for the fullscreen video button."
+  },
+
+  "shareLocation": "ارسال موقعیت مکانی",
+  "@shareLocation": {
+    "description": "Tooltip on the chat-box location-share button."
+  },
+  "sendCurrentLocation": "ارسال موقعیت فعلی",
+  "@sendCurrentLocation": {
+    "description": "Confirm-label button on the location dialog."
+  },
+  "locationPermissionDenied": "اجازه دسترسی به موقعیت مکانی داده نشد.",
+  "@locationPermissionDenied": {
+    "description": "Snackbar shown when the location permission is missing."
+  },
+  "locationFailedToFetch": "دریافت موقعیت فعلی ممکن نشد.",
+  "@locationFailedToFetch": {
+    "description": "Snackbar shown when geolocation fails."
+  },
+  "openInMaps": "باز کردن در نقشه",
+  "@openInMaps": {
+    "description": "Button on a location message to open the coordinates in a maps app."
+  },
+  "locationAccuracyMeters": "±{m} متر",
+  "@locationAccuracyMeters": {
+    "description": "Accuracy indicator for a shared location.",
+    "placeholders": {
+      "m": { "type": "int" }
+    }
+  },
+
+  "createPoll": "ایجاد نظرسنجی",
+  "@createPoll": {
+    "description": "Tooltip on the chat-box poll-creation button."
+  },
+  "pollQuestion": "سوال",
+  "@pollQuestion": {
+    "description": "Field label for the poll question."
+  },
+  "pollQuestionHint": "چه می‌خواهید بپرسید؟",
+  "@pollQuestionHint": {
+    "description": "Placeholder text for the poll question field."
+  },
+  "pollOptions": "گزینه‌ها",
+  "@pollOptions": {
+    "description": "Field label for the list of poll options."
+  },
+  "pollOptionHint": "متن گزینه",
+  "@pollOptionHint": {
+    "description": "Placeholder for an empty poll option field."
+  },
+  "pollAddOption": "افزودن گزینه",
+  "@pollAddOption": {
+    "description": "Button to add another option field to the poll."
+  },
+  "pollSend": "ارسال نظرسنجی",
+  "@pollSend": {
+    "description": "Button to send the poll."
+  },
+  "pollVote": "رای",
+  "@pollVote": {
+    "description": "Action label on a poll option the user has not voted for."
+  },
+  "pollVotedFor": "رای داده‌شده",
+  "@pollVotedFor": {
+    "description": "Action label on a poll option the user has voted for."
+  },
+  "pollClosed": "بسته‌شده",
+  "@pollClosed": {
+    "description": "Label shown next to a closed poll."
+  },
+  "pollResults": "{count} رای",
+  "@pollResults": {
+    "description": "Label showing the number of votes on a poll option.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollTotalVotes": "در مجموع {count} رای",
+  "@pollTotalVotes": {
+    "description": "Summary of total votes for a poll.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollInvalid": "به یک سوال و حداقل دو گزینه‌ی غیر خالی نیاز است.",
+  "@pollInvalid": {
+    "description": "Validation error message for invalid poll input."
+  },
+
+  "typingIndicatorOne": "{name} در حال نوشتن…",
+  "@typingIndicatorOne": {
+    "description": "Shown in the timeline footer when exactly one user is typing.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "typingIndicatorTwo": "{a} و {b} در حال نوشتن…",
+  "@typingIndicatorTwo": {
+    "description": "Shown in the timeline footer when two users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" }
+    }
+  },
+  "typingIndicatorMany": "{a}، {b} و {count} نفر دیگر در حال نوشتن…",
+  "@typingIndicatorMany": {
+    "description": "Shown in the timeline footer when many users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "seenBy": "دیده‌شده توسط {count} نفر",
+  "@seenBy": {
+    "description": "Tooltip for the read-receipt avatar stack on a message.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "newMessagesBelow": "پیام‌های جدید",
+  "@newMessagesBelow": {
+    "description": "Label shown above the read marker / new-messages divider in the timeline."
+  },
+
+  "unreadCount": "{count}",
+  "@unreadCount": {
+    "description": "Compact unread message count badge (e.g. 3, 12, 99+).",
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+
+  "upgradeRoom": "ارتقا نسخه اتاق",
+  "@upgradeRoom": {
+    "description": "Button in room settings to upgrade the room version."
+  },
+  "upgradeRoomDescription": "انتقال این اتاق به نسخه‌ی جدیدتر. اعضا دسترسی خود را حفظ می‌کنند.",
+  "@upgradeRoomDescription": {
+    "description": "Subtitle for the upgrade-room action."
+  },
+  "upgradeRoomConfirm": "ارتقای \"{roomName}\" به نسخه {version}؟",
+  "@upgradeRoomConfirm": {
+    "description": "Confirmation prompt when upgrading a room.",
+    "placeholders": {
+      "roomName": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+  "roomVersion": "نسخه اتاق",
+  "@roomVersion": {
+    "description": "Detail-row label for the room version."
+  },
+  "roomUpgraded": "اتاق به نسخه {version} ارتقا یافت",
+  "@roomUpgraded": {
+    "description": "Snackbar after upgrading the room.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "openUpgradedRoom": "باز کردن اتاق جدید",
+  "@openUpgradedRoom": {
+    "description": "Snackbar action after upgrading the room."
+  },
+
+  "pendingKnocks": "درخواست‌های در انتظار",
+  "@pendingKnocks": {
+    "description": "Section header for pending knock requests on a room."
+  },
+  "noPendingKnocks": "درخواست در انتظاری وجود ندارد.",
+  "@noPendingKnocks": {
+    "description": "Empty state for the pending-knocks list."
+  },
+  "approveKnock": "تایید",
+  "@approveKnock": {
+    "description": "Action to approve a pending knock request."
+  },
+  "denyKnock": "رد",
+  "@denyKnock": {
+    "description": "Action to deny a pending knock request."
+  },
+  "knockApproved": "{displayName} برای پیوستن تایید شد.",
+  "@knockApproved": {
+    "description": "Snackbar shown after approving a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "knockDenied": "{displayName} رد شد.",
+  "@knockDenied": {
+    "description": "Snackbar shown after denying a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+
+  "joinRulesSection": "چه کسی می‌تواند بپیوندد",
+  "@joinRulesSection": {
+    "description": "Section header in room settings for join rule editing."
+  },
+  "historyVisibilitySection": "نمایش تاریخچه",
+  "@historyVisibilitySection": {
+    "description": "Section header in room settings for history visibility."
+  },
+  "encryptionSection": "رمزنگاری",
+  "@encryptionSection": {
+    "description": "Section header in room settings for encryption options."
+  },
+  "guestAccessSection": "دسترسی مهمان",
+  "@guestAccessSection": {
+    "description": "Section header in room settings for guest-access options."
+  },
+  "directoryVisibilitySection": "نمایش در فهرست",
+  "@directoryVisibilitySection": {
+    "description": "Section header in room settings for room directory visibility."
+  },
+  "canonicalAliasSection": "نشانی اصلی",
+  "@canonicalAliasSection": {
+    "description": "Section header for the canonical alias editor."
+  },
+  "powerLevelsSection": "سطوح قدرت",
+  "@powerLevelsSection": {
+    "description": "Section header for the power-level editor."
+  },
+
+  "historyVisibilityWorldReadable": "همه (تاریخچه برای عموم قابل خواندن)",
+  "@historyVisibilityWorldReadable": {
+    "description": "Option for world_readable history visibility."
+  },
+  "historyVisibilityShared": "اعضا (از زمان پیوستن)",
+  "@historyVisibilityShared": {
+    "description": "Option for shared history visibility."
+  },
+  "historyVisibilityInvited": "اعضا (از زمان دعوت)",
+  "@historyVisibilityInvited": {
+    "description": "Option for invited history visibility."
+  },
+  "historyVisibilityJoined": "اعضا (از زمان پیوستن)",
+  "@historyVisibilityJoined": {
+    "description": "Option for joined history visibility."
+  },
+  "historyVisibilityUpdated": "نمایش تاریخچه به‌روزرسانی شد.",
+  "@historyVisibilityUpdated": {
+    "description": "Snackbar after updating history visibility."
+  },
+  "joinRulesUpdated": "قوانین پیوستن به‌روزرسانی شد.",
+  "@joinRulesUpdated": {
+    "description": "Snackbar after changing the join rules of a room."
+  },
+  "canonicalAliasUpdated": "نشانی اصلی به‌روزرسانی شد.",
+  "@canonicalAliasUpdated": {
+    "description": "Snackbar after updating canonical alias."
+  },
+  "canonicalAliasHint": "مانند #room:matrix.org",
+  "@canonicalAliasHint": {
+    "description": "Hint for canonical alias input."
+  },
+  "encryptionUpdated": "تنظیمات رمزنگاری به‌روزرسانی شد.",
+  "@encryptionUpdated": {
+    "description": "Snackbar after enabling encryption on a room."
+  },
+  "guestAccessUpdated": "دسترسی مهمان به‌روزرسانی شد.",
+  "@guestAccessUpdated": {
+    "description": "Snackbar after updating guest access."
+  },
+  "directoryVisibilityUpdated": "نمایش در فهرست به‌روزرسانی شد.",
+  "@directoryVisibilityUpdated": {
+    "description": "Snackbar after updating directory visibility."
+  },
+  "directoryVisibilityPublic": "در فهرست عمومی اتاق‌ها نمایش داده شود",
+  "@directoryVisibilityPublic": {
+    "description": "Option to publish a room in the public directory."
+  },
+  "directoryVisibilityPrivate": "از فهرست عمومی پنهان شود",
+  "@directoryVisibilityPrivate": {
+    "description": "Option to hide a room from the public directory."
+  },
+  "guestAccessCanJoin": "میهمان‌ها می‌توانند بپیوندند",
+  "@guestAccessCanJoin": {
+    "description": "Option to allow guest access."
+  },
+  "guestAccessForbidden": "میهمان‌ها مجاز نیستند",
+  "@guestAccessForbidden": {
+    "description": "Option to forbid guest access."
+  },
+  "powerLevelUsersDefault": "سطح قدرت پیش‌فرض کاربران",
+  "@powerLevelUsersDefault": {
+    "description": "Slider label for the default user power level."
+  },
+  "powerLevelEventsDefault": "سطح قدرت پیش‌فرض رویدادها",
+  "@powerLevelEventsDefault": {
+    "description": "Slider label for the default event power level."
+  },
+  "powerLevelStateDefault": "سطح قدرت پیش‌فرض رویدادهای وضعیت",
+  "@powerLevelStateDefault": {
+    "description": "Slider label for the default state-event power level."
+  },
+  "powerLevelBan": "سطح قدرت ممنوعیت",
+  "@powerLevelBan": {
+    "description": "Slider label for the ban power level."
+  },
+  "powerLevelKick": "سطح قدرت اخراج",
+  "@powerLevelKick": {
+    "description": "Slider label for the kick power level."
+  },
+  "powerLevelInvite": "سطح قدرت دعوت",
+  "@powerLevelInvite": {
+    "description": "Slider label for the invite power level."
+  },
+  "powerLevelRedact": "سطح قدرت حذف",
+  "@powerLevelRedact": {
+    "description": "Slider label for the redact power level."
+  },
+  "powerLevelUpdated": "سطوح قدرت به‌روزرسانی شد.",
+  "@powerLevelUpdated": {
+    "description": "Snackbar after updating power levels."
+  },
+  "powerLevelUserOverride": "سطح قدرت برای {userId}",
+  "@powerLevelUserOverride": {
+    "description": "Per-user power-level override row.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "powerLevelAddOverride": "افزودن استثنای کاربر…",
+  "@powerLevelAddOverride": {
+    "description": "Button to add a per-user power level override."
+  },
+
+  "editOwnProfile": "ویرایش پروفایل",
+  "@editOwnProfile": {
+    "description": "Button to open the own-profile editor in the hub."
+  },
+  "editDisplayName": "ویرایش نام نمایشی",
+  "@editDisplayName": {
+    "description": "Title of the edit-displayname dialog."
+  },
+  "displayNameHint": "نامی که می‌خواهید دیگران ببینند.",
+  "@displayNameHint": {
+    "description": "Hint for the display-name field."
+  },
+  "editStatusMessage": "ویرایش پیام وضعیت",
+  "@editStatusMessage": {
+    "description": "Title of the edit-status dialog."
+  },
+  "statusMessageHint": "یادداشت کوتاه اختیاری درباره‌ی آنچه انجام می‌دهید.",
+  "@statusMessageHint": {
+    "description": "Hint for the status-message field."
+  },
+  "statusMessage": "پیام وضعیت",
+  "@statusMessage": {
+    "description": "Field label for the status message field."
+  },
+  "presence": "حضور",
+  "@presence": {
+    "description": "Section header for presence settings in the hub."
+  },
+  "presenceDescription": "کنترل اینکه چه کسانی وضعیت آنلاین شما را ببینند.",
+  "@presenceDescription": {
+    "description": "Description for the presence section in the hub."
+  },
+  "presenceStatusOnline": "آنلاین",
+  "@presenceStatusOnline": {
+    "description": "Presence option: Online."
+  },
+  "presenceStatusUnavailable": "دور",
+  "@presenceStatusUnavailable": {
+    "description": "Presence option: Away / Unavailable."
+  },
+  "presenceStatusOffline": "آفلاین به نظر برسد",
+  "@presenceStatusOffline": {
+    "description": "Presence option: appear Offline."
+  },
+  "presenceStatusUpdated": "حضور به‌روزرسانی شد.",
+  "@presenceStatusUpdated": {
+    "description": "Snackbar after updating presence."
+  },
+  "statusMessageUpdated": "پیام وضعیت به‌روزرسانی شد.",
+  "@statusMessageUpdated": {
+    "description": "Snackbar after updating status message."
+  },
+  "displayNameUpdated": "نام نمایشی به‌روزرسانی شد.",
+  "@displayNameUpdated": {
+    "description": "Snackbar after updating display name."
+  },
+  "sharePresence": "اشتراک‌گذاری حضور",
+  "@sharePresence": {
+    "description": "Toggle to share presence with other users."
+  },
+  "sharePresenceDescription": "به کاربران دیگر اجازه دهید وضعیت آنلاین شما را ببینند.",
+  "@sharePresenceDescription": {
+    "description": "Description for the share-presence toggle."
+  },
+
+  "expandReplies": "نمایش متن گفتگو",
+  "@expandReplies": {
+    "description": "Hover/click action to expand a collapsed reply chain."
+  },
+  "collapseReplies": "پنهان کردن متن گفتگو",
+  "@collapseReplies": {
+    "description": "Hover/click action to collapse an expanded reply chain."
+  },
+  "showMore": "نمایش بیشتر",
+  "@showMore": {
+    "description": "Generic show-more button."
+  },
+
+  "dateFilter": "فیلتر تاریخ",
+  "@dateFilter": {
+    "description": "Section header for the date-range filter in in-room search."
+  },
+  "afterDate": "پس از",
+  "@afterDate": {
+    "description": "Label of the 'after' date input."
+  },
+  "beforeDate": "پیش از",
+  "@beforeDate": {
+    "description": "Label of the 'before' date input."
+  },
+  "clearDateFilter": "حذف فیلتر تاریخ",
+  "@clearDateFilter": {
+    "description": "Button to clear the date-range filter."
+  },
+
+  "reportRoom": "گزارش اتاق",
+  "@reportRoom": {
+    "description": "Action to report a room for moderation."
+  },
+  "reportRoomReason": "دلیل گزارش این اتاق",
+  "@reportRoomReason": {
+    "description": "Prompt for the reason text when reporting a room."
+  },
+  "roomReported": "اتاق گزارش شد.",
+  "@roomReported": {
+    "description": "Snackbar after reporting a room."
+  },
+
+  "unsupportedSlashCommand": "دستور ناشناخته: {command}",
+  "@unsupportedSlashCommand": {
+    "description": "Snackbar shown when a slash command is not recognised.",
+    "placeholders": {
+      "command": { "type": "String" }
+    }
+  },
+  "slashCommandMe": "ارسال به‌صورت ایموجی (/me)",
+  "@slashCommandMe": {
+    "description": "Tooltip for the /me emote toggle in the chat box formatting toolbar."
+  },
+  "sendAsEmote": "ارسال به‌صورت ایموجی",
+  "@sendAsEmote": {
+    "description": "Indicator that the message will be sent as an emote (m.emote)."
+  },
+
+  "membersListSearchByUser": "جست‌وجوی اعضا",
+  "@membersListSearchByUser": {
+    "description": "Search field hint for the members list."
+  },
+
+  "ensureDMPermission": "ارسال پیام مستقیم",
+  "@ensureDMPermission": {
+    "description": "Action label for the DM shortcut on a profile."
   }
 }
