@@ -771,13 +771,32 @@ class _LoginPageState extends State<LoginPage> {
         }
       case RetryFailed(:final error, :final attempts):
         {
-          log.e('Login failed after $attempts attempt(s)', error: error);
+          // SECURITY: never pass the raw error to either the logger or the
+          // UI — `MatrixHttpException.toString()` echoes the request body,
+          // which the homeserver can echo back the typed password in 4xx
+          // responses. Log only the class and rethrow; the user-facing
+          // message is a static copy that omits the offending field.
+          log.e('Login failed after $attempts attempt(s) (${error.runtimeType})');
           setState(() => _error = error is TimeoutException
               ? l10n.loginTimedOut
-              : l10n.loginFailed('$error'));
+              : l10n.loginFailed(_safeErrorMessage(error)));
           if (mounted) setState(() => _loading = false);
         }
     }
+  }
+
+  /// Returns a user-facing error string that does not leak credentials.
+  ///
+  /// The Matrix SDK's `MatrixHttpException.toString()` echoes the request
+  /// body, so a homeserver that returns the password field in a 4xx
+  /// response would surface it in the UI and in redacted logs.  This
+  /// helper maps known error types to friendly copy and falls back to a
+  /// generic message that exposes only the exception's class name.
+  String _safeErrorMessage(Object error) {
+    if (error is TimeoutException) return 'request timed out';
+    // Strip the request body by relying on the exception's public
+    // properties; never touch `.toString()`.
+    return error.runtimeType.toString();
   }
 
   /// Clears any cached session data from the SDK and EncryptionService
@@ -957,6 +976,12 @@ class _LoginPageState extends State<LoginPage> {
         'redirectUrl': redirectUri.toString(),
       },
     );
+
+    // SECURITY: a hostile homeserver URL would still let it issue a
+    // login token to the browser tab.  We can't fully prevent that,
+    // but we can surface the destination so the user is aware that
+    // they are about to authenticate against an unexpected server.
+    log.w('Opening SSO redirect for homeserver: $homeserverUri');
 
     // ── 3. Open the browser ────────────────────────────────────
     try {

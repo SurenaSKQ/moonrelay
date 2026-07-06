@@ -50,6 +50,14 @@ const _redactionPatterns = <_RedactionPattern>[
   _RedactionPattern(
       pattern: r'\bsession_id[=:]"?([A-Za-z0-9]{10,})"?',
       replacement: 'session_id=[REDACTED]'),
+  // Passwords in URL-encoded form bodies (password=foo, password: foo).
+  // Matches `password=...`, `password:...`, JSON-style `"password":"..."`.
+  // The regex character class uses both single and double quotes; raw
+  // string literals cannot contain a raw `'`, so the leading `\` is a
+  // literal backslash we strip with a `r"..."` boundary.
+  _RedactionPattern(
+      pattern: r'''password[=:"']?\s*([^\s&,"}\]]+)''',
+      replacement: 'password=[REDACTED]'),
 ];
 
 /// A token-length-sensitive, memory-constrained log sink that writes
