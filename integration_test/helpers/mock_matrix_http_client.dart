@@ -215,6 +215,74 @@ class MockMatrixHttpClient extends http.BaseClient {
     final r = Random();
     return '${r.nextInt(99999999)}${DateTime.now().microsecondsSinceEpoch}';
   }
+
+  // ── Encryption fixtures ───────────────────────────────────────────
+  //
+  // Tests exercising the encryption flow (post-login bootstrap, the
+  // devices screen, key backup, …) need a stable set of stubs for
+  // the SDK's device-management and crypto endpoints.  The methods
+  // below configure those handlers with plausible-looking responses
+  // so the SDK's HTTP client can complete its requests without
+  // 404 errors.
+
+  /// Installs standard handlers for the cross-signing / key-backup / devices
+  /// endpoints the SDK calls when [EncryptionService.init] fires.
+  ///
+  /// The defaults match an account that has not yet been bootstrapped:
+  /// no master key, no self-signing key, no online backup.  Tests that
+  /// want a different starting state can mutate the [whenDevicesRequested]
+  /// hook or register extra routes before [buildTestApp] fires.
+  void configureEncryptionHandlers() {
+    // Devices for the current user.
+    whenDevicesRequested = () => <Map<String, dynamic>>[
+      {
+        'device_id': currentDeviceId,
+        'user_id': '@self:matrix.org',
+        'display_name': 'Mock Test Device',
+        'last_seen_ip': '127.0.0.1',
+        'last_seen_ts': DateTime.now().millisecondsSinceEpoch,
+        'app_id': 'moonrelay.e2e',
+        'app_version': '0.6.0',
+        'platform': 'linux',
+        'url': null,
+      }
+    ];
+
+    // Upload device keys (initial sync handshake).
+    final keysUploadRe = RegExp(r'_matrix/client/v3/keys/upload');
+    registerRoute(
+        keysUploadRe, (req) => _jsonResponse(200, {'one_time_key_counts': {}}));
+
+    // Cross-signing keys upload — accept whatever the SDK sends.
+    final signingKeysRe = RegExp(
+        r'_matrix/client/v3/keys/device_signing/upload|_matrix/client/v3/keys/signatures/upload');
+    registerRoute(
+        signingKeysRe, (req) => _jsonResponse(200, <String, dynamic>{}));
+  }
+
+  /// Public field — tests can rename this to a deterministic
+  /// `device_id` so login + sync responses stay referentially stable
+  /// across runs.
+  String currentDeviceId = 'E2ETEST-DEVICE';
+
+  /// Hook installed by [configureEncryptionHandlers].  Returns the
+  /// JSON list of devices for the `_matrix/client/v3/devices` call.
+  List<Map<String, dynamic>> Function() whenDevicesRequested =
+      () => <Map<String, dynamic>>[];
+
+  /// Synonym for [on] with a more direct naming so E2E helpers
+  /// can install additional routes alongside the encryption fixtures
+  /// without leaking the internal mutable map.
+  void registerRoute(Pattern p, http.Response Function(http.Request) h) {
+    on(p, handler: h);
+  }
+
+  /// Convenience: a 200 JSON response with sensible default headers.
+  http.Response _jsonResponse(int status, Object body) {
+    return http.Response(jsonEncode(body), status, headers: {
+      'content-type': 'application/json',
+    });
+  }
 }
 
 /// Internal room state tracked by the mock client.
