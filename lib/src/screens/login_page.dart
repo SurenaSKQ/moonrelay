@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/homeserver_url.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
@@ -743,15 +744,19 @@ class _LoginPageState extends State<LoginPage> {
           });
 
           // ── Enable encryption now that we're logged in ──────────
+          // Capture all provider reads before any await so the analyzer
+          // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
+          final accountManager = context.read<AccountManager>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
           // ── Save this account for multi-account support ─────────
-          final accountManager = context.read<AccountManager>();
           await accountManager.addOrUpdateAccount(
             StoredAccount(
-              userId: client.userID!,
-              homeserver: client.homeserver?.toString() ?? '',
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
             ),
             client: client,
             encryptionService: encryptionService,
@@ -872,6 +877,50 @@ class _LoginPageState extends State<LoginPage> {
     final String hs = _homeserverCtrl.text.trim();
     final Uri homeserverUri =
         hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+
+    // ── Phishing guard ────────────────────────────────────────
+    // The homeserver address is user-supplied. Before we point the user's
+    // browser at it, refuse URLs that obviously are not homeservers and
+    // make the destination explicit so a phisher pointing at a look-alike
+    // domain is harder to miss. Failures here short-circuit before any
+    // network call.
+    if (!isPlausibleHomeserverUrl(homeserverUri)) {
+      log.w('Refusing SSO login: homeserver URL looks invalid: $homeserverUri');
+      setState(() {
+        _error = l10n.ssoHomeserverInvalid;
+        _loading = false;
+      });
+      return;
+    }
+
+    // ── Confirmation prompt ──────────────────────────────────
+    // Surface the destination so the user can abort a phishing attempt
+    // before the browser is opened and SSO credentials are sent.
+    final bool? proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.ssoConfirmHomeserverTitle),
+        content: Text(
+          l10n.ssoConfirmHomeserverBody(homeserverUri.host),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.ssoConfirmHomeserverSwitch),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ssoConfirmHomeserverContinue),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (proceed != true) {
+      setState(() => _loading = false);
+      return;
+    }
 
     final List<LoginFlow>? flows =
         await _tryCheckHomeserver(client, homeserverUri);
@@ -1123,15 +1172,19 @@ class _LoginPageState extends State<LoginPage> {
           });
 
           // ── Enable encryption now that we're logged in ──────────
+          // Capture all provider reads before any await so the analyzer
+          // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
+          final accountManager = context.read<AccountManager>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
           // ── Save this account for multi-account support ─────────
-          final accountManager = context.read<AccountManager>();
           await accountManager.addOrUpdateAccount(
             StoredAccount(
-              userId: client.userID!,
-              homeserver: client.homeserver?.toString() ?? '',
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
             ),
             client: client,
             encryptionService: encryptionService,
