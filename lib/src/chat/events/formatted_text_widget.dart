@@ -56,8 +56,12 @@ class FormattedTextWidget extends StatelessWidget {
     final format = event.content['format'] as String?;
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
-      // Check the parse cache before re-parsing.
-      final cacheKey = formattedBody.hashCode ^ baseFontSize.hashCode;
+      // Check the parse cache before re-parsing.  Keyed on the raw
+      // formatted-body string instead of `hashCode` so two unrelated
+      // bodies with a colliding `hashCode` cannot return each other's
+      // parsed spans.
+      final cacheKey =
+          '${baseFontSize.toStringAsFixed(2)}::$formattedBody';
       List<TextSpan>? spans = _HtmlParseCache.get(cacheKey);
       if (spans == null) {
         spans =
@@ -167,14 +171,14 @@ class FormattedTextWidget extends StatelessWidget {
 class _HtmlParseCache {
   _HtmlParseCache._();
   static const int kMaxCacheEntries = 200;
-  static final Map<int, List<TextSpan>> _cache = {};
-  static final List<int> _keys = [];
+  static final Map<String, List<TextSpan>> _cache = {};
+  static final List<String> _keys = [];
 
   /// Returns cached spans for [key], or `null` if not in cache.
-  static List<TextSpan>? get(int key) => _cache[key];
+  static List<TextSpan>? get(String key) => _cache[key];
 
   /// Stores [spans] for [key], evicting the oldest entry if over capacity.
-  static void set(int key, List<TextSpan> spans) {
+  static void set(String key, List<TextSpan> spans) {
     if (_cache.containsKey(key)) return;
     if (_keys.length >= kMaxCacheEntries) {
       final oldest = _keys.removeAt(0);
