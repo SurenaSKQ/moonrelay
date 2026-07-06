@@ -5,7 +5,27 @@ import 'package:flutter/material.dart';
 
 /// Generates Color from a string.
 extension StringColor on String {
+  /// Bounded LRU cache of `(string, lightness) → color` lookups.
+  ///
+  /// The cache used to be unbounded, which leaked memory across very long
+  /// sessions in rooms with thousands of unique senders.  The LRU keeps
+  /// only the most-recently-used [kMaxColorCacheEntries] entries.
   static final _colorCache = <String, Map<double, Color>>{};
+  static final List<String> _colorCacheKeys = [];
+  static const int kMaxColorCacheEntries = 512;
+
+  /// Inserts [s] into the LRU at the head of [_colorCacheKeys].
+  ///
+  /// Evicts the oldest entry if the cache is over capacity.
+  static void _touch(String s) {
+    final idx = _colorCacheKeys.indexOf(s);
+    if (idx != -1) _colorCacheKeys.removeAt(idx);
+    _colorCacheKeys.add(s);
+    while (_colorCacheKeys.length > kMaxColorCacheEntries) {
+      final oldest = _colorCacheKeys.removeAt(0);
+      _colorCache.remove(oldest);
+    }
+  }
 
   // This private method calculates a color based on the unicode of the string.
   // It iterates over each character in the string, summing their Unicode code units to derive a base number.
@@ -21,26 +41,30 @@ extension StringColor on String {
   }
 
   // These getter methods provide different shades of colors based on the string.
-  // They check the cache first to see if the color has already been computed for a specific lightness value (0.3, 0.2, 0.7, or 0.4).
+  // They check the cache first to see if the color has already been computed for a specific lightness value (0.35, 0.2, 0.7, or 0.4).
   // If not, they compute it using _getColorLight(light) and store it in the cache.
 
   Color get color {
-    _colorCache[this] ??= {};
-    return _colorCache[this]![0.35] ??= _getColorLight(0.35);
+    final bucket = _colorCache[this] ??= <double, Color>{};
+    _touch(this);
+    return bucket[0.35] ??= _getColorLight(0.35);
   }
 
   Color get darkColor {
-    _colorCache[this] ??= {};
-    return _colorCache[this]![0.2] ??= _getColorLight(0.2);
+    final bucket = _colorCache[this] ??= <double, Color>{};
+    _touch(this);
+    return bucket[0.2] ??= _getColorLight(0.2);
   }
 
   Color get lightColorText {
-    _colorCache[this] ??= {};
-    return _colorCache[this]![0.7] ??= _getColorLight(0.7);
+    final bucket = _colorCache[this] ??= <double, Color>{};
+    _touch(this);
+    return bucket[0.7] ??= _getColorLight(0.7);
   }
 
   Color get lightColorAvatar {
-    _colorCache[this] ??= {};
-    return _colorCache[this]![0.4] ??= _getColorLight(0.4);
+    final bucket = _colorCache[this] ??= <double, Color>{};
+    _touch(this);
+    return bucket[0.4] ??= _getColorLight(0.4);
   }
 }

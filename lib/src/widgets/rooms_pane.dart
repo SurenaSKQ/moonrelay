@@ -40,6 +40,33 @@ class RoomsPane extends StatelessWidget {
     this.roomFilter,
   });
 
+  /// Cache of avatar thumbnail URI promises keyed by the room ID +
+  /// avatar-mxc URI + (width, height).  Without this, every parent
+  /// rebuild creates a new `Future` for `_RoomAvatar._buildAvatar`,
+  /// so the `FutureBuilder` never settles inside a frequently-
+  /// rebuilding parent (e.g. during a sync tick).
+  static final Map<String, Future<Uri?>> _thumbnailCache = {};
+  static final List<String> _thumbnailCacheOrder = [];
+  static const int kMaxThumbnailEntries = 256;
+
+  /// Returns a cached thumbnail promise for [key] or computes one and
+  /// caches the result.  LRU-evicts the oldest entry on overflow.
+  static Future<Uri?> cachedThumbnail(
+    String key,
+    Future<Uri?> Function() compute,
+  ) {
+    final cached = _thumbnailCache[key];
+    if (cached != null) return cached;
+    final fresh = compute();
+    _thumbnailCache[key] = fresh;
+    _thumbnailCacheOrder.add(key);
+    while (_thumbnailCacheOrder.length > kMaxThumbnailEntries) {
+      final oldest = _thumbnailCacheOrder.removeAt(0);
+      _thumbnailCache.remove(oldest);
+    }
+    return fresh;
+  }
+
   @override
   Widget build(BuildContext context) {
     final Client client = Provider.of<Client>(context);
@@ -118,6 +145,13 @@ class RoomsPane extends StatelessWidget {
             itemCount: currentRooms.length,
             itemBuilder: (context, index) {
               final Room room = currentRooms.elementAt(index);
+              // Rooms have no displayname before the first sync (or can
+              // legitimately have an empty one).  Fall back to a localised
+              // placeholder so the row is never just a blank label.
+              final displayname =
+                  room.getLocalizedDisplayname().trim().isEmpty
+                      ? AppLocalizations.of(context)!.untitledRoom
+                      : room.getLocalizedDisplayname();
 
               return ListTile(
                 leading:
@@ -126,7 +160,7 @@ class RoomsPane extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        room.getLocalizedDisplayname(),
+                        displayname,
                         style: const TextStyle(
                             fontWeight: FontWeight.w300, fontSize: 18),
                       ),
@@ -243,23 +277,30 @@ class _RoomAvatar extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
-    final initials = _initialsForDisplayname(room.getLocalizedDisplayname());
+    final rawName = room.getLocalizedDisplayname().trim();
+    final displayname = rawName.isEmpty ? '?' : rawName;
+    final initials = _initialsForDisplayname(displayname);
     if (room.avatar == null) {
       return CircleAvatar(
         child: Text(initials),
       );
     }
 
+    final cacheKey =
+        '${room.id}::${room.avatar!.toString()}::56x56';
     return FutureBuilder<Uri?>(
-      future: withTimeoutOrFallback(
-        () => room.avatar!.getThumbnailUri(
-          client,
-          method: ThumbnailMethod.scale,
-          height: 56,
-          width: 56,
+      future: RoomsPane.cachedThumbnail(
+        cacheKey,
+        () => withTimeoutOrFallback(
+          () => room.avatar!.getThumbnailUri(
+            client,
+            method: ThumbnailMethod.scale,
+            height: 56,
+            width: 56,
+          ),
+          timeout: kDefaultTimeout,
+          fallback: null,
         ),
-        timeout: kDefaultTimeout,
-        fallback: null,
       ),
       builder: (context, asyncSnapshot) {
         final uri = asyncSnapshot.data;
