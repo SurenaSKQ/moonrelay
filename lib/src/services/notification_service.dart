@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -320,13 +321,13 @@ class NotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getStringList('notification_group_counts');
-      if (raw != null) {
-        for (final entry in raw) {
-          final bar = entry.indexOf('|');
-          if (bar == -1) continue;
-          final count = int.tryParse(entry.substring(bar + 1));
-          if (count == null) continue;
-          _groupNotifiedCounts[entry.substring(0, bar)] = count;
+      if (raw == null) return;
+      for (final entry in raw) {
+        final decoded = _decodePipeMap(entry);
+        if (decoded == null) continue;
+        for (final kv in decoded.entries) {
+          final count = int.tryParse(kv.value);
+          if (count != null) _groupNotifiedCounts[kv.key] = count;
         }
       }
       _log.d('Loaded ${_groupNotifiedCounts.length} group notified counts');
@@ -338,10 +339,12 @@ class NotificationService {
   Future<void> _persistGroupNotifiedCounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final serialized = _groupNotifiedCounts.entries
-          .map((e) => '${e.key}|${e.value}')
-          .toList();
-      await prefs.setStringList('notification_group_counts', serialized);
+      final encoded = <String, String>{
+        for (final entry in _groupNotifiedCounts.entries)
+          entry.key: entry.value.toString(),
+      };
+      await prefs.setStringList(
+          'notification_group_counts', [jsonEncode(encoded)]);
     } catch (e) {
       _log.w('Failed to persist group notified counts', error: e);
     }
@@ -353,13 +356,11 @@ class NotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getStringList(_lastEventIdsKey);
-      if (raw != null) {
-        for (final entry in raw) {
-          final bar = entry.indexOf('|');
-          if (bar == -1) continue;
-          _lastNotifiedEventIds[entry.substring(0, bar)] =
-              entry.substring(bar + 1);
-        }
+      if (raw == null) return;
+      for (final entry in raw) {
+        final decoded = _decodePipeMap(entry);
+        if (decoded == null) continue;
+        _lastNotifiedEventIds.addAll(decoded);
       }
       _log.d('Loaded ${_lastNotifiedEventIds.length} last-notified event IDs');
     } catch (e) {
@@ -370,12 +371,28 @@ class NotificationService {
   Future<void> _persistLastEventIds() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final serialized =
-          _lastNotifiedEventIds.entries.map((e) => '${e.key}|${e.value}').toList();
-      await prefs.setStringList(_lastEventIdsKey, serialized);
+      await prefs.setStringList(
+          _lastEventIdsKey, [jsonEncode(_lastNotifiedEventIds)]);
     } catch (e) {
       _log.w('Failed to persist last-notified event IDs', error: e);
     }
+  }
+
+  /// Decode a `Map<String, String>` that was stored as a single JSON entry
+  /// in a StringList.  Room and event IDs may legally contain `|`, so we
+  /// no longer split on the first `|`.
+  Map<String, String>? _decodePipeMap(String entry) {
+    try {
+      final decoded = jsonDecode(entry);
+      if (decoded is Map) {
+        return {
+          for (final kv in decoded.entries)
+            if (kv.key is String && kv.value is String)
+              kv.key as String: kv.value as String,
+        };
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ── Per-room mute preferences ───────────

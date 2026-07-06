@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:convert';
+
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/theme.dart';
@@ -97,6 +99,7 @@ class SettingsService {
   static const _pinnedSpacesKey = 'pinned_spaces';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
+  static const _spaceGroupsKey = 'space_groups';
   static const _fontSizeKey = 'font_size';
   static const _uiScaleKey = 'ui_scale';
   static const _notificationsEnabledKey = 'notifications_enabled';
@@ -204,18 +207,48 @@ class SettingsService {
   static Set<String> _readCommaSet(SharedPreferences prefs, String key) {
     final raw = prefs.getString(key);
     if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<String>().where((s) => s.isNotEmpty).toSet();
+      }
+    } catch (_) {
+      // Legacy comma-separated format — fall through.
+    }
     return raw.split(',').where((id) => id.isNotEmpty).toSet();
   }
 
   static List<String> _readCommaList(SharedPreferences prefs, String key) {
     final raw = prefs.getString(key);
     if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<String>().where((s) => s.isNotEmpty).toList();
+      }
+    } catch (_) {
+      // Legacy comma-separated format — fall through.
+    }
     return raw.split(',').where((id) => id.isNotEmpty).toList();
   }
 
   static Map<String, List<String>> _readSpaceGroups(SharedPreferences prefs) {
-    final raw = prefs.getString('space_groups');
+    final raw = prefs.getString(_spaceGroupsKey);
     if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        final result = <String, List<String>>{};
+        decoded.forEach((k, v) {
+          if (k is String && v is List) {
+            result[k] = v.whereType<String>().where((s) => s.isNotEmpty).toList();
+          }
+        });
+        return result;
+      }
+    } catch (_) {
+      // Legacy `key:value,key:value` format — fall through.
+    }
     final map = <String, List<String>>{};
     for (final entry in raw.split('|')) {
       final parts = entry.split(':');
@@ -358,45 +391,61 @@ class SettingsService {
   // ── Pinned spaces ───────────────────────────────────────────────────
 
   /// Loads the set of manually pinned subspace room IDs.
+  ///
+  /// Stored as a JSON array of strings so room IDs that contain `,` or
+  /// `|` are preserved verbatim.  A legacy comma-separated value is
+  /// still accepted on read to make upgrades from older versions
+  /// transparent.
   Future<Set<String>> pinnedSpaces() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_pinnedSpacesKey);
     if (raw == null || raw.isEmpty) return {};
-    return raw.split(',').where((id) => id.isNotEmpty).toSet();
+    return _readCommaSet(prefs, _pinnedSpacesKey);
   }
 
   /// Persists the set of pinned subspace room IDs.
   Future<void> updatePinnedSpaces(Set<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pinnedSpacesKey, ids.join(','));
+    await prefs.setString(_pinnedSpacesKey, jsonEncode(ids.toList()));
   }
 
   // ── Space order ──────────────────────────────────────────────────────
 
   Future<List<String>> spaceOrder() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_spaceOrderKey);
-    if (raw == null || raw.isEmpty) return [];
-    return raw.split(',').where((id) => id.isNotEmpty).toList();
+    return _readCommaList(prefs, _spaceOrderKey);
   }
 
   Future<void> updateSpaceOrder(List<String> order) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_spaceOrderKey, order.join(','));
+    await prefs.setString(_spaceOrderKey, jsonEncode(order));
   }
 
   // ── Collapsed groups ─────────────────────────────────────────────────
 
   Future<Set<String>> collapsedGroups() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_collapsedGroupsKey);
-    if (raw == null || raw.isEmpty) return {};
-    return raw.split(',').where((id) => id.isNotEmpty).toSet();
+    return _readCommaSet(prefs, _collapsedGroupsKey);
   }
 
   Future<void> updateCollapsedGroups(Set<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_collapsedGroupsKey, ids.join(','));
+    await prefs.setString(_collapsedGroupsKey, jsonEncode(ids.toList()));
+  }
+
+  // ── Space groups (Map<String, List<String>>) ─────────────────────────
+
+  /// Persists the space groups map.  Stored as a JSON object so room IDs
+  /// and event IDs that contain `,` or `|` are not corrupted by the
+  /// previous stringly-typed encoding.
+  Future<void> updateSpaceGroups(Map<String, List<String>> groups) async {
+    final prefs = await SharedPreferences.getInstance();
+    // Cast to Map<String, dynamic> for jsonEncode — the inner lists stay
+    // as List<String> which jsonEncode accepts as a list of strings.
+    final encoded = <String, dynamic>{
+      for (final entry in groups.entries) entry.key: entry.value,
+    };
+    await prefs.setString(_spaceGroupsKey, jsonEncode(encoded));
   }
 
   Future<double> rightSidebarWidth() async {
@@ -443,29 +492,10 @@ class SettingsService {
     await prefs.setBool(_notificationsEnabledKey, value);
   }
 
-  // ── Space groups ──────────────────────────────────────────────────
-
-  Future<Map<String, List<String>>> spaceGroups() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('space_groups');
-    if (raw == null || raw.isEmpty) return {};
-    final map = <String, List<String>>{};
-    for (final entry in raw.split('|')) {
-      final parts = entry.split(':');
-      if (parts.length == 2) {
-        map[parts[0]] =
-            parts[1].split(',').where((id) => id.isNotEmpty).toList();
-      }
-    }
-    return map;
-  }
-
-  Future<void> updateSpaceGroups(Map<String, List<String>> groups) async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = groups.entries
-        .where((e) => e.value.isNotEmpty)
-        .map((e) => '${e.key}:${e.value.join(',')}')
-        .join('|');
-    await prefs.setString('space_groups', encoded);
-  }
+  // ── Space groups ────────────────────────────────────────────────
+  // (Persistence is centralised via the JSON-aware
+  // [updateSpaceGroups] further up in this file, and reads go through
+  // [_readSpaceGroups].  This section kept only the now-redundant
+  // accessor for the legacy key; new callers should use the snapshot
+  // path on [loadAll] instead.)
 }
