@@ -1,6 +1,8 @@
 // Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
@@ -89,6 +91,33 @@ void main() {
 
       expect(find.byType(ChatBox), findsOneWidget);
     });
+
+    // ─── Regression: unsent text is restored when send fails ─────────
+    //
+    // Bug: `_send` cleared the controller immediately, then showed a
+    // snackbar on failure.  A long message sent on a flaky network would
+    // be lost.  Fix: stash the typed text into `_draftValue` and put it
+    // back when the SDK rejects the send.
+    testWidgets(
+      'restores the typed text into the controller when sendEvent throws',
+      (tester) async {
+        when(() => room.sendEvent(any())).thenThrow(
+          const SocketException('disconnected'),
+        );
+        await tester.pumpWidget(buildApp());
+
+        await tester.enterText(find.byType(TextField), 'a longish draft');
+        await tester.pump();
+        await tester.tap(find.byIcon(LucideIcons.send));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // After the failure path the draft is restored so the user can
+        // resend without retyping.
+        final tf = tester.widget<TextField>(find.byType(TextField));
+        expect(tf.controller!.text, 'a longish draft');
+      },
+    );
 
     // ─── Regression: reply-with-markdown must keep formatted_body ───
     //

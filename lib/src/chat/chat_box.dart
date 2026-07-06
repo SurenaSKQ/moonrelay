@@ -69,6 +69,11 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Event? _replyEvent;
   bool _disposed = false;
 
+  /// The composer text captured immediately before [_send] cleared the
+  /// controller.  Stored so we can restore it if `sendFn` throws — the
+  /// user can correct and resend without retyping a long message.
+  String? _draftValue;
+
   @override
   void initState() {
     super.initState();
@@ -179,15 +184,24 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
     try {
       // Clear the input immediately for responsive UX.  If sending
-      // fails the user will see an error and can retype.
+      // fails the draft is restored into the controller so the user
+      // can correct the message instead of having to retype it.
       if (!mounted) return;
+      _draftValue = text;
       _controller.clear();
-      _clearReply();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
+      // Success — clear the draft.
+      _draftValue = null;
+      _clearReply();
     } catch (e) {
       log.w('Failed to send message', error: e);
       if (!mounted) return;
+      final restored = _draftValue;
+      _draftValue = null;
+      if (restored != null && _controller.text.isEmpty) {
+        _controller.text = restored;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
