@@ -75,10 +75,10 @@ class ChatTimeline extends StatefulWidget {
   final bool Function(Event)? filterEvents;
 
   @override
-  State<ChatTimeline> createState() => _ChatTimelineState();
+  State<ChatTimeline> createState() => ChatTimelineState();
 }
 
-class _ChatTimelineState extends State<ChatTimeline> {
+class ChatTimelineState extends State<ChatTimeline> {
   /// The resolved Timeline, or null while still initialising.
   Timeline? _timeline;
 
@@ -103,6 +103,11 @@ class _ChatTimelineState extends State<ChatTimeline> {
 
   /// Trigger distance (logical pixels) from the top of the list.
   static const double _scrollThreshold = 150.0;
+
+  /// Public accessor for the scroll controller, exposed so callers
+  /// outside this widget (e.g. the in-room search panel) can request
+  /// a jump to a specific event after we've already built the timeline.
+  ScrollController get scrollController => _scrollController;
 
   int _timelineVersion = 0;
 
@@ -453,6 +458,41 @@ class _ChatTimelineState extends State<ChatTimeline> {
   // ---------------------------------------------------------------------------
   // Read marker
   // ---------------------------------------------------------------------------
+
+  /// Scrolls the rendered timeline to the event with [eventId].
+  ///
+  /// The estimate is intentionally approximate (item index in the
+  /// visible list × viewport-fraction); the user can see the target and
+  /// scroll if it lands off by a few items.
+  ///
+  /// No-ops when [eventId] is null, no client is attached, or the
+  /// scroll controller isn't ready yet.
+  void jumpToEvent(String? eventId) {
+    final timeline = _timeline;
+    if (timeline == null || eventId == null) return;
+    if (!_scrollController.hasClients) return;
+
+    final events = timeline.events;
+    if (events.isEmpty) return;
+    final idx = events.indexWhere((e) => e.eventId == eventId);
+    if (idx < 0) return;
+
+    final position = _scrollController.position;
+    final range = position.maxScrollExtent - position.minScrollExtent;
+    final fraction = idx / (events.length - 1);
+    final targetOffset = position.minScrollExtent + range * fraction;
+    final paddedOffset =
+        (targetOffset - position.viewportDimension * 0.33).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+
+    _scrollController.animateTo(
+      paddedOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   /// Sends a read receipt for the newest event in the timeline so the server
   /// and other clients know that the user has seen the latest messages.

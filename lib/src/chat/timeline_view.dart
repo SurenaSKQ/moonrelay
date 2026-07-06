@@ -93,6 +93,11 @@ class _TimelineViewState extends State<TimelineView> {
   /// null if nothing is highlighted.
   String? _highlightedEventId;
 
+  /// Count of currently-visible encrypted events that can't be decrypted,
+  /// exposed to the [_UndecryptableBanner] via [ValueListenable] so the
+  /// banner reflects new arrivals without forcing a full item-list rebuild.
+  final ValueNotifier<int> _undecryptableCount = ValueNotifier<int>(0);
+
   // ---------------------------------------------------------------------------
   // Cached computed values
   // ---------------------------------------------------------------------------
@@ -123,6 +128,24 @@ class _TimelineViewState extends State<TimelineView> {
     _cachedEventIdToItemIndex = null;
   }
 
+  /// Counts encrypted events currently visible according to the active
+  /// filter / state-event toggle.  Used to drive the
+  /// [_UndecryptableBanner] so a new encrypted arrival bumps the badge
+  /// without invalidating the full item-list cache.
+  int _countUndecryptable() {
+    final filter = widget.filterEvents;
+    final count = <int, int>{};
+    final events = widget.timeline.events;
+    for (var idx = 0; idx < events.length; idx++) {
+      final ev = events[idx];
+      if (filter != null && !filter(ev)) continue;
+      if (filter == null && !ThreadUtils.isVisibleInMainTimeline(ev)) continue;
+      if (ev.type != EventTypes.Encrypted) continue;
+      count[idx] = (count[idx] ?? 0) + 1;
+    }
+    return count.values.fold<int>(0, (a, b) => a + b);
+  }
+
   @override
   void didUpdateWidget(TimelineView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -130,6 +153,17 @@ class _TimelineViewState extends State<TimelineView> {
     if (newKey != _lastCacheKey) {
       _invalidateCache();
     }
+    // Recompute the undecryptable count on every prop change. The banner
+    // listens to the ValueNotifier so an arriving encrypted event that
+    // doesn't touch the cache key still produces a correct count as long
+    // as the parent rebuilds this widget (which it does on every sync).
+    _undecryptableCount.value = _countUndecryptable();
+  }
+
+  @override
+  void dispose() {
+    _undecryptableCount.dispose();
+    super.dispose();
   }
 
   // ---------------------------------------------------------------------------
@@ -316,12 +350,12 @@ class _TimelineViewState extends State<TimelineView> {
       }
     }
 
-    // Prepend an undecryptable-messages banner if any encrypted events
-    // were found.  Because the ListView uses reverse: true, the banner
-    // appears at the bottom, immediately visible when opening the chat.
-    if (undecryptableCount > 0) {
-      items.insert(0, _UndecryptableBanner(count: undecryptableCount));
-    }
+    // Always insert the undecryptable banner at index 0 (it self-hides
+    // when the count is zero).  Sourcing the count from a [ValueNotifier]
+    // means new encrypted events refresh the badge without invalidating
+    // the item-list cache or rebuilding every [TimelineItem].
+    _undecryptableCount.value = undecryptableCount;
+    items.insert(0, const _UndecryptableBanner());
 
     _cachedItems = items;
     _cachedEventIdToItemIndex = eventIdToItemIndex;
@@ -334,6 +368,7 @@ class _TimelineViewState extends State<TimelineView> {
   void initState() {
     super.initState();
     _lastCacheKey = _cacheKey;
+    _undecryptableCount.value = _countUndecryptable();
   }
 
   // ---------------------------------------------------------------------------
@@ -419,65 +454,78 @@ class _TimelineViewState extends State<TimelineView> {
 
 /// Banner shown at the bottom of the timeline when one or more messages
 /// can't be decrypted (no session key, device not verified, etc.).
+///
+/// The [TimelineViewState] owns a [ValueNotifier] for the undecryptable
+/// count and feeds it into this widget, so the count updates whenever a
+/// new encrypted event arrives without a full timeline rebuild.
 class _UndecryptableBanner extends StatelessWidget {
-  const _UndecryptableBanner({required this.count});
-
-  final int count;
+  const _UndecryptableBanner();
 
   @override
   Widget build(BuildContext context) {
+    final _TimelineViewState? state =
+        context.findAncestorStateOfType<_TimelineViewState>();
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: scheme.tertiary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              LucideIcons.alertTriangle,
-              color: scheme.tertiary,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.encryptionDecryptionFailed,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: scheme.onTertiaryContainer,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    count == 1
-                        ? '$count ${l10n.encryptionUndecryptableMessage}'
-                        : '$count ${l10n.encryptionUndecryptableMessages}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
-                    ),
-                  ),
-                ],
+    final notifier = state?._undecryptableCount;
+    if (notifier == null) return const SizedBox.shrink();
+
+    return ValueListenableBuilder<int>(
+      valueListenable: notifier,
+      builder: (context, count, _) {
+        if (count <= 0) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: scheme.tertiary.withValues(alpha: 0.3),
               ),
             ),
-          ],
-        ),
-      ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  LucideIcons.alertTriangle,
+                  color: scheme.tertiary,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.encryptionDecryptionFailed,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: scheme.onTertiaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        count == 1
+                            ? '$count ${l10n.encryptionUndecryptableMessage}'
+                            : '$count ${l10n.encryptionUndecryptableMessages}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

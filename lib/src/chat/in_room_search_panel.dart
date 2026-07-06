@@ -38,10 +38,15 @@ class InRoomSearchPanel extends StatefulWidget {
   final Room room;
   final VoidCallback onClose;
 
+  /// Called when the user taps a search result so the parent can scroll
+  /// the timeline to that event.  No-op if null.
+  final void Function(String eventId)? onJumpToEvent;
+
   const InRoomSearchPanel({
     super.key,
     required this.room,
     required this.onClose,
+    this.onJumpToEvent,
   });
 
   @override
@@ -546,6 +551,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
               return _InRoomResultTile(
                 event: _results[index],
                 keywords: _keywords,
+                onJumpToEvent: widget.onJumpToEvent,
               );
             },
           ),
@@ -595,10 +601,12 @@ class _TypeFilter {
 class _InRoomResultTile extends StatelessWidget {
   final Event event;
   final List<String> keywords;
+  final void Function(String eventId)? onJumpToEvent;
 
   const _InRoomResultTile({
     required this.event,
     required this.keywords,
+    this.onJumpToEvent,
   });
 
   @override
@@ -618,9 +626,7 @@ class _InRoomResultTile extends StatelessWidget {
     };
 
     return InkWell(
-      onTap: () {
-        // TODO: scroll to this event in the timeline
-      },
+      onTap: () => onJumpToEvent?.call(event.eventId),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Row(

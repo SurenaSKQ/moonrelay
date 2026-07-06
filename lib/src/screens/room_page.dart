@@ -39,6 +39,12 @@ class _RoomPageState extends State<RoomPage> {
   /// Whether the in-room search panel is visible.
   bool _showInRoomSearch = false;
 
+  /// Key used by [InRoomSearchPanel] to drive the timeline scroll position.
+  /// Exposed so a tap on a search result can move the chat viewport to the
+  /// matching event.
+  final GlobalKey<ChatTimelineState> _timelineKey =
+      GlobalKey<ChatTimelineState>();
+
   /// Navigates to the thread view for [event].
   void _onThread(Event event) {
     context.push(
@@ -50,6 +56,17 @@ class _RoomPageState extends State<RoomPage> {
   bool _pinnedFilter(Event event) {
     final ids = context.read<CurrentRoom>().pinnedEventIds;
     return ids.contains(event.eventId);
+  }
+
+  /// Scrolls the timeline to the event with [eventId] when the user
+  /// taps a search result.  Closes the search panel first so the
+  /// timeline is visible.
+  void _jumpFromSearch(String eventId) {
+    setState(() => _showInRoomSearch = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _timelineKey.currentState?.jumpToEvent(eventId);
+    });
   }
 
   @override
@@ -107,6 +124,7 @@ class _RoomPageState extends State<RoomPage> {
               children: [
                 Expanded(
                   child: ChatTimeline(
+                    key: _timelineKey,
                     room: widget.room,
                     onReply: (event) => _replyTarget.value = event,
                     onThread: _onThread,
@@ -117,6 +135,7 @@ class _RoomPageState extends State<RoomPage> {
                   InRoomSearchPanel(
                     room: widget.room,
                     onClose: () => setState(() => _showInRoomSearch = false),
+                    onJumpToEvent: _jumpFromSearch,
                     key: ValueKey('search_${widget.room.id}'),
                   ),
               ],
