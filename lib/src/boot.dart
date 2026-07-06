@@ -198,7 +198,26 @@ Future<BootContext> runBootPipeline({
   final currentRoom = CurrentRoom();
 
   // ── 9. Notification service ─────────────────────────────────
+  // DeepLinkService is created before NotificationService so that
+  // tapping a notification can navigate to the corresponding room
+  // through it. The previous build ignored `NotificationResponse.payload`
+  // and only brought the window forward, which made DMs useless when
+  // more than one was unread.
   NotificationService? notificationService;
+  DeepLinkService? deepLinkService;
+
+  // We always stand up the deep-link service: not just for live
+  // sessions, but also so a `matrix:` URI the user opens at startup
+  // (before any login) lands on the right page.
+  onStatus('Setting up deep link handler…');
+  log.t('Boot: DeepLink');
+  deepLinkService = DeepLinkService(log: log);
+  try {
+    await deepLinkService.init();
+  } catch (e) {
+    log.w('Deep link service init failed', error: e);
+  }
+
   if (sdk.isLogged()) {
     onStatus('Starting notification service…');
     log.t('Boot: Notifications');
@@ -208,6 +227,7 @@ Future<BootContext> runBootPipeline({
         settings: settingsController,
         currentRoom: currentRoom,
         log: log,
+        deepLinkService: deepLinkService,
       );
     } catch (e) {
       log.w('Notification service init failed', error: e);
@@ -219,29 +239,30 @@ Future<BootContext> runBootPipeline({
     onStatus('Setting up system tray…');
     log.t('Boot: Tray');
     try {
-      await TrayService.init(client: sdk, log: log);
+      await TrayService.init(accountManager: accountManager, log: log);
     } catch (e) {
       log.w('Tray service init failed', error: e);
     }
   }
 
-  // ── 11. Deep link service ───────────────────────────────────
-  onStatus('Setting up deep link handler…');
-  log.t('Boot: DeepLink');
-  final deepLinkService = DeepLinkService(log: log);
-  try {
-    await deepLinkService.init();
-  } catch (e) {
-    log.w('Deep link service init failed', error: e);
-  }
-
-  // ── 12. Wire up AccountManager ──────────────────────────────
+  // ── 11. Wire up AccountManager ──────────────────────────────
+  // ── 11. Wire up AccountManager ──────────────────────────────
+  // Initialise the persisted active-account → live client association
+  // so widgets bound to `Provider<Client>` see the same pair after a
+  // hot-restart. The early-init branch in 9 handles the logged-out
+  // case (notification service skipped).
   log.t('Boot: AccountManager wiring');
   if (accountManager.activeAccount != null && sdk.isLogged()) {
     await accountManager.setActiveAccountDirect(
       accountManager.activeAccount!,
       client: sdk,
       encryptionService: encryptionService,
+    );
+  } else if (accountManager.activeAccount != null) {
+    log.w(
+      'Boot: stored active account exists but SDK session is not logged in; '
+      'skipping setActiveAccountDirect so the user lands on the welcome '
+      'screen instead of a stale session',
     );
   }
 

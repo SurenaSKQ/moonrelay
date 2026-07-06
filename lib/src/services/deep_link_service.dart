@@ -82,7 +82,16 @@ class DeepLinkService {
   }
 
   /// Processes a matrix URI by parsing it and invoking the callback.
+  ///
+  /// Identical URIs delivered within [_dedupWindow] are coalesced so
+  /// the OS-delivered duplicates (older Windows protocol handlers are
+  /// known to call the executable twice) do not navigate twice.
   void processUri(String uri) {
+    if (_isDuplicate(uri)) {
+      log.d('Deep link suppressed as duplicate: $uri');
+      return;
+    }
+
     log.i('Processing deep link: $uri');
     final result = MatrixUriParser.parse(uri);
     if (result == null) {
@@ -93,12 +102,27 @@ class DeepLinkService {
     onMatrixUri?.call(result);
   }
 
+  /// Two delivery windows. OSes occasionally deliver the same protocol
+  /// URI twice for the same launch; we suppress the duplicate.
+  static const Duration _dedupWindow = Duration(milliseconds: 500);
+  static String _lastUri = '';
+  static DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  bool _isDuplicate(String uri) {
+    final now = DateTime.now();
+    final isDuplicate = uri == _lastUri &&
+        now.difference(_lastAt) < _dedupWindow;
+    _lastUri = uri;
+    _lastAt = now;
+    return isDuplicate;
+  }
+
   /// Processes command-line arguments looking for `matrix:` URIs.
   ///
   /// The OS passes the deep-link URL as a positional argument when the
   /// registered protocol handler is invoked (Windows: as the trailing
   /// element of the command line; Linux: from `argv` exposed via
-  /// `Platform.executableArguments`).  We do not rely on
+  /// [Platform.executableArguments]).  We do not rely on
   /// `Platform.environment` here — that only catches child-process env
   /// variables, not the arguments the app was launched with.
   void _processCommandLineArgs() {
@@ -121,24 +145,37 @@ class DeepLinkService {
     }
   }
 
-  /// Returns the OS-passed arguments for the current process, or an empty
-  /// list when running on web or in a host that doesn't expose argv.
+  /// Returns the OS-passed arguments for the current process, or an
+  /// empty list when running on web or in a host that doesn't expose
+  /// argv.
+  ///
+  /// Note: `Platform.executableArguments` is `@visibleForTesting` in
+  /// the Flutter SDK. We still call it from production code because
+  /// the alternative — losing command-line links on first launch — is
+  /// a worse trade-off than the `@visibleForTesting` lint. Upstream
+  /// has discussed promoting the field; track
+  /// https://github.com/flutter/flutter/issues/142523.
   List<String> _safeExecutableArgs() {
     try {
-      // ignore: invalid_use_of_visible_for_testing_member
       return Platform.executableArguments;
     } catch (_) {
       return const <String>[];
     }
   }
 
-  /// Handles method channel calls from the native side.
+  /// Handles method channel calls from the native side. Anything that
+  /// is not a string URI is logged and ignored, since the host-side
+  /// contract is "always pass a string" and the previous code threw a
+  /// `TypeError` on stray integer arguments.
   Future<void> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'openUri':
-        final uri = call.arguments as String?;
-        if (uri != null) {
-          processUri(uri);
+        if (call.arguments is String) {
+          processUri(call.arguments as String);
+        } else {
+          log.w(
+            'openUri: expected String argument, got ${call.arguments.runtimeType}',
+          );
         }
         break;
       default:

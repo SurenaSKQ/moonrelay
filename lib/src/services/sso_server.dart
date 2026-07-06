@@ -107,7 +107,27 @@ class SsoCallbackServer {
     // and the caller is responsible for a timeout.
   }
 
-  void _handleRequest(HttpRequest request) {
+  Future<void> _handleRequest(HttpRequest request) async {
+    // ── Reject anything that isn't the SSO callback path ──────────
+    // A misbehaving browser tab that hits `/` or any other path would
+    // otherwise keep the connection open until the auto-shutdown fires.
+    // Returning a 404 closes the request promptly and surfaces the
+    // wrong-port / wrong-host origin to the user.
+    if (request.uri.path != '/callback') {
+      _log.w('SSO: rejected non-callback request to "${request.uri.path}"');
+      request.response.statusCode = 404;
+      request.response.headers.contentType = ContentType.html;
+      request.response.write(
+        '<!doctype html><html><body>'
+        '<h1>404 Not Found</h1>'
+        '<p>This server only accepts SSO callbacks at <code>/callback</code>.</p>'
+        '<p>Please return to Moonrelay and retry the sign-in flow.</p>'
+        '</body></html>',
+      );
+      await request.response.close();
+      return;
+    }
+
     // ── Validate the Host header ────────────────────────────
     final host = request.headers.value('host');
     if (host == null || host != 'localhost:$_port') {

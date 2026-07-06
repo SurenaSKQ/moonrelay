@@ -14,8 +14,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:provider/provider.dart';
@@ -49,22 +47,14 @@ class _DeepLinkListenerState extends State<DeepLinkListener> {
     });
   }
 
+  /// Routes a parsed [MatrixUriResult] through the [navigateToMatrixUri]
+  /// helper from [deep_link_service.dart] so the navigation rules live
+  /// in exactly one place. Both the [DeepLinkListener] and any caller of
+  /// [DeepLinkService.processUri] now go through this single decision
+  /// tree (room → rooms route, unknown alias → preview, user → profile).
   void _handleUri(MatrixUriResult result) {
     if (!mounted) return;
-    final client = context.read<Client>();
-
-    switch (result.entityType) {
-      case MatrixUriEntity.room:
-      case MatrixUriEntity.roomAlias:
-        final room = client.getRoomById(result.entityId);
-        if (room != null) {
-          context.go('/main/rooms/${result.entityId}');
-        } else {
-          context.go('/main/room_preview/${result.entityId}');
-        }
-      case MatrixUriEntity.user:
-        context.go('/main/rooms/${result.entityId}');
-    }
+    navigateToMatrixUri(context, result);
   }
 
   @override
