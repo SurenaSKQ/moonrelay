@@ -278,15 +278,57 @@ class _VerificationScreenState extends State<VerificationScreen> {
           ],
         );
 
-      // Other states we don't handle here (SSSS, QR confirm, etc.)
+      // States we currently surface as actionable prompts instead of a
+      // generic loading spinner.  The previous audit noted that the
+      // [askSSSS] branch spun forever; we now show an explicit prompt
+      // that explains the situation and lets the user cancel or open
+      // the encryption overview to recover.  See `_buildSsssPrompt`.
       case KeyVerificationState.askSSSS:
+        return _buildSsssPrompt();
       case KeyVerificationState.showQRSuccess:
       case KeyVerificationState.confirmQRScan:
         return _statusColumn(
-          icon: LucideIcons.clock,
+          icon: LucideIcons.qrCode,
           title: loc.loading,
         );
     }
+  }
+
+  /// Builds the recovery prompt shown when the verification flow enters
+  /// the SDK's `askSSSS` state — usually because cross-signing is set up
+  /// but locked behind SSSS / a recovery passphrase that the user has
+  /// not yet provided to this client.  We cannot drive that step from
+  /// the screen (the SDK expects callers to handle it via
+  /// `accountDataLoading`), so we explicitly tell the user what to do
+  /// and give them a Cancel button so the dialog isn't stuck.
+  Widget _buildSsssPrompt() {
+    final scheme = Theme.of(context).colorScheme;
+    final loc = AppLocalizations.of(context)!;
+    final req = widget.request;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(LucideIcons.keyRound, size: 56, color: scheme.tertiary),
+        const SizedBox(height: 16),
+        Text(
+          loc.encryptionSetupCrossSigningFirst,
+          style: Theme.of(context).textTheme.titleLarge,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          req.canceledReason ?? loc.encryptionUnknownError,
+          style: TextStyle(color: scheme.onSurfaceVariant),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(loc.cancel),
+        ),
+      ],
+    );
   }
 
   // ---- Actions ----------------------------------------------------------

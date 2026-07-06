@@ -128,6 +128,32 @@
   "ssoWaitingForToken": "Waiting for the login token from your browser…",
   "ssoTokenDetected": "Login token received! Completing sign-in…",
   "ssoPasteManually": "Paste token manually",
+  "ssoConfirmHomeserverTitle": "Continue with single sign-on?",
+  "@ssoConfirmHomeserverTitle": {
+    "description": "Title of the dialog that asks the user to confirm a non-canonical homeserver URL before SSO login."
+  },
+  "ssoConfirmHomeserverBody": "You are about to open a browser window and send your SSO credentials to the following homeserver:\n\n{host}\n\nOnly proceed if this is the homeserver you intended to sign in to. A wrong or unfamiliar address can leak your SSO credentials to a third party.",
+  "@ssoConfirmHomeserverBody": {
+    "description": "Body of the homeserver confirmation dialog for SSO.",
+    "placeholders": {
+      "host": { "type": "String" }
+    }
+  },
+  "ssoConfirmHomeserverContinue": "Continue",
+  "ssoConfirmHomeserverSwitch": "Use a different server",
+  "ssoHomeserverInvalid": "The homeserver address is not a valid URL.",
+  "untitledRoom": "(untitled room)",
+
+  "encryptionRecoveryKeyReminderTitle": "Encryption set up",
+  "@encryptionRecoveryKeyReminderTitle": {
+    "description": "Title of the post-bootstrap reminder that surfaces recovery key limitations."
+  },
+  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key — the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
+  "@encryptionRecoveryKeyReminderBody": {
+    "description": "Explanation shown after bootstrap completes. Recovery keys are encrypted at rest by the SDK, so the wizard cannot surface them."
+  },
+  "encryptionRecoveryKeyReminderAck": "I have saved my recovery key",
+  "encryptionRecoveryKeyReminderLater": "I'll do this later",
 
   "registerTitle": "Create Account",
   "registerHomeserverHint": "matrix.org",
