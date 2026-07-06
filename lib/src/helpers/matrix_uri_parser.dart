@@ -75,10 +75,20 @@ class MatrixUriParser {
   MatrixUriParser._();
 
   /// Combined pattern for detecting any matrix URL or bare Matrix ID in text.
+  ///
+  /// Bare IDs are restricted to `@…:…` and `#…:…` (user / room alias) and
+  /// require the local part to start with a word character, not whitespace
+  /// or punctuation.  The trailing `(?<![.,;!?)])` lookbehind rejects
+  /// sentence punctuation glued to the identifier, which used to make
+  /// `Visit matrix.org!` detect `matrix.org` as a Matrix ID.  Bare room
+  /// IDs (`!…:…`) are intentionally excluded from the *scan* — they're
+  /// 26-character random strings that look identical to noise in normal
+  /// prose, so an explicit `matrix:r/!…` URI is the only safe way to
+  /// reference a bare room ID.
   static final RegExp detectPattern = RegExp(
     r'(?:matrix:(?:\/\/)?(?:r|u|roomid)\/[^\s<>")()]+'
     r'|https:\/\/matrix\.to\/#\/[^\s<>")()]+'
-    r'|(?<![a-zA-Z0-9])([@!#][^\s<>")()]+:[^\s<>")()]+))',
+    r'|(?<![a-zA-Z0-9])([@#][^\s<>")()]+:[^\s<>")()]+)(?<![.,;!?)]))',
     caseSensitive: false,
   );
 
@@ -123,6 +133,10 @@ class MatrixUriParser {
       return _parseMatrixTo(uri);
     }
     final firstChar = uri.isNotEmpty ? uri[0] : '';
+    // Note: `!` is allowed here so direct deep links like
+    // `!abcdef:matrix.org` resolve as rooms, but `detectPattern`
+    // deliberately excludes bare `!` IDs from the *scan* path
+    // (see the comment there for rationale).
     if (firstChar == '@' || firstChar == '!' || firstChar == '#') {
       return _parseBareId(uri);
     }
@@ -228,11 +242,10 @@ class MatrixUriParser {
     );
   }
 
-  /// Parses a bare Matrix identifier (room ID, user ID, or room alias)
-  /// found as plain text (not inside a matrix:// or matrix.to URL).
+  /// Parses a bare Matrix identifier (room ID, user ID, or room alias).
   ///
   /// Supported formats:
-  /// - `!roomid:domain` — room ID
+  /// - `!roomid:domain` — room ID (allowed for direct lookups)
   /// - `@user:domain` — user ID
   /// - `#alias:domain` — room alias
   static MatrixUriResult? _parseBareId(String id) {

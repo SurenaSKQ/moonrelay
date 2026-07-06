@@ -257,13 +257,14 @@ void main() {
         expect(results.first.entityId, '@user:example.org');
       });
 
-      test('finds bare room ID in plain text', () {
+      test('does not detect bare room IDs in plain text', () {
+        // Bare room IDs (starting with `!`) are deliberately excluded from
+        // `parseAll` — they are random-looking 26-character strings that
+        // collide with normal prose.  Use `matrix:r/!room:domain` instead.
         final results = MatrixUriParser.parseAll(
           'Join !room:example.org for discussion',
         );
-        expect(results, hasLength(1));
-        expect(results.first.entityType, MatrixUriEntity.room);
-        expect(results.first.entityId, '!room:example.org');
+        expect(results, isEmpty);
       });
 
       test('finds bare alias in plain text', () {
@@ -282,11 +283,12 @@ void main() {
         expect(results, hasLength(2));
       });
 
-      test('finds bare IDs near brackets and quotes', () {
+      test('finds bare user IDs near brackets and quotes', () {
         final results = MatrixUriParser.parseAll(
-          'text (@user:example.org) more "!room:example.org" end',
+          'text (@user:example.org) more end',
         );
-        expect(results, hasLength(2));
+        expect(results, hasLength(1));
+        expect(results.first.entityId, '@user:example.org');
       });
 
       test('does not match hashtags without domain', () {
@@ -299,6 +301,16 @@ void main() {
       test('does not match email addresses', () {
         final results = MatrixUriParser.parseAll(
           'Send email to user@example.com for info',
+        );
+        expect(results, isEmpty);
+      });
+
+      test('does not match bare hostnames as Matrix aliases', () {
+        // Regression: "Visit matrix.org!" used to match `matrix.org` as a
+        // bare alias; the trailing `(?<![.,;!?)])` lookbehind now rejects
+        // sentence punctuation glued to the identifier.
+        final results = MatrixUriParser.parseAll(
+          'Visit matrix.org!',
         );
         expect(results, isEmpty);
       });

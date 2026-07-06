@@ -243,17 +243,10 @@ class _RoomAvatar extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
+    final initials = _initialsForDisplayname(room.getLocalizedDisplayname());
     if (room.avatar == null) {
       return CircleAvatar(
-        child: Text(
-          room
-              .getLocalizedDisplayname()
-              .toUpperCase()
-              .split(RegExp(' +'))
-              .map((s) => s[0])
-              .take(2)
-              .join(),
-        ),
+        child: Text(initials),
       );
     }
 
@@ -281,19 +274,32 @@ class _RoomAvatar extends StatelessWidget {
             onBackgroundImageError: (_, __) {},
           );
         }
-// Fallback to initials when the thumbnail hasn't loaded yet or failed.
+        // Fallback to initials when the thumbnail hasn't loaded yet or failed.
         return CircleAvatar(
-          child: Text(
-            room
-                .getLocalizedDisplayname()
-                .toUpperCase()
-                .split(RegExp(' +'))
-                .map((s) => s[0])
-                .take(2)
-                .join(),
-          ),
+          child: Text(initials),
         );
       },
     );
+  }
+
+  /// Returns up to two uppercase initials for [displayname].
+  ///
+  /// Splits on whitespace and takes the first character of the first
+  /// two non-empty parts.  `String.characters.firstOrNull` is used so
+  /// the function is safe with empty parts and multi-byte Unicode
+  /// (e.g. Persian, CJK) displaynames — a direct `s[0]` would throw
+  /// on an empty split or split grapheme boundaries mid-codepoint.
+  String _initialsForDisplayname(String displayname) {
+    final parts = displayname
+        .toUpperCase()
+        .split(RegExp(' +'))
+        .where((p) => p.isNotEmpty);
+    final buf = StringBuffer();
+    for (final part in parts) {
+      if (buf.length >= 2) break;
+      final first = part.characters.firstOrNull;
+      if (first != null) buf.write(first);
+    }
+    return buf.isEmpty ? '?' : buf.toString();
   }
 }
