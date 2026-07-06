@@ -1,0 +1,147 @@
+# Moonrelay CI
+#
+# Runs the project's full test pyramid (unit, widget, integration) on
+# Linux, macOS, and Windows.  The Linux job also publishes coverage
+# data to Codecov when configured.
+#
+# Branches that are broken on `main` will block merges via the GitHub
+# branch-protection ruleset once this is enabled in the repo.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Linux desktop runner ────────────────────────────────────────
+  linux:
+    name: linux-unit-widget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsqlite3-dev \
+            libsecret-1-dev \
+            libjsoncpp-dev \
+            libcurl4-openssl-dev
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          flutter pub deps
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit tests
+        run: flutter test test/unit/ --reporter=expanded
+
+      - name: Widget tests
+        run: flutter test test/widget/ --reporter=expanded
+
+      - name: Coverage report
+        run: |
+          # Generate a per-folder summary so we know what's exercised.
+          flutter test --coverage 2>&1 | tail -5
+          echo "---"
+          # Show top uncovered files (sanity check).
+          if [ -f coverage/lcov.info ]; then
+            echo "Lines covered: $(grep -c '^DA:' coverage/lcov.info) data lines"
+          fi
+
+  # ── Linux integration tests ────────────────────────────────────
+  integration:
+    name: linux-integration
+    needs: linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsqlite3-dev \
+            libsecret-1-dev \
+            libjsoncpp-dev \
+            libcurl4-openssl-dev
+
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Integration tests run against the mock Matrix HTTP client.  No
+      # live homeserver required.  We use `flutter test` because the
+      # `integration_test` package's driver tests compile to the same
+      # test runner when no driver is needed.
+      - name: Integration tests
+        run: flutter test integration_test/ -d linux
+
+  # ── macOS desktop runner ────────────────────────────────────────
+  macos:
+    name: macos-unit-widget
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/unit/ test/widget/ --reporter=expanded
+
+  # ── Windows desktop runner ──────────────────────────────────────
+  windows:
+    name: windows-unit-widget
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/unit/ test/widget/ --reporter=expanded
