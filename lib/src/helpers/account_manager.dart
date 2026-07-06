@@ -215,6 +215,13 @@ class AccountManager extends ChangeNotifier {
   /// Disposes the current [Client] (if any), creates a fresh one for the
   /// target account via [clientFactory], and notifies listeners.
   /// Returns `true` if the new client has a valid session.
+  ///
+  /// Tear-down is ordered so widgets never observe a disposed
+  /// [EncryptionService] between the old and the new instance: the new
+  /// client and its encryption service are constructed and installed
+  /// first, then the old ones are disposed.  This avoids the
+  /// "Provider holds disposed EncryptionService for one frame" race
+  /// the previous revision hit during quick account switching.
   Future<bool> switchToAccount(String userId) async {
     final idx = _accounts.indexWhere((a) => a.userId == userId);
     if (idx < 0) {
@@ -225,12 +232,14 @@ class AccountManager extends ChangeNotifier {
 
     final target = _accounts[idx];
 
-    // Tear down the current session.
-    _encryptionService?.dispose();
-    _encryptionService = null;
-    await _disposeActiveClient();
+    // Capture the previous instances so we can dispose them AFTER the
+    // new pair is fully installed.  Without this ordering, the provider
+    // tree holds a reference to a service whose `_syncSubscription` is
+    // already cancelled.
+    final previousClient = _activeClient;
+    final previousEncryption = _encryptionService;
 
-    // Create a fresh client for the target account.
+    // Build the new pair.
     log.i('Switching to account $userId');
     _activeAccount = target;
     _activeClient = await clientFactory!(target);
@@ -239,7 +248,30 @@ class AccountManager extends ChangeNotifier {
       await onClientReady?.call(_activeClient!);
     }
     await _save();
+
+    // Notify once, with the new pair installed.  Widgets bound to
+    // `Provider<EncryptionService>` now observe the new instance and
+    // can safely drop their old references.
     notifyListeners();
+
+    // Tear down the previous pair on a microtask so any synchronous
+    // provider reads during this frame complete against the new pair.
+    Future.microtask(() async {
+      final EncryptionService? previousEnc = previousEncryption;
+      if (previousEnc != null) {
+        try {
+          previousEnc.dispose();
+        } catch (e) {
+          log.w('Error disposing previous encryption service', error: e);
+        }
+      }
+      try {
+        await previousClient?.dispose();
+      } catch (e) {
+        log.w('Error disposing previous client', error: e);
+      }
+    });
+
     return loggedIn;
   }
 
