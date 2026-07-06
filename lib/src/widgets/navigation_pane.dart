@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -51,11 +53,35 @@ class _NavigationPaneState extends State<NavigationPane> {
   Set<String> _knownIds = {};
   String? _dragHoverId;
   bool _pendingAutoGroup = false;
+  StreamSubscription<Object?>? _syncSub;
+  final ValueNotifier<int> _roomsVersion = ValueNotifier(0);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _runPendingAutoGroup());
+  }
+
+  bool _subscriptionAttached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_subscriptionAttached) return;
+    final client = context.read<Client>();
+    _syncSub = client.onSync.stream.listen((_) {
+      // Increment the version so the build method knows to re-scan for
+      // new spaces, instead of running the scan on every widget rebuild.
+      _roomsVersion.value++;
+    });
+    _subscriptionAttached = true;
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    _roomsVersion.dispose();
+    super.dispose();
   }
 
   void _runPendingAutoGroup() {
@@ -88,10 +114,15 @@ class _NavigationPaneState extends State<NavigationPane> {
     final l10n = AppLocalizations.of(context)!;
     final spacePrefs = context.watch<SpacePreferences>();
 
-    // Track new spaces (deferred to avoid setState during build).
+    // Only re-scan for new spaces when the rooms version actually changes
+    // (driven by onSync.stream). Previously this ran O(spaces) on every
+    // build, including those triggered by unrelated rebuilds (e.g. when
+    // spacePrefs.spaceOrder changes due to a drag-drop).
+    final _ = _roomsVersion.value;
     final ids = client.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
     final newIds = ids.difference(_knownIds);
     if (newIds.isNotEmpty) {
+      _knownIds = ids;
       _pendingAutoGroup = true;
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _runPendingAutoGroup());
