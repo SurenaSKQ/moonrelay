@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// A panel for searching messages inside a single room.
@@ -294,13 +295,26 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
+    // Adapt to layout size: on compact screens the panel becomes a
+    // full-width drawer instead of a fixed 320px column.
+    final layoutSize = LayoutScope.of(context).size;
+    final isCompact = layoutSize.isCompact;
+
+    final width = isCompact
+        ? MediaQuery.sizeOf(context).width * 0.92
+        : LayoutBreakpoints.searchPanelWidth;
+    final maxWidth = isCompact ? 420.0 : LayoutBreakpoints.searchPanelWidth;
+
     return Container(
-      width: 320,
+      width: width.clamp(220.0, maxWidth),
       decoration: BoxDecoration(
         color: scheme.surface,
-        border: Border(
-          left: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-        ),
+        border: isCompact
+            ? null
+            : Border(
+                left: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
       ),
       child: Column(
         children: [

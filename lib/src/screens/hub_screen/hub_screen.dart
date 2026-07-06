@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/logs_page.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
@@ -198,33 +199,40 @@ class _HubScreenState extends State<HubScreen> {
         ),
       ),
       body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Category sidebar ──────────────────────────────────────
-            HubCategorySidebar(
-              categories: _categories,
-              selectedIndex: _selectedCategoryIndex,
-              selectedSubIndex: _selectedSubItemIndex,
-              expanded: _expandedCategories,
-              onCategoryTap: _onCategoryTap,
-              onSubItemTap: _onSubItemTap,
-              onExpansionToggle: _onExpansionToggle,
-            ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final size = LayoutBreakpoints.sizeForWidth(constraints.maxWidth);
+          return LayoutScope(
+            size: size,
+            availableWidth: constraints.maxWidth,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Category sidebar ─────────────────────────────────
+                HubCategorySidebar(
+                  categories: _categories,
+                  selectedIndex: _selectedCategoryIndex,
+                  selectedSubIndex: _selectedSubItemIndex,
+                  expanded: _expandedCategories,
+                  onCategoryTap: _onCategoryTap,
+                  onSubItemTap: _onSubItemTap,
+                  onExpansionToggle: _onExpansionToggle,
+                ),
 
-            // ── Vertical divider ─────────────────────────────────────
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: Theme.of(context).dividerColor,
-            ),
+                // ── Vertical divider ───────────────────────────────
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor,
+                ),
 
-            // ── Content area ─────────────────────────────────────────
-            Expanded(
-              child: _buildContent(),
+                // ── Content area ────────────────────────────────────
+                Expanded(
+                  child: _buildContent(),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        }),
       ),
     );
   }

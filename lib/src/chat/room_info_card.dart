@@ -126,10 +126,23 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             ? _topic
             : AppLocalizations.of(context)!.noTopicSet;
 
+        // Adapt the header to the available width:
+        // - Very narrow panes drop badges and the topic line to keep the
+        //   title and toolbar reachable.
+        // - Narrow panes drop the topic and shrink the avatar.
+        final width = MediaQuery.sizeOf(context).width;
+        final compactHeader = width < 480;
+        final showTopic = !compactHeader;
+        final showBadges = width >= 600;
+        final avatarRadius = compactHeader ? 16.0 : 20.0;
+        final nameFontSize = compactHeader ? 14.0 : 16.0;
+        final hPadding = compactHeader ? 8.0 : 12.0;
+
         return GestureDetector(
           onTap: _onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+                horizontal: hPadding, vertical: compactHeader ? 6 : 8),
             decoration: BoxDecoration(
               color: scheme.surfaceContainer,
               border: Border(
@@ -144,8 +157,9 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 AvatarFromUriOrFallbackImage(
                   client: widget.room.client,
                   avatarUri: widget.room.avatar,
+                  radius: avatarRadius,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: compactHeader ? 8 : 12),
 
                 // Name + Topic
                 Expanded(
@@ -156,39 +170,43 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                       Text(
                         displayName,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: nameFontSize,
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        topic,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant,
+                      if (showTopic) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          topic,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: compactHeader ? 4 : 8),
 
-                // Sync status indicator
-                _SyncIndicator(client: widget.room.client),
-                const SizedBox(width: 4),
+                if (showBadges) ...[
+                  // Sync status indicator
+                  _SyncIndicator(client: widget.room.client),
+                  const SizedBox(width: 4),
 
-                // Member count badge
-                _MemberCountBadge(count: _memberCount, scheme: scheme),
-                const SizedBox(width: 4),
+                  // Member count badge
+                  _MemberCountBadge(count: _memberCount, scheme: scheme),
+                  const SizedBox(width: 4),
 
-                // Pinned messages toggle
-                _PinnedFilterButton(room: widget.room),
-                const SizedBox(width: 4),
+                  // Pinned messages toggle
+                  _PinnedFilterButton(room: widget.room),
+                  const SizedBox(width: 4),
+                ],
 
                 // In-room search toggle
                 IconButton(
@@ -196,11 +214,13 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                     widget.isSearchActive
                         ? LucideIcons.searchX
                         : LucideIcons.search,
-                    size: 18,
+                    size: compactHeader ? 16 : 18,
                   ),
                   onPressed: widget.onSearchToggle,
                   tooltip: AppLocalizations.of(context)!.searchInRoom,
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: compactHeader
+                      ? VisualDensity(horizontal: -2, vertical: -2)
+                      : VisualDensity.compact,
                   color: widget.isSearchActive
                       ? scheme.primary
                       : scheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -210,19 +230,21 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 IconButton(
                   icon: Icon(
                     LucideIcons.settings,
-                    size: 18,
+                    size: compactHeader ? 16 : 18,
                   ),
                   onPressed: () =>
                       context.push('/main/rooms/${widget.room.id}/settings'),
                   tooltip: AppLocalizations.of(context)!.roomSettings,
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: compactHeader
+                      ? VisualDensity(horizontal: -2, vertical: -2)
+                      : VisualDensity.compact,
                   color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
 
                 // Chevron indicating tappable
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 20,
+                  size: compactHeader ? 16 : 20,
                   color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ],

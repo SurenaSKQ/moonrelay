@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,25 +47,36 @@ class HubCategorySidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // On compact screens collapse to an icon-only rail; on medium use a
+    // slimmer sidebar; otherwise default width.
+    final layoutSize = LayoutScope.of(context).size;
+    final width = switch (layoutSize) {
+      LayoutSize.compact => LayoutBreakpoints.hubNavRailWidth,
+      LayoutSize.medium => 200.0,
+      _ => LayoutBreakpoints.hubCategorySidebarWidth,
+    };
+    final showLabels = layoutSize != LayoutSize.compact;
     return SizedBox(
-      width: 240,
+      width: width,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
-          Container(
-            color: theme.colorScheme.surfaceContainerHighest,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Text(
-              'Categories',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurfaceVariant,
+          if (showLabels)
+            Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+              child: Text(
+                'Categories',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-          ),
-          const Divider(height: 1),
+          if (showLabels) const Divider(height: 1),
           // Scrollable list
           Expanded(
             child: ListView.builder(
@@ -86,6 +98,8 @@ class HubCategorySidebar extends StatelessWidget {
     int index,
   ) {
     final cat = categories[index];
+    final layoutSize = LayoutScope.of(context).size;
+    final compact = layoutSize == LayoutSize.compact;
     final bool isSelected =
         selectedIndex == index && (selectedSubIndex < 0 || !cat.isExpandable);
     final bool isExpanded = expanded.contains(index);
@@ -99,7 +113,10 @@ class HubCategorySidebar extends StatelessWidget {
               ? () => onExpansionToggle(index)
               : () => onCategoryTap(index),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 16,
+              vertical: compact ? 12 : 12,
+            ),
             decoration: BoxDecoration(
               color: isSelected
                   ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
@@ -117,26 +134,28 @@ class HubCategorySidebar extends StatelessWidget {
               children: [
                 Icon(
                   cat.icon,
-                  size: 20,
+                  size: compact ? 22 : 20,
                   color: isSelected
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    cat.label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                if (!compact) const SizedBox(width: 12),
+                if (!compact)
+                  Expanded(
+                    child: Text(
+                      cat.label,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-                if (cat.isExpandable)
+                if (cat.isExpandable && !compact)
                   Icon(
                     isExpanded
                         ? LucideIcons.chevronDown
@@ -150,7 +169,7 @@ class HubCategorySidebar extends StatelessWidget {
         ),
 
         // ── Sub-items (when expanded) ─────────────────────────────
-        if (cat.isExpandable && isExpanded)
+        if (cat.isExpandable && isExpanded && !compact)
           ...List.generate(cat.items.length, (subIndex) {
             final subItem = cat.items[subIndex];
             final bool isSubSelected =

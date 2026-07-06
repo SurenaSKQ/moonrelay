@@ -143,20 +143,22 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   Future<void> setLeftPaneChoice(LeftPaneChoice choice) async {
-    if (choice != _leftPaneChoice) {
-      _leftPaneChoice = choice;
-      // Show the sidebar automatically if a non-none pane is selected
-      if (choice != LeftPaneChoice.none && !_leftSidebarVisible) {
-        _leftSidebarVisible = true;
-        await _settingsService.updateLeftSidebarVisible(true);
-      }
-      if (choice == LeftPaneChoice.none && _leftSidebarVisible) {
-        _leftSidebarVisible = false;
-        await _settingsService.updateLeftSidebarVisible(false);
-      }
-      notifyListeners();
-      await _settingsService.updateLeftPaneChoice(choice);
+    if (choice == _leftPaneChoice) return;
+
+    _leftPaneChoice = choice;
+    if (choice != LeftPaneChoice.none && !_leftSidebarVisible) {
+      _leftSidebarVisible = true;
+      await _settingsService.updateLeftSidebarVisible(true);
     }
+    if (choice == LeftPaneChoice.none && _leftSidebarVisible) {
+      _leftSidebarVisible = false;
+      await _settingsService.updateLeftSidebarVisible(false);
+    }
+    // Single notification: cascading the sidebar visibility used to notify
+    // twice (once for visibility, once for pane choice), causing listeners
+    // like the dashboard layout to rebuild twice per user action.
+    notifyListeners();
+    await _settingsService.updateLeftPaneChoice(choice);
   }
 
   Future<void> toggleLeftSidebar() async {
@@ -181,19 +183,19 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   Future<void> setRightPaneChoice(RightPaneChoice choice) async {
-    if (choice != _rightPaneChoice) {
-      _rightPaneChoice = choice;
-      if (choice != RightPaneChoice.none && !_rightSidebarVisible) {
-        _rightSidebarVisible = true;
-        await _settingsService.updateRightSidebarVisible(true);
-      }
-      if (choice == RightPaneChoice.none && _rightSidebarVisible) {
-        _rightSidebarVisible = false;
-        await _settingsService.updateRightSidebarVisible(false);
-      }
-      notifyListeners();
-      await _settingsService.updateRightPaneChoice(choice);
+    if (choice == _rightPaneChoice) return;
+
+    _rightPaneChoice = choice;
+    if (choice != RightPaneChoice.none && !_rightSidebarVisible) {
+      _rightSidebarVisible = true;
+      await _settingsService.updateRightSidebarVisible(true);
     }
+    if (choice == RightPaneChoice.none && _rightSidebarVisible) {
+      _rightSidebarVisible = false;
+      await _settingsService.updateRightSidebarVisible(false);
+    }
+    notifyListeners();
+    await _settingsService.updateRightPaneChoice(choice);
   }
 
   Future<void> toggleRightSidebar() async {

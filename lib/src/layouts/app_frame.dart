@@ -97,57 +97,73 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (event) {
-          if (event.kind == PointerDeviceKind.mouse &&
-              (event.buttons & 0x02) != 0) {
-            _showContextMenu(context, event.position);
-          }
-        },
-        child: Container(
-          height: kToolbarHeight,
-          color: theme.colorScheme.surface,
-          child: Row(
-            children: <Widget>[
-              // ── Leading slot ──────────────────────────────────
-              const _HeaderProfile(),
-              IconButton(
-                icon: const Icon(LucideIcons.search, size: 20),
-                onPressed: () => _openGlobalSearch(context),
-                tooltip: AppLocalizations.of(context)!.globalSearch,
-              ),
-              if (reversed && showButtons)
-                const WindowButtons()
-              else
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 4),
-                  child: sidebarToggle,
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Compact windows drop the leading profile button and shrink
+          // icons so the toolbar stays usable.
+          final isCompact = constraints.maxWidth < 480;
+          final iconSize = isCompact ? 16.0 : 20.0;
 
-              // ── Draggable title area ──────────────────────────
-              Expanded(
-                child: DragToMoveArea(
-                  child: SizedBox(
-                    height: double.infinity,
-                    child: Center(
-                      child: _HeaderTitle(l10n: l10n),
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (event) {
+              if (event.kind == PointerDeviceKind.mouse &&
+                  (event.buttons & 0x02) != 0) {
+                _showContextMenu(context, event.position);
+              }
+            },
+            child: Container(
+              height: kToolbarHeight,
+              color: theme.colorScheme.surface,
+              child: Row(
+                children: <Widget>[
+                  // ── Leading slot ───────────────────────────────
+                  if (!isCompact) const _HeaderProfile(),
+                  IconButton(
+                    icon: Icon(LucideIcons.search, size: iconSize),
+                    onPressed: () => _openGlobalSearch(context),
+                    tooltip: AppLocalizations.of(context)!.globalSearch,
+                    visualDensity: isCompact
+                        ? const VisualDensity(
+                            horizontal: -2, vertical: -2)
+                        : VisualDensity.compact,
+                  ),
+                  if (reversed && showButtons)
+                    const WindowButtons()
+                  else
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 4),
+                      child: sidebarToggle,
+                    ),
+
+                  // ── Draggable title area ────────────────────────
+                  Expanded(
+                    child: DragToMoveArea(
+                      child: SizedBox(
+                        height: double.infinity,
+                        child: Center(
+                          child: _HeaderTitle(
+                            l10n: l10n,
+                            compact: isCompact,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // ── Trailing slot ─────────────────────────────────
-              if (reversed)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 4),
-                  child: sidebarToggle,
-                )
-              else if (showButtons)
-                const WindowButtons(),
-            ],
-          ),
-        ),
+                  // ── Trailing slot ──────────────────────────────
+                  if (reversed)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 4),
+                      child: sidebarToggle,
+                    )
+                  else if (showButtons)
+                    const WindowButtons(),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -297,18 +313,20 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
 
 /// Title text used in the custom header.
 class _HeaderTitle extends StatelessWidget {
-  const _HeaderTitle({required this.l10n});
+  const _HeaderTitle({required this.l10n, this.compact = false});
 
   final AppLocalizations l10n;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       l10n.appTitle,
-      style: const TextStyle(
+      style: TextStyle(
         fontWeight: FontWeight.w600,
-        fontSize: 16,
+        fontSize: compact ? 14 : 16,
       ),
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
