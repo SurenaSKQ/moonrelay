@@ -61,8 +61,21 @@ class DatabaseService {
         }
         try {
           await sql.deleteDatabase(dbPath);
-        } catch (_) {
-          // best-effort
+        } catch (e, s) {
+          // The wipe failed — if we let [openDatabase] proceed the SDK
+          // will read the old schema with the new version constant and
+          // explode at runtime.  Re-throw with a clear prefix so the
+          // boot pipeline surfaces a Recovery / exit dialog instead
+          // of a `SqliteException` deep inside the SDK.
+          log.e(
+            'Database wipe failed for $dbPath — refusing to boot',
+            error: e,
+            stackTrace: s,
+          );
+          throw StateError(
+            'Failed to delete stale database at $dbPath. '
+            'Please close any running process holding the file and retry.',
+          );
         }
       }
       await prefs.setInt(schemaVersionKey, schemaVersion);
