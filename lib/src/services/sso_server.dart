@@ -112,13 +112,29 @@ class SsoCallbackServer {
     final host = request.headers.value('host');
     if (host == null || host != 'localhost:$_port') {
       _log.w('SSO: rejected request with Host header "$host"');
-      _respondWithText(request, 403, 'Invalid host');
+      _respondWithError(
+        request,
+        'Invalid Request',
+        'This server only accepts SSO callbacks on its own port. '
+        'Please restart the sign-in flow in Moonrelay.',
+      );
+      if (!_completer!.isCompleted) {
+        _completer!.completeError(
+          const FormatException('SSO callback rejected: bad host header'),
+        );
+      }
+      stop();
       return;
     }
 
     // ── Only accept GET ───────────────────────────────────────────
     if (request.method.toUpperCase() != 'GET') {
-      _respondWithText(request, 405, 'Method Not Allowed');
+      _respondWithError(
+        request,
+        'Method Not Allowed',
+        'Only the browser redirect (GET) is supported. '
+        'Return to the application and try again.',
+      );
       return;
     }
 
@@ -129,7 +145,19 @@ class SsoCallbackServer {
     if (_expectedState == null ||
         receivedState == null ||
         receivedState != _expectedState) {
-      _respondWithText(request, 403, 'Invalid or missing state parameter');
+      _respondWithError(
+        request,
+        'Invalid State',
+        'The SSO callback did not include a valid state parameter. '
+        'This can happen if the request is replayed or the state '
+        'expired. Please return to the application and try again.',
+      );
+      if (!_completer!.isCompleted) {
+        _completer!.completeError(
+          const FormatException('SSO callback rejected: bad state'),
+        );
+      }
+      stop();
       return;
     }
 
@@ -173,14 +201,34 @@ class SsoCallbackServer {
         parameter and copy it into the application manually.</p>
         ''',
       );
+      if (!_completer!.isCompleted) {
+        // Signal failure to the login flow so the UI can abort cleanly
+        // instead of waiting forever for a token.
+        _completer!.completeError(
+          const FormatException('SSO callback had no login token'),
+        );
+      }
     }
   }
 
-  void _respondWithText(HttpRequest request, int statusCode, String body) {
-    request.response.statusCode = statusCode;
-    request.response.headers.contentType = ContentType.text;
-    request.response.write(body);
-    request.response.close();
+  /// Sends a styled error page so the browser tab doesn't hang waiting
+  /// for a result that the application never receives.
+  void _respondWithError(
+    HttpRequest request,
+    String title,
+    String bodyHtml,
+  ) {
+    _respondWithPage(
+      request,
+      400,
+      title,
+      '''
+      <p style="font-size:16px;color:#dc2626;">
+        ⚠ $title
+      </p>
+      <p>$bodyHtml</p>
+      ''',
+    );
   }
 
   void _respondWithPage(

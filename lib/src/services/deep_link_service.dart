@@ -94,19 +94,21 @@ class DeepLinkService {
   }
 
   /// Processes command-line arguments looking for `matrix:` URIs.
+  ///
+  /// The OS passes the deep-link URL as a positional argument when the
+  /// registered protocol handler is invoked (Windows: as the trailing
+  /// element of the command line; Linux: from `argv` exposed via
+  /// `Platform.executableArguments`).  We do not rely on
+  /// `Platform.environment` here — that only catches child-process env
+  /// variables, not the arguments the app was launched with.
   void _processCommandLineArgs() {
     if (kIsWeb) return;
     try {
-      final args = Platform.isWindows
-          // On Windows, command-line args use \ path separators and may
-          // contain quotes around the URL.
-          ? Platform.environment.values.any((v) =>
-              v.startsWith('matrix:') || v.startsWith('matrix://'))
-              ? [Platform.resolvedExecutable]
-              : <String>[]
-          : Platform.environment['ARGV']?.split(' ') ??
-              <String>[];
-
+      // `Platform.executableArguments` covers the full argv in Flutter
+      // 3.3+; on platforms that don't expose it (e.g. older Flutter
+      // test mocks) we fall back to an empty list rather than reading
+      // unrelated environment values.
+      final List<String> args = _safeExecutableArgs();
       for (final arg in args) {
         final lower = arg.toLowerCase();
         if (lower.startsWith('matrix:') || lower.startsWith('matrix://')) {
@@ -116,6 +118,17 @@ class DeepLinkService {
       }
     } catch (e) {
       log.w('Could not read command-line arguments', error: e);
+    }
+  }
+
+  /// Returns the OS-passed arguments for the current process, or an empty
+  /// list when running on web or in a host that doesn't expose argv.
+  List<String> _safeExecutableArgs() {
+    try {
+      // ignore: invalid_use_of_visible_for_testing_member
+      return Platform.executableArguments;
+    } catch (_) {
+      return const <String>[];
     }
   }
 
