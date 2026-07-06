@@ -133,3 +133,4 @@ lib/generated_plugin_registrant.dart
 # Ignore automatically generated localization files
 lib/src/localization/app_localizations.dart
 lib/src/localization/app_localizations_en.dart
+lib/src/localization/app_localizations_fa.dart
