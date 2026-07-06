@@ -134,6 +134,13 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   String? _errorTitle;
   String? _errorBody;
 
+  /// Key used to grab a typed reference to the [SplashScreen] state from
+  /// outside its widget tree.  The init pipeline runs before any widget
+  /// is mounted, so we look it up via this key once the splash has been
+  /// displayed.
+  final GlobalKey<SplashScreenState> _splashKey =
+      GlobalKey<SplashScreenState>();
+
   @override
   void initState() {
     super.initState();
@@ -162,15 +169,24 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       final state = await _initialize(
         onStatus: (msg) {
           log.t(msg);
+          // Forward the boot-pipeline status into the splash widget so
+          // the user sees "Loading database…" instead of a frozen
+          // spinner.  The splash guards against unmounted state
+          // internally, but we still check for a null key during the
+          // first frame.
+          _splashKey.currentState?.updateStatus(msg);
         },
         log: log,
         logService: logService,
       );
       if (!mounted) return;
+      _splashKey.currentState?.markDone();
       setState(() => _appState = state);
     } catch (e) {
       log.f('Initialization failed', error: e);
       if (!mounted) return;
+      _splashKey.currentState
+          ?.markError('Initialization Failed', '$e');
       setState(() {
         _errorTitle = 'Initialization Failed';
         _errorBody = '$e';
@@ -272,7 +288,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           brightness: Brightness.dark,
         ),
       ),
-      home: const SplashScreen(),
+      home: SplashScreen(key: _splashKey),
     );
   }
 }

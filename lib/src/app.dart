@@ -48,7 +48,6 @@ class MoonrelayApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           restorationScopeId: "approot",
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          // TODO: Support persian
           supportedLocales: AppLocalizations.supportedLocales,
           onGenerateTitle: (context) =>
               AppLocalizations.of(context)!.appTitle,
