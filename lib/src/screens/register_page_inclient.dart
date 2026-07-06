@@ -406,18 +406,22 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           log.i('Registration successful for ${value.userId}');
 
           // ── Save this account for multi-account support ─────────
-          if (mounted) {
-            final accountManager = context.read<AccountManager>();
-            await accountManager.addOrUpdateAccount(
-              StoredAccount(
-                userId: client.userID!,
-                homeserver: client.homeserver?.toString() ?? '',
-              ),
-              client: client,
-              encryptionService: context.read<EncryptionService>(),
-            );
-          }
+          // Capture provider reads before any subsequent await so the
+          // analyzer doesn't see [context] used across the async gap.
+          final accountManager = context.read<AccountManager>();
+          final encryptionService = context.read<EncryptionService>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
+          await accountManager.addOrUpdateAccount(
+            StoredAccount(
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
+            ),
+            client: client,
+            encryptionService: encryptionService,
+          );
 
+          if (!mounted) return;
           context.go('/main/rooms');
         }
       case RetryFailed(:final error):

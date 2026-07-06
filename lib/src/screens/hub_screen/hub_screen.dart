@@ -149,13 +149,14 @@ class _HubScreenState extends State<HubScreen> {
     final l10n = AppLocalizations.of(context)!;
     try {
       final accountManager = context.read<AccountManager>();
+      final logService = context.read<LogService>();
       await accountManager.logout();
       // Wipe all log files now that the session has been torn down.
-      final logService = context.read<LogService>();
       await logService.wipeLogs();
       if (!mounted) return;
       context.go('/');
     } catch (e) {
+      if (!mounted) return;
       final log = context.read<Logger>();
       log.e('Logout error', error: e, stackTrace: StackTrace.current);
       if (!mounted) return;

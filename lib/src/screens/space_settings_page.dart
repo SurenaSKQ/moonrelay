@@ -539,7 +539,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         log: log,
         label: 'addSpaceChild',
       );
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.roomAddedToSpace),
@@ -547,10 +547,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
+      // Refetch the l10n via a captured reference before the await to
+      // avoid using [context] across the async gap.
+      final errorLabel = l10n.error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${l10n.error}: $e'),
+          content: Text('$errorLabel: $e'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -568,7 +571,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         log: log,
         label: 'removeSpaceChild',
       );
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.roomRemovedFromSpace),
@@ -576,10 +579,11 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
+      final errorLabel = l10n.error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${l10n.error}: $e'),
+          content: Text('$errorLabel: $e'),
           behavior: SnackBarBehavior.floating,
         ),
       );

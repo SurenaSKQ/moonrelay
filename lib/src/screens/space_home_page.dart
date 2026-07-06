@@ -481,13 +481,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       }
       if (mounted && !_disposed) setState(() {});
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       final message = e is TimeoutException
-          ? AppLocalizations.of(context)!.couldNotJoinRoomTimeout
+          ? l10n.couldNotJoinRoomTimeout
           : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('${AppLocalizations.of(context)!.error}: $message')),
+        SnackBar(content: Text('${l10n.error}: $message')),
       );
     }
   }
