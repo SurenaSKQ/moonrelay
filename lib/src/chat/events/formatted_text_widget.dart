@@ -56,9 +56,19 @@ class FormattedTextWidget extends StatelessWidget {
     final format = event.content['format'] as String?;
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
-      final spans = _HtmlTagParser(formattedBody, context,
-              baseFontSize: baseFontSize)
-          .parse();
+      // Check the parse cache before re-parsing.  Keyed on the raw
+      // formatted-body string instead of `hashCode` so two unrelated
+      // bodies with a colliding `hashCode` cannot return each other's
+      // parsed spans.
+      final cacheKey =
+          '${baseFontSize.toStringAsFixed(2)}::$formattedBody';
+      List<TextSpan>? spans = _HtmlParseCache.get(cacheKey);
+      if (spans == null) {
+        spans =
+            _HtmlTagParser(formattedBody, context, baseFontSize: baseFontSize)
+                .parse();
+        _HtmlParseCache.set(cacheKey, spans);
+      }
       if (spans.isNotEmpty) {
         return SelectableText.rich(TextSpan(
           style: TextStyle(fontSize: _fs(16)),
@@ -102,7 +112,7 @@ class FormattedTextWidget extends StatelessWidget {
 
       spans.add(TextSpan(
         text: rawUrl,
-          style: TextStyle(
+        style: TextStyle(
           color: accent,
           decoration: TextDecoration.underline,
           fontSize: _fs(16),
@@ -125,17 +135,59 @@ class FormattedTextWidget extends StatelessWidget {
     return spans;
   }
 
-  /// Opens [url] in the system default browser via [url_launcher].
-  static void _openUrl(String url) {
+  /// URI schemes allowed for external navigation via [launchUrl].
+  static const _allowedSchemes = <String>{
+    'https',
+    'http',
+    'mailto',
+    'matrix',
+  };
+
+  /// Opens [url] in the system default browser, but only if the scheme is
+  /// in the allowlist.  Rejects `javascript:`, `data:`, `file:`, and any
+  /// other scheme not in [_allowedSchemes].
+  static Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    launchUrl(uri, mode: LaunchMode.externalApplication);
+    final scheme = uri.scheme.toLowerCase();
+    if (!_allowedSchemes.contains(scheme)) {
+      // Silently reject dangerous URI schemes.
+      return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
 // Lightweight recursive-descent HTML parser for Matrix custom HTML.
 // ---------------------------------------------------------------------------
+
+/// Simple bounded cache for HTML parse results keyed by formatted body text.
+///
+/// Prevents re-parsing the same HTML string on every timeline rebuild.
+/// Only the most recent [kMaxCacheEntries] entries are kept.
+class _HtmlParseCache {
+  _HtmlParseCache._();
+  static const int kMaxCacheEntries = 200;
+  static final Map<String, List<TextSpan>> _cache = {};
+  static final List<String> _keys = [];
+
+  /// Returns cached spans for [key], or `null` if not in cache.
+  static List<TextSpan>? get(String key) => _cache[key];
+
+  /// Stores [spans] for [key], evicting the oldest entry if over capacity.
+  static void set(String key, List<TextSpan> spans) {
+    if (_cache.containsKey(key)) return;
+    if (_keys.length >= kMaxCacheEntries) {
+      final oldest = _keys.removeAt(0);
+      _cache.remove(oldest);
+    }
+    _keys.add(key);
+    _cache[key] = spans;
+  }
+}
 
 /// Converts a subset of Matrix HTML into [TextSpan] lists.
 ///
@@ -201,6 +253,23 @@ class _HtmlTagParser {
 
         if (rawTag == 'br' || rawTag == 'br/' || rawTag == 'br /') {
           buffer.write('\n');
+          continue;
+        }
+
+        if (rawTag == 'img' || rawTag.startsWith('img ')) {
+          // `<img>` is a void element.  Render the alt text as a link so
+          // sighted users see a description; clients with image rendering
+          // enabled can swap this for a `WidgetSpan` later.  Skipping the
+          // tag silently (the previous behaviour) hid inline images and
+          // confused the user.
+          final attrs = _parseAttrs(rawTag);
+          final alt = attrs['alt']?.trim();
+          final src = attrs['src']?.trim() ?? '';
+          if (alt != null && alt.isNotEmpty) {
+            buffer.write(alt);
+          } else if (src.isNotEmpty) {
+            buffer.write(src);
+          }
           continue;
         }
 
@@ -483,7 +552,8 @@ class _HtmlTagParser {
           const TextSpan(text: '\n'),
           TextSpan(
             children: inner,
-            style: base.copyWith(fontSize: _fs(size), fontWeight: FontWeight.bold),
+            style:
+                base.copyWith(fontSize: _fs(size), fontWeight: FontWeight.bold),
           ),
           const TextSpan(text: '\n'),
         ];

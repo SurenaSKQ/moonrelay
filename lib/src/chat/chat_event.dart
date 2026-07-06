@@ -14,20 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/material.dart';
+import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
+import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/file/file_attached_message.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/image/image_message_type.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/location/location_message_type.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/sticker/sticker_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_message_type.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/state_events.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_notice_event.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/State/verification_request_event.dart';
 import 'package:moonrelay/src/chat/events/unsupported_event.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:flutter/material.dart';
-import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
+import 'package:moonrelay/src/chat/poll_message_type.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
 import 'package:provider/provider.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type
@@ -45,6 +49,7 @@ class MessageEventHandler extends StatelessWidget {
     required this.event,
     this.timeline,
     this.room,
+    this.fontSize = 16.0,
     this.onJumpToEvent,
   });
 
@@ -57,14 +62,16 @@ class MessageEventHandler extends StatelessWidget {
   /// The room this event belongs to, used to fetch replied-to events.
   final Room? room;
 
+  /// Font size for message text, propagated from the parent.
+  final double fontSize;
+
   /// Called when the user taps a reply preview to jump to the replied-to
   /// event.  Receives the event ID of the target event.
   final void Function(String eventId)? onJumpToEvent;
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    final fs = fontSize;
 
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
@@ -185,7 +192,14 @@ class MessageEventHandler extends StatelessWidget {
             if (isReply) {
               return _buildReplyContent(replyId, fontSize);
             }
-            return FormattedTextWidget(event: event, baseFontSize: fontSize);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTextContent(fontSize),
+                if (isEditedMessage(event)) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Image:
             return ImageMessageType(event: event);
           case MessageTypes.Audio:
@@ -194,7 +208,18 @@ class MessageEventHandler extends StatelessWidget {
             return VideoMessageType(event: event);
           case MessageTypes.File:
             return FileAttachedMessage(event: event);
+          case MessageTypes.Location:
+            return LocationMessageType(event: event);
+          case MessageTypes.Sticker:
+            return StickerMessageType(event: event);
           default:
+            if (event.type == 'm.poll.start' || event.type == 'm.poll') {
+              return PollMessageType(
+                event: event,
+                room: room ?? event.room,
+                timeline: timeline,
+              );
+            }
             return UnsupportedEventType(event: event);
         }
       case 'm.room.member':
@@ -208,7 +233,17 @@ class MessageEventHandler extends StatelessWidget {
       case 'm.room.power_levels':
       case 'm.room.tombstone':
         return StateEvents(event: event);
+      case EventTypes.Sticker:
+        return StickerMessageType(event: event);
       default:
+        // Poll events have `type == m.poll.start`.
+        if (event.type == 'm.poll.start') {
+          return PollMessageType(
+            event: event,
+            room: room ?? event.room,
+            timeline: timeline,
+          );
+        }
         // Fallback: check if the event type itself looks like a
         // verification event (some legacy servers may send them as
         // raw event types rather than m.room.message + msgtype).
@@ -220,6 +255,22 @@ class MessageEventHandler extends StatelessWidget {
         }
         return StateEvents(event: event);
     }
+  }
+
+  /// Builds the content for a text/emote/notice event that is not a reply.
+  ///
+  /// Wraps the formatted text widget with [MatrixUrlBannerWrapper] so that
+  /// any Matrix URLs (room aliases, user IDs, permalinks) found in the body
+  /// render as interactive banners below the message.
+  Widget _buildTextContent(double fontSize) {
+    final textWidget = FormattedTextWidget(event: event, baseFontSize: fontSize);
+    if (room == null) return textWidget;
+    return MatrixUrlBannerWrapper(
+      textBody: event.body,
+      room: room!,
+      event: event,
+      child: textWidget,
+    );
   }
 
   /// Builds the content for a reply event: a reply preview header followed
@@ -243,7 +294,7 @@ class MessageEventHandler extends StatelessWidget {
       }
     }
 
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -260,6 +311,14 @@ class MessageEventHandler extends StatelessWidget {
           baseFontSize: fontSize,
         ),
       ],
+    );
+
+    if (room == null) return content;
+    return MatrixUrlBannerWrapper(
+      textBody: event.body,
+      room: room!,
+      event: event,
+      child: content,
     );
   }
 }
@@ -360,5 +419,43 @@ class _ReplyPreview extends StatelessWidget {
     final display = clean.isNotEmpty ? clean : text.trim();
     if (display.length <= maxLen) return display;
     return '${display.substring(0, maxLen)}…';
+  }
+}
+
+/// A small "(edited)" marker rendered immediately after a message body.
+///
+/// Inline rather than a popup because Matrix edits may happen many times
+/// over the lifetime of a message; a permanent indicator is clearer than
+/// a hidden affordance.
+class _EditedMarker extends StatelessWidget {
+  const _EditedMarker({required this.event});
+  final Event event;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        l10n.editedIndicator,
+        style: TextStyle(
+          fontSize: 11,
+          fontStyle: FontStyle.italic,
+          color: cs.onSurface.withValues(alpha: 0.45),
+        ),
+      ),
+    );
+  }
+}
+
+/// Whether [event] has a `m.replace` relation pointing to an original event.
+bool isEditedMessage(Event event) {
+  try {
+    final rel = event.content['m.relates_to'];
+    if (rel is! Map) return false;
+    return rel['rel_type'] == 'm.replace' && rel['event_id'] is String;
+  } catch (_) {
+    return false;
   }
 }

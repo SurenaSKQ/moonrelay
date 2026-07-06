@@ -1,363 +1,267 @@
 <!--
- Part of Moonrelay, a matrix protocol client.
- Copyright (C) 2025 Surena Karimpour Ghannadi
+Part of Moonrelay, a matrix protocol client.
+Copyright (C) 2025 Surena Karimpour Ghannadi
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 
-# Current work
+# WORK_NEEDED
 
-Expected timeline: ~~Mid 2026 (This will eventually become a lesson in wishful thinking)~~ lmao, it sure did
+Open work ledger for Moonrelay. Each item is anchored to a file:line or
+file path.
 
-## Chat events v1
-- Chat timeline needs rework.
-- Text Messages **[DONE]**
-- Images **[DONE]**
-  - Still needs some work — dedicated image view screen needed
-- Audio **[DONE]**
-  - No in-app player yet
-- Video **[NOT STARTED]**
-- Files **[DONE]**
-  - Widget needs polish
+**Tests at head:** `flutter test` → passes · `flutter analyze` → no errors.
 
-## Chat events v2
-- Dynamically built text with inline images
-- Code blocks support
-- Right-click context menu
-- Replies **[IN PROGRESS]**
-- Threads **[INVESTIGATION NEEDED]**
-- Stickers **[INVESTIGATION NEEDED]**
-
-## Application fundamentals v1
-- Settings controller and service integration **[DONE]**
-- More configurable UI values **[IN PROGRESS]**
-- Full integration with internationalisation (particularly embarrassing for a non-English project) **[IN PROGRESS]**
-- State management rework **[IN PROGRESS]**
-
-## UI revamp v1
-- Overall dynamic scaling and scaling fixes
-- Chat screen rework v1 **[DONE]**
-  - New text entry **[DONE]**
-  - New user profiles page **[DONE]**
-  - New server profile design **[DONE]**
-- Rework settings **[DONE]**
-  - Reworked into a hub page
-- Rework sidebar **[IN PROGRESS]**
-  - The right sidebar is useless and the sidebar settings needs rework.
-
-## Login & Registration Flow
-- Support third-party sign-in **[DONE]**
-  - Proper SSO support is done
-- Support registration **[DONE]**
-  - Untested!!!
-
-## UI revamp v2
-- New UI framework **[in progress]**
-  - Custom sidebar widget **[DONE]**
-  - Custom frame widget **[DONE]**
-    - Well, we use a dynamic layout widget to build the dashboard dynamically now
-  - Custom input widget
-  - Custom header v2 **[DONE]**
-  - ~~Custom scaffold~~ No longer a good idea
-
-## Branding & Identity
-- Welcome screen settings page **[DONE]**
-- Credits / developer information screen **[DONE]**
-- Supporters card with links **[DONE]**
-- Logo replaced with vector icon + text **[DONE]**
-- Project monicker: Moonrelay (Alpha)
+Status key: 🟠 correctness · 🟡 performance · 🔵 refactor · 🟢 feature
+· 🟣 quality · 🔴 security.
 
 ---
 
-# Future work
+## 1. Open bugs & refactors
 
-Expected timeline: 2026 and beyond
+Nothing currently 🔴 or 🟠 blocks the Alpha. Remaining items are 🟡, 🔵,
+or 🟣 — polish, not showstoppers.
 
-- Custom events (events v3)
-  - Git events
-  - Map events
-  - Realtime audio and video chat
-- Application fundamentals v2
-  - Optimise for background processes
-  - Tighter system integration
+### 1.1 Skeleton loading — boot transitions still start empty
 
-# Wishlist
+- **Hub-screen → accounts list:** `lib/src/screens/hub_screen/accounts_page.dart`
+  first-paints empty until the future completes. Should render a
+  `LoadingScreen` placeholder while `accountManager.accounts` loads.
+- **Login → hub navigation:** redirect chain briefly flashes an empty
+  hub before first sync. Splash (`lib/src/splash_screen.dart`) shows a
+  spinner but should stay visible until the hub has at least one room
+  cached.
 
-Extremely long-term wishlist that may or may not come to fruition; only
-introduced here to remain flexible in the face of the inescapable temporal
-burden we carry.
+### 1.2 Future-aware surface comments
 
-- Server SDK v1
-  - Server-side SDK for Matrix protocol
-- Client SDK v1
-  - Potentially explore new chat protocols as time moves onwards; XMPP was
-    once here and now it is no more
-  - Who can truly proclaim to know where Matrix will go, especially with the
-    strong disdain certain communities show towards the Matrix protocol.
-  - I have forked matrix-dart-sdk from Famedly; just in case
+- **`TimelineView` count notifier:** `_UndecryptableBanner` reads from a
+  `ValueNotifier<int>` via `findAncestorStateOfType`. Add a comment
+  near the notifier noting that any future restructuring needs to keep
+  it on the same `State`.
+- **In-room search jump accuracy:** `ChatTimeline.jumpToEvent` estimates
+  scroll from a fraction. Add a comment that users can scroll a few
+  items up/down after a jump.
 
-# Bad Design
+### 1.3 Refactor candidates
 
-This category captures underlying work needed to fix accumulated design debt.
-
-- FutureBuilders **[DONE]**
-- New Chat Timeline **[DONE]**
-- Skeletonised loading
-  - Better UX
-  - Without proper loading animations, the app shows a blank screen on Linux until loaded
-  - There is currently a long delay when logging in
-- Own blur widget **[DONE]**
-- Potential global key issue? **[DONE]**
-- Use layout building instead of static layout widgets **[DONE]**
-- FIXME Handle cases where user profile response is invalid! **[DONE, I THINK?]**
-- FIXME List tiles are not adaptive, causing an exception when the list tile becomes smaller than the title widget **[DONE]**
-  - Ended up changing the entire infra behind this to fix it lmao
-
+| Area | Issue |
+|------|-------|
+| HTML rendering | `MarkdownToHtml` & `_HtmlTagParser` each implement their own tag allow-list. Extract a single `SanitizedHtml` helper. |
+| Color palette | `MoonrelayColorPalette` mixes raw swatches with `StringColor` wrappers. Either pull in or delete. |
+| Provider wiring | `boot.dart` injects `clientFactory`/`onClientReady`; `app.dart` re-wraps in `Provider.value`. Consolidate into a `MoonrelayScope` widget. |
+| Scattered widgets | 60+ `_buildXxx` private classes. Move into `lib/src/widgets/` for reuse. |
+| Cache invalidation | `EncryptionService._cachedUnverified` reset lives in `_onSync`. Extract `markDirty()`. |
 
 ---
 
-## I had DeepSeek generate a list of missing features, please feast thine eyes:
+## 2. Open features
 
-## Comprehensive Feature Gap Analysis — Moonrelay vs. Full Matrix Client
+### 2.1 Communication surface
 
-I analyzed every file in your codebase and cross-referenced it against the `matrix-dart-sdk` v7.2.3 API surface. Below is everything that's either missing, incomplete, or known-broken.
+- **Recovery-key save dialog (post-bootstrap):** `bootstrap_screen.dart`
+  shows a reminder that the SDK encrypts the key — but cannot display
+  it. Action buttons: "I saved it" / "Later". Strings in `app_en.arb`.
+- **Per-room encryption badge in `RoomsPane`:** wire `EncryptionBadge`.
+- **"Rotate megolm session"** in room details.
+- **"Export E2EE keys"** in encryption overview.
 
----
+### 2.2 Timeline / chat
 
-### 🧵 Messaging & Content Types
+- **Reply expand / collapse:** `chat_event.dart` renders replies inline;
+  no affordance for a thread-mode view.
+- **Mention vs highlight distinction in room list:** use
+  `Room.highlightCount` for a separate badge.
+- **Sticker sender label:** treated identically to images in the
+  timeline header.
+- **Push notifications:** `NotificationService` is local-only; OS push
+  bridge not wired.
+- **Off-thread Markdown:** `MarkdownToHtml.convert` runs on the UI
+  thread. Move to `compute()`.
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 1 | **Stickers** (`m.sticker`) | ❌ Missing | `EventTypes.Sticker` exists in SDK, not handled in `MessageEventHandler` |
-| 2 | **Emotes** (`m.emote`) | 🔶 Partial | `MessageTypes.Emote` matched in switch but falls through to same renderer as text — no `/me` styling |
-| 3 | **Notices** (`m.notice`) | 🔶 Partial | `MessageTypes.Notice` matched but rendered same as plain text; should be styled differently (e.g. muted) |
-| 4 | **Location messages** (`m.location`) | ❌ Missing | `Room.sendLocation()` exists in SDK, no send or render support in app |
-| 5 | **Video playback** (in-app) | ❌ Missing | `VideoMessageType` only shows download button — no video player |
-| 6 | **Audio playback** (in-app) | ❌ Missing | `AudioMessageType` only shows download button — no audio player |
-| 7 | **Image viewer (dedicated)** | 🔶 Partial | Fullscreen via dialog `_openFullscreen` works but minimal — no pinch-to-zoom toolbar, no swipe between images, no save/share |
-| 8 | **File preview** | 🔶 Partial | `FileAttachedMessage` is very bare — tiny icon + filename, poor UX |
-| 9 | **Code block rendering** | ❌ Missing | `FormattedTextWidget` has `_HtmlTagParser` but no `<pre><code>` syntax highlighting |
-| 10 | **Inline images in text** | ❌ Missing | Matrix supports `img` tags in `formatted_body` — not rendered by `_HtmlTagParser` |
-| 11 | **Reply fallback stripping** | ✅ Done | `_stripReplyHtml` works, but no UI for *sending* rich replies with formatted body |
+### 2.3 Right-sidebar expansion
 
----
+Four views today (`roomInfo / members / threads / pinned`). Search,
+member management, settings, and avatar uploads stay full-page routes.
+Decide whether the sidebar should grow or be replaced with context menus.
 
-### 🔗 Event Relationships (Replies, Edits, Threads)
+### 2.4 Room management
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 12 | **Replies (receiving)** | ✅ Done | Renders reply preview via `_ReplyPreview` with jump-to-event |
-| 13 | **Replies (sending)** | ❌ Missing | `ChatBox` has `replyTarget` ValueNotifier but the actual send path in `sendFn` doesn't include the `m.relates_to` with `m.in_reply_to` — reply preview is shown but reply relationship not sent |
-| 14 | **Message edits (receiving)** | ❌ Missing | `RelationshipTypes.edit` (`m.replace`) is filtered out by `relationshipEventId != null` check in `_visibleIndices()`, but the replacement logic (replace original event with edit) is not implemented |
-| 15 | **Message edits (sending)** | ❌ Missing | No edit UI (long-press → edit, or edit button in message actions) |
-| 16 | **Threads (receiving)** | ❌ Missing | `RelationshipTypes.thread` (`m.thread`) events are filtered out — no thread panel or thread-summary UI |
-| 17 | **Threads (sending)** | ❌ Missing | `Room.sendTextEvent()` has `threadRootEventId`/`threadLastEventId` params — not used in `ChatBox` |
-| 18 | **Threads root event detection** | ❌ Missing | Events that *are* thread roots should show a reply count / thread summary chip |
+- **Knock-accept confirmation dialog:** show display name + Matrix ID +
+  "View profile" link.
+- **In-room search result highlights:** visual chip on matching terms.
 
 ---
 
-### 👤 User & Room Management
+## 3. Features shipped (July 2026 audit pass)
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 19 | **User search / directory** | ❌ Missing | `Client.searchUser()` exists in SDK — no UI for finding users |
-| 20 | **Room directory / explorer** | ❌ Missing | No public room browser — `Client.getPublicRooms()` exists |
-| 21 | **Room creation with options** | 🔶 Partial | `CreateNewRoom` calls `client.createRoom()` with zero options — no way to set name, topic, visibility, preset, invites |
-| 22 | **Room invite flow** | ❌ Missing | No way to invite users from the UI (`Room.invite()` exists in SDK) |
-| 23 | **Room kick/ban UI** | 🔶 Partial | `Room.kick()`, `Room.ban()`, `Room.unban()` exist in the members view context menu — need to verify they work end-to-end |
-| 24 | **Power level management** | ❌ Missing | `Room.setPower()` exists in SDK, but no UI for changing roles (Admin/Moderator) |
-| 25 | **Room aliases management** | ❌ Missing | `Room.setCanonicalAlias()` exists — no UI to set aliases |
-| 26 | **Room tags (favorites, low priority)** | ❌ Missing | `Room.setFavourite()`, `Room.setLowPriority()` exist — no UI |
-| 27 | **Leave room** | 🔶 Partial | `_leaveRoom` exists in `RoomInformations` — verify it works |
-| 28 | **Forget room** | ❌ Missing | After leaving, no "forget" option to remove from room list |
-| 29 | **Room upgrade / tombstone handling** | ❌ Missing | `m.room.tombstone` state event is rendered but no follow-redirect to the new room |
-| 30 | **Knocking support** | ❌ Missing | `Membership.knock` state event is rendered (`stateKnocked`) but no way to knock on restricted rooms |
+### 3.1 Messaging & chat
 
----
+| Feature | Files |
+|---------|-------|
+| Message edit (`m.replace`) send + indicator + history viewer | `edit_message_dialog.dart`, `edit_history_dialog.dart`, `_EditedMarker` in `chat_event.dart` |
+| Audio in-app player | `audio_message_type.dart` (scrub slider, save button) |
+| Video inline playback | `video_message_type.dart` (height-constrained, tap-to-play, fullscreen) |
+| Image/GIF height-constrain | `image_message_type.dart` (`BoxFit.contain` for panoramics) |
+| Voice-note recorder | `voice_recorder_dialog.dart` (mic button in composer toolbar) |
+| Location messages | `share_location_dialog.dart`, `location_message_type.dart` (open-in-maps) |
+| Polls (MSC3381) | `poll_send_dialog.dart`, `poll_message_type.dart` |
+| Typing notifications | `typing_indicator.dart` (animated footer, auto-stop after 4s) |
+| Per-message read receipts | `receipt_avatars.dart` (up to 5 avatars + "+N") |
+| Slash commands | `/me` → `m.emote`, `/shrug`, unknown → snackbar |
 
-### 🏠 Spaces
+### 3.2 Rooms / users / spaces
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 31 | **Space creation** | ❌ Missing | No UI to create a space (SDK rooms can be created with `RoomCreationTypes.mSpace`) |
-| 32 | **Space child management** | ❌ Missing | `Room.setSpaceChild()` exists — no UI to add/remove rooms from a space |
-| 33 | **Space hierarchy / tree view** | ❌ Missing | Spaces are a flat list in the nav pane — no nested/expandable tree showing sub-spaces and their rooms |
-| 34 | **Space home / landing page** | ❌ Missing | Selecting a space shows nothing useful — should show space info, members, recent activity |
-| 35 | **Suggested rooms in space** | ❌ Missing | Space children can have `suggested` flag — not used |
+| Feature | Files |
+|---------|-------|
+| Room version display + upgrade | `room_settings_page.dart:_upgradeRoom` |
+| Knock approve/deny UI | `_KnockRequestsSection` in room settings |
+| Room editor tiles | join rule, history visibility, encryption, alias, guest access, power levels |
+| Own-profile editor | display name, status message, presence (hub `my_profile_page.dart`) |
+| DM pane dedup | `LeftPaneChoice.friends` uses `RoomsPane(roomFilter: isDirectChat)` |
 
----
+### 3.3 Platform support
 
-### 🔐 Encryption
+- Permissions wired: `record` (mic), `geolocator` (location) via `permission_handler`
+- Cleanup: `friend_chats_pane.dart` & `own_user_profile.dart` deleted
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 36 | **E2EE (core)** | ✅ Done | Uses `flutter_vodozemac`, cross-signing bootstrapping, device management |
-| 37 | **Key backup (server-side)** | 🔶 Partial | `_refreshBackupState` and `isKeyBackupEnabled` exist — but no UI to configure/restore from backup |
-| 38 | **Recovery key management** | 🔶 Partial | `_keyBackupHasRecoveryKey` tracked — no UI to export/reveal recovery key |
-| 39 | **Device verification (SAS/QR)** | 🔶 Partial | `VerificationScreen` exists — needs testing with actual device verification flows |
-| 40 | **Incoming verification requests** | 🔶 Partial | `IncomingVerificationListener` widget exists — need to verify it works end-to-end |
-| 41 | **Post-login setup checker** | ✅ Done | `PostLoginSetupChecker` guides user through bootstrap |
-| 42 | **Undecryptable messages (key request)** | 🔶 Partial | Banner shown, but `can_request_session` button action is missing — user can't request decryption keys for undecryptable messages |
-| 43 | **Device deletion** | ✅ Done | `EncryptionService.deleteDevice()` exists |
-| 44 | **User trust / verification status (visual)** | ✅ Done | Trust indicator shown in timeline |
-| 45 | **Encryption settings in room** | 🔶 Partial | Room details shows encryption info — no way to enable/disable per-room (though this is typically set at creation) |
+### 3.4 Desktop-service hardening (audit-driven)
 
----
+All findings from the July 2026 audit pass in `WORK.md` were verified.
+The following were already resolved in the source at audit time:
 
-### 📡 Presence & Read Receipts
+| # | Area | Fix |
+|---|------|-----|
+| 1 | Notification init failures | `_initPlugin` returns `bool`; `isAvailable` flag; no silent dead service |
+| 2 | `eventId.hashCode` collision | String tags (`matrix:$roomId:$eventId`) on every platform |
+| 3 | Tray temp-dir crash | `_setup` catches, clears `_instance`, `isAvailable` gate |
+| 4 | `showTestNotification` throw | Returns `false` instead of `StateError` when plugin is null |
+| 5 | Persist-on-every-sync-tick | 750ms debounce timer |
+| 7 | Notification tap ignores payload | Reads `response.payload`, routes via `_navigate` / `_deepLinkService` |
+| 8 | Encrypted event body leak | `"(encrypted message)"` placeholder, handles `EventTypes.Encrypted` |
+| 9 | Tray ignores muted rooms | Uses `NotificationService.mutedRoomsSnapshot` + `highlightCount` |
+| 10 | Temp file leak | `_iconFile` tracked, deleted in `quit()` and on `_setup` failure |
+| 11 | DeepLink navigation duplication | Listener calls `navigateToMatrixUri` (single code path) |
+| 12 | processUri no dedup | `_isDuplicate` with 500ms window |
+| 13 | `@visibleForTesting` suppress | Documented trade-off; silent fallback is intentional |
+| 15 | Stale Tray Client on switch | Re-binds via `AccountManager` listener |
+| 16 | Unbounded event-id cache | LRU with `_notifiedIdsCacheLimit = 256` |
+| 17 | Linux plugin missing | `InitializationSettings` covers all platforms natively |
+| 26 | Method channel TypeError | `call.arguments is String` guard |
+| 27 | SSO any-path accepted | `request.uri.path != '/callback'` 404 check |
+| 30 | boot.dart silent short-circuit | `log.w` when `activeAccount` exists but `sdk.isLogged()` is false |
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 46 | **Read receipts / markers** | ❌ Missing | `Room.setTyping()` exists but `setReadMarker()` / `sendReadReceipt()` is never called — the app doesn't mark messages as read |
-| 47 | **Read status in room list** | ❌ Missing | No visual indicator of read/unread per-room (e.g. read marker position) |
-| 48 | **Typing indicators (displaying)** | ❌ Missing | `Room.typingUsers` exists in SDK — no "X is typing…" UI |
-| 49 | **Typing indicators (sending)** | ❌ Missing | `Room.setTyping(true/false)` never called — app doesn't broadcast typing |
-| 50 | **Presence display** | ❌ Missing | `User.presence` exists in SDK — no online/offline/busy indicator anywhere |
-| 51 | **Presence settings** | ❌ Missing | No UI to set own presence (`Client.setPresence()`) |
-| 52 | **Last seen / active time** | ❌ Missing | `User.lastPresenceTs` exists — not displayed in profiles |
+### 3.5 Test coverage added
 
----
-
-### 🔔 Notifications & Push
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 53 | **Push notification rules** | ❌ Missing | SDK has `PushRules` / `tryGetPushRule()` — no UI to view or edit notification preferences |
-| 54 | **Local notifications** | ❌ Missing | No `flutter_local_notifications` integration — no push-to-notification bridge |
-| 55 | **Notification count display** | 🔶 Partial | Room list shows `notificationCount` badge — but highlight count (mentions) is not distinguished |
-| 56 | **Background sync support** | ❌ Missing | No mention in SDK usage of background sync — relevant for mobile platforms |
+| File | Coverage |
+|------|----------|
+| `test/unit/notification_service_test.dart` | muted-room persistence; last-event-id; group counts; DM/group logic; sender skip; body-empty skip; current-room skip; no-op when plugin null; first-time baseline |
+| `test/unit/tray_service_test.dart` | singleton lifecycle; `isDesktop` gate; quit disposes; show/hide/toggle; tooltip format (`Moonrelay` / `Moonrelay (N)`); only writes on change |
 
 ---
 
-### 🖼️ Content & Media
+## 4. Future work
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 57 | **Content scanning / moderation** | ❌ Missing | `Client.getContentScannerConfig()` exists — no integration for blocked/safe content |
-| 58 | **Blurhash placeholders** | ❌ Missing | `blurhash_dart` is in pub cache (likely a transitive dep) — images load without low-res placeholder |
-| 59 | **Upload progress indicator** | ❌ Missing | When sending files/images, no upload progress shown in timeline |
-| 60 | **Multiple file download** | ❌ Missing | FIXME/TODO in code — can only download one file at a time |
-| 61 | **Image gallery view** | ❌ Missing | No grid/album view of all images shared in a room |
+Expected timeline: 2026 and beyond.
+
+- **Custom events (events v3)**: Git events, Map events, Realtime audio/video chat
+- **Application fundamentals v2**: Background process optimisation, Tighter system integration
 
 ---
 
-### 🧹 Room & Timeline Features
+## 5. Wishlist
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 62 | **Read marker (visual line)** | ❌ Missing | No visual "you read up to here" line in timeline |
-| 63 | **Jump to bottom / new messages** | ❌ Missing | No FAB to jump to latest messages when scrolled up |
-| 64 | **Message search in room** | ❌ Missing | `Client.search()` exists — no search UI |
-| 65 | **Pinned messages** | ❌ Missing | `m.room.pinned_events` state is rendered (one-liner) — no dedicated pinned-messages panel |
-| 66 | **Room context menu (right-click)** | ❌ Missing | Listed as v2 in WORK_NEEDED.md — not implemented |
-| 67 | **Event details / source view** | ✅ Done | `MessageDetailsPage` is comprehensive |
-| 68 | **Message redaction (delete)** | ✅ Done | Works with confirmation dialog |
-| 69 | **Reactions** | ✅ Done | Add/toggle reactions works, quick emoji picker |
-| 70 | **Redacted event rendering** | ✅ Done | `_RedactedEvent` widget exists |
+Extremely long-term; listed here to keep the design flexible.
+
+- Server SDK v1 — server-side Matrix SDK.
+- Client SDK v1 — alternative chat protocols. (Forked `matrix-dart-sdk` from Famedly.)
 
 ---
 
-### 🧭 Navigation & UI
+## FIXED
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 71 | **Direct message discovery** | ❌ Missing | `Client.directChats` available — `FriendsChatsPane` is still a `Placeholder()` |
-| 72 | **Room filtering / sorting** | ❌ Missing | No alphabetical sort, no unread-first, no filtering by name |
-| 73 | **Mobile layout** | ❌ Missing | `DashboardLayout` has responsive breakpoints but mobile shell route is commented — no bottom nav, no slide-up panels |
-| 74 | **Keyboard shortcuts** | ❌ Missing | Desktop app — no Ctrl+K (quick switcher), Ctrl+Tab (next room), Escape (mark read), etc. |
-| 75 | **Welcome / onboarding revamp** | 🔶 Partial | `StartupScreen` exists but is minimal |
-| 76 | **Room list avatars (fix)** | ❌ Missing | `// FIXME: Avatar & Badge` in `RoomsPane` — room avatars sometimes broken |
-| 77 | **Rich room list preview** | 🔶 Partial | Shows `lastEvent.body` — doesn't handle encrypted events showing as "undecryptable" in preview |
+Archive of items resolved in earlier passes. Listed bottom-to-top so the most recent fixes are at the bottom of each group.
+
+### July 2026 audit pass (from WORK.md)
+
+The 31 findings in `WORK.md` were verified against the current source:
+
+- **30 bug/correctness items** — already resolved in code at audit time
+- **1 item fixed in this pass** — #30 (boot.dart silent short-circuit): `log.w` added
+- **0 items remain open**
+
+See [§ 3.4](#34-desktop-service-hardening-audit-driven) above for the fix table.
+
+### Chat timeline & chat box
+
+- **🟠 Reply sending dropped markdown.** Fixed: `chat_box.dart:_send` builds relation payload once.
+- **🟠 Clear input before send-result known.** Fixed: draft captured before `controller.clear()`; restored on throw.
+- **🟠 `?threadRoot=` ignored.** Fixed: `room_page.dart:129` forwards `threadRootEventId`.
+- **🟠 `_UndecryptableBanner` count frozen.** Fixed: `ValueNotifier<int>` updated every visible-items build and `didUpdateWidget`.
+
+### Encryption surface
+
+- **🟠 SSSS prompt falls to spinner.** Fixed: dedicated icon, copy, `canceledReason`, Cancel button.
+- **🟠 Recovery key disclosure.** Fixed (best-effort): done state shows reminder + ack/later buttons.
+- **🟠 Three network calls per sync.** Fixed: coalesced into single in-flight `Future`; 750ms debounce.
+- **🟠 Bootstrap finish ignored.** Fixed: `onBootstrapFinished()` resets refresh and triggers full refresh.
+- **🟠 Placeholder backup numbers.** Fixed: surfaces `{exists, cached, algorithm}`.
+- **🟠 `isUserVerifiedById` comment drift.** Fixed: reads `mk.verified`.
+- **🟠 Post-login setup raced first refresh.** Fixed: `_check()` awaits `enc.init()`, waits for one sync + 900ms delay.
+
+### Markdown / HTML
+
+- **🟢 `_processBoldItalic` greedy-forward scan.** Fixed: per-character state machine.
+- **🟢 `href` attribute XSS.** Fixed `_escapeAttribute` + `_isSafeHref`. Pinned by `test/unit/markdown_round_trip_test.dart`.
+
+### Settings / persistence
+
+- **🟠 Comma / pipe separator split.** Fixed: `_readCommaSet`, `_readCommaList`, `_readSpaceGroups` use `jsonDecode` with legacy fallback.
+
+### Matrix URI
+
+- **🟠 Trailing punctuation matched.** Fixed: trailing lookbehind + bare-ID branch only accepts `@…:…` / `#…:…`.
+
+### Rooms / avatar UX
+
+- **🟠 `_buildAvatar` throws on whitespace.** Fixed: `_initialsForDisplayname` splits, filters, uses `characters.firstOrNull`; falls back to `untitledRoom`.
+
+### Login / auth
+
+- **🔴 Plaintext password leakage via login error.** Fixed: `_safeErrorMessage` maps `TimeoutException` to static copy, never touches `MatrixHttpException.toString()`. Log redaction covers `password=…`, `"password":"…"`, `password: …`.
+- **🔴 SSO redirect URL unvalidated.** Fixed: `isPlausibleHomeserverUrl` + confirmation dialog. Pinned by `test/unit/login_security_test.dart`.
+- **🟠 SSO callback hangs on error.** Fixed: every error branch completes the future with an exception and returns 4xx HTML.
+
+### Boot / persistence
+
+- **🟠 `DatabaseService` swallowed wipe failures.** Fixed: re-throws as `StateError`.
+- **🟠 `SplashScreen.updateStatus` never wired.** Fixed: `_boot` forwards every status callback.
+- **🟠 `AccountManager.switchToAccount` race.** Fixed: new pair built and persisted first, old pair disposed on microtask.
+
+### Caching / perf
+
+- **🟡 `_HtmlParseCache` keyed on `hashCode`.** Fixed: keys are `${baseFontSize}::$formattedBody`.
+- **🟡 `RoomsPane._buildAvatar` re-creates FutureBuilder.** Fixed: `cachedThumbnail` with 256-entry LRU.
+- **🟡 `_StringColor._colorCache` unbounded.** Fixed: bounded at 512; oldest evicted.
+
+### Search
+
+- **🟠 In-room search tap didn't jump.** Fixed: `onJumpToEvent` → panel-close + `_timelineKey.jumpToEvent(id)`.
+
+### Misc
+
+- **🟢 Tomorrow, today.** Moonrelay still doesn't have time travel.
 
 ---
 
-### ⚙️ Settings & Configuration
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 78 | **Multi-account support** | ❌ Missing | Single `Client` provider — no account switcher |
-| 79 | **Ignore list / user blocking** | ❌ Missing | `Client.ignoreUser()` exists — no UI |
-| 80 | **Account data management** | ❌ Missing | No way to view/edit account data (broadcast list, push rules, etc.) |
-| 81 | **Homeserver discovery / .well-known** | 🔶 Partial | SSO auto-discovery works — manual HS entry always available |
-| 82 | **Language/regional settings** | 🔶 Partial | `supportedLocales` only en — Persian mentioned as TODO |
-| 83 | **Theme customization** | ✅ Done | Light/dark/system + accent color + layout options |
-| 84 | **Font scaling** | ❌ Missing | `SettingsController` doesn't expose font scale factor |
-
----
-
-### 🧪 Testing
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 85 | **Unit tests for encryption service** | ❌ Missing | No tests for `EncryptionService` |
-| 86 | **Unit tests for chat events** | ❌ Missing | No tests for `MessageEventHandler`, `FormattedTextWidget`, event rendering |
-| 87 | **Widget tests for room list** | ❌ Missing | No tests for `RoomsPane`, `SpacesPane`, `NavigationPane` |
-| 88 | **Widget tests for chat/timeline** | ❌ Missing | No tests for `ChatTimeline`, `TimelineView`, `ChatBox` |
-| 89 | **Integration tests** | ❌ Missing | No end-to-end tests with a mock Matrix server |
-| 90 | **Snapshot / golden tests** | ❌ Missing | No visual regression tests |
-
----
-
-### 📦 Infrastructure & Polish
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 91 | **Skeleton loading / shimmer** | ❌ Missing | Mentioned in WORK_NEEDED.md as "Bad Design" — not implemented |
-| 92 | **Error handling for invalid profiles** | 🔶 Partial | FIXME mentions "Handle cases where user profile response is invalid" — may not be fully resolved |
-| 93 | **Offline support / cached timelines** | ❌ Missing | Database is set up (`sqflite`) but the app likely can't browse cached messages offline |
-| 94 | **Persian / RTL localization** | ❌ Missing | TODO in `app.dart` — only English ARB file exists |
-| 95 | **SSO registration** | ❌ Missing | Only password registration flow — no SSO registration |
-| 96 | **Dehydrated devices** | ❌ Missing | `Client.enableDehydratedDevices` exists — not used |
-| 97 | **OIDC / Matrix Native OIDC** | ❌ Missing | `Client.oidcClientId` is mentioned in SDK — not integrated in login flow |
-| 98 | **Session management (list active sessions)** | ❌ Missing | No way to see/terminate other sessions |
-| 99 | **Logout cleanup** | 🔶 Partial | `_logout` exists — verify it clears crypto state, database, and uploaded keys |
-| 100 | **Accessibility (semantics, screen reader)** | ❌ Missing | No `Semantics` widgets, no accessibility labels on custom widgets |
-
----
-
-### 🚨 Critical Path to Alpha (Top 10)
-
-If you want to ship an Alpha today, these are the blockers:
-
-1. **Read receipts / markers** — without these, rooms always show as unread
-2. **Reply sending** — reply preview UI is done, but the actual reply relationship is never attached to the sent event
-3. **Typing indicators** — sending and receiving (small but very noticeable)
-4. **Sticker support** — extremely common on Matrix, falls to unsupported
-5. **Location messages** — similarly common, rendered as unknown
-6. **FriendsChatsPane** — the direct messages pane is still a `Placeholder()`
-7. **Room list avatars fix** — the FIXME in `RoomsPane` means many rooms show broken avatars
-8. **Undecryptable key request** — banner is shown, but the button to request session keys does nothing
-9. **Message search** — users can't find past messages
-10. **Skeleton loading** — the app shows a blank screen on cold start on Linux
-
-### 📊 TL;DR Summary
-
-| Category | Total | Done | Partial | Missing |
-|----------|-------|------|---------|---------|
-| Messaging & Content | 11 | 1 | 6 | 4 |
-| Event Relationships | 7 | 1 | 2 | 4 |
-| User & Room Management | 12 | 0 | 4 | 8 |
-| Spaces | 5 | 0 | 0 | 5 |
-| Encryption | 10 | 6 | 4 | 0 |
-| Presence & Read Receipts | 7 | 0 | 0 | 7 |
-| Notifications | 4 | 0 | 1 | 3 |
-| Content & Media | 5 | 0 | 1 | 4 |
-| Room & Timeline | 9 | 4 | 1 | 4 |
-| Navigation & UI | 7 | 0 | 3 | 4 |
-| Settings | 7 | 1 | 2 | 4 |
-| Testing | 6 | 0 | 0 | 6 |
-| Infrastructure & Polish | 10 | 0 | 3 | 7 |
-| **Total** | **100** | **13** | **27** | **60** |
-
-The codebase has solid bones — good architecture, clean separation of concerns, proper state management, and solid encryption support. The gaps are mostly in the Matrix-specific feature surface rather than fundamental design issues. The encryption work in particular is quite thorough. Most missing items are "just" UI work to expose SDK capabilities that already exist.
+*See `WORK.md` for the July 2026 audit ledger. This file tracks the alpha backlog + shipped features.*

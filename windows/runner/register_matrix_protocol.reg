@@ -1,0 +1,22 @@
+Windows Registry Editor Version 5.00
+
+; ── Register moonrelay as the handler for matrix:// URLs ──
+; Run this file as Administrator to register the protocol handler.
+; Adjust the path below to match your moonrelay.exe location.
+
+[HKEY_CLASSES_ROOT\matrix]
+@="URL:Matrix Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\matrix\shell]
+@="open"
+
+[HKEY_CLASSES_ROOT\matrix\shell\open]
+@=""
+
+[HKEY_CLASSES_ROOT\matrix\shell\open\command]
+@="\"C:\\Program Files\\moonrelay\\moonrelay.exe\" \"%1\""
+
+; ── Register for matrix.to URLs (via the matrix scheme) ──
+; Also register as a browser for https://matrix.to/ via the matrix scheme.
+; Note: HTTPS protocol takeover requires additional browser-level config.

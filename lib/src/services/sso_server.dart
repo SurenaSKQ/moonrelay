@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:logger/logger.dart';
+
 /// Manages a temporary local HTTP server that receives the SSO login token
 /// callback from the browser.
 ///
@@ -37,6 +39,12 @@ class SsoCallbackServer {
 
   /// The randomly generated CSRF nonce that must appear in the callback.
   String? _expectedState;
+
+  /// Timer that closes the server after 120 seconds if no callback arrives.
+  Timer? _autoShutdownTimer;
+
+  /// Logger for forensic logging of incoming requests.
+  final Logger _log = Logger();
 
   /// The port the server is listening on, or 0 if not started.
   int get port => _port;
@@ -57,7 +65,7 @@ class SsoCallbackServer {
         List<int>.generate(32, (_) => _secureRandom.nextInt(256));
     _expectedState = base64Url.encode(nonceBytes);
 
-    // Bind to any available port on localhost.
+    // Bind to any available port on localhost (IPv4 loopback only).
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
 
@@ -72,6 +80,13 @@ class SsoCallbackServer {
     // Listen for exactly one request — the SSO redirect.
     _server!.listen(_handleRequest);
 
+    // Self-destruct timer: close server after 120 seconds even without callback.
+    _autoShutdownTimer?.cancel();
+    _autoShutdownTimer = Timer(const Duration(seconds: 120), () {
+      _log.w('SSO callback server timed out after 120s');
+      stop();
+    });
+
     return redirectUri;
   }
 
@@ -81,6 +96,8 @@ class SsoCallbackServer {
 
   /// Stops the local server if it is running.
   Future<void> stop() async {
+    _autoShutdownTimer?.cancel();
+    _autoShutdownTimer = null;
     await _server?.close(force: true);
     _server = null;
     _port = 0;
@@ -90,10 +107,54 @@ class SsoCallbackServer {
     // and the caller is responsible for a timeout.
   }
 
-  void _handleRequest(HttpRequest request) {
+  Future<void> _handleRequest(HttpRequest request) async {
+    // ── Reject anything that isn't the SSO callback path ──────────
+    // A misbehaving browser tab that hits `/` or any other path would
+    // otherwise keep the connection open until the auto-shutdown fires.
+    // Returning a 404 closes the request promptly and surfaces the
+    // wrong-port / wrong-host origin to the user.
+    if (request.uri.path != '/callback') {
+      _log.w('SSO: rejected non-callback request to "${request.uri.path}"');
+      request.response.statusCode = 404;
+      request.response.headers.contentType = ContentType.html;
+      request.response.write(
+        '<!doctype html><html><body>'
+        '<h1>404 Not Found</h1>'
+        '<p>This server only accepts SSO callbacks at <code>/callback</code>.</p>'
+        '<p>Please return to Moonrelay and retry the sign-in flow.</p>'
+        '</body></html>',
+      );
+      await request.response.close();
+      return;
+    }
+
+    // ── Validate the Host header ────────────────────────────
+    final host = request.headers.value('host');
+    if (host == null || host != 'localhost:$_port') {
+      _log.w('SSO: rejected request with Host header "$host"');
+      _respondWithError(
+        request,
+        'Invalid Request',
+        'This server only accepts SSO callbacks on its own port. '
+        'Please restart the sign-in flow in Moonrelay.',
+      );
+      if (!_completer!.isCompleted) {
+        _completer!.completeError(
+          const FormatException('SSO callback rejected: bad host header'),
+        );
+      }
+      stop();
+      return;
+    }
+
     // ── Only accept GET ───────────────────────────────────────────
     if (request.method.toUpperCase() != 'GET') {
-      _respondWithText(request, 405, 'Method Not Allowed');
+      _respondWithError(
+        request,
+        'Method Not Allowed',
+        'Only the browser redirect (GET) is supported. '
+        'Return to the application and try again.',
+      );
       return;
     }
 
@@ -104,15 +165,28 @@ class SsoCallbackServer {
     if (_expectedState == null ||
         receivedState == null ||
         receivedState != _expectedState) {
-      _respondWithText(request, 403, 'Invalid or missing state parameter');
+      _respondWithError(
+        request,
+        'Invalid State',
+        'The SSO callback did not include a valid state parameter. '
+        'This can happen if the request is replayed or the state '
+        'expired. Please return to the application and try again.',
+      );
+      if (!_completer!.isCompleted) {
+        _completer!.completeError(
+          const FormatException('SSO callback rejected: bad state'),
+        );
+      }
+      stop();
       return;
     }
 
+    // ── Invalidate state immediately + close server (single-use) ──
+    _expectedState = null;
+    stop();
+
     // ── Try to extract the login token ────────────────────────────
     final String? loginToken = uri.queryParameters['loginToken'];
-
-    // Invalidate the state immediately — it's single-use.
-    _expectedState = null;
 
     if (loginToken != null && loginToken.isNotEmpty) {
       // ── Success path ──
@@ -147,14 +221,34 @@ class SsoCallbackServer {
         parameter and copy it into the application manually.</p>
         ''',
       );
+      if (!_completer!.isCompleted) {
+        // Signal failure to the login flow so the UI can abort cleanly
+        // instead of waiting forever for a token.
+        _completer!.completeError(
+          const FormatException('SSO callback had no login token'),
+        );
+      }
     }
   }
 
-  void _respondWithText(HttpRequest request, int statusCode, String body) {
-    request.response.statusCode = statusCode;
-    request.response.headers.contentType = ContentType.text;
-    request.response.write(body);
-    request.response.close();
+  /// Sends a styled error page so the browser tab doesn't hang waiting
+  /// for a result that the application never receives.
+  void _respondWithError(
+    HttpRequest request,
+    String title,
+    String bodyHtml,
+  ) {
+    _respondWithPage(
+      request,
+      400,
+      title,
+      '''
+      <p style="font-size:16px;color:#dc2626;">
+        ⚠ $title
+      </p>
+      <p>$bodyHtml</p>
+      ''',
+    );
   }
 
   void _respondWithPage(

@@ -21,6 +21,13 @@ flutter test test/unit/
 # Run only widget tests
 flutter test test/widget/
 
+# Run E2E (integration) tests on desktop
+flutter test integration_test/ -d windows   # Windows
+flutter test integration_test/ -d linux     # Linux
+
+# Run a single E2E test file
+flutter test integration_test/login_test.dart -d windows
+
 # Generate localization code (after editing .arb files)
 flutter gen-l10n
 
@@ -40,21 +47,29 @@ lib/
     screens/                  # Full-page views (rooms, profiles, settings, etc.)
       encryption/             # Encryption setup screens
     chat/                     # Chat widgets (timeline, chat box, events)
-      events/matrix_events/   # Message type renderers (text, image, audio, file, video)
-      events/matrix_events/Message/   # Modern, Bubble, IRC display styles
+      events/matrix_events/     # Message type renderers (image, audio, file, video, sticker)
       events/matrix_events/State/     # State event renderers, verification events
+      events/
+        message_body.dart               # Shared text/HTML body renderer for all display styles
+        matrix_url_banner.dart           # Banner for matrix:// / matrix.to URLs in messages
+        matrix_url_banner_wrapper.dart   # Scans message body & appends banners
     widgets/                  # Reusable UI components
       encryption/             # Incoming verification listener, trust indicators
+      deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
     helpers/                  # Data-free utility classes & shared state
-    services/                 # SSO callback server (only service)
+      matrix_uri_parser.dart  # Parses matrix: and matrix.to URIs
+    services/                 # Database lifecycle, SSO callback, deep links, notifications
+      database_service.dart  # Schema version checks, backup-before-wipe, MatrixSdkDatabase creation
+      deep_link_service.dart  # Handles incoming matrix:// URLs via method channel
     layouts/                  # Frame and dashboard layout widgets
     settings/                 # Controller, service, theme, display/layout enums
     encryption/               # EncryptionService (cross-signing, key backup, devices)
     localization/             # ARB file + generated l10n code
-    core/                     # (empty — reserved for future use)
-    matrix/                   # (empty — reserved for future use)
+    events/
+      message_body.dart       # Shared text/HTML body renderer for all display styles
 test/
   unit/                       # Pure Dart tests (no Flutter dependency)
+    matrix_uri_parser_test.dart  # 25 tests for MatrixUriParser
   widget/                     # Flutter widget tests
   helpers/                    # Shared test utilities (mocks, wrapWithProviders)
 ```
@@ -75,9 +90,15 @@ main() → MoonrelayBootstrap → _boot()
      f. System theme + SettingsController load
      g. Window manager setup (custom titlebar on desktop)
      h. EncryptionService init
+     i. CurrentRoom init
+     j. NotificationService init
+     k. TrayService init (desktop only)
+     l. DeepLinkService init (method channel for matrix:// URLs)
+     m. AccountManager wiring
   3. MultiProvider wraps MoonrelayApp with:
      - Client, Logger, LogService (Provider)
-     - SettingsController, NavigationState, EncryptionService, CurrentRoom (ChangeNotifierProvider)
+     - SettingsController, NavigationState, EncryptionService, CurrentRoom, AccountManager (ChangeNotifierProvider)
+     - NotificationService, DeepLinkService (Provider)
 ```
 
 Key: `kDbSchemaVersion` constant controls DB wipe. Bump on every release during alpha.
@@ -162,6 +183,9 @@ final result = await withRetry(() => someOperation(), log: log, label: 'op');
 - `test/unit/` — pure Dart tests (no Flutter dependency needed)
 - `test/widget/` — Flutter widget tests
 - `test/helpers/` — shared mocks and provider wrappers
+- `integration_test/` — E2E (integration) tests that run against a real app on desktop
+  - `integration_test/helpers/mock_matrix_http_client.dart` — mock HTTP for the Matrix SDK
+  - `integration_test/helpers/test_app_boot.dart` — `buildTestApp()` helper that wires providers + mocked Client
 
 ### Mocking
 - **mocktail** (not mockito) — no code generation needed
@@ -181,6 +205,39 @@ testWidgets('description', (tester) async {
   await tester.pumpWidget(wrapWithProviders(child: MyWidget()));
   await tester.pump();
   expect(find.text('expected'), findsOneWidget);
+});
+```
+
+### E2E (integration) test patterns
+
+E2E tests live in `integration_test/` and use the `integration_test` package. They compile into the app binary and run on a real desktop target.
+
+**Architecture:** The Matrix SDK's `Client` accepts an `http.Client?` parameter. E2E tests inject a `MockMatrixHttpClient` that intercepts all Matrix HTTP calls (login, sync, send, etc.) and returns pre-configured JSON responses. This makes tests deterministic, fast, and independent of a real Matrix server.
+
+**Key files:**
+- `integration_test/helpers/mock_matrix_http_client.dart` — stateful mock that holds room data and builds sync responses
+- `integration_test/helpers/test_app_boot.dart` — `buildTestApp(mockHttp:)` performs a minimal boot (native crypto + SQLite + mock Client) and returns a provider-wrapped widget tree
+
+**Sync loop note:** The Matrix SDK runs a periodic sync timer. Use `tester.pump()` (not `pumpAndSettle()`) to advance the fake clock without blocking on the active timer. Multiple pumps flush the async login → sync → navigation chain.
+
+```dart
+IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+testWidgets('login then see rooms', (tester) async {
+  final mockHttp = MockMatrixHttpClient();
+  mockHttp.addRoom(id: '!room:dom', name: 'General', topic: 'Chat', timelineEvents: []);
+  // Register HTTP handlers
+  mockHttp.on(RegExp(r'_matrix/client/v3/login$'), handler: (req) => ...);
+  mockHttp.on(RegExp(r'_matrix/client/v3/sync'), handler: (_) => jsonResponse(200, mockHttp.buildSyncResponse()));
+
+  await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
+  // Flush redirect chain
+  await tester.pump(); await tester.pump(); await tester.pump();
+
+  // Interact with the real app UI
+  await tester.tap(find.text('Sign In'));
+  await tester.pump(); await tester.pump();
+  // ...enter credentials, tap sign in, verify room list...
 });
 ```
 
@@ -219,13 +276,17 @@ testWidgets('description', (tester) async {
 
 8. **No CI found**: No `.github/` workflows. `dart analyze` must pass before PRs (per README).
 
-9. **`lib/src/core/` and `lib/src/matrix/` are empty**: Reserved for future refactoring — don't assume they contain anything.
+9. **`metadata` file exists**: Don't modify `.metadata` — Flutter uses it internally.
 
-10. **`metadata` file exists**: Don't modify `.metadata` — Flutter uses it internally.
+10. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
 
-11. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
+11. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
 
-12. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
+12. **Matrix URL banners in chat**: Text content wraps with `MatrixUrlBannerWrapper`, which scans the message body for `matrix:` and `matrix.to` URLs and appends `MatrixUrlBanner` widgets. The banner shows room/user info and a "Go to Room" / "Preview Room" / "Open Profile" button. Detection uses `MatrixUriParser.parseAll()`. The text body itself is rendered by the shared `MessageBody` widget.
+
+13. **Deep link service**: `DeepLinkService` listens on a method channel (`moonrelay/deep_links`) for `openUri` calls and also checks command-line args for `matrix:` URIs on startup. The `DeepLinkListener` widget (inside the MaterialApp.router tree) registers the navigation callback. Platform registration files are in `windows/runner/register_matrix_protocol.reg` and `linux/runner/moonrelay.desktop`.
+
+14. **Windows protocol registration**: Run `windows/runner/register_matrix_protocol.reg` as Administrator to register `matrix://` URL handling. On Linux, run `xdg-desktop-menu install linux/runner/moonrelay.desktop && xdg-mime default moonrelay.desktop x-scheme-handler/matrix`.
 
 ## Edge Cases When Editing
 

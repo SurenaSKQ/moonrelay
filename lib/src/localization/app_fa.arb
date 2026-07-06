@@ -1,0 +1,2409 @@
+{
+  "@@locale": "fa",
+  "@@author": "Surena Karimpour Ghannadi",
+
+  "appLicenseNotice": "این برنامه تحت مجوز همگانی آفرو GNU AGPL نسخه ۳ یا بالاتر در اختیار شما قرار گرفته است. اگر مجوز را به همراه برنامه دریافت نکرده‌اید، لطفاً برای اطلاعات بیشتر به مخزن Moonrelay مراجعه کنید.",
+  "@appLicenseNotice": {
+    "description": "Inform the user of the license and how to obtain it."
+  },
+
+  "appTitle": "Moonrelay (Alpha)",
+  "@appTitle": {
+    "description": "The main application title shown in the window header."
+  },
+
+  "projectName": "Moonrelay (Alpha)",
+  "@projectName": {
+    "description": "The brand name of the application."
+  },
+
+  "author": "Surena Karimpour Ghannadi",
+  "@author": {
+    "description": "The application author's name."
+  },
+
+  "loading": "در حال بارگذاری…",
+  "done": "انجام شد",
+  "close": "بستن",
+  "cancel": "لغو",
+  "ok": "تأیید",
+  "retry": "تلاش مجدد",
+  "back": "بازگشت",
+  "error": "خطا",
+  "warning": "هشدار",
+  "unknown": "نامشخص",
+  "notSet": "تنظیم نشده",
+
+  "homeserverText": "سرور اصلی",
+
+  "confirmClose": "تأیید خروج",
+  "areYouSureExit": "آیا از خروج از برنامه مطمئن هستید؟",
+  "yesOrAffirmitive": "بله",
+  "noOrCancellation": "خیر",
+  "collapseSidebar": "جمع کردن نوار کناری",
+  "expandSidebar": "باز کردن نوار کناری",
+  "minimize": "کوچک کردن",
+  "maximize": "بزرگ کردن",
+  "restore": "بازیابی",
+  "closeWindow": "بستن پنجره",
+  "showSystemMenu": "نمایش منوی سیستم",
+
+  "lightMode": "حالت روشن",
+  "darkMode": "حالت تاریک",
+  "home": "خانه",
+  "directMessages": "پیام‌های مستقیم",
+
+  "thirdPartyLicense": "مجوزها",
+  "privacyPolicy": "حریم خصوصی و داده‌های شما",
+
+  "startupTagline": "پیام‌رسان منفعت عمومی",
+  "startupDescription": "یک کلاینت Matrix امن و غیرمتمرکز با تمرکز بر ارتباطات حرفه‌ای.",
+  "getStarted": "شروع کنید",
+  "signInDescription": "به حساب موجود خود وارد شوید یا یک حساب جدید ایجاد کنید.",
+  "signIn": "ورود",
+  "createAccount": "ایجاد حساب",
+  "signInWithSso": "Sign in with Single Sign-On",
+  "welcomeToApp": "Welcome to Moonrelay",
+  "syncingYourAccount": "Syncing your account…",
+  "fetchingRooms": "Fetching your rooms and messages…",
+
+  "loginButton": "Sign In",
+  "signInTitle": "Sign In",
+  "ssoTitle": "Single Sign-On",
+  "tokenLoginTitle": "Token Login",
+  "usernameOrEmail": "Username or email",
+  "usernameHint": "@user:matrix.org",
+  "passwordText": "Password",
+  "passwordHint": "Enter your password",
+  "ssoUrlLabel": "SSO Login URL",
+  "ssoStartingHint": "Click \"Open in Browser\" to start.",
+  "tokenLabel": "Login Token",
+  "tokenHint": "Paste your login token here…",
+  "signingIn": "Signing in…",
+  "openInBrowser": "Open in Browser",
+  "preparing": "Preparing…",
+  "completeLogin": "Complete Login",
+  "signInWithToken": "Sign in with Token",
+  "useSsoInstead": "Use Single Sign-On instead",
+  "usePasswordInstead": "Use password instead",
+  "useTokenInstead": "Use login token instead",
+  "backToPasswordLogin": "Back to password login",
+
+  "loginHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
+  "loginHomeserverError": "Could not connect to homeserver: {error}",
+  "@loginHomeserverError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "passwordLoginNotSupported": "This homeserver does not support password login.",
+  "ssoNotSupported": "This homeserver does not support SSO login.",
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "loginTimedOut": "Login timed out. The server may be overloaded. Please try again.",
+  "tokenLoginFailed": "Token login failed: {error}",
+  "@tokenLoginFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "pleaseEnterToken": "Please enter a login token.",
+  "pleasePasteToken": "Please paste the login token from your browser.",
+  "couldNotOpenBrowser": "Could not open browser. Use the URL above.",
+
+  "ssoWaitingForBrowser": "Waiting for browser authentication…",
+  "ssoSwitchToManual": "Switch to manual setup",
+  "ssoAutomaticFailed": "Automatic SSO login failed. You can try manually below.",
+  "ssoLocalServerError": "Could not start local server. Trying manual method.",
+  "ssoWaitingForToken": "Waiting for the login token from your browser…",
+  "ssoTokenDetected": "Login token received! Completing sign-in…",
+  "ssoPasteManually": "Paste token manually",
+  "ssoConfirmHomeserverTitle": "Continue with single sign-on?",
+  "ssoConfirmHomeserverBody": "You are about to open a browser window and send your SSO credentials to the following homeserver:\n\n{host}\n\nOnly proceed if this is the homeserver you intended to sign in to. A wrong or unfamiliar address can leak your SSO credentials to a third party.",
+  "ssoConfirmHomeserverContinue": "Continue",
+  "ssoConfirmHomeserverSwitch": "Use a different server",
+  "ssoHomeserverInvalid": "The homeserver address is not a valid URL.",
+  "untitledRoom": "(untitled room)",
+
+  "encryptionRecoveryKeyReminderTitle": "Encryption set up",
+  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key — the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
+  "encryptionRecoveryKeyReminderAck": "I have saved my recovery key",
+  "encryptionRecoveryKeyReminderLater": "I'll do this later",
+
+  "registerTitle": "Create Account",
+  "registerHomeserverHint": "matrix.org",
+  "usernameText": "Username",
+  "usernameHint": "Choose a username",
+  "confirmPasswordLabel": "Confirm password",
+  "agreeToTerms": "I agree to the Terms of Service of this homeserver",
+  "creatingAccount": "Creating account…",
+  "alreadyHaveAccount": "Already have an account? Sign in",
+
+  "usernameRequired": "Please enter a username.",
+  "usernameNoAt": "Enter just the local part (e.g. \"alice\"), not your full Matrix ID.",
+  "usernameTooShort": "Username must be at least 3 characters.",
+  "passwordRequired": "Please enter a password.",
+  "passwordTooShort": "Password must be at least 8 characters.",
+  "passwordsDoNotMatch": "Passwords do not match.",
+  "mustAgreeToTerms": "You must agree to the Terms of Service.",
+
+  "registerHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
+  "registerHomeserverError": "Could not connect to homeserver: {error}",
+  "@registerHomeserverError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "registerRequiresAdditionalSteps": "This homeserver requires additional steps to register (e.g. email verification or CAPTCHA). Please create an account on the homeserver's website instead.",
+  "registerTimedOut": "Registration timed out. The server may be overloaded. Please try again.",
+  "registerFailed": "Registration failed: {error}",
+  "@registerFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "chatBoxSendMessage": "Send a message…",
+  "chatBoxSend": "Send",
+  "chatBoxAttach": "Attach file",
+  "chatBoxExpand": "Expand editor",
+  "chatBoxCollapse": "Collapse",
+  "chatBoxReplyingTo": "Replying to {sender}",
+  "@chatBoxReplyingTo": {
+    "description": "Label shown in the reply preview banner.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "chatBoxSticker": "Sticker",
+  "@chatBoxSticker": {
+    "description": "Tooltip for the sticker picker button in the chat box."
+  },
+  "chatBoxCancelReply": "Cancel reply",
+
+  "formatBold": "Bold",
+  "formatItalic": "Italic",
+  "formatStrikethrough": "Strikethrough",
+  "formatInlineCode": "Inline code",
+  "formatCodeBlock": "Code block",
+  "formatBlockquote": "Blockquote",
+  "formatHeading": "Heading",
+  "formatUnorderedList": "Unordered list",
+  "formatOrderedList": "Ordered list",
+  "formatLink": "Link",
+
+  "sendFailed": "Failed to send message.",
+  "sendTimedOut": "The request timed out.",
+  "uploadTimedOut": "Upload timed out.",
+
+  "reactTooltip": "React",
+  "replyTooltip": "Reply",
+  "forwardTooltip": "Forward",
+  "forwardMessageTitle": "Forward Message",
+  "@forwardMessageTitle": {
+    "description": "Title of the forward message dialog."
+  },
+  "forwardSearchRooms": "Search rooms…",
+  "@forwardSearchRooms": {
+    "description": "Hint text for the room search field in the forward dialog."
+  },
+  "forwardNoRooms": "No other rooms to forward to",
+  "@forwardNoRooms": {
+    "description": "Empty state when the user has no other rooms."
+  },
+  "forwardNoMatchingRooms": "No rooms match your search",
+  "@forwardNoMatchingRooms": {
+    "description": "Empty state when the search filter matches no rooms."
+  },
+  "forwardMessagePreviewLabel": "Forwarding",
+  "@forwardMessagePreviewLabel": {
+    "description": "Label above the message preview in the forward dialog."
+  },
+  "forwardNonTextContent": "(non-text content)",
+  "@forwardNonTextContent": {
+    "description": "Fallback text shown when the forwarded message has no text body."
+  },
+  "forwardMessageSent": "Forwarded to {room}",
+  "@forwardMessageSent": {
+    "description": "Snackbar confirmation after forwarding a message.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "forwardFailed": "Failed to forward: {error}",
+  "@forwardFailed": {
+    "description": "Error shown when forwarding fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "copyTooltip": "Copy",
+  "detailsTooltip": "Details",
+  "deleteTooltip": "Delete",
+  "messageCopiedToClipboard": "Message copied to clipboard",
+  "deleteMessage": "Delete message",
+  "areYouSureDeleteMessage": "Are you sure you want to delete this message?",
+  "delete": "Delete",
+  "failedToDelete": "Failed to delete: {error}",
+  "@failedToDelete": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "failedToSendReaction": "Failed to send reaction: {error}",
+  "@failedToSendReaction": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "couldNotLoadMessages": "Could not load messages",
+  "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
+  "encryptionUndecryptableMessage": "message can't be decrypted",
+  "encryptionUndecryptableMessages": "messages can't be decrypted",
+  "messageDeleted": "Message deleted",
+  "unsupportedEvent": "{sender} has sent an unsupported event of type {type} with messageType {messageType}",
+  "@unsupportedEvent": {
+    "placeholders": {
+      "sender": { "type": "String" },
+      "type": { "type": "String" },
+      "messageType": { "type": "String" }
+    }
+  },
+  "noTopicSet": "No topic set",
+  "stateEventCount": "{count} state events",
+  "@stateEventCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "roomInfoTitle": "Room Info",
+  "roomSettings": "Room Settings",
+  "@roomSettings": {
+    "description": "Title for the room settings page."
+  },
+  "roomSettingsDescription": "Manage room settings and moderation",
+  "@roomSettingsDescription": {
+    "description": "Subtitle for the room settings action."
+  },
+  "copyRoomIdTooltip": "Copy Room ID",
+  "actionsSection": "Actions",
+
+  "roleLabel": "Role",
+  "statusLabel": "Status",
+  "reportUserReason": "Please describe why you are reporting this user.",
+  "reportUserHint": "Reason for report…",
+
+  "leaveRoom": "Leave Room",
+  "leaveRoomDescription": "Remove yourself from this room",
+  "copyRoomId": "Copy Room ID",
+  "detailsSection": "Details",
+  "roomIdLabel": "Room ID",
+  "@roomIdLabel": {
+    "description": "Label for the room/space ID field."
+  },
+  "typeLabel": "Type",
+  "encryptionLabel": "Encryption",
+  "addressLabel": "Address",
+  "createdLabel": "Created",
+  "endToEndEncrypted": "End-to-end encrypted",
+  "notEncrypted": "Not encrypted",
+  "securitySection": "Security",
+  "notEnabled": "Not enabled",
+  "membersSection": "Members",
+  "directMessage": "Direct Message",
+  "spaceType": "Space",
+  "publicRoom": "Public Room",
+  "privateRoom": "Private Room",
+  "unknownDate": "Unknown",
+  "leaveRoomTitle": "Leave Room",
+  "leaveRoomConfirm": "Are you sure you want to leave \"{roomName}\"?",
+  "@leaveRoomConfirm": {
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "leave": "Leave",
+  "failedToLeaveRoom": "Failed to leave room: {error}",
+  "@failedToLeaveRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "roomIdCopied": "Room ID copied to clipboard",
+
+  "knockRoom": "Knock",
+  "@knockRoom": {
+    "description": "Button label for knocking (requesting to join) a room."
+  },
+  "knockRoomDescription": "Request to join this room",
+  "@knockRoomDescription": {
+    "description": "Subtitle for the knock action."
+  },
+  "knockingRoom": "Knocking…",
+  "@knockingRoom": {
+    "description": "Loading state while sending a knock request."
+  },
+  "knockSent": "Knock sent to {room}",
+  "@knockSent": {
+    "description": "Confirmation shown after successfully knocking on a room.",
+    "placeholders": {
+      "room": { "type": "String" }
+    }
+  },
+  "knockFailed": "Failed to knock: {error}",
+  "@knockFailed": {
+    "description": "Error shown when knocking fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "knockRetracted": "Knock retracted",
+  "@knockRetracted": {
+    "description": "Confirmation after retracting a knock."
+  },
+  "knockRetractFailed": "Failed to retract knock: {error}",
+  "@knockRetractFailed": {
+    "description": "Error shown when retracting a knock fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "retractKnock": "Retract knock",
+  "@retractKnock": {
+    "description": "Button label to retract a pending knock request."
+  },
+  "roomTypeKnock": "Knock-based room",
+  "@roomTypeKnock": {
+    "description": "Label for rooms with knock join rules."
+  },
+  "roomTypeRestricted": "Restricted room",
+  "@roomTypeRestricted": {
+    "description": "Label for rooms with restricted join rules."
+  },
+  "roomTypeInviteOnly": "Invite only",
+  "@roomTypeInviteOnly": {
+    "description": "Label for invite-only rooms."
+  },
+  "joinRequiresKnock": "This room requires approval to join. Would you like to knock instead?",
+  "@joinRequiresKnock": {
+    "description": "Prompt shown when trying to join a room that requires knocking."
+  },
+  "knockReasonHint": "Optional reason for knocking…",
+  "@knockReasonHint": {
+    "description": "Hint text for the knock reason input field."
+  },
+  "editRoomName": "Edit Room Name",
+  "editRoomNameHint": "Enter a new name for this room",
+  "editRoomTopic": "Edit Topic",
+  "editRoomTopicHint": "Enter a new topic for this room",
+  "changeRoomAvatar": "Change Avatar",
+  "changeRoomAvatarDescription": "Upload a new room picture",
+  "removeRoomAvatar": "Remove Avatar",
+  "roomNameUpdated": "Room name updated",
+  "roomTopicUpdated": "Room topic updated",
+  "roomAvatarUpdated": "Room avatar updated",
+  "saving": "Saving…",
+  "showAllMembers": "Show all members ({count})",
+  "@showAllMembers": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "viewProfile": "View Profile",
+  "sendMessage": "Send Message",
+  "couldNotOpenChat": "Could not open chat: {error}",
+  "@couldNotOpenChat": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "userIsVerified": "User is verified",
+  "userIsNotVerified": "User is not verified",
+  "adminBadge": "Admin",
+  "moderatorBadge": "Moderator",
+  "bannedBadge": "Banned",
+  "invitedBadge": "Invited",
+  "knockingBadge": "Knocking",
+  "leftBadge": "Left",
+
+  "membersCount": "Members ({count})",
+  "@membersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchMembers": "Search members…",
+  "noMembersMatchSearch": "No members match your search",
+  "noMembersFound": "No members found",
+  "searchUsers": "Search users…",
+  "@searchUsers": {
+    "description": "Placeholder text for the user search field."
+  },
+  "searchUsersHint": "Search for users by name or Matrix ID to start a direct chat.",
+  "@searchUsersHint": {
+    "description": "Hint shown when the user search field is empty."
+  },
+  "noUsersFound": "No users match your search",
+  "@noUsersFound": {
+    "description": "Message shown when the user search returns no results."
+  },
+  "searching": "Searching…",
+  "@searching": {
+    "description": "Message shown while searching the user directory."
+  },
+  "startDirectChat": "Start DM",
+  "@startDirectChat": {
+    "description": "Button label to start a direct chat with a user."
+  },
+  "directChatSearch": "Direct Messages",
+  "@directChatSearch": {
+    "description": "Tab title for finding users and starting direct chats."
+  },
+  "couldNotStartChatTimeout": "Could not start chat: The server did not respond in time.",
+  "couldNotStartChat": "Could not start chat: {error}",
+  "@couldNotStartChat": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "messageDetails": "Message Details",
+  "senderSection": "Sender",
+  "displayNameLabel": "Display name",
+  "userIdLabel": "User ID",
+  "timestampsSection": "Timestamps",
+  "sentAt": "Sent at",
+  "eventInfo": "Event Info",
+  "eventType": "Event type",
+  "eventId": "Event ID",
+  "roomId": "Room ID",
+  "statusLabel": "Status",
+  "redactedStatus": "Redacted (deleted)",
+  "activeStatus": "Active",
+  "relationshipLabel": "Relationship",
+  "relatedEventId": "Related event ID",
+  "replyToEventId": "Reply to event ID",
+  "rawContent": "Raw Content",
+
+  "joinRoomInstructions": "Search for the room you wish to join:",
+  "roomIdOrAlias": "Room ID or Alias",
+  "serverInstructions": "Enter the server to join through:",
+  "serverOptionalHint": "If left empty, your own homeserver will be used.",
+  "serverLabel": "Server",
+  "joining": "Joining…",
+  "addRoom": "Add Room",
+  "joiningTimedOut": "Joining room timed out. The server may be unreachable.",
+  "couldNotJoinRoom": "Could not join room: {error}",
+  "@couldNotJoinRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "createNewRoom": "Create New Room",
+  "createRoom": "Create Room",
+  "creatingRoomTimedOut": "Creating room timed out. The server may be unreachable.",
+  "couldNotCreateRoom": "Could not create room: {error}",
+  "@couldNotCreateRoom": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "loadingRooms": "Loading rooms…",
+  "noRoomsYet": "No rooms yet",
+  "noMessages": "No messages",
+  "couldNotJoinRoomTimeout": "Could not join room: The server did not respond in time.",
+
+  "accounts": "Accounts",
+  "manageAccounts": "Manage your connected Matrix accounts",
+  "myProfile": "My Profile",
+  "appSettings": "App Settings",
+  "customizeExperience": "Customize your experience",
+  "appearance": "Appearance",
+  "controlLookAndFeel": "Control the look and feel of the app",
+  "layout": "Layout",
+  "customizeLayout": "Customize the arrangement of UI panels",
+  "encryptionAndSecurity": "Encryption & Security",
+  "chatSettings": "Chat",
+  "timelineAndMessages": "Timeline and message display options",
+  "selectCategory": "Select a category",
+
+  "themeMode": "Theme mode",
+  "system": "System",
+  "light": "Light",
+  "dark": "Dark",
+  "colourTheme": "Colour theme",
+  "enable": "Enable",
+  "chatDisplayType": "Chat display type",
+
+  "leftSidebar": "Left sidebar",
+  "visible": "Visible",
+  "showOrHideLeftSidebar": "Show or hide the left sidebar",
+  "content": "Content",
+  "widthLabel": "Width",
+  "rooms": "Rooms",
+  "spaces": "Spaces",
+  "friends": "Friends",
+  "hidden": "Hidden",
+  "rightSidebar": "Right sidebar (experimental)",
+  "showOrHideRightSidebar": "Show or hide the right sidebar (hidden on medium screens)",
+  "none": "None",
+  "roomInfo": "Room Info",
+  "members": "Members",
+  "header": "Header",
+  "reversedHeader": "Reversed header",
+  "reversedHeaderDescription": "Window buttons on the left, title on the right",
+  "stateEventsSection": "State events",
+  "showStateEvents": "Show state events",
+  "showStateEventsDescription": "Display join/leave/room changes in the timeline",
+  "hub": "Hub",
+  "logOut": "Log Out",
+  "sessions": "Sessions",
+
+  "ownProfileDescriptor": "Your Profile",
+  "profileLoadError": "Could not load profile: {error}",
+  "@profileLoadError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "profileLoadTimeout": "Could not load profile: The server did not respond in time.",
+  "noDisplayNameSet": "You have not set a display name!",
+
+  "profilePageTitle": "Profile View",
+  "userProfilePageBanner": "{username}'s Profile",
+  "@userProfilePageBanner": {
+    "placeholders": {
+      "username": { "type": "String" }
+    }
+  },
+  "userNoDisplayNameSet": "The user has not set a display name!",
+
+  "encryptionSecurity": "Encryption & Security",
+  "encryptionSetupTitle": "Encryption Setup",
+  "encryptionCrossSigning": "Cross-Signing",
+  "encryptionCrossSigningActive": "Cross-signing is active",
+  "encryptionCrossSigningInactive": "Cross-signing is not set up",
+  "encryptionDeviceVerified": "This device is verified",
+  "encryptionDeviceNotVerified": "This device is not verified",
+  "encryptionBootstrap": "Set Up Encryption",
+  "encryptionReBootstrap": "Re-run Setup",
+  "encryptionDevices": "Devices",
+  "encryptionDevicesLower": "devices",
+  "encryptionManageDevices": "Manage Devices",
+  "encryptionNoDevices": "No devices found",
+  "encryptionDevice": "Device",
+  "encryptionThisDevice": "This device",
+  "encryptionDeleteDevice": "Delete Device",
+  "encryptionDeleteDeviceConfirm": "Are you sure you want to delete",
+  "encryptionDeleteDeviceWarning": "This will permanently sign out the selected session. You will need to log in again from that device.",
+  "encryptionDeleteDeviceConfirmButton": "Delete Session",
+  "encryptionMarkAsVerifiedTitle": "Mark Device as Verified",
+  "encryptionMarkAsVerifiedDesc": "This will trust \"{device}\" and all future messages from it. Only verify devices you recognise.",
+  "@encryptionMarkAsVerifiedDesc": {
+    "placeholders": {
+      "device": { "type": "String" }
+    }
+  },
+  "encryptionMarkAsUnverifiedTitle": "Mark Device as Unverified",
+  "encryptionMarkAsUnverifiedDesc": "This will stop trusting \"{device}\" for encryption verification. Messages from it will show an unverified warning.",
+  "@encryptionMarkAsUnverifiedDesc": {
+    "placeholders": {
+      "device": { "type": "String" }
+    }
+  },
+  "encryptionDeviceDeleted": "Device deleted",
+  "encryptionMarkAsVerified": "Mark as Verified",
+  "encryptionMarkAsUnverified": "Mark as Unverified",
+  "encryptionKeyBackup": "Key Backup",
+  "encryptionKeyBackupActive": "Key backup is enabled",
+  "encryptionKeyBackupInactive": "Key backup is not enabled",
+  "encryptionSetupKeyBackup": "Set Up Key Backup",
+  "encryptionSetupCrossSigningFirst": "Set up cross-signing first",
+  "encryptionVerifiedUsers": "Verified Users",
+  "encryptionUnverifiedOwn": "My unverified devices",
+  "encryptionUnverifiedOther": "Unverified other users",
+  "encryptionVerifyUser": "Verify User",
+  "encryptionUserVerified": "This user is verified",
+  "encryptionUserNotVerified": "This user is not verified",
+  "encryptionVerify": "Verify",
+  "encryptionNoKeyInfo": "No key information",
+  "encryptionEnabledTitle": "Encrypted",
+  "encryptionNotEnabledTitle": "Not Encrypted",
+  "encryptionStatusInfo": "End-to-end encryption status",
+  "encryptionDecryptionFailed": "Decryption failed",
+  "encryptionRequestKeys": "Request keys",
+  "encryptionKeysRequested": "Key request sent to other devices",
+  "encryptionUnsupported": "Encryption is not supported in this build",
+  "encryptionSetupCrossSigning": "Set Up Cross-Signing",
+  "encryptionSetupCrossSigningDesc": "Cross-signing allows you to verify other users and devices. This will create signing keys that are stored in your encrypted secret storage.",
+  "encryptionSetupAllKeys": "Set Up All Keys",
+  "encryptionSkipKeySetup": "Skip Key Setup",
+  "encryptionExistingSsssFound": "Existing encrypted secrets storage found",
+  "encryptionWipeExisting": "Wipe and Start Fresh",
+  "encryptionKeepExisting": "Keep Existing",
+  "encryptionUseExistingSsss": "Use Existing Secret Storage",
+  "encryptionBadSsss": "Some secrets could not be read. Continue anyway?",
+  "encryptionContinueAnyway": "Continue Anyway",
+  "encryptionUnlockSsss": "Unlock Existing Secrets",
+  "encryptionUnlockDescription": "Enter the passphrase or recovery key for your existing secret storage.",
+  "encryptionEnterRecoveryKey": "Enter Recovery Key",
+  "encryptionPassphraseOrKey": "Passphrase or Recovery Key",
+  "encryptionUnlock": "Unlock",
+  "encryptionCouldNotUnlock": "Could not unlock with the provided value",
+  "encryptionCreatePassphrase": "Create a Recovery Passphrase",
+  "encryptionSetPassphrase": "Set Passphrase",
+  "encryptionUnlocking": "Unlocking…",
+  "encryptionCrossSigningExists": "Cross-signing is already set up",
+  "encryptionRecreateKeys": "Re-create Keys",
+  "encryptionKeepKeys": "Keep Existing Keys",
+  "encryptionBackupExists": "Online key backup already exists",
+  "encryptionRecreateBackup": "Re-create Backup",
+  "encryptionKeepBackup": "Keep Existing Backup",
+  "encryptionSetupBackup": "Set Up Online Key Backup",
+  "encryptionSetupBackupDesc": "An encrypted backup of your message keys will be stored on the server so you can recover your conversation history on new devices.",
+  "encryptionEnableBackup": "Enable Backup",
+  "encryptionSkipBackup": "Skip",
+  "encryptionVerifyUserTitle": "Verify User",
+  "encryptionVerificationRequest": "Verification Request",
+  "encryptionChooseMethod": "Choose Verification Method",
+  "encryptionMethodEmoji": "Emoji / Numbers (SAS)",
+  "encryptionMethodQr": "QR Code",
+  "encryptionCompareEmojis": "Compare Emojis",
+  "encryptionCompareDescription": "Verify that the following emojis (or numbers) match on both devices.",
+  "encryptionDoTheyMatch": "Do they match?",
+  "encryptionTheyMatch": "They Match",
+  "encryptionTheyDontMatch": "They Don't Match",
+  "encryptionWaitingForYou": "Waiting for you to accept…",
+  "encryptionWaitingForOther": "Waiting for the other device…",
+  "encryptionVerificationWaitingDesc": "The verification request has been sent.",
+  "encryptionWaitingForSas": "Waiting for the emoji/number comparison…",
+  "encryptionDone": "Encryption Setup Complete!",
+  "encryptionVerificationDone": "Verification Complete!",
+  "encryptionVerificationFailed": "Verification Failed",
+
+  "encryptionVerified": "Verified",
+  "encryptionUnverified": "Unverified",
+  "encryptionFailedAction": "Failed: {error}",
+  "@encryptionFailedAction": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "encryptionUnknownError": "Unknown error",
+
+  "encryptionPostLoginBootstrap": "End-to-end encryption is not set up on this account. Would you like to set it up now? You can also do this later from Settings.",
+  "encryptionPostLoginVerify": "This device is not yet verified. You can verify it using a recovery passphrase or by confirming with one of your other devices.",
+  "encryptionVerifyDevice": "Verify This Device",
+  "encryptionVerifyDeviceAction": "Verify",
+  "encryptionLater": "Do This Later",
+
+  "failedToLoadImage": "Failed to load image",
+  "failedToLoadImageWithError": "Failed to load image: {error}",
+  "@failedToLoadImageWithError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "saveAudio": "Save audio",
+  "audioFileName": "audio_file",
+  "downloadAudio": "Download audio",
+  "saveVideo": "Save video",
+  "videoFileName": "video_file",
+  "unknownType": "Unknown type",
+  "downloadVideo": "Download video",
+  "selectDownloadTarget": "Select download target",
+  "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
+  "@fileInfo": {
+    "description": "Information about an attached file.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "mimeType": { "type": "String" },
+      "ext": { "type": "String" }
+    }
+  },
+
+  "stateJoined": "{sender} joined",
+  "@stateJoined": {
+    "description": "State event: a user joined a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateLeft": "{sender} left",
+  "@stateLeft": {
+    "description": "State event: a user left a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateBanned": "{sender} banned {target}",
+  "@stateBanned": {
+    "description": "State event: a user was banned.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "target": { "type": "String" }
+    }
+  },
+  "stateBannedSimple": "{sender} banned someone",
+  "@stateBannedSimple": {
+    "description": "State event: a ban with no target name available.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateInvited": "{sender} invited {user}",
+  "@stateInvited": {
+    "description": "State event: a user was invited.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "user": { "type": "String" }
+    }
+  },
+  "stateKnocked": "{sender} knocked",
+  "@stateKnocked": {
+    "description": "State event: a user knocked on a room.",
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
+  "stateKicked": "{mod} kicked {target}",
+  "@stateKicked": {
+    "description": "State event: a moderator kicked a user from a room.",
+    "placeholders": {
+      "mod": { "type": "String" },
+      "target": { "type": "String" }
+    }
+  },
+  "moderationTooltip": "Moderate",
+  "@moderationTooltip": {
+    "description": "Tooltip for the moderation popup button in message hover actions."
+  },
+  "stateMembershipChanged": "{sender} membership changed: {membership}",
+  "@stateMembershipChanged": {
+    "description": "State event: membership change with unknown state.",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "membership": { "type": "String" }
+    }
+  },
+  "stateRoomNameChanged": "Room name changed",
+  "stateRoomTopicChanged": "Room topic changed",
+  "stateRoomAvatarChanged": "Room avatar changed",
+  "stateRoomCreated": "Room created",
+  "stateEncryptionEnabled": "Encryption enabled",
+  "statePinnedMessagesChanged": "Pinned messages changed",
+  "stateMainAddressChanged": "Main address changed",
+  "statePowerLevelsChanged": "Power levels changed",
+  "stateRoomUpgraded": "Room upgraded",
+  "stateVerificationRequest": "{sender} requests to verify",
+  "@stateVerificationRequest": {
+    "description": "A `m.key.verification.request` event: a user wants to verify with you in this room.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "stateVerificationCancel": "Verification cancelled",
+  "stateVerificationDone": "Verification completed",
+  "stateVerificationStart": "Verification started",
+  "stateVerificationEvent": "Verification event",
+
+  "today": "Today",
+  "yesterday": "Yesterday",
+
+  "themeDefault": "Default (Indigo)",
+  "themeOceanBlue": "Ocean Blue",
+  "themeMidnightSlate": "British Racing Green",
+  "themeCrimson": "Bright Maroon",
+  "themeAmber": "Amber",
+  "themeSteel": "Lime Green",
+  "themeSky": "Sky",
+
+  "displayModern": "Modern",
+  "displayIrc": "IRC",
+  "displayBubbles": "Bubbles",
+
+  "paneRooms": "Rooms",
+  "paneSpaces": "Spaces",
+  "paneFriends": "Friends",
+  "paneHidden": "Hidden",
+  "paneNone": "None",
+  "paneRoomInfo": "Room Info",
+  "paneMembers": "Members",
+
+  "displayName": "Display Name",
+  "displayNameLabel": "Display name",
+  "userIDLabel": "User ID",
+
+  "logoutError": "Logout error: {error}",
+  "@logoutError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "privacyPolicyText": "Moonrelay does not transmit any information beyond what is necessary for the application's operation. We do not collect data, run telemetry, or serve advertisements. Any content shared through the Matrix network falls outside this privacy policy; it resides on Matrix homeservers and is subject to their respective policies.",
+
+  "encryptedTooltip": "Encrypted",
+  "notEncryptedTooltip": "Not encrypted",
+  "verifiedTooltip": "Verified",
+  "unverifiedTooltip": "Unverified",
+
+  "navigationHome": "Home",
+  "navigationAll": "All",
+
+  "welcomeProjectNews": "Project News",
+  "@welcomeProjectNews": {
+    "description": "Title for the project news card on the welcome screen."
+  },
+
+  "welcomeProjectNewsContent": "Stay up to date with the latest Moonrelay developments, releases, and community announcements.",
+  "@welcomeProjectNewsContent": {
+    "description": "Content for the project news card on the welcome screen."
+  },
+
+  "welcomeDonators": "Supporters",
+  "@welcomeDonators": {
+    "description": "Title for the donators / supporters card on the welcome screen."
+  },
+
+  "welcomeDonatorsContent": "Moonrelay is made possible thanks to the generous support of our community. We deeply appreciate every contribution, big or small.",
+  "@welcomeDonatorsContent": {
+    "description": "Content for the donators / supporters card on the welcome screen."
+  },
+
+  "welcomeToggleLight": "Switch to light mode",
+  "@welcomeToggleLight": {
+    "description": "Tooltip for the theme toggle button to switch to light mode."
+  },
+
+  "welcomeToggleDark": "Switch to dark mode",
+  "@welcomeToggleDark": {
+    "description": "Tooltip for the theme toggle button to switch to dark mode."
+  },
+
+  "presenceOnline": "Online",
+  "presenceOffline": "Offline",
+  "presenceUnavailable": "Unavailable",
+  "presenceUnknown": "Unknown",
+
+  "lastActive": "Last Active",
+  "@lastActive": {
+    "description": "Label for the last active timestamp field."
+  },
+
+  "sectionAbout": "About",
+  "sectionModeration": "Moderation",
+
+  "powerLevelLabel": "Power Level",
+  "membershipLabel": "Membership",
+
+  "actionKick": "Kick",
+  "actionBan": "Ban",
+  "actionUnban": "Unban",
+  "actionSetModerator": "Set as Moderator",
+  "actionSetAdmin": "Set as Admin",
+  "actionRemovePrivileges": "Remove Privileges",
+  "actionInvite": "Invite to Room",
+  "actionReport": "Report User",
+  "actionStartDirectChat": "Send Direct Message",
+
+  "kickConfirm": "Are you sure you want to kick {displayName}? They will be able to rejoin.",
+  "@kickConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "banConfirm": "Are you sure you want to ban {displayName}? This will prevent them from joining.",
+  "@banConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "unbanConfirm": "Unban {displayName}?",
+  "@unbanConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "changePowerLevelConfirm": "Change power level of {displayName} to {level}?",
+  "@changePowerLevelConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" },
+      "level": { "type": "int" }
+    }
+  },
+  "userKicked": "{displayName} has been kicked from the room.",
+  "@userKicked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userBanned": "{displayName} has been banned from the room.",
+  "@userBanned": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userUnbanned": "{displayName} has been unbanned.",
+  "@userUnbanned": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "powerLevelChanged": "{displayName}'s power level changed to {level}.",
+  "@powerLevelChanged": {
+    "placeholders": {
+      "displayName": { "type": "String" },
+      "level": { "type": "int" }
+    }
+  },
+  "userInvited": "Invitation sent to {displayName}.",
+  "@userInvited": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userReported": "User has been reported to the server admin.",
+  "actionFailed": "Action failed: {error}",
+  "@actionFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "moderationNotAvailable": "Room context required for moderation actions.",
+
+  "encryptionBackupVersion": "Backup version",
+  "encryptionKeysBackedUp": "Keys backed up",
+  "encryptionBackupRecoveryKeySet": "Recovery key is set",
+  "encryptionBackupNoRecoveryKey": "No recovery key set",
+
+  "roomNotFound": "Room not found",
+  "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
+
+  "profileIdNullError": "The User's ID could not be understood. Please try again later, or report a bug to our project.",
+  "profileIdInvalid": "The User's ID could not be understood ({error}). Please try again later, or report a bug to our project.",
+  "@profileIdInvalid": {
+    "description": "Error shown when the profile user ID is invalid.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "network": "Network",
+  "@network": {
+    "description": "Title for the Network settings page."
+  },
+  "networkDescription": "Network and synchronisation settings.",
+  "@networkDescription": {
+    "description": "Subtitle description for the Network settings page."
+  },
+  "statusBarSection": "Status bar",
+  "@statusBarSection": {
+    "description": "Section title for the status bar toggle."
+  },
+  "showStatusBar": "Show status bar",
+  "showStatusBarDescription": "Display the sync status bar at the bottom of the screen.",
+  "@showStatusBarDescription": {
+    "description": "Description for the status bar toggle."
+  },
+
+  "statusWaitingForResponse": "Waiting for response",
+  "statusSyncing": "Syncing",
+  "statusError": "Error",
+  "statusSynced": "Synced",
+  "statusBarLabel": "Status: {status}",
+  "@statusBarLabel": {
+    "description": "Label for the status bar showing the current sync state.",
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+
+  "logs": "Logs",
+  "@logs": {
+    "description": "Title for the Logs page."
+  },
+  "logsDescription": "View application logs or open the logs folder.",
+  "openLogsFolder": "Open logs folder",
+  "clearLog": "Clear log",
+  "clearLogDescription": "Delete all log files.",
+  "logFile": "Log file",
+  "refresh": "Refresh",
+  "clearLogsTitle": "Clear logs",
+  "clearLogsConfirmation": "Delete all log files? This cannot be undone.",
+  "delete": "Delete",
+  "logFilesCleared": "(log files cleared)",
+  "showingLastKb": "(showing last 50 KB)",
+  "@showingLastKb": {
+    "description": "Indicator shown when only the last portion of a log file is displayed."
+  },
+
+  "spaceHome": "Space Home",
+  "@spaceHome": {
+    "description": "Title for the space home page."
+  },
+  "spaceChildRooms": "Rooms",
+  "@spaceChildRooms": {
+    "description": "Section header for child rooms in a space."
+  },
+  "spaceChildSpaces": "Subspaces",
+  "@spaceChildSpaces": {
+    "description": "Section header for child subspaces in a space."
+  },
+  "spaceNoChildren": "This space has no rooms yet",
+  "@spaceNoChildren": {
+    "description": "Empty state when a space has no child rooms or subspaces."
+  },
+  "spaceSettings": "Space Settings",
+  "@spaceSettings": {
+    "description": "Title for the space settings page."
+  },
+  "spaceSettingsDescription": "Manage rooms in this space",
+  "@spaceSettingsDescription": {
+    "description": "Subtitle for the space settings page."
+  },
+  "addRoomToSpace": "Add Room to Space",
+  "@addRoomToSpace": {
+    "description": "Button to add a room to the current space."
+  },
+  "removeRoomFromSpace": "Remove from Space",
+  "@removeRoomFromSpace": {
+    "description": "Button to remove a room from a space."
+  },
+  "selectRoomToAdd": "Select a room to add",
+  "@selectRoomToAdd": {
+    "description": "Prompt shown when picking a room to add to a space."
+  },
+  "roomAddedToSpace": "Room added to space",
+  "@roomAddedToSpace": {
+    "description": "Confirmation shown after adding a room to a space."
+  },
+  "roomRemovedFromSpace": "Room removed from space",
+  "@roomRemovedFromSpace": {
+    "description": "Confirmation shown after removing a room from a space."
+  },
+  "createAsSpace": "Create as Space",
+  "@createAsSpace": {
+    "description": "Toggle label for creating a space instead of a room."
+  },
+  "createAsSpaceDescription": "Create a space to organise your rooms",
+  "@createAsSpaceDescription": {
+    "description": "Description for the create-as-space toggle."
+  },
+  "createSpace": "Create Space",
+  "@createSpace": {
+    "description": "Button label for creating a new space."
+  },
+  "spaceCreated": "Space created",
+  "@spaceCreated": {
+    "description": "Confirmation shown after creating a space."
+  },
+  "openSpaceSettings": "Space Settings",
+  "@openSpaceSettings": {
+    "description": "Button to open the space settings page."
+  },
+
+  "editSpaceName": "Edit Space Name",
+  "@editSpaceName": {
+    "description": "Button to edit the space name."
+  },
+  "editSpaceNameHint": "Enter a new name for this space",
+  "@editSpaceNameHint": {
+    "description": "Hint text for the space name edit dialog."
+  },
+  "editSpaceTopic": "Edit Space Topic",
+  "@editSpaceTopic": {
+    "description": "Button to edit the space topic."
+  },
+  "editSpaceTopicHint": "Enter a new topic for this space",
+  "@editSpaceTopicHint": {
+    "description": "Hint text for the space topic edit dialog."
+  },
+  "changeSpaceAvatar": "Change Space Avatar",
+  "@changeSpaceAvatar": {
+    "description": "Button to change the space avatar."
+  },
+  "changeSpaceAvatarDescription": "Upload a new avatar image",
+  "@changeSpaceAvatarDescription": {
+    "description": "Description for the change space avatar action."
+  },
+  "spaceNameUpdated": "Space name updated",
+  "@spaceNameUpdated": {
+    "description": "Confirmation shown after updating the space name."
+  },
+  "spaceTopicUpdated": "Space topic updated",
+  "@spaceTopicUpdated": {
+    "description": "Confirmation shown after updating the space topic."
+  },
+  "spaceAvatarUpdated": "Space avatar updated",
+  "@spaceAvatarUpdated": {
+    "description": "Confirmation shown after updating the space avatar."
+  },
+
+  "addToSpace": "Add to Space",
+  "@addToSpace": {
+    "description": "Context menu item to add the current room to a space."
+  },
+  "suggested": "Suggested",
+  "@suggested": {
+    "description": "Label for suggested rooms in a space."
+  },
+  "joinSpace": "Join Space",
+  "@joinSpace": {
+    "description": "Button for non-members to join a space."
+  },
+
+  "pinSpace": "Pin to navigation",
+  "@pinSpace": {
+    "description": "Context menu item to pin a subspace to the navigation pane."
+  },
+  "unpinSpace": "Unpin from navigation",
+  "@unpinSpace": {
+    "description": "Context menu item to remove a pinned subspace from the navigation pane."
+  },
+  "openSpace": "Open Space Home",
+  "@openSpace": {
+    "description": "Context menu item to open the space home page."
+  },
+  "rootSpaces": "Spaces",
+  "@rootSpaces": {
+    "description": "Section header for root spaces in the navigation pane."
+  },
+  "pinnedSpaces": "Pinned",
+  "@pinnedSpaces": {
+    "description": "Section header for pinned subspaces in the navigation pane."
+  },
+
+  "deleteRoom": "Delete Room",
+  "@deleteRoom": {
+    "description": "Button to permanently delete a room."
+  },
+  "deleteRoomDescription": "Permanently delete this room and all its messages",
+  "@deleteRoomDescription": {
+    "description": "Subtitle for the delete room action."
+  },
+  "deleteRoomConfirm": "Are you sure you want to permanently delete \"{roomName}\"? This action cannot be undone.",
+  "@deleteRoomConfirm": {
+    "description": "Confirmation dialog for deleting a room.",
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "deleteRoomSuccess": "Room deleted",
+  "@deleteRoomSuccess": {
+    "description": "Confirmation shown after deleting a room."
+  },
+  "deleteRoomFailed": "Failed to delete room: {error}",
+  "@deleteRoomFailed": {
+    "description": "Error shown when room deletion fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "forgetRoom": "Forget Room",
+  "@forgetRoom": {
+    "description": "Button to forget a room locally."
+  },
+  "forgetRoomDescription": "Remove this room from your account",
+  "@forgetRoomDescription": {
+    "description": "Subtitle for the forget room action."
+  },
+  "deleteRoomAdminOnly": "Only room administrators can delete rooms",
+  "@deleteRoomAdminOnly": {
+    "description": "Message shown when a non-admin tries to delete a room."
+  },
+
+  "deleteSpace": "Delete Space and Channels",
+  "@deleteSpace": {
+    "description": "Button to delete a space and all its child rooms."
+  },
+  "deleteSpaceDescription": "Delete this space and all its rooms",
+  "@deleteSpaceDescription": {
+    "description": "Subtitle for the delete space action."
+  },
+  "deleteSpaceConfirm": "Are you sure you want to permanently delete \"{spaceName}\" and all its child rooms? This action cannot be undone.",
+  "@deleteSpaceConfirm": {
+    "description": "Confirmation dialog for deleting a space.",
+    "placeholders": {
+      "spaceName": { "type": "String" }
+    }
+  },
+  "deleteSpaceSuccess": "Space and channels deleted",
+  "@deleteSpaceSuccess": {
+    "description": "Confirmation shown after deleting a space."
+  },
+  "deleteSpaceFailed": "Failed to delete space: {error}",
+  "@deleteSpaceFailed": {
+    "description": "Error shown when space deletion fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "deleteSpaceNotEnoughPower": "You need admin permissions on the space and all its rooms to delete it",
+  "@deleteSpaceNotEnoughPower": {
+    "description": "Message shown when user lacks power to delete a space."
+  },
+  "joinRuleLabel": "Join rules",
+  "@joinRuleLabel": {
+    "description": "Label for the join rules selector."
+  },
+  "joinRulePublic": "Anyone can join",
+  "@joinRulePublic": {
+    "description": "Option for public join rule."
+  },
+  "joinRuleInvite": "Invite only",
+  "@joinRuleInvite": {
+    "description": "Option for invite-only join rule."
+  },
+  "joinRuleKnock": "Requires approval (knock)",
+  "@joinRuleKnock": {
+    "description": "Option for knock join rule."
+  },
+  "joinRuleRestricted": "Restricted",
+  "@joinRuleRestricted": {
+    "description": "Option for restricted join rule."
+  },
+  "joinRuleKnockRestricted": "Approval or restricted (knock + restricted)",
+  "@joinRuleKnockRestricted": {
+    "description": "Option for knock_restricted join rule."
+  },
+  "deleteChildRoomFailed": "Failed to delete room \"{name}\": {error}",
+  "@deleteChildRoomFailed": {
+    "description": "Error when deleting a child room of a space fails.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "error": { "type": "String" }
+    }
+  },
+
+  "roomAlias": "Room address (optional)",
+  "@roomAlias": {
+    "description": "Label for the room alias input."
+  },
+  "roomAliasHint": "e.g. my-cool-room",
+  "@roomAliasHint": {
+    "description": "Hint text for the room alias input."
+  },
+  "inviteUsers": "Invite users (optional)",
+  "@inviteUsers": {
+    "description": "Label for the invite users input."
+  },
+  "inviteUsersHint": "User IDs separated by commas",
+  "@inviteUsersHint": {
+    "description": "Hint text for the invite users input."
+  },
+  "advancedOptions": "Advanced Options",
+  "@advancedOptions": {
+    "description": "Section header for advanced room creation options."
+  },
+  "enableEncryption": "Enable end-to-end encryption",
+  "@enableEncryption": {
+    "description": "Toggle label for enabling encryption."
+  },
+  "enableEncryptionDescription": "Encrypt messages end-to-end. This cannot be changed later.",
+  "@enableEncryptionDescription": {
+    "description": "Description for the encryption toggle."
+  },
+  "roomVisibilitySection": "Visibility",
+  "@roomVisibilitySection": {
+    "description": "Section header for room visibility options."
+  },
+  "publicChatDescription": "Anyone can find and join",
+  "@publicChatDescription": {
+    "description": "Description for public chat preset."
+  },
+  "privateChatDescription": "Only invited people can join",
+  "@privateChatDescription": {
+    "description": "Description for private chat preset."
+  },
+
+  "forgetRoomConfirm": "Are you sure you want to forget \"{roomName}\"? It will be removed from your account.",
+  "@forgetRoomConfirm": {
+    "description": "Confirmation dialog for forgetting a room.",
+    "placeholders": {
+      "roomName": { "type": "String" }
+    }
+  },
+  "forgetRoomSuccess": "Room forgotten",
+  "@forgetRoomSuccess": {
+    "description": "Confirmation shown after forgetting a room."
+  },
+  "forgetRoomFailed": "Failed to forget room: {error}",
+  "@forgetRoomFailed": {
+    "description": "Error shown when forgetting a room fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "actionsDeleteSection": "Danger Zone",
+  "@actionsDeleteSection": {
+    "description": "Section header for destructive room actions."
+  },
+
+  "roomPreviewTitle": "Room Preview",
+  "@roomPreviewTitle": {
+    "description": "Title for the room preview screen."
+  },
+  "roomPreviewNotJoined": "You have not joined this room",
+  "@roomPreviewNotJoined": {
+    "description": "Label shown on room preview for unjoined rooms."
+  },
+  "roomPreviewJoin": "Join Room",
+  "@roomPreviewJoin": {
+    "description": "Button to join a room from the preview screen."
+  },
+  "roomPreviewLoading": "Loading room info…",
+  "@roomPreviewLoading": {
+    "description": "Loading state while fetching room summary."
+  },
+  "roomPreviewFailed": "Could not load room information",
+  "@roomPreviewFailed": {
+    "description": "Error when room summary fails to load."
+  },
+  "roomPreviewLastMessages": "Recent messages",
+  "@roomPreviewLastMessages": {
+    "description": "Section header for recent messages in the room preview."
+  },
+  "roomPreviewNoMessages": "No recent messages to display",
+  "@roomPreviewNoMessages": {
+    "description": "Empty state when there are no recent messages."
+  },
+  "roomPreviewView": "Preview",
+  "@roomPreviewView": {
+    "description": "Button label to preview an unjoined room."
+  },
+  "roomPreviewSuggested": "Suggested room",
+  "@roomPreviewSuggested": {
+    "description": "Badge for suggested rooms in a space."
+  },
+  "unjoinedRooms": "Unjoined rooms",
+  "@unjoinedRooms": {
+    "description": "Section header for unjoined rooms in a space."
+  },
+
+  "backgroundAndTray": "Background & Tray",
+  "@backgroundAndTray": {
+    "description": "Settings category for system tray and background behaviour."
+  },
+  "backgroundAndTrayDescription": "Control how Moonrelay behaves in the system tray and when the window is closed.",
+  "@backgroundAndTrayDescription": {
+    "description": "Subtitle for the Background & Tray settings page."
+  },
+  "systemTray": "System Tray",
+  "@systemTray": {
+    "description": "Section header for system tray settings."
+  },
+  "showTrayIcon": "Show tray icon",
+  "@showTrayIcon": {
+    "description": "Toggle label for showing the system tray icon."
+  },
+  "showTrayIconDescription": "Display Moonrelay in the system notification area",
+  "@showTrayIconDescription": {
+    "description": "Subtitle for the show tray icon toggle."
+  },
+  "windowBehaviour": "Window Behaviour",
+  "@windowBehaviour": {
+    "description": "Section header for window close/minimize behaviour."
+  },
+  "closeToTray": "Close to tray",
+  "@closeToTray": {
+    "description": "Toggle label for closing the window to the system tray."
+  },
+  "closeToTrayDescription": "Closing the window hides it to the system tray instead of quitting",
+  "@closeToTrayDescription": {
+    "description": "Subtitle for the close to tray toggle."
+  },
+  "minimizeToTray": "Minimize to tray",
+  "@minimizeToTray": {
+    "description": "Toggle label for minimizing to the system tray."
+  },
+  "minimizeToTrayDescription": "Minimizing hides to the system tray instead of the taskbar",
+  "@minimizeToTrayDescription": {
+    "description": "Subtitle for the minimize to tray toggle."
+  },
+  "startMinimized": "Start minimized",
+  "@startMinimized": {
+    "description": "Toggle label for starting the app minimized to tray."
+  },
+  "startMinimizedDescription": "Start Moonrelay in the system tray without showing the window",
+  "@startMinimizedDescription": {
+    "description": "Subtitle for the start minimized toggle."
+  },
+
+  "addAccount": "Add Account",
+  "@addAccount": {
+    "description": "Button to add another Matrix account."
+  },
+  "addAccountDescription": "Sign in to another Matrix account",
+  "@addAccountDescription": {
+    "description": "Subtitle for the add account button in the hub."
+  },
+  "switchAccount": "Switch Account",
+  "@switchAccount": {
+    "description": "Button to switch between accounts."
+  },
+  "switchToAccount": "Switch to {userId}",
+  "@switchToAccount": {
+    "description": "Button label to switch to a specific account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "savedAccounts": "Saved Accounts",
+  "@savedAccounts": {
+    "description": "Section header for the list of saved accounts on the welcome screen."
+  },
+  "tapToSwitch": "Tap to switch",
+  "@tapToSwitch": {
+    "description": "Hint text shown on account cards on the welcome screen."
+  },
+  "signInAsDifferentUser": "Sign in with a different account",
+  "@signInAsDifferentUser": {
+    "description": "Button label to sign in with a new account on the welcome screen."
+  },
+  "noAccountsSaved": "No accounts saved",
+  "@noAccountsSaved": {
+    "description": "Empty state when no accounts are saved."
+  },
+  "accountSwitched": "Switched to {userId}",
+  "@accountSwitched": {
+    "description": "Snackbar message after switching accounts.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "activeAccount": "Active account",
+  "@activeAccount": {
+    "description": "Label shown next to the currently active account."
+  },
+  "loggedInAccounts": "Logged in",
+  "@loggedInAccounts": {
+    "description": "Section label for currently logged-in accounts."
+  },
+  "areYouSureRemoveAccount": "Are you sure you want to remove the account {userId}?",
+  "@areYouSureRemoveAccount": {
+    "description": "Confirmation dialog for removing an account.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "removeAccount": "Remove account",
+  "@removeAccount": {
+    "description": "Button to remove a saved account."
+  },
+
+  "notifications": "Notifications",
+  "@notifications": {
+    "description": "Title for the notification settings page."
+  },
+  "notificationsDescription": "Control desktop notifications for incoming messages.",
+  "@notificationsDescription": {
+    "description": "Subtitle for the notification settings page."
+  },
+  "enableNotifications": "Enable notifications",
+  "@enableNotifications": {
+    "description": "Toggle label for enabling or disabling all notifications."
+  },
+  "enableNotificationsDescription": "Show desktop notifications for new messages",
+  "@enableNotificationsDescription": {
+    "description": "Subtitle for the global notification toggle."
+  },
+  "notificationSettings": "Notification Settings",
+  "@notificationSettings": {
+    "description": "Section header for per-room notification settings."
+  },
+  "muteRoom": "Mute this room",
+  "@muteRoom": {
+    "description": "Toggle to mute notifications for a specific room."
+  },
+  "muteRoomDescription": "Suppress desktop notifications from this room",
+  "@muteRoomDescription": {
+    "description": "Subtitle for the room mute toggle."
+  },
+  "roomMuted": "Room notifications muted",
+  "@roomMuted": {
+    "description": "Snackbar confirmation when muting a room."
+  },
+  "roomUnmuted": "Room notifications unmuted",
+  "@roomUnmuted": {
+    "description": "Snackbar confirmation when unmuting a room."
+  },
+
+  "thread": "Thread",
+  "@thread": {
+    "description": "Label for a single thread."
+  },
+  "threads": "Threads",
+  "@threads": {
+    "description": "Label for threads."
+  },
+  "openThread": "Open thread",
+  "@openThread": {
+    "description": "Tooltip for the button to open a thread view."
+  },
+  "threadReplies": "{count} replies",
+  "@threadReplies": {
+    "description": "Label showing the number of replies in a thread.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noRepliesYet": "No replies yet",
+  "@noRepliesYet": {
+    "description": "Shown when a thread has no replies yet."
+  },
+  "noThreadsYet": "No threads yet",
+  "@noThreadsYet": {
+    "description": "Shown when a room has no threads yet."
+  },
+  "showAllThreads": "Show all threads ({count})",
+  "@showAllThreads": {
+    "description": "Button to show all threads in the room.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchThreadsHint": "Search threads…",
+  "@searchThreadsHint": {
+    "description": "Hint text for the thread search field."
+  },
+
+  "globalSearch": "Search rooms, spaces, and messages…",
+  "@globalSearch": {
+    "description": "Placeholder text for the global search field."
+  },
+  "searchMessages": "Messages",
+  "@searchMessages": {
+    "description": "Section header for message search results."
+  },
+  "searchUsersResults": "Users",
+  "@searchUsersResults": {
+    "description": "Section header for user directory search results."
+  },
+  "searchRooms": "Rooms",
+  "@searchRooms": {
+    "description": "Section header for room search results."
+  },
+  "searchSpaces": "Spaces",
+  "@searchSpaces": {
+    "description": "Section header for space search results."
+  },
+  "searchHomeserver": "Search homeserver…",
+  "@searchHomeserver": {
+    "description": "Placeholder text for the homeserver-wide search field."
+  },
+  "activeAgo": "Active {time} ago",
+  "@activeAgo": {
+    "description": "Shown when a user was active a certain time ago.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "lastSeenAgo": "Last seen {time} ago",
+  "@lastSeenAgo": {
+    "description": "Shown when a user was last seen a certain time ago.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "timeJustNow": "just now",
+  "@timeJustNow": {
+    "description": "Relative time label for less than a minute ago."
+  },
+  "timeMinutes": "{count}m",
+  "@timeMinutes": {
+    "description": "Short relative time in minutes.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeHours": "{count}h",
+  "@timeHours": {
+    "description": "Short relative time in hours.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeDays": "{count}d",
+  "@timeDays": {
+    "description": "Short relative time in days.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeWeeks": "{count}w",
+  "@timeWeeks": {
+    "description": "Short relative time in weeks.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "searchNoResults": "No results found",
+  "@searchNoResults": {
+    "description": "Message shown when search returns no results."
+  },
+  "searchInRoom": "Search in room",
+  "@searchInRoom": {
+    "description": "Tooltip for the in-room search button."
+  },
+  "inRoomSearch": "Search this room",
+  "@inRoomSearch": {
+    "description": "Title for the in-room search panel."
+  },
+  "inRoomSearchHint": "Search messages in this room…",
+  "@inRoomSearchHint": {
+    "description": "Placeholder text for the in-room search field."
+  },
+  "inRoomSearchAll": "All",
+  "@inRoomSearchAll": {
+    "description": "Filter chip label to search all message types."
+  },
+  "inRoomSearchText": "Text",
+  "@inRoomSearchText": {
+    "description": "Filter chip label to search only text messages."
+  },
+  "inRoomSearchImages": "Images",
+  "@inRoomSearchImages": {
+    "description": "Filter chip label to search only image messages."
+  },
+  "inRoomSearchFiles": "Files",
+  "@inRoomSearchFiles": {
+    "description": "Filter chip label to search only file messages."
+  },
+  "inRoomSearchAudio": "Audio",
+  "@inRoomSearchAudio": {
+    "description": "Filter chip label to search only audio messages."
+  },
+  "inRoomSearchVideo": "Video",
+  "@inRoomSearchVideo": {
+    "description": "Filter chip label to search only video messages."
+  },
+  "inRoomSearchByUser": "Filter by sender…",
+  "@inRoomSearchByUser": {
+    "description": "Placeholder for the sender filter field in in-room search."
+  },
+  "inRoomSearchNoResults": "No messages match your search",
+  "@inRoomSearchNoResults": {
+    "description": "Message shown when in-room search returns no results."
+  },
+  "inRoomSearchResults": "{count} results",
+  "@inRoomSearchResults": {
+    "description": "Label showing number of search results.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchingMessages": "Searching messages…",
+  "@searchingMessages": {
+    "description": "Message shown while searching messages."
+  },
+
+  "loadMore": "Load more",
+  "@loadMore": {
+    "description": "Button to load more search results."
+  },
+
+  "about": "About",
+  "@about": {
+    "description": "Hub navigation item for the About page."
+  },
+  "aboutRepository": "Repository",
+  "@aboutRepository": {
+    "description": "Title for the repository card on the About page."
+  },
+  "aboutRepositoryDescription": "The complete source code is available for inspection, audit, and contribution at the project repository:",
+  "@aboutRepositoryDescription": {
+    "description": "Description for the repository card on the About page."
+  },
+  "aboutSupport": "Moonrelay Support",
+  "@aboutSupport": {
+    "description": "Title for the support card on the About page."
+  },
+  "aboutSupportDescription": "Get help, report issues, and discuss the project with the community in our Matrix space.",
+  "@aboutSupportDescription": {
+    "description": "Description for the support card on the About page."
+  },
+  "aboutJoinSupportSpace": "Join Support Space",
+  "@aboutJoinSupportSpace": {
+    "description": "Button to navigate to the Moonrelay support Matrix space home."
+  },
+  "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
+  "@aboutJoinedSupportSpace": {
+    "description": "Snackbar confirmation after joining the support space."
+  },
+
+  "actionBlockUser": "Block User",
+  "@actionBlockUser": {
+    "description": "Button to block/ignore a user."
+  },
+  "actionUnblockUser": "Unblock User",
+  "@actionUnblockUser": {
+    "description": "Button to unblock a previously blocked user."
+  },
+  "blockUserConfirm": "Are you sure you want to block {displayName}? You will no longer receive messages from them.",
+  "@blockUserConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userBlocked": "Blocked {displayName}.",
+  "@userBlocked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "userUnblocked": "Unblocked {displayName}.",
+  "@userUnblocked": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "actionRemoveContact": "Remove from Contacts",
+  "@actionRemoveContact": {
+    "description": "Button to remove a user from the contact list (m.direct)."
+  },
+  "removeContactConfirm": "Remove {displayName} from your contacts? This will leave the direct message room.",
+  "@removeContactConfirm": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "contactRemoved": "Removed {displayName} from contacts.",
+  "@contactRemoved": {
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "blockedUsers": "Blocked Users",
+  "@blockedUsers": {
+    "description": "Title for the blocked users list page."
+  },
+  "blockedUsersDescription": "Users you have blocked will not be able to send you messages.",
+  "@blockedUsersDescription": {
+    "description": "Description for the blocked users list page."
+  },
+  "blockedUsersEmpty": "You haven't blocked anyone yet.",
+  "@blockedUsersEmpty": {
+    "description": "Empty state shown when the blocked users list is empty."
+  },
+  "blockedUsersLoadError": "Failed to load blocked users list.",
+  "@blockedUsersLoadError": {
+    "description": "Error shown when the blocked users list fails to load."
+  },
+
+  "pinnedMessages": "Pinned Messages",
+  "@pinnedMessages": {
+    "description": "Section header for pinned messages."
+  },
+  "pinnedMessagesCount": "{count} pinned",
+  "@pinnedMessagesCount": {
+    "description": "Label showing the number of pinned messages.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noPinnedMessages": "No pinned messages",
+  "@noPinnedMessages": {
+    "description": "Label shown when there are no pinned messages."
+  },
+  "pinMessage": "Pin message",
+  "@pinMessage": {
+    "description": "Tooltip for the pin message action."
+  },
+  "unpinMessage": "Unpin message",
+  "@unpinMessage": {
+    "description": "Tooltip for the unpin message action."
+  },
+  "showPinnedOnly": "Viewing pinned messages only — tap to show all",
+  "@showPinnedOnly": {
+    "description": "Tooltip for the pinned filter toggle when active."
+  },
+  "showAllMessages": "Show all messages",
+  "@showAllMessages": {
+    "description": "Tooltip for the pinned filter toggle when inactive."
+  },
+
+  "editTooltip": "ویرایش",
+  "@editTooltip": {
+    "description": "Tooltip for the edit message action."
+  },
+  "editMessageTitle": "ویرایش پیام",
+  "@editMessageTitle": {
+    "description": "Title of the message edit dialog."
+  },
+  "editedIndicator": "(ویرایش‌شده)",
+  "@editedIndicator": {
+    "description": "Inline marker shown next to an edited message body."
+  },
+  "viewEditHistory": "دیدن تاریخچه ویرایش",
+  "@viewEditHistory": {
+    "description": "Button on a message's overflow menu to view its edit history."
+  },
+  "noEditHistory": "نسخه قبلی موجود نیست.",
+  "@noEditHistory": {
+    "description": "Shown in the edit-history view when no edits exist."
+  },
+  "editHistoryTitle": "تاریخچه ویرایش",
+  "@editHistoryTitle": {
+    "description": "Title for the edit history dialog."
+  },
+  "editedBy": "آخرین ویرایش توسط {name} در {when}",
+  "@editedBy": {
+    "description": "Subtitle in the edit history dialog describing the most recent edit.",
+    "placeholders": {
+      "when": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+  "editSave": "ذخیره",
+  "@editSave": {
+    "description": "Save action for the message edit dialog."
+  },
+  "editFailed": "ذخیره ویرایش ممکن نشد: {error}",
+  "@editFailed": {
+    "description": "Snackbar when sending an edit fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "recordVoiceNote": "ضبط پیام صوتی",
+  "@recordVoiceNote": {
+    "description": "Tooltip on the chat-box voice record button."
+  },
+  "stopRecording": "توقف ضبط",
+  "@stopRecording": {
+    "description": "Tooltip on the chat-box voice record button while recording."
+  },
+  "voiceRecorderTitle": "پیام صوتی",
+  "@voiceRecorderTitle": {
+    "description": "Title of the voice note recorder dialog."
+  },
+  "voiceRecorderHint": "برای شروع ضبط روی میکروفون بزنید.",
+  "@voiceRecorderHint": {
+    "description": "Hint shown in the voice note recorder before recording starts."
+  },
+  "voiceRecorderSending": "در حال ارسال پیام صوتی…",
+  "@voiceRecorderSending": {
+    "description": "Shown while uploading a voice note."
+  },
+  "voiceRecorderCancelled": "ضبط لغو شد.",
+  "@voiceRecorderCancelled": {
+    "description": "Snackbar shown when a voice recording is discarded."
+  },
+  "voiceRecorderPermissionDenied": "اجازه دسترسی به میکروفون داده نشد.",
+  "@voiceRecorderPermissionDenied": {
+    "description": "Snackbar shown when the microphone permission is missing."
+  },
+  "voiceRecorderDuration": "{duration} ثانیه",
+  "@voiceRecorderDuration": {
+    "description": "Live duration shown in the voice recorder.",
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "voiceRecorderDiscard": "دور انداختن",
+  "@voiceRecorderDiscard": {
+    "description": "Discard action in the voice recorder dialog."
+  },
+  "voiceRecorderSend": "ارسال",
+  "@voiceRecorderSend": {
+    "description": "Send action in the voice recorder dialog."
+  },
+
+  "playAudio": "پخش",
+  "@playAudio": {
+    "description": "Tooltip for the audio message play button."
+  },
+  "pauseAudio": "توقف",
+  "@pauseAudio": {
+    "description": "Tooltip for the audio message pause button."
+  },
+
+  "playVideo": "پخش",
+  "@playVideo": {
+    "description": "Tooltip for the video message play button."
+  },
+  "pauseVideo": "توقف",
+  "@pauseVideo": {
+    "description": "Tooltip for the video message pause button."
+  },
+  "fullscreenVideo": "تمام‌صفحه",
+  "@fullscreenVideo": {
+    "description": "Tooltip for the fullscreen video button."
+  },
+
+  "shareLocation": "ارسال موقعیت مکانی",
+  "@shareLocation": {
+    "description": "Tooltip on the chat-box location-share button."
+  },
+  "sendCurrentLocation": "ارسال موقعیت فعلی",
+  "@sendCurrentLocation": {
+    "description": "Confirm-label button on the location dialog."
+  },
+  "locationPermissionDenied": "اجازه دسترسی به موقعیت مکانی داده نشد.",
+  "@locationPermissionDenied": {
+    "description": "Snackbar shown when the location permission is missing."
+  },
+  "locationFailedToFetch": "دریافت موقعیت فعلی ممکن نشد.",
+  "@locationFailedToFetch": {
+    "description": "Snackbar shown when geolocation fails."
+  },
+  "openInMaps": "باز کردن در نقشه",
+  "@openInMaps": {
+    "description": "Button on a location message to open the coordinates in a maps app."
+  },
+  "locationAccuracyMeters": "±{m} متر",
+  "@locationAccuracyMeters": {
+    "description": "Accuracy indicator for a shared location.",
+    "placeholders": {
+      "m": { "type": "int" }
+    }
+  },
+
+  "createPoll": "ایجاد نظرسنجی",
+  "@createPoll": {
+    "description": "Tooltip on the chat-box poll-creation button."
+  },
+  "pollQuestion": "سوال",
+  "@pollQuestion": {
+    "description": "Field label for the poll question."
+  },
+  "pollQuestionHint": "چه می‌خواهید بپرسید؟",
+  "@pollQuestionHint": {
+    "description": "Placeholder text for the poll question field."
+  },
+  "pollOptions": "گزینه‌ها",
+  "@pollOptions": {
+    "description": "Field label for the list of poll options."
+  },
+  "pollOptionHint": "متن گزینه",
+  "@pollOptionHint": {
+    "description": "Placeholder for an empty poll option field."
+  },
+  "pollAddOption": "افزودن گزینه",
+  "@pollAddOption": {
+    "description": "Button to add another option field to the poll."
+  },
+  "pollSend": "ارسال نظرسنجی",
+  "@pollSend": {
+    "description": "Button to send the poll."
+  },
+  "pollVote": "رای",
+  "@pollVote": {
+    "description": "Action label on a poll option the user has not voted for."
+  },
+  "pollVotedFor": "رای داده‌شده",
+  "@pollVotedFor": {
+    "description": "Action label on a poll option the user has voted for."
+  },
+  "pollClosed": "بسته‌شده",
+  "@pollClosed": {
+    "description": "Label shown next to a closed poll."
+  },
+  "pollResults": "{count} رای",
+  "@pollResults": {
+    "description": "Label showing the number of votes on a poll option.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollTotalVotes": "در مجموع {count} رای",
+  "@pollTotalVotes": {
+    "description": "Summary of total votes for a poll.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pollInvalid": "به یک سوال و حداقل دو گزینه‌ی غیر خالی نیاز است.",
+  "@pollInvalid": {
+    "description": "Validation error message for invalid poll input."
+  },
+
+  "typingIndicatorOne": "{name} در حال نوشتن…",
+  "@typingIndicatorOne": {
+    "description": "Shown in the timeline footer when exactly one user is typing.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "typingIndicatorTwo": "{a} و {b} در حال نوشتن…",
+  "@typingIndicatorTwo": {
+    "description": "Shown in the timeline footer when two users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" }
+    }
+  },
+  "typingIndicatorMany": "{a}، {b} و {count} نفر دیگر در حال نوشتن…",
+  "@typingIndicatorMany": {
+    "description": "Shown in the timeline footer when many users are typing.",
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "seenBy": "دیده‌شده توسط {count} نفر",
+  "@seenBy": {
+    "description": "Tooltip for the read-receipt avatar stack on a message.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "newMessagesBelow": "پیام‌های جدید",
+  "@newMessagesBelow": {
+    "description": "Label shown above the read marker / new-messages divider in the timeline."
+  },
+
+  "unreadCount": "{count}",
+  "@unreadCount": {
+    "description": "Compact unread message count badge (e.g. 3, 12, 99+).",
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+
+  "upgradeRoom": "ارتقا نسخه اتاق",
+  "@upgradeRoom": {
+    "description": "Button in room settings to upgrade the room version."
+  },
+  "upgradeRoomDescription": "انتقال این اتاق به نسخه‌ی جدیدتر. اعضا دسترسی خود را حفظ می‌کنند.",
+  "@upgradeRoomDescription": {
+    "description": "Subtitle for the upgrade-room action."
+  },
+  "upgradeRoomConfirm": "ارتقای \"{roomName}\" به نسخه {version}؟",
+  "@upgradeRoomConfirm": {
+    "description": "Confirmation prompt when upgrading a room.",
+    "placeholders": {
+      "roomName": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+  "roomVersion": "نسخه اتاق",
+  "@roomVersion": {
+    "description": "Detail-row label for the room version."
+  },
+  "roomUpgraded": "اتاق به نسخه {version} ارتقا یافت",
+  "@roomUpgraded": {
+    "description": "Snackbar after upgrading the room.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "openUpgradedRoom": "باز کردن اتاق جدید",
+  "@openUpgradedRoom": {
+    "description": "Snackbar action after upgrading the room."
+  },
+
+  "pendingKnocks": "درخواست‌های در انتظار",
+  "@pendingKnocks": {
+    "description": "Section header for pending knock requests on a room."
+  },
+  "noPendingKnocks": "درخواست در انتظاری وجود ندارد.",
+  "@noPendingKnocks": {
+    "description": "Empty state for the pending-knocks list."
+  },
+  "approveKnock": "تایید",
+  "@approveKnock": {
+    "description": "Action to approve a pending knock request."
+  },
+  "denyKnock": "رد",
+  "@denyKnock": {
+    "description": "Action to deny a pending knock request."
+  },
+  "knockApproved": "{displayName} برای پیوستن تایید شد.",
+  "@knockApproved": {
+    "description": "Snackbar shown after approving a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+  "knockDenied": "{displayName} رد شد.",
+  "@knockDenied": {
+    "description": "Snackbar shown after denying a knock.",
+    "placeholders": {
+      "displayName": { "type": "String" }
+    }
+  },
+
+  "joinRulesSection": "چه کسی می‌تواند بپیوندد",
+  "@joinRulesSection": {
+    "description": "Section header in room settings for join rule editing."
+  },
+  "historyVisibilitySection": "نمایش تاریخچه",
+  "@historyVisibilitySection": {
+    "description": "Section header in room settings for history visibility."
+  },
+  "encryptionSection": "رمزنگاری",
+  "@encryptionSection": {
+    "description": "Section header in room settings for encryption options."
+  },
+  "guestAccessSection": "دسترسی مهمان",
+  "@guestAccessSection": {
+    "description": "Section header in room settings for guest-access options."
+  },
+  "directoryVisibilitySection": "نمایش در فهرست",
+  "@directoryVisibilitySection": {
+    "description": "Section header in room settings for room directory visibility."
+  },
+  "canonicalAliasSection": "نشانی اصلی",
+  "@canonicalAliasSection": {
+    "description": "Section header for the canonical alias editor."
+  },
+  "powerLevelsSection": "سطوح قدرت",
+  "@powerLevelsSection": {
+    "description": "Section header for the power-level editor."
+  },
+
+  "historyVisibilityWorldReadable": "همه (تاریخچه برای عموم قابل خواندن)",
+  "@historyVisibilityWorldReadable": {
+    "description": "Option for world_readable history visibility."
+  },
+  "historyVisibilityShared": "اعضا (از زمان پیوستن)",
+  "@historyVisibilityShared": {
+    "description": "Option for shared history visibility."
+  },
+  "historyVisibilityInvited": "اعضا (از زمان دعوت)",
+  "@historyVisibilityInvited": {
+    "description": "Option for invited history visibility."
+  },
+  "historyVisibilityJoined": "اعضا (از زمان پیوستن)",
+  "@historyVisibilityJoined": {
+    "description": "Option for joined history visibility."
+  },
+  "historyVisibilityUpdated": "نمایش تاریخچه به‌روزرسانی شد.",
+  "@historyVisibilityUpdated": {
+    "description": "Snackbar after updating history visibility."
+  },
+  "joinRulesUpdated": "قوانین پیوستن به‌روزرسانی شد.",
+  "@joinRulesUpdated": {
+    "description": "Snackbar after changing the join rules of a room."
+  },
+  "canonicalAliasUpdated": "نشانی اصلی به‌روزرسانی شد.",
+  "@canonicalAliasUpdated": {
+    "description": "Snackbar after updating canonical alias."
+  },
+  "canonicalAliasHint": "مانند #room:matrix.org",
+  "@canonicalAliasHint": {
+    "description": "Hint for canonical alias input."
+  },
+  "encryptionUpdated": "تنظیمات رمزنگاری به‌روزرسانی شد.",
+  "@encryptionUpdated": {
+    "description": "Snackbar after enabling encryption on a room."
+  },
+  "guestAccessUpdated": "دسترسی مهمان به‌روزرسانی شد.",
+  "@guestAccessUpdated": {
+    "description": "Snackbar after updating guest access."
+  },
+  "directoryVisibilityUpdated": "نمایش در فهرست به‌روزرسانی شد.",
+  "@directoryVisibilityUpdated": {
+    "description": "Snackbar after updating directory visibility."
+  },
+  "directoryVisibilityPublic": "در فهرست عمومی اتاق‌ها نمایش داده شود",
+  "@directoryVisibilityPublic": {
+    "description": "Option to publish a room in the public directory."
+  },
+  "directoryVisibilityPrivate": "از فهرست عمومی پنهان شود",
+  "@directoryVisibilityPrivate": {
+    "description": "Option to hide a room from the public directory."
+  },
+  "guestAccessCanJoin": "میهمان‌ها می‌توانند بپیوندند",
+  "@guestAccessCanJoin": {
+    "description": "Option to allow guest access."
+  },
+  "guestAccessForbidden": "میهمان‌ها مجاز نیستند",
+  "@guestAccessForbidden": {
+    "description": "Option to forbid guest access."
+  },
+  "powerLevelUsersDefault": "سطح قدرت پیش‌فرض کاربران",
+  "@powerLevelUsersDefault": {
+    "description": "Slider label for the default user power level."
+  },
+  "powerLevelEventsDefault": "سطح قدرت پیش‌فرض رویدادها",
+  "@powerLevelEventsDefault": {
+    "description": "Slider label for the default event power level."
+  },
+  "powerLevelStateDefault": "سطح قدرت پیش‌فرض رویدادهای وضعیت",
+  "@powerLevelStateDefault": {
+    "description": "Slider label for the default state-event power level."
+  },
+  "powerLevelBan": "سطح قدرت ممنوعیت",
+  "@powerLevelBan": {
+    "description": "Slider label for the ban power level."
+  },
+  "powerLevelKick": "سطح قدرت اخراج",
+  "@powerLevelKick": {
+    "description": "Slider label for the kick power level."
+  },
+  "powerLevelInvite": "سطح قدرت دعوت",
+  "@powerLevelInvite": {
+    "description": "Slider label for the invite power level."
+  },
+  "powerLevelRedact": "سطح قدرت حذف",
+  "@powerLevelRedact": {
+    "description": "Slider label for the redact power level."
+  },
+  "powerLevelUpdated": "سطوح قدرت به‌روزرسانی شد.",
+  "@powerLevelUpdated": {
+    "description": "Snackbar after updating power levels."
+  },
+  "powerLevelUserOverride": "سطح قدرت برای {userId}",
+  "@powerLevelUserOverride": {
+    "description": "Per-user power-level override row.",
+    "placeholders": {
+      "userId": { "type": "String" }
+    }
+  },
+  "powerLevelAddOverride": "افزودن استثنای کاربر…",
+  "@powerLevelAddOverride": {
+    "description": "Button to add a per-user power level override."
+  },
+
+  "editOwnProfile": "ویرایش پروفایل",
+  "@editOwnProfile": {
+    "description": "Button to open the own-profile editor in the hub."
+  },
+  "editDisplayName": "ویرایش نام نمایشی",
+  "@editDisplayName": {
+    "description": "Title of the edit-displayname dialog."
+  },
+  "displayNameHint": "نامی که می‌خواهید دیگران ببینند.",
+  "@displayNameHint": {
+    "description": "Hint for the display-name field."
+  },
+  "editStatusMessage": "ویرایش پیام وضعیت",
+  "@editStatusMessage": {
+    "description": "Title of the edit-status dialog."
+  },
+  "statusMessageHint": "یادداشت کوتاه اختیاری درباره‌ی آنچه انجام می‌دهید.",
+  "@statusMessageHint": {
+    "description": "Hint for the status-message field."
+  },
+  "statusMessage": "پیام وضعیت",
+  "@statusMessage": {
+    "description": "Field label for the status message field."
+  },
+  "presence": "حضور",
+  "@presence": {
+    "description": "Section header for presence settings in the hub."
+  },
+  "presenceDescription": "کنترل اینکه چه کسانی وضعیت آنلاین شما را ببینند.",
+  "@presenceDescription": {
+    "description": "Description for the presence section in the hub."
+  },
+  "presenceStatusOnline": "آنلاین",
+  "@presenceStatusOnline": {
+    "description": "Presence option: Online."
+  },
+  "presenceStatusUnavailable": "دور",
+  "@presenceStatusUnavailable": {
+    "description": "Presence option: Away / Unavailable."
+  },
+  "presenceStatusOffline": "آفلاین به نظر برسد",
+  "@presenceStatusOffline": {
+    "description": "Presence option: appear Offline."
+  },
+  "presenceStatusUpdated": "حضور به‌روزرسانی شد.",
+  "@presenceStatusUpdated": {
+    "description": "Snackbar after updating presence."
+  },
+  "statusMessageUpdated": "پیام وضعیت به‌روزرسانی شد.",
+  "@statusMessageUpdated": {
+    "description": "Snackbar after updating status message."
+  },
+  "displayNameUpdated": "نام نمایشی به‌روزرسانی شد.",
+  "@displayNameUpdated": {
+    "description": "Snackbar after updating display name."
+  },
+  "sharePresence": "اشتراک‌گذاری حضور",
+  "@sharePresence": {
+    "description": "Toggle to share presence with other users."
+  },
+  "sharePresenceDescription": "به کاربران دیگر اجازه دهید وضعیت آنلاین شما را ببینند.",
+  "@sharePresenceDescription": {
+    "description": "Description for the share-presence toggle."
+  },
+
+  "expandReplies": "نمایش متن گفتگو",
+  "@expandReplies": {
+    "description": "Hover/click action to expand a collapsed reply chain."
+  },
+  "collapseReplies": "پنهان کردن متن گفتگو",
+  "@collapseReplies": {
+    "description": "Hover/click action to collapse an expanded reply chain."
+  },
+  "showMore": "نمایش بیشتر",
+  "@showMore": {
+    "description": "Generic show-more button."
+  },
+
+  "dateFilter": "فیلتر تاریخ",
+  "@dateFilter": {
+    "description": "Section header for the date-range filter in in-room search."
+  },
+  "afterDate": "پس از",
+  "@afterDate": {
+    "description": "Label of the 'after' date input."
+  },
+  "beforeDate": "پیش از",
+  "@beforeDate": {
+    "description": "Label of the 'before' date input."
+  },
+  "clearDateFilter": "حذف فیلتر تاریخ",
+  "@clearDateFilter": {
+    "description": "Button to clear the date-range filter."
+  },
+
+  "reportRoom": "گزارش اتاق",
+  "@reportRoom": {
+    "description": "Action to report a room for moderation."
+  },
+  "reportRoomReason": "دلیل گزارش این اتاق",
+  "@reportRoomReason": {
+    "description": "Prompt for the reason text when reporting a room."
+  },
+  "roomReported": "اتاق گزارش شد.",
+  "@roomReported": {
+    "description": "Snackbar after reporting a room."
+  },
+
+  "unsupportedSlashCommand": "دستور ناشناخته: {command}",
+  "@unsupportedSlashCommand": {
+    "description": "Snackbar shown when a slash command is not recognised.",
+    "placeholders": {
+      "command": { "type": "String" }
+    }
+  },
+  "slashCommandMe": "ارسال به‌صورت ایموجی (/me)",
+  "@slashCommandMe": {
+    "description": "Tooltip for the /me emote toggle in the chat box formatting toolbar."
+  },
+  "sendAsEmote": "ارسال به‌صورت ایموجی",
+  "@sendAsEmote": {
+    "description": "Indicator that the message will be sent as an emote (m.emote)."
+  },
+
+  "membersListSearchByUser": "جست‌وجوی اعضا",
+  "@membersListSearchByUser": {
+    "description": "Search field hint for the members list."
+  },
+
+  "ensureDMPermission": "ارسال پیام مستقیم",
+  "@ensureDMPermission": {
+    "description": "Action label for the DM shortcut on a profile."
+  }
+}

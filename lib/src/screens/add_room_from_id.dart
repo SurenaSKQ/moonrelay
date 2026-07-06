@@ -25,6 +25,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_directory_search.dart';
 import 'package:moonrelay/src/widgets/create_room_form.dart';
+import 'package:moonrelay/src/widgets/user_search_widget.dart';
 import 'package:provider/provider.dart';
 
 /// The entry-point "Add Room" page that offers three methods:
@@ -47,7 +48,7 @@ class _AddRoomPageState extends State<AddRoomPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -82,6 +83,10 @@ class _AddRoomPageState extends State<AddRoomPage>
               icon: const Icon(LucideIcons.plus, size: 18),
               text: l10n.createRoom,
             ),
+            Tab(
+              icon: const Icon(LucideIcons.messageCircle, size: 18),
+              text: l10n.directChatSearch,
+            ),
           ],
         ),
       ),
@@ -96,6 +101,9 @@ class _AddRoomPageState extends State<AddRoomPage>
 
           // Tab 3: Create a new room / space
           const _CreateRoomTab(),
+
+          // Tab 4: Search users & start direct chats
+          const _UserSearchTab(),
         ],
       ),
     );
@@ -428,5 +436,18 @@ class _CreateRoomTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const CreateRoomWidget();
+  }
+}
+
+// ── Tab 4: User search & direct chat ──────────────────────────────────────────
+
+/// Embeds [UserSearchWidget] inside the tab so users can search the user
+/// directory and start direct chats from the "Add Room" page.
+class _UserSearchTab extends StatelessWidget {
+  const _UserSearchTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const UserSearchWidget(embedded: true);
   }
 }

@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Provides extra functionality for formatting the time.
 extension DateTimeExtension on DateTime {
@@ -81,6 +82,44 @@ extension DateTimeExtension on DateTime {
 
     if (sameDay) return localizedTimeOfDay(context);
     return ("${localizedTimeShort(context)}, ${localizedTimeOfDay(context)}");
+  }
+
+  /// Returns a short human-readable relative time string suitable for
+  /// "last seen" / "active" labels.
+  ///
+  /// Examples: "just now", "5m", "2h", "3d", "2w", "Jan 15", "Jan 15, 2023"
+  String relativeTimeShort(BuildContext context) {
+    final now = DateTime.now();
+    final diff = now.millisecondsSinceEpoch - millisecondsSinceEpoch;
+
+    if (diff < 0) return localizedTimeOfDay(context);
+
+    const minute = 60000;
+    const hour = 3600000;
+    const day = 86400000;
+    const week = 604800000;
+
+    final l10n = AppLocalizations.of(context)!;
+
+    if (diff < minute) return l10n.timeJustNow;
+    if (diff < hour) return l10n.timeMinutes(diff ~/ minute);
+    if (diff < day) return l10n.timeHours(diff ~/ hour);
+    if (diff < week) return l10n.timeDays(diff ~/ day);
+
+    // Older than a week — show date.
+    final sameYear = now.year == year;
+    if (sameYear) {
+      return '${_monthAbbr(month)} $day';
+    }
+    return '${_monthAbbr(month)} $day, $year';
+  }
+
+  static String _monthAbbr(int m) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[m - 1];
   }
 
   static String _z(int i) => i < 10 ? '0${i.toString()}' : i.toString();

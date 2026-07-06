@@ -19,6 +19,7 @@ import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:flutter/material.dart';
@@ -36,8 +37,10 @@ import 'package:matrix/matrix.dart';
 /// ## Event filtering
 ///
 /// Events with a non-null [relationshipEventId] (replies, reactions, edits,
-/// threads) are excluded from the visible list because they are rendered
-/// inline with their parent event.
+/// thread replies) are excluded from the visible list because they are rendered
+/// inline with their parent event.  Thread roots (events whose relationship
+/// type is `m.thread` and that reference themselves) are kept visible because
+/// they are the start of a thread and appear as regular messages.
 class TimelineView extends StatefulWidget {
   const TimelineView({
     super.key,
@@ -45,15 +48,22 @@ class TimelineView extends StatefulWidget {
     required this.room,
     required this.displayType,
     required this.scrollController,
+    required this.fontSize,
     this.timelineVersion,
     this.onReply,
+    this.onThread,
     this.showStateEvents = true,
+    this.filterEvents,
   });
 
   final Timeline timeline;
   final Room room;
   final DisplayType displayType;
   final ScrollController scrollController;
+
+  /// Font size for message text, propagated from [SettingsController]
+  /// once at the top level instead of watched inside each item.
+  final double fontSize;
 
   /// Included so the parent can signal data changes without tearing down
   /// the ListView (no [ValueKey] used).
@@ -62,9 +72,17 @@ class TimelineView extends StatefulWidget {
   /// Called when the user replies to a specific event.
   final void Function(Event event)? onReply;
 
+  /// Called when the user wants to open or create a thread for an event.
+  final void Function(Event event)? onThread;
+
   /// Whether to render state events (join/leave/room metadata changes).
   /// When false, state events are hidden from the timeline.
   final bool showStateEvents;
+
+  /// When non-null, overrides the default visibility filter.  The function
+  /// receives each event and should return `true` to make it visible.
+  /// When null, [ThreadUtils.isVisibleInMainTimeline] is used.
+  final bool Function(Event)? filterEvents;
 
   @override
   State<TimelineView> createState() => _TimelineViewState();
@@ -75,21 +93,107 @@ class _TimelineViewState extends State<TimelineView> {
   /// null if nothing is highlighted.
   String? _highlightedEventId;
 
+  /// Count of currently-visible encrypted events that can't be decrypted,
+  /// exposed to the [_UndecryptableBanner] via [ValueListenable] so the
+  /// banner reflects new arrivals without forcing a full item-list rebuild.
+  final ValueNotifier<int> _undecryptableCount = ValueNotifier<int>(0);
+
+  // ---------------------------------------------------------------------------
+  // Cached computed values
+  // ---------------------------------------------------------------------------
+
+  /// Cached result of [_buildItemList], invalidated when the timeline version
+  /// or any display-affecting prop changes.  This prevents O(n) rebuilds of
+  /// the entire visible item list on every sync tick.
+  List<Widget>? _cachedItems;
+
+  /// Cached result of [_visibleIndices].
+  List<int>? _cachedVisibleIndices;
+
+  /// Cached event-id-to-item-index map for jump-to-event.
+  Map<String, int>? _cachedEventIdToItemIndex;
+
+  /// The [widget.timelineVersion] when the cache was last built.  Also
+  /// embeds other display-affecting props so the cache is invalidated
+  /// when font size, display type, or state-event visibility changes.
+  String get _cacheKey =>
+      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}';
+
+  String _lastCacheKey = '';
+
+  /// Invalidates all cached values so they are recomputed on the next build.
+  void _invalidateCache() {
+    _cachedItems = null;
+    _cachedVisibleIndices = null;
+    _cachedEventIdToItemIndex = null;
+  }
+
+  /// Counts encrypted events currently visible according to the active
+  /// filter / state-event toggle.  Used to drive the
+  /// [_UndecryptableBanner] so a new encrypted arrival bumps the badge
+  /// without invalidating the full item-list cache.
+  int _countUndecryptable() {
+    final filter = widget.filterEvents;
+    final events = widget.timeline.events;
+    var count = 0;
+    for (var idx = 0; idx < events.length; idx++) {
+      final ev = events[idx];
+      if (filter != null) {
+        if (!filter(ev)) continue;
+      } else {
+        if (!ThreadUtils.isVisibleInMainTimeline(ev)) continue;
+      }
+      if (ev.type != EventTypes.Encrypted) continue;
+      count++;
+    }
+    return count;
+  }
+
+  @override
+  void didUpdateWidget(TimelineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newKey = _cacheKey;
+    if (newKey != _lastCacheKey) {
+      _invalidateCache();
+    }
+    // Recompute the undecryptable count on every prop change. The banner
+    // listens to the ValueNotifier so an arriving encrypted event that
+    // doesn't touch the cache key still produces a correct count as long
+    // as the parent rebuilds this widget (which it does on every sync).
+    _undecryptableCount.value = _countUndecryptable();
+  }
+
+  @override
+  void dispose() {
+    _undecryptableCount.dispose();
+    super.dispose();
+  }
+
   // ---------------------------------------------------------------------------
   // Index helpers
   // ---------------------------------------------------------------------------
 
   /// Indices (into `timeline.events`) of events that should appear as
-  /// standalone items.  Events are in SDK order (newest → oldest).
+  /// standalone items.  Events are in SDK order (newest -> oldest).
+  ///
+  /// Thread roots (self-referencing `m.thread` events) are kept visible;
+  /// all other related events (reactions, edits, thread replies) are hidden.
   List<int> _visibleIndices() {
+    if (_cachedVisibleIndices != null) return _cachedVisibleIndices!;
     final indices = List<int>.generate(widget.timeline.events.length, (i) => i);
-    indices.removeWhere(
-        (i) => widget.timeline.events[i].relationshipEventId != null);
+    final filter = widget.filterEvents;
+    indices.removeWhere((i) {
+      final event = widget.timeline.events[i];
+      if (filter != null) return !filter(event);
+      return !ThreadUtils.isVisibleInMainTimeline(event);
+    });
+    _cachedVisibleIndices = indices;
     return indices;
   }
 
-  /// True when [event] is a state event (not a regular message).
-  bool _isStateEvent(Event event) => event.type != EventTypes.Message;
+  /// True when [event] is a state event (not a regular message or sticker).
+  bool _isStateEvent(Event event) =>
+      event.type != EventTypes.Message && event.type != EventTypes.Sticker;
 
   /// True when [newer] and [older] belong to the same sender and fall within
   /// the same ~10‑minute environment, i.e. they should share a visual group.
@@ -143,10 +247,19 @@ class _TimelineViewState extends State<TimelineView> {
   /// If any visible events are undecryptable (type == `m.room.encrypted`), an
   /// info banner is prepended to alert the user that some messages can't be
   /// read and suggest verification or key request.
+  ///
+  /// Results are cached in [_cachedItems] and [_cachedEventIdToItemIndex] so
+  /// that the same timeline version produces the same widget list without
+  /// re-scanning every event.  The cache is invalidated when [widget.timelineVersion]
+  /// or any display-affecting prop changes.
   List<Widget> _buildItemList(BuildContext context) {
-    final visibleIndices = _visibleIndices(); // newest → oldest
+    if (_cachedItems != null) return _cachedItems!;
+
+    final visibleIndices = _visibleIndices(); // newest -> oldest
+    final threadReplyCounts =
+        ThreadUtils.buildThreadReplyCounts(widget.timeline);
     final items = <Widget>[];
-    // Map of eventId → item index in [items], built as we go.
+    // Map of eventId -> item index in [items], built as we go.
     final eventIdToItemIndex = <String, int>{};
     Event? previousVisible; // the *newer* neighbour (non-state events only)
     int undecryptableCount = 0;
@@ -180,7 +293,7 @@ class _TimelineViewState extends State<TimelineView> {
           }
 
           items.add(StateEventTile(events: batch));
-          // Do NOT update previousVisible — state events don't participate
+          // Do NOT update previousVisible -- state events don't participate
           // in regular message grouping/continuation.
         } else {
           // Skip state events entirely.
@@ -205,6 +318,10 @@ class _TimelineViewState extends State<TimelineView> {
         final isContinuation = effectiveNextEvent != null &&
             _isContinuation(event, effectiveNextEvent);
 
+        // Look up the reply count from the precomputed map instead of
+        // scanning the timeline for each event.
+        final replyCount = threadReplyCounts[event.eventId] ?? 0;
+
         items.add(TimelineItem(
           event: event,
           room: widget.room,
@@ -214,7 +331,11 @@ class _TimelineViewState extends State<TimelineView> {
           isGroupStart: !isContinuation,
           isGroupContinuation: isContinuation,
           timeline: widget.timeline,
+          fontSize: widget.fontSize,
+          threadReplyCount: replyCount,
           onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
+          onThread:
+              widget.onThread != null ? () => widget.onThread!(event) : null,
           onForward: () => showForwardDialog(
             context: context,
             event: event,
@@ -231,14 +352,25 @@ class _TimelineViewState extends State<TimelineView> {
       }
     }
 
-    // Prepend an undecryptable-messages banner if any encrypted events
-    // were found.  Because the ListView uses reverse: true, the banner
-    // appears at the bottom, immediately visible when opening the chat.
-    if (undecryptableCount > 0) {
-      items.insert(0, _UndecryptableBanner(count: undecryptableCount));
-    }
+    // Always insert the undecryptable banner at index 0 (it self-hides
+    // when the count is zero).  Sourcing the count from a [ValueNotifier]
+    // means new encrypted events refresh the badge without invalidating
+    // the item-list cache or rebuilding every [TimelineItem].
+    _undecryptableCount.value = undecryptableCount;
+    items.insert(0, const _UndecryptableBanner());
+
+    _cachedItems = items;
+    _cachedEventIdToItemIndex = eventIdToItemIndex;
+    _lastCacheKey = _cacheKey;
 
     return items;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _lastCacheKey = _cacheKey;
+    _undecryptableCount.value = _countUndecryptable();
   }
 
   // ---------------------------------------------------------------------------
@@ -273,7 +405,10 @@ class _TimelineViewState extends State<TimelineView> {
     Map<String, int> eventIdToItemIndex,
   ) {
     return (String eventId) {
-      final targetIdx = eventIdToItemIndex[eventId];
+      // Use the cached map if available (avoids passing the ephemeral
+      // map through the closure on every rebuild).
+      final map = _cachedEventIdToItemIndex ?? eventIdToItemIndex;
+      final targetIdx = map[eventId];
       if (targetIdx == null) return;
       if (!controller.hasClients) return;
 
@@ -321,65 +456,78 @@ class _TimelineViewState extends State<TimelineView> {
 
 /// Banner shown at the bottom of the timeline when one or more messages
 /// can't be decrypted (no session key, device not verified, etc.).
+///
+/// The [TimelineViewState] owns a [ValueNotifier] for the undecryptable
+/// count and feeds it into this widget, so the count updates whenever a
+/// new encrypted event arrives without a full timeline rebuild.
 class _UndecryptableBanner extends StatelessWidget {
-  const _UndecryptableBanner({required this.count});
-
-  final int count;
+  const _UndecryptableBanner();
 
   @override
   Widget build(BuildContext context) {
+    final _TimelineViewState? state =
+        context.findAncestorStateOfType<_TimelineViewState>();
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: scheme.tertiary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              LucideIcons.alertTriangle,
-              color: scheme.tertiary,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.encryptionDecryptionFailed,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: scheme.onTertiaryContainer,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    count == 1
-                        ? '$count ${l10n.encryptionUndecryptableMessage}'
-                        : '$count ${l10n.encryptionUndecryptableMessages}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
-                    ),
-                  ),
-                ],
+    final notifier = state?._undecryptableCount;
+    if (notifier == null) return const SizedBox.shrink();
+
+    return ValueListenableBuilder<int>(
+      valueListenable: notifier,
+      builder: (context, count, _) {
+        if (count <= 0) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: scheme.tertiary.withValues(alpha: 0.3),
               ),
             ),
-          ],
-        ),
-      ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  LucideIcons.alertTriangle,
+                  color: scheme.tertiary,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.encryptionDecryptionFailed,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: scheme.onTertiaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        count == 1
+                            ? '$count ${l10n.encryptionUndecryptableMessage}'
+                            : '$count ${l10n.encryptionUndecryptableMessages}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

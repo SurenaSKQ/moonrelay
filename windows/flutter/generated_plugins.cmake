@@ -4,6 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_acrylic
+  geolocator_windows
+  permission_handler_windows
+  record_windows
   screen_retriever_windows
   system_theme
   tray_manager

@@ -17,15 +17,14 @@
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/chat/receipt_avatars.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
 
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
@@ -51,8 +50,11 @@ class TimelineItem extends StatelessWidget {
     this.isGroupStart = true,
     this.isGroupContinuation = false,
     this.timeline,
+    required this.fontSize,
+    this.threadReplyCount = 0,
     this.onReply,
     this.onForward,
+    this.onThread,
     this.onJumpToEvent,
     this.highlightedEventId,
   });
@@ -62,6 +64,13 @@ class TimelineItem extends StatelessWidget {
   final Room room;
   final DisplayType displayType;
   final Timeline? timeline;
+
+  /// Font size for message text, passed from the parent to avoid
+  /// a per-event [context.watch] on [SettingsController].
+  final double fontSize;
+
+  /// Precomputed number of thread replies (0 = no thread).
+  final int threadReplyCount;
 
   /// True when this event is the first in a group from the same sender.
   /// Grouped events from the same sender within ~10 min share a single
@@ -77,6 +86,9 @@ class TimelineItem extends StatelessWidget {
 
   /// Called when the user wants to forward this event to another room.
   final VoidCallback? onForward;
+
+  /// Called when the user wants to view the thread for this event.
+  final VoidCallback? onThread;
 
   /// Called when the user taps a reply preview to jump to the replied-to
   /// event.  Receives the event ID of the target event.
@@ -126,6 +138,9 @@ class TimelineItem extends StatelessWidget {
   }
 
   /// Message body + reactions bar (shared between all display modes).
+  ///
+  /// Uses the precomputed [threadReplyCount] and passed [fontSize] instead
+  /// of scanning the timeline or watching [SettingsController] on every build.
   Widget _messageContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,6 +150,7 @@ class TimelineItem extends StatelessWidget {
           event: event,
           timeline: timeline,
           room: room,
+          fontSize: fontSize,
           onJumpToEvent: onJumpToEvent,
         ),
         if (timeline != null)
@@ -142,6 +158,14 @@ class TimelineItem extends StatelessWidget {
             event: event,
             timeline: timeline!,
             room: room,
+          ),
+        // Read-receipt avatars under every message that someone has seen.
+        if (timeline != null)
+          ReceiptAvatars(event: event, room: room),
+        if (threadReplyCount > 0)
+          _ThreadIndicator(
+            replyCount: threadReplyCount,
+            onTap: onThread,
           ),
       ],
     );
@@ -153,8 +177,6 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -193,7 +215,7 @@ class TimelineItem extends StatelessWidget {
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
                             style: TextStyle(
-                              fontSize: fs,
+                              fontSize: fontSize,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurface,
                             ),
@@ -204,7 +226,7 @@ class TimelineItem extends StatelessWidget {
                         Text(
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: fs * 0.6875,
+                            fontSize: fontSize * 0.6875,
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.45),
@@ -214,12 +236,14 @@ class TimelineItem extends StatelessWidget {
                     ),
                   ),
                 // No timestamp for continuation messages (time shown on group start)
-                // Hover actions (right-aligned — away from sender info)
+                // Hover actions (right-aligned -- away from sender info)
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
+                  timeline: timeline,
                   onReply: onReply,
                   onForward: onForward,
+                  onThread: onThread,
                   child: _messageContent(context),
                 ),
               ],
@@ -236,8 +260,6 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     final showAvatar = isGroupStart && !isGroupContinuation;
 
     return Padding(
@@ -274,7 +296,7 @@ class TimelineItem extends StatelessWidget {
                           child: Text(
                             event.senderFromMemoryOrFallback.calcDisplayname(),
                             style: TextStyle(
-                              fontSize: fs,
+                              fontSize: fontSize,
                               fontWeight: FontWeight.w700,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -284,7 +306,7 @@ class TimelineItem extends StatelessWidget {
                         Text(
                           event.originServerTs.localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: fs * 0.6875,
+                            fontSize: fontSize * 0.6875,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -295,8 +317,10 @@ class TimelineItem extends StatelessWidget {
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
+                  timeline: timeline,
                   onReply: onReply,
                   onForward: onForward,
+                  onThread: onThread,
                   child: Container(
                     decoration: BoxDecoration(
                       color: cs.primaryContainer.withValues(alpha: 0.3),
@@ -329,15 +353,13 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
     return _IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
           '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
           style: TextStyle(
-            fontSize: fs,
+            fontSize: fontSize,
             fontWeight: FontWeight.w700,
           ),
           overflow: TextOverflow.ellipsis,
@@ -359,6 +381,7 @@ class TimelineItem extends StatelessWidget {
             event: event,
             timeline: timeline,
             room: room,
+            fontSize: fontSize,
             onJumpToEvent: onJumpToEvent,
           ),
           if (timeline != null)
@@ -380,8 +403,9 @@ class TimelineItem extends StatelessWidget {
 /// Wraps [child] with a [MouseRegion] and overlays action buttons at the
 /// top‑right corner of the message when the user hovers over it.
 ///
-/// Actions include **React**, **Reply**, **Forward**, **Details**, and
-/// **Delete** (when permitted).
+/// Actions include **React**, **Reply**, **Forward**, **Details**, **Edit**,
+/// **Delete** (when permitted), and **Moderation** for users with sufficient
+/// permissions.
 ///
 /// When [onReply] is `null` the whole mechanism is skipped and [child] is
 /// returned as-is.
@@ -390,15 +414,19 @@ class _HoverActionsWrapper extends StatefulWidget {
     required this.child,
     required this.event,
     required this.room,
+    required this.timeline,
     this.onReply,
     this.onForward,
+    this.onThread,
   });
 
   final Widget child;
   final Event event;
   final Room room;
+  final Timeline? timeline;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
+  final VoidCallback? onThread;
 
   @override
   State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
@@ -422,32 +450,40 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
           widget.child,
           if (_isHovered)
             Positioned(
-              top: 0,
+              top: -4,
               right: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: cs.primary.withValues(alpha: 0.25),
+                    color: cs.outlineVariant,
+                    width: 0.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 4,
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
                       offset: const Offset(0, 2),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 2,
+                  horizontal: 6,
+                  vertical: 4,
                 ),
                 child: MessageActions(
                   event: widget.event,
                   room: widget.room,
+                  timeline: widget.timeline,
                   onReply: widget.onReply!,
                   onForward: widget.onForward,
+                  onThread: widget.onThread,
                 ),
               ),
             ),
@@ -498,6 +534,70 @@ class _RedactedEvent extends StatelessWidget {
   }
 }
 
+// ─── Thread indicator ──────────────────────────────────────────────────────────
+
+/// A clickable indicator shown below a message when it has thread replies.
+/// Shows the reply count and navigates to the thread view on tap.
+class _ThreadIndicator extends StatelessWidget {
+  const _ThreadIndicator({
+    required this.replyCount,
+    this.onTap,
+  });
+
+  final int replyCount;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: scheme.primary.withValues(alpha: 0.3),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.forum_rounded,
+                size: 14,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                l10n.threadReplies(replyCount),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: scheme.primary.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Hover highlight & reply-jump flash
 // ---------------------------------------------------------------------------
@@ -505,6 +605,9 @@ class _RedactedEvent extends StatelessWidget {
 /// Wraps a chat item and applies a subtle background tint when the mouse
 /// hovers over it, plus a stronger flash when [isHighlighted] is true
 /// (triggered by a reply jump-to).
+///
+/// Uses [ColorScheme.surfaceContainerHighest] tones that adapt cleanly
+/// to both light and dark themes.
 class _HoverHighlight extends StatefulWidget {
   const _HoverHighlight({
     required this.isHighlighted,
@@ -529,7 +632,7 @@ class _HoverHighlightState extends State<_HoverHighlight> {
     if (widget.isHighlighted) {
       bgColor = cs.primary.withValues(alpha: 0.15);
     } else if (_isHovered) {
-      bgColor = cs.primary.withValues(alpha: 0.06);
+      bgColor = cs.surfaceContainerHighest.withValues(alpha: 0.5);
     } else {
       bgColor = Colors.transparent;
     }

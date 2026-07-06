@@ -29,10 +29,41 @@ class CurrentRoom extends ChangeNotifier {
   /// The currently-active room, or `null` if no room is selected.
   Room? get room => _room;
 
+  /// Whether the timeline should show only pinned messages.
+  bool _pinnedFilterActive = false;
+
+  bool get pinnedFilterActive => _pinnedFilterActive;
+
+  /// The event IDs of the currently pinned messages, derived from room
+  /// state `m.room.pinned_events`.
+  List<String> get pinnedEventIds {
+    final r = _room;
+    if (r == null) return [];
+    final state = r.getState('m.room.pinned_events');
+    if (state == null) return [];
+    final pinned = state.content['pinned'];
+    if (pinned is List) return pinned.cast<String>();
+    return [];
+  }
+
+  /// Toggle the pinned-only filter on the timeline.
+  void togglePinnedFilter() {
+    _pinnedFilterActive = !_pinnedFilterActive;
+    notifyListeners();
+  }
+
+  /// Disable the pinned-only filter.
+  void disablePinnedFilter() {
+    if (!_pinnedFilterActive) return;
+    _pinnedFilterActive = false;
+    notifyListeners();
+  }
+
   /// Update the active room.  Passing the same instance is a no-op.
   void setRoom(Room? room) {
     if (room == _room) return;
     _room = room;
+    _pinnedFilterActive = false;
     notifyListeners();
   }
 }

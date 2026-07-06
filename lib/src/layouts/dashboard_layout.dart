@@ -22,16 +22,18 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:moonrelay/src/chat/thread_list_sidebar.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -43,10 +45,12 @@ import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
 /// Controller widget for the multi-pane dashboard layout.
 ///
-/// Owns transient resize state and reacts to [CurrentRoom] and
-/// [SettingsController] changes.  The actual UI is delegated to the
-/// stateless [_DashboardView] so that the right sidebar receives
-/// room changes as direct props with no indirection.
+/// Owns transient resize state via [ValueNotifier]s (so drag updates don't
+/// trigger full-tree rebuilds) and reacts to [CurrentRoom] and
+/// [SettingsController] changes only at the precise subtrees that care.
+/// The actual UI is delegated to the stateless [_DashboardView] so that
+/// the right sidebar receives room changes as direct props with no
+/// indirection.
 class DashboardLayout extends StatefulWidget {
   /// The main content widget (typically the route's child).
   final Widget child;
@@ -58,43 +62,63 @@ class DashboardLayout extends StatefulWidget {
 }
 
 class _DashboardLayoutState extends State<DashboardLayout> {
-  // Local drag state for resize handles.
-  double? _leftWidth;
-  double? _rightWidth;
+  // Live drag state — exposed as ValueNotifiers so the layout shell can
+  // observe them with [ListenableBuilder] without rebuilding the entire tree
+  // on every drag delta.
+  final ValueNotifier<double?> _leftWidth = ValueNotifier(null);
+  final ValueNotifier<double?> _rightWidth = ValueNotifier(null);
+
+  // Adaptive layout decisions derived from the latest layout pass.
+  LayoutSize _layoutSize = LayoutSize.expanded;
+
+  @override
+  void dispose() {
+    _leftWidth.dispose();
+    _rightWidth.dispose();
+    super.dispose();
+  }
+
+  void _onLeftResize(double delta) {
+    final settings = context.read<SettingsController>();
+    final current = _leftWidth.value ?? settings.leftSidebarWidth;
+    _leftWidth.value = current + delta;
+  }
+
+  void _onLeftResizeEnd() {
+    final w = _leftWidth.value;
+    if (w != null) {
+      context.read<SettingsController>().setLeftSidebarWidth(w);
+      _leftWidth.value = null;
+    }
+  }
+
+  void _onRightResize(double delta) {
+    final settings = context.read<SettingsController>();
+    final current = _rightWidth.value ?? settings.rightSidebarWidth;
+    _rightWidth.value = current - delta;
+  }
+
+  void _onRightResizeEnd() {
+    final w = _rightWidth.value;
+    if (w != null) {
+      context.read<SettingsController>().setRightSidebarWidth(w);
+      _rightWidth.value = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<CurrentRoom, SettingsController>(
-      builder: (context, currentRoom, settings, _) {
-        final room = currentRoom.room;
-
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _layoutSize = LayoutBreakpoints.sizeForWidth(constraints.maxWidth);
         return _DashboardView(
-          room: room,
-          settings: settings,
-          leftWidth: _leftWidth,
-          rightWidth: _rightWidth,
-          onLeftResize: (double delta) {
-            setState(() {
-              _leftWidth = (_leftWidth ?? settings.leftSidebarWidth) + delta;
-            });
-          },
-          onLeftResizeEnd: () {
-            if (_leftWidth != null) {
-              settings.setLeftSidebarWidth(_leftWidth!);
-              _leftWidth = null;
-            }
-          },
-          onRightResize: (double delta) {
-            setState(() {
-              _rightWidth = (_rightWidth ?? settings.rightSidebarWidth) - delta;
-            });
-          },
-          onRightResizeEnd: () {
-            if (_rightWidth != null) {
-              settings.setRightSidebarWidth(_rightWidth!);
-              _rightWidth = null;
-            }
-          },
+          size: _layoutSize,
+          leftWidthNotifier: _leftWidth,
+          rightWidthNotifier: _rightWidth,
+          onLeftResize: _onLeftResize,
+          onLeftResizeEnd: _onLeftResizeEnd,
+          onRightResize: _onRightResize,
+          onRightResizeEnd: _onRightResizeEnd,
           child: widget.child,
         );
       },
@@ -107,14 +131,15 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 /// Pure presentation widget for the dashboard layout.
 ///
 /// Receives everything it needs as constructor props so it rebuilds
-/// deterministically whenever the controller rebuilds.
+/// deterministically whenever the controller rebuilds. Drag state is observed
+/// via [ListenableBuilder] scoped to the sidebar width so unrelated changes
+/// don't propagate.
 class _DashboardView extends StatelessWidget {
   const _DashboardView({
     required this.child,
-    required this.room,
-    required this.settings,
-    required this.leftWidth,
-    required this.rightWidth,
+    required this.size,
+    required this.leftWidthNotifier,
+    required this.rightWidthNotifier,
     required this.onLeftResize,
     required this.onLeftResizeEnd,
     required this.onRightResize,
@@ -122,10 +147,9 @@ class _DashboardView extends StatelessWidget {
   });
 
   final Widget child;
-  final Room? room;
-  final SettingsController settings;
-  final double? leftWidth;
-  final double? rightWidth;
+  final LayoutSize size;
+  final ValueNotifier<double?> leftWidthNotifier;
+  final ValueNotifier<double?> rightWidthNotifier;
   final void Function(double) onLeftResize;
   final VoidCallback onLeftResizeEnd;
   final void Function(double) onRightResize;
@@ -133,111 +157,220 @@ class _DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isWide = constraints.maxWidth >= 1100;
+    // On compact screens we collapse both side panes to drawers. The main
+    // content fills the available width and exposes drawer toggles.
+    if (size.isCompact) {
+      return _CompactDashboard(child: child);
+    }
 
-        final bool showLeft = settings.leftSidebarVisible;
-        final bool showRight = settings.rightSidebarVisible && isWide;
-        final bool showStatus = settings.showStatusBar;
+    final settings = context.watch<SettingsController>();
+    final theme = Theme.of(context);
 
-        final ThemeData theme = Theme.of(context);
+    final showLeft = settings.leftSidebarVisible && size.hasOneSidebar;
+    final showRight = settings.rightSidebarVisible && size.hasTwoSidebars;
 
-        return Column(
-          children: [
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Navigation pane (always visible) ─────────────────
-                  const NavigationPane(),
-
-                  // ── Left sidebar (rooms pane, collapsible) ───────────
-                  if (showLeft)
-                    _SidebarPane(
-                      width: leftWidth ?? settings.leftSidebarWidth,
-                      minWidth: 200,
-                      title: settings.leftPaneChoice.label,
-                      body: _buildLeftPane(context, settings.leftPaneChoice),
-                      bottomBar: null,
-                      theme: theme,
-                    ),
-
-                  if (showLeft)
-                    _ResizeHandle(
-                      onDrag: onLeftResize,
-                      onDragEnd: onLeftResizeEnd,
-                    ),
-
-                  // ── Main content ──────────────────────────────────────
-                  Expanded(
-                    child: PostLoginSetupChecker(
-                      child: IncomingVerificationListener(
-                        child: child,
-                      ),
+    return LayoutScope(
+      size: size,
+      availableWidth: 0, // filled in below by sub-builders that need it
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showLeft)
+                  _LeftPaneHost(
+                    widthNotifier: leftWidthNotifier,
+                    onResize: onLeftResize,
+                    onResizeEnd: onLeftResizeEnd,
+                    theme: theme,
+                  ),
+                Expanded(
+                  child: PostLoginSetupChecker(
+                    child: IncomingVerificationListener(
+                      child: child,
                     ),
                   ),
-
-                  // ── Right sidebar ─────────────────────────────────────
-                  if (showRight)
-                    _ResizeHandle(
-                      onDrag: onRightResize,
-                      onDragEnd: onRightResizeEnd,
-                    ),
-
-                  if (showRight)
-                    _SidebarPane(
-                      width: rightWidth ?? settings.rightSidebarWidth,
-                      minWidth: 200,
-                      title: '',
-                      body: _RightSidebarContent(room: room),
-                      bottomBar: null,
-                      theme: theme,
-                    ),
+                ),
+                if (showRight) ...[
+                  _ResizeHandle(
+                    onDrag: onRightResize,
+                    onDragEnd: onRightResizeEnd,
+                  ),
+                  _RightPaneHost(
+                    widthNotifier: rightWidthNotifier,
+                    theme: theme,
+                  ),
                 ],
-              ),
+              ],
             ),
-            // ── Status bar (sync feedback) ────────────────────────────
-            if (showStatus) const ApplicationStatusBar(),
-          ],
+          ),
+          if (settings.showStatusBar) const ApplicationStatusBar(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Compact layout shell ────────────────────────────────────────────────────
+
+/// Layout used when the window is too narrow to keep both side panes pinned.
+///
+/// Shows the navigation rail + main content in a single row. The left and right
+/// sidebars are promoted to modal sheets that the user can open from toolbar
+/// buttons. Drawers are owned by the [Scaffold] ancestors of [child] (each
+/// screen can declare its own drawers if needed) so the layout shell stays
+/// simple.
+class _CompactDashboard extends StatelessWidget {
+  const _CompactDashboard({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutScope(
+      size: LayoutSize.compact,
+      availableWidth: 0,
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Far-left rail (icons only) remains visible on compact
+                // layouts so the user can switch between Home / All / Spaces.
+                const NavigationPane(),
+                Expanded(
+                  child: PostLoginSetupChecker(
+                    child: IncomingVerificationListener(
+                      child: child,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (context.watch<SettingsController>().showStatusBar)
+            const ApplicationStatusBar(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Left / right pane hosts ─────────────────────────────────────────────────
+
+/// Hosts the left side pane (navigation rail + room list) when the layout has
+/// room for a pinned sidebar.
+///
+/// The drag width is observed via [ListenableBuilder] so resize updates don't
+/// rebuild the entire dashboard tree.
+class _LeftPaneHost extends StatelessWidget {
+  const _LeftPaneHost({
+    required this.widthNotifier,
+    required this.onResize,
+    required this.onResizeEnd,
+    required this.theme,
+  });
+
+  final ValueNotifier<double?> widthNotifier;
+  final void Function(double) onResize;
+  final VoidCallback onResizeEnd;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const NavigationPane(),
+        _ResizeHandle(
+          onDrag: onResize,
+          onDragEnd: onResizeEnd,
+        ),
+        ListenableBuilder(
+          listenable: widthNotifier,
+          builder: (context, _) {
+            return _SidebarPane(
+              width: widthNotifier.value ?? settings.leftSidebarWidth,
+              minWidth: LayoutBreakpoints.minSidebarWidth,
+              title: settings.leftPaneChoice.label,
+              body: buildLeftPaneContent(context, settings.leftPaneChoice),
+              bottomBar: null,
+              theme: theme,
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Hosts the right side pane (room info, members, threads, pinned).
+class _RightPaneHost extends StatelessWidget {
+  const _RightPaneHost({
+    required this.widthNotifier,
+    required this.theme,
+  });
+
+  final ValueNotifier<double?> widthNotifier;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    return ListenableBuilder(
+      listenable: widthNotifier,
+      builder: (context, _) {
+        return _SidebarPane(
+          width: widthNotifier.value ?? settings.rightSidebarWidth,
+          minWidth: LayoutBreakpoints.minSidebarWidth,
+          title: '',
+          body: const _RightSidebarContent(),
+          bottomBar: null,
+          theme: theme,
         );
       },
     );
   }
+}
 
-  /// Build the left pane widget based on the user's choice,
-  /// applying the current navigation filter.
-  static Widget _buildLeftPane(BuildContext context, LeftPaneChoice choice) {
-    switch (choice) {
-      case LeftPaneChoice.rooms:
-        return Consumer<NavigationState>(
-          builder: (context, nav, _) {
-            // When a specific space is selected, show the hierarchical
-            // tree view with expandable subspace groups.
-            if (nav.isSpace) {
-              final Client client = Provider.of<Client>(context, listen: false);
-              final Room? space = client.getRoomById(nav.selectedId);
-              if (space != null) {
-                return SpaceRoomsPane(space: space, client: client);
-              }
+// ─── Left pane content factory ───────────────────────────────────────────────
+
+/// Builds the body of the left pane based on the user's [LeftPaneChoice] and
+/// the current [NavigationState]. Pulled out so that [_CompactDashboard] and
+/// [_LeftPaneHost] can share the same content widget.
+Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
+  switch (choice) {
+    case LeftPaneChoice.rooms:
+      return Consumer<NavigationState>(
+        builder: (context, nav, _) {
+          if (nav.isSpace) {
+            final Client client = Provider.of<Client>(context, listen: false);
+            final Room? space = client.getRoomById(nav.selectedId);
+            if (space != null) {
+              return SpaceRoomsPane(space: space, client: client);
             }
+          }
 
-            // For Home (direct messages) and All Channels, show the
-            // traditional flat room list.
-            return RoomsPane(roomFilter: (Room room) {
-              if (nav.isAll) return !room.isSpace;
-              if (nav.isHome) return room.isDirectChat;
-              return true;
-            });
-          },
-        );
-      case LeftPaneChoice.spaces:
-        return const SpacesPane();
-      case LeftPaneChoice.friends:
-        return const FriendsChatsPane();
-      case LeftPaneChoice.none:
-        return const SizedBox.shrink();
-    }
+          return RoomsPane(roomFilter: (Room room) {
+            if (nav.isAll) return !room.isSpace;
+            if (nav.isHome) return room.isDirectChat;
+            return true;
+          });
+        },
+      );
+    case LeftPaneChoice.spaces:
+      return const SpacesPane();
+    case LeftPaneChoice.friends:
+      // DMs only — the same list shown on the Home navigation destination.
+      return RoomsPane(roomFilter: (Room room) => room.isDirectChat);
+    case LeftPaneChoice.none:
+      return const SizedBox.shrink();
   }
 }
 
@@ -246,15 +379,14 @@ class _DashboardView extends StatelessWidget {
 /// Manages the right sidebar content with a built-in dropdown to switch
 /// between room-info and members views.
 ///
-/// Receives the currently-active room from [DashboardLayout] so that
-/// room changes trigger a clean rebuild from the top of the widget tree.
+/// Listens to [CurrentRoom] directly so that room changes rebuild only the
+/// right sidebar body, not the surrounding dashboard shell.
 class _RightSidebarContent extends StatelessWidget {
-  const _RightSidebarContent({required this.room});
-
-  final Room? room;
+  const _RightSidebarContent();
 
   @override
   Widget build(BuildContext context) {
+    final room = context.watch<CurrentRoom>().room;
     if (room == null) {
       final scheme = Theme.of(context).colorScheme;
       return Center(
@@ -276,7 +408,7 @@ class _RightSidebarContent extends StatelessWidget {
       );
     }
 
-    return _RightSidebarWithSwitcher(key: ValueKey(room!.id), room: room!);
+    return _RightSidebarWithSwitcher(key: ValueKey(room.id), room: room);
   }
 }
 
@@ -307,6 +439,10 @@ class _RightSidebarWithSwitcher extends StatelessWidget {
             RightPaneChoice.roomInfo => _SidebarRoomInfo(room: room),
             RightPaneChoice.members =>
               _SidebarMembersList(key: ValueKey(room.id), room: room),
+            RightPaneChoice.threads =>
+              SidebarThreadList(key: ValueKey(room.id), room: room),
+            RightPaneChoice.pinned =>
+              _SidebarPinnedMessages(key: ValueKey(room.id), room: room),
           },
         ),
       ],
@@ -340,6 +476,8 @@ class _RightSidebarHeader extends StatelessWidget {
             switch (currentChoice) {
               RightPaneChoice.roomInfo => LucideIcons.info,
               RightPaneChoice.members => LucideIcons.users,
+              RightPaneChoice.threads => LucideIcons.messageSquare,
+              RightPaneChoice.pinned => Icons.push_pin_outlined,
               RightPaneChoice.none => LucideIcons.panelRight,
             },
             size: 16,
@@ -366,6 +504,14 @@ class _RightSidebarHeader extends StatelessWidget {
                   DropdownMenuItem(
                     value: RightPaneChoice.members,
                     child: Text('Members'),
+                  ),
+                  DropdownMenuItem(
+                    value: RightPaneChoice.threads,
+                    child: Text('Threads'),
+                  ),
+                  DropdownMenuItem(
+                    value: RightPaneChoice.pinned,
+                    child: Text('Pinned'),
                   ),
                   DropdownMenuItem(
                     value: RightPaneChoice.none,
@@ -413,8 +559,16 @@ class _SidebarRoomInfo extends StatelessWidget {
                         ? l10n.roomTypeRestricted
                         : l10n.roomTypeInviteOnly;
 
+    // Adapt padding and avatar radius to the pane width. Narrow panes get a
+    // tighter layout so the header doesn't dominate the view.
+    final width = MediaQuery.sizeOf(context).width;
+    final compactPane = width < 240;
+    final outerPadding = compactPane ? 12.0 : 16.0;
+    final avatarRadius = compactPane ? 28.0 : 36.0;
+    final nameFontSize = compactPane ? 16.0 : 18.0;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(outerPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -425,13 +579,13 @@ class _SidebarRoomInfo extends StatelessWidget {
                 AvatarFromUriOrFallbackImage(
                   client: room.client,
                   avatarUri: room.avatar,
-                  radius: 36,
+                  radius: avatarRadius,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   displayName,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: nameFontSize,
                     fontWeight: FontWeight.bold,
                     color: scheme.onSurface,
                   ),
@@ -442,7 +596,7 @@ class _SidebarRoomInfo extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: outerPadding),
 
           // Topic
           _InfoRow(
@@ -496,6 +650,11 @@ class _SidebarRoomInfo extends StatelessWidget {
             color: room.encrypted ? scheme.primary : scheme.error,
             scheme: scheme,
           ),
+
+          const SizedBox(height: 24),
+
+          // ── Pinned messages section ─────────────────────────────────
+          _PinnedSection(room: room),
         ],
       ),
     );
@@ -655,8 +814,13 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     if (_searchQuery.isNotEmpty) return;
     if (_displayedCount >= _allMembers.length) return;
     if (!_scrollController.hasClients) return;
+    // Trigger pre-fetch when within ~3 rows of the end so the user never sees
+    // the bottom of the list. The threshold scales with the row height to
+    // remain responsive at any pane size.
+    final viewport = _scrollController.position.viewportDimension;
+    final threshold = (viewport * 0.5).clamp(120.0, 400.0);
     if (_scrollController.position.pixels <
-        _scrollController.position.maxScrollExtent - 300) {
+        _scrollController.position.maxScrollExtent - threshold) {
       return;
     }
     _loadNextBatch();
@@ -674,7 +838,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       if (_searchQuery.isNotEmpty) return;
       if (_scrollController.hasClients &&
           _scrollController.position.maxScrollExtent <=
-              _scrollController.position.viewportDimension + 50) {
+              _scrollController.position.viewportDimension + 32) {
         _loadNextBatch();
       }
     });
@@ -718,15 +882,23 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
         return;
       }
 
-      final existingIds = _allMembers.map((u) => u.id).toSet();
-      final missingMxids =
-          joinedMembers.keys.where((id) => !existingIds.contains(id)).toList();
+      // Build the seen-IDs set lazily so we don't allocate it twice. The
+      // previous implementation rebuilt it on every batch.
+      var seen = _allMembers.isEmpty
+          ? const <String>{}
+          : _allMembers.map((u) => u.id).toSet();
+      final missingMxids = seen.isEmpty
+          ? joinedMembers.keys.toList()
+          : joinedMembers.keys.where((id) => !seen.contains(id)).toList();
       if (missingMxids.isEmpty) {
         if (mounted && widget.room.id == roomId) {
           setState(() => _isFetchingMore = false);
         }
         return;
       }
+
+      // Make a mutable copy of the seen set now that we know we'll insert.
+      seen = seen.isEmpty ? <String>{} : Set<String>.from(seen);
 
       for (int i = 0; i < missingMxids.length; i += _fetchBatchSize) {
         final batch = missingMxids.sublist(
@@ -738,14 +910,18 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
         );
         if (!mounted || widget.room.id != roomId) return;
 
-        final newUsers = results.whereType<User>().where((u) {
-          return !_allMembers.any((existing) => existing.id == u.id);
-        }).toList();
+        final newUsers = <User>[];
+        for (final user in results.whereType<User>()) {
+          if (seen.add(user.id)) newUsers.add(user);
+        }
 
         if (newUsers.isEmpty) continue;
-        _allMembers.addAll(newUsers);
-        _allMembers
-            .sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
+        // Insertion sort: the list is already roughly sorted by power level,
+        // so binary-search insertion keeps the operation near O(N log N)
+        // instead of O(N^2) for a full re-sort.
+        for (final user in newUsers) {
+          _insertSortedByPowerLevel(_allMembers, user);
+        }
 
         if (mounted && widget.room.id == roomId) {
           setState(() {
@@ -760,6 +936,22 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     if (mounted && widget.room.id == roomId) {
       setState(() => _isFetchingMore = false);
     }
+  }
+
+  /// Inserts [user] into [list] preserving the descending-power-level order.
+  /// Uses a binary search to find the insertion index in O(log N).
+  static void _insertSortedByPowerLevel(List<User> list, User user) {
+    var lo = 0;
+    var hi = list.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (list[mid].powerLevel.level > user.powerLevel.level) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    list.insert(lo, user);
   }
 
   Future<User?> _fetchUser(
@@ -902,7 +1094,9 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       onRefresh: _fetchLocalThenRemote,
       child: Scrollbar(
         controller: _scrollController,
-        thumbVisibility: true,
+        // Keep the bar hidden until the user actually scrolls so it doesn't
+        // steal width from a narrow pane.
+        thumbVisibility: false,
         child: ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1145,18 +1339,22 @@ class _ResizeHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Wider hit target (8px) so the handle is easier to grab on small panes,
+    // with a subtle always-visible track.
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
         onHorizontalDragEnd: (_) => onDragEnd?.call(),
         child: Container(
-          width: 6,
+          width: 8,
           color: Colors.transparent,
           alignment: Alignment.center,
           child: Container(
             width: 1,
-            color: Theme.of(context).dividerColor,
+            color: scheme.outlineVariant,
           ),
         ),
       ),
@@ -1211,6 +1409,507 @@ class _SidebarPane extends StatelessWidget {
             bottomBar!,
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ─── Pinned messages section (embedded in room info) ─────────────────────────
+
+/// A compact pinned-messages section rendered inside the room-info sidebar.
+///
+/// Shows a header with pin count and a list of pinned message previews.
+/// Tapping a preview filters the timeline to show only pinned messages.
+class _PinnedSection extends StatefulWidget {
+  const _PinnedSection({required this.room});
+
+  final Room room;
+
+  @override
+  State<_PinnedSection> createState() => _PinnedSectionState();
+}
+
+class _PinnedSectionState extends State<_PinnedSection> {
+  Map<String, Event> _pinnedEvents = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinnedEvents();
+  }
+
+  @override
+  void didUpdateWidget(_PinnedSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      _loadPinnedEvents();
+    }
+  }
+
+  Future<void> _loadPinnedEvents() async {
+    final r = widget.room;
+    final state = r.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    // Try to look up events from the timeline first (no network needed), then
+    // fall back to the shared cache, then to the server via the cache itself.
+    final Map<String, Event> result = {};
+    final missingFromTimeline = <String>[];
+    try {
+      final timeline = await r.getTimeline();
+      for (final id in pinnedIds) {
+        final event =
+            timeline.events.where((e) => e.eventId == id).firstOrNull;
+        if (event != null) {
+          result[id] = event;
+        } else {
+          missingFromTimeline.add(id);
+        }
+      }
+    } catch (_) {
+      // Timeline not available — fall through to the cache/server for all.
+      missingFromTimeline
+        ..clear()
+        ..addAll(pinnedIds);
+    }
+
+    if (missingFromTimeline.isNotEmpty) {
+      final fetched = await Future.wait(missingFromTimeline
+          .map((id) => PinnedEventsCache.instance.getEvent(r, id)));
+      for (var i = 0; i < missingFromTimeline.length; i++) {
+        final ev = fetched[i];
+        if (ev != null) result[missingFromTimeline[i]] = ev;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pinnedEvents = result;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final currentRoom = context.watch<CurrentRoom>();
+
+    final state = widget.room.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+    final count = pinnedIds.length;
+
+    // Show fewer previews when the pane is narrow so they don't dominate.
+    final paneWidth = MediaQuery.sizeOf(context).width;
+    final previewCount = paneWidth < 240 ? 1 : (paneWidth < 320 ? 2 : 3);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Section header ─────────────────────────────────────────
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            if (count > 0) {
+              final settings = context.read<SettingsController>();
+              settings.setRightPaneChoice(RightPaneChoice.pinned);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 16,
+                  color:
+                      currentRoom.pinnedFilterActive
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.pinnedMessages,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        if (count == 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              l10n.noPinnedMessages,
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          )
+        else if (_loading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: LinearProgressIndicator(
+              color: scheme.primary,
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
+          )
+        else
+          ...pinnedIds.take(previewCount).map((eventId) {
+            return _PinnedPreview(
+              room: widget.room,
+              eventId: eventId,
+              event: _pinnedEvents[eventId],
+              scheme: scheme,
+              l10n: l10n,
+            );
+          }),
+        if (count > previewCount) ...[
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () {
+              final settings = context.read<SettingsController>();
+              settings.setRightPaneChoice(RightPaneChoice.pinned);
+            },
+            child: Text(
+              l10n.pinnedMessagesCount(count),
+              style: TextStyle(fontSize: 12, color: scheme.primary),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A one-line preview of a pinned event used inside the room-info sidebar.
+class _PinnedPreview extends StatelessWidget {
+  const _PinnedPreview({
+    required this.room,
+    required this.eventId,
+    this.event,
+    required this.scheme,
+    required this.l10n,
+  });
+
+  final Room room;
+  final String eventId;
+  final Event? event;
+  final ColorScheme scheme;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final senderName =
+        event?.senderFromMemoryOrFallback.calcDisplayname() ?? '…';
+    final body = event?.body.isNotEmpty == true
+        ? event!.body.replaceAll('\n', ' ')
+        : '…';
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () {
+        context.read<CurrentRoom>().togglePinnedFilter();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.push_pin_outlined,
+              size: 12,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    senderName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pinned messages sidebar (full pane) ─────────────────────────────────────
+
+/// Full sidebar pane that lists all pinned messages for the room.
+class _SidebarPinnedMessages extends StatefulWidget {
+  const _SidebarPinnedMessages({super.key, required this.room});
+
+  final Room room;
+
+  @override
+  State<_SidebarPinnedMessages> createState() => _SidebarPinnedMessagesState();
+}
+
+class _SidebarPinnedMessagesState extends State<_SidebarPinnedMessages> {
+  Map<String, Event> _pinnedEvents = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinnedEvents();
+  }
+
+  @override
+  void didUpdateWidget(_SidebarPinnedMessages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      _loadPinnedEvents();
+    }
+  }
+
+  Future<void> _loadPinnedEvents() async {
+    final r = widget.room;
+    final state = r.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    final Map<String, Event> result = {};
+    if (pinnedIds.isNotEmpty) {
+      // Fetch all pinned events in parallel via the shared cache. Concurrent
+      // calls for the same event dedupe automatically.
+      final fetched = await Future.wait(
+        pinnedIds.map((id) => PinnedEventsCache.instance.getEvent(r, id)),
+      );
+      for (var i = 0; i < pinnedIds.length; i++) {
+        final ev = fetched[i];
+        if (ev != null) result[pinnedIds[i]] = ev;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pinnedEvents = result;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final currentRoom = context.watch<CurrentRoom>();
+
+    final state = widget.room.getState('m.room.pinned_events');
+    final pinnedList = state?.content['pinned'];
+    final pinnedIds =
+        pinnedList is List ? pinnedList.cast<String>() : <String>[];
+
+    if (pinnedIds.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.push_pin_outlined,
+                size: 40,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l10n.noPinnedMessages,
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_loading) {
+      return Center(child: CircularProgressIndicator(color: scheme.primary));
+    }
+
+    return Column(
+      children: [
+        // ── Filter toggle bar ─────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: FilledButton.tonalIcon(
+            onPressed: () => currentRoom.togglePinnedFilter(),
+            icon: Icon(
+              currentRoom.pinnedFilterActive
+                  ? Icons.push_pin_outlined
+                  : Icons.visibility_outlined,
+              size: 16,
+            ),
+            label: Text(
+              currentRoom.pinnedFilterActive
+                  ? l10n.showAllMessages
+                  : l10n.showPinnedOnly,
+              style: const TextStyle(fontSize: 12),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: currentRoom.pinnedFilterActive
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHighest,
+              foregroundColor: currentRoom.pinnedFilterActive
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            itemCount: pinnedIds.length,
+            itemBuilder: (context, index) {
+              final eventId = pinnedIds[index];
+              return _SidebarPinnedTile(
+                room: widget.room,
+                eventId: eventId,
+                event: _pinnedEvents[eventId],
+                scheme: scheme,
+                l10n: l10n,
+                currentRoom: currentRoom,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single pinned message tile in the full pinned sidebar.
+class _SidebarPinnedTile extends StatelessWidget {
+  const _SidebarPinnedTile({
+    required this.room,
+    required this.eventId,
+    this.event,
+    required this.scheme,
+    required this.l10n,
+    required this.currentRoom,
+  });
+
+  final Room room;
+  final String eventId;
+  final Event? event;
+  final ColorScheme scheme;
+  final AppLocalizations l10n;
+  final CurrentRoom currentRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final senderName =
+        event?.senderFromMemoryOrFallback.calcDisplayname() ?? 'Unknown';
+    final body = event?.body.isNotEmpty == true
+        ? event!.body
+        : '(no content)';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      color: currentRoom.pinnedFilterActive &&
+              currentRoom.pinnedEventIds.contains(eventId)
+          ? scheme.primaryContainer.withValues(alpha: 0.3)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => currentRoom.togglePinnedFilter(),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.push_pin_outlined,
+                size: 14,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      senderName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

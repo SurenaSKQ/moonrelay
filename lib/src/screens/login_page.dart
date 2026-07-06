@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/homeserver_url.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
@@ -90,6 +91,15 @@ class _LoginPageState extends State<LoginPage> {
           _ssoMode = true;
           _showManualTokenEntry = false;
         });
+      } else if (extra is Map<String, String>) {
+        final hs = extra['homeserver'];
+        final username = extra['username'];
+        if (hs != null && hs.isNotEmpty) {
+          _homeserverCtrl.text = hs;
+        }
+        if (username != null && username.isNotEmpty) {
+          _usernameCtrl.text = username;
+        }
       }
     }
   }
@@ -116,12 +126,15 @@ class _LoginPageState extends State<LoginPage> {
       return _buildSyncingScreen(colors, theme, l10n);
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Card(
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -264,6 +277,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
+      ),
+      ),
       ),
     );
   }
@@ -734,15 +749,19 @@ class _LoginPageState extends State<LoginPage> {
           });
 
           // ── Enable encryption now that we're logged in ──────────
+          // Capture all provider reads before any await so the analyzer
+          // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
+          final accountManager = context.read<AccountManager>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
           // ── Save this account for multi-account support ─────────
-          final accountManager = context.read<AccountManager>();
           await accountManager.addOrUpdateAccount(
             StoredAccount(
-              userId: client.userID!,
-              homeserver: client.homeserver?.toString() ?? '',
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
             ),
             client: client,
             encryptionService: encryptionService,
@@ -762,13 +781,32 @@ class _LoginPageState extends State<LoginPage> {
         }
       case RetryFailed(:final error, :final attempts):
         {
-          log.e('Login failed after $attempts attempt(s)', error: error);
+          // SECURITY: never pass the raw error to either the logger or the
+          // UI — `MatrixHttpException.toString()` echoes the request body,
+          // which the homeserver can echo back the typed password in 4xx
+          // responses. Log only the class and rethrow; the user-facing
+          // message is a static copy that omits the offending field.
+          log.e('Login failed after $attempts attempt(s) (${error.runtimeType})');
           setState(() => _error = error is TimeoutException
               ? l10n.loginTimedOut
-              : l10n.loginFailed('$error'));
+              : l10n.loginFailed(_safeErrorMessage(error)));
           if (mounted) setState(() => _loading = false);
         }
     }
+  }
+
+  /// Returns a user-facing error string that does not leak credentials.
+  ///
+  /// The Matrix SDK's `MatrixHttpException.toString()` echoes the request
+  /// body, so a homeserver that returns the password field in a 4xx
+  /// response would surface it in the UI and in redacted logs.  This
+  /// helper maps known error types to friendly copy and falls back to a
+  /// generic message that exposes only the exception's class name.
+  String _safeErrorMessage(Object error) {
+    if (error is TimeoutException) return 'request timed out';
+    // Strip the request body by relying on the exception's public
+    // properties; never touch `.toString()`.
+    return error.runtimeType.toString();
   }
 
   /// Clears any cached session data from the SDK and EncryptionService
@@ -844,6 +882,50 @@ class _LoginPageState extends State<LoginPage> {
     final String hs = _homeserverCtrl.text.trim();
     final Uri homeserverUri =
         hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+
+    // ── Phishing guard ────────────────────────────────────────
+    // The homeserver address is user-supplied. Before we point the user's
+    // browser at it, refuse URLs that obviously are not homeservers and
+    // make the destination explicit so a phisher pointing at a look-alike
+    // domain is harder to miss. Failures here short-circuit before any
+    // network call.
+    if (!isPlausibleHomeserverUrl(homeserverUri)) {
+      log.w('Refusing SSO login: homeserver URL looks invalid: $homeserverUri');
+      setState(() {
+        _error = l10n.ssoHomeserverInvalid;
+        _loading = false;
+      });
+      return;
+    }
+
+    // ── Confirmation prompt ──────────────────────────────────
+    // Surface the destination so the user can abort a phishing attempt
+    // before the browser is opened and SSO credentials are sent.
+    final bool? proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.ssoConfirmHomeserverTitle),
+        content: Text(
+          l10n.ssoConfirmHomeserverBody(homeserverUri.host),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.ssoConfirmHomeserverSwitch),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.ssoConfirmHomeserverContinue),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (proceed != true) {
+      setState(() => _loading = false);
+      return;
+    }
 
     final List<LoginFlow>? flows =
         await _tryCheckHomeserver(client, homeserverUri);
@@ -948,6 +1030,12 @@ class _LoginPageState extends State<LoginPage> {
         'redirectUrl': redirectUri.toString(),
       },
     );
+
+    // SECURITY: a hostile homeserver URL would still let it issue a
+    // login token to the browser tab.  We can't fully prevent that,
+    // but we can surface the destination so the user is aware that
+    // they are about to authenticate against an unexpected server.
+    log.w('Opening SSO redirect for homeserver: $homeserverUri');
 
     // ── 3. Open the browser ────────────────────────────────────
     try {
@@ -1089,15 +1177,19 @@ class _LoginPageState extends State<LoginPage> {
           });
 
           // ── Enable encryption now that we're logged in ──────────
+          // Capture all provider reads before any await so the analyzer
+          // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
+          final accountManager = context.read<AccountManager>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
           // ── Save this account for multi-account support ─────────
-          final accountManager = context.read<AccountManager>();
           await accountManager.addOrUpdateAccount(
             StoredAccount(
-              userId: client.userID!,
-              homeserver: client.homeserver?.toString() ?? '',
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
             ),
             client: client,
             encryptionService: encryptionService,

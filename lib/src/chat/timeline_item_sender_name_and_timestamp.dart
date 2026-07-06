@@ -4,23 +4,22 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:provider/provider.dart';
 
 class TimelineItemSenderNameAndTimestamp extends StatelessWidget {
   const TimelineItemSenderNameAndTimestamp({
     super.key,
     required this.event,
     required this.omitSender,
+    this.fontSize = 16.0,
   });
 
   final Event event;
   final bool omitSender;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    final fs = fontSize;
     return Row(
       // So get this
       // I can't just solve this the peaceful way when ommitting the name widget

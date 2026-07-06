@@ -15,9 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -35,9 +37,20 @@ import 'package:provider/provider.dart';
 ///   opens the sidebar (or does nothing if already open).
 /// - Otherwise, tapping navigates to the full [RoomInformations] page.
 class ChatRoomHeader extends StatefulWidget {
-  const ChatRoomHeader({super.key, required this.room});
+  const ChatRoomHeader({
+    super.key,
+    required this.room,
+    this.onSearchToggle,
+    this.isSearchActive = false,
+  });
 
   final Room room;
+
+  /// Called when the user taps the search button.
+  final VoidCallback? onSearchToggle;
+
+  /// Whether the in-room search panel is currently visible.
+  final bool isSearchActive;
 
   @override
   State<ChatRoomHeader> createState() => _ChatRoomHeaderState();
@@ -91,14 +104,9 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
     _openRoomInfo();
   }
 
-  /// Navigate to the full room information page.
+  /// Navigate to the room info page via go_router.
   void _openRoomInfo() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => RoomInformations(room: widget.room),
-      ),
-    );
+    context.push('/main/rooms/${widget.room.id}/profile/roomDetails');
   }
 
   @override
@@ -118,10 +126,23 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             ? _topic
             : AppLocalizations.of(context)!.noTopicSet;
 
+        // Adapt the header to the available width:
+        // - Very narrow panes drop badges and the topic line to keep the
+        //   title and toolbar reachable.
+        // - Narrow panes drop the topic and shrink the avatar.
+        final width = MediaQuery.sizeOf(context).width;
+        final compactHeader = width < 480;
+        final showTopic = !compactHeader;
+        final showBadges = width >= 600;
+        final avatarRadius = compactHeader ? 16.0 : 20.0;
+        final nameFontSize = compactHeader ? 14.0 : 16.0;
+        final hPadding = compactHeader ? 8.0 : 12.0;
+
         return GestureDetector(
           onTap: _onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+                horizontal: hPadding, vertical: compactHeader ? 6 : 8),
             decoration: BoxDecoration(
               color: scheme.surfaceContainer,
               border: Border(
@@ -136,8 +157,9 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 AvatarFromUriOrFallbackImage(
                   client: widget.room.client,
                   avatarUri: widget.room.avatar,
+                  radius: avatarRadius,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: compactHeader ? 8 : 12),
 
                 // Name + Topic
                 Expanded(
@@ -148,40 +170,81 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                       Text(
                         displayName,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: nameFontSize,
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        topic,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant,
+                      if (showTopic) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          topic,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: compactHeader ? 4 : 8),
 
-                // Sync status indicator
-                _SyncIndicator(client: widget.room.client),
-                const SizedBox(width: 4),
+                if (showBadges) ...[
+                  // Sync status indicator
+                  _SyncIndicator(client: widget.room.client),
+                  const SizedBox(width: 4),
 
-                // Member count badge
-                _MemberCountBadge(count: _memberCount, scheme: scheme),
-                const SizedBox(width: 4),
+                  // Member count badge
+                  _MemberCountBadge(count: _memberCount, scheme: scheme),
+                  const SizedBox(width: 4),
+
+                  // Pinned messages toggle
+                  _PinnedFilterButton(room: widget.room),
+                  const SizedBox(width: 4),
+                ],
+
+                // In-room search toggle
+                IconButton(
+                  icon: Icon(
+                    widget.isSearchActive
+                        ? LucideIcons.searchX
+                        : LucideIcons.search,
+                    size: compactHeader ? 16 : 18,
+                  ),
+                  onPressed: widget.onSearchToggle,
+                  tooltip: AppLocalizations.of(context)!.searchInRoom,
+                  visualDensity: compactHeader
+                      ? VisualDensity(horizontal: -2, vertical: -2)
+                      : VisualDensity.compact,
+                  color: widget.isSearchActive
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+
+                // Settings gear — navigate to room settings
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.settings,
+                    size: compactHeader ? 16 : 18,
+                  ),
+                  onPressed: () =>
+                      context.push('/main/rooms/${widget.room.id}/settings'),
+                  tooltip: AppLocalizations.of(context)!.roomSettings,
+                  visualDensity: compactHeader
+                      ? VisualDensity(horizontal: -2, vertical: -2)
+                      : VisualDensity.compact,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
 
                 // Chevron indicating tappable
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 20,
+                  size: compactHeader ? 16 : 20,
                   color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ],
@@ -284,6 +347,47 @@ class _MemberCountBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A toggle button that filters the timeline to show only pinned messages.
+///
+/// Shows an active (filled) style when the pinned filter is on and an
+/// inactive (outlined) style when off, so the user knows they can tap
+/// again to return to the full timeline.
+class _PinnedFilterButton extends StatelessWidget {
+  const _PinnedFilterButton({required this.room});
+
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final currentRoom = context.watch<CurrentRoom>();
+    final isActive = currentRoom.pinnedFilterActive;
+    final hasPinned = currentRoom.pinnedEventIds.isNotEmpty;
+
+    // Only show the button if there are pinned messages or the filter
+    // is already active.
+    if (!hasPinned && !isActive) return const SizedBox.shrink();
+
+    return IconButton(
+      icon: Icon(
+        isActive ? Icons.push_pin : Icons.push_pin_outlined,
+        size: 18,
+      ),
+      onPressed: () => currentRoom.togglePinnedFilter(),
+      tooltip: isActive
+          ? AppLocalizations.of(context)!.showPinnedOnly
+          : AppLocalizations.of(context)!.showAllMessages,
+      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        backgroundColor:
+            isActive ? scheme.primaryContainer : Colors.transparent,
+        foregroundColor:
+            isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant.withValues(alpha: 0.6),
       ),
     );
   }

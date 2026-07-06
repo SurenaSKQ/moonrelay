@@ -22,6 +22,8 @@ import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StoredAccount — immutable serialisable metadata for a single Matrix session
@@ -214,29 +216,65 @@ class AccountManager extends ChangeNotifier {
   ///
   /// Disposes the current [Client] (if any), creates a fresh one for the
   /// target account via [clientFactory], and notifies listeners.
-  Future<void> switchToAccount(String userId) async {
+  /// Returns `true` if the new client has a valid session.
+  ///
+  /// Tear-down is ordered so widgets never observe a disposed
+  /// [EncryptionService] between the old and the new instance: the new
+  /// client and its encryption service are constructed and installed
+  /// first, then the old ones are disposed.  This avoids the
+  /// "Provider holds disposed EncryptionService for one frame" race
+  /// the previous revision hit during quick account switching.
+  Future<bool> switchToAccount(String userId) async {
     final idx = _accounts.indexWhere((a) => a.userId == userId);
     if (idx < 0) {
       log.w('switchToAccount: account not found $userId');
-      return;
+      return false;
     }
-    if (_activeAccount?.userId == userId) return; // already active
+    if (_activeAccount?.userId == userId) return false; // already active
 
     final target = _accounts[idx];
 
-    // Tear down the current session.
-    await _disposeActiveClient();
-    _encryptionService = null;
+    // Capture the previous instances so we can dispose them AFTER the
+    // new pair is fully installed.  Without this ordering, the provider
+    // tree holds a reference to a service whose `_syncSubscription` is
+    // already cancelled.
+    final previousClient = _activeClient;
+    final previousEncryption = _encryptionService;
 
-    // Create a fresh client for the target account.
+    // Build the new pair.
     log.i('Switching to account $userId');
     _activeAccount = target;
     _activeClient = await clientFactory!(target);
-    if (_activeClient!.isLogged()) {
+    final loggedIn = _activeClient!.isLogged();
+    if (loggedIn) {
       await onClientReady?.call(_activeClient!);
     }
     await _save();
+
+    // Notify once, with the new pair installed.  Widgets bound to
+    // `Provider<EncryptionService>` now observe the new instance and
+    // can safely drop their old references.
     notifyListeners();
+
+    // Tear down the previous pair on a microtask so any synchronous
+    // provider reads during this frame complete against the new pair.
+    Future.microtask(() async {
+      final EncryptionService? previousEnc = previousEncryption;
+      if (previousEnc != null) {
+        try {
+          previousEnc.dispose();
+        } catch (e) {
+          log.w('Error disposing previous encryption service', error: e);
+        }
+      }
+      try {
+        await previousClient?.dispose();
+      } catch (e) {
+        log.w('Error disposing previous client', error: e);
+      }
+    });
+
+    return loggedIn;
   }
 
   /// Remove a saved account (does NOT log out from the server).
@@ -289,6 +327,12 @@ class AccountManager extends ChangeNotifier {
       await _activeClient?.dispose();
     } catch (e) {
       log.w('Error disposing client', error: e);
+    }
+    // Drop any in-memory caches tied to the previous session so they don't
+    // leak across logins.
+    PinnedEventsCache.instance.clear();
+    if (_activeClient != null) {
+      AvatarFromUriOrFallbackImage.clearCacheFor(_activeClient!);
     }
     _activeClient = null;
   }

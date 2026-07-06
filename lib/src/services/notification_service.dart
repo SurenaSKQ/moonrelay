@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
@@ -23,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
 /// Manages desktop notifications for Matrix events.
@@ -32,152 +34,519 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 /// global notification toggle is enabled.
 ///
 /// Per-room mute preferences are persisted via SharedPreferences.
+///
+/// ## Notification IDs
+///
+/// The plugin's string-tag mode dedupes by tag on every supported
+/// platform, so we use a stable per-event string composed of the room
+/// id and event id. The previous implementation used
+/// `eventId.hashCode` which is 32-bit; two distinct events routinely
+/// collided within seconds on a busy room and silently replaced
+/// each other. We now generate a deterministic tag as
+/// `matrix:<roomId>:<eventId>` and the summary notification is
+/// always tagged [groupSummaryTag].
+///
+/// ## Failure handling
+///
+/// Platform plugin initialisation can fail (sandboxed Linux,
+/// locked-down Windows, missing notification permissions). When it
+/// does, [init] completes and [isAvailable] returns `false`. The
+/// rest of the service continues to work (muted rooms, debounced
+/// persistence, notification switching) but [_showNotification]
+/// no-ops silently because we never want a missing platform
+/// notification surface to crash the app.
 class NotificationService {
   static const String _mutedRoomsKey = 'notification_muted_rooms';
+  static const String _lastEventIdsKey = 'notification_last_event_ids';
+
+  /// Reserved tag for the running "X new messages in N chats"
+  /// summary notification. The plugin deduplicates by tag on every
+  /// supported platform so the same summary shows once at a time.
+  static const String groupSummaryTag = 'moonrelay/group-summary';
+
+  /// Maximum number of in-memory event-ids we track to avoid showing
+  /// the same notification twice within a single boot. The on-disk
+  /// `_lastNotifiedEventIds` map handles persistence across reboots;
+  /// this Set is a cheap in-memory short-circuit and is bounded.
+  static const int _notifiedIdsCacheLimit = 256;
+
+  /// Default tag format for per-event notifications: combines the
+  /// owning room and the Matrix event id so the plugin dedupes by
+  /// `(room, event)` and we never collide two distinct events.
+  static String _eventTag(String roomId, String eventId) =>
+      'matrix:$roomId:$eventId';
+
+  /// Builds the [NotificationDetails] used by every notification.
+  /// Pulled out into a single helper because the channel / importance
+  /// / priority are identical for direct messages, group summaries,
+  /// and the debug test notification.
+  static const NotificationDetails _details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'moonrelay_channel',
+      'Moonrelay',
+      channelDescription: 'Matrix message notifications',
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+    linux: LinuxNotificationDetails(defaultActionName: 'Open'),
+    macOS: DarwinNotificationDetails(),
+    windows: WindowsNotificationDetails(),
+  );
 
   final Client _client;
   final SettingsController _settings;
   final CurrentRoom _currentRoom;
+  final DeepLinkService? _deepLinkService;
   final Logger _log;
   FlutterLocalNotificationsPlugin? _plugin;
   StreamSubscription? _syncSubscription;
-  final Set<String> _notifiedEventIds = {};
+  Timer? _persistDebouncer;
+  bool _available = false;
+
+  /// Bounded FIFO Set used to short-circuit double-notification
+  /// within a single boot (when the SDK emits the same event id
+  /// twice during one sync tick). We track insertion order via
+  /// [_seenOrder] and evict the oldest entry once
+  /// [_notifiedIdsCacheLimit] is reached so memory stays bounded
+  /// across long sessions on active accounts.
+  final Set<String> _notifiedEventIds = <String>{};
+  final List<String> _seenOrder = <String>[];
+
+  /// The active notification id is the deep-link payload, used so the
+  /// user can tap a notification and be taken to the right room. We
+  /// prefer Matrix uri style (`matrix:r/<id>`); falling back to the
+  /// room id when we cannot resolve a Matrix uri.
+  final void Function(String matrixUri)? _navigate;
+
   Set<String> _mutedRooms = {};
+  final Map<String, String> _lastNotifiedEventIds = {};
+  final Map<String, int> _groupNotifiedCounts = {};
   bool _loadedMuted = false;
+
+  /// Static, read-only snapshot of the muted-room set; cross-service
+  /// consumers (notably the system tray, which uses it to skip muted
+  /// rooms when computing its unread badge) read from here.
+  ///
+  /// Updated on every successful [loadMutedRooms] and [setRoomMuted]
+  /// call so it always reflects the live state without callers having
+  /// to hold a reference to the singleton. Empty when no service is
+  /// initialised.
+  static Set<String> _mutedRoomsSnapshot = const <String>{};
+  static Set<String> get mutedRoomsSnapshot =>
+      Set<String>.unmodifiable(_mutedRoomsSnapshot);
 
   NotificationService._(
     this._client,
     this._settings,
     this._currentRoom,
+    this._deepLinkService,
+    this._navigate,
     this._log,
   );
 
-  /// Create and initialise the notification service.
+  /// Whether the platform notification plugin initialised successfully.
+  /// Surface for the UI to render a "notifications unavailable"
+  /// banner or disable notification-related menu items. Never gates
+  /// access to muted-rooms / preference state.
+  bool get isAvailable => _available;
+
+  /// Create and initialise the notification service. Returns the
+  /// service instance which is **always** usable, even on platforms
+  /// where the plugin failed to initialise. Callers that want to
+  /// show notification-related UI should gate it on [isAvailable].
+  ///
+  /// [deepLinkService] is wired through [NotificationResponse.payload]
+  /// so that tapping a notification routes the user to the room the
+  /// notification was for; pass [onNavigate] instead to override the
+  /// default behaviour (e.g. with a router-aware callback in tests).
   static Future<NotificationService> init({
     required Client client,
     required SettingsController settings,
     required CurrentRoom currentRoom,
     required Logger log,
+    DeepLinkService? deepLinkService,
+    void Function(String matrixUri)? onNavigate,
   }) async {
-    final service = NotificationService._(client, settings, currentRoom, log);
-    await service._initPlugin();
+    final service = NotificationService._(
+      client,
+      settings,
+      currentRoom,
+      deepLinkService,
+      onNavigate,
+      log,
+    );
     await service.loadMutedRooms();
-    service._startListening();
-    log.i('Notification service initialised');
+    await service._loadLastEventIds();
+    await service._loadGroupNotifiedCounts();
+    final ok = await service._initPlugin();
+    if (ok) {
+      service._startListening();
+    }
+    log.i('Notification service initialised'
+        '${ok ? '' : ' (plugin unavailable on this platform)'}');
     return service;
   }
 
-  Future<void> _initPlugin() async {
+  /// Initialises the platform plugin. Returns `true` on success; on
+  /// failure logs the error and returns `false` so the rest of the
+  /// service can still come up (muted-room state, persistence, etc).
+  Future<bool> _initPlugin() async {
     try {
-      _plugin = FlutterLocalNotificationsPlugin();
-
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings();
-      const linuxSettings = LinuxInitializationSettings(
-        defaultActionName: 'Open',
-      );
-      const windowsSettings = WindowsInitializationSettings(
-        appName: 'Moonrelay',
-        appUserModelId: 'Moonrelay',
-        guid: '{4a8b9c7d-3e2f-1a5b-8d6c-9f0e7a2b3c4d}',
-      );
-
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-        linux: linuxSettings,
-        macOS: iosSettings,
-        windows: windowsSettings,
-      );
-
-      await _plugin!.initialize(
-        settings: initSettings,
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+          linux: LinuxInitializationSettings(defaultActionName: 'Open'),
+          macOS: DarwinInitializationSettings(),
+          windows: WindowsInitializationSettings(
+            appName: 'Moonrelay',
+            appUserModelId: 'Moonrelay',
+            guid: '4a8b9c7d-3e2f-1a5b-8d6c-9f0e7a2b3c4d',
+          ),
+        ),
         onDidReceiveNotificationResponse: _onNotificationTap,
       );
+      _plugin = plugin;
+      _available = true;
+      return true;
     } catch (e) {
-      _log.w('Notification plugin init failed', error: e);
+      _log.w('Notification plugin init failed; falling back to no-op', error: e);
+      _plugin = null;
+      _available = false;
+      return false;
     }
   }
 
-  /// Called when the user clicks a notification.
+  /// Called when the user clicks a notification. We try to navigate to
+  /// the room the notification was for via the deep-link service or
+  /// the navigation callback registered at init time; if both are
+  /// missing we just bring the window forward.
   void _onNotificationTap(NotificationResponse response) {
     try {
       windowManager.show();
       windowManager.focus();
     } catch (_) {}
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    final navigator = _navigate;
+    if (navigator != null) {
+      navigator(payload);
+    } else if (_deepLinkService != null) {
+      _deepLinkService.processUri(payload);
+    }
   }
 
   void _startListening() {
     _syncSubscription = _client.onSync.stream.listen(
       (_) => _processRooms(),
-      onError: (e) => _log.w('Sync stream error in notification service', error: e),
+      onError: (e) =>
+          _log.w('Sync stream error in notification service', error: e),
     );
   }
 
   void _processRooms() {
     if (!_settings.notificationsEnabled) return;
 
+    bool changed = false;
+    bool groupChanged = false;
+
+    // Group summary accumulators.
+    int totalGroupUnread = 0;
+    int groupRoomCount = 0;
+    String? singleGroupName;
+
     for (final room in _client.rooms) {
       if (room.membership != Membership.join) continue;
       if (_mutedRooms.contains(room.id)) continue;
 
-      // Only process if there's a new last event
-      final event = room.lastEvent;
-      if (event == null) continue;
+      if (room.isDirectChat) {
+        // ── Direct message: per-message notification ──
+        final event = room.lastEvent;
+        if (event == null) continue;
 
-      _processEvent(room, event);
+        final lastSeenId = _lastNotifiedEventIds[room.id];
+        if (event.eventId == lastSeenId) continue;
+
+        // Persist the new event id immediately so a restart or crash
+        // during the notification call won't re-notify for this event.
+        _lastNotifiedEventIds[room.id] = event.eventId;
+        changed = true;
+
+        // First time seeing this room (fresh install or newly joined).
+        // Record the baseline event id without notifying so we don't
+        // spam notifications for pre-existing messages.
+        if (lastSeenId == null) continue;
+
+        _processEvent(room, event);
+      } else {
+        // ── Group chat: accumulate for summary notification ──
+        final currentCount = room.notificationCount;
+        final lastCount = _groupNotifiedCounts[room.id];
+
+        if (currentCount == lastCount) continue;
+
+        _groupNotifiedCounts[room.id] = currentCount;
+        groupChanged = true;
+
+        // First time seeing this room — record the baseline count
+        // without notifying so we don't spam for pre-existing messages.
+        if (lastCount == null) continue;
+
+        final delta = currentCount - lastCount;
+        if (delta <= 0) continue; // count decreased (user read messages)
+
+        final roomName = room.getLocalizedDisplayname();
+        totalGroupUnread += delta;
+        groupRoomCount++;
+        // Last room with new messages wins for the single-room
+        // summary copy.
+        singleGroupName = roomName;
+      }
+    }
+
+    // Debounce all persistence to once-per-burst: a single chat session
+    // can shift the *_lastNotifiedEventIds and the group-count maps by
+    // many entries per sync, and a half-written prefs blob is just as
+    // wrong as a missing one. 750 ms is well under the SDK's default
+    // 30 s long-poll and keeps the prefs disk write off the hot path.
+    if (changed || groupChanged) {
+      _persistDebouncer?.cancel();
+      _persistDebouncer = Timer(
+        const Duration(milliseconds: 750),
+        () async {
+          if (changed) await _persistLastEventIds();
+          if (groupChanged) await _persistGroupNotifiedCounts();
+        },
+      );
+    }
+
+    if (groupRoomCount > 0) {
+      _sendGroupSummary(
+        roomCount: groupRoomCount,
+        totalUnread: totalGroupUnread,
+        singleGroupName: groupRoomCount == 1 ? singleGroupName : null,
+      );
     }
   }
 
   void _processEvent(Room room, Event event) {
     if (_notifiedEventIds.contains(event.eventId)) return;
-    _notifiedEventIds.add(event.eventId);
+    _rememberEventId(event.eventId);
 
     if (event.senderId == _client.userID) return;
-    if (event.type != EventTypes.Message) return;
+
+    // Encrypted messages should still notify the user — the SDK
+    // may not have decrypted the event by the time the notification
+    // fires, in which case the body string is empty. We surface a
+    // dedicated "(encrypted message)" placeholder so the user is not
+    // left guessing whether a notification was suppressed.
+    final isEncrypted = event.type == EventTypes.Encrypted ||
+        (event.messageType.isEmpty && event.content['m.ciphertext'] != null);
+    final rawBody = event.content.tryGet('body') as String? ?? '';
+    final isUndecryptedPlaceholder = isEncrypted && rawBody.isEmpty;
+    final body = isUndecryptedPlaceholder
+        ? 'Encrypted message'
+        : rawBody;
+    if (body.isEmpty) return;
 
     // Skip if the user is viewing this room
     if (_currentRoom.room?.id == room.id) return;
-
-    final body = event.content.tryGet('body') as String? ?? '';
-    if (body.isEmpty) return;
 
     final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
     final roomName = room.getLocalizedDisplayname();
 
     _showNotification(
-      event.eventId,
+      _eventTag(room.id, event.eventId),
       roomName,
-      '$senderName: $body',
+      isUndecryptedPlaceholder
+          ? '$senderName sent an encrypted message'
+          : '$senderName: $body',
+      payload: 'matrix:r/${room.id}',
     );
   }
 
-  Future<void> _showNotification(String eventId, String title, String body) async {
-    if (_plugin == null) return;
+  /// Send a summary notification for group chat unread messages.
+  ///
+  /// For a single group: body shows the room name and count.
+  /// For multiple groups: body shows the total unread and number of
+  /// chats.
+  void _sendGroupSummary({
+    required int roomCount,
+    required int totalUnread,
+    String? singleGroupName,
+  }) {
+    final String title;
+    final String body;
+
+    if (singleGroupName != null) {
+      title = singleGroupName;
+      body =
+          'You have $totalUnread unread ${totalUnread == 1 ? 'message' : 'messages'} in $singleGroupName';
+    } else {
+      title = 'Moonrelay';
+      body =
+          'You have $totalUnread unread ${totalUnread == 1 ? 'message' : 'messages'} in $roomCount ${roomCount == 1 ? 'chat' : 'chats'}';
+    }
+
+    // Use the deep-link payload only for the single-room case so
+    // tapping it jumps straight to the room; for the multi-room case
+    // we leave the payload empty and the listener just brings the
+    // window forward.
+    String? payload;
+    if (singleGroupName != null) {
+      final ids = _client.rooms
+          .where((r) => r.getLocalizedDisplayname() == singleGroupName)
+          .map((r) => r.id)
+          .toList();
+      if (ids.length == 1) payload = 'matrix:r/${ids.first}';
+    }
+    _showNotification(
+      groupSummaryTag,
+      title,
+      body,
+      payload: payload,
+    );
+  }
+
+  Future<void> _showNotification(
+    String tag,
+    String title,
+    String body, {
+    String? payload,
+  }) async {
+    final plugin = _plugin;
+    if (plugin == null) {
+      // Plugin unavailable (sandbox / no notification daemon / etc).
+      // Not an error: the rest of the app keeps working.
+      return;
+    }
     try {
-      await _plugin!.show(
-        id: eventId.hashCode,
+      await plugin.show(
+        id: 0, // ignored when a tag is provided on every supported platform
         title: title,
         body: body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'moonrelay_channel',
-            'Moonrelay',
-            channelDescription: 'Matrix message notifications',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-          linux: LinuxNotificationDetails(
-            defaultActionName: 'Open',
-          ),
-          macOS: DarwinNotificationDetails(),
-          windows: WindowsNotificationDetails(),
-        ),
+        notificationDetails: _details,
+        payload: payload,
       );
     } catch (e) {
-      _log.w('Failed to show notification', error: e);
+      _log.w('_showNotification: plugin.show threw', error: e);
     }
+  }
+
+  /// Show a test notification (for debugging notification delivery).
+  ///
+  /// Safe to call even when the plugin failed to initialise: returns
+  /// `false` instead of throwing so the caller (debug-only menu item)
+  /// can disable the affordance when notifications are unavailable.
+  Future<bool> showTestNotification() async {
+    final plugin = _plugin;
+    if (plugin == null) return false;
+    await plugin.show(
+      id: 0,
+      title: 'Moonrelay',
+      body: 'This is a test notification from Moonrelay.',
+      notificationDetails: _details,
+    );
+    return true;
+  }
+
+  /// Records [eventId] in the bounded in-memory cache, evicting the
+  /// oldest entry once the cache overflows.
+  void _rememberEventId(String eventId) {
+    if (_notifiedEventIds.add(eventId)) {
+      _seenOrder.add(eventId);
+    }
+    while (_seenOrder.length > _notifiedIdsCacheLimit) {
+      final oldest = _seenOrder.removeAt(0);
+      _notifiedEventIds.remove(oldest);
+    }
+  }
+
+  // ── Persisted group notified counts ────
+
+  Future<void> _loadGroupNotifiedCounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList('notification_group_counts');
+      if (raw == null) return;
+      for (final entry in raw) {
+        final decoded = _decodeJsonMap(entry);
+        if (decoded == null) continue;
+        for (final kv in decoded.entries) {
+          final count = int.tryParse(kv.value);
+          if (count != null) _groupNotifiedCounts[kv.key] = count;
+        }
+      }
+    } catch (e) {
+      _log.w('Failed to load group notified counts', error: e);
+    }
+  }
+
+  Future<void> _persistGroupNotifiedCounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = <String, String>{
+        for (final entry in _groupNotifiedCounts.entries)
+          entry.key: entry.value.toString(),
+      };
+      await prefs.setStringList(
+        'notification_group_counts',
+        [jsonEncode(encoded)],
+      );
+    } catch (e) {
+      _log.w('Failed to persist group notified counts', error: e);
+    }
+  }
+
+  // ── Persisted last-notified event IDs ──
+
+  Future<void> _loadLastEventIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_lastEventIdsKey);
+      if (raw == null) return;
+      for (final entry in raw) {
+        final decoded = _decodeJsonMap(entry);
+        if (decoded == null) continue;
+        _lastNotifiedEventIds.addAll(decoded);
+      }
+    } catch (e) {
+      _log.w('Failed to load last-notified event IDs', error: e);
+    }
+  }
+
+  Future<void> _persistLastEventIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _lastEventIdsKey,
+        [jsonEncode(_lastNotifiedEventIds)],
+      );
+    } catch (e) {
+      _log.w('Failed to persist last-notified event IDs', error: e);
+    }
+  }
+
+  /// Decode a `Map<String, String>` previously stored as a single
+  /// JSON entry in a `List<String>`. Older Moonrelay versions
+  /// stored entries as `roomId|eventId`; those rows are skipped
+  /// silently and we silently migrate forward.
+  Map<String, String>? _decodeJsonMap(String entry) {
+    if (entry.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(entry);
+        if (decoded is Map) {
+          return {
+            for (final kv in decoded.entries)
+              if (kv.key is String && kv.value is String)
+                kv.key as String: kv.value as String,
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   // ── Per-room mute preferences ───────────
@@ -185,11 +554,31 @@ class NotificationService {
   Future<void> loadMutedRooms() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_mutedRoomsKey);
-      if (raw != null && raw.isNotEmpty) {
-        _mutedRooms = raw.split(',').where((id) => id.isNotEmpty).toSet();
+
+      // ── Current format (StringList) ────────────────────────
+      // getStringList uses `as List<String>?` internally and throws
+      // TypeError when the stored value is a legacy comma-separated
+      // String rather than a List<String>. Catch that gracefully so
+      // the migration path below can handle it.
+      List<String>? raw;
+      try {
+        raw = prefs.getStringList(_mutedRoomsKey);
+      } catch (_) {}
+      if (raw != null) {
+        _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
+      } else {
+        // ── Migration from old comma-separated format ────────
+        final oldRaw = prefs.getString(_mutedRoomsKey);
+        if (oldRaw != null) {
+          _mutedRooms =
+              oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
+          await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
+          await prefs.remove('${_mutedRoomsKey}_legacy');
+        }
       }
+
       _loadedMuted = true;
+      _mutedRoomsSnapshot = Set<String>.unmodifiable(_mutedRooms);
     } catch (e) {
       _log.w('Failed to load muted rooms', error: e);
     }
@@ -208,16 +597,33 @@ class NotificationService {
     } else {
       _mutedRooms.remove(roomId);
     }
+    _mutedRoomsSnapshot = Set<String>.unmodifiable(_mutedRooms);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_mutedRoomsKey, _mutedRooms.join(','));
+      await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
     } catch (e) {
       _log.w('Failed to save muted rooms', error: e);
     }
   }
 
-  /// Dispose of the sync subscription.
+  /// Cancels the sync subscription and any pending persistence work.
+  /// Safe to call multiple times.
   void dispose() {
     _syncSubscription?.cancel();
+    _syncSubscription = null;
+    _persistDebouncer?.cancel();
+    _persistDebouncer = null;
+    // Reset the in-memory caches so a re-`init` after `dispose`
+    // doesn't observe stale state. Persisted state survives in
+    // SharedPreferences by design.
+    _notifiedEventIds.clear();
+    _seenOrder.clear();
+    _lastNotifiedEventIds.clear();
+    _groupNotifiedCounts.clear();
+    _mutedRooms = <String>{};
+    _mutedRoomsSnapshot = const <String>{};
+    _loadedMuted = false;
+    _plugin = null;
+    _available = false;
   }
 }

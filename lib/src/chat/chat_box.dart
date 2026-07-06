@@ -22,6 +22,11 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/chat_box_sticker_picker.dart';
+import 'package:moonrelay/src/chat/poll_send_dialog.dart';
+import 'package:moonrelay/src/chat/share_location_dialog.dart';
+import 'package:moonrelay/src/chat/typing_indicator.dart';
+import 'package:moonrelay/src/chat/voice_recorder_dialog.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -37,13 +42,21 @@ import 'package:provider/provider.dart';
 /// (bold, italic, strikethrough, inline code, blockquote, heading,
 /// unordered list, link), an attach button, and a send button.
 class ChatBox extends StatefulWidget {
-  const ChatBox({super.key, required this.room, this.replyTarget});
+  const ChatBox({
+    super.key,
+    required this.room,
+    this.replyTarget,
+    this.threadRootEventId,
+  });
 
   final Room room;
 
   /// A notifier that signals which event (if any) the user is currently
   /// replying to.  Set to `null` to clear the reply preview.
   final ValueNotifier<Event?>? replyTarget;
+
+  /// When non-null, messages are sent as replies in this thread.
+  final String? threadRootEventId;
 
   @override
   State<ChatBox> createState() => _ChatBoxState();
@@ -59,6 +72,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   bool _isEmpty = true;
   Event? _replyEvent;
   bool _disposed = false;
+  late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
+
+  /// The composer text captured immediately before [_send] cleared the
+  /// controller.  Stored so we can restore it if `sendFn` throws — the
+  /// user can correct and resend without retyping a long message.
+  String? _draftValue;
 
   @override
   void initState() {
@@ -94,6 +113,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _controller.dispose();
     _focusNode.dispose();
     _expandController.dispose();
+    _typingNotifier.dispose();
     super.dispose();
   }
 
@@ -110,6 +130,11 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     if (empty != _isEmpty) {
       setState(() => _isEmpty = empty);
     }
+    // Typing indicators: fire only when transitioning to non-empty,
+    // and rely on the TypingNotifier to throttle & auto-stop.
+    if (!empty) {
+      _typingNotifier.notify();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -123,36 +148,112 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final log = context.read<Logger>();
     final replyTo = _replyEvent;
     final html = MarkdownToHtml.convert(text);
+    final hasHtml = html.isNotEmpty && html != text;
+
+    // ── Slash commands ──────────────────────────────────────────────────
+    // The chat composer accepts a tiny set of builtin commands:
+    //   /me <text>      — sends as m.emote (third-person action).
+    //   /shrug <text>   — prepends the ¯\_(ツ)_/¯ shrug glyph and sends
+    //                     as plain text.
+    String effectiveBody = text;
+    String? emoteMsgtype;
+
+    if (text.startsWith('/')) {
+      final firstSpace = text.indexOf(' ');
+      final cmd = firstSpace < 0 ? text : text.substring(0, firstSpace);
+      final arg = firstSpace < 0 ? '' : text.substring(firstSpace + 1).trim();
+      switch (cmd.toLowerCase()) {
+        case '/me':
+          if (arg.isEmpty) {
+            return; // nothing to send
+          }
+          emoteMsgtype = MessageTypes.Emote;
+          effectiveBody = arg;
+          break;
+        case '/shrug':
+          if (arg.isEmpty) {
+            return; // nothing to send
+          }
+          effectiveBody = '¯\\_(ツ)_/¯ $arg';
+          break;
+        default:
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!
+                    .unsupportedSlashCommand(cmd),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+      }
+    }
+
+    // Build the relation payload once so that the reply, threaded-reply,
+    // and plain-text branches all use the same content (and the same
+    // formatted_body when the user typed markdown).
+    final Map<String, dynamic> content = <String, dynamic>{
+      'msgtype': emoteMsgtype ?? MessageTypes.Text,
+      'body': effectiveBody,
+      if (hasHtml && emoteMsgtype == null) ...<String, dynamic>{
+        'format': 'org.matrix.custom.html',
+        'formatted_body': html,
+      },
+    };
+    if (replyTo != null) {
+      content['m.relates_to'] = <String, dynamic>{
+        'm.in_reply_to': <String, dynamic>{'event_id': replyTo.eventId},
+      };
+    }
+    if (widget.threadRootEventId != null) {
+      // Threading lives in the same relates_to block.  We add the
+      // thread root on top of the in-reply-to for the threaded case
+      // (replies inside a thread).  For top-level messages the
+      // Matrix SDK already defaults to thread-less sending.
+      final relates = (content['m.relates_to'] as Map<String, dynamic>?) ??
+          <String, dynamic>{};
+      relates['m.thread'] = <String, dynamic>{
+        'event_id': widget.threadRootEventId,
+      };
+      if (!relates.containsKey('rel_type')) {
+        relates['rel_type'] = 'm.thread';
+      }
+      content['m.relates_to'] = relates;
+    }
 
     Future<void> sendFn() async {
-      if (replyTo != null) {
-        await widget.room.sendTextEvent(
-          text,
-          inReplyTo: replyTo,
+      if (widget.threadRootEventId != null || replyTo != null) {
+        await widget.room.sendEvent(
+          content,
+          threadRootEventId: widget.threadRootEventId,
         );
-      } else if (html == text || html.isEmpty) {
-        await widget.room.sendTextEvent(text);
       } else {
-        await widget.room.sendEvent({
-          'body': text,
-          'msgtype': MessageTypes.Text,
-          'format': 'org.matrix.custom.html',
-          'formatted_body': html,
-        });
+        await widget.room.sendEvent(content);
       }
     }
 
     try {
       // Clear the input immediately for responsive UX.  If sending
-      // fails the user will see an error and can retype.
+      // fails the draft is restored into the controller so the user
+      // can correct the message instead of having to retype it.
       if (!mounted) return;
+      _draftValue = effectiveBody;
       _controller.clear();
-      _clearReply();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
+      // Success — clear the draft.
+      _draftValue = null;
+      _clearReply();
     } catch (e) {
       log.w('Failed to send message', error: e);
       if (!mounted) return;
+      final restored = _draftValue;
+      _draftValue = null;
+      if (restored != null && _controller.text.isEmpty) {
+        _controller.text = restored;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -346,7 +447,46 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
+
+                // Sticker button
+                _IconButton(
+                  icon: Icons.emoji_emotions_outlined,
+                  tooltip: l10n.chatBoxSticker,
+                  onPressed: () => showStickerPicker(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                const SizedBox(width: 2),
+
+                // Voice note recorder
+                _IconButton(
+                  icon: LucideIcons.mic,
+                  tooltip: l10n.recordVoiceNote,
+                  onPressed: () =>
+                      showVoiceRecorderDialog(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                // Location share
+                _IconButton(
+                  icon: LucideIcons.mapPin,
+                  tooltip: l10n.shareLocation,
+                  onPressed: () =>
+                      showShareLocationDialog(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                // Poll creation
+                _IconButton(
+                  icon: LucideIcons.listChecks,
+                  tooltip: l10n.createPoll,
+                  onPressed: () =>
+                      showPollCreateDialog(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                const SizedBox(width: 2),
 
                 // Text field
                 Expanded(

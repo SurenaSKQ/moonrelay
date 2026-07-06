@@ -36,6 +36,40 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   final VoidCallback? onTap;
   final double? radius;
 
+  // ── Memoization ─────────────────────────────────────────────────────────
+  // Each (client, uri, size) triple resolves to a single Future<Uri>. Without
+  // this, every parent rebuild creates a new Future and FutureBuilder keeps
+  // showing the placeholder. Scoped to the client so logouts drop entries.
+  static final Map<int, Map<String, Future<Uri>>> _thumbnailPromises = {};
+
+  static Future<Uri> _getThumbnail(
+    Client client,
+    Uri uri,
+    int displaySize,
+  ) {
+    final byClient =
+        _thumbnailPromises.putIfAbsent(identityHashCode(client), () => {});
+    final key = '${uri.toString()}::$displaySize';
+    return byClient.putIfAbsent(
+      key,
+      () => withTimeoutOrFallback(
+        () => uri.getThumbnailUri(
+          client,
+          width: displaySize,
+          height: displaySize,
+        ),
+        timeout: kDefaultTimeout,
+        fallback: uri,
+      ),
+    );
+  }
+
+  /// Drops cached thumbnails for the given [client]. Call on logout /
+  /// client disposal.
+  static void clearCacheFor(Client client) {
+    _thumbnailPromises.remove(identityHashCode(client));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -46,15 +80,7 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
       child: avatarUri == null
           ? _placeholder(theme)
           : FutureBuilder<Uri>(
-              future: withTimeoutOrFallback(
-                () => avatarUri!.getThumbnailUri(
-                  client,
-                  width: displaySize,
-                  height: displaySize,
-                ),
-                timeout: kDefaultTimeout,
-                fallback: avatarUri!,
-              ),
+              future: _getThumbnail(client, avatarUri!, displaySize),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return _avatarWithErrorHandling(

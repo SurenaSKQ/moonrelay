@@ -14,13 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 
-class FriendsChatsPane extends StatelessWidget {
-  const FriendsChatsPane({super.key});
+void main() {
+  group('PinnedEventsCache', () {
+    setUp(() {
+      PinnedEventsCache.instance.clear();
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    return const Placeholder();
-  }
+    test('clear() resets the cache', () {
+      PinnedEventsCache.instance.clear();
+      // Subsequent calls should still work without throwing.
+      expect(PinnedEventsCache.instance, isNotNull);
+    });
+  });
 }

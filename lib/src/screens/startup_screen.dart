@@ -306,15 +306,25 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  void _switchToAccount(
+  Future<void> _switchToAccount(
     BuildContext context,
     AccountManager accountManager,
     StoredAccount account,
-  ) {
+  ) async {
     final l10n = AppLocalizations.of(context)!;
-    // If it's already the active account, just go to rooms.
+
+    // If it's already the active account, just go to rooms
+    // (but only if the session is still valid).
     if (account.userId == accountManager.activeAccount?.userId) {
-      context.go('/main/rooms');
+      if (accountManager.isLoggedIn) {
+        context.go('/main/rooms');
+      } else {
+        // Session was lost (e.g. DB wipe) → prompt re-login.
+        context.go('/welcome/login', extra: {
+          'homeserver': account.homeserver,
+          'username': account.userId,
+        });
+      }
       return;
     }
 
@@ -325,10 +335,15 @@ class StartupScreen extends StatelessWidget {
       ),
     );
 
-    // The actual client switch happens in AccountManager.  When it
-    // completes, the provider tree rebuilds and the GoRouter redirect
-    // will send us to /main/rooms because the new client is logged in.
-    accountManager.switchToAccount(account.userId);
+    // The actual client switch happens in AccountManager.
+    // If the new session isn't valid, route to the login page.
+    final loggedIn = await accountManager.switchToAccount(account.userId);
+    if (!loggedIn && context.mounted) {
+      context.go('/welcome/login', extra: {
+        'homeserver': account.homeserver,
+        'username': account.userId,
+      });
+    }
   }
 
   // ── Action card (login / register / SSO) ─────────────────────────────────

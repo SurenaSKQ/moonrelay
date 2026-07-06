@@ -69,15 +69,18 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -305,6 +308,8 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           ),
         ),
       ),
+      ),
+      ),
     );
   }
 
@@ -406,18 +411,22 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           log.i('Registration successful for ${value.userId}');
 
           // ── Save this account for multi-account support ─────────
-          if (mounted) {
-            final accountManager = context.read<AccountManager>();
-            await accountManager.addOrUpdateAccount(
-              StoredAccount(
-                userId: client.userID!,
-                homeserver: client.homeserver?.toString() ?? '',
-              ),
-              client: client,
-              encryptionService: context.read<EncryptionService>(),
-            );
-          }
+          // Capture provider reads before any subsequent await so the
+          // analyzer doesn't see [context] used across the async gap.
+          final accountManager = context.read<AccountManager>();
+          final encryptionService = context.read<EncryptionService>();
+          final homeserverSnapshot = client.homeserver?.toString() ?? '';
+          final userIdSnapshot = client.userID!;
+          await accountManager.addOrUpdateAccount(
+            StoredAccount(
+              userId: userIdSnapshot,
+              homeserver: homeserverSnapshot,
+            ),
+            client: client,
+            encryptionService: encryptionService,
+          );
 
+          if (!mounted) return;
           context.go('/main/rooms');
         }
       case RetryFailed(:final error):

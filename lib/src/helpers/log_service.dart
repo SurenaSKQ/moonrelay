@@ -28,22 +28,103 @@ import 'package:path_provider/path_provider.dart';
 /// These patterns are intentionally coarse — false positives are safer
 /// than false negatives.  At the same time we avoid removing structural
 /// characters that would break JSON in the log stream.
-const _redactionPatterns = <_RedactionPattern>[
+///
+/// Exposed at the library level (rather than nested under
+/// [_RedactingLogOutput]) so the redaction surface is unit-testable in
+/// isolation; `_RedactingLogOutput` simply forwards through
+/// [redactString] for each log line.
+// ignore: library_private_types_in_public_api
+const List<_RedactionPattern> redactionPatterns = <_RedactionPattern>[
   // Matrix access tokens (typically syt_... or MDA...)
   _RedactionPattern(
       pattern: r'\b(syt_[A-Za-z0-9]+)\b', replacement: 'syt_[REDACTED]'),
   _RedactionPattern(
       pattern: r'\bMDA[A-Za-z0-9]{100,}\b', replacement: 'MDA[REDACTED]'),
-  // Bearer tokens in Authorization headers
+  // Bearer tokens in Authorization headers.  The leading byte
+  // `[Aa]` matches both cases so we don't need a separate rule.
+  // 16+ chars on the value side rejects natural-language words after
+  // "Bearer" (e.g. "Bearer of this message").
   _RedactionPattern(
-      pattern: r'Bearer\s+\S+',
-      replacement: 'Bearer [REDACTED]',
+      pattern:
+          r'((?:Authorization:\s*)?Bearer\s+)([A-Za-z0-9._~+/=-]{16,})',
+      replacement: r'$1[REDACTED]',
       caseSensitive: false),
   // Raw Matrix login tokens (long base64-like strings in URL query params)
   _RedactionPattern(
       pattern: r'loginToken=[A-Za-z0-9+/=]{20,}',
       replacement: 'loginToken=[REDACTED]'),
+  // Device IDs and session IDs (high-entropy identifiers).
+  // Handles `device_id=VALUE`, `"device_id":"VALUE"`, `device_id:VALUE`,
+  // and `device_id: VALUE`.  Uses `\b` so the rule doesn't pull in a
+  // `device_id` substring that happens to follow `password=…` (since
+  // the value-side chars are alphanumeric only, the rule would otherwise
+  // happily munch an adjacent identifier).
+  _RedactionPattern(
+      pattern:
+          r'\bdevice_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
+      replacement: 'device_id=[REDACTED]'),
+  _RedactionPattern(
+      pattern:
+          r'\bsession_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
+      replacement: 'session_id=[REDACTED]'),
+  // Passwords: matches `password=foo`, `password: foo`,
+  // `"password": "foo"`, `"password":"foo"`, and trailing key=value in
+  // URL-encoded bodies.  The capture class deliberately includes `[`
+  // and `]` as stop characters so a `[REDACTED]` placeholder emitted
+  // by an earlier rule cannot itself trigger another pass through this
+  // rule (which would otherwise chew square brackets off the end of
+  // previous redactions and degrade the log to garbage over time).
+  _RedactionPattern(
+      pattern: r'''(?:["']?password["']?\s*[=:]\s*["']?)([^\s,&}"'\]\[]+)["']?''',
+      replacement: 'password=[REDACTED]'),
 ];
+
+// /\\/\\/ Public redaction surface (tests + dev tooling).
+// /\\/\\/ The detail type is intentionally private; consumers should
+// /\\/\\/ only depend on [redactString] and the [redactionPatterns]
+// /\\/\\/ list itself.
+
+/// Apply every [redactionPatterns] rule to [line] in order and return
+/// the cleaned string.  Exposed so unit tests can pin the ruleset without
+/// having to construct a full [LogOutput] pipeline.
+///
+/// Uses [String.replaceAllMapped] when the pattern is a [RegExp] so
+/// `$N` backreferences in the replacement string are honoured — Dart's
+/// plain `String.replaceAll(Pattern, String)` treats `$N` as literal
+/// text and would silently drop the `Authorization:` prefix when
+/// redacting a bearer token.
+String redactString(String line) {
+  for (final rp in redactionPatterns) {
+    if (rp.pattern is RegExp) {
+      final re = rp.pattern as RegExp;
+      if (RegExp(r'\$\d').hasMatch(rp.replacement)) {
+        line = line.replaceAllMapped(re, (m) => _expand(rp.replacement, m));
+      } else {
+        line = line.replaceAll(re, rp.replacement);
+      }
+    } else {
+      // String pattern: compile on the fly.
+      line = line.replaceAllMapped(
+        RegExp(rp.pattern as String, caseSensitive: rp.caseSensitive),
+        (m) => _expand(rp.replacement, m),
+      );
+    }
+  }
+  return line;
+}
+
+/// Expands `$N` backreferences in [template] using the captured
+/// groups from [m] (1-based).  Unknown indices are left as literal.
+String _expand(String template, Match m) {
+  return template.replaceAllMapped(
+    RegExp(r'\$(\d+)'),
+    (ref) {
+      final idx = int.parse(ref.group(1)!);
+      if (idx < 1 || idx > m.groupCount) return ref.group(0)!;
+      return m.group(idx) ?? '';
+    },
+  );
+}
 
 /// A token-length-sensitive, memory-constrained log sink that writes
 /// structured log lines to rotating files and supports secure log-wipe
@@ -145,6 +226,11 @@ class LogService {
 // Redacting log output
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A single regex-based redaction rule.
+///
+/// Public so tests can introspect the ruleset without going through
+/// the regex pipeline, but treated as an implementation detail by
+/// other consumers of the library.
 class _RedactionPattern {
   final Pattern pattern;
   final String replacement;
@@ -176,12 +262,7 @@ class _RedactingLogOutput extends LogOutput {
     _inner.output(OutputEvent(event.origin, redacted));
   }
 
-  static String _redactLine(String line) {
-    for (final rp in _redactionPatterns) {
-      line = line.replaceAll(rp.regex, rp.replacement);
-    }
-    return line;
-  }
+  static String _redactLine(String line) => redactString(line);
 
   @override
   Future<void> init() => _inner.init();

@@ -197,15 +197,48 @@ class MarkdownToHtml {
   }
 
   /// Converts `[text](url)` to `<a href="url">text</a>`.
+  ///
+  /// URLs containing `&`, `<`, `>`, `"`, apostrophe, spaces, or
+  /// other characters that would break out of the `href="…"`
+  /// attribute are silently dropped (the text is rendered without a
+  /// link).  This is a defence-in-depth measure on top of the
+  /// `[^\s<>")()]+` regex: even if a quote slipped through, the
+  /// attribute has no way to escape.
   static String _processLinks(String text) {
     return text.replaceAllMapped(
       RegExp(r'\[([^\]]*)\]\(([^)]+)\)'),
       (m) {
         final linkText = _processBoldItalic(m[1]!);
         final url = m[2]!;
-        return '<a href="$url">$linkText</a>';
+        if (!_isSafeHref(url)) {
+          // Render the original text verbatim (escaped) without a
+          // link wrapper so the user at least sees what they typed.
+          return _escapeHtmlRaw(linkText);
+        }
+        return '<a href="${_escapeAttribute(url)}">$linkText</a>';
       },
     );
+  }
+
+  /// Whether [url] is safe to place inside `href="…"`.
+  ///
+  /// We allow the common URL characters and a small set of pcts
+  /// (which the surrounding [_escapeAttribute] will further encode),
+  /// but reject anything containing characters that would terminate
+  /// the attribute early.
+  static bool _isSafeHref(String url) {
+    for (final c in url.split('')) {
+      // Letters, digits, common URL punctuation, and percent-encoded
+      // sequences are allowed.  Anything else — quotes, brackets,
+      // angle brackets, whitespace, control chars — is rejected.
+      final code = c.codeUnitAt(0);
+      final allowed = (code >= 0x30 && code <= 0x39) || // 0-9
+          (code >= 0x41 && code <= 0x5A) || // A-Z
+          (code >= 0x61 && code <= 0x7A) || // a-z
+          '!#\$%&\'()*+,-./:;=?@[]^_`{|}~'.contains(c);
+      if (!allowed) return false;
+    }
+    return true;
   }
 
   /// Processes `~~strikethrough~~`, `**bold**`, `*italic*`, and
@@ -221,15 +254,25 @@ class MarkdownToHtml {
 
   /// Converts `**bold**` and `*italic*` into `<b>` / `<i>`.
   ///
-  /// Also handles `` `inline code` ``.
+  /// Also handles `` `inline code` `` inline.
+  ///
+  /// The scanner walks the input character by character with the
+  /// following precedence (highest first):
+  ///
+  /// 1. `` `…` `` — inline code: everything between matching backticks.
+  /// 2. `**…**` — bold: greedy forward `**` close, rejecting empty
+  ///    spans and anything that would land inside an already-started
+  ///    bold.
+  /// 3. `*…*` — italic: rejected when adjacent to another `*`, so
+  ///    `*a**b*c*` italicises only `a` and leaves the inner `**`
+  ///    pair un-touched.
+  /// 4. Plain character pass-through.
   static String _processBoldItalic(String text) {
-    // Must handle `` `code` `` before * and **, so code backticks take
-    // priority.
     final result = StringBuffer();
     int i = 0;
 
     while (i < text.length) {
-      // Inline code – backticks win over everything.
+      // ── 1. Inline code: backticks win over * and **. ───────────
       if (text[i] == '`' && i + 1 < text.length && text[i + 1] != '`') {
         final close = text.indexOf('`', i + 1);
         if (close != -1) {
@@ -240,26 +283,37 @@ class MarkdownToHtml {
         }
       }
 
-      // Bold `**text**`
+      // ── 2. Bold `**text**` ─────────────────────────────────────
       if (i + 1 < text.length && text[i] == '*' && text[i + 1] == '*') {
-        final close = text.indexOf('**', i + 2);
-        if (close != -1 && close != i + 2) {
-          final inner = _processItalic(text.substring(i + 2, close));
-          result.write('<b>$inner</b>');
-          i = close + 2;
-          continue;
+        // Reject empty `****` and `**` followed immediately by another
+        // asterisk (which would be three+ in a row — ambiguous, just
+        // emit the leading `**` literally rather than mis-nesting).
+        if (i + 2 < text.length && text[i + 2] == '*') {
+          // Three asterisks in a row — emit them as text; the next
+          // pass may still find a valid italic if that's what the
+          // user typed.
+        } else {
+          final close = text.indexOf('**', i + 2);
+          if (close != -1 && close != i + 2) {
+            final inner = _processItalic(text.substring(i + 2, close));
+            result.write('<b>$inner</b>');
+            i = close + 2;
+            continue;
+          }
         }
       }
 
-      // Italic `*text*`
-      if (text[i] == '*' && (i == 0 || text[i - 1] != '*')) {
-        final close = text.indexOf('*', i + 1);
-        if (close != -1 &&
-            close != i + 1 &&
-            close + 1 < text.length &&
-            text[close + 1] != '*') {
-          result.write('<i>${text.substring(i + 1, close)}</i>');
-          i = close + 1;
+      // ── 3. Italic `*text*` ─────────────────────────────────────
+      // We only open italic when the surrounding bytes aren't also
+      // asterisks: this prevents `*a**b*c*` from being scanned as a
+      // single italic span that swallows the inner `**` pair.
+      if (text[i] == '*' &&
+          (i == 0 || text[i - 1] != '*') &&
+          (i + 1 >= text.length || text[i + 1] != '*')) {
+        final closeIdx = _findItalicClose(text, i + 1);
+        if (closeIdx != null) {
+          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          i = closeIdx + 1;
           continue;
         }
       }
@@ -271,13 +325,59 @@ class MarkdownToHtml {
     return result.toString();
   }
 
+  /// Finds the position of the `*` that closes an italic span opened
+  /// at position [start] (just past the opening `*`).  Returns `null`
+  /// if no valid close is found.
+  ///
+  /// Valid close = a `*` such that the preceding character isn't `*`
+  /// (so `*a**b*` doesn't form one span) and the following character
+  /// isn't `*` (so `*a**` doesn't claim the second `*` as a close).
+  static int? _findItalicClose(String text, int start) {
+    var i = start;
+    while (i < text.length) {
+      if (text[i] == '*' &&
+          (i == 0 || text[i - 1] != '*') &&
+          (i + 1 >= text.length || text[i + 1] != '*')) {
+        return i;
+      }
+      i++;
+    }
+    return null;
+  }
+
   /// Converts `*italic*` inside bold content.
   static String _processItalic(String text) {
-    return text.replaceAllMapped(
-      RegExp(r'\*(.+?)\*'),
-      (m) => '<i>${m[1]}</i>',
-    );
+    final result = StringBuffer();
+    int i = 0;
+    while (i < text.length) {
+      if (text[i] == '*' &&
+          (i == 0 || text[i - 1] != '*') &&
+          (i + 1 >= text.length || text[i + 1] != '*')) {
+        final closeIdx = _findItalicClose(text, i + 1);
+        if (closeIdx != null) {
+          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          i = closeIdx + 1;
+          continue;
+        }
+      }
+      result.write(text[i]);
+      i++;
+    }
+    return result.toString();
   }
+
+  /// Known HTML tags that the Markdown converter legitimately produces.
+  /// Any `<...>` not matching this pattern is treated as raw user input
+  /// and escaped so it cannot be interpreted as HTML by the renderer.
+  ///
+  /// This prevents raw `<script>`, `<iframe>`, `<img onerror>`, etc.
+  /// in user input from passing through to `FormattedTextWidget`.
+  static final _knownTag = RegExp(
+    r'^</?(b|i|s|code|pre|blockquote|p|h[1-6]|ul|ol|li|br'
+    r'|a(\s+href="[^"]*")?)'
+    r'\s*/?>$',
+    caseSensitive: false,
+  );
 
   /// HTML-entity-encodes the plain-text parts of the body.
   ///
@@ -293,7 +393,16 @@ class MarkdownToHtml {
       if (processed[i] == '<') {
         final close = processed.indexOf('>', i);
         if (close != -1) {
-          result.write(processed.substring(i, close + 1));
+          final tag = processed.substring(i, close + 1);
+          if (_knownTag.hasMatch(tag)) {
+            // Legitimate converter-generated tag — pass through.
+            result.write(tag);
+          } else {
+            // Raw user-input HTML — escape it.
+            result.write('&lt;');
+            result.write(_escapeHtmlRaw(processed.substring(i + 1, close)));
+            result.write('&gt;');
+          }
           i = close + 1;
           continue;
         }
@@ -311,5 +420,19 @@ class MarkdownToHtml {
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;');
+  }
+
+  /// Escapes characters that are unsafe inside an HTML attribute value.
+  ///
+  /// This is more conservative than [_escapeHtmlRaw]: quotes and angle
+  /// brackets break the surrounding `<a href="…">` even when harmless
+  /// inside text, so attribute values always use this pass instead of
+  /// the surrounding body escape.
+  static String _escapeAttribute(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
   }
 }

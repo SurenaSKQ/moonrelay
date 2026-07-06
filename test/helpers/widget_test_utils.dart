@@ -18,32 +18,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:provider/provider.dart';
 
 import 'mocks.dart';
 
-/// Creates a [SettingsController] backed by an in-memory [SettingsService]
-/// that uses mock SharedPreferences (call [setUpMockSharedPreferences] first).
+/// Creates a [SettingsController] backed by an in-memory [SettingsService],
+/// with default values pre-populated so tests can use it immediately without
+/// calling [SettingsController.loadSettings].
 SettingsController createTestSettingsController() {
   final service = SettingsService();
   final controller = SettingsController(service);
-  // Load synchronously in tests — SharedPreferences must be mocked before
-  // calling this.
   return controller;
 }
 
-/// A test wrapper that provides [Client], [Logger], and [SettingsController]
-/// via [MultiProvider], so that widgets under test can access them with
-/// `Provider.of<T>(context)`.
-///
-/// [overrides] can be used to replace the default test providers.
+/// A test wrapper that provides the full set of Providers needed by most
+/// widgets in the app: [Client], [Logger], [SettingsController],
+/// [AccountManager], [EncryptionService], [CurrentRoom], [NavigationState],
+/// and [DeepLinkService].
 Widget wrapWithProviders({
   required Widget child,
   Client? client,
   Logger? logger,
   SettingsController? settingsController,
+  AccountManager? accountManager,
+  EncryptionService? encryptionService,
+  CurrentRoom? currentRoom,
+  NavigationState? navigationState,
+  DeepLinkService? deepLinkService,
 }) {
   return MultiProvider(
     providers: [
@@ -51,6 +59,21 @@ Widget wrapWithProviders({
       Provider<Logger>.value(value: logger ?? MockLogger()),
       ChangeNotifierProvider<SettingsController>.value(
         value: settingsController ?? createTestSettingsController(),
+      ),
+      ChangeNotifierProvider<AccountManager>.value(
+        value: accountManager ?? MockAccountManager(),
+      ),
+      ChangeNotifierProvider<EncryptionService>.value(
+        value: encryptionService ?? MockEncryptionService(),
+      ),
+      ChangeNotifierProvider<CurrentRoom>.value(
+        value: currentRoom ?? CurrentRoom(),
+      ),
+      ChangeNotifierProvider<NavigationState>.value(
+        value: navigationState ?? NavigationState(),
+      ),
+      Provider<DeepLinkService>.value(
+        value: deepLinkService ?? MockDeepLinkService(),
       ),
     ],
     child: MaterialApp(
