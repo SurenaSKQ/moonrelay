@@ -41,6 +41,19 @@ class EncryptionOverviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.encryptionSecurity),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.refreshCw),
+            tooltip: loc.encryptionRefresh,
+            onPressed: () async {
+              await enc.refresh();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(loc.encryptionRefreshed)),
+              );
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -49,6 +62,12 @@ class EncryptionOverviewScreen extends StatelessWidget {
           _SectionHeader(
             icon: LucideIcons.shield,
             title: loc.encryptionCrossSigning,
+            trailing: _StatusBadge(
+              label: enc.crossSigningBootstrapped
+                  ? loc.encryptionStatusOk
+                  : loc.encryptionStatusActionRequired,
+              ok: enc.crossSigningBootstrapped,
+            ),
           ),
           Card(
             child: Padding(
@@ -79,6 +98,14 @@ class EncryptionOverviewScreen extends StatelessWidget {
                         ? loc.encryptionDeviceVerified
                         : loc.encryptionDeviceNotVerified,
                   ),
+                  if (enc.crossSigningBootstrapped) ...[
+                    const SizedBox(height: 12),
+                    _FingerprintRow(
+                      scheme: scheme,
+                      label: loc.encryptionCrossSigningFingerprint,
+                      fingerprint: enc.masterKeyFingerprint,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (!enc.crossSigningBootstrapped)
                     FilledButton.icon(
@@ -117,10 +144,53 @@ class EncryptionOverviewScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // ── Setup benefits checklist (shown when not yet bootstrapped) ──
+          if (!enc.crossSigningBootstrapped) ...[
+            _SectionHeader(
+              icon: LucideIcons.lightbulb,
+              title: loc.encryptionSetupChecklist,
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _BulletRow(
+                      icon: LucideIcons.shieldCheck,
+                      scheme: scheme,
+                      text: loc.encryptionSetupChecklistCrossSigning,
+                    ),
+                    const SizedBox(height: 10),
+                    _BulletRow(
+                      icon: LucideIcons.cloud,
+                      scheme: scheme,
+                      text: loc.encryptionSetupChecklistBackup,
+                    ),
+                    const SizedBox(height: 10),
+                    _BulletRow(
+                      icon: LucideIcons.smartphone,
+                      scheme: scheme,
+                      text: loc.encryptionSetupChecklistDevice,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Devices section ──────────────────────────────────────────
           _SectionHeader(
             icon: LucideIcons.smartphone,
             title: loc.encryptionDevices,
+            trailing: _StatusBadge(
+              label: enc.isThisDeviceVerified
+                  ? loc.encryptionStatusOk
+                  : loc.encryptionStatusActionRequired,
+              ok: enc.isThisDeviceVerified,
+            ),
           ),
           Card(
             child: ListTile(
@@ -143,6 +213,12 @@ class EncryptionOverviewScreen extends StatelessWidget {
           _SectionHeader(
             icon: LucideIcons.cloud,
             title: loc.encryptionKeyBackup,
+            trailing: _StatusBadge(
+              label: enc.keyBackupExists
+                  ? loc.encryptionKeyBackupActive
+                  : loc.encryptionKeyBackupInactive,
+              ok: enc.keyBackupExists,
+            ),
           ),
           Card(
             child: Padding(
@@ -151,44 +227,48 @@ class EncryptionOverviewScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _StatusRow(
-                    icon: enc.isKeyBackupEnabled
+                    icon: enc.keyBackupExists
                         ? LucideIcons.cloud
                         : LucideIcons.cloudOff,
                     iconColor:
-                        enc.isKeyBackupEnabled ? Colors.green : scheme.outline,
-                    label: enc.isKeyBackupEnabled
+                        enc.keyBackupExists ? Colors.green : scheme.outline,
+                    label: enc.keyBackupExists
                         ? loc.encryptionKeyBackupActive
                         : loc.encryptionKeyBackupInactive,
                   ),
-                  if (enc.isKeyBackupEnabled) ...[
+                  if (enc.keyBackupExists) ...[
                     const SizedBox(height: 12),
-                    // Version
-                    if (enc.keyBackupVersion != null)
+                    // Algorithm
+                    if (enc.keyBackupAlgorithm != null)
                       _DetailLine(
                         scheme: scheme,
-                        label: loc.encryptionBackupVersion,
-                        value: enc.keyBackupVersion!,
+                        label: loc.encryptionBackupAlgorithm,
+                        value: enc.keyBackupAlgorithm!,
                       ),
-                    // Key count
-                    if (enc.keyBackupKeysTotal > 0)
-                      _DetailLine(
-                        scheme: scheme,
-                        label: loc.encryptionKeysBackedUp,
-                        value:
-                            '${enc.keyBackupKeysBackedUp} / ${enc.keyBackupKeysTotal}',
-                      ),
-                    // Recovery key presence
+                    // Cached recovery key
                     _StatusRow(
-                      icon: enc.keyBackupHasRecoveryKey
+                      icon: enc.keyBackupCached
                           ? LucideIcons.checkCircle
                           : LucideIcons.helpCircle,
-                      iconColor: enc.keyBackupHasRecoveryKey
+                      iconColor: enc.keyBackupCached
                           ? Colors.green
                           : Colors.orange,
-                      label: enc.keyBackupHasRecoveryKey
+                      label: enc.keyBackupCached
                           ? loc.encryptionBackupRecoveryKeySet
                           : loc.encryptionBackupNoRecoveryKey,
                     ),
+                    if (!enc.keyBackupCached) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 26),
+                        child: Text(
+                          loc.encryptionBackupRecoveryKeyHint,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.outline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                   const SizedBox(height: 16),
                   if (!enc.crossSigningBootstrapped)
@@ -197,11 +277,16 @@ class EncryptionOverviewScreen extends StatelessWidget {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: scheme.outline),
                     )
-                  else if (!enc.isKeyBackupEnabled)
+                  else
                     FilledButton.icon(
                       icon: const Icon(LucideIcons.cloudUpload, size: 18),
-                      label: Text(loc.encryptionSetupKeyBackup),
-                      onPressed: () => _startBootstrap(context, enc),
+                      label: Text(
+                        enc.keyBackupExists
+                            ? loc.encryptionRebootstrapKeyBackup
+                            : loc.encryptionSetupKeyBackup,
+                      ),
+                      onPressed: () =>
+                          _startKeyBackup(context, enc),
                     ),
                 ],
               ),
@@ -238,16 +323,32 @@ class EncryptionOverviewScreen extends StatelessWidget {
           child: Column(
             children: [
               ListTile(
-                leading: Icon(LucideIcons.user, color: scheme.outline),
+                leading: Icon(
+                  counts.own == 0 ? LucideIcons.shieldCheck : LucideIcons.alertCircle,
+                  color: counts.own == 0 ? Colors.green : scheme.error,
+                ),
                 title: Text(loc.encryptionUnverifiedOwn),
-                trailing:
-                    Text('${counts.own}', style: theme.textTheme.titleMedium),
+                trailing: Text(
+                  '${counts.own}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: counts.own == 0 ? Colors.green : scheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               ListTile(
-                leading: Icon(LucideIcons.users, color: scheme.error),
+                leading: Icon(
+                  counts.other == 0 ? LucideIcons.users : LucideIcons.userX,
+                  color: counts.other == 0 ? Colors.green : scheme.error,
+                ),
                 title: Text(loc.encryptionUnverifiedOther),
-                trailing:
-                    Text('${counts.other}', style: theme.textTheme.titleMedium),
+                trailing: Text(
+                  '${counts.other}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: counts.other == 0 ? Colors.green : scheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -268,23 +369,54 @@ class EncryptionOverviewScreen extends StatelessWidget {
     try {
       final bootstrap = enc.startBootstrap();
       if (!context.mounted) return;
-      final result = await Navigator.of(context).push<bool>(
+      await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => BootstrapScreen(bootstrap: bootstrap),
         ),
       );
-      if (result == true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.encryptionDone)),
-        );
-      }
+      // Always notify the service that bootstrap finished — it re-runs
+      // the full state refresh and re-evaluates setupRequirement.
+      enc.onBootstrapFinished();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.encryptionDone),
+        ),
+      );
     } catch (e) {
+      enc.onBootstrapFinished();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.error} $e')),
+          SnackBar(
+            content: Text(
+              '${AppLocalizations.of(context)!.error}: $e',
+            ),
+          ),
         );
       }
     }
+  }
+
+  /// Re-launches the bootstrap flow solely to configure / re-configure
+  /// the online key backup.  The wizard handles both the "backup not
+  /// configured" and "backup configured, want to re-create" cases via
+  /// its [BootstrapState.askWipeOnlineKeyBackup] / [BootstrapState.askSetupOnlineKeyBackup]
+  /// states; we let it run to completion.
+  void _startKeyBackup(BuildContext context, EncryptionService enc) async {
+    if (!enc.isSupported || !enc.crossSigningBootstrapped) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.encryptionSetupCrossSigningFirst,
+          ),
+        ),
+      );
+      return;
+    }
+    // Same wizard — it begins by asking whether to wipe existing SSSS,
+    // flows through cross-signing re-creation if needed, then asks
+    // about the online key backup specifically.
+    _startBootstrap(context, enc);
   }
 
   void _startSelfVerification(
@@ -311,10 +443,15 @@ class EncryptionOverviewScreen extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.title});
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    this.trailing,
+  });
 
   final IconData icon;
   final String title;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +462,47 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
-          Text(title, style: theme.textTheme.titleMedium),
+          Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+/// Small pill-shaped status label used in the overview to give an at-a-glance
+/// "this feature is OK / needs attention" indicator next to each section header.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, required this.ok});
+
+  final String label;
+  final bool ok;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = ok ? Colors.green : scheme.outline;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(ok ? LucideIcons.checkCircle : LucideIcons.alertCircle,
+              size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -351,6 +528,83 @@ class _StatusRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(label)),
       ],
+    );
+  }
+}
+
+/// Bullet-row used by the "Why set up encryption?" checklist.
+class _BulletRow extends StatelessWidget {
+  const _BulletRow({
+    required this.icon,
+    required this.scheme,
+    required this.text,
+  });
+
+  final IconData icon;
+  final ColorScheme scheme;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: scheme.primary),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
+}
+
+/// Two-column label + monospace fingerprint reader for the user-facing
+/// "Master key fingerprint" entry.  Selectable so the user can copy it.
+class _FingerprintRow extends StatelessWidget {
+  const _FingerprintRow({
+    required this.scheme,
+    required this.label,
+    required this.fingerprint,
+  });
+
+  final ColorScheme scheme;
+  final String label;
+  final String? fingerprint;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fingerprint == null || fingerprint!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: SelectableText(
+              fingerprint!,
+              style: TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

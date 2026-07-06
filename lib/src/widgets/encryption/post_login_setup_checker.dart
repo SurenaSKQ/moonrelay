@@ -61,6 +61,10 @@ class _PostLoginSetupCheckerState extends State<PostLoginSetupChecker> {
 
     if (!enc.isInitialized) {
       try {
+        // init() now awaits its first refresh internally, so by the
+        // time it resolves, setupRequirement reflects the latest
+        // cross-signing / device state — no need for an extra
+        // fixed-delay workaround here.
         await enc.init();
       } catch (_) {
         return;
@@ -68,21 +72,17 @@ class _PostLoginSetupCheckerState extends State<PostLoginSetupChecker> {
       if (!mounted) return;
     }
 
-    final log = context.read<Logger>();
-
     // ── Wait for account data to settle ─────────────────────────────
-    // The encryption service refreshes cross-signing, key backup, and
-    // device state on each sync event via a fire-and-forget Future.wait.
-    // We wait for a sync event + a brief settling window so that the
-    // async refresh completes before we evaluate setupRequirement.
-    // This prevents showing a bootstrap dialog prematurely when
-    // cross-signing keys haven't finished loading from the server.
+    // The encryption service coalesces post-sync refreshes behind a
+    // short debounce.  We still wait for one sync event so post-login
+    // UI prompts reflect data the server has actually delivered.
+    final log = context.read<Logger>();
     try {
       await client.onSync.stream.first.timeout(
         const Duration(seconds: 15),
       );
-      // Give the encryption service's async refresh time to settle.
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Give the debounced refresh (750ms) time to complete.
+      await Future<void>.delayed(const Duration(milliseconds: 900));
     } on TimeoutException {
       log.w('PostLoginSetupChecker: timeout waiting for sync; '
           'proceeding with current data');

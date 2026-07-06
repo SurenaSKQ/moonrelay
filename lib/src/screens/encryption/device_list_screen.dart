@@ -81,6 +81,21 @@ class DeviceListScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(device.deviceId),
+                      Text(
+                        device.lastSeenTs != null
+                            ? loc.encryptionDeviceLastSeen(
+                                _formatLastSeen(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                    device.lastSeenTs!,
+                                  ),
+                                ),
+                              )
+                            : loc.encryptionDeviceLastSeenNever,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.outline,
+                        ),
+                      ),
                       if (isCurrent)
                         Text(loc.encryptionThisDevice,
                             style: TextStyle(color: scheme.primary)),
@@ -275,3 +290,26 @@ class _TrustBadge extends StatelessWidget {
     );
   }
 }
+
+/// Best-effort formatter for device last-seen timestamps.
+///
+/// The SDK exposes them as a `DateTime` either local or as a UTC instant
+/// depending on version.  We render a relative "x minutes ago" style for
+/// recent timestamps and fall back to a short date+time for older ones,
+/// avoiding pulling a date-formatting dependency into a leaf widget.
+String _formatLastSeen(DateTime dt) {
+  final local = dt.isUtc ? dt.toLocal() : dt;
+  final delta = DateTime.now().difference(local);
+  if (delta.isNegative || delta.inSeconds < 0) {
+    // Device clock skew — show the wall-clock time directly.
+    return '${local.year}-${_pad(local.month)}-${_pad(local.day)} '
+        '${_pad(local.hour)}:${_pad(local.minute)}';
+  }
+  if (delta.inMinutes < 1) return 'just now';
+  if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
+  if (delta.inHours < 24) return '${delta.inHours}h ago';
+  if (delta.inDays < 7) return '${delta.inDays}d ago';
+  return '${local.year}-${_pad(local.month)}-${_pad(local.day)}';
+}
+
+String _pad(int v) => v.toString().padLeft(2, '0');

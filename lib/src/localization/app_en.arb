@@ -589,6 +589,27 @@
   "encryptionCrossSigningInactive": "Cross-signing is not set up",
   "encryptionDeviceVerified": "This device is verified",
   "encryptionDeviceNotVerified": "This device is not verified",
+  "encryptionCrossSigningFingerprint": "Master key fingerprint",
+  "@encryptionCrossSigningFingerprint": {
+    "description": "Label for the user's master key fingerprint shown in the encryption overview."
+  },
+  "encryptionSetupChecklist": "Why set up encryption?",
+  "encryptionSetupChecklistCrossSigning": "Verify other users and devices securely, without needing out-of-band QR scans or emoji comparisons every time.",
+  "encryptionSetupChecklistBackup": "Recover your message history if you lose or replace a device.",
+  "encryptionSetupChecklistDevice": "Encrypted messages you send from this device are properly signed so other devices know they came from you.",
+  "encryptionStatusOk": "Ready",
+  "encryptionStatusActionRequired": "Action required",
+  "@encryptionStatusOk": {
+    "description": "Short status label: all encryption features are configured."
+  },
+  "@encryptionStatusActionRequired": {
+    "description": "Short status label: at least one encryption feature needs the user's attention."
+  },
+  "encryptionRefresh": "Refresh now",
+  "@encryptionRefresh": {
+    "description": "Button label to manually refresh encryption state from the homeserver."
+  },
+  "encryptionRefreshed": "Encryption state updated",
   "encryptionBootstrap": "Set Up Encryption",
   "encryptionReBootstrap": "Re-run Setup",
   "encryptionDevices": "Devices",
@@ -597,6 +618,16 @@
   "encryptionNoDevices": "No devices found",
   "encryptionDevice": "Device",
   "encryptionThisDevice": "This device",
+  "encryptionDeviceLastSeen": "Last seen {time}",
+  "@encryptionDeviceLastSeen": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "encryptionDeviceLastSeenNever": "Never",
+  "@encryptionDeviceLastSeenNever": {
+    "description": "Shown when a device has never signed in to the homeserver."
+  },
   "encryptionDeleteDevice": "Delete Device",
   "encryptionDeleteDeviceConfirm": "Are you sure you want to delete",
   "encryptionDeleteDeviceWarning": "This will permanently sign out the selected session. You will need to log in again from that device.",
@@ -622,7 +653,15 @@
   "encryptionKeyBackupActive": "Key backup is enabled",
   "encryptionKeyBackupInactive": "Key backup is not enabled",
   "encryptionSetupKeyBackup": "Set Up Key Backup",
+  "encryptionRebootstrapKeyBackup": "Reconfigure Key Backup",
+  "@encryptionRebootstrapKeyBackup": {
+    "description": "Button label to re-launch the bootstrap wizard specifically to recreate key backup."
+  },
   "encryptionSetupCrossSigningFirst": "Set up cross-signing first",
+  "encryptionBackupAlgorithm": "Algorithm",
+  "@encryptionBackupAlgorithm": {
+    "description": "Label for the backup-algorithm detail line in the encryption overview."
+  },
   "encryptionVerifiedUsers": "Verified Users",
   "encryptionUnverifiedOwn": "My unverified devices",
   "encryptionUnverifiedOther": "Unverified other users",
@@ -980,8 +1019,13 @@
 
   "encryptionBackupVersion": "Backup version",
   "encryptionKeysBackedUp": "Keys backed up",
+  "encryptionBackupAlgorithm": "Algorithm",
+  "@encryptionBackupAlgorithm": {
+    "description": "Label for the backup-algorithm detail line in the encryption overview."
+  },
   "encryptionBackupRecoveryKeySet": "Recovery key is set",
   "encryptionBackupNoRecoveryKey": "No recovery key set",
+  "encryptionBackupRecoveryKeyHint": "If you didn't set a recovery passphrase or key during setup, re-run setup to generate one. Without it, you cannot restore encrypted history on a new device.",
 
   "roomNotFound": "Room not found",
   "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
