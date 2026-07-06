@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_acrylic
+  record_linux
   screen_retriever_linux
   system_theme
   tray_manager

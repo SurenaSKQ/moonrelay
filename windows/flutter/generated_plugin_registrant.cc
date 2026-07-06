@@ -7,6 +7,9 @@
 #include "generated_plugin_registrant.h"
 
 #include <flutter_acrylic/flutter_acrylic_plugin.h>
+#include <geolocator_windows/geolocator_windows.h>
+#include <permission_handler_windows/permission_handler_windows_plugin.h>
+#include <record_windows/record_windows_plugin_c_api.h>
 #include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
 #include <system_theme/system_theme_plugin.h>
 #include <tray_manager/tray_manager_plugin.h>
@@ -16,6 +19,12 @@
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   FlutterAcrylicPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterAcrylicPlugin"));
+  GeolocatorWindowsRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("GeolocatorWindows"));
+  PermissionHandlerWindowsPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("PermissionHandlerWindowsPlugin"));
+  RecordWindowsPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("RecordWindowsPluginCApi"));
   ScreenRetrieverWindowsPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("ScreenRetrieverWindowsPluginCApi"));
   SystemThemePluginRegisterWithRegistrar(
