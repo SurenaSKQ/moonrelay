@@ -64,4 +64,27 @@ class ThreadUtils {
     if (isThreadRoot(event)) return true;
     return false;
   }
+
+  /// Builds a map of `eventId -> threadReplyCount` for every event in
+  /// [timeline] in a single pass.
+  ///
+  /// Callers (notably [TimelineView]) used to invoke
+  /// [threadReplyCount] / [hasThreadReplies] once per visible event,
+  /// each of which internally scans the timeline for matching replies.
+  /// For a timeline of N events with M thread replies, that produced
+  /// O(N*M) work — a single linear pass here brings that down to O(N+M).
+  ///
+  /// The returned map only contains entries for events with at least one
+  /// reply, so callers can use `map[id] ?? 0` to read the count.
+  static Map<String, int> buildThreadReplyCounts(Timeline timeline) {
+    final counts = <String, int>{};
+    for (final event in timeline.events) {
+      final parentId = event.relationshipEventId;
+      final type = event.relationshipType;
+      if (parentId == null || parentId == event.eventId) continue;
+      if (type != RelationshipTypes.thread) continue;
+      counts.update(parentId, (v) => v + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
 }

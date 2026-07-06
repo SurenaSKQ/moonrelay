@@ -134,16 +134,19 @@ class _TimelineViewState extends State<TimelineView> {
   /// without invalidating the full item-list cache.
   int _countUndecryptable() {
     final filter = widget.filterEvents;
-    final count = <int, int>{};
     final events = widget.timeline.events;
+    var count = 0;
     for (var idx = 0; idx < events.length; idx++) {
       final ev = events[idx];
-      if (filter != null && !filter(ev)) continue;
-      if (filter == null && !ThreadUtils.isVisibleInMainTimeline(ev)) continue;
+      if (filter != null) {
+        if (!filter(ev)) continue;
+      } else {
+        if (!ThreadUtils.isVisibleInMainTimeline(ev)) continue;
+      }
       if (ev.type != EventTypes.Encrypted) continue;
-      count[idx] = (count[idx] ?? 0) + 1;
+      count++;
     }
-    return count.values.fold<int>(0, (a, b) => a + b);
+    return count;
   }
 
   @override
@@ -253,6 +256,8 @@ class _TimelineViewState extends State<TimelineView> {
     if (_cachedItems != null) return _cachedItems!;
 
     final visibleIndices = _visibleIndices(); // newest -> oldest
+    final threadReplyCounts =
+        ThreadUtils.buildThreadReplyCounts(widget.timeline);
     final items = <Widget>[];
     // Map of eventId -> item index in [items], built as we go.
     final eventIdToItemIndex = <String, int>{};
@@ -313,12 +318,9 @@ class _TimelineViewState extends State<TimelineView> {
         final isContinuation = effectiveNextEvent != null &&
             _isContinuation(event, effectiveNextEvent);
 
-        // Precompute thread reply data once instead of scanning
-        // the timeline per-item on every build.
-        final hasThread = ThreadUtils.hasThreadReplies(event, widget.timeline);
-        final replyCount = hasThread
-            ? ThreadUtils.threadReplyCount(event, widget.timeline)
-            : 0;
+        // Look up the reply count from the precomputed map instead of
+        // scanning the timeline for each event.
+        final replyCount = threadReplyCounts[event.eventId] ?? 0;
 
         items.add(TimelineItem(
           event: event,
