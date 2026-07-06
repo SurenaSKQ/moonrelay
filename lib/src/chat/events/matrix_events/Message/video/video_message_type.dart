@@ -14,17 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:video_player/video_player.dart';
 
-/// Displays a video message with a thumbnail preview (if available),
-/// metadata overlay, and download action.
+/// Displays a video message with an in-app `video_player` controller.
 ///
-/// A future iteration will add an in-app video player.
+/// Heights follow the message's natural aspect ratio (clamped to the
+/// 16:9 – 9:16 range) so portrait videos aren't stretched into a 320×180
+/// bar anymore. A bottom play/pause overlay appears whenever the user
+/// hovers the video; tapping the video itself toggles play/pause.
 class VideoMessageType extends StatefulWidget {
   const VideoMessageType({super.key, required this.event});
   final Event event;
@@ -36,6 +41,7 @@ class VideoMessageType extends StatefulWidget {
 class _VideoMessageTypeState extends State<VideoMessageType> {
   Future<MatrixFile>? _downloadFuture;
   Future<MatrixFile>? _thumbnailFuture;
+  VideoPlayerController? _controller;
 
   @override
   void initState() {
@@ -43,11 +49,16 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     if (widget.event.hasAttachment) {
       _downloadFuture = widget.event.downloadAndDecryptAttachment();
     }
-    // Try to fetch the video thumbnail if available.
     if (widget.event.hasThumbnail) {
       _thumbnailFuture =
           widget.event.downloadAndDecryptAttachment(getThumbnail: true);
     }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 
   // ---- Content helpers ----
@@ -64,16 +75,14 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
   int? get _duration => _infoMap['duration'] as int?;
   int? get _fileSize => _infoMap['size'] as int?;
-
-  /// Video dimensions from the content's info blob.
   int? get _videoWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
   int? get _videoHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
 
   String _formatDuration(int ms) {
     final totalSeconds = ms ~/ 1000;
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   String _formatSize(int bytes) {
@@ -82,7 +91,74 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  // ---- Actions ----
+  /// Computes the height-and-width-clamped box for the video player.
+  ///
+  /// Constrains by height: video fills the available height (max 360)
+  /// while the width follows from the aspect ratio. Falls back to
+  /// 320×180 when dimensions are unknown.
+  Size _playerSize() {
+    const maxWidth = 360.0;
+    const maxHeight = 360.0;
+    final w = _videoWidth?.toDouble();
+    final h = _videoHeight?.toDouble();
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      return const Size(320, 180);
+    }
+    final ratio = w / h;
+    if (h >= w) {
+      // Portrait — clamp height, follow width.
+      final height = maxHeight;
+      final width = (height * ratio).clamp(120.0, maxWidth);
+      return Size(width, height);
+    } else {
+      // Landscape — clamp width, follow height.
+      final width = maxWidth;
+      final height = (width / ratio).clamp(120.0, maxHeight);
+      return Size(width, height);
+    }
+  }
+
+  Future<void> _buildControllerFromDownload() async {
+    if (_controller != null) return;
+    final snap = await _downloadFuture;
+    final bytes = snap?.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+    if (!mounted) return;
+    await _buildController(bytes);
+  }
+
+  Future<void> _buildController(Uint8List bytes) async {
+    if (_controller != null) return;
+    final name = _fileName ?? 'video_${widget.event.eventId}.mp4';
+    final path = '${Directory.systemTemp.path}/moonrelay_$name';
+    final tmp = File(path)..writeAsBytesSync(bytes);
+    final c = VideoPlayerController.file(tmp);
+    _controller = c;
+    try {
+      await c.initialize();
+      await c.setLooping(false);
+      if (mounted) setState(() {});
+      c.addListener(_onControllerTick);
+    } catch (_) {}
+  }
+
+  void _onControllerTick() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _togglePlay() async {
+    final c = _controller;
+    if (c != null && c.value.isInitialized) {
+      if (c.value.isPlaying) {
+        await c.pause();
+      } else {
+        await c.play();
+      }
+      return;
+    }
+    // Initialise on first toggle if the future hasn't completed yet.
+    await _buildControllerFromDownload();
+  }
 
   Future<void> _downloadFile(MatrixFile attFile) async {
     await FilePicker.saveFile(
@@ -92,15 +168,24 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     );
   }
 
+  Future<void> _openFullscreen() async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullscreenVideoPlayer(controller: c),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-
-    final hasDuration = _duration != null;
+    final playerSize = _playerSize();
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 340),
+      constraints: const BoxConstraints(maxWidth: 360),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(14),
@@ -110,18 +195,21 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Thumbnail / preview area ─────────────────────────────────
-          _buildPreviewArea(cs, l10n),
+          // ── Player / preview area ────────────────────────────────
+          SizedBox(
+            width: playerSize.width,
+            height: playerSize.height,
+            child: _buildPlayerArea(cs, l10n),
+          ),
 
-          // ── Metadata row ─────────────────────────────────────────────
+          // ── Metadata row ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
             child: Row(
               children: [
-                // File icon
                 Container(
                   width: 36,
                   height: 36,
@@ -130,14 +218,13 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    Icons.videocam_rounded,
+                    LucideIcons.video,
                     size: 18,
                     color: cs.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
 
-                // Info text
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,8 +248,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color:
-                                  cs.tertiaryContainer.withValues(alpha: 0.5),
+                              color: cs.tertiaryContainer
+                                  .withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -175,19 +262,20 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               ),
                             ),
                           ),
-                          if (hasDuration) ...[
+                          if (_duration != null) ...[
                             const SizedBox(width: 8),
-                            Icon(Icons.schedule_outlined,
-                                size: 12,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                            Icon(
+                              LucideIcons.clock,
+                              size: 12,
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                            ),
                             const SizedBox(width: 2),
                             Text(
                               _formatDuration(_duration!),
                               style: TextStyle(
                                 fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.7),
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -197,8 +285,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               _formatSize(_fileSize!),
                               style: TextStyle(
                                 fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.5),
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -208,7 +296,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                   ),
                 ),
 
-                // Download button
+                // Download / save button.
                 Tooltip(
                   message: l10n.downloadVideo,
                   child: FutureBuilder<MatrixFile>(
@@ -223,8 +311,11 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.download_rounded, size: 20),
-                          color: cs.primary,
+                          icon: Icon(
+                            LucideIcons.download,
+                            size: 18,
+                            color: cs.primary,
+                          ),
                           onPressed: isReady && snapshot.data != null
                               ? () => _downloadFile(snapshot.data!)
                               : null,
@@ -241,8 +332,93 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     );
   }
 
+  Widget _buildPlayerArea(ColorScheme cs, AppLocalizations l10n) {
+    final c = _controller;
+    if (c != null && c.value.isInitialized) {
+      // ── Real video player ─────────────────────────────────────
+      return MouseRegion(
+        child: GestureDetector(
+          onTap: _togglePlay,
+          onDoubleTap: _openFullscreen,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: AspectRatio(
+                  aspectRatio: c.value.aspectRatio == 0
+                      ? 1.0
+                      : c.value.aspectRatio,
+                  child: VideoPlayer(c),
+                ),
+              ),
+              // Play/pause overlay
+              if (!c.value.isPlaying)
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                ),
+              // Top-right fullscreen button
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Tooltip(
+                  message: l10n.fullscreenVideo,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _openFullscreen,
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          LucideIcons.maximize,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Bottom progress bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: VideoProgressIndicator(
+                  c,
+                  allowScrubbing: true,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ── Thumbnail placeholder ────────────────────────────────
+    return _buildPreviewArea(cs, l10n);
+  }
+
   Widget _buildPreviewArea(ColorScheme cs, AppLocalizations l10n) {
-    // If there's a thumbnail, show it.
     if (_thumbnailFuture != null) {
       return FutureBuilder<MatrixFile>(
         future: _thumbnailFuture,
@@ -254,32 +430,23 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
               thumbnailBytes != null) {
             return _buildThumbnail(cs, thumbnailBytes);
           }
-          // While loading or on error, show the fallback preview.
           return _buildPreviewFallback(cs, l10n);
         },
       );
     }
-
-    // No thumbnail at all — show the fallback.
     return _buildPreviewFallback(cs, l10n);
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
     return Stack(
       children: [
-        // The thumbnail image
-        ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+        Positioned.fill(
           child: Image.memory(
             bytes,
-            width: double.infinity,
-            height: 180,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _buildPreviewFallback(cs, null),
           ),
         ),
-
-        // Dark gradient overlay
         Positioned.fill(
           child: Container(
             decoration: BoxDecoration(
@@ -294,8 +461,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
             ),
           ),
         ),
-
-        // Play button overlay
+        // Build the controller once downloaded.
         Center(
           child: Container(
             width: 52,
@@ -315,95 +481,79 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
             ),
           ),
         ),
-
-        // Resolution badge (bottom-left)
-        if (_videoWidth != null && _videoHeight != null)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$_videoWidth×$_videoHeight',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.85),
-                ),
-              ),
-            ),
-          ),
-
-        // Duration badge (bottom-right)
-        if (_duration != null)
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.schedule_outlined,
-                    size: 12,
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    _formatDuration(_duration!),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }
 
   Widget _buildPreviewFallback(ColorScheme cs, AppLocalizations? l10n) {
     return Container(
-      height: 140,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-      ),
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.videocam_rounded,
+              LucideIcons.video,
               size: 40,
               color: cs.onSurfaceVariant.withValues(alpha: 0.4),
             ),
-            const SizedBox(height: 8),
-            Text(
-              l10n?.unknownType ?? '',
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FullscreenVideoPlayer extends StatefulWidget {
+  const _FullscreenVideoPlayer({required this.controller});
+  final VideoPlayerController controller;
+
+  @override
+  State<_FullscreenVideoPlayer> createState() =>
+      _FullscreenVideoPlayerState();
+}
+
+class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTick);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTick);
+    super.dispose();
+  }
+
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: GestureDetector(
+          onTap: () => c.value.isPlaying ? c.pause() : c.play(),
+          child: AspectRatio(
+            aspectRatio:
+                c.value.aspectRatio == 0 ? 16 / 9 : c.value.aspectRatio,
+            child: VideoPlayer(c),
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.white.withValues(alpha: 0.2),
+        foregroundColor: Colors.white,
+        onPressed: () => c.value.isPlaying ? c.pause() : c.play(),
+        child: Icon(c.value.isPlaying ? Icons.pause : Icons.play_arrow),
       ),
     );
   }
