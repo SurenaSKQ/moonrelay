@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:moonrelay/src/layouts/empty_space.dart';
 import 'package:moonrelay/src/screens/room_page.dart';
@@ -31,9 +32,19 @@ import 'package:provider/provider.dart';
 ///
 /// If the first sync hasn't completed yet (no rooms loaded at all), a
 /// loading indicator is shown instead of a failure state.
+///
+/// The optional [threadRootEventId] is forwarded to the [RoomPage] /
+/// [ChatBox] so a deep link like `/main/rooms/!r:s?threadRoot=$evt`
+/// opens the room with the composer wired to send replies into that
+/// thread.
 class RoomDelegate extends StatelessWidget {
-  const RoomDelegate({super.key, required this.roomID});
+  const RoomDelegate({
+    super.key,
+    required this.roomID,
+    this.threadRootEventId,
+  });
   final String? roomID;
+  final String? threadRootEventId;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +59,7 @@ class RoomDelegate extends StatelessWidget {
     // ── Look up the room via the SDK ────────────────────────────
     final Room? room = client.getRoomById(roomID!);
     if (room != null) {
-      return RoomPage(room: room);
+      return RoomPage(room: room, threadRootEventId: threadRootEventId);
     }
 
     // ── Room not found yet ───────────────────────────────────────
@@ -72,5 +83,17 @@ class RoomDelegate extends StatelessWidget {
   void _log(BuildContext context, String message) {
     final Logger log = Provider.of<Logger>(context, listen: false);
     log.t(message);
+  }
+}
+
+/// Extension on [RoomDelegate] that reads the optional `threadRoot`
+/// query parameter from the route and forwards it to the delegate.
+extension RoomDelegateWithThread on RoomDelegate {
+  static Widget fromState(BuildContext context) {
+    final state = GoRouterState.of(context);
+    return RoomDelegate(
+      roomID: state.pathParameters['roomid'],
+      threadRootEventId: state.uri.queryParameters['threadRoot'],
+    );
   }
 }

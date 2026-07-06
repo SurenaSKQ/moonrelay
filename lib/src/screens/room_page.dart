@@ -26,7 +26,8 @@ import 'package:provider/provider.dart';
 
 class RoomPage extends StatefulWidget {
   final Room room;
-  const RoomPage({super.key, required this.room});
+  final String? threadRootEventId;
+  const RoomPage({super.key, required this.room, this.threadRootEventId});
   @override
   State<RoomPage> createState() => _RoomPageState();
 }
@@ -125,6 +126,7 @@ class _RoomPageState extends State<RoomPage> {
           ChatBox(
             room: widget.room,
             replyTarget: _replyTarget,
+            threadRootEventId: widget.threadRootEventId,
           ),
         ],
       ),

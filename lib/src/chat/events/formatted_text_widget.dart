@@ -252,6 +252,23 @@ class _HtmlTagParser {
           continue;
         }
 
+        if (rawTag == 'img' || rawTag.startsWith('img ')) {
+          // `<img>` is a void element.  Render the alt text as a link so
+          // sighted users see a description; clients with image rendering
+          // enabled can swap this for a `WidgetSpan` later.  Skipping the
+          // tag silently (the previous behaviour) hid inline images and
+          // confused the user.
+          final attrs = _parseAttrs(rawTag);
+          final alt = attrs['alt']?.trim();
+          final src = attrs['src']?.trim() ?? '';
+          if (alt != null && alt.isNotEmpty) {
+            buffer.write(alt);
+          } else if (src.isNotEmpty) {
+            buffer.write(src);
+          }
+          continue;
+        }
+
         final tag = _tagName(rawTag);
         final attrs = _parseAttrs(rawTag);
 

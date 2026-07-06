@@ -177,6 +177,7 @@ class MoonRouter {
                 state,
                 RoomDelegate(
                   roomID: state.pathParameters['roomid'],
+                  threadRootEventId: state.uri.queryParameters['threadRoot'],
                 ),
               ),
               routes: [
@@ -187,6 +188,8 @@ class MoonRouter {
                     state,
                     RoomDelegate(
                       roomID: state.pathParameters['roomid']!,
+                      threadRootEventId:
+                          state.uri.queryParameters['threadRoot'],
                     ),
                   ),
                   redirect: loggedOutRedirect,

@@ -132,26 +132,48 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final log = context.read<Logger>();
     final replyTo = _replyEvent;
     final html = MarkdownToHtml.convert(text);
+    final hasHtml = html.isNotEmpty && html != text;
+
+    // Build the relation payload once so that the reply, threaded-reply,
+    // and plain-text branches all use the same content (and the same
+    // formatted_body when the user typed markdown).
+    final Map<String, dynamic> content = <String, dynamic>{
+      'msgtype': MessageTypes.Text,
+      'body': text,
+      if (hasHtml) ...<String, dynamic>{
+        'format': 'org.matrix.custom.html',
+        'formatted_body': html,
+      },
+    };
+    if (replyTo != null) {
+      content['m.relates_to'] = <String, dynamic>{
+        'm.in_reply_to': <String, dynamic>{'event_id': replyTo.eventId},
+      };
+    }
+    if (widget.threadRootEventId != null) {
+      // Threading lives in the same relates_to block.  We add the
+      // thread root on top of the in-reply-to for the threaded case
+      // (replies inside a thread).  For top-level messages the
+      // Matrix SDK already defaults to thread-less sending.
+      final relates = (content['m.relates_to'] as Map<String, dynamic>?) ??
+          <String, dynamic>{};
+      relates['m.thread'] = <String, dynamic>{
+        'event_id': widget.threadRootEventId,
+      };
+      if (!relates.containsKey('rel_type')) {
+        relates['rel_type'] = 'm.thread';
+      }
+      content['m.relates_to'] = relates;
+    }
 
     Future<void> sendFn() async {
-      if (replyTo != null) {
-        await widget.room.sendTextEvent(
-          text,
-          inReplyTo: replyTo,
-          threadRootEventId: widget.threadRootEventId,
-        );
-      } else if (html == text || html.isEmpty) {
-        await widget.room.sendTextEvent(
-          text,
+      if (widget.threadRootEventId != null || replyTo != null) {
+        await widget.room.sendEvent(
+          content,
           threadRootEventId: widget.threadRootEventId,
         );
       } else {
-        await widget.room.sendEvent({
-          'body': text,
-          'msgtype': MessageTypes.Text,
-          'format': 'org.matrix.custom.html',
-          'formatted_body': html,
-        }, threadRootEventId: widget.threadRootEventId);
+        await widget.room.sendEvent(content);
       }
     }
 
