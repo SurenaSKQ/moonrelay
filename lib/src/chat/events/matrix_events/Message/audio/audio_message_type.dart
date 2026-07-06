@@ -14,14 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-/// Displays an audio message with a polished card, waveform visual, and
-/// download action. A future iteration may replace the download with an
-/// in-app audio player.
+/// Displays an audio message with an in-app `just_audio` player.
+///
+/// The widget downloads the encrypted attachment, exposes a play/pause
+/// toggle, a scrub slider bound to the player's position, and a save
+/// button for the rare case the user wants to keep a local copy.
 class AudioMessageType extends StatefulWidget {
   const AudioMessageType({super.key, required this.event});
   final Event event;
@@ -32,33 +39,67 @@ class AudioMessageType extends StatefulWidget {
 
 class _AudioMessageTypeState extends State<AudioMessageType> {
   Future<MatrixFile>? _downloadFuture;
+  final AudioPlayer _player = AudioPlayer();
+  Uint8List? _bytes;
+  bool _isReady = false;
+  bool _isPlaying = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+      _downloadFuture = widget.event.downloadAndDecryptAttachment().then((m) {
+        final bytes = m.bytes;
+        _bytes = bytes;
+        // Defer play start until next frame so we can attach the URL.
+        return m;
+      });
     }
+    _player.positionStream.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+    _player.durationStream.listen((d) {
+      if (mounted && d != null) setState(() => _duration = d);
+    });
+    _player.playerStateStream.listen((s) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = s.playing;
+          _isReady = s.processingState != ProcessingState.loading;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
   }
 
   // ---- Content helpers ----
 
   String? get _fileName => widget.event.content['filename']?.toString();
-  String get _extension =>
-      (_fileName?.split('.').last ?? 'AUDIO').toUpperCase();
 
   Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
       ? widget.event.content['info'] as Map<String, dynamic>
       : const {};
 
-  int? get _duration => _infoMap['duration'] as int?;
+  int? get _durationMs => _infoMap['duration'] as int?;
   int? get _fileSize => _infoMap['size'] as int?;
 
-  String _formatDuration(int ms) {
-    final totalSeconds = ms ~/ 1000;
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  String get _extension {
+    final n = _fileName;
+    if (n == null) return 'AUDIO';
+    return n.split('.').last.toUpperCase();
+  }
+
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   String _formatSize(int bytes) {
@@ -69,11 +110,46 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
 
   // ---- Actions ----
 
-  Future<void> _downloadFile(MatrixFile attFile) async {
+  Future<void> _ensureAttached() async {
+    if (_bytes == null) return;
+    try {
+      // just_audio can't stream `mxc://` URLs directly, so we materialise
+      // the attachment in a temp file. The bytes are already in memory
+      // (decrypted by the SDK), so this is just a flip to a [FileSource].
+      final name = _fileName ?? 'audio_${widget.event.eventId}.m4a';
+      final tmp = File('${Directory.systemTemp.path}/moonrelay_$name')
+        ..writeAsBytesSync(_bytes!);
+      await _player.setFilePath(tmp.path);
+    } catch (_) {}
+  }
+
+  Future<void> _togglePlay() async {
+    if (_isPlaying) {
+      await _player.pause();
+    } else {
+      await _ensureAttached();
+      await _player.play();
+    }
+  }
+
+  Future<void> _seekTo(double value) async {
+    final d = _duration;
+    if (d == Duration.zero) return;
+    final newPos = Duration(
+      milliseconds: (value * d.inMilliseconds).round(),
+    );
+    await _player.seek(newPos);
+    if (mounted) setState(() => _position = newPos);
+  }
+
+  Future<void> _downloadFile() async {
+    final bytes = _bytes;
+    if (bytes == null) return;
+    final l10n = AppLocalizations.of(context)!;
     await FilePicker.saveFile(
-      dialogTitle: AppLocalizations.of(context)!.saveAudio,
+      dialogTitle: l10n.saveAudio,
       fileName: _fileName,
-      bytes: attFile.bytes,
+      bytes: bytes,
     );
   }
 
@@ -85,12 +161,18 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
-        final isReady = snapshot.connectionState == ConnectionState.done &&
-            !snapshot.hasError;
-        final matrixFile = snapshot.data;
+        final isReady = snapshot.hasData;
+        final displayPos = _position.inSeconds.toDouble();
+        final displayDur = (_duration.inSeconds == 0
+                ? _durationMs ?? 0
+                : _duration.inMilliseconds) /
+            1000.0;
+        final progress = displayDur == 0
+            ? 0.0
+            : (displayPos / displayDur).clamp(0.0, 1.0);
 
         return Container(
-          constraints: const BoxConstraints(maxWidth: 340),
+          constraints: const BoxConstraints(maxWidth: 360),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(14),
@@ -99,26 +181,31 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Audio icon with pulse ring
+                // Play/Pause button (or download icon while loading).
                 Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.12),
+                    color: cs.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    isReady ? Icons.music_note_rounded : Icons.sync_rounded,
-                    size: 22,
-                    color: cs.primary,
+                  child: IconButton(
+                    icon: Icon(
+                      _isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: cs.primary,
+                      size: 22,
+                    ),
+                    onPressed: isReady && _isReady ? _togglePlay : null,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
 
-                // Metadata column
+                // Track + metadata
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,18 +220,62 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
+
+                      // Slider
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 6,
+                          ),
+                        ),
+                        child: Slider(
+                          value: progress,
+                          onChanged: isReady ? _seekTo : null,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+
+                      // Time/duration and badges
                       Row(
                         children: [
-                          // Extension badge
+                          Text(
+                            _formatDuration(_position),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurface,
+                              fontFamily: 'JetBrainsMono',
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '/',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDuration(_duration == Duration.zero
+                                ? Duration(milliseconds: _durationMs ?? 0)
+                                : _duration),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                              fontFamily: 'JetBrainsMono',
+                            ),
+                          ),
+                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color:
-                                  cs.tertiaryContainer.withValues(alpha: 0.5),
+                              color: cs.tertiaryContainer
+                                  .withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -157,69 +288,26 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                               ),
                             ),
                           ),
-                          if (_duration != null) ...[
-                            const SizedBox(width: 8),
-                            Icon(Icons.schedule_outlined,
-                                size: 12,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                            const SizedBox(width: 2),
-                            Text(
-                              _formatDuration(_duration!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
                           if (_fileSize != null) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               _formatSize(_fileSize!),
                               style: TextStyle(
                                 fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.5),
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
                           ],
                         ],
                       ),
-
-                      // Waveform placeholder (future player)
-                      if (isReady) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: Container(
-                            height: 24,
-                            color: cs.primary.withValues(alpha: 0.08),
-                            child: Row(
-                              children: List.generate(
-                                30,
-                                (i) => Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 1),
-                                    child: _WaveformBar(
-                                      isTall: i % 5 == 0,
-                                      isMedium: i % 3 == 0,
-                                      color: cs.primary.withValues(alpha: 0.4),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
 
-                // Download button
+                const SizedBox(width: 6),
+
+                // Save button
                 Tooltip(
                   message: l10n.downloadAudio,
                   child: Container(
@@ -228,11 +316,12 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.download_rounded, size: 20),
-                      color: cs.primary,
-                      onPressed: isReady && matrixFile != null
-                          ? () => _downloadFile(matrixFile)
-                          : null,
+                      icon: Icon(
+                        LucideIcons.download,
+                        size: 18,
+                        color: cs.primary,
+                      ),
+                      onPressed: isReady ? _downloadFile : null,
                     ),
                   ),
                 ),
@@ -241,39 +330,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
           ),
         );
       },
-    );
-  }
-}
-
-/// A single bar in the simulated audio waveform.
-class _WaveformBar extends StatelessWidget {
-  const _WaveformBar({
-    required this.isTall,
-    required this.isMedium,
-    required this.color,
-  });
-
-  final bool isTall;
-  final bool isMedium;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final height = isTall
-        ? 20.0
-        : isMedium
-            ? 14.0
-            : 8.0;
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        width: double.infinity,
-        height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(1),
-        ),
-      ),
     );
   }
 }
