@@ -17,6 +17,7 @@
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/chat/receipt_avatars.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -158,6 +159,9 @@ class TimelineItem extends StatelessWidget {
             timeline: timeline!,
             room: room,
           ),
+        // Read-receipt avatars under every message that someone has seen.
+        if (timeline != null)
+          ReceiptAvatars(event: event, room: room),
         if (threadReplyCount > 0)
           _ThreadIndicator(
             replyCount: threadReplyCount,
@@ -236,6 +240,7 @@ class TimelineItem extends StatelessWidget {
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
+                  timeline: timeline,
                   onReply: onReply,
                   onForward: onForward,
                   onThread: onThread,
@@ -312,6 +317,7 @@ class TimelineItem extends StatelessWidget {
                 _HoverActionsWrapper(
                   event: event,
                   room: room,
+                  timeline: timeline,
                   onReply: onReply,
                   onForward: onForward,
                   onThread: onThread,
@@ -397,8 +403,9 @@ class TimelineItem extends StatelessWidget {
 /// Wraps [child] with a [MouseRegion] and overlays action buttons at the
 /// top‑right corner of the message when the user hovers over it.
 ///
-/// Actions include **React**, **Reply**, **Forward**, **Details**, and
-/// **Delete** (when permitted).
+/// Actions include **React**, **Reply**, **Forward**, **Details**, **Edit**,
+/// **Delete** (when permitted), and **Moderation** for users with sufficient
+/// permissions.
 ///
 /// When [onReply] is `null` the whole mechanism is skipped and [child] is
 /// returned as-is.
@@ -407,6 +414,7 @@ class _HoverActionsWrapper extends StatefulWidget {
     required this.child,
     required this.event,
     required this.room,
+    required this.timeline,
     this.onReply,
     this.onForward,
     this.onThread,
@@ -415,6 +423,7 @@ class _HoverActionsWrapper extends StatefulWidget {
   final Widget child;
   final Event event;
   final Room room;
+  final Timeline? timeline;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
   final VoidCallback? onThread;
@@ -471,6 +480,7 @@ class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
                 child: MessageActions(
                   event: widget.event,
                   room: widget.room,
+                  timeline: widget.timeline,
                   onReply: widget.onReply!,
                   onForward: widget.onForward,
                   onThread: widget.onThread,

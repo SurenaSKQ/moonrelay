@@ -16,15 +16,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/chat/edit_history_dialog.dart';
+import 'package:moonrelay/src/chat/edit_message_dialog.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
+import 'package:provider/provider.dart';
 
 /// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
 /// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
 /// actions (kick, ban, report) for users with sufficient permissions.
+///
+/// When the user is the sender of a text message, the toolbar also exposes
+/// **Edit** and **View edit history** actions; together with the
+/// `(edited)` marker rendered inline by `MessageEventHandler` they implement
+/// the full `m.replace` flow.
 ///
 /// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
 /// This widget does **not** manage its own visibility — the parent controls
@@ -37,6 +46,7 @@ class MessageActions extends StatelessWidget {
     required this.onReply,
     this.onForward,
     this.onThread,
+    this.timeline,
   });
 
   final Event event;
@@ -50,6 +60,10 @@ class MessageActions extends StatelessWidget {
   /// Optional callback to open the thread view for this event.
   /// When null, the thread button is hidden.
   final VoidCallback? onThread;
+
+  /// When non-null, the action toolbar offers an "Edit history" affordance
+  /// that scans the timeline for `m.replace` events related to this one.
+  final Timeline? timeline;
 
   /// Whether the current user can moderate the sender of this event.
   bool _canModerate(Client client) {
@@ -82,6 +96,26 @@ class MessageActions extends StatelessWidget {
     }
   }
 
+  /// Whether [event] is editable: text-shaped, sent by us, and not redacted.
+  bool _canEditText(BuildContext context) {
+    final client = room.client;
+    final isMine = event.senderId == client.userID;
+    if (!isMine) return false;
+    if (event.redacted) return false;
+    if (event.relationshipEventId != null) return false;
+    final mt = event.messageType;
+    if (mt != MessageTypes.Text &&
+        mt != MessageTypes.Emote &&
+        mt != MessageTypes.Notice) {
+      return false;
+    }
+    try {
+      return event.canRedact;
+    } catch (_) {
+      return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -93,6 +127,10 @@ class MessageActions extends StatelessWidget {
     final isOwnMessage = event.senderId == client.userID;
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
     final isPinned = _isPinned(room, event.eventId);
+    final canEdit = _canEditText(context);
+    final showEditHistory = isOwnMessage &&
+        isEditedMessage(event) &&
+        timeline != null;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -140,6 +178,24 @@ class MessageActions extends StatelessWidget {
           color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
         ),
+        if (canEdit) ...[
+          const SizedBox(width: 4),
+          _ActionIcon(
+            icon: Icons.edit_outlined,
+            tooltip: l10n.editTooltip,
+            color: cs.onSurfaceVariant,
+            onTap: () => _editMessage(context),
+          ),
+        ],
+        if (showEditHistory) ...[
+          const SizedBox(width: 4),
+          _ActionIcon(
+            icon: Icons.history_rounded,
+            tooltip: l10n.viewEditHistory,
+            color: cs.onSurfaceVariant,
+            onTap: () => _showEditHistory(context),
+          ),
+        ],
         if (canPin) ...[
           const SizedBox(width: 4),
           _ActionIcon(
@@ -208,6 +264,19 @@ class MessageActions extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Opens the in-place editor for the message body and writes the edit
+  /// (m.replace) when the user confirms.
+  void _editMessage(BuildContext context) async {
+    await showEditMessageDialog(context, event: event, room: room);
+  }
+
+  /// Shows the edit history dialog.
+  void _showEditHistory(BuildContext context) {
+    final tl = timeline;
+    if (tl == null) return;
+    showEditHistoryDialog(context, event: event, timeline: tl, room: room);
   }
 
   /// Toggles the pin state of this event.
@@ -401,7 +470,7 @@ class _ModerationMenu extends StatelessWidget {
           value: 'report',
           child: Row(
             children: [
-              Icon(Icons.flag_outlined, size: 18, color: cs.onSurfaceVariant),
+              Icon(Icons.flag_outlined, size: 18, color: cs.error),
               const SizedBox(width: 8),
               Text(l10n.actionReport),
             ],
@@ -411,7 +480,7 @@ class _ModerationMenu extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmKick(BuildContext context) async {
+  void _confirmKick(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -419,32 +488,36 @@ class _ModerationMenu extends StatelessWidget {
         content: Text(l10n.kickConfirm(_senderName)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l10n.cancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(l10n.actionKick),
           ),
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true) return;
+    final log = context.read<Logger>();
     try {
-      await withTimeout(() => room.kick(event.senderId));
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userKicked(_senderName))),
-      );
+      await room.kick(event.senderId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.userKicked(_senderName))),
+        );
+      }
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
+      log.w('Failed to kick', error: e);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.actionFailed('$e'))),
+        );
+      }
     }
   }
 
-  Future<void> _confirmBan(BuildContext context) async {
+  void _confirmBan(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -452,74 +525,82 @@ class _ModerationMenu extends StatelessWidget {
         content: Text(l10n.banConfirm(_senderName)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l10n.cancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(l10n.actionBan),
           ),
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true) return;
+    final log = context.read<Logger>();
     try {
-      await withTimeout(() => room.ban(event.senderId));
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userBanned(_senderName))),
-      );
+      await room.ban(event.senderId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.userBanned(_senderName))),
+        );
+      }
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
+      log.w('Failed to ban', error: e);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.actionFailed('$e'))),
+        );
+      }
     }
   }
 
-  Future<void> _reportUser(BuildContext context) async {
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+  void _reportUser(BuildContext context) async {
+    final log = context.read<Logger>();
+    final reason = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionReport),
-        content: TextField(
-          controller: reasonController,
-          decoration: InputDecoration(
-            hintText: l10n.reportUserHint,
-            border: const OutlineInputBorder(),
+      builder: (ctx) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: Text(l10n.actionReport),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Reason',
+            ),
           ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.actionReport),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(controller.text.trim()),
+              child: Text(l10n.actionReport),
+            ),
+          ],
+        );
+      },
     );
-    if (confirmed != true || !context.mounted) return;
+    if (reason == null) return;
     try {
-      await room.client.reportEvent(
-        room.id,
-        event.eventId,
-        reason: reasonController.text.trim(),
-        score: -100,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userReported)),
-      );
+      await room.client.reportUser(event.senderId, reason);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.userReported)),
+        );
+      }
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
+      log.w('Failed to report user', error: e);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.actionFailed('$e'))),
+        );
+      }
     }
   }
 }
