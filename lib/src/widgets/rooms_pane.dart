@@ -25,13 +25,52 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+/// Scoped, per-client thumbnail cache for room avatars.
+///
+/// Previously this cache was a static field on [RoomsPane], which meant it
+/// survived client switches (privacy hazard) and grew unbounded across logins.
+/// The cache is now keyed by [Client] and uses the [Client.hashCode] identity
+/// for storage; when the owning client is garbage-collected the entries
+/// follow.
+class _ClientThumbnailCache {
+  _ClientThumbnailCache(this.client);
+
+  final Client client;
+  final Map<String, Future<Uri?>> _cache = {};
+  final List<String> _lruOrder = [];
+  static const int _maxEntries = 256;
+
+  Future<Uri?> getOrCompute(String key, Future<Uri?> Function() compute) {
+    final cached = _cache[key];
+    if (cached != null) {
+      // Touch the LRU position.
+      _lruOrder.remove(key);
+      _lruOrder.add(key);
+      return cached;
+    }
+    final fresh = compute();
+    _cache[key] = fresh;
+    _lruOrder.add(key);
+    while (_lruOrder.length > _maxEntries) {
+      final oldest = _lruOrder.removeAt(0);
+      _cache.remove(oldest);
+    }
+    return fresh;
+  }
+
+  void clear() {
+    _cache.clear();
+    _lruOrder.clear();
+  }
+}
+
 /// A scrollable list of rooms, optionally filtered by [roomFilter].
 ///
 /// If [roomFilter] is `null`, every room the user is a member of is shown.
 /// Otherwise only rooms for which the predicate returns `true` are shown —
 /// this is used by the navigation pane to display direct chats, all rooms,
 /// or rooms belonging to a specific space.
-class RoomsPane extends StatelessWidget {
+class RoomsPane extends StatefulWidget {
   /// An optional filter predicate. Return `true` to include a room.
   final bool Function(Room room)? roomFilter;
 
@@ -40,149 +79,206 @@ class RoomsPane extends StatelessWidget {
     this.roomFilter,
   });
 
-  /// Cache of avatar thumbnail URI promises keyed by the room ID +
-  /// avatar-mxc URI + (width, height).  Without this, every parent
-  /// rebuild creates a new `Future` for `_RoomAvatar._buildAvatar`,
-  /// so the `FutureBuilder` never settles inside a frequently-
-  /// rebuilding parent (e.g. during a sync tick).
-  static final Map<String, Future<Uri?>> _thumbnailCache = {};
-  static final List<String> _thumbnailCacheOrder = [];
-  static const int kMaxThumbnailEntries = 256;
+  @override
+  State<RoomsPane> createState() => _RoomsPaneState();
+}
 
-  /// Returns a cached thumbnail promise for [key] or computes one and
-  /// caches the result.  LRU-evicts the oldest entry on overflow.
+class _RoomsPaneState extends State<RoomsPane> {
+  /// Per-client thumbnail caches. Keyed by Client.hashCode so a logout/cleanup
+  /// path can simply drop the matching entry instead of nuking everything.
+  static final Map<int, _ClientThumbnailCache> _clientCaches = {};
+
+  /// Debounce window for sync-tick rebuilds. Without this, every incremental
+  /// sync triggers a full list rebuild even when the filtered set hasn't
+  /// changed.
+  static const Duration _syncDebounce = Duration(milliseconds: 350);
+
+  /// Holds the latest filtered rooms. Updated via a debounced listener
+  /// subscribed to `client.onSync.stream`.
+  List<Room>? _filteredRooms;
+  Timer? _debounce;
+  StreamSubscription<Object?>? _syncSub;
+  int? _subscribedClientId;
+
+  /// Returns the per-client thumbnail cache for [client].
+  static _ClientThumbnailCache _cacheFor(Client client) {
+    return _clientCaches.putIfAbsent(
+      identityHashCode(client),
+      () => _ClientThumbnailCache(client),
+    );
+  }
+
+  /// Cached thumbnail promise for [key], scoped to the active [client].
   static Future<Uri?> cachedThumbnail(
+    Client client,
     String key,
     Future<Uri?> Function() compute,
   ) {
-    final cached = _thumbnailCache[key];
-    if (cached != null) return cached;
-    final fresh = compute();
-    _thumbnailCache[key] = fresh;
-    _thumbnailCacheOrder.add(key);
-    while (_thumbnailCacheOrder.length > kMaxThumbnailEntries) {
-      final oldest = _thumbnailCacheOrder.removeAt(0);
-      _thumbnailCache.remove(oldest);
-    }
-    return fresh;
+    return _cacheFor(client).getOrCompute(key, compute);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final client = Provider.of<Client>(context, listen: false);
+    _ensureSubscription(client);
+  }
+
+  void _ensureSubscription(Client client) {
+    final id = identityHashCode(client);
+    if (id == _subscribedClientId) return;
+    _syncSub?.cancel();
+    _syncSub = null;
+    _subscribedClientId = id;
+
+    // Seed the initial value synchronously so the first frame has data.
+    _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
+
+    _syncSub = client.onSync.stream.listen((_) {
+      _debounce?.cancel();
+      _debounce = Timer(_syncDebounce, () {
+        if (!mounted) return;
+        setState(() {
+          _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
+        });
+      });
+    });
+  }
+
+  static List<Room> _applyFilter(
+      bool Function(Room)? filter, List<Room> rooms) {
+    if (filter == null) return List<Room>.unmodifiable(rooms);
+    return List<Room>.unmodifiable(rooms.where(filter));
+  }
+
+  @override
+  void didUpdateWidget(RoomsPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final client = Provider.of<Client>(context, listen: false);
+    // Re-filter synchronously when the predicate changes so we don't have to
+    // wait for the next sync tick.
+    setState(() {
+      _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _syncSub?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final Client client = Provider.of<Client>(context);
+    final client = Provider.of<Client>(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-
     final l10n = AppLocalizations.of(context)!;
+    final filtered = _filteredRooms;
+
     return Material(
-      child: StreamBuilder(
-        stream: client.onSync.stream,
-        builder: (context, snapshot) {
-          // Determine whether the first sync has arrived yet.
-          final bool hasSynced = snapshot.hasData;
-
-          // Re-filter on every sync to pick up new rooms.
-          final Iterable<Room> currentRooms = roomFilter != null
-              ? client.rooms.where(roomFilter!)
-              : client.rooms;
-
-          // ── Loading state: waiting for initial sync ────────────────
-          if (!hasSynced && currentRooms.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: scheme.primary,
-                      ),
+      child: Builder(builder: (context) {
+        // ── Loading state: waiting for initial sync ────────────────
+        if (filtered == null || (filtered.isEmpty && !_hasReceivedSync(client))) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: scheme.primary,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.loadingRooms,
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          // ── Empty state: synced but no matching rooms ───────────────
-          if (currentRooms.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      LucideIcons.messageCircle,
-                      size: 40,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      l10n.noRoomsYet,
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: currentRooms.length,
-            itemBuilder: (context, index) {
-              final Room room = currentRooms.elementAt(index);
-              // Rooms have no displayname before the first sync (or can
-              // legitimately have an empty one).  Fall back to a localised
-              // placeholder so the row is never just a blank label.
-              final displayname =
-                  room.getLocalizedDisplayname().trim().isEmpty
-                      ? AppLocalizations.of(context)!.untitledRoom
-                      : room.getLocalizedDisplayname();
-
-              return ListTile(
-                leading:
-                    _RoomAvatar(room: room, client: client, scheme: scheme),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        displayname,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w300, fontSize: 18),
-                      ),
-                    ),
-                  ],
-                ),
-                subtitle: Text(
-                  room.lastEvent?.body ?? l10n.noMessages,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w300,
-                    fontSize: 16,
                   ),
-                ),
-                onTap: () => _joinRoom(context, room),
-              );
-            },
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.loadingRooms,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
-        },
-      ),
+        }
+
+        // ── Empty state: synced but no matching rooms ───────────────
+        if (filtered.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.messageCircle,
+                    size: 40,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.noRoomsYet,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: filtered.length,
+          itemBuilder: (context, index) {
+            final Room room = filtered[index];
+            final displayname =
+                room.getLocalizedDisplayname().trim().isEmpty
+                    ? AppLocalizations.of(context)!.untitledRoom
+                    : room.getLocalizedDisplayname();
+
+            return ListTile(
+              leading:
+                  _RoomAvatar(room: room, client: client, scheme: scheme),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayname,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w300, fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              subtitle: Text(
+                room.lastEvent?.body ?? l10n.noMessages,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w300,
+                  fontSize: 16,
+                ),
+              ),
+              onTap: () => _joinRoom(context, room),
+            );
+          },
+        );
+      }),
     );
   }
+
+  /// Returns true if the SDK has produced at least one sync tick.
+  ///
+  /// We don't have a direct flag for this, so we use `client.rooms.isNotEmpty`
+  /// as a proxy and fall back to the cached initial-state assumption.
+  bool _hasReceivedSync(Client client) =>
+      client.prevBatch != null || client.rooms.isNotEmpty;
 }
 
 /// Joins the [room] (if not already a member) and navigates to it.
@@ -289,7 +385,8 @@ class _RoomAvatar extends StatelessWidget {
     final cacheKey =
         '${room.id}::${room.avatar!.toString()}::56x56';
     return FutureBuilder<Uri?>(
-      future: RoomsPane.cachedThumbnail(
+      future: _RoomsPaneState.cachedThumbnail(
+        client,
         cacheKey,
         () => withTimeoutOrFallback(
           () => room.avatar!.getThumbnailUri(
