@@ -18,6 +18,7 @@ import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/in_room_search_panel.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
+import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -142,6 +143,7 @@ class _RoomPageState extends State<RoomPage> {
             ),
           ),
           const Divider(thickness: 1),
+          TypingIndicator(room: widget.room),
           ChatBox(
             room: widget.room,
             replyTarget: _replyTarget,

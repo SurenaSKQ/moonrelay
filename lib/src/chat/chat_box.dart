@@ -23,6 +23,10 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/chat_box_sticker_picker.dart';
+import 'package:moonrelay/src/chat/poll_send_dialog.dart';
+import 'package:moonrelay/src/chat/share_location_dialog.dart';
+import 'package:moonrelay/src/chat/typing_indicator.dart';
+import 'package:moonrelay/src/chat/voice_recorder_dialog.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -68,6 +72,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   bool _isEmpty = true;
   Event? _replyEvent;
   bool _disposed = false;
+  late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
 
   /// The composer text captured immediately before [_send] cleared the
   /// controller.  Stored so we can restore it if `sendFn` throws — the
@@ -108,6 +113,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _controller.dispose();
     _focusNode.dispose();
     _expandController.dispose();
+    _typingNotifier.dispose();
     super.dispose();
   }
 
@@ -124,6 +130,11 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     if (empty != _isEmpty) {
       setState(() => _isEmpty = empty);
     }
+    // Typing indicators: fire only when transitioning to non-empty,
+    // and rely on the TypingNotifier to throttle & auto-stop.
+    if (!empty) {
+      _typingNotifier.notify();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -139,13 +150,54 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final html = MarkdownToHtml.convert(text);
     final hasHtml = html.isNotEmpty && html != text;
 
+    // ── Slash commands ──────────────────────────────────────────────────
+    // The chat composer accepts a tiny set of builtin commands:
+    //   /me <text>      — sends as m.emote (third-person action).
+    //   /shrug <text>   — prepends the ¯\_(ツ)_/¯ shrug glyph and sends
+    //                     as plain text.
+    String effectiveBody = text;
+    String? emoteMsgtype;
+
+    if (text.startsWith('/')) {
+      final firstSpace = text.indexOf(' ');
+      final cmd = firstSpace < 0 ? text : text.substring(0, firstSpace);
+      final arg = firstSpace < 0 ? '' : text.substring(firstSpace + 1).trim();
+      switch (cmd.toLowerCase()) {
+        case '/me':
+          if (arg.isEmpty) {
+            return; // nothing to send
+          }
+          emoteMsgtype = MessageTypes.Emote;
+          effectiveBody = arg;
+          break;
+        case '/shrug':
+          if (arg.isEmpty) {
+            return; // nothing to send
+          }
+          effectiveBody = '¯\\_(ツ)_/¯ $arg';
+          break;
+        default:
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!
+                    .unsupportedSlashCommand(cmd),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+      }
+    }
+
     // Build the relation payload once so that the reply, threaded-reply,
     // and plain-text branches all use the same content (and the same
     // formatted_body when the user typed markdown).
     final Map<String, dynamic> content = <String, dynamic>{
-      'msgtype': MessageTypes.Text,
-      'body': text,
-      if (hasHtml) ...<String, dynamic>{
+      'msgtype': emoteMsgtype ?? MessageTypes.Text,
+      'body': effectiveBody,
+      if (hasHtml && emoteMsgtype == null) ...<String, dynamic>{
         'format': 'org.matrix.custom.html',
         'formatted_body': html,
       },
@@ -187,7 +239,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       // fails the draft is restored into the controller so the user
       // can correct the message instead of having to retype it.
       if (!mounted) return;
-      _draftValue = text;
+      _draftValue = effectiveBody;
       _controller.clear();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
@@ -402,6 +454,35 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   icon: Icons.emoji_emotions_outlined,
                   tooltip: l10n.chatBoxSticker,
                   onPressed: () => showStickerPicker(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                const SizedBox(width: 2),
+
+                // Voice note recorder
+                _IconButton(
+                  icon: LucideIcons.mic,
+                  tooltip: l10n.recordVoiceNote,
+                  onPressed: () =>
+                      showVoiceRecorderDialog(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                // Location share
+                _IconButton(
+                  icon: LucideIcons.mapPin,
+                  tooltip: l10n.shareLocation,
+                  onPressed: () =>
+                      showShareLocationDialog(context, widget.room),
+                  colorScheme: colorScheme,
+                ),
+
+                // Poll creation
+                _IconButton(
+                  icon: LucideIcons.listChecks,
+                  tooltip: l10n.createPoll,
+                  onPressed: () =>
+                      showPollCreateDialog(context, widget.room),
                   colorScheme: colorScheme,
                 ),
 
