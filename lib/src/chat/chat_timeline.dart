@@ -23,6 +23,7 @@ import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -280,8 +281,8 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// When the pinned-only filter is active, the regular timeline may not
   /// contain the pinned events (they may be outside the loaded window).
   /// This method reads the pinned event IDs from room state and fetches
-  /// each event directly via [Room.getEventById], which hits the server
-  /// if the event isn't already cached locally.
+  /// each event via [PinnedEventsCache], which dedupes concurrent requests
+  /// and avoids round-trips for events already known to the cache.
   Future<void> _fetchFilteredEvents() async {
     if (_isFetchingFilteredEvents) return;
     _isFetchingFilteredEvents = true;
@@ -301,22 +302,23 @@ class ChatTimelineState extends State<ChatTimeline> {
         return;
       }
 
-      final events = <Event>[];
-      for (final id in pinnedIds) {
-        try {
-          final event = await widget.room.getEventById(id);
-          if (event != null) events.add(event);
-        } catch (_) {
-          // Event not accessible — skip.
-        }
-      }
+      // Fetch via the shared cache. Concurrent calls for the same event ID
+      // share a single in-flight future, and already-cached events return
+      // immediately — so 50 pinned IDs in a fresh room are fetched in
+      // parallel rather than 50 sequential awaits.
+      final events = await Future.wait(
+        pinnedIds.map(
+          (id) => PinnedEventsCache.instance.getEvent(widget.room, id),
+        ),
+      );
+      final resolved = events.whereType<Event>().toList();
 
       // Sort oldest-first so the reversed ListView places the newest at
       // the bottom.
-      events.sort((a, b) => a.originServerTs.compareTo(b.originServerTs));
+      resolved.sort((a, b) => a.originServerTs.compareTo(b.originServerTs));
 
       if (!mounted) return;
-      setState(() => _fetchedFilteredEvents = events);
+      setState(() => _fetchedFilteredEvents = resolved);
     } finally {
       _isFetchingFilteredEvents = false;
     }

@@ -22,6 +22,8 @@ import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StoredAccount — immutable serialisable metadata for a single Matrix session
@@ -325,6 +327,12 @@ class AccountManager extends ChangeNotifier {
       await _activeClient?.dispose();
     } catch (e) {
       log.w('Error disposing client', error: e);
+    }
+    // Drop any in-memory caches tied to the previous session so they don't
+    // leak across logins.
+    PinnedEventsCache.instance.clear();
+    if (_activeClient != null) {
+      AvatarFromUriOrFallbackImage.clearCacheFor(_activeClient!);
     }
     _activeClient = null;
   }
