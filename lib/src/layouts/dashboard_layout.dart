@@ -34,7 +34,6 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:moonrelay/src/widgets/friend_chats_pane.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -368,7 +367,8 @@ Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
     case LeftPaneChoice.spaces:
       return const SpacesPane();
     case LeftPaneChoice.friends:
-      return const FriendsChatsPane();
+      // DMs only — the same list shown on the Home navigation destination.
+      return RoomsPane(roomFilter: (Room room) => room.isDirectChat);
     case LeftPaneChoice.none:
       return const SizedBox.shrink();
   }
