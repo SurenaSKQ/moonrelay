@@ -23,6 +23,12 @@ import 'package:moonrelay/src/screens/image_viewer_screen.dart';
 
 /// Displays an image message with a polished thumbnail card and tap-to-open
 /// full-screen viewer.
+///
+/// Sizing rule: the thumbnail is **height-constrained** so wide panoramic
+/// images or tall portrait shots both render as a comfortable rectangle
+/// instead of stretching to the full timeline width. The image is then
+/// scaled with `BoxFit.contain` so its aspect ratio is preserved without
+/// cropping — it fits inside the box, not the other way around.
 class ImageMessageType extends StatefulWidget {
   const ImageMessageType({super.key, required this.event});
   final Event event;
@@ -42,9 +48,10 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     }
   }
 
-  /// Maximum display size for thumbnails in the timeline.
-  static const double _maxThumbnailWidth = 320;
-  static const double _maxThumbnailHeight = 400;
+  /// Maximum display size for thumbnails in the timeline. Both axes are
+  /// upper bounds — the larger dimension of the image decides the box,
+  /// and the smaller dimension follows proportionally.
+  static const double _maxThumbnailDimension = 360;
 
   /// Image dimensions from the event content's `info` blob.
   int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
@@ -60,33 +67,28 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   bool get _isGif =>
       (_infoMap['mimetype'] as String?)?.toLowerCase() == 'image/gif';
 
-  /// Computes a constrained box size that preserves aspect ratio.
-  BoxConstraints _imageConstraints() {
-    if (_imgWidth == null || _imgHeight == null) {
-      return BoxConstraints(
-        maxWidth: _maxThumbnailWidth,
-        maxHeight: _maxThumbnailHeight,
-      );
+  /// Computes a height-constrained box size that preserves aspect ratio.
+  ///
+  /// We pick the larger of the two axes of the source image as the
+  /// reference, scale so that reference equals [_maxThumbnailDimension],
+  /// and let the other axis follow proportionally. That means:
+  ///   - a 1600×900 landscape image renders as 360×202,
+  ///   - a 400×900 portrait image renders as 160×360,
+  ///   - a 100×100 square renders as 360×360.
+  ///
+  /// When dimensions are unknown we fall back to a square 240px default.
+  Size _imageSize() {
+    final w = _imgWidth;
+    final h = _imgHeight;
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      return const Size(240, 240);
     }
 
-    final w = _imgWidth!.toDouble();
-    final h = _imgHeight!.toDouble();
-    final scale = (_maxThumbnailWidth / w).clamp(0.0, 1.0);
-    final displayWidth = w * scale;
-    final displayHeight = h * scale;
-
-    if (displayHeight > _maxThumbnailHeight) {
-      final heightScale = _maxThumbnailHeight / displayHeight;
-      return BoxConstraints(
-        maxWidth: displayWidth * heightScale,
-        maxHeight: _maxThumbnailHeight,
-      );
-    }
-
-    return BoxConstraints(
-      maxWidth: displayWidth,
-      maxHeight: displayHeight,
-    );
+    final longSide =
+        w >= h ? _maxThumbnailDimension : _maxThumbnailDimension * (w / h);
+    final shortSide =
+        w >= h ? _maxThumbnailDimension * (h / w) : _maxThumbnailDimension;
+    return Size(longSide, shortSide);
   }
 
   String _formatSize(int bytes) {
@@ -199,11 +201,15 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
+    final size = _imageSize();
+
     return GestureDetector(
       onTap: () => _openViewer(bytes),
       child: Container(
-        constraints: _imageConstraints(),
+        width: size.width,
+        height: size.height,
         decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: cs.outlineVariant.withValues(alpha: 0.4),
@@ -212,17 +218,19 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            // ── The image ──────────────────────────────────────────────
-            Image.memory(
-              bytes,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (_, __, ___) => Container(
-                height: 120,
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                child: Icon(Icons.image_outlined,
-                    size: 40, color: cs.onSurfaceVariant),
+            // ── The image (BoxFit.contain keeps aspect ratio) ──────────
+            Positioned.fill(
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  child: Icon(
+                    Icons.image_outlined,
+                    size: 40,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
 
