@@ -163,7 +163,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Future<void> _downloadFile(MatrixFile attFile) async {
     await FilePicker.saveFile(
       dialogTitle: AppLocalizations.of(context)!.saveVideo,
-      fileName: _fileName,
+      fileName: _fileName ?? 'video.$_extension',
       bytes: attFile.bytes,
     );
   }

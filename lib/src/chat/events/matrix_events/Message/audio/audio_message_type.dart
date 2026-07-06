@@ -148,7 +148,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     final l10n = AppLocalizations.of(context)!;
     await FilePicker.saveFile(
       dialogTitle: l10n.saveAudio,
-      fileName: _fileName,
+      fileName: _fileName ?? 'audio.$_extension',
       bytes: bytes,
     );
   }

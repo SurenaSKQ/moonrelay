@@ -98,7 +98,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
   Future<void> _downloadFile(MatrixFile attFile) async {
     await FilePicker.saveFile(
       dialogTitle: AppLocalizations.of(context)!.selectDownloadTarget,
-      fileName: _fileName,
+      fileName: _fileName ?? 'file',
       bytes: attFile.bytes,
     );
   }
