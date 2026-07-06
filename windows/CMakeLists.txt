@@ -2,6 +2,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(moonrelay LANGUAGES CXX)
 
+# shut MSVC the fuck up to compile (upstream bug in permission_handler)
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "moonrelay")
