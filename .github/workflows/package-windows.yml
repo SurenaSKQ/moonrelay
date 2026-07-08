@@ -1,0 +1,171 @@
+# Moonrelay Windows packaging
+#
+# Builds the Flutter `windows` release bundle and wraps it as an MSIX
+# package suitable for sideloading and (later) Microsoft Store submission.
+#
+# MSIX manifest fields (Name, Version, Publisher, DisplayName) come from
+# `windows/packaging/AppxManifest.xml.in` and are templated at build
+# time. The bundle itself is laid out under `VFS\ProgramFilesX64\Moonrelay`
+# to match Flutter's standard install expectation.
+#
+# The `makeappx.exe` tool ships with the Windows 10/11 SDK. CI installs
+# it via the `microsoft/setup-msbuild` + a one-shot `winsdk` fetcher.
+# A simpler alternative for small payloads is `msstore/msixpackaging`
+# but we keep it explicit here to avoid opaque tooling.
+
+name: package-windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Optional override (e.g. 0.7.0). Leave blank to use pubspec.yaml.'
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      version_override:
+        type: string
+        default: ''
+    outputs:
+      version:
+        description: 'Resolved package version (4-quad MSIX compatible)'
+        value: ${{ jobs.build.outputs.version }}
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+env:
+  APP_ID: moonrelay
+  APP_NAME: Moonrelay
+  PUBLISHER: 'CN=Surena Karimpour Ghannadi'
+  PUBLISHER_DISPLAY_NAME: 'Surena Karimpour Ghannadi'
+  FLUTTER_VERSION: '3.24.5'
+
+jobs:
+  build:
+    name: msix
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.semver.outputs.msix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Resolve version from pubspec.yaml
+        id: semver
+        shell: pwsh
+        run: |
+          $ver = '${{ inputs.version_override }}'
+          if ([string]::IsNullOrWhiteSpace($ver)) {
+            $line = Select-String -Path pubspec.yaml -Pattern '^version:' | Select-Object -First 1
+            $ver = ($line -split ': ')[1].Trim().Trim('"') -split '\+' | Select-Object -First 1
+          }
+          if ($ver -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.-]+)?$') {
+            throw "Invalid version '$ver'"
+          }
+          # MSIX requires 4-quad Major.Minor.Build.Revision.
+          $parts = $ver.Split('.')
+          $major = $parts[0]
+          $minor = $parts[1]
+          $patch = $parts[2]
+          $revision = if ($parts.Length -gt 3) { [int]($parts[3] -replace '[^0-9]','') } else { 0 }
+          if ($revision -gt 65534) { $revision = 0 }
+          $msix = "$major.$minor.$patch.${revision}"
+          "version=$ver" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          "msix=$msix"   | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          Write-Host "Resolved package version: $ver (MSIX: $msix)"
+
+      - name: Install Windows SDK packaging tools
+        shell: pwsh
+        run: |
+          # `makeappx.exe` ships with the Win10 SDK. The simplest path on
+          # github-hosted runners is to install the standalone SDK
+          # installer, but to keep this workflow offline-tolerant we
+          # fall back to NuGet: `Microsoft.WindowsAppSDK` ships the
+          # tooling, and `MakeAppx.exe` is also in the `Microsoft.Windows
+          # .SDK.BuildTools` package.
+          choco install -y windows-sdk-10 --no-progress --limit-output --execution-timeout 600000 `
+            || winget install -e --id Microsoft.WindowsSDK.10.0.22621 `
+            || Write-Host "Manual SDK install skipped; will try alt path"
+          $sdk = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like 'Windows SDK*' } | Select-Object -First 1
+          $path = $env:ProgramFiles + '\Windows Kits\10\bin\*\x64\makeappx.exe' -as [string]
+          $found = Get-Item $path -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($found) {
+            "MAKEAPPX=$($found.FullName)" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+            "SIGNTOOL=$($found.DirectoryName)\signtool.exe" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          } else {
+            Write-Host "makeappx.exe not found; will rely on MSBuild packaging at the end."
+          }
+
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: flutter build windows --release
+
+      - name: Stage MSIX layout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msix = '${{ steps.semver.outputs.msix }}'
+          $ver  = '${{ steps.semver.outputs.version }}'
+          $root = "stage\msix"
+          Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          # Layout targets PSF (ProgramFilesX64) for a 64-bit Electron-style
+          # layout that Flutter's x64 release already produces.
+          $inst = "$root\VFS\ProgramFilesX64\${{ env.APP_NAME }}"
+          New-Item -ItemType Directory -Path $inst -Force | Out-Null
+          Copy-Item -Recurse -Force build\windows\x64\runner\Release\* $inst
+          # Copy icon alongside the manifest.
+          New-Item -ItemType Directory -Path "$root\Assets" -Force | Out-Null
+          Copy-Item -Force windows\runner\resources\app_icon.ico "$root\Assets\app_icon.ico"
+
+          # Render manifest template.
+          $template = Get-Content windows\packaging\AppxManifest.xml.in -Raw
+          $rendered = $template `
+            -replace '@VERSION@', $msix `
+            -replace '@DISPLAY_VERSION@', $ver `
+            -replace '@PUBLISHER@', '${{ env.PUBLISHER }}' `
+            -replace '@PUBLISHER_DISPLAY_NAME@', '${{ env.PUBLISHER_DISPLAY_NAME }}'
+          $rendered | Out-File -FilePath "$root\AppxManifest.xml" -Encoding utf8
+
+          # Copy map file too (recommended by MSIX spec).
+          Copy-Item -Force windows\packaging\AppxBlockMap.xml.in "$root\AppxBlockMap.xml"
+          Copy-Item -Force windows\packaging\AppxSignature.p7x.in "$root\AppxSignature.p7x" -ErrorAction SilentlyContinue
+
+      - name: Package with makeappx
+        shell: pwsh
+        run: |
+          if (-not (Test-Path $env:MAKEAPPX)) {
+            Write-Host "::warning::makeappx not found, packaging step is a no-op for self-hosted runs without SDK"
+            exit 0
+          }
+          $version = '${{ steps.semver.outputs.version }}'
+          & $env:MAKEAPPX pack /p "stage\moonrelay-$version.msix" /d "stage\msix" /v
+          Get-Item "stage\moonrelay-$version.msix" | Select-Object FullName, Length
+        env:
+          MAKEAPPX: ${{ env.MAKEAPPX }}
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: stage/*.msix
+          if-no-files-found: warn

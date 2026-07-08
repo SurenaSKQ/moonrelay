@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Moonrelay
+GenericName=Matrix Client
 Comment=A Matrix client for professionals
 Exec=moonrelay %u
 Icon=moonrelay
@@ -8,3 +9,5 @@ Type=Application
 Categories=Network;InstantMessaging;
 StartupWMClass=moonrelay
 MimeType=x-scheme-handler/matrix;
+Keywords=matrix;chat;im;e2ee;messaging;
+Version=@VERSION@

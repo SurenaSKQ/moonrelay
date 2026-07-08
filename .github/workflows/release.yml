@@ -1,0 +1,121 @@
+# Moonrelay release
+#
+# Triggered by a version tag (vX.Y.Z). Runs packaging jobs in parallel
+# and, on success, uploads the produced artifacts to a draft GitHub
+# Release. The release notes are auto-generated from merged PRs since
+# the previous tag using `gh release notes`.
+#
+# Why draft: we want humans to attach release notes/changelog blurb
+# before publishing. The `Released` workflow in MSIX/Store terms is
+# out of scope here.
+#
+# Conventional commits are matched with the regex below so the auto-
+# generated notes still get category headings.
+
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.7.0). Leave blank to use the latest tag.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    name: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      tag: ${{ steps.parse.outputs.tag }}
+      previous_tag: ${{ steps.parse.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag
+        id: parse
+        shell: bash
+        run: |
+          set -e
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG' does not look like vX.Y.Z"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          # Read pubspec to make sure it matches the tag exactly (no drift).
+          PUB_VERSION="$(awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | cut -d'+' -f1 | tr -d '"')"
+          if [ "$PUB_VERSION" != "$VERSION" ]; then
+            echo "::error::pubspec.yaml has '$PUB_VERSION', tag implies '$VERSION'"
+            exit 1
+          fi
+          # Previous tag (for changelog).
+          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.' | grep -v "^$TAG$" | head -n1 || true)
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Tag=$TAG PubVersion=$PUB_VERSION Previous=$PREV"
+
+  linux-packages:
+    name: linux-packages
+    needs: preflight
+    uses: ./.github/workflows/package-linux.yml
+    with:
+      version_override: ${{ needs.preflight.outputs.version }}
+
+  windows-packages:
+    name: windows-packages
+    needs: preflight
+    uses: ./.github/workflows/package-windows.yml
+    with:
+      version_override: ${{ needs.preflight.outputs.version }}
+
+  release:
+    name: draft-release
+    needs: [linux-packages, windows-packages]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: linux-pkg-*
+          path: dist/linux
+
+      - name: Download windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: windows-msix
+          path: dist/windows
+
+      - name: List downloaded artifacts
+        run: find dist -type f -maxdepth 4 | sort
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.preflight.outputs.tag }}
+          name: Moonrelay ${{ needs.preflight.outputs.version }}
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/**/*.deb
+            dist/**/*.rpm
+            dist/**/*.msix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BlockMap xmlns="http://schemas.microsoft.com/appx/2014/blockmap"
+          HashMethod="http://schemas.microsoft.com/appx/2014/2014/hashtable"
+          HashAlgorithm="SHA256">
+  <!--
+    makeappx packs and (re)computes the block map automatically when
+    invoked with `/v`. We ship this stub so manual repack operations
+    from the AppManifest tool still have a sane default. Replace the
+    entry below by running `makeappx pack /p ... /v /f` over the stage
+    directory.
+  -->
+  <VirtualFolder Name="Assets" />
+  <VirtualFolder Name="VFS" />
+</BlockMap>
