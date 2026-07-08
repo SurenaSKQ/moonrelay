@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Render with version, publisher, and display-version substitutions
+  applied at packaging time. The 4-quad version is encoded in `Version`
+  while `DisplayVersion` is the human-facing string (e.g. 0.7.0-beta.1).
+-->
+<Package
+  IgnorableNamespaces="uap"
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+
+  <Identity
+    Name="SurenaKarimpourGhannadi.Moonrelay"
+    Publisher="@PUBLISHER@"
+    Version="@VERSION@"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>@DISPLAY_NAME@</DisplayName>
+    <PublisherDisplayName>@PUBLISHER_DISPLAY_NAME@</PublisherDisplayName>
+    <Logo>Assets\app_icon.ico</Logo>
+    <Description>A Matrix chat client for professionals.</Description>
+  </Properties>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Capabilities>
+    <rescap:Capability Name="internetClient" />
+    <uap:Capability Name="privateNetworkClientServer" />
+  </Capabilities>
+
+  <Applications>
+    <Application Id="MoonrelayApp"
+      Executable="VFS\ProgramFilesX64\Moonrelay\moonrelay.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Moonrelay"
+        Description="A Matrix chat client for professionals."
+        Square150x150Logo="Assets\app_icon.ico"
+        Square44x44Logo="Assets\app_icon.ico"
+        BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\app_icon.ico" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="matrix">
+            <uap:DisplayName>Mxid / Room URI</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

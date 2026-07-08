@@ -1,0 +1,238 @@
+# Moonrelay Linux packaging
+#
+# Builds a Flutter `linux` release bundle and wraps it in two distro
+# package formats:
+#   - .deb for Debian/Ubuntu (built natively via `dpkg-deb`)
+#   - .rpm for Fedora/RHEL/openSUSE (built natively via `rpmbuild`)
+#
+# Triggers:
+#   - tags: v*.*.*       -> attaches artifacts to the GitHub Release
+#   - workflow_dispatch  -> dry-run, uploads to the run artifacts
+#   - workflow_call      -> reusable inputs (consumed by release.yml)
+#
+# Versioning: read from pubspec.yaml (A:B after `version:`). The
+# `+N` build number is dropped for the package version (deb/rpm cannot
+# contain `+`) but kept as `Release:` so multiple nightlies per version
+# remain possible.
+
+name: package-linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Optional override (e.g. 0.7.0). Leave blank to use pubspec.yaml.'
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      version_override:
+        type: string
+        default: ''
+    outputs:
+      version:
+        description: 'Resolved package version (no build suffix)'
+        value: ${{ jobs.build.outputs.version }}
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+env:
+  APP_ID: moonrelay
+  APP_NAME: Moonrelay
+  SUMMARY: A Matrix chat client for professionals.
+  VENDOR: Surena Karimpour Ghannadi
+  LICENSE: AGPL-3.0-or-later
+  FLUTTER_VERSION: '3.24.5'
+
+jobs:
+  build:
+    name: build-${{ matrix.dist }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.clean }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dist: ubuntu-22.04
+            toolchain: ubuntu-jammy
+          - dist: fedora-39
+            toolchain: fedora-39
+    container:
+      image: ghcr.io/jonathangjert/${{ matrix.toolchain }}:latest
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Resolve version from pubspec.yaml
+        id: semver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.version_override }}" ]; then
+            VERSION="${{ inputs.version_override }}"
+          else
+            VERSION="$(awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | cut -d'+' -f1 | tr -d '"')"
+          fi
+          # Sanity: semver-ish (X.Y.Z), reject non-numeric early.
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.-]+)?$ ]]; then
+            echo "::error::Invalid version '$VERSION' (expected X.Y.Z or X.Y.Z-pre)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved package version: $VERSION"
+
+      - name: Sync build metadata into source
+        run: |
+          # Stamp the version into the desktop file and AppStream XML so
+          # the package displays it in software centers. Source files
+          # use @VERSION@ placeholders; we substitute at build time and
+          # reset before committing (the substitution is non-destructive
+          # because placeholders remain intentional in repo).
+          VERSION="${{ steps.semver.outputs.version }}"
+          sed -i "s|@VERSION@|$VERSION|g" linux/runner/moonrelay.desktop
+          sed -i "s|@VERSION@|$VERSION|g" linux/packaging/io.github.surenaskq.moonrelay.appdata.xml
+          sed -i "s|@VERSION@|$VERSION|g" linux/packaging/control
+
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: flutter build linux --release
+
+      - name: Prepare staging tree
+        run: |
+          set -e
+          VERSION="${{ steps.semver.outputs.version }}"
+          STAGE="stage/${{ matrix.toolchain }}"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          # Flutter bundle layout
+          BUNDLE="build/linux/x64/release/bundle"
+          test -f "$BUNDLE/${{ env.APP_ID }}" || { echo "Bundle missing $BUNDLE/${{ env.APP_ID }}"; exit 1; }
+          # deb layout (DEBIAN + payload under /usr/lib/moonrelay)
+          mkdir -p "$STAGE/deb/DEBIAN"
+          mkdir -p "$STAGE/deb/usr/lib/${{ env.APP_ID }}"
+          mkdir -p "$STAGE/deb/usr/bin"
+          mkdir -p "$STAGE/deb/usr/share/applications"
+          mkdir -p "$STAGE/deb/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$STAGE/deb/usr/share/metainfo"
+          cp -a "$BUNDLE/." "$STAGE/deb/usr/lib/${{ env.APP_ID }}/"
+          ln -s "../lib/${{ env.APP_ID }}/${{ env.APP_ID }}" "$STAGE/deb/usr/bin/${{ env.APP_ID }}"
+          cp linux/runner/moonrelay.desktop "$STAGE/deb/usr/share/applications/${{ env.APP_ID }}.desktop"
+          cp assets/images/logo.png "$STAGE/deb/usr/share/icons/hicolor/256x256/apps/${{ env.APP_ID }}.png"
+          cp linux/packaging/io.github.surenaskq.moonrelay.appdata.xml "$STAGE/deb/usr/share/metainfo/io.github.surenaskq.moonrelay.appdata.xml"
+
+          # rpm layout (rpmbuild BUILDROOT)
+          mkdir -p "$STAGE/rpm/BUILDROOT"
+          RPMROOT="$STAGE/rpm/BUILDROOT"
+          mkdir -p "$RPMROOT/usr/lib/${{ env.APP_ID }}"
+          mkdir -p "$RPMROOT/usr/bin"
+          mkdir -p "$RPMROOT/usr/share/applications"
+          mkdir -p "$RPMROOT/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$RPMROOT/usr/share/metainfo"
+          cp -a "$BUNDLE/." "$RPMROOT/usr/lib/${{ env.APP_ID }}/"
+          ln -s "../lib/${{ env.APP_ID }}/${{ env.APP_ID }}" "$RPMROOT/usr/bin/${{ env.APP_ID }}"
+          cp linux/runner/moonrelay.desktop "$RPMROOT/usr/share/applications/${{ env.APP_ID }}.desktop"
+          cp assets/images/logo.png "$RPMROOT/usr/share/icons/hicolor/256x256/apps/${{ env.APP_ID }}.png"
+          cp linux/packaging/io.github.surenaskq.moonrelay.appdata.xml "$RPMROOT/usr/share/metainfo/io.github.surenaskq.moonrelay.appdata.xml"
+
+          echo "VERSION=$VERSION" > "$STAGE/.version"
+          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
+
+      # ── Build .deb on ubuntu-jammy container ───────────────────────
+      - name: Build .deb (Ubuntu)
+        if: matrix.toolchain == 'ubuntu-jammy'
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot
+          VERSION=$(awk -F= '/^VERSION=/{print $2}' "$STAGE/.version")
+          cd "$STAGE/deb"
+          # Render control file with size after we know staged size.
+          SIZE=$(du -s usr | cut -f1)
+          sed -e "s|^Size: .*|Size: ${SIZE}|" linux/packaging/control > DEBIAN/control
+          # Wrap the postinst to register the matrix:// scheme, mirroring
+          # windows/runner/register_matrix_protocol.reg on Linux.
+          cat > DEBIAN/postinst <<'EOS'
+          #!/bin/sh
+          set -e
+          if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+          fi
+          if command -v xdg-mime >/dev/null 2>&1; then
+            xdg-mime default moonrelay.desktop x-scheme-handler/matrix || true
+          fi
+          EOS
+          chmod 0755 DEBIAN/postinst
+          # Build the .deb with fakeroot so file ownership is sane.
+          OUT="$STAGE/${VERSION}/"
+          mkdir -p "$OUT"
+          fakeroot dpkg-deb --build --uniform-compression -z9 . "$OUT"
+          ls -la "$OUT"
+        working-directory: ${{ env.STAGE }}
+
+      - name: Verify .deb
+        if: matrix.toolchain == 'ubuntu-jammy'
+        run: |
+          set -e
+          VERSION=$(awk -F= '/^VERSION=/{print $2}' "$STAGE/.version")
+          DEB=$(find "$STAGE/${VERSION}" -name '*.deb' | head -n1)
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB" | head -n40
+
+      # ── Build .rpm on fedora container ────────────────────────────
+      - name: Install rpm-build (Fedora)
+        if: matrix.toolchain == 'fedora-39'
+        run: |
+          dnf install -y rpm-build rpmlint
+
+      - name: Build .rpm (Fedora)
+        if: matrix.toolchain == 'fedora-39'
+        run: |
+          set -e
+          VERSION=$(awk -F= '/^VERSION=/{print $2}' "$STAGE/.version")
+          # Render spec with version + paths filled in. We use a minimal
+          # spec intentionally: the payload is already laid out in
+          # BUILDROOT, so we just describe metadata + files.
+          sed -e "s|@VERSION@|$VERSION|g" linux/packaging/moonrelay.spec > "$STAGE/moonrelay.spec"
+          rpmbuild \
+            --define "_topdir $STAGE/rpmbuild" \
+            --define "_tmppath $STAGE/rpmbuild/tmp" \
+            --buildroot="$STAGE/rpm/BUILDROOT" \
+            -bb "$STAGE/moonrelay.spec"
+          mkdir -p "$STAGE/${VERSION}"
+          cp "$STAGE/rpmbuild/RPMS"/*/"${{ env.APP_ID }}-"*"-$VERSION"*.rpm "$STAGE/${VERSION}/" 2>/dev/null || true
+          cp "$STAGE/rpmbuild/RPMS"/*/"${{ env.APP_ID }}-"*.rpm "$STAGE/${VERSION}/" 2>/dev/null || true
+          cp "$STAGE/rpmbuild/RPMS"/*/*.rpm "$STAGE/${VERSION}/" 2>/dev/null || true
+          find "$STAGE/rpmbuild/RPMS" -name '*.rpm' -exec cp {} "$STAGE/${VERSION}/" \;
+          ls -la "$STAGE/${VERSION}"
+
+      - name: Verify .rpm
+        if: matrix.toolchain == 'fedora-39'
+        run: |
+          set -e
+          VERSION=$(awk -F= '/^VERSION=/{print $2}' "$STAGE/.version")
+          RPM=$(find "$STAGE/${VERSION}" -name '*.rpm' | head -n1)
+          rpm -qpli "$RPM" | head -n40
+          rpmlint "$RPM" || true
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-pkg-${{ matrix.toolchain }}
+          path: stage/${{ matrix.toolchain }}/**/*.deb
+            , stage/${{ matrix.toolchain }}/**/*.rpm
+          if-no-files-found: error

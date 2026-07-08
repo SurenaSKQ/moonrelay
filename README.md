@@ -36,9 +36,11 @@ Disclaimer: I've recently used DeepSeek and some small FOSS local models to aid 
 
 ## Installation
 
-Pre-built binaries are not yet available. You will need to build from source.
+Pre-built binaries land on the GitHub Releases page automatically
+whenever a `vX.Y.Z` tag is pushed — see
+[`docs/RELEASING.md`](docs/RELEASING.md) for the exact flow.
 
-### Prerequisites
+### Prerequisites (for building from source)
 
 - [Flutter](https://flutter.dev) SDK (3.x or later)
 - A C++ toolchain (MSVC on Windows, GCC/Clang on Linux)
@@ -47,7 +49,7 @@ Pre-built binaries are not yet available. You will need to build from source.
 ### Build & Run
 
 ```bash
-git clone https://codeberg.org/SurenaSKQ/moonrelay.git
+git clone https://github.com/SurenaSKQ/moonrelay.git
 cd moonrelay
 
 # Windows
@@ -71,12 +73,20 @@ for details). Expect breaking changes and the occasional rough edge.
 
 Contributions are very welcome! Here's how to get involved:
 
-1. **Fork** the repository on [Codeberg](https://codeberg.org/SurenaSKQ/moonrelay).
-2. **Create a feature branch:** `git checkout -b my-feature`.
+1. **Fork** the repository on
+   [GitHub](https://github.com/SurenaSKQ/moonrelay).
+2. **Create a feature branch:** `git checkout -b my-feature` from
+   `develop`.
 3. **Commit** your changes with clear, descriptive messages.
-4. **Push** to your fork and open a **pull request**.
+4. **Push** to your fork and open a **pull request** against
+   `develop`.
 
-Please ensure your code passes `dart analyze` before submitting.
+Please ensure `flutter analyze` is clean and `flutter test` passes
+before submitting. The CI workflow runs analyze, unit tests, widget
+tests, and integration tests on both Linux and Windows runners; PRs
+that fail these checks can't be merged.
+
+For release-cutters: see [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ---
 
@@ -114,6 +124,6 @@ for more details.
 
 ## Contact
 
-- **Repository:** [https://codeberg.org/SurenaSKQ/moonrelay](https://codeberg.org/SurenaSKQ/moonrelay)
-- **Issue Tracker:** [https://codeberg.org/SurenaSKQ/moonrelay/issues](https://codeberg.org/SurenaSKQ/moonrelay/issues)
-- **Author:** Surena Karimpour Ghannadi (via Matrix at @sudo_halt:matrix.org or Codeberg)
+- **Repository:** [https://github.com/SurenaSKQ/moonrelay](https://github.com/SurenaSKQ/moonrelay)
+- **Issue Tracker:** [https://github.com/SurenaSKQ/moonrelay/issues](https://github.com/SurenaSKQ/moonrelay/issues)
+- **Author:** Surena Karimpour Ghannadi (via Matrix at @sudo_halt:matrix.org or GitHub)

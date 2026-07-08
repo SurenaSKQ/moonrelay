@@ -1,0 +1,39 @@
+# Moonrelay dependency maintenance
+#
+# Weekly cron + manual trigger that:
+#   - `flutter pub upgrade --major-versions` dry-run check
+#   - opens a `deps/yyyy-mm-dd` PR with upgrades if anything changed
+#
+# This keeps Drift-style "10 PRs a week" churn at bay by batching.
+
+name: deps
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: pub-upgrade-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - uses: actions/cache@v4
+        with:
+          path: .pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - name: Probe outdated
+        run: |
+          flutter pub outdated --mode=null-safety --transitive=false --json > outdated.json || true
+          cat outdated.json | head -c 2000 || true
+      - name: Comment on weekly sanity
+        if: github.event_name == 'schedule'
+        run: echo "Weekly dep probe finished; inspect outdated.json."

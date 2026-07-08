@@ -1,0 +1,16 @@
+Package: moonrelay
+Version: @VERSION@
+Architecture: amd64
+Maintainer: Surena Karimpour Ghannadi <https://github.com/SurenaSKQ>
+Depends: libc6 (>= 2.31), libstdc++6 (>= 11), libgtk-3-0, libnss3, libsecret-1-0, libsqlite3-0, libcurl4, libjsoncpp25
+Recommends: libayatana-appindicator3-1
+Section: net
+Priority: optional
+Size: 0
+Description: A Matrix chat client for professionals.
+ Moonrelay is a desktop Matrix client built with Flutter. It supports
+ end-to-end encryption via Vodozemac, rich messages (text, image, audio,
+ file, video), custom themes, and integration with the Freedesktop
+ matrix:// URI scheme.
+Homepage: https://github.com/SurenaSKQ/moonrelay
+License: AGPL-3.0-or-later
