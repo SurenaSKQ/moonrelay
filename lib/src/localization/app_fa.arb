@@ -2414,5 +2414,126 @@
   "ensureDMPermission": "ارسال پیام مستقیم",
   "@ensureDMPermission": {
     "description": "Action label for the DM shortcut on a profile."
+  },
+
+  "deliverySending": "در حال ارسال…",
+  "@deliverySending": {
+    "description": "Tooltip on the delivery indicator while a message is in flight."
+  },
+  "deliverySent": "ارسال شد",
+  "@deliverySent": {
+    "description": "Tooltip on the delivery indicator once the message is confirmed by the server."
+  },
+  "deliveryFailed": "ارسال ناموفق بود. برای تلاش مجدد ضربه بزنید.",
+  "@deliveryFailed": {
+    "description": "Tooltip on the delivery indicator when a message failed to send."
+  },
+
+  "commandPaletteHint": "یک فرمان بنویسید یا جست‌وجو کنید…",
+  "@commandPaletteHint": {
+    "description": "Hint shown inside the command palette search field."
+  },
+  "commandPaletteNoResults": "هیچ فرمانی یافت نشد.",
+  "@commandPaletteNoResults": {
+    "description": "Message shown when the command palette query does not match any action."
+  },
+  "commandPaletteActions": "اقدامات",
+  "@commandPaletteActions": {
+    "description": "Section header above the static command palette actions."
+  },
+  "commandPaletteRooms": "پرش به",
+  "@commandPaletteRooms": {
+    "description": "Section header above the searchable room list in the command palette."
+  },
+  "commandPaletteOpenSettings": "باز کردن تنظیمات",
+  "@commandPaletteOpenSettings": {
+    "description": "Command palette action that opens the settings hub."
+  },
+  "commandPaletteOpenAccounts": "مدیریت حساب‌ها",
+  "@commandPaletteOpenAccounts": {
+    "description": "Command palette action that opens the accounts hub page."
+  },
+  "commandPaletteOpenLogs": "باز کردن گزارش‌ها",
+  "@commandPaletteOpenLogs": {
+    "description": "Command palette action that opens the logs hub page."
+  },
+  "commandPaletteToggleSidebar": "تغییر نوار کناری چپ",
+  "@commandPaletteToggleSidebar": {
+    "description": "Command palette action that toggles the dashboard left sidebar."
+  },
+
+  "encryptionBadgeTooltip": "رمزگذاری سرتاسر",
+  "@encryptionBadgeTooltip": {
+    "description": "Tooltip on the encrypted-room badge in the rooms list."
+  },
+
+  "shortcutOpenCommandPalette": "باز کردن پالت فرمان",
+  "@shortcutOpenCommandPalette": {
+    "description": "Description of the Ctrl+K shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutOpenSearch": "باز کردن جست‌وجوی سراسری",
+  "@shortcutOpenSearch": {
+    "description": "Description of the Ctrl+/ shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutInRoomSearch": "جست‌وجو در این اتاق",
+  "@shortcutInRoomSearch": {
+    "description": "Description of the Ctrl+F shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutToggleLeftSidebar": "تغییر نوار کناری چپ",
+  "@shortcutToggleLeftSidebar": {
+    "description": "Description of the Ctrl+Shift+M shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutToggleRightSidebar": "تغییر نوار کناری راست",
+  "@shortcutToggleRightSidebar": {
+    "description": "Description of the Ctrl+Shift+R shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutBold": "ضخیم کردن انتخاب",
+  "@shortcutBold": {
+    "description": "Description of the Ctrl+B shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutItalic": "ایتالیک کردن انتخاب",
+  "@shortcutItalic": {
+    "description": "Description of the Ctrl+I shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCode": "تغییر قالب کد",
+  "@shortcutCode": {
+    "description": "Description of the Ctrl+E shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutSendMessage": "ارسال پیام",
+  "@shortcutSendMessage": {
+    "description": "Description of the Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutNewline": "درج خط جدید",
+  "@shortcutNewline": {
+    "description": "Description of the Shift+Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCloseOverlay": "بستن پنجره یا گفت‌وگوی جاری",
+  "@shortcutCloseOverlay": {
+    "description": "Description of the Esc shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutShowShortcuts": "نمایش این فهرست میان‌برها",
+  "@shortcutShowShortcuts": {
+    "description": "Description of the ? shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutsTitle": "میان‌برهای صفحه‌کلید",
+  "@shortcutsTitle": {
+    "description": "Title of the keyboard shortcuts overlay."
+  },
+  "shortcutsSubtitle": "مرجع سریع برای کلیدهای میان‌بر سراسری و درون‌اتاق.",
+  "@shortcutsSubtitle": {
+    "description": "Subtitle under the keyboard shortcuts overlay title."
+  },
+  "shortcutsHint": "هر جا که هستید ? را فشار دهید تا دوباره این فهرست باز شود.",
+  "@shortcutsHint": {
+    "description": "Hint shown at the bottom of the keyboard shortcuts overlay."
+  },
+
+  "notifyOnMentionsOnly": "اعلان فقط در صورت نام‌بردن",
+  "@notifyOnMentionsOnly": {
+    "description": "Toggle to only notify when the user is mentioned in a room."
+  },
+  "notifyOnMentionsOnlyDescription": "خاموش کردن اعلان‌های پیام‌هایی که نامی از شما نیست",
+  "@notifyOnMentionsOnlyDescription": {
+    "description": "Subtitle for the mentions-only notification toggle."
   }
 }
