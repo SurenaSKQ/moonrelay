@@ -481,6 +481,9 @@ class _ModerationMenu extends StatelessWidget {
   }
 
   void _confirmKick(BuildContext context) async {
+    // Capture the logger before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final log = context.read<Logger>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -499,7 +502,6 @@ class _ModerationMenu extends StatelessWidget {
       ),
     );
     if (confirmed != true) return;
-    final log = context.read<Logger>();
     try {
       await room.kick(event.senderId);
       if (context.mounted) {
@@ -518,6 +520,9 @@ class _ModerationMenu extends StatelessWidget {
   }
 
   void _confirmBan(BuildContext context) async {
+    // Capture the logger before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final log = context.read<Logger>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -537,7 +542,6 @@ class _ModerationMenu extends StatelessWidget {
       ),
     );
     if (confirmed != true) return;
-    final log = context.read<Logger>();
     try {
       await room.ban(event.senderId);
       if (context.mounted) {
