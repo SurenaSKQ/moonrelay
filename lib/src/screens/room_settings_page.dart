@@ -1668,6 +1668,61 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
     final name = widget.room
         .unsafeGetUserFromMemoryOrFallback(userId)
         .calcDisplayname();
+
+    // Confirmation dialog.  Showing display name + Matrix ID + a
+    // "View profile" link gives the moderator enough context to be
+    // confident the right person is being invited — knock requests
+    // are easy to spoof with a similar-looking displayname.
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.knockApproveConfirmTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              userId,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(l10n.knockApproveConfirmBody),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text(l10n.viewProfile),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.approve),
+          ),
+        ],
+      ),
+    );
+    // "View profile" returns null — fall through to navigation so the
+    // moderator can see who they're letting in.
+    if (approved == null) {
+      if (!mounted) return;
+      context.push('/main/rooms/${widget.room.id}/profile/$userId');
+      return;
+    }
+    if (approved != true) return;
+
     try {
       await widget.room.invite(userId);
       if (mounted) {
