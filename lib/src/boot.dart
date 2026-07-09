@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
@@ -96,12 +98,19 @@ abstract class BootStep<T> {
 ///
 /// Returns a fully-initialized [BootContext] on success, or throws on
 /// the first step failure.
+///
+/// [onWaitingForFirstSync] is invoked after the local pipeline
+/// finishes when the SDK session is logged in but no synced rooms
+/// have arrived yet.  The splash screen uses it to stay visible
+/// while the first `/sync` response is in flight, preventing an
+/// empty rooms pane from flashing in and out.
 Future<BootContext> runBootPipeline({
   required int schemaVersion,
   required Logger log,
   required LogService logService,
   required AccountManager accountManager,
   required void Function(String) onStatus,
+  void Function()? onWaitingForFirstSync,
 }) async {
   // ── 1. Vodozemac (native crypto) ────────────────────────────
   onStatus('Initializing encryption engine…');
@@ -292,6 +301,29 @@ Future<BootContext> runBootPipeline({
   };
 
   log.i('Initialization complete');
+
+  // ── Wait for first sync ─────────────────────────────────────
+  // If the SDK is logged in, hold the splash visible until either
+  // the first `/sync` response arrives or a short timeout elapses.
+  // Without this the splash swaps to the main app, which renders an
+  // empty rooms pane for a beat before the first sync lands.
+  if (sdk.isLogged() && onWaitingForFirstSync != null) {
+    onWaitingForFirstSync();
+    final hasRooms = sdk.rooms.isNotEmpty;
+    if (!hasRooms) {
+      try {
+        await sdk.onSync.stream.first.timeout(
+          const Duration(seconds: 8),
+        );
+      } on TimeoutException {
+        log.w('Boot: timed out waiting for first sync; '
+            'proceeding with whatever the client has');
+      } catch (e) {
+        log.w('Boot: error waiting for first sync', error: e);
+      }
+    }
+  }
+
   return BootContext(
     log: log,
     logService: logService,

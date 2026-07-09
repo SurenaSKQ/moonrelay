@@ -46,6 +46,12 @@ class SplashScreenState extends State<SplashScreen> {
   String _errorTitle = '';
   String _errorBody = '';
 
+  /// `true` once the local init pipeline finishes but the first
+  /// Matrix sync has not delivered any rooms yet.  We keep the splash
+  /// visible during this window so the user does not see an empty
+  /// rooms pane flicker in and out as the first sync lands.
+  bool _waitingForFirstSync = false;
+
   /// Called by [main] to kick off the init pipeline.
   ///
   /// Must be called exactly once, after the widget tree has been built.
@@ -56,6 +62,7 @@ class SplashScreenState extends State<SplashScreen> {
     setState(() {
       _done = null;
       _status = 'Starting…';
+      _waitingForFirstSync = false;
     });
   }
 
@@ -66,8 +73,34 @@ class SplashScreenState extends State<SplashScreen> {
 
   /// Signal that init succeeded (called from the init pipeline in main).
   void markDone() {
-    if (mounted) setState(() => _done = true);
+    if (mounted) {
+      setState(() {
+        _done = true;
+        // If we are swapping in the main app, do not flip the
+        // "waiting for sync" flag — the splash will be torn down
+        // almost immediately.  This branch is for the rare case
+        // where we want to keep showing the splash until the first
+        // sync arrives.
+        _waitingForFirstSync = false;
+      });
+    }
   }
+
+  /// Signal that init succeeded and we are now waiting for the first
+  /// Matrix sync.  The splash stays visible until [markDone] is
+  /// called, preventing an empty rooms pane from flashing on screen.
+  void markWaitingForSync() {
+    if (mounted) {
+      setState(() {
+        _done = true;
+        _waitingForFirstSync = true;
+        _status = 'Fetching your rooms and messages…';
+      });
+    }
+  }
+
+  /// True while the splash is still waiting for the first sync.
+  bool get waitingForFirstSync => _waitingForFirstSync;
 
   /// Signal that init failed (called from the init pipeline in main).
   void markError(String title, String body) {
