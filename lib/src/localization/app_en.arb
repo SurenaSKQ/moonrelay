@@ -1784,6 +1784,15 @@
   "@about": {
     "description": "Hub navigation item for the About page."
   },
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "description": "App version label on the About page, with the version value substituted (e.g. 0.6.0+0).",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "aboutRepository": "Repository",
   "@aboutRepository": {
     "description": "Title for the repository card on the About page."

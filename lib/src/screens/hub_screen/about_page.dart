@@ -23,6 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:moonrelay/src/helpers/app_version.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ class HubAboutPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Version 0.6.0+0',
+                    l10n.aboutVersion(AppVersion.currentVersion),
                     style: TextStyle(
                       fontSize: 14,
                       color: colors.onSurfaceVariant,
@@ -135,7 +136,7 @@ class HubAboutPage extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: 'https://codeberg.org/SurenaSKQ/moonrelay/',
+                          text: 'https://github.com/SurenaSKQ/moonrelay/',
                           style: TextStyle(
                             color: colors.primary,
                             decoration: TextDecoration.underline,
@@ -143,7 +144,7 @@ class HubAboutPage extends StatelessWidget {
                           recognizer: TapGestureRecognizer()
                             ..onTap = () => launchUrl(
                                   Uri.parse(
-                                    'https://codeberg.org/SurenaSKQ/moonrelay/',
+                                    'https://github.com/SurenaSKQ/moonrelay/',
                                   ),
                                   mode: LaunchMode.externalApplication,
                                 ),

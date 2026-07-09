@@ -29,6 +29,7 @@ import 'src/app.dart';
 import 'src/boot.dart';
 import 'src/encryption/encryption_service.dart';
 import 'src/helpers/account_manager.dart';
+import 'src/helpers/app_version.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
@@ -163,6 +164,11 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       });
       return;
     }
+
+    // ── Step 0b: App version (platform channel; fire-and-forget) ──
+    // Cheap and parallel to the rest of boot; the UI shows a fallback
+    // version until this completes.
+    await AppVersion.init();
 
     // ── Steps 1-7: heavy init with status callbacks ───────────
     try {
