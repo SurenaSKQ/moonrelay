@@ -264,6 +264,8 @@
 
   "couldNotLoadMessages": "Could not load messages",
   "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
+  "jumpToFirstUnread": "Jump to first unread",
+  "jumpToFirstUnreadMany": "{count} new messages",
   "encryptionUndecryptableMessage": "message can't be decrypted",
   "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
@@ -337,6 +339,11 @@
     }
   },
   "roomIdCopied": "Room ID copied to clipboard",
+  "rotateMegolmSession": "Rotate megolm session",
+  "rotateMegolmSessionDescription": "Force a fresh encryption session. Members will receive a new key on your next message.",
+  "rotateMegolmSessionConfirm": "The next message you send will be encrypted with a new session. Other members' already-encrypted history remains readable. Rotate now?",
+  "rotateMegolmSessionDone": "Megolm session rotated. The next message will use the new key.",
+  "rotateMegolmSessionFailed": "Could not rotate the megolm session. Make sure encryption is set up.",
 
   "knockRoom": "Knock",
   "@knockRoom": {
@@ -635,6 +642,12 @@
   "encryptionUserVerified": "This user is verified",
   "encryptionUserNotVerified": "This user is not verified",
   "encryptionVerify": "Verify",
+  "encryptionLocalDataSection": "Local Encryption Data",
+  "encryptionExportKeys": "Export E2EE keys",
+  "encryptionExportKeysDescription": "Save the device's olm account and preferences to a file you can re-import on a new install.",
+  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password — anyone with the file can read your encrypted history. Continue?",
+  "encryptionExportKeysDone": "Encryption keys exported.",
+  "encryptionExportKeysCancelled": "Export cancelled.",
   "encryptionNoKeyInfo": "No key information",
   "encryptionEnabledTitle": "Encrypted",
   "encryptionNotEnabledTitle": "Not Encrypted",
@@ -1699,6 +1712,8 @@
     "description": "Message shown when in-room search returns no results."
   },
   "inRoomSearchResults": "{count} results",
+  "searchMatchCount": "{count} match",
+  "searchMatchCountMany": "{count} matches",
   "@inRoomSearchResults": {
     "description": "Label showing number of search results.",
     "placeholders": {
@@ -1853,6 +1868,8 @@
     "description": "Title of the message edit dialog."
   },
   "editedIndicator": "(ویرایش‌شده)",
+  "replyShowMore": "Show more",
+  "replyShowLess": "Show less",
   "@editedIndicator": {
     "description": "Inline marker shown next to an edited message body."
   },
@@ -2131,6 +2148,9 @@
     "description": "Action to approve a pending knock request."
   },
   "denyKnock": "رد",
+  "knockApproveConfirmTitle": "Approve knock request?",
+  "knockApproveConfirmBody": "The user will be invited to the room. They will not see this room's history unless explicitly shared with them.",
+  "approve": "Approve",
   "@denyKnock": {
     "description": "Action to deny a pending knock request."
   },
