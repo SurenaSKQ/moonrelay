@@ -241,6 +241,179 @@ class ChatTimelineState extends State<ChatTimeline> {
   }
 
   // ---------------------------------------------------------------------------
+  // Jump-to-last-seen
+  // ---------------------------------------------------------------------------
+
+  /// True when the user has unread messages in this room that are
+  /// below the current viewport bottom.  Used to surface a "Jump to
+  /// first unread" pill at the bottom of the chat area.
+  bool get _hasUnreadBelow =>
+      _lastSeenEventId.isNotEmpty && widget.room.notificationCount > 0;
+
+  /// The event ID the user has last read up to.  Pulled from the SDK
+  /// (`m.fully_read` account data) at load time and on every sync.
+  String _lastSeenEventId = '';
+
+  /// Refreshes [_lastSeenEventId] from room account data. Safe to call
+  /// repeatedly — only sets state when the value changed.
+  void _refreshLastSeenMarker() {
+    final next = widget.room.fullyRead;
+    if (next != _lastSeenEventId) {
+      setState(() => _lastSeenEventId = next);
+    }
+  }
+
+  /// Scrolls the timeline to the first unread event.  If the unread
+  /// event isn't yet loaded from the server the timeline is mass-
+  /// paginated forward in 20-event chunks until it appears, then the
+  /// scroll lands on it.
+  ///
+  /// When all unread events are already in the local cache we jump
+  /// straight to the oldest one above [Room.fullyRead] and briefly
+  /// highlight it.  This keeps the user oriented in long-running rooms
+  /// without forcing them to scroll past thousands of events they
+  /// have already seen.
+  Future<void> jumpToLastRead() async {
+    final timeline = _timeline;
+    if (timeline == null) return;
+
+    // Pull the live marker — `widget.room.fullyRead` is updated by the
+    // SDK whenever sync delivers new account data, but the cached
+    // value in [_lastSeenEventId] may lag a sync.
+    final targetId = widget.room.fullyRead;
+    if (targetId.isEmpty) {
+      _scrollToBottom();
+      return;
+    }
+
+    // The fully-read marker is *exclusive* of unread: the user has
+    // read up to it, so the first unread event is the one immediately
+    // **after** it in the timeline (newest-first order).
+    final events = timeline.events;
+    var foundIndex = -1;
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].eventId == targetId) {
+        foundIndex = i + 1;
+        break;
+      }
+    }
+
+    if (foundIndex == -1 || foundIndex >= events.length) {
+      // Marker is older than the loaded window, OR the next event
+      // hasn't loaded yet — paginate forward until we find something
+      // unread we can land on, or until the server says we're done.
+      await _paginateUntilUnread(targetId);
+      _refreshLastSeenMarker();
+      _scrollToFirstUnreadHighlight(targetId);
+      return;
+    }
+
+    _scrollToFirstUnreadHighlight(targetId);
+  }
+
+  /// Pages the timeline forward in 20-event chunks until an event
+  /// newer than [fullyReadEventId] is loaded, or until the server
+  /// stops returning more history.  Bounded to a small number of
+  /// iterations so a stalled server doesn't trap the user.
+  Future<void> _paginateUntilUnread(String fullyReadEventId) async {
+    final timeline = _timeline;
+    if (timeline == null) return;
+    final log = context.read<Logger>();
+    const maxIterations = 50;
+    for (var i = 0; i < maxIterations; i++) {
+      if (!mounted) return;
+      final before = timeline.events.length;
+      // We page *backward* (older history) because newer events are at
+      // index 0; the unread events we want are at the *top* of the
+      // list once we reach `fullyReadEventId`.
+      try {
+        await withTimeout(
+          () => timeline.requestHistory(),
+          timeout: const Duration(seconds: 10),
+        );
+      } catch (e) {
+        log.w('jumpToLastRead: history request failed', error: e);
+        return;
+      }
+      if (!mounted) return;
+      final after = timeline.events.length;
+      // Found the marker — we're done.
+      if (timeline.events.any((e) => e.eventId == fullyReadEventId)) {
+        return;
+      }
+      // Server returned no new events.
+      if (after == before) return;
+    }
+  }
+
+  /// Scrolls the timeline so the first unread event (the one right
+  /// after [fullyReadEventId] in newest-first order) sits roughly
+  /// one third from the top of the viewport, with a brief highlight
+  /// ring.
+  void _scrollToFirstUnreadHighlight(String fullyReadEventId) {
+    final timeline = _timeline;
+    if (timeline == null) return;
+    if (!_scrollController.hasClients) return;
+
+    final events = timeline.events;
+    var foundIdx = 0;
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].eventId == fullyReadEventId) {
+        foundIdx = (i - 1).clamp(0, events.length - 1);
+        break;
+      }
+    }
+    final targetEvent = events[foundIdx];
+    final targetId = targetEvent.eventId;
+
+    // Mark so the timeline item can render its highlight ring.
+    _highlightedEventId = targetId;
+    setState(() {});
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      if (_highlightedEventId == targetId) {
+        setState(() => _highlightedEventId = null);
+      }
+    });
+
+    // Estimate the item's position from the scrollable's visible area.
+    final pos = _scrollController.position;
+    final range = pos.maxScrollExtent - pos.minScrollExtent;
+    // Newest items live at the bottom (offset 0) in this reversed list,
+    // so a smaller index into `events` corresponds to a smaller scroll
+    // offset.  We just animate to the top — the unread events are
+    // typically the *oldest* unread ones in the loaded window.
+    final fraction = foundIdx == 0
+        ? 0.0
+        : 1.0 - (foundIdx / (events.length > 1 ? events.length - 1 : 1));
+    final targetOffset =
+        (pos.minScrollExtent + range * fraction)
+            .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    final distance = (targetOffset - pos.pixels).abs();
+    if (distance < pos.viewportDimension * 0.6) return;
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  /// Plain bottom-scroll helper used when we don't have a marker to
+  /// jump to.  Useful for tests and as a catch-all fallback.
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// Event ID currently highlighted by the "Jump to unread" affordance.
+  /// Mirrors the value the timeline view uses for in-room search jumps.
+  String? _highlightedEventId;
+
+  // ---------------------------------------------------------------------------
   // Auto-fill viewport
   // ---------------------------------------------------------------------------
 
@@ -332,6 +505,10 @@ class ChatTimelineState extends State<ChatTimeline> {
       _autoFillRetries = 0;
     }
 
+    // Keep the fully-read marker fresh — the SDK updates
+    // `Room.fullyRead` on every sync, so we just sample it on rebuild.
+    _refreshLastSeenMarker();
+
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
         if (_timeline == null) {
@@ -343,70 +520,112 @@ class ChatTimelineState extends State<ChatTimeline> {
           return const SizedBox.shrink();
         }
 
-        // When a filter is active and we've explicitly fetched the matching
-        // events, render those instead of the regular timeline view (which
-        // would show nothing if the target events aren't in the loaded batch).
-        if (widget.filterEvents != null) {
-          if (_fetchedFilteredEvents != null) {
-            if (_fetchedFilteredEvents!.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.push_pin_outlined,
-                      size: 40,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.4),
+        final child = _buildTimelineContent(context, settings);
+
+        // When there are unread events below the current viewport,
+        // overlay a "Jump to first unread" pill so the user can
+        // quickly catch up after returning to the app.
+        if (_hasUnreadBelow) {
+          return Stack(
+            children: [
+              child,
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: SafeArea(
+                  top: false,
+                  child: Center(
+                    child: _JumpToUnreadPill(
+                      count: widget.room.notificationCount,
+                      onTap: () async {
+                        await jumpToLastRead();
+                        if (!mounted) return;
+                        // `_markRoomRead` returns void; the SDK call
+                        // inside is fire-and-forget.  We still await
+                        // `jumpToLastRead` so the scroll lands before
+                        // the user notices the badge clearing.
+                        _markRoomRead();
+                      },
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppLocalizations.of(context)!.noPinnedMessages,
-                      style: TextStyle(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              );
-            }
-
-            return _PinnedEventsList(
-              events: _fetchedFilteredEvents!,
-              room: widget.room,
-              displayType: settings.displayType,
-              fontSize: settings.fontSize,
-              scrollController: _scrollController,
-              onReply: widget.onReply,
-              onThread: widget.onThread,
-              onForward: (event) => showForwardDialog(
-                context: context,
-                event: event,
-                sourceRoom: widget.room,
               ),
-            );
-          }
-
-          // Still fetching...
-          return const Center(child: CircularProgressIndicator());
+            ],
+          );
         }
 
-        return TimelineView(
-          timeline: _timeline!,
+        return child;
+      },
+    );
+  }
+
+  Widget _buildTimelineContent(
+    BuildContext context,
+    SettingsController settings,
+  ) {
+    // When a filter is active and we've explicitly fetched the matching
+    // events, render those instead of the regular timeline view (which
+    // would show nothing if the target events aren't in the loaded batch).
+    if (widget.filterEvents != null) {
+      if (_fetchedFilteredEvents != null) {
+        if (_fetchedFilteredEvents!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 40,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  AppLocalizations.of(context)!.noPinnedMessages,
+                  style: TextStyle(
+                    color:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return _PinnedEventsList(
+          events: _fetchedFilteredEvents!,
           room: widget.room,
           displayType: settings.displayType,
           fontSize: settings.fontSize,
           scrollController: _scrollController,
-          timelineVersion: _timelineVersion,
           onReply: widget.onReply,
           onThread: widget.onThread,
-          showStateEvents: settings.showStateEvents,
-          filterEvents: widget.filterEvents,
+          onForward: (event) => showForwardDialog(
+            context: context,
+            event: event,
+            sourceRoom: widget.room,
+          ),
         );
-      },
+      }
+
+      // Still fetching...
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return TimelineView(
+      timeline: _timeline!,
+      room: widget.room,
+      displayType: settings.displayType,
+      fontSize: settings.fontSize,
+      scrollController: _scrollController,
+      timelineVersion: _timelineVersion,
+      onReply: widget.onReply,
+      onThread: widget.onThread,
+      showStateEvents: settings.showStateEvents,
+      filterEvents: widget.filterEvents,
     );
   }
 
@@ -522,6 +741,64 @@ class ChatTimelineState extends State<ChatTimeline> {
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
     super.dispose();
+  }
+}
+
+/// Floating "Jump to first unread" pill rendered above the chat composer
+/// when the room has unread messages below the current viewport.
+///
+/// The pill is intentionally lightweight: it shows the unread count and a
+/// small chevron so the user can see at a glance how much they have missed
+/// without cluttering the chat surface. Tapping it scrolls the timeline
+/// to the first event newer than the fully-read marker and sends a read
+/// receipt so the badge clears.
+class _JumpToUnreadPill extends StatelessWidget {
+  const _JumpToUnreadPill({required this.count, required this.onTap});
+
+  final int count;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final label = count == 1
+        ? l10n.jumpToFirstUnread
+        : l10n.jumpToFirstUnreadMany(count);
+
+    return Material(
+      color: scheme.primary,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () {
+          // Fire and forget — the pill hides itself on the next rebuild
+          // once the read marker is updated and the unread count drops
+          // to zero.
+          // ignore: discarded_futures
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.arrowUp, size: 14, color: scheme.onPrimary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: scheme.onPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
