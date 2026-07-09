@@ -88,6 +88,7 @@ class _AppState {
 /// Runs the full boot pipeline via [runBootPipeline] in [boot.dart].
 Future<_AppState> _initialize({
   required void Function(String) onStatus,
+  required void Function() onWaitingForFirstSync,
   required Logger log,
   required LogService logService,
 }) async {
@@ -103,6 +104,7 @@ Future<_AppState> _initialize({
     logService: logService,
     accountManager: accountManager,
     onStatus: onStatus,
+    onWaitingForFirstSync: onWaitingForFirstSync,
   );
 
   return _AppState(
@@ -181,6 +183,11 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           // internally, but we still check for a null key during the
           // first frame.
           _splashKey.currentState?.updateStatus(msg);
+        },
+        onWaitingForFirstSync: () {
+          // Stay on the splash until the first `/sync` response
+          // arrives so the user never sees an empty rooms pane.
+          _splashKey.currentState?.markWaitingForSync();
         },
         log: log,
         logService: logService,
