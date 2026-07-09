@@ -15,8 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -31,18 +29,22 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 /// `body` (description), and optional `info` map containing dimensions,
 /// mime type, and size.
 Future<void> showStickerPicker(BuildContext context, Room room) async {
-  final result = await FilePicker.pickFiles(
+  // Use `pickFile` (singular) since we only need a single image; this
+  // also avoids the deprecated `allowMultiple: false` form on
+  // `pickFiles`.
+  final result = await FilePicker.pickFile(
     type: FileType.image,
-    allowMultiple: false,
-    withData: true,
   );
 
-  if (result == null || result.files.isEmpty) return;
+  if (result == null) return;
   if (!context.mounted) return;
 
-  final file = result.files.first;
-  final bytes = file.bytes ?? await _readFileBytes(file.path);
-  if (bytes == null || bytes.isEmpty) return;
+  final file = result;
+  // Read bytes on demand via the new PlatformFile API. The legacy
+  // `file.bytes` and `withData: true` parameters are deprecated in
+  // file_picker 12.
+  final bytes = await file.readAsBytes();
+  if (bytes.isEmpty) return;
   if (!context.mounted) return;
 
   final name = file.name;
@@ -77,15 +79,6 @@ Future<void> showStickerPicker(BuildContext context, Room room) async {
         ),
       ),
     );
-  }
-}
-
-Future<Uint8List?> _readFileBytes(String? path) async {
-  if (path == null) return null;
-  try {
-    return await File(path).readAsBytes();
-  } catch (_) {
-    return null;
   }
 }
 

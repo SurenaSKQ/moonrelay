@@ -493,16 +493,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     final space = widget.space;
     final l10n = AppLocalizations.of(context)!;
 
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
+    // Use `pickFile` (singular) for single-image selection; this also
+    // avoids the deprecated `allowMultiple: false` and `withData: true`
+    // parameters on `pickFiles`.
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
 
     try {
       await space.setAvatar(MatrixFile(bytes: bytes, name: file.name));

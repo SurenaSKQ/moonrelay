@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -273,45 +272,19 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Future<void> _attachFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.any,
-      allowMultiple: true,
-      withData: true,
     );
     if (_disposed) return;
     if (result == null || result.files.isEmpty) return;
 
     for (final file in result.files) {
-      final bytes = file.bytes;
-      if (bytes == null) {
-        // Fallback: read from path.
-        final path = file.path;
-        if (path == null) continue;
-        try {
-          final fileBytes = await File(path).readAsBytes();
-          await withTimeout(
-            () => widget.room.sendFileEvent(
-              MatrixFile(bytes: fileBytes, name: file.name),
-            ),
-            timeout: kUploadTimeout,
-          );
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${AppLocalizations.of(context)!.error}: '
-                  '${e is TimeoutException ? AppLocalizations.of(context)!.uploadTimedOut : '$e'}',
-                ),
-              ),
-            );
-          }
-        }
-        continue;
-      }
-
+      // Read bytes on demand via the new PlatformFile API; the older
+      // `file.bytes` and `withData: true` parameters are deprecated in
+      // file_picker 12.
       try {
+        final fileBytes = await file.readAsBytes();
         await withTimeout(
           () => widget.room.sendFileEvent(
-            MatrixFile(bytes: bytes, name: file.name),
+            MatrixFile(bytes: fileBytes, name: file.name),
           ),
           timeout: kUploadTimeout,
         );
