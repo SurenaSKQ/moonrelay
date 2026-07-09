@@ -133,8 +133,15 @@ void main() {
         await tester.enterText(find.byType(TextField), '**bold reply**');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // The Markdown→HTML conversion now runs through
+        // [MarkdownToHtml.convertAsync] which dispatches to a
+        // background isolate.  `runAsync` gives the test enough real
+        // wall-clock time to let the isolate complete and the
+        // awaited send to land in `room.sendEvent`.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // Without a reply target, the markdown send falls into the
         // sendEvent branch and the assertion below confirms the
@@ -155,8 +162,13 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello world');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // Allow the async Markdown conversion to settle — see the
+        // note above about [MarkdownToHtml.convertAsync] requiring
+        // real wall-clock time.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // The chat box always wraps the body in a paragraph, so even
         // plain-text input produces a `formatted_body`.  We pin this
@@ -192,8 +204,11 @@ void main() {
         await tester.enterText(find.byType(TextField), 'plain reply');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // Allow the async Markdown conversion to settle.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // The send went through sendEvent (no reply target = non-reply
         // branch).  Body and formatted_body are both present.

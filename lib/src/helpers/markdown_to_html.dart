@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/foundation.dart';
+
 /// Converts a subset of Markdown into Matrix-compatible HTML.
 ///
 /// This is intentionally limited to the formatting that the composing UI
@@ -33,9 +35,31 @@
 /// - Newlines → `<br>`
 class MarkdownToHtml {
   /// Converts [markdown] to a Matrix-compatible HTML string.
+  ///
+  /// **Do not** call this from the UI thread for large messages — it
+  /// runs the full parser on the calling isolate.  Use [convertAsync]
+  /// instead, which dispatches to a background isolate via
+  /// [compute].
   static String convert(String markdown) {
     return _processBlocks(markdown);
   }
+
+  /// Converts [markdown] to a Matrix-compatible HTML string on a
+  /// background isolate.  Returns immediately with a `Future` that
+  /// resolves with the rendered HTML.
+  ///
+  /// The parser only touches pure strings, so it is safe to ship
+  /// across isolate boundaries without copying any platform objects.
+  /// [compute] marshals the input and result for us, with a small
+  /// per-call overhead, which is acceptable for chat messages.
+  static Future<String> convertAsync(String markdown) {
+    return compute(_convertIsolated, markdown);
+  }
+
+  /// Top-level entry point used by [compute].  Must remain a top-level
+  /// or static function because [compute] serialises by reference and
+  /// cannot pass closures with captures across the isolate boundary.
+  static String _convertIsolated(String markdown) => _processBlocks(markdown);
 
   /// Processes block-level elements line-by-line.
   static String _processBlocks(String input) {
