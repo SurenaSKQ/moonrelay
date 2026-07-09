@@ -96,16 +96,15 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
   }
 
   Future<void> _pickAvatar() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.bytes == null) return;
+    // Use `pickFile` (singular) for single-image selection; this also
+    // avoids the deprecated `allowMultiple: false` and `withData: true`
+    // parameters on `pickFiles`.
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
     setState(() {
-      _avatarBytes = file.bytes;
+      _avatarBytes = bytes;
       _avatarName = file.name;
     });
   }

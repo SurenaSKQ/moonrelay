@@ -26,6 +26,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/room_notification_sheet.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:provider/provider.dart';
 
@@ -214,16 +215,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
 
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
+    // Use `pickFile` (singular) for single-image selection; this also
+    // avoids the deprecated `allowMultiple: false` and `withData: true`
+    // parameters on `pickFiles`.
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
 
     try {
       await room.setAvatar(MatrixFile(bytes: bytes, name: file.name));
@@ -784,19 +782,26 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.joinRuleLabel),
         children: [
-          for (final r in [
-            JoinRules.public,
-            JoinRules.invite,
-            JoinRules.knock,
-            JoinRules.restricted,
-            JoinRules.knockRestricted,
-          ])
-            RadioListTile<JoinRules>(
-              value: r,
-              groupValue: widget.room.joinRules,
-              onChanged: (v) => Navigator.of(ctx).pop(v),
-              title: Text(_joinRuleLabel(l10n, r)),
+          RadioGroup<JoinRules>(
+            groupValue: widget.room.joinRules,
+            onChanged: (v) => Navigator.of(ctx).pop(v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final r in [
+                  JoinRules.public,
+                  JoinRules.invite,
+                  JoinRules.knock,
+                  JoinRules.restricted,
+                  JoinRules.knockRestricted,
+                ])
+                  RadioListTile<JoinRules>(
+                    value: r,
+                    title: Text(_joinRuleLabel(l10n, r)),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -820,13 +825,20 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.historyVisibilitySection),
         children: [
-          for (final entry in options.entries)
-            RadioListTile<String>(
-              value: entry.key,
-              groupValue: current,
-              onChanged: (v) => Navigator.of(ctx).pop(v),
-              title: Text(entry.value),
+          RadioGroup<String>(
+            groupValue: current,
+            onChanged: (v) => Navigator.of(ctx).pop(v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in options.entries)
+                  RadioListTile<String>(
+                    value: entry.key,
+                    title: Text(entry.value),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -840,6 +852,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _editCanonicalAlias(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    // Capture the client before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final client = context.read<Client>();
     final controller =
         TextEditingController(text: widget.room.canonicalAlias);
     final result = await showDialog<String>(
@@ -866,7 +881,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     );
     if (result == null || !mounted) return;
     try {
-      await context.read<Client>().setRoomStateWithKey(
+      await client.setRoomStateWithKey(
             widget.room.id,
             'm.room.canonical_alias',
             '',
@@ -875,7 +890,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             },
           );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
@@ -892,17 +907,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.guestAccessSection),
         children: [
-          RadioListTile<String>(
-            value: 'can_join',
+          RadioGroup<String>(
             groupValue: current,
             onChanged: (v) => Navigator.of(ctx).pop(v),
-            title: Text(l10n.guestAccessCanJoin),
-          ),
-          RadioListTile<String>(
-            value: 'forbidden',
-            groupValue: current,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            title: Text(l10n.guestAccessForbidden),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  value: 'can_join',
+                  title: Text(l10n.guestAccessCanJoin),
+                ),
+                RadioListTile<String>(
+                  value: 'forbidden',
+                  title: Text(l10n.guestAccessForbidden),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -913,6 +933,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _editPowerLevels(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    // Capture the client before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final client = context.read<Client>();
     final raw = widget.room.getState('m.room.power_levels')?.content;
 
     int read(Map<String, dynamic> state, String key, int fallback) {
@@ -1033,14 +1056,14 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     };
 
     try {
-      await context.read<Client>().setRoomStateWithKey(
+      await client.setRoomStateWithKey(
             widget.room.id,
             'm.room.power_levels',
             '',
             newState,
           );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
@@ -1049,6 +1072,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _enableEncryption(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    // Capture the client before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final client = context.read<Client>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1070,14 +1096,14 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await context.read<Client>().setRoomStateWithKey(
+      await client.setRoomStateWithKey(
             widget.room.id,
             'm.room.encryption',
             '',
             <String, dynamic>{'algorithm': 'm.megolm.v1.aes-sha2'},
           );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
@@ -1103,17 +1129,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.directoryVisibilitySection),
         children: [
-          RadioListTile<String>(
-            value: 'public',
+          RadioGroup<String>(
             groupValue: current,
             onChanged: (v) => Navigator.of(ctx).pop(v),
-            title: Text(l10n.directoryVisibilityPublic),
-          ),
-          RadioListTile<String>(
-            value: 'private',
-            groupValue: current,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            title: Text(l10n.directoryVisibilityPrivate),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  value: 'public',
+                  title: Text(l10n.directoryVisibilityPublic),
+                ),
+                RadioListTile<String>(
+                  value: 'private',
+                  title: Text(l10n.directoryVisibilityPrivate),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1134,7 +1165,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             : Visibility.private,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
@@ -1144,22 +1175,32 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Future<void> _upgradeRoom(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
+    // Capture the client before any await so we can use it after the
+    // gap without tripping the `use_build_context_synchronously` lint.
+    final client = context.read<Client>();
     final newVersion = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.upgradeRoom),
         children: [
-          for (final v in const ['10', '11', '12'])
-            RadioListTile<String>(
-              value: v,
-              groupValue: widget.room.roomVersion,
-              onChanged: (val) => Navigator.of(ctx).pop(val),
-              title: Text('Room version $v'),
+          RadioGroup<String>(
+            groupValue: widget.room.roomVersion,
+            onChanged: (val) => Navigator.of(ctx).pop(val),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final v in const ['10', '11', '12'])
+                  RadioListTile<String>(
+                    value: v,
+                    title: Text('Room version $v'),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
-    if (newVersion == null || !mounted) return;
+    if (newVersion == null || !context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1180,12 +1221,12 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
     try {
       // Mark the old room as tombstoned. The replacement_room field
       // would normally point at a freshly-created successor; we leave it
       // empty so the user can decide the follow-up.
-      await context.read<Client>().setRoomStateWithKey(
+      await client.setRoomStateWithKey(
             widget.room.id,
             'm.room.tombstone',
             '',
@@ -1194,22 +1235,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               'replacement_room': '',
             },
           );
-      await context.read<Client>().setRoomStateWithKey(
+      await client.setRoomStateWithKey(
             widget.room.id,
             'm.room.create',
             '',
             <String, dynamic>{
               'room_version': newVersion,
-              'creator': context.read<Client>().userID,
+              'creator': client.userID,
             },
           );
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.roomUpgraded(newVersion))),
       );
     } catch (e) {
       log.w('Upgrade failed', error: e);
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
@@ -1523,18 +1564,42 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final client = context.read<Client>();
+    // The full per-room notification sheet (mute + mentions-only)
+    // lives in [RoomNotificationSheet].  Opening it from the tile's
+    // tap area keeps the one-tap mute switch on the tile itself
+    // while still exposing the mentions-only setting without a
+    // separate route.
     return Card(
       elevation: 0,
       color: scheme.surfaceContainerLow,
-      child: SwitchListTile(
-        secondary: Icon(
-          _muted ? LucideIcons.bellOff : LucideIcons.bell,
-          color: scheme.onSurfaceVariant,
-        ),
-        title: Text(l10n.muteRoom),
-        subtitle: Text(l10n.muteRoomDescription),
-        value: _muted,
-        onChanged: _loading ? null : (_) => _toggle(),
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: Icon(
+              _muted ? LucideIcons.bellOff : LucideIcons.bell,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(l10n.muteRoom),
+            subtitle: Text(l10n.muteRoomDescription),
+            value: _muted,
+            onChanged: _loading ? null : (_) => _toggle(),
+          ),
+          const Divider(height: 0),
+          ListTile(
+            leading: Icon(
+              LucideIcons.settings,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(l10n.notificationSettings),
+            trailing: Icon(
+              LucideIcons.chevronRight,
+              color: scheme.onSurfaceVariant,
+            ),
+            onTap: () =>
+                showRoomNotificationSheet(context, client: client, room: widget.room),
+          ),
+        ],
       ),
     );
   }

@@ -48,16 +48,13 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   /// Opens a file picker for images, uploads the selected file as the
   /// user's avatar, and triggers a UI refresh.
   Future<void> _changeAvatar() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
+    // Use `pickFile` (singular) for single-image selection; this also
+    // avoids the deprecated `allowMultiple: false` and `withData: true`
+    // parameters on `pickFiles`.
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
 
     setState(() => _uploadingAvatar = true);
 
