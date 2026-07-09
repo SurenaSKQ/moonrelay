@@ -267,6 +267,14 @@ class _RoomsPaneState extends State<RoomsPane> {
                   fontSize: 16,
                 ),
               ),
+              // Unread / mention / highlight badges render on the right
+              // edge of the row.  Highlights take visual priority over
+              // plain mentions and plain mentions over silent unread
+              // counts so the user can scan the list at a glance.
+              trailing: _RoomUnreadBadges(
+                notificationCount: room.notificationCount,
+                highlightCount: room.highlightCount,
+              ),
               onTap: () => _joinRoom(context, room),
             );
           },
@@ -441,5 +449,82 @@ class _RoomAvatar extends StatelessWidget {
       if (first != null) buf.write(first);
     }
     return buf.isEmpty ? '?' : buf.toString();
+  }
+}
+
+/// Renders the unread/mention/highlight badges in the right gutter of
+/// a room list row.
+///
+/// Priority: highlights (user mentioned by name) win over plain
+/// mentions (read receipts / replies) and plain mentions win over a
+/// silent unread count.  When the room has no notifications the
+/// widget collapses to a zero-size placeholder so it never disrupts
+/// the row's vertical rhythm.
+class _RoomUnreadBadges extends StatelessWidget {
+  const _RoomUnreadBadges({
+    required this.notificationCount,
+    required this.highlightCount,
+  });
+
+  final int notificationCount;
+  final int highlightCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (highlightCount > 0) {
+      // Highlights (direct @-mentions) get the highest visual weight:
+      // a filled accent circle with the count, so the user can spot
+      // a mention even at a glance.
+      return _Badge(
+        count: highlightCount,
+        background: scheme.primary,
+        foreground: scheme.onPrimary,
+      );
+    }
+    if (notificationCount > 0) {
+      // Plain unread (no @-mention) — softer accent so it doesn't
+      // compete with highlights when both could be present.
+      return _Badge(
+        count: notificationCount,
+        background: scheme.primaryContainer,
+        foreground: scheme.onPrimaryContainer,
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+/// Single rounded pill showing a notification count.
+class _Badge extends StatelessWidget {
+  const _Badge({
+    required this.count,
+    required this.background,
+    required this.foreground,
+  });
+
+  final int count;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: TextStyle(
+          color: foreground,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
