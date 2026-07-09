@@ -328,7 +328,11 @@ class MessageEventHandler extends StatelessWidget {
 /// Tries to show the replied-to message body (truncated with ellipsis)
 /// prefixed by a vertical bar in the accent colour.  If the replied-to
 /// event isn't available locally, fetches it via [Room.getEventById].
-class _ReplyPreview extends StatelessWidget {
+///
+/// Long replies (e.g. a quoted code block or a multi-line message) are
+/// shown collapsed by default with a "Show more" affordance so a noisy
+/// chat doesn't fill the viewport with quoted context.
+class _ReplyPreview extends StatefulWidget {
   const _ReplyPreview({
     required this.repliedTo,
     required this.replyId,
@@ -345,18 +349,33 @@ class _ReplyPreview extends StatelessWidget {
   final void Function(String eventId)? onJumpToEvent;
 
   @override
+  State<_ReplyPreview> createState() => _ReplyPreviewState();
+}
+
+class _ReplyPreviewState extends State<_ReplyPreview> {
+  /// When true the full reply body is shown instead of the truncated
+  /// single-line preview.  Toggled via the "Show more / Show less"
+  /// affordance that appears next to the preview when the body is
+  /// long enough to truncate.
+  bool _expanded = false;
+
+  /// Number of characters above which the body is considered
+  /// "long" and the expand toggle is shown.
+  static const int _collapseThreshold = 90;
+
+  @override
   Widget build(BuildContext context) {
-    if (repliedTo != null) {
-      return _buildPreview(context, repliedTo!.body);
+    if (widget.repliedTo != null) {
+      return _buildForBody(context, widget.repliedTo!.body);
     }
 
     // If we have a room, try to fetch the replied-to event.
-    if (room != null) {
+    if (widget.room != null) {
       return FutureBuilder<Event?>(
-        future: room!.getEventById(replyId),
+        future: widget.room!.getEventById(widget.replyId),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
-            return _buildPreview(context, snapshot.data!.body);
+            return _buildForBody(context, snapshot.data!.body);
           }
           // While loading or on error, show nothing.
           return const SizedBox.shrink();
@@ -367,9 +386,11 @@ class _ReplyPreview extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _buildPreview(BuildContext context, String body) {
+  Widget _buildForBody(BuildContext context, String body) {
     final scheme = Theme.of(context).colorScheme;
-    final preview = _preview(body);
+    final clean = body.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
+    final display = clean.isNotEmpty ? clean : body.trim();
+    final canExpand = display.length > _collapseThreshold;
 
     final barAndText = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,43 +403,73 @@ class _ReplyPreview extends StatelessWidget {
             color: scheme.primary.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(2),
           ),
-          constraints: const BoxConstraints(minHeight: 20, maxHeight: 40),
+          constraints: BoxConstraints(
+            minHeight: 20,
+            // Cap the bar at a short height so very long quoted text
+            // doesn't push the rest of the chat down — the toggle
+            // affordance below it gives the user a way to read the
+            // full body when they actually want to.
+            maxHeight: _expanded ? double.infinity : 40,
+          ),
         ),
-        // Preview text
         Expanded(
           child: Text(
-            preview,
+            display,
             style: TextStyle(
               fontSize: 13,
               color: scheme.onSurface.withValues(alpha: 0.55),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: _expanded ? null : 1,
+            overflow: _expanded
+                ? TextOverflow.visible
+                : TextOverflow.ellipsis,
           ),
         ),
       ],
     );
 
-    if (onJumpToEvent != null) {
-      return GestureDetector(
-        onTap: () => onJumpToEvent!(replyId),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: barAndText,
-        ),
-      );
-    }
+    final preview = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.onJumpToEvent != null)
+          GestureDetector(
+            onTap: () => widget.onJumpToEvent!(widget.replyId),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: barAndText,
+            ),
+          )
+        else
+          barAndText,
+        if (canExpand)
+          Padding(
+            padding: const EdgeInsets.only(left: 11, top: 2),
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 1,
+                ),
+                child: Text(
+                  _expanded
+                      ? AppLocalizations.of(context)!.replyShowLess
+                      : AppLocalizations.of(context)!.replyShowMore,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
 
-    return barAndText;
-  }
-
-  /// Returns a short preview (≈40 characters + ellipsis) of [text].
-  static String _preview(String text, [int maxLen = 40]) {
-    // Strip leading " > " reply markers from the body.
-    final clean = text.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
-    final display = clean.isNotEmpty ? clean : text.trim();
-    if (display.length <= maxLen) return display;
-    return '${display.substring(0, maxLen)}…';
+    return preview;
   }
 }
 
