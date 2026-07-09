@@ -45,6 +45,13 @@ class HubAccountsPage extends StatelessWidget {
     return FutureBuilder<Profile>(
       future: client.getProfileFromUserId(client.userID!),
       builder: (context, snapshot) {
+        // Show a skeleton placeholder while the profile is in flight
+        // so the account card does not flash empty for a beat.  Once
+        // the data arrives we render the populated card; on error we
+        // fall through to a minimal version using just the user id.
+        if (snapshot.connectionState != ConnectionState.done) {
+          return _buildLoading(theme);
+        }
         final profile = snapshot.data;
         final initials = (profile?.displayName ?? client.userID ?? '?')
             .toUpperCase()
@@ -265,6 +272,77 @@ class HubAccountsPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// Renders a placeholder layout while [Profile] is being fetched.
+  ///
+  /// Mirrors the dimensions of the populated account card so the
+  /// surrounding layout does not jump when the data arrives.  A
+  /// shimmer-style accent (pulsing circle + grey bar) communicates
+  /// the loading state without resorting to a spinner, which would
+  /// clash with the rest of the hub's calm typography.
+  Widget _buildLoading(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _shimmerLine(scheme, height: 22, width: 140),
+          const SizedBox(height: 4),
+          _shimmerLine(scheme, height: 13, width: 200),
+          const SizedBox(height: 24),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: theme.dividerColor),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Avatar placeholder
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _shimmerLine(scheme, height: 16, width: 180),
+                        const SizedBox(height: 8),
+                        _shimmerLine(scheme, height: 12, width: 240),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Renders a single rounded grey "shimmer" line used to suggest
+  /// placeholder text.  Kept static-feeling (no animation) so it
+  /// does not fight the rest of the hub's motion budget.
+  Widget _shimmerLine(ColorScheme scheme, {required double height, required double width}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
     );
   }
 }
