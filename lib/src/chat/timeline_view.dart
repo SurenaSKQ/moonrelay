@@ -202,8 +202,16 @@ class _TimelineViewState extends State<TimelineView> {
   /// timeline) and [older] is the earlier event (displayed higher up).
   /// When they form a group, the **older** event acts as the group start
   /// (shows avatar/name) and the newer event is a continuation (no avatar).
+  ///
+  /// Stickers never group with adjacent messages — they are short,
+  /// visually-distinct and conventionally shown as standalone rows
+  /// with their own sender label.
   bool _isContinuation(Event newer, Event older) {
     if (newer.senderId != older.senderId) return false;
+    if (newer.messageType == MessageTypes.Sticker ||
+        older.messageType == MessageTypes.Sticker) {
+      return false;
+    }
     return newer.originServerTs.sameEnvironment(older.originServerTs);
   }
 
