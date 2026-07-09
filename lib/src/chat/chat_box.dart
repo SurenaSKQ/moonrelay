@@ -146,7 +146,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
     final log = context.read<Logger>();
     final replyTo = _replyEvent;
-    final html = MarkdownToHtml.convert(text);
+    // Parse the Markdown on a background isolate so the UI thread
+    // stays responsive even when the user pastes a long message with
+    // many code fences / list items.
+    final html = await MarkdownToHtml.convertAsync(text);
     final hasHtml = html.isNotEmpty && html != text;
 
     // ── Slash commands ──────────────────────────────────────────────────
