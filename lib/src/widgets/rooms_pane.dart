@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/encryption_badge.dart';
 import 'package:provider/provider.dart';
 
 /// Scoped, per-client thumbnail cache for room avatars.
@@ -255,6 +256,7 @@ class _RoomsPaneState extends State<RoomsPane> {
                           fontWeight: FontWeight.w300, fontSize: 18),
                     ),
                   ),
+                  RoomEncryptionBadge(room: room),
                 ],
               ),
               subtitle: Text(
