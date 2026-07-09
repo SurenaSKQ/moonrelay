@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/chat/receipt_avatars.dart';
@@ -142,6 +143,13 @@ class TimelineItem extends StatelessWidget {
   /// Uses the precomputed [threadReplyCount] and passed [fontSize] instead
   /// of scanning the timeline or watching [SettingsController] on every build.
   Widget _messageContent(BuildContext context) {
+    // The delivery indicator only matters for outgoing messages that
+    // haven't yet been confirmed by sync.  Events that arrived via
+    // sync (`EventStatus.synced`) are already in their final state and
+    // don't need a spinner / check / retry icon next to them.
+    final isOutgoing = event.senderId == room.client.userID;
+    final showDelivery = isOutgoing && event.status != EventStatus.synced;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -162,6 +170,11 @@ class TimelineItem extends StatelessWidget {
         // Read-receipt avatars under every message that someone has seen.
         if (timeline != null)
           ReceiptAvatars(event: event, room: room),
+        if (showDelivery)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: DeliveryIndicator(status: _deliveryStatusFor(event)),
+          ),
         if (threadReplyCount > 0)
           _ThreadIndicator(
             replyCount: threadReplyCount,
@@ -169,6 +182,20 @@ class TimelineItem extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  /// Maps the SDK's [EventStatus] to the smaller set of states the
+  /// [DeliveryIndicator] knows how to render.
+  DeliveryStatus _deliveryStatusFor(Event ev) {
+    switch (ev.status) {
+      case EventStatus.sending:
+        return DeliveryStatus.sending;
+      case EventStatus.sent:
+      case EventStatus.synced:
+        return DeliveryStatus.sent;
+      case EventStatus.error:
+        return DeliveryStatus.failed;
+    }
   }
 
   // ---------------------------------------------------------------------------
