@@ -80,19 +80,86 @@ class NotificationService {
   /// Pulled out into a single helper because the channel / importance
   /// / priority are identical for direct messages, group summaries,
   /// and the debug test notification.
-  static const NotificationDetails _details = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'moonrelay_channel',
-      'Moonrelay',
-      channelDescription: 'Matrix message notifications',
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-    linux: LinuxNotificationDetails(defaultActionName: 'Open'),
-    macOS: DarwinNotificationDetails(),
-    windows: WindowsNotificationDetails(),
-  );
+  ///
+  /// On Windows, every notification gets a small action button row so
+  /// users can triage new messages without bringing the window to the
+  /// foreground first:
+  ///
+  /// - **Mark as read**: silently clear the unread state for the
+  ///   owning room without opening the app.
+  /// - **Open**: same behaviour as tapping the notification body —
+  ///   bring the window forward and navigate to the room.
+  ///
+  /// Other platforms fall through to their default tap behaviour
+  /// (open the app), which the platform-specific plugin surfaces
+  /// support for out of the box.
+  static NotificationDetails _buildDetails(String? payload) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        'moonrelay_channel',
+        'Moonrelay',
+        channelDescription: 'Matrix message notifications',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(),
+      linux: LinuxNotificationDetails(defaultActionName: 'Open'),
+      macOS: DarwinNotificationDetails(),
+      windows: WindowsNotificationDetails(
+        actions: const <WindowsAction>[
+          WindowsAction(
+            content: 'Mark as read',
+            arguments: 'action=markRead',
+            activationType: WindowsActivationType.foreground,
+          ),
+          WindowsAction(
+            content: 'Open',
+            arguments: 'action=open',
+            activationType: WindowsActivationType.foreground,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Returns a JSON-encoded payload that tells the listener which
+  /// room this notification belongs to and which action the user
+  /// pressed (if any).  The listener splits this back into pieces.
+  ///
+  /// We deliberately embed `action` here (rather than relying on the
+  /// plugin's `actionId` from the action button) so platforms that do
+  /// not surface button presses (Linux, macOS, mobile) still receive
+  /// the room context via the body tap path.
+  static String? _encodePayload(String? matrixUri, {String action = 'open'}) {
+    if (matrixUri == null || matrixUri.isEmpty) return null;
+    return jsonEncode(<String, String>{
+      'uri': matrixUri,
+      'action': action,
+    });
+  }
+
+  /// Decodes a payload produced by [_encodePayload].  Returns null on
+  /// legacy payloads (a bare Matrix URI string) so older persisted
+  /// state is still routable.
+  static ({String matrixUri, String action})? _decodePayload(String raw) {
+    if (raw.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final uri = decoded['uri'];
+          if (uri is String) {
+            final rawAction = decoded['action'];
+            final action = rawAction is String ? rawAction : 'open';
+            return (
+              matrixUri: uri,
+              action: action,
+            );
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
 
   final Client _client;
   final SettingsController _settings;
@@ -219,22 +286,109 @@ class NotificationService {
     }
   }
 
-  /// Called when the user clicks a notification. We try to navigate to
-  /// the room the notification was for via the deep-link service or
-  /// the navigation callback registered at init time; if both are
-  /// missing we just bring the window forward.
-  void _onNotificationTap(NotificationResponse response) {
+  /// Called when the user clicks a notification (body or action button).
+  ///
+  /// We try to navigate to the room the notification was for via the
+  /// deep-link service or the navigation callback registered at init
+  /// time.  For "mark as read" the app still comes forward so the user
+  /// can see the result, but we suppress navigation so the timeline
+  /// keeps the last room the user was viewing.
+  void _onNotificationTap(NotificationResponse response) async {
     try {
       windowManager.show();
       windowManager.focus();
     } catch (_) {}
+
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
+
+    // The plugin delivers the OS-level action id in `response.actionId`
+    // ("action=markRead" / "action=open") for clicks on the action
+    // buttons, but on body taps it is `null`.  We also embed the
+    // intended action in the payload so platforms without action
+    // support still receive a useful routing hint.
+    final fromButton = response.actionId;
+    String action = 'open';
+    final String matrixUri;
+
+    if (fromButton != null && fromButton.isNotEmpty) {
+      // Plugin-supported action button path (Windows / Android).
+      final params = Uri.tryParse('moonrelay://?$fromButton');
+      action = params?.queryParameters['action'] ?? 'open';
+    }
+
+    final decoded = _decodePayload(payload);
+    if (decoded != null) {
+      matrixUri = decoded.matrixUri;
+      // A body tap and an explicit "open" button share the same intent
+      // — promote the body-tap default to "open".
+      if (fromButton == null || fromButton.isEmpty) {
+        action = 'open';
+      }
+    } else {
+      // Legacy (pre-action) payloads: treat as open with the raw string
+      // as the matrix URI.
+      matrixUri = payload;
+      action = 'open';
+    }
+
+    if (matrixUri.isEmpty) return;
+
+    if (action == 'markRead') {
+      await _markUriAsRead(matrixUri);
+      // Still open the app — the user expects feedback that their tap
+      // was registered.
+    }
+
     final navigator = _navigate;
     if (navigator != null) {
-      navigator(payload);
+      navigator(matrixUri);
     } else if (_deepLinkService != null) {
-      _deepLinkService.processUri(payload);
+      _deepLinkService.processUri(matrixUri);
+    }
+  }
+
+  /// Marks the room in the given matrix URI as read by sending a
+  /// read-receipt up to the most recently known event.  Used by the
+  /// "Mark as read" notification action so users can clear the badge
+  /// without opening the room in the timeline.
+  Future<void> _markUriAsRead(String uri) async {
+    final parsed = Uri.tryParse(uri);
+    if (parsed == null) return;
+    final segments = parsed.pathSegments;
+    if (segments.length < 2) return;
+    // matrix:r/<roomid>  -> segments[0]=='r', segments[1] is room id
+    // matrix:roomid/<roomid>/<eventid>
+    final roomId = segments[0] == 'r' && segments.length >= 2
+        ? segments[1]
+        : segments[0];
+    if (roomId.isEmpty) return;
+
+    try {
+      final room = _client.getRoomById(roomId);
+      if (room == null) return;
+      final lastSynced = room.lastEvent;
+      if (lastSynced == null) return;
+      await room.setReadMarker(
+        lastSynced.eventId,
+        mRead: lastSynced.eventId,
+      );
+      // Mirror the read marker locally so the in-app badge reflects the
+      // action immediately, even before the next sync delivers the
+      // server-acknowledged state.
+      _groupNotifiedCounts[room.id] = room.notificationCount;
+      _lastNotifiedEventIds[room.id] = lastSynced.eventId;
+      _persistDebouncer?.cancel();
+      _persistDebouncer = Timer(
+        const Duration(milliseconds: 750),
+        () async {
+          await _persistLastEventIds();
+          await _persistGroupNotifiedCounts();
+        },
+      );
+    } catch (e) {
+      _log.w('Failed to mark room as read from notification action',
+          error: e);
     }
   }
 
@@ -363,7 +517,7 @@ class NotificationService {
       isUndecryptedPlaceholder
           ? '$senderName sent an encrypted message'
           : '$senderName: $body',
-      payload: 'matrix:r/${room.id}',
+      payload: _encodePayload('matrix:r/${room.id}'),
     );
   }
 
@@ -400,7 +554,7 @@ class NotificationService {
           .where((r) => r.getLocalizedDisplayname() == singleGroupName)
           .map((r) => r.id)
           .toList();
-      if (ids.length == 1) payload = 'matrix:r/${ids.first}';
+      if (ids.length == 1) payload = _encodePayload('matrix:r/${ids.first}');
     }
     _showNotification(
       groupSummaryTag,
@@ -427,7 +581,7 @@ class NotificationService {
         id: 0, // ignored when a tag is provided on every supported platform
         title: title,
         body: body,
-        notificationDetails: _details,
+        notificationDetails: _buildDetails(payload),
         payload: payload,
       );
     } catch (e) {
@@ -447,7 +601,7 @@ class NotificationService {
       id: 0,
       title: 'Moonrelay',
       body: 'This is a test notification from Moonrelay.',
-      notificationDetails: _details,
+      notificationDetails: _buildDetails(null),
     );
     return true;
   }
@@ -626,4 +780,18 @@ class NotificationService {
     _plugin = null;
     _available = false;
   }
+
+  // ── Public helpers used by the timeline for "catch up" affordances ──
+
+  /// Returns the most recently notified event id for [roomId] or an
+  /// empty string when no notification has ever fired for the room.
+  /// Used by the timeline to compute the unread gap and offer a
+  /// "Jump to first unread" affordance when the room is opened.
+  String lastNotifiedEventIdFor(String roomId) =>
+      _lastNotifiedEventIds[roomId] ?? '';
+
+  /// Returns the last persisted group-unread count for [roomId] or
+  /// `null` when no baseline has been recorded yet.
+  int? lastNotifiedGroupCountFor(String roomId) =>
+      _groupNotifiedCounts[roomId];
 }
