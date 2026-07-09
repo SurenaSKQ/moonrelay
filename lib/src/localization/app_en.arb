@@ -2479,5 +2479,126 @@
   "ensureDMPermission": "Send a direct message",
   "@ensureDMPermission": {
     "description": "Action label for the DM shortcut on a profile."
+  },
+
+  "deliverySending": "Sending…",
+  "@deliverySending": {
+    "description": "Tooltip on the delivery indicator while a message is in flight."
+  },
+  "deliverySent": "Sent",
+  "@deliverySent": {
+    "description": "Tooltip on the delivery indicator once the message is confirmed by the server."
+  },
+  "deliveryFailed": "Failed to send. Tap to retry.",
+  "@deliveryFailed": {
+    "description": "Tooltip on the delivery indicator when a message failed to send."
+  },
+
+  "commandPaletteHint": "Type a command or search…",
+  "@commandPaletteHint": {
+    "description": "Hint shown inside the command palette search field."
+  },
+  "commandPaletteNoResults": "No matching commands.",
+  "@commandPaletteNoResults": {
+    "description": "Message shown when the command palette query does not match any action."
+  },
+  "commandPaletteActions": "Actions",
+  "@commandPaletteActions": {
+    "description": "Section header above the static command palette actions."
+  },
+  "commandPaletteRooms": "Jump to",
+  "@commandPaletteRooms": {
+    "description": "Section header above the searchable room list in the command palette."
+  },
+  "commandPaletteOpenSettings": "Open Settings",
+  "@commandPaletteOpenSettings": {
+    "description": "Command palette action that opens the settings hub."
+  },
+  "commandPaletteOpenAccounts": "Manage Accounts",
+  "@commandPaletteOpenAccounts": {
+    "description": "Command palette action that opens the accounts hub page."
+  },
+  "commandPaletteOpenLogs": "Open Logs",
+  "@commandPaletteOpenLogs": {
+    "description": "Command palette action that opens the logs hub page."
+  },
+  "commandPaletteToggleSidebar": "Toggle Left Sidebar",
+  "@commandPaletteToggleSidebar": {
+    "description": "Command palette action that toggles the dashboard left sidebar."
+  },
+
+  "encryptionBadgeTooltip": "End-to-end encrypted",
+  "@encryptionBadgeTooltip": {
+    "description": "Tooltip on the encrypted-room badge in the rooms list."
+  },
+
+  "shortcutOpenCommandPalette": "Open the command palette",
+  "@shortcutOpenCommandPalette": {
+    "description": "Description of the Ctrl+K shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutOpenSearch": "Open global search",
+  "@shortcutOpenSearch": {
+    "description": "Description of the Ctrl+/ shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutInRoomSearch": "Search in this room",
+  "@shortcutInRoomSearch": {
+    "description": "Description of the Ctrl+F shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutToggleLeftSidebar": "Toggle the left sidebar",
+  "@shortcutToggleLeftSidebar": {
+    "description": "Description of the Ctrl+Shift+M shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutToggleRightSidebar": "Toggle the right sidebar",
+  "@shortcutToggleRightSidebar": {
+    "description": "Description of the Ctrl+Shift+R shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutBold": "Bold selection",
+  "@shortcutBold": {
+    "description": "Description of the Ctrl+B shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutItalic": "Italicise selection",
+  "@shortcutItalic": {
+    "description": "Description of the Ctrl+I shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCode": "Toggle code formatting",
+  "@shortcutCode": {
+    "description": "Description of the Ctrl+E shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutSendMessage": "Send the message",
+  "@shortcutSendMessage": {
+    "description": "Description of the Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutNewline": "Insert a newline",
+  "@shortcutNewline": {
+    "description": "Description of the Shift+Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCloseOverlay": "Close the current overlay or dialog",
+  "@shortcutCloseOverlay": {
+    "description": "Description of the Esc shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutShowShortcuts": "Show this shortcuts list",
+  "@shortcutShowShortcuts": {
+    "description": "Description of the ? shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutsTitle": "Keyboard Shortcuts",
+  "@shortcutsTitle": {
+    "description": "Title of the keyboard shortcuts overlay."
+  },
+  "shortcutsSubtitle": "Quick reference for global and in-room key bindings.",
+  "@shortcutsSubtitle": {
+    "description": "Subtitle under the keyboard shortcuts overlay title."
+  },
+  "shortcutsHint": "Press ? anywhere to reopen this list.",
+  "@shortcutsHint": {
+    "description": "Hint shown at the bottom of the keyboard shortcuts overlay."
+  },
+
+  "notifyOnMentionsOnly": "Notify on mentions only",
+  "@notifyOnMentionsOnly": {
+    "description": "Toggle to only notify when the user is mentioned in a room."
+  },
+  "notifyOnMentionsOnlyDescription": "Suppress notifications for non-mention messages",
+  "@notifyOnMentionsOnlyDescription": {
+    "description": "Subtitle for the mentions-only notification toggle."
   }
 }
