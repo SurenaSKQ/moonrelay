@@ -285,6 +285,17 @@
 
   "couldNotLoadMessages": "Could not load messages",
   "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
+  "jumpToFirstUnread": "Jump to first unread",
+  "@jumpToFirstUnread": {
+    "description": "Pill shown over the chat composer when a single message is unread. Tapping it scrolls to the first unread event."
+  },
+  "jumpToFirstUnreadMany": "{count} new messages",
+  "@jumpToFirstUnreadMany": {
+    "description": "Pill shown over the chat composer when multiple messages are unread. Tapping it scrolls to the first unread event.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "encryptionUndecryptableMessage": "message can't be decrypted",
   "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
@@ -358,6 +369,26 @@
     }
   },
   "roomIdCopied": "Room ID copied to clipboard",
+  "rotateMegolmSession": "Rotate megolm session",
+  "@rotateMegolmSession": {
+    "description": "Action label and confirm button for rotating the room's outbound megolm session."
+  },
+  "rotateMegolmSessionDescription": "Force a fresh encryption session. Members will receive a new key on your next message.",
+  "@rotateMegolmSessionDescription": {
+    "description": "Subtitle for the rotate-megolm-session action tile."
+  },
+  "rotateMegolmSessionConfirm": "The next message you send will be encrypted with a new session. Other members' already-encrypted history remains readable. Rotate now?",
+  "@rotateMegolmSessionConfirm": {
+    "description": "Body of the confirm dialog shown before rotating a megolm session."
+  },
+  "rotateMegolmSessionDone": "Megolm session rotated. The next message will use the new key.",
+  "@rotateMegolmSessionDone": {
+    "description": "Snackbar shown after a successful megolm session rotation."
+  },
+  "rotateMegolmSessionFailed": "Could not rotate the megolm session. Make sure encryption is set up.",
+  "@rotateMegolmSessionFailed": {
+    "description": "Snackbar shown when rotation fails (e.g. encryption is not initialised)."
+  },
 
   "knockRoom": "Knock",
   "@knockRoom": {
@@ -695,6 +726,30 @@
   "encryptionUserVerified": "This user is verified",
   "encryptionUserNotVerified": "This user is not verified",
   "encryptionVerify": "Verify",
+  "encryptionLocalDataSection": "Local Encryption Data",
+  "@encryptionLocalDataSection": {
+    "description": "Section header for sensitive per-device data (export, etc)."
+  },
+  "encryptionExportKeys": "Export E2EE keys",
+  "@encryptionExportKeys": {
+    "description": "Action label / button text for exporting the device's encryption keys to a file."
+  },
+  "encryptionExportKeysDescription": "Save the device's olm account and preferences to a file you can re-import on a new install.",
+  "@encryptionExportKeysDescription": {
+    "description": "Subtitle for the export-keys action."
+  },
+  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password — anyone with the file can read your encrypted history. Continue?",
+  "@encryptionExportKeysConfirm": {
+    "description": "Body of the confirm dialog shown before exporting encryption keys."
+  },
+  "encryptionExportKeysDone": "Encryption keys exported.",
+  "@encryptionExportKeysDone": {
+    "description": "Snackbar shown after a successful export."
+  },
+  "encryptionExportKeysCancelled": "Export cancelled.",
+  "@encryptionExportKeysCancelled": {
+    "description": "Snackbar shown when the user cancels the export."
+  },
   "encryptionNoKeyInfo": "No key information",
   "encryptionEnabledTitle": "Encrypted",
   "encryptionNotEnabledTitle": "Not Encrypted",
@@ -1770,6 +1825,20 @@
       "count": { "type": "int" }
     }
   },
+  "searchMatchCount": "{count} match",
+  "@searchMatchCount": {
+    "description": "Pill shown next to a search-result sender name when the query has a single match in the message body.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchMatchCountMany": "{count} matches",
+  "@searchMatchCountMany": {
+    "description": "Pill shown next to a search-result sender name when the query has multiple matches in the message body.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "searchingMessages": "Searching messages…",
   "@searchingMessages": {
     "description": "Message shown while searching messages."
@@ -1920,6 +1989,14 @@
   "editedIndicator": "(edited)",
   "@editedIndicator": {
     "description": "Inline marker shown next to an edited message body."
+  },
+  "replyShowMore": "Show more",
+  "@replyShowMore": {
+    "description": "Toggle under a long reply preview to expand the quoted body."
+  },
+  "replyShowLess": "Show less",
+  "@replyShowLess": {
+    "description": "Toggle shown when a reply preview is expanded."
   },
   "viewEditHistory": "View edit history",
   "@viewEditHistory": {
@@ -2198,6 +2275,18 @@
   "denyKnock": "Deny",
   "@denyKnock": {
     "description": "Action to deny a pending knock request."
+  },
+  "knockApproveConfirmTitle": "Approve knock request?",
+  "@knockApproveConfirmTitle": {
+    "description": "Title of the confirm dialog shown when a moderator approves a knock request."
+  },
+  "knockApproveConfirmBody": "The user will be invited to the room. They will not see this room's history unless explicitly shared with them.",
+  "@knockApproveConfirmBody": {
+    "description": "Body text of the knock-approve confirm dialog."
+  },
+  "approve": "Approve",
+  "@approve": {
+    "description": "Generic approve action label, used by the knock confirmation dialog."
   },
   "knockApproved": "{displayName} was approved to join.",
   "@knockApproved": {
