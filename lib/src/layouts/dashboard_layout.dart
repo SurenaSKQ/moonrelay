@@ -34,6 +34,7 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -186,9 +187,11 @@ class _DashboardView extends StatelessWidget {
                     theme: theme,
                   ),
                 Expanded(
-                  child: PostLoginSetupChecker(
-                    child: IncomingVerificationListener(
-                      child: child,
+                  child: GlobalShortcutListener(
+                    child: PostLoginSetupChecker(
+                      child: IncomingVerificationListener(
+                        child: child,
+                      ),
                     ),
                   ),
                 ),
