@@ -30,10 +30,21 @@ Status key: 🟠 correctness · 🟡 performance · 🔵 refactor · 🟢 featur
 
 ## 1. Open bugs & refactors
 
-Nothing currently 🔴 or 🟠 blocks the Alpha. Remaining items are 🟡, 🔵,
-or 🟣 — polish, not showstoppers.
+### 1.1 🟠 Feature wiring regressions (found during July 2026 audit pass)
 
-### 1.1 Skeleton loading — boot transitions still start empty
+The following widgets / functions exist in `lib/src/` but are never
+referenced from any other code.  Either wire them up or remove the dead
+code in a follow-up pass.
+
+| Symbol | Defined in | Notes |
+|--------|------------|-------|
+| `RoomEncryptionBadge` | `lib/src/widgets/encryption_badge.dart:31` | New badge for the `RoomsPane` list. Listed under "Open features" in §2.1 but never imported. |
+| `DeliveryIndicator` / `DeliveryStatus` | `lib/src/chat/events/delivery_indicator.dart` | Built for outgoing-message delivery status (sending / sent / failed). Not rendered in `chat_event.dart` or `timeline_item.dart`. |
+| `GlobalShortcutListener` | `lib/src/widgets/global_shortcut_listener.dart:32` | Adds `Ctrl+K` (command palette) and `Ctrl+Shift+K` (global search). Not mounted in `dashboard_layout.dart` so neither shortcut fires from the dashboard. |
+| `showKeyboardShortcutsOverlay` | `lib/src/widgets/keyboard_shortcuts_overlay.dart:29` | `?` (Shift+/) cheat-sheet overlay — implemented and translated, never bound. |
+| `showRoomNotificationSheet` | `lib/src/widgets/room_notification_sheet.dart:39` | Per-room mentions-only toggle sheet — implemented and translated, never invoked. The `room_settings_page` and `room_details_page` only have a plain mute `SwitchListTile`; the mentions-only setting is therefore unreachable in the UI. |
+
+### 1.2 Skeleton loading — boot transitions still start empty
 
 - **Hub-screen → accounts list:** `lib/src/screens/hub_screen/accounts_page.dart`
   first-paints empty until the future completes. Should render a
@@ -43,7 +54,7 @@ or 🟣 — polish, not showstoppers.
   spinner but should stay visible until the hub has at least one room
   cached.
 
-### 1.2 Future-aware surface comments
+### 1.3 Future-aware surface comments
 
 - **`TimelineView` count notifier:** `_UndecryptableBanner` reads from a
   `ValueNotifier<int>` via `findAncestorStateOfType`. Add a comment
@@ -53,7 +64,7 @@ or 🟣 — polish, not showstoppers.
   scroll from a fraction. Add a comment that users can scroll a few
   items up/down after a jump.
 
-### 1.3 Refactor candidates
+### 1.4 Refactor candidates
 
 | Area | Issue |
 |------|-------|
