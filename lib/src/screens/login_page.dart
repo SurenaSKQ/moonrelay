@@ -30,6 +30,7 @@ import 'package:moonrelay/src/helpers/homeserver_url.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -778,6 +779,15 @@ class _LoginPageState extends State<LoginPage> {
               log.w('Initial sync not yet complete, proceeding to rooms');
               context.go('/main/rooms');
           }
+
+          // ── Post-login encryption: SAS verification only ─────────
+          // The new encryption flow surfaces a one-shot emoji
+          // verification prompt immediately after sign-in.  Cross-
+          // signing bootstrap, recovery key flows, and other SSSS
+          // prompts are intentionally deferred to the encryption
+          // settings page so the user is not ambushed by password-
+          // style dialogs every time they open the app.
+          await _maybePromptDeviceVerification(encryptionService);
         }
       case RetryFailed(:final error, :final attempts):
         {
@@ -863,6 +873,39 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
+  }
+
+  /// Drives the new post-login encryption prompt.  When the device
+  /// is not yet verified, requests an SAS / emoji verification and
+  /// shows the verification screen so the user can match the emoji
+  /// sequence against another signed-in device.
+  ///
+  /// The check is best-effort: any failure (encryption not ready,
+  /// the other device does not respond, the user cancels) is logged
+  /// and swallowed so a stuck verification handshake can never
+  /// prevent the user from reaching the room list.
+  Future<void> _maybePromptDeviceVerification(
+    EncryptionService encryptionService,
+  ) async {
+    if (!mounted) return;
+    final log = Provider.of<Logger>(context, listen: false);
+    KeyVerification? kv;
+    try {
+      kv = await encryptionService.startPostLoginFlow();
+    } catch (e) {
+      log.w('post-login encryption flow failed', error: e);
+      return;
+    }
+    if (kv == null) return;
+    if (!mounted) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => VerificationScreen(
+          request: kv!,
+          isIncoming: false,
+        ),
+      ),
+    );
   }
 
   /// Attempts SSO login using the automatic (local server callback) flow.
