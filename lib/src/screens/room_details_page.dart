@@ -27,6 +27,7 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/room_notification_sheet.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
@@ -1214,18 +1215,40 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final client = context.read<Client>();
     return Card(
       elevation: 0,
       color: scheme.surfaceContainerLow,
-      child: SwitchListTile(
-        secondary: Icon(
-          _muted ? LucideIcons.bellOff : LucideIcons.bell,
-          color: scheme.onSurfaceVariant,
-        ),
-        title: Text(l10n.muteRoom),
-        subtitle: Text(l10n.muteRoomDescription),
-        value: _muted,
-        onChanged: _loading ? null : (_) => _toggle(),
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: Icon(
+              _muted ? LucideIcons.bellOff : LucideIcons.bell,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(l10n.muteRoom),
+            subtitle: Text(l10n.muteRoomDescription),
+            value: _muted,
+            onChanged: _loading ? null : (_) => _toggle(),
+          ),
+          const Divider(height: 0),
+          ListTile(
+            leading: Icon(
+              LucideIcons.settings,
+              color: scheme.onSurfaceVariant,
+            ),
+            title: Text(l10n.notificationSettings),
+            trailing: Icon(
+              LucideIcons.chevronRight,
+              color: scheme.onSurfaceVariant,
+            ),
+            onTap: () => showRoomNotificationSheet(
+              context,
+              client: client,
+              room: widget.room,
+            ),
+          ),
+        ],
       ),
     );
   }
