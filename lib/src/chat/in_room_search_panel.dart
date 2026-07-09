@@ -663,16 +663,26 @@ class _InRoomResultTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Sender name
-                  Text(
-                    senderName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // Sender name + match-count chip
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          senderName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (keywords.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        _MatchCountChip(text: body, keywords: keywords),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   // Message body with keyword highlights
@@ -697,6 +707,66 @@ class _InRoomResultTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Compact pill that shows how many times any of the [keywords]
+/// appears in [text].  Hidden when there are no matches, so the
+/// results list stays clean when the user has not typed a query.
+///
+/// The chip is rendered next to the sender name in each result tile
+/// so a user can quickly gauge how relevant a hit is without having
+/// to read the body.
+class _MatchCountChip extends StatelessWidget {
+  const _MatchCountChip({required this.text, required this.keywords});
+
+  final String text;
+  final List<String> keywords;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final count = _countMatches();
+    if (count == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        count == 1
+            ? l10n.searchMatchCount(count)
+            : l10n.searchMatchCountMany(count),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: scheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+
+  /// Returns the total number of case-insensitive occurrences of all
+  /// [keywords] inside [text].  Non-overlapping counts are summed
+  /// across all keywords so multi-word queries show the combined
+  /// match count.
+  int _countMatches() {
+    final haystack = text.toLowerCase();
+    var total = 0;
+    for (final raw in keywords) {
+      final needle = raw.toLowerCase();
+      if (needle.isEmpty) continue;
+      var idx = 0;
+      while (true) {
+        final found = haystack.indexOf(needle, idx);
+        if (found < 0) break;
+        total++;
+        idx = found + needle.length;
+      }
+    }
+    return total;
   }
 }
 
