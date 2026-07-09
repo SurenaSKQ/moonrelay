@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -22,14 +26,62 @@ import 'package:moonrelay/src/screens/encryption/bootstrap_screen.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The "Encryption & Security" hub page shown in the settings area.
 ///
 /// Displays an overview of the current encryption state (cross-signing,
 /// key backup, device verification) and provides entry points to the
 /// detailed management screens.
-class EncryptionOverviewScreen extends StatelessWidget {
+class EncryptionOverviewScreen extends StatefulWidget {
   const EncryptionOverviewScreen({super.key});
+
+  @override
+  State<EncryptionOverviewScreen> createState() =>
+      _EncryptionOverviewScreenState();
+}
+
+class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
+  /// True when the user has previously acknowledged that they have
+  /// saved their recovery key.  Loaded from [SharedPreferences] in
+  /// [initState] and flipped from the persistent banner so the user
+  /// can dismiss it without going through the bootstrap wizard.
+  bool _recoveryKeyAcknowledged = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecoveryKeyAcknowledged();
+  }
+
+  Future<void> _loadRecoveryKeyAcknowledged() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      setState(() {
+        _recoveryKeyAcknowledged =
+            prefs.getBool('encryption_recovery_key_acknowledged') ?? false;
+      });
+    } catch (_) {
+      // Best-effort; default is "not acknowledged" so the banner shows.
+      if (!mounted) return;
+      setState(() => _recoveryKeyAcknowledged = false);
+    }
+  }
+
+  Future<void> _acknowledgeRecoveryKey() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('encryption_recovery_key_acknowledged', true);
+      if (!mounted) return;
+      setState(() => _recoveryKeyAcknowledged = true);
+    } catch (_) {
+      if (!mounted) return;
+      // Even if persistence fails, hide the banner so the user is
+      // not nagged for the rest of the session.
+      setState(() => _recoveryKeyAcknowledged = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +110,18 @@ class EncryptionOverviewScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ── Recovery key reminder ───────────────────────────────────
+          // Shown when cross-signing is bootstrapped but the user has
+          // not yet confirmed they have saved the recovery key. The
+          // banner is dismissable so it can be hidden for the rest
+          // of the session without forcing the user to re-run the
+          // bootstrap wizard.
+          if (enc.crossSigningBootstrapped && !_recoveryKeyAcknowledged)
+            _RecoveryKeyReminderCard(
+              onDismiss: _acknowledgeRecoveryKey,
+              loc: loc,
+              scheme: scheme,
+            ),
           // ── Cross-signing section ──────────────────────────────────────
           _SectionHeader(
             icon: LucideIcons.shield,
@@ -300,10 +364,118 @@ class EncryptionOverviewScreen extends StatelessWidget {
             title: loc.encryptionVerifiedUsers,
           ),
           _buildUnverifiedCount(context, enc, scheme, loc),
+          const SizedBox(height: 16),
+
+          // ── Local data section ─────────────────────────────────────
+          // Sensitive: the export contains the pickled olm account
+          // and must be triggered explicitly.  The button copy makes
+          // this clear and the action writes to a user-chosen file
+          // rather than auto-opening it.
+          _SectionHeader(
+            icon: LucideIcons.keyRound,
+            title: loc.encryptionLocalDataSection,
+          ),
+          Card(
+            child: ListTile(
+              leading: Icon(
+                LucideIcons.download,
+                color: scheme.primary,
+              ),
+              title: Text(loc.encryptionExportKeys),
+              subtitle: Text(loc.encryptionExportKeysDescription),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: () => _exportKeys(context),
+            ),
+          ),
           const SizedBox(height: 32),
         ],
       ),
     );
+  }
+
+  /// Prompts the user for confirmation, then writes the encryption
+  /// export to a user-chosen file.  The export contains the pickled
+  /// olm account and a snapshot of non-sensitive preferences; it is
+  /// the only way to move keys off this device without going through
+  /// the homeserver's key backup.
+  Future<void> _exportKeys(BuildContext context) async {
+    final loc = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final enc = context.read<EncryptionService>();
+
+    // Confirm dialog: the file is the only way to move this device's
+    // keys to a new install, so we want the user to acknowledge the
+    // risk before exporting.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(LucideIcons.alertTriangle, color: scheme.error),
+        title: Text(loc.encryptionExportKeys),
+        content: Text(loc.encryptionExportKeysConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(loc.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(loc.encryptionExportKeys),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    String? json;
+    String? error;
+    try {
+      json = await enc.exportOlmAccount();
+    } catch (e) {
+      error = e.toString();
+    }
+    if (!context.mounted) return;
+    if (json == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(error ?? loc.error)),
+      );
+      return;
+    }
+
+    final saved = await _writeExportFile(context, json, loc);
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          saved
+              ? loc.encryptionExportKeysDone
+              : loc.encryptionExportKeysCancelled,
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// Opens a save-file dialog and writes [json] to the chosen path.
+  /// Returns `true` if the file was saved, `false` if the user
+  /// cancelled the dialog or the write failed.
+  Future<bool> _writeExportFile(
+    BuildContext context,
+    String json,
+    AppLocalizations loc,
+  ) async {
+    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+    final suggested = 'moonrelay-e2ee-export-$stamp.json';
+    final path = await FilePicker.saveFile(
+      dialogTitle: loc.encryptionExportKeys,
+      fileName: suggested,
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+      bytes: Uint8List.fromList(utf8.encode(json)),
+    );
+    if (path == null) return false;
+    return true;
   }
 
   Widget _buildUnverifiedCount(
@@ -644,6 +816,85 @@ class _DetailLine extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Persistent reminder shown at the top of the encryption overview when
+/// cross-signing is bootstrapped but the user has not yet confirmed
+/// that they have saved their recovery key.
+///
+/// The banner is intentionally non-blocking: it explains why the key
+/// matters and offers a single "I saved it" button that dismisses it
+/// for the rest of the session (and persists the acknowledgement so it
+/// stays dismissed on subsequent launches).
+class _RecoveryKeyReminderCard extends StatelessWidget {
+  const _RecoveryKeyReminderCard({
+    required this.onDismiss,
+    required this.loc,
+    required this.scheme,
+  });
+
+  final Future<void> Function() onDismiss;
+  final AppLocalizations loc;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.tertiary.withValues(alpha: 0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.keyRound,
+                  color: scheme.tertiary,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    loc.encryptionRecoveryKeyReminderTitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              loc.encryptionRecoveryKeyReminderBody,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                icon: const Icon(LucideIcons.check, size: 16),
+                onPressed: () {
+                  // ignore: discarded_futures
+                  onDismiss();
+                },
+                label: Text(loc.encryptionRecoveryKeyReminderAck),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
