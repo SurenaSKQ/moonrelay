@@ -166,12 +166,16 @@ class TypingNotifier {
   Timer? _stopTimer;
 
   /// Notifies the homeserver that the user is typing, restarting the
-  /// auto-stop timer. Safe to call on every keystroke.
+  /// auto-stop timer. Safe to call on every keystroke. No-op when the
+  /// client is not logged in (no `userID`) — callers in widget tests
+  /// and pre-login flows depend on this guard.
   void notify() {
+    final userId = _room.client.userID;
+    if (userId == null) return;
     unawaited(
       withTimeout(
         () => _room.client.setTyping(
-          _room.client.userID!,
+          userId,
           _room.id,
           true,
           timeout: 4000,
@@ -185,10 +189,12 @@ class TypingNotifier {
 
   void _stop() {
     _stopTimer?.cancel();
+    final userId = _room.client.userID;
+    if (userId == null) return;
     unawaited(
       withTimeout(
         () => _room.client.setTyping(
-          _room.client.userID!,
+          userId,
           _room.id,
           false,
         ),
@@ -199,6 +205,6 @@ class TypingNotifier {
 
   void dispose() {
     _stopTimer?.cancel();
-    _stop();
+    _stopTimer = null;
   }
 }
