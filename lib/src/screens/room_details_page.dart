@@ -104,6 +104,47 @@ class _RoomInformationsState extends State<RoomInformations> {
     );
   }
 
+  /// Asks for confirmation, then rotates the room's outbound megolm
+  /// session.  All current room members will receive a fresh
+  /// `m.room_key` to-device event the next time this client sends a
+  /// message; their old (already-encrypted) history remains readable
+  /// because they still hold the previous session keys.
+  Future<void> _rotateMegolmSession(BuildContext context, Room room) async {
+    final l10n = AppLocalizations.of(context)!;
+    final enc = context.read<EncryptionService>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.rotateMegolmSession),
+        content: Text(l10n.rotateMegolmSessionConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.rotateMegolmSession),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final ok = await enc.rotateMegolmSession(room);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? l10n.rotateMegolmSessionDone : l10n.rotateMegolmSessionFailed,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Room editing helpers
   // ---------------------------------------------------------------------------
@@ -181,6 +222,14 @@ class _RoomInformationsState extends State<RoomInformations> {
             onTap: _copyRoomId,
             scheme: scheme,
           ),
+          if (room.encrypted)
+            _ActionTile(
+              icon: LucideIcons.rotateCw,
+              label: l10n.rotateMegolmSession,
+              description: l10n.rotateMegolmSessionDescription,
+              onTap: () => _rotateMegolmSession(context, room),
+              scheme: scheme,
+            ),
 
           const SizedBox(height: 16),
 
