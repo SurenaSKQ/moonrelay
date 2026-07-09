@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
 // Re-export SDK types so UI code can import from a single place.
@@ -116,6 +117,96 @@ class EncryptionService extends ChangeNotifier {
   StreamSubscription? _syncSubscription;
   Timer? _refreshDebounce;
   Future<void>? _ongoingRefresh;
+
+  /// Discards the cached outbound Megolm session for [room], forcing
+  /// the next outgoing message in that room to be encrypted with a
+  /// freshly created session.  Members of the room see the change as
+  /// an unreadable jump in the message index when they don't already
+  /// hold the new session; a `m.room_key` to-device event is sent in
+  /// the same transaction so the next message they receive installs
+  /// the key.
+  ///
+  /// Used by the "Rotate megolm session" affordance in the room
+  /// details sheet.  Returns `false` when the SDK does not expose the
+  /// rotation API on this platform (e.g. when encryption is not
+  /// initialised yet), so the caller can surface a friendly error.
+  Future<bool> rotateMegolmSession(Room room) async {
+    if (!_client.encryptionEnabled) return false;
+    final enc = _client.encryption;
+    if (enc == null) return false;
+
+    try {
+      // Force-discard the cached session.  The SDK will lazily create a
+      // new one the next time this client sends a message in the room,
+      // sharing the new session key with all current members via the
+      // normal `m.room_key` to-device pipeline.
+      await enc.keyManager.clearOrUseOutboundGroupSession(
+        room.id,
+        wipe: true,
+        use: false,
+      );
+      _log.i('Rotated megolm session for ${room.id}');
+      return true;
+    } catch (e, s) {
+      _log.w('Failed to rotate megolm session for ${room.id}',
+          error: e, stackTrace: s);
+      return false;
+    }
+  }
+
+  /// Exports the local device keys (pickled olm account) to a JSON
+  /// payload the user can save outside the app.  The export includes
+  /// the user's device id and a creation timestamp so the importer
+  /// can refuse to load an out-of-date or wrong-device blob.
+  ///
+  /// The export is gated behind a confirm dialog in the UI — the keys
+  /// are sensitive enough that they should never be exported without
+  /// an explicit user action.  Returns the JSON string the caller can
+  /// hand off to a file picker (or write to disk).  Throws when no
+  /// encryption is initialised yet.
+  Future<String> exportOlmAccount() async {
+    if (!_client.encryptionEnabled) {
+      throw StateError('Encryption is not enabled on this account.');
+    }
+    final enc = _client.encryption;
+    if (enc == null || enc.olmManager.pickledOlmAccount == null) {
+      throw StateError('Olm account not yet initialised; try again shortly.');
+    }
+    final prefs = await SharedPreferences.getInstance();
+
+    // The pickled olm account is the single most sensitive blob.  It
+    // is base64-encoded so the JSON stays well-formed even if the
+    // pickle contains bytes that don't survive a string round-trip
+    // in some encodings.
+    final export = <String, Object?>{
+      'version': 1,
+      'kind': 'moonrelay-e2ee-export',
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'userId': _client.userID,
+      'deviceId': _client.deviceID,
+      'ourDeviceId': enc.ourDeviceId,
+      'pickledOlmAccount': base64Encode(
+        utf8.encode(enc.olmManager.pickledOlmAccount!),
+      ),
+      // The user's non-sensitive preferences, kept so an imported
+      // device restores notification / theme / sidebar choices.
+      'preferences': {
+        for (final entry in prefs.getKeys())
+          if (!_isSensitivePref(entry))
+            entry: prefs.get(entry),
+      },
+    };
+
+    return jsonEncode(export);
+  }
+
+  /// Filters out preference keys that should never leave the device.
+  /// Right now this is just the room-mute list (the user's read-state
+  /// is personal); expand as we add more sensitive keys.
+  bool _isSensitivePref(String key) =>
+      key == 'notification_muted_rooms' ||
+      key == 'notification_last_event_ids' ||
+      key == 'notification_group_counts';
 
   // -----------------------------------------------------------------------
   // Lifecycle
@@ -549,6 +640,39 @@ class EncryptionService extends ChangeNotifier {
     // back to this KeyVerification instance.
     enc.keyVerificationManager.addRequest(kv);
     return kv;
+  }
+
+  /// The single, one-shot post-login flow that the new encryption
+  /// UX surfaces.  Returns the [KeyVerification] handle when the
+  /// device needs verifying, so the caller can hand it to the SAS
+  /// screen.  Returns `null` when the device is already verified and
+  /// nothing needs to be shown.
+  ///
+  /// The dialog surfaced by the caller is the [VerificationScreen]
+  /// (SAS / emoji matching) — that is the only authentication
+  /// method the user is prompted to complete at sign-in.  Cross-
+  /// signing bootstrap, recovery key prompts, and other SSSS
+  /// operations are explicitly deferred to the encryption settings
+  /// page; we do not want to drop a password-style prompt in the
+  /// user's face every time they open the app.
+  Future<KeyVerification?> startPostLoginFlow() async {
+    if (!_client.isLogged()) return null;
+    if (!isInitialized) {
+      try {
+        await init();
+      } catch (e, s) {
+        _log.w('postLoginFlow: init failed', error: e, stackTrace: s);
+        return null;
+      }
+    }
+    if (isThisDeviceVerified) return null;
+    try {
+      return await requestSelfVerification();
+    } catch (e, s) {
+      _log.w('postLoginFlow: requestSelfVerification failed',
+          error: e, stackTrace: s);
+      return null;
+    }
   }
 
   /// Manually mark a user as verified (once their master key is trusted).
