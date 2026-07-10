@@ -114,6 +114,20 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// Trigger distance (logical pixels) from the top of the list.
   static const double _scrollThreshold = 150.0;
 
+  /// Distance (logical pixels) from the bottom of the list at which we
+  /// consider the user "scrolled up" — far enough from the newest
+  /// messages that a "Scroll to bottom" button would actually save
+  /// them work.  Smaller than [_scrollThreshold] because the user
+  /// usually wants to return to the bottom after reading just a few
+  /// events above the current view.
+  static const double _scrollUpThreshold = 200.0;
+
+  /// True when the user has scrolled away from the bottom of the
+  /// timeline.  Used to surface the "Scroll to bottom" floating
+  /// button so they can jump back to the newest messages without
+  /// having to swipe all the way down by hand.
+  bool _isScrolledUp = false;
+
   /// Public accessor for the scroll controller, exposed so callers
   /// outside this widget (e.g. the in-room search panel) can request
   /// a jump to a specific event after we've already built the timeline.
@@ -251,6 +265,16 @@ class ChatTimelineState extends State<ChatTimeline> {
 
     final pos = _scrollController.position;
     final atEnd = pos.pixels >= pos.maxScrollExtent - _scrollThreshold;
+
+    // Track whether the user has scrolled away from the bottom of
+    // the timeline.  The list is reversed, so `pixels > threshold`
+    // means the user is reading older events.  We surface a
+    // "Scroll to bottom" button in that state so they can jump back
+    // to the newest messages without having to drag their way down.
+    final scrolledUp = pos.pixels > _scrollUpThreshold;
+    if (scrolledUp != _isScrolledUp) {
+      setState(() => _isScrolledUp = scrolledUp);
+    }
 
     // Track whether the user is parked at the top of the loaded
     // history.  We use the flag to render skeleton placeholders
@@ -438,6 +462,9 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// Plain bottom-scroll helper used when we don't have a marker to
   /// jump to.  Useful for tests and as a catch-all fallback.
+  ///
+  /// Made public so the floating "Scroll to bottom" button can call
+  /// it from inside the build method.
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
     _scrollController.animateTo(
@@ -445,6 +472,16 @@ class ChatTimelineState extends State<ChatTimeline> {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
     );
+  }
+
+  /// Public entry point for the floating "Scroll to bottom" button.
+  /// Animate-scrolls the timeline so the newest message sits at the
+  /// bottom of the viewport.  Resets the [_isScrolledUp] flag so
+  /// the button itself disappears once the scroll completes.
+  void scrollToBottom() {
+    if (!_isScrolledUp) return;
+    setState(() => _isScrolledUp = false);
+    _scrollToBottom();
   }
 
   /// Event ID currently highlighted by the "Jump to unread" affordance.
@@ -560,10 +597,17 @@ class ChatTimelineState extends State<ChatTimeline> {
 
         final child = _buildTimelineContent(context, settings);
 
-        // When there are unread events below the current viewport,
-        // overlay a "Jump to first unread" pill so the user can
-        // quickly catch up after returning to the app.
-        if (_hasUnreadBelow) {
+        // Render the floating action column above the chat composer
+        // when either:
+        //   * there are unread messages below the current viewport
+        //     (jump-to-unread), or
+        //   * the user has scrolled away from the bottom
+        //     (scroll-to-bottom).
+        // The two pills can stack: when the user has unread AND
+        // has scrolled up, the unread pill takes visual priority
+        // (it sits on top) and the scroll-to-bottom button sits
+        // below it.
+        if (_hasUnreadBelow || _isScrolledUp) {
           return Stack(
             children: [
               child,
@@ -574,9 +618,11 @@ class ChatTimelineState extends State<ChatTimeline> {
                 child: SafeArea(
                   top: false,
                   child: Center(
-                    child: _JumpToUnreadPill(
-                      count: widget.room.notificationCount,
-                      onTap: () async {
+                    child: _FloatingActionColumn(
+                      unreadCount: widget.room.notificationCount,
+                      isScrolledUp: _isScrolledUp,
+                      unreadVisible: _hasUnreadBelow,
+                      onJumpToUnread: () async {
                         await jumpToLastRead();
                         if (!mounted) return;
                         // `_markRoomRead` returns void; the SDK call
@@ -585,6 +631,7 @@ class ChatTimelineState extends State<ChatTimeline> {
                         // the user notices the badge clearing.
                         _markRoomRead();
                       },
+                      onScrollToBottom: scrollToBottom,
                     ),
                   ),
                 ),
@@ -796,6 +843,123 @@ class ChatTimelineState extends State<ChatTimeline> {
   }
 }
 
+/// Vertical column of floating action buttons anchored above the chat
+/// composer.  Hides the entire column when the user is parked at the
+/// bottom of the timeline *and* the room has no unread messages.
+///
+/// Two pills are supported:
+///   1. Jump-to-unread — shown when the room has unread messages
+///      below the current viewport.  Takes visual priority when both
+///      pills are visible.
+///   2. Scroll-to-bottom — shown when the user has scrolled up away
+///      from the newest messages.  Lets them jump back without
+///      dragging all the way down.
+///
+/// Each pill animates in and out independently so a single state
+/// change does not cause the whole column to pop.
+class _FloatingActionColumn extends StatelessWidget {
+  const _FloatingActionColumn({
+    required this.unreadCount,
+    required this.isScrolledUp,
+    required this.unreadVisible,
+    required this.onJumpToUnread,
+    required this.onScrollToBottom,
+  });
+
+  final int unreadCount;
+  final bool isScrolledUp;
+  final bool unreadVisible;
+  final Future<void> Function() onJumpToUnread;
+  final VoidCallback onScrollToBottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.bottomCenter,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: unreadVisible
+                ? _JumpToUnreadPill(
+                    key: const ValueKey('jump-to-unread'),
+                    count: unreadCount,
+                    onTap: onJumpToUnread,
+                  )
+                : const SizedBox.shrink(key: ValueKey('jump-to-unread-empty')),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.bottomCenter,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: isScrolledUp
+                ? _ScrollToBottomPill(
+                    key: const ValueKey('scroll-to-bottom'),
+                    onTap: onScrollToBottom,
+                  )
+                : const SizedBox.shrink(key: ValueKey('scroll-to-bottom-empty')),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Scroll to bottom" floating action button.  Shown when the user
+/// has scrolled away from the bottom of the timeline.  Tapping
+/// animates the scroll back to the newest message.
+class _ScrollToBottomPill extends StatelessWidget {
+  const _ScrollToBottomPill({required this.onTap, super.key});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: scheme.secondaryContainer,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  LucideIcons.arrowDown,
+                  size: 14,
+                  color: scheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.scrollToBottom,
+                  style: TextStyle(
+                    color: scheme.onSecondaryContainer,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Floating "Jump to first unread" pill rendered above the chat composer
 /// when the room has unread messages below the current viewport.
 ///
@@ -805,7 +969,7 @@ class ChatTimelineState extends State<ChatTimeline> {
 /// to the first event newer than the fully-read marker and sends a read
 /// receipt so the badge clears.
 class _JumpToUnreadPill extends StatelessWidget {
-  const _JumpToUnreadPill({required this.count, required this.onTap});
+  const _JumpToUnreadPill({required this.count, required this.onTap, super.key});
 
   final int count;
   final Future<void> Function() onTap;
