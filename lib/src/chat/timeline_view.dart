@@ -54,6 +54,7 @@ class TimelineView extends StatefulWidget {
     this.onThread,
     this.showStateEvents = true,
     this.filterEvents,
+    this.isLoadingHistory = false,
   });
 
   final Timeline timeline;
@@ -83,6 +84,12 @@ class TimelineView extends StatefulWidget {
   /// receives each event and should return `true` to make it visible.
   /// When null, [ThreadUtils.isVisibleInMainTimeline] is used.
   final bool Function(Event)? filterEvents;
+
+  /// When `true`, the list appends a small block of skeleton placeholders
+  /// at the *end* of the item list (which, with `reverse: true`, appears
+  /// at the top of the viewport) so the user sees feedback instead of
+  /// an abrupt scroll cap while older history is being paginated in.
+  final bool isLoadingHistory;
 
   @override
   State<TimelineView> createState() => _TimelineViewState();
@@ -117,7 +124,7 @@ class _TimelineViewState extends State<TimelineView> {
   /// embeds other display-affecting props so the cache is invalidated
   /// when font size, display type, or state-event visibility changes.
   String get _cacheKey =>
-      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}';
+      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}_${widget.isLoadingHistory}';
 
   String _lastCacheKey = '';
 
@@ -391,12 +398,39 @@ class _TimelineViewState extends State<TimelineView> {
     // bottom so the newest event appears at the bottom of the viewport.
     final items = _buildItemList(context);
 
+    // When older history is being paginated, append skeleton
+    // placeholders *after* the cached items.  Because the list is
+    // reversed, the new items sit at the top of the viewport — the
+    // natural place for "loading more" feedback.  The number of
+    // placeholders is small (3) so the layout stays stable while
+    // the user keeps scrolling.
+    final extra = widget.isLoadingHistory
+        ? _buildHistoryLoadingSkeletons()
+        : const <Widget>[];
+
     return ListView.builder(
       controller: widget.scrollController,
       reverse: true,
-      itemCount: items.length,
-      itemBuilder: (context, index) => items[index],
+      itemCount: items.length + extra.length,
+      itemBuilder: (context, index) {
+        if (index < extra.length) return extra[index];
+        return items[index - extra.length];
+      },
     );
+  }
+
+  /// Returns three skeleton message placeholders shown at the top of
+  /// the viewport while older history is being paginated in.
+  ///
+  /// Heights are chosen to roughly match the average event density
+  /// so the new (real) events land below the skeleton without the
+  /// viewport jumping when the data arrives.
+  List<Widget> _buildHistoryLoadingSkeletons() {
+    return const <Widget>[
+      _HistorySkeletonTile(barFraction: 0.65),
+      _HistorySkeletonTile(barFraction: 0.9),
+      _HistorySkeletonTile(barFraction: 0.55),
+    ];
   }
 
   /// Returns a callback that scrolls to a target event identified by
@@ -459,6 +493,88 @@ class _TimelineViewState extends State<TimelineView> {
         curve: Curves.easeInOut,
       );
     };
+  }
+}
+
+/// Single skeleton message tile used to fill the viewport while older
+/// history is being paginated in.
+///
+/// Mirrors the visual rhythm of a real [TimelineItem] (avatar circle
+/// + a body block) but renders as muted rounded rectangles so the
+/// user sees feedback without misreading the placeholders for actual
+/// messages.  Three of these are shown stacked at the top of the
+/// timeline (the oldest end) while the SDK pulls more events.
+class _HistorySkeletonTile extends StatelessWidget {
+  const _HistorySkeletonTile({required this.barFraction});
+
+  /// Width of the bottom "body" bar as a fraction of the available
+  /// width.  Per-tile variance makes the stack look like a real
+  /// group of mixed-length messages instead of a regular grid.
+  final double barFraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final base = scheme.surfaceContainerHighest;
+    final width = MediaQuery.of(context).size.width;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar placeholder
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: base,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Body placeholders
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sender-name bar
+                _skeletonBar(width: width * 0.32, height: 13, color: base),
+                const SizedBox(height: 6),
+                _skeletonBar(
+                  width: double.infinity,
+                  height: 12,
+                  color: base,
+                ),
+                const SizedBox(height: 4),
+                _skeletonBar(
+                  width: width * barFraction,
+                  height: 12,
+                  color: base,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _skeletonBar({
+    required double width,
+    required double height,
+    required Color color,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
   }
 }
 

@@ -626,6 +626,11 @@ class ChatTimelineState extends State<ChatTimeline> {
       onThread: widget.onThread,
       showStateEvents: settings.showStateEvents,
       filterEvents: widget.filterEvents,
+      // Show skeleton placeholders at the top of the viewport while
+      // the user is scrolling up and the SDK is paginating older
+      // history.  This avoids the abrupt "scroll hits a wall" feel
+      // and tells the user more messages are on the way.
+      isLoadingHistory: _isLoadingHistory || _isFillingViewport,
     );
   }
 
