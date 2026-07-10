@@ -296,6 +296,10 @@
       "count": { "type": "int" }
     }
   },
+  "scrollToBottom": "Scroll to bottom",
+  "@scrollToBottom": {
+    "description": "Floating button shown when the user has scrolled up away from the newest messages. Tapping it animates the timeline back to the bottom."
+  },
   "encryptionUndecryptableMessage": "message can't be decrypted",
   "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
