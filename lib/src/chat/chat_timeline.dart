@@ -91,6 +91,15 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// True while the auto-fill loop is running.
   bool _isFillingViewport = false;
 
+  /// True when the user has scrolled to the top of the *currently
+  /// loaded* history and the server still has more events to give us
+  /// (i.e. [Room.prev_batch] is non-null).  When this flips `true`,
+  /// we render skeleton placeholders above the oldest event so the
+  /// user sees a smooth "more on the way" indicator instead of
+  /// hitting a hard scroll cap and having to wait for the new
+  /// events to materialise.
+  bool _atLocalEndOfHistory = false;
+
   /// Temporarily suppresses [_onScroll] after a successful history load so
   /// that layout-induced scroll notifications don't trigger another request
   /// before the user has had a chance to scroll manually.
@@ -131,6 +140,13 @@ class ChatTimelineState extends State<ChatTimeline> {
   @override
   void didUpdateWidget(ChatTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The room id can change when the parent rebuilds with a new
+    // [Room] instance (e.g. after an account switch).  Drop the
+    // end-of-history flag so the previous room's skeleton doesn't
+    // linger in the new room.
+    if (oldWidget.room.id != widget.room.id) {
+      _atLocalEndOfHistory = false;
+    }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
     } else if (widget.filterEvents == null &&
@@ -230,13 +246,35 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// - `pixels >= maxScrollExtent - threshold` → near the top (oldest)
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    if (_isLoadingHistory) return;
-    if (_scrollDebounce) return;
     if (_isFillingViewport) return;
+    if (_scrollDebounce) return;
 
     final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - _scrollThreshold) {
-      _requestMoreHistory();
+    final atEnd = pos.pixels >= pos.maxScrollExtent - _scrollThreshold;
+
+    // Track whether the user is parked at the top of the loaded
+    // history.  We use the flag to render skeleton placeholders
+    // *before* the network round-trip completes so the user sees
+    // an immediate "loading more" instead of a hard scroll cap.
+    if (atEnd) {
+      if (!_atLocalEndOfHistory) {
+        // Only set when the SDK still owes us history; if the room
+        // has been paginated all the way back to the beginning,
+        // there's no need to bother the user with a skeleton.
+        if (widget.room.prev_batch != null) {
+          setState(() => _atLocalEndOfHistory = true);
+        }
+      }
+      if (!_isLoadingHistory) {
+        _requestMoreHistory();
+      }
+      return;
+    }
+
+    // Scrolled away from the end — drop the skeleton so it doesn't
+    // linger on the screen when the user is no longer waiting.
+    if (_atLocalEndOfHistory) {
+      setState(() => _atLocalEndOfHistory = false);
     }
   }
 
@@ -626,11 +664,13 @@ class ChatTimelineState extends State<ChatTimeline> {
       onThread: widget.onThread,
       showStateEvents: settings.showStateEvents,
       filterEvents: widget.filterEvents,
-      // Show skeleton placeholders at the top of the viewport while
-      // the user is scrolling up and the SDK is paginating older
-      // history.  This avoids the abrupt "scroll hits a wall" feel
-      // and tells the user more messages are on the way.
-      isLoadingHistory: _isLoadingHistory || _isFillingViewport,
+      // Render skeleton placeholders at the top of the viewport
+      // *only* when the user has scrolled all the way to the end of
+      // the loaded history and the server still owes us more events.
+      // The flag is updated by [_onScroll] as the user reaches /
+      // leaves the top, so the placeholder never flashes at the
+      // bottom of the chat window during the initial load.
+      isLoadingHistory: _atLocalEndOfHistory,
     );
   }
 
@@ -737,6 +777,13 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   void _onTimelineUpdate() {
     if (!mounted) return;
+    // When new history arrives, the SDK clears `Room.prev_batch` once
+    // we reach the beginning of the room.  Drop the skeleton state
+    // in that case so the user is not left looking at placeholder
+    // tiles that no longer represent pending work.
+    if (_atLocalEndOfHistory && widget.room.prev_batch == null) {
+      _atLocalEndOfHistory = false;
+    }
     setState(() => _timelineVersion++);
   }
 
