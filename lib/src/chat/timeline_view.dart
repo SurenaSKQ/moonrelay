@@ -398,23 +398,42 @@ class _TimelineViewState extends State<TimelineView> {
     // bottom so the newest event appears at the bottom of the viewport.
     final items = _buildItemList(context);
 
-    // When older history is being paginated, append skeleton
-    // placeholders *after* the cached items.  Because the list is
-    // reversed, the new items sit at the top of the viewport — the
-    // natural place for "loading more" feedback.  The number of
-    // placeholders is small (3) so the layout stays stable while
-    // the user keeps scrolling.
-    final extra = widget.isLoadingHistory
-        ? _buildHistoryLoadingSkeletons()
-        : const <Widget>[];
+    // When the user has scrolled to the top of the loaded history and
+    // the server still owes us more events, render skeleton message
+    // tiles *after* the cached items.  Because the list is reversed,
+    // the new items sit at the top of the viewport — directly above
+    // the oldest known event — and are smoothly swapped out for
+    // real events as the SDK paginates them in.
+    final hasMore = widget.isLoadingHistory;
+    final extra = hasMore ? _buildHistoryLoadingSkeletons() : <Widget>[];
 
+    // Wrap the placeholder list in [SizeTransition] + [FadeTransition]
+    // so the block grows and fades in when the user first reaches the
+    // end of the loaded history, and collapses back to zero when the
+    // SDK clears `Room.prev_batch` (no more history to fetch).
+    // We use a controller-driven [AnimationController] so the
+    // transition is reversible and consistent with the rest of the
+    // app's motion budget.
     return ListView.builder(
       controller: widget.scrollController,
       reverse: true,
-      itemCount: items.length + extra.length,
+      // Always reserve one slot for the skeleton block.  When the
+      // block is collapsed (no history to fetch) the slot is wrapped
+      // in a zero-height `SizeTransition`, so it doesn't add visible
+      // padding to the list.  With `reverse: true` the LAST index
+      // paints at the top of the viewport, which is where the
+      // placeholders belong.
+      itemCount: items.length + 1,
       itemBuilder: (context, index) {
-        if (index < extra.length) return extra[index];
-        return items[index - extra.length];
+        // index == items.length is the last slot, which `reverse: true`
+        // paints at the top of the viewport.
+        if (index == items.length) {
+          return _AnimatedHistorySkeleton(
+            show: hasMore,
+            children: extra,
+          );
+        }
+        return items[index];
       },
     );
   }
@@ -493,6 +512,90 @@ class _TimelineViewState extends State<TimelineView> {
         curve: Curves.easeInOut,
       );
     };
+  }
+}
+
+/// Smoothly-fading block of [SkeletonTile]s shown at the top of the
+/// timeline when the user has reached the end of the loaded history
+/// and the SDK is paginating more events in.
+///
+/// The transition is driven by an internal [AnimationController] so
+/// the block grows from zero height when the user first scrolls to
+/// the end, and collapses back to zero when the SDK clears
+/// [Room.prev_batch].  The contained [FadeTransition] makes the
+/// placeholders softly appear / disappear instead of snapping.
+class _AnimatedHistorySkeleton extends StatefulWidget {
+  const _AnimatedHistorySkeleton({
+    required this.show,
+    required this.children,
+  });
+
+  /// When `true`, the block expands to show the [children].  When
+  /// `false`, the block collapses to zero height and the children
+  /// are removed from the widget tree once the animation finishes.
+  final bool show;
+  final List<Widget> children;
+
+  @override
+  State<_AnimatedHistorySkeleton> createState() =>
+      _AnimatedHistorySkeletonState();
+}
+
+class _AnimatedHistorySkeletonState
+    extends State<_AnimatedHistorySkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      value: widget.show ? 1.0 : 0.0,
+    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedHistorySkeleton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.show != widget.show) {
+      if (widget.show) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ClipRect keeps the skeleton tiles from peeking out as the
+    // block's height animates from zero.  FadeTransition + SizeTransition
+    // give us both opacity and height transitions from a single
+    // animation value.
+    return ClipRect(
+      child: SizeTransition(
+        axis: Axis.vertical,
+        sizeFactor: _animation,
+        alignment: const Alignment(-1.0, -1.0),
+        child: FadeTransition(
+          opacity: _animation,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.children,
+          ),
+        ),
+      ),
+    );
   }
 }
 
