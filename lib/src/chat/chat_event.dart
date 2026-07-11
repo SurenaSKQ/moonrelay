@@ -16,6 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
 import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
@@ -32,7 +34,6 @@ import 'package:moonrelay/src/chat/poll_message_type.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
-import 'package:provider/provider.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type
 /// and message type.
@@ -360,13 +361,22 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
   bool _expanded = false;
 
   /// Number of characters above which the body is considered
-  /// "long" and the expand toggle is shown.
-  static const int _collapseThreshold = 90;
+  /// "long" and the expand toggle is shown.  Honoured as a fallback
+  /// when the [SettingsController] cannot be read from the tree (e.g.
+  /// in isolated widget tests).
+  static const int _defaultCollapseThreshold = 90;
 
   @override
   Widget build(BuildContext context) {
+    int collapseThreshold = _defaultCollapseThreshold;
+    try {
+      collapseThreshold =
+          context.read<SettingsController>().replyPreviewThreshold;
+    } catch (_) {
+      // No controller in tree — fall back to the static default.
+    }
     if (widget.repliedTo != null) {
-      return _buildForBody(context, widget.repliedTo!.body);
+      return _buildForBody(context, widget.repliedTo!.body, collapseThreshold);
     }
 
     // If we have a room, try to fetch the replied-to event.
@@ -375,7 +385,11 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
         future: widget.room!.getEventById(widget.replyId),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
-            return _buildForBody(context, snapshot.data!.body);
+            return _buildForBody(
+              context,
+              snapshot.data!.body,
+              collapseThreshold,
+            );
           }
           // While loading or on error, show nothing.
           return const SizedBox.shrink();
@@ -386,11 +400,15 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildForBody(BuildContext context, String body) {
+  Widget _buildForBody(
+    BuildContext context,
+    String body,
+    int collapseThreshold,
+  ) {
     final scheme = Theme.of(context).colorScheme;
     final clean = body.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
     final display = clean.isNotEmpty ? clean : body.trim();
-    final canExpand = display.length > _collapseThreshold;
+    final canExpand = display.length > collapseThreshold;
 
     final barAndText = Row(
       crossAxisAlignment: CrossAxisAlignment.start,

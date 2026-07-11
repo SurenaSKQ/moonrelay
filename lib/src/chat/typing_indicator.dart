@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// A small footer that shows "(name) is typing…" for the active room.
 ///
@@ -55,6 +57,13 @@ class _TypingIndicatorState extends State<TypingIndicator> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+
+    // Honour the user-level "show typing indicator" toggle. The
+    // notifier that emits `m.typing` events is wired separately and
+    // always runs so other clients see our own typing state.
+    final showIndicator =
+        context.select<SettingsController, bool>((c) => c.showTypingIndicator);
+    if (!showIndicator) return const SizedBox.shrink();
 
     final typingUsers = widget.room.typingUsers
         .where((u) => u.id != widget.room.client.userID)
