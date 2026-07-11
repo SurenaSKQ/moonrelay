@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -29,6 +30,9 @@ import 'package:moonrelay/src/chat/voice_recorder_dialog.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/draft_service.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
 /// A modern chat composition widget with formatting tools,
@@ -78,6 +82,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   /// user can correct and resend without retyping a long message.
   String? _draftValue;
 
+  /// Per-room draft persistence.  Initialized when a room is available
+  /// and [draftsEnabled] is true.
+  DraftService? _draftService;
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +101,23 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
     _controller.addListener(_onTextChanged);
     widget.replyTarget?.addListener(_onReplyTargetChanged);
+    // Load persisted draft after init so the listener is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft());
+  }
+
+  /// Loads the persisted draft for the current room, if drafts are enabled.
+  Future<void> _loadDraft() async {
+    if (!context.mounted) return;
+    final settings = context.read<SettingsController>();
+    if (!settings.draftsEnabled) return;
+    final client = context.read<Client>();
+    final userId = client.userID;
+    if (userId == null) return;
+    final drafts = DraftService.forAccount(userId);
+    _draftService = drafts;
+    final draft = await drafts.load(widget.room.id);
+    if (!mounted || draft.isEmpty) return;
+    _controller.text = draft.body;
   }
 
   @override
@@ -113,6 +138,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _focusNode.dispose();
     _expandController.dispose();
     _typingNotifier.dispose();
+    _draftService?.cancelPending();
     super.dispose();
   }
 
@@ -132,7 +158,30 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     // Typing indicators: fire only when transitioning to non-empty,
     // and rely on the TypingNotifier to throttle & auto-stop.
     if (!empty) {
-      _typingNotifier.notify();
+      // Honour the user-level "send typing notifications" toggle.
+      final settings = context.read<SettingsController>();
+      if (settings.sendTypingNotifications) {
+        _typingNotifier.notify();
+      }
+    }
+    // Debounced draft save, if drafts are enabled.
+    _draftService?.scheduleSave(
+      widget.room.id,
+      _controller.text,
+      replyToEventId: _replyEvent?.eventId,
+    );
+  }
+
+  /// Whether plain Enter should send the message (vs. only Cmd+Enter).
+  bool _shouldEnterSend() {
+    if (!context.mounted) return !_isExpanded;
+    final shortcut = context.read<SettingsController>().sendShortcut;
+    switch (shortcut) {
+      case SendShortcut.enter:
+      case SendShortcut.both:
+        return true;
+      case SendShortcut.cmdEnter:
+        return false;
     }
   }
 
@@ -247,6 +296,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       await withTimeout(sendFn, timeout: kDefaultTimeout);
       // Success — clear the draft.
       _draftValue = null;
+      _draftService?.cancelPending();
+      unawaited(_draftService?.clear(widget.room.id));
       _clearReply();
     } catch (e) {
       log.w('Failed to send message', error: e);
@@ -466,44 +517,62 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
                 // Text field
                 Expanded(
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxHeight: _isExpanded ? 200 : 48,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  child: KeyboardListener(
+                    focusNode: FocusNode(),
+                    autofocus: false,
+                    onKeyEvent: (event) {
+                      if (event is KeyDownEvent) {
+                        final isMeta = HardwareKeyboard.instance.isMetaPressed ||
+                            HardwareKeyboard.instance.isControlPressed;
+                        final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+                            event.logicalKey == LogicalKeyboardKey.numpadEnter;
+                        if (isEnter && isMeta) {
+                          _send();
+                        }
+                      }
+                    },
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: _isExpanded ? 200 : 48,
                       ),
-                    ),
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      maxLines: _isExpanded ? null : 1,
-                      minLines: _isExpanded ? 3 : 1,
-                      textInputAction: _isExpanded
-                          ? TextInputAction.newline
-                          : TextInputAction.send,
-                      onSubmitted: _isExpanded ? null : (_) => _send(),
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: colorScheme.onSurface,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color:
+                              colorScheme.outlineVariant.withValues(alpha: 0.6),
+                        ),
                       ),
-                      decoration: InputDecoration(
-                        hintText: l10n.chatBoxSendMessage,
-                        hintStyle: TextStyle(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: _isExpanded ? null : 1,
+                        minLines: _isExpanded ? 3 : 1,
+                        textInputAction: _shouldEnterSend()
+                            ? TextInputAction.send
+                            : TextInputAction.newline,
+                        onSubmitted: _shouldEnterSend()
+                            ? (_) => _send()
+                            : null,
+                        style: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface.withValues(alpha: 0.4),
+                          color: colorScheme.onSurface,
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
+                        decoration: InputDecoration(
+                          hintText: l10n.chatBoxSendMessage,
+                          hintStyle: TextStyle(
+                            fontSize: 15,
+                            color: colorScheme.onSurface
+                                .withValues(alpha: 0.4),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          isDense: true,
                         ),
-                        isDense: true,
                       ),
                     ),
                   ),
