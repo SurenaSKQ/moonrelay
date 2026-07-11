@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Renders an m.location event. Shows the latitude, longitude and accuracy,
@@ -58,7 +59,7 @@ class LocationMessageType extends StatelessWidget {
     }
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
+      constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).locationMax),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),

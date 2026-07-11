@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
 
 /// Renders an `m.sticker` event as a compact image card without the
 /// tap-to-open viewer (stickers are meant to be lightweight).
@@ -40,10 +41,6 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     }
   }
 
-  /// Maximum display size for stickers in the timeline.
-  static const double _maxStickerWidth = 180;
-  static const double _maxStickerHeight = 180;
-
   /// Image dimensions from the event content's `info` blob.
   int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
   int? get _imgHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
@@ -53,25 +50,26 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
       : const {};
 
   /// Computes a constrained box size that preserves aspect ratio.
-  BoxConstraints _stickerConstraints() {
+  BoxConstraints _stickerConstraints(double maxStickerDim) {
+    final maxStickerHeight = maxStickerDim; // keep sticker roughly square
     if (_imgWidth == null || _imgHeight == null) {
       return BoxConstraints(
-        maxWidth: _maxStickerWidth,
-        maxHeight: _maxStickerHeight,
+        maxWidth: maxStickerDim,
+        maxHeight: maxStickerHeight,
       );
     }
 
     final w = _imgWidth!.toDouble();
     final h = _imgHeight!.toDouble();
-    final scale = (_maxStickerWidth / w).clamp(0.0, 1.0);
+    final scale = (maxStickerDim / w).clamp(0.0, 1.0);
     final displayWidth = w * scale;
     final displayHeight = h * scale;
 
-    if (displayHeight > _maxStickerHeight) {
-      final heightScale = _maxStickerHeight / displayHeight;
+    if (displayHeight > maxStickerHeight) {
+      final heightScale = maxStickerHeight / displayHeight;
       return BoxConstraints(
         maxWidth: displayWidth * heightScale,
-        maxHeight: _maxStickerHeight,
+        maxHeight: maxStickerHeight,
       );
     }
 
@@ -105,7 +103,7 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
           return _buildError(cs);
         }
 
-        return _buildSticker(cs, bytes);
+        return _buildSticker(cs, bytes, context);
       },
     );
   }
@@ -153,9 +151,10 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     );
   }
 
-  Widget _buildSticker(ColorScheme cs, Uint8List bytes) {
+  Widget _buildSticker(ColorScheme cs, Uint8List bytes, BuildContext context) {
+    final prefs = MediaSizePrefs.of(context);
     return Container(
-      constraints: _stickerConstraints(),
+      constraints: _stickerConstraints(prefs.stickerMax),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
