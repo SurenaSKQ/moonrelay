@@ -25,6 +25,7 @@ import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:window_manager/window_manager.dart';
 
 import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/helpers/app_shutdown.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 
 /// Manages the system tray icon and background behaviour for Moonrelay.
@@ -263,14 +264,16 @@ class TrayService with tray.TrayListener {
     }
   }
 
-  /// Destroy the tray icon, remove temp file, and terminate the
-  /// application.
-  Future<void> quit() async {
+  /// Clean up tray resources without destroying the window.
+  ///
+  /// Called by [performShutdown] during orderly app shutdown.  The
+  /// tray icon and temp file are removed and the sync subscription is
+  /// cancelled, but the window is left intact for the shutdown
+  /// coordinator to destroy after all services have been torn down.
+  Future<void> destroyTray() async {
     try {
       if (_available) await tray.trayManager.destroy();
     } catch (_) {}
-    // Sweep the temp icon file regardless of whether setup succeeded;
-    // the temp directory accumulates one icon per boot otherwise.
     final File? file = _iconFile;
     _iconFile = null;
     if (file != null) {
@@ -281,6 +284,13 @@ class TrayService with tray.TrayListener {
     _syncSubscription?.cancel();
     _syncSubscription = null;
     _available = false;
+  }
+
+  /// Destroy the tray icon, remove temp file, run the orderly
+  /// shutdown sequence, and terminate the application.
+  Future<void> quit() async {
+    await destroyTray();
+    await MoonShutdown.call();
     await windowManager.destroy();
   }
 

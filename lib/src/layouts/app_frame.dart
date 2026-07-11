@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:moonrelay/src/helpers/app_shutdown.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -280,9 +281,10 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
             actions: <Widget>[
               TextButton(
                 child: Text(l10n.yesOrAffirmitive),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
-                  windowManager.destroy();
+                  await MoonShutdown.call();
+                  await windowManager.destroy();
                 },
               ),
               TextButton(

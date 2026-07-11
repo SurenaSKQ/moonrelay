@@ -29,6 +29,7 @@ import 'src/app.dart';
 import 'src/boot.dart';
 import 'src/encryption/encryption_service.dart';
 import 'src/helpers/account_manager.dart';
+import 'src/helpers/app_shutdown.dart';
 import 'src/helpers/app_version.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/log_service.dart';
@@ -36,6 +37,7 @@ import 'src/helpers/navigation_state.dart';
 import 'src/init_logger.dart';
 import 'src/services/deep_link_service.dart';
 import 'src/services/notification_service.dart';
+import 'src/services/tray_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/space_preferences.dart';
 import 'src/splash_screen.dart';
@@ -195,6 +197,19 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       if (!mounted) return;
       _splashKey.currentState?.markDone();
       setState(() => _appState = state);
+
+      // Register the unified shutdown callback so every close path
+      // (window close button, tray "Quit", system close) tears down
+      // services in the correct order before destroying the window.
+      MoonShutdown.register(() => performShutdown(
+            client: state.sdk,
+            log: state.log,
+            logService: state.logService,
+            encryptionService: state.encryptionService,
+            notificationService: state.notificationService,
+            deepLinkService: state.deepLinkService,
+            trayService: TrayService.instance,
+          ));
     } catch (e) {
       log.f('Initialization failed', error: e);
       if (!mounted) return;
