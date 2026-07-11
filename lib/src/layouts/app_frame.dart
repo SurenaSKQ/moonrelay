@@ -27,7 +27,7 @@ import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/global_search_overlay.dart';
+import 'package:moonrelay/src/widgets/command_palette.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Main application frame shown after authentication.
@@ -120,9 +120,10 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
                   // ── Leading slot ───────────────────────────────
                   if (!isCompact) const _HeaderProfile(),
                   IconButton(
-                    icon: Icon(LucideIcons.search, size: iconSize),
-                    onPressed: () => _openGlobalSearch(context),
-                    tooltip: AppLocalizations.of(context)!.globalSearch,
+                    icon: Icon(LucideIcons.command, size: iconSize),
+                    onPressed: () => showCommandPalette(context),
+                    tooltip:
+                        AppLocalizations.of(context)!.shortcutOpenCommandPalette,
                     visualDensity: isCompact
                         ? const VisualDensity(
                             horizontal: -2, vertical: -2)
@@ -251,21 +252,6 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     }
   }
 
-  /// Opens the global search overlay as a full-screen dialog.
-  void _openGlobalSearch(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const GlobalSearchOverlay(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 200),
-        reverseTransitionDuration: const Duration(milliseconds: 150),
-      ),
-    );
-  }
-
   @override
   void onWindowClose() async {
     if (!mounted) return;
@@ -376,7 +362,7 @@ class _HeaderProfileState extends State<_HeaderProfile> {
         '';
 
     return GestureDetector(
-      onTap: () => context.push('/main/myprofile'),
+      onTap: () => context.push('/hub/profile'),
       child: Container(
         margin: const EdgeInsetsDirectional.only(start: 8, end: 4),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
