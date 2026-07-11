@@ -19,6 +19,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:moonrelay/src/helpers/app_shutdown.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -141,9 +142,10 @@ class _StartscreenFrameState extends State<StartscreenFrame>
             actions: <Widget>[
               TextButton(
                 child: Text(l10n.yesOrAffirmitive),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
-                  windowManager.destroy();
+                  await MoonShutdown.call();
+                  await windowManager.destroy();
                 },
               ),
               TextButton(
