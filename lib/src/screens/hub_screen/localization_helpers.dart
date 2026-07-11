@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 
@@ -66,5 +67,70 @@ String localizedRightPaneChoice(
       return l10n.thread;
     case RightPaneChoice.pinned:
       return l10n.pinnedMessages;
+  }
+}
+
+String localizedLayoutDensity(
+    LayoutDensity density, AppLocalizations l10n) {
+  switch (density) {
+    case LayoutDensity.comfortable:
+      return l10n.densityComfortable;
+    case LayoutDensity.compact:
+      return l10n.densityCompact;
+  }
+}
+
+String localizedAutoDownloadPolicy(
+    AutoDownloadPolicy policy, AppLocalizations l10n) {
+  switch (policy) {
+    case AutoDownloadPolicy.always:
+      return l10n.autoDownloadAlways;
+    case AutoDownloadPolicy.wifi:
+      return l10n.autoDownloadWifi;
+    case AutoDownloadPolicy.never:
+      return l10n.autoDownloadNever;
+  }
+}
+
+String localizedSendShortcut(
+    SendShortcut shortcut, AppLocalizations l10n) {
+  switch (shortcut) {
+    case SendShortcut.enter:
+      return l10n.sendShortcutEnter;
+    case SendShortcut.cmdEnter:
+      return l10n.sendShortcutCmdEnter;
+    case SendShortcut.both:
+      return l10n.sendShortcutBoth;
+  }
+}
+
+String localizedTrayClickAction(
+    TrayClickAction action, AppLocalizations l10n) {
+  switch (action) {
+    case TrayClickAction.toggle:
+      return l10n.trayClickToggle;
+    case TrayClickAction.show:
+      return l10n.trayClickShow;
+    case TrayClickAction.openUnread:
+      return l10n.trayClickOpenUnread;
+  }
+}
+
+String localizedLogLevel(LogLevel level, AppLocalizations l10n) {
+  switch (level) {
+    case LogLevel.all:
+      return l10n.logLevelAll;
+    case LogLevel.trace:
+      return l10n.logLevelTrace;
+    case LogLevel.debug:
+      return l10n.logLevelDebug;
+    case LogLevel.info:
+      return l10n.logLevelInfo;
+    case LogLevel.warning:
+      return l10n.logLevelWarning;
+    case LogLevel.error:
+      return l10n.logLevelError;
+    case LogLevel.fatal:
+      return l10n.logLevelFatal;
   }
 }

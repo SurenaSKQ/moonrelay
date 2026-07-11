@@ -33,13 +33,16 @@ import 'package:moonrelay/src/screens/hub_screen/sub_page_header.dart';
 import 'package:moonrelay/src/screens/hub_screen/accounts_page.dart';
 import 'package:moonrelay/src/screens/hub_screen/my_profile_page.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/app_settings_overview.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/advanced_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/layout_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/network_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/background_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/blocked_users_page.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/layout_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/network_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/privacy_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,6 +229,21 @@ class _HubScreenState extends State<HubScreen> {
             key: 'notifications',
             label: l10n.notifications,
             icon: LucideIcons.bell,
+          ),
+          HubNavigationItem(
+            key: 'privacy',
+            label: l10n.privacy,
+            icon: LucideIcons.shieldCheck,
+          ),
+          HubNavigationItem(
+            key: 'storage',
+            label: l10n.storage,
+            icon: LucideIcons.hardDrive,
+          ),
+          HubNavigationItem(
+            key: 'advanced',
+            label: l10n.advanced,
+            icon: LucideIcons.settings2,
           ),
           HubNavigationItem(
             key: 'blocked',
@@ -457,6 +475,12 @@ class _HubScreenState extends State<HubScreen> {
         case 7:
           return const HubNotificationSettings();
         case 8:
+          return const HubPrivacySettings();
+        case 9:
+          return const HubStorageSettings();
+        case 10:
+          return const HubAdvancedSettings();
+        case 11:
           return const HubBlockedUsersPage();
         default:
           return const SizedBox.shrink();
