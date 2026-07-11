@@ -2556,5 +2556,111 @@
   "notifyOnMentionsOnlyDescription": "خاموش کردن اعلان‌های پیام‌هایی که نامی از شما نیست",
   "@notifyOnMentionsOnlyDescription": {
     "description": "Subtitle for the mentions-only notification toggle."
+  },
+
+  "commandPaletteModeSearch": "جست‌وجو: اتاق‌ها، پیام‌ها، کاربران و سرور",
+  "@commandPaletteModeSearch": {
+    "description": "Inline hint shown in the command palette when search mode (?) is active."
+  },
+  "commandPaletteModeSettings": "تنظیمات: پرش به هر صفحه‌ی تنظیمات برنامه",
+  "@commandPaletteModeSettings": {
+    "description": "Inline hint shown in the command palette when settings mode (>) is active."
+  },
+  "commandPaletteModeRooms": "اتاق‌ها: فیلتر اتاق‌ها و فضاهای شما",
+  "@commandPaletteModeRooms": {
+    "description": "Inline hint shown in the command palette when rooms mode (#) is active."
+  },
+  "commandPaletteModeUsers": "کاربران: جست‌وجوی فهرست کاربران",
+  "@commandPaletteModeUsers": {
+    "description": "Inline hint shown in the command palette when users mode (@) is active."
+  },
+  "commandPaletteSearchHint": "جست‌وجوی اتاق، پیام، کاربر…",
+  "@commandPaletteSearchHint": {
+    "description": "Placeholder shown in the command palette input when in search mode."
+  },
+  "commandPaletteSettingsHint": "جست‌وجوی تنظیمات…",
+  "@commandPaletteSettingsHint": {
+    "description": "Placeholder shown in the command palette input when in settings mode."
+  },
+  "commandPaletteRoomsHint": "فیلتر اتاق‌ها و فضاها…",
+  "@commandPaletteRoomsHint": {
+    "description": "Placeholder shown in the command palette input when in rooms mode."
+  },
+  "commandPaletteUsersHint": "جست‌وجوی کاربر…",
+  "@commandPaletteUsersHint": {
+    "description": "Placeholder shown in the command palette input when in users mode."
+  },
+  "commandPaletteOpenProfile": "نمایه‌ی شما",
+  "@commandPaletteOpenProfile": {
+    "description": "Command palette action that opens the user's own profile in the hub."
+  },
+  "commandPaletteOpenAbout": "درباره‌ی Moonrelay",
+  "@commandPaletteOpenAbout": {
+    "description": "Command palette action that opens the about page in the hub."
+  },
+  "commandPaletteOpenSecurity": "رمزنگاری و امنیت",
+  "@commandPaletteOpenSecurity": {
+    "description": "Command palette action that opens the encryption & security hub page."
+  },
+  "commandPaletteToggleRightSidebar": "تغییر وضعیت نوار کناری راست",
+  "@commandPaletteToggleRightSidebar": {
+    "description": "Command palette action that toggles the dashboard right sidebar."
+  },
+  "commandPaletteAddRoom": "افزودن اتاق",
+  "@commandPaletteAddRoom": {
+    "description": "Command palette action that opens the new-room screen."
+  },
+  "commandPaletteRecent": "اقدام‌های اخیر",
+  "@commandPaletteRecent": {
+    "description": "Section header in the command palette listing previously executed actions."
+  },
+  "commandPaletteAppearanceDesc": "تم، رنگ تاکیدی و چگالی رابط",
+  "@commandPaletteAppearanceDesc": {
+    "description": "Short description shown next to the Appearance settings entry."
+  },
+  "commandPaletteLayoutDesc": "عرض نوارها، پنل‌ها و چگالی گفت‌وگو",
+  "@commandPaletteLayoutDesc": {
+    "description": "Short description shown next to the Layout settings entry."
+  },
+  "commandPaletteSecurityDesc": "امضای متقابل، پشتیبان‌گیری کلید و دستگاه‌ها",
+  "@commandPaletteSecurityDesc": {
+    "description": "Short description shown next to the Encryption & Security settings entry."
+  },
+  "commandPaletteChatDesc": "نمایش پیام، اندازه‌ی قلم و رویدادهای حالت",
+  "@commandPaletteChatDesc": {
+    "description": "Short description shown next to the Chat settings entry."
+  },
+  "commandPaletteNetworkDesc": "سرور خانگی، گزینه‌های همگام‌سازی و وقفه‌ها",
+  "@commandPaletteNetworkDesc": {
+    "description": "Short description shown next to the Network settings entry."
+  },
+  "commandPaletteBackgroundDesc": "نقشک سینی و رفتار هنگام آغاز",
+  "@commandPaletteBackgroundDesc": {
+    "description": "Short description shown next to the Background & Tray settings entry."
+  },
+  "commandPaletteNotificationsDesc": "اعلان‌های میزکار و نام‌بردن",
+  "@commandPaletteNotificationsDesc": {
+    "description": "Short description shown next to the Notifications settings entry."
+  },
+  "commandPaletteBlockedDesc": "کاربرانی که مسدود کرده‌اید",
+  "@commandPaletteBlockedDesc": {
+    "description": "Short description shown next to the Blocked Users settings entry."
+  },
+  "commandPaletteLogsDesc": "بررسی تازه‌ترین سطرهای گزارش برنامه",
+  "@commandPaletteLogsDesc": {
+    "description": "Short description shown next to the Logs settings entry."
+  },
+
+  "accessibilityAnimations": "پویانمایی‌ها",
+  "@accessibilityAnimations": {
+    "description": "Section title in accessibility settings for motion controls."
+  },
+  "enableAnimations": "فعال‌سازی پویانمایی‌ها",
+  "@enableAnimations": {
+    "description": "Toggle for whether in-app motion is enabled.  Disabling honours reduced-motion accessibility preferences."
+  },
+  "enableAnimationsDescription": "گذرها، محو شدن‌ها و نبض‌های اسکلتی نرم",
+  "@enableAnimationsDescription": {
+    "description": "Subtitle for the animations toggle."
   }
 }

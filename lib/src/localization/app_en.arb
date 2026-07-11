@@ -2693,5 +2693,111 @@
   "notifyOnMentionsOnlyDescription": "Suppress notifications for non-mention messages",
   "@notifyOnMentionsOnlyDescription": {
     "description": "Subtitle for the mentions-only notification toggle."
+  },
+
+  "commandPaletteModeSearch": "Search: rooms, messages, users, homeserver",
+  "@commandPaletteModeSearch": {
+    "description": "Inline hint shown in the command palette when search mode (?) is active."
+  },
+  "commandPaletteModeSettings": "Settings: jump to any app settings page",
+  "@commandPaletteModeSettings": {
+    "description": "Inline hint shown in the command palette when settings mode (>) is active."
+  },
+  "commandPaletteModeRooms": "Rooms: filter your joined rooms and spaces",
+  "@commandPaletteModeRooms": {
+    "description": "Inline hint shown in the command palette when rooms mode (#) is active."
+  },
+  "commandPaletteModeUsers": "Users: search the user directory",
+  "@commandPaletteModeUsers": {
+    "description": "Inline hint shown in the command palette when users mode (@) is active."
+  },
+  "commandPaletteSearchHint": "Search rooms, messages, users…",
+  "@commandPaletteSearchHint": {
+    "description": "Placeholder shown in the command palette input when in search mode."
+  },
+  "commandPaletteSettingsHint": "Search settings…",
+  "@commandPaletteSettingsHint": {
+    "description": "Placeholder shown in the command palette input when in settings mode."
+  },
+  "commandPaletteRoomsHint": "Filter rooms and spaces…",
+  "@commandPaletteRoomsHint": {
+    "description": "Placeholder shown in the command palette input when in rooms mode."
+  },
+  "commandPaletteUsersHint": "Search users…",
+  "@commandPaletteUsersHint": {
+    "description": "Placeholder shown in the command palette input when in users mode."
+  },
+  "commandPaletteOpenProfile": "Your Profile",
+  "@commandPaletteOpenProfile": {
+    "description": "Command palette action that opens the user's own profile in the hub."
+  },
+  "commandPaletteOpenAbout": "About Moonrelay",
+  "@commandPaletteOpenAbout": {
+    "description": "Command palette action that opens the about page in the hub."
+  },
+  "commandPaletteOpenSecurity": "Encryption & Security",
+  "@commandPaletteOpenSecurity": {
+    "description": "Command palette action that opens the encryption & security hub page."
+  },
+  "commandPaletteToggleRightSidebar": "Toggle Right Sidebar",
+  "@commandPaletteToggleRightSidebar": {
+    "description": "Command palette action that toggles the dashboard right sidebar."
+  },
+  "commandPaletteAddRoom": "Add a Room",
+  "@commandPaletteAddRoom": {
+    "description": "Command palette action that opens the new-room screen."
+  },
+  "commandPaletteRecent": "Recently used actions",
+  "@commandPaletteRecent": {
+    "description": "Section header in the command palette listing previously executed actions."
+  },
+  "commandPaletteAppearanceDesc": "Theme, accent color, and density",
+  "@commandPaletteAppearanceDesc": {
+    "description": "Short description shown next to the Appearance settings entry."
+  },
+  "commandPaletteLayoutDesc": "Sidebar widths, panes, and chat density",
+  "@commandPaletteLayoutDesc": {
+    "description": "Short description shown next to the Layout settings entry."
+  },
+  "commandPaletteSecurityDesc": "Cross-signing, key backup, and devices",
+  "@commandPaletteSecurityDesc": {
+    "description": "Short description shown next to the Encryption & Security settings entry."
+  },
+  "commandPaletteChatDesc": "Message display, font size, state events",
+  "@commandPaletteChatDesc": {
+    "description": "Short description shown next to the Chat settings entry."
+  },
+  "commandPaletteNetworkDesc": "Homeserver, sync options, and timeouts",
+  "@commandPaletteNetworkDesc": {
+    "description": "Short description shown next to the Network settings entry."
+  },
+  "commandPaletteBackgroundDesc": "Tray icon and start-up behaviour",
+  "@commandPaletteBackgroundDesc": {
+    "description": "Short description shown next to the Background & Tray settings entry."
+  },
+  "commandPaletteNotificationsDesc": "Desktop and mention notifications",
+  "@commandPaletteNotificationsDesc": {
+    "description": "Short description shown next to the Notifications settings entry."
+  },
+  "commandPaletteBlockedDesc": "Users you have blocked",
+  "@commandPaletteBlockedDesc": {
+    "description": "Short description shown next to the Blocked Users settings entry."
+  },
+  "commandPaletteLogsDesc": "Inspect recent app log lines",
+  "@commandPaletteLogsDesc": {
+    "description": "Short description shown next to the Logs settings entry."
+  },
+
+  "accessibilityAnimations": "Animations",
+  "@accessibilityAnimations": {
+    "description": "Section title in accessibility settings for motion controls."
+  },
+  "enableAnimations": "Enable animations",
+  "@enableAnimations": {
+    "description": "Toggle for whether in-app motion is enabled.  Disabling honours reduced-motion accessibility preferences."
+  },
+  "enableAnimationsDescription": "Smooth transitions, fades, and skeleton pulses",
+  "@enableAnimationsDescription": {
+    "description": "Subtitle for the animations toggle."
   }
 }
