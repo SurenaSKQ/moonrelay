@@ -187,7 +187,9 @@ Future<BootContext> runBootPipeline({
       TitleBarStyle.hidden,
       windowButtonVisibility: false,
     );
-    await windowManager.setMinimumSize(const Size(500, 600));
+    await windowManager.setMinimumSize(
+      Size(settingsController.windowMinWidth, settingsController.windowMinHeight),
+    );
     if (!settingsController.startMinimized) {
       await windowManager.show();
     }
