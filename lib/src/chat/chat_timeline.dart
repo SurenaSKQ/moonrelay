@@ -198,8 +198,6 @@ class ChatTimelineState extends State<ChatTimeline> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _ensureContentFillsScreen();
           });
-          // Mark the latest event as read.
-          _markRoomRead();
         }
       case RetryFailed(:final error):
         {
@@ -603,7 +601,13 @@ class ChatTimelineState extends State<ChatTimeline> {
 
         final child = _buildTimelineContent(context, settings);
 
-        // Render the floating action column above the chat composer
+        // Always wrap in a Stack so the timeline [ListView] is never
+        // unmounted/remounted when FAB pills appear/disappear.  A
+        // remount would destroy the [ScrollPosition] and reset the
+        // scroll offset to 0 (bottom), causing the "jitter / refuses
+        // to scroll up" bug.
+        //
+        // The floating action column sits above the chat composer
         // when either:
         //   * there are unread messages below the current viewport
         //     (jump-to-unread), or
@@ -613,10 +617,10 @@ class ChatTimelineState extends State<ChatTimeline> {
         // has scrolled up, the unread pill takes visual priority
         // (it sits on top) and the scroll-to-bottom button sits
         // below it.
-        if (_hasUnreadBelow || _isScrolledUp) {
-          return Stack(
-            children: [
-              child,
+        return Stack(
+          children: [
+            child,
+            if (_hasUnreadBelow || _isScrolledUp)
               Positioned(
                 left: 0,
                 right: 0,
@@ -642,11 +646,8 @@ class ChatTimelineState extends State<ChatTimeline> {
                   ),
                 ),
               ),
-            ],
-          );
-        }
-
-        return child;
+          ],
+        );
       },
     );
   }
