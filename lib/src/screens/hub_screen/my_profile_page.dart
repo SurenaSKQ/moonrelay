@@ -41,16 +41,84 @@ class HubMyProfilePage extends StatefulWidget {
 
 class _HubMyProfilePageState extends State<HubMyProfilePage> {
   bool _uploadingAvatar = false;
-  Future<Profile>? _profileFuture;
-  Future<CachedPresence?>? _presenceFuture;
+  bool _loading = true;
+  Profile? _profile;
+  CachedPresence? _presence;
   StreamSubscription<Object?>? _syncSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    // React to sync events with a silent data refresh that does NOT
+    // show a loading spinner — avoids the "flashing" rebuild cycle.
+    _syncSub = widget.client.onSync.stream.listen((_) {
+      if (mounted) _silentRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    super.dispose();
+  }
+
+  /// Initial load — shows progress.
+  Future<void> _loadData() async {
+    try {
+      final profile = await widget.client
+          .getProfileFromUserId(widget.client.userID!);
+      CachedPresence? presence;
+      try {
+        final resp = await widget.client
+            .getPresence(widget.client.userID!);
+        presence = CachedPresence.fromPresenceResponse(
+          resp,
+          widget.client.userID!,
+        );
+      } catch (_) {
+        // Presence not available — that's fine.
+      }
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _presence = presence;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  /// Silent refresh — updates the cached data without chasing into a
+  /// loading state, so the UI stays stable.
+  Future<void> _silentRefresh() async {
+    try {
+      final profile = await widget.client
+          .getProfileFromUserId(widget.client.userID!);
+      CachedPresence? presence;
+      try {
+        final resp = await widget.client
+            .getPresence(widget.client.userID!);
+        presence = CachedPresence.fromPresenceResponse(
+          resp,
+          widget.client.userID!,
+        );
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _presence = presence;
+      });
+    } catch (_) {
+      // Swallow — keep showing stale data rather than flashing.
+    }
+  }
 
   /// Opens a file picker for images, uploads the selected file as the
   /// user's avatar, and triggers a UI refresh.
   Future<void> _changeAvatar() async {
-    // Use `pickFile` (singular) for single-image selection; this also
-    // avoids the deprecated `allowMultiple: false` and `withData: true`
-    // parameters on `pickFiles`.
     final file = await FilePicker.pickFile(type: FileType.image);
     if (file == null) return;
     final bytes = await file.readAsBytes();
@@ -91,10 +159,11 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     }
   }
 
-  Future<void> _editDisplayName(Profile profile) async {
+  Future<void> _editDisplayName() async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
-    final controller = TextEditingController(text: profile.displayName ?? '');
+    final controller =
+        TextEditingController(text: _profile?.displayName ?? '');
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -122,7 +191,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
         () => widget.client.setProfileField(
           widget.client.userID!,
           'displayname',
-          newName.isEmpty ? const {} : {'displayname': newName},
+          {'displayname': newName},
         ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
@@ -133,7 +202,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.displayNameUpdated)),
       );
-      _refresh();
+      _silentRefresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,14 +211,11 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     }
   }
 
-  Future<void> _editStatusMessage(
-    Profile profile,
-    CachedPresence? presence,
-  ) async {
+  Future<void> _editStatusMessage() async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
     final controller =
-        TextEditingController(text: presence?.statusMsg ?? '');
+        TextEditingController(text: _presence?.statusMsg ?? '');
     final newStatus = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -177,7 +243,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       await withRetry(
         () => widget.client.setPresence(
           widget.client.userID!,
-          presence?.presence ?? PresenceType.online,
+          _presence?.presence ?? PresenceType.online,
           statusMsg: newStatus.isEmpty ? null : newStatus,
         ),
         maxRetries: 1,
@@ -189,7 +255,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.statusMessageUpdated)),
       );
-      _refresh();
+      _silentRefresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,11 +264,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     }
   }
 
-  Future<void> _setPresence(
-    Profile profile,
-    CachedPresence? presence,
-    PresenceType pt,
-  ) async {
+  Future<void> _setPresence(PresenceType pt) async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
     try {
@@ -210,7 +272,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
         () => widget.client.setPresence(
           widget.client.userID!,
           pt,
-          statusMsg: presence?.statusMsg,
+          statusMsg: _presence?.statusMsg,
         ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
@@ -221,7 +283,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.presenceStatusUpdated)),
       );
-      _refresh();
+      _silentRefresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -231,351 +293,291 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _refresh();
-    _syncSub = widget.client.onSync.stream.listen((_) {
-      if (mounted) _refresh();
-    });
-  }
-
-  @override
-  void dispose() {
-    _syncSub?.cancel();
-    super.dispose();
-  }
-
-  void _refresh() {
-    if (!mounted) return;
-    setState(() {
-      _profileFuture = widget.client.getProfileFromUserId(
-        widget.client.userID!,
-      );
-      _presenceFuture = () async {
-        try {
-          final resp = await widget.client
-              .getPresence(widget.client.userID!);
-          return CachedPresence.fromPresenceResponse(
-            resp,
-            widget.client.userID!,
-          );
-        } catch (_) {
-          return null;
-        }
-      }();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final client = widget.client;
-    return FutureBuilder<Profile>(
-      future: _profileFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingScreen();
-        }
-        final profile = snapshot.data;
-        final theme = Theme.of(context);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    if (_loading) {
+      return const LoadingScreen();
+    }
+
+    final profile = _profile;
+    final presence = _presence;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Avatar + name header ────────────────────────────────
+          Row(
             children: [
-              // Avatar + name header
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _uploadingAvatar ? null : _changeAvatar,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: Stack(
-                        children: [
-                          profile?.avatarUrl == null
-                              ? CircleAvatar(
-                                  radius: 40,
-                                  backgroundColor:
-                                      theme.colorScheme.primaryContainer,
-                                  child: Text(
-                                    (profile?.displayName ??
-                                            profile?.userId ??
-                                            '?')
-                                        .toUpperCase()
-                                        .split(RegExp(' +'))
-                                        .map((s) => s[0])
-                                        .take(2)
-                                        .join(),
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme
-                                          .colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                )
-                              : AvatarFromUriOrFallbackImage(
-                                  client: client,
-                                  avatarUri: profile!.avatarUrl,
-                                  radius: 40,
-                                ),
-                          if (_uploadingAvatar)
-                            Positioned.fill(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  borderRadius: BorderRadius.circular(40),
-                                ),
-                                child: const Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+              GestureDetector(
+                onTap: _uploadingAvatar ? null : _changeAvatar,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Stack(
+                    children: [
+                      profile?.avatarUrl == null
+                          ? CircleAvatar(
+                              radius: 40,
+                              backgroundColor: cs.primaryContainer,
+                              child: Text(
+                                (profile?.displayName ??
+                                        profile?.userId ??
+                                        '?')
+                                    .toUpperCase()
+                                    .split(RegExp(' +'))
+                                    .map((s) => s[0])
+                                    .take(2)
+                                    .join(),
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.onPrimaryContainer,
                                 ),
                               ),
                             )
-                          else
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: theme.colorScheme.surface,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Icon(
-                                  LucideIcons.camera,
-                                  size: 14,
-                                  color: theme.colorScheme.onPrimary,
+                          : AvatarFromUriOrFallbackImage(
+                              client: client,
+                              avatarUri: profile!.avatarUrl,
+                              radius: 40,
+                            ),
+                      if (_uploadingAvatar)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
+                          ),
+                        )
+                      else
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: cs.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: cs.surface,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              LucideIcons.camera,
+                              size: 14,
+                              color: cs.onPrimary,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                profile?.displayName ?? l10n.unknown,
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                        Flexible(
+                          child: Text(
+                            profile?.displayName ?? l10n.unknown,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: cs.onSurface,
                             ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              tooltip: l10n.editOwnProfile,
-                              icon: const Icon(LucideIcons.squarePen,
-                                  size: 16),
-                              onPressed: () => _editDisplayName(profile!),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          profile?.userId ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.profilePageTitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.6),
-                          ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: l10n.editOwnProfile,
+                          icon: const Icon(LucideIcons.squarePen, size: 16),
+                          onPressed: _editDisplayName,
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      profile?.userId ?? '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.profilePageTitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
 
-              const SizedBox(height: 32),
-              const Divider(),
-              const SizedBox(height: 24),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 24),
 
-              // ── Display Name ────────────────────────────────
-              Text(
-                l10n.displayName,
+          // ── Display Name ────────────────────────────────────────
+          Text(
+            l10n.displayName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _editDisplayName,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                profile?.displayName ?? l10n.notSet,
                 style: TextStyle(
+                  fontSize: 16,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── User ID (read-only) ────────────────────────────────
+          Text(
+            l10n.userIDLabel,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SelectableText(
+              profile?.userId ?? '',
+              style: TextStyle(
+                fontSize: 14,
+                fontFamily: 'JetBrainsMono',
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 24),
+
+          // ── Presence ───────────────────────────────────────────
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.presence,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              Text(
+                l10n.presenceDescription,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final p in [
+                    PresenceType.online,
+                    PresenceType.unavailable,
+                    PresenceType.offline,
+                  ])
+                    ChoiceChip(
+                      label: Text(_presenceLabel(l10n, p)),
+                      selected: presence?.presence == p ||
+                          (presence == null && p == PresenceType.online),
+                      onSelected: (_) => _setPresence(p),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.statusMessage,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
               InkWell(
-                onTap: () => _editDisplayName(profile!),
+                onTap: _editStatusMessage,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    profile?.displayName ?? l10n.notSet,
+                    presence?.statusMsg?.isNotEmpty == true
+                        ? presence!.statusMsg!
+                        : l10n.notSet,
                     style: TextStyle(
-                      fontSize: 16,
-                      color: theme.colorScheme.onSurface,
+                      fontSize: 14,
+                      color: cs.onSurface,
+                      fontStyle: presence?.statusMsg == null
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // ── User ID (read-only) ──────────────────────────────
-              Text(
-                l10n.userIDLabel,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SelectableText(
-                  profile?.userId ?? '',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'JetBrainsMono',
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 24),
-
-              // ── Presence (publishes own status) ───────────────────────
-              FutureBuilder<CachedPresence?>(
-                future: _presenceFuture,
-                builder: (context, pSnap) {
-                  final presence = pSnap.data;
-                  final cs = theme.colorScheme;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.presence,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.presenceDescription,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Presence select
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          for (final p in [
-                            PresenceType.online,
-                            PresenceType.unavailable,
-                            PresenceType.offline,
-                          ])
-                            ChoiceChip(
-                              label: Text(_presenceLabel(l10n, p)),
-                              selected: presence?.presence == p ||
-                                  (presence == null &&
-                                      p == PresenceType.online),
-                              onSelected: (_) =>
-                                  _setPresence(profile!, presence, p),
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Status message
-                      Text(
-                        l10n.statusMessage,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      InkWell(
-                        onTap: () =>
-                            _editStatusMessage(profile!, presence),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: cs.surfaceContainerHighest
-                                .withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            presence?.statusMsg?.isNotEmpty == true
-                                ? presence!.statusMsg!
-                                : l10n.notSet,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: cs.onSurface,
-                              fontStyle:
-                                  presence?.statusMsg == null
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
             ],
           ),
-        );
-      },
+
+          const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 
