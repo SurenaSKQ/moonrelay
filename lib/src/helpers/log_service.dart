@@ -153,6 +153,14 @@ class LogService {
   /// on disk after the user's data has been removed from the application.
   final Future<void> Function() wipeLogs;
 
+  /// Updates the logger level in release mode when the user toggles
+  /// [SettingsController.logVerboseRelease].  In debug mode the level
+  /// is always [Level.all] so this is a no-op.
+  void updateVerboseRelease(bool verbose) {
+    if (!kReleaseMode) return;
+    Logger.level = verbose ? Level.all : Level.warning;
+  }
+
   // ── Factory ──────────────────────────────────────────────────────────
 
   /// Creates a [LogService] whose log files live in the application
