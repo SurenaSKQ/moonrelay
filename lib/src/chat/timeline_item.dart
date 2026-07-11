@@ -17,6 +17,7 @@
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
+import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/chat/receipt_avatars.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
@@ -106,6 +107,49 @@ class TimelineItem extends StatelessWidget {
   void _openProfile(BuildContext context) {
     context.push(
       '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
+    );
+  }
+
+  /// Wraps [child] in a `GestureDetector` that opens the context menu on
+  /// right-click (desktop) or long-press (touch).
+  ///
+  /// The reply, forward, thread, and profile callbacks are wired through so
+  /// the menu can invoke them. When none of them are available, the gesture
+  /// detector is omitted to avoid accidental interactions.
+  Widget _wrapWithContextMenu(BuildContext context, Widget child) {
+    final hasAny =
+        onReply != null || onForward != null || onThread != null;
+    if (!hasAny) return child;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapDown: (details) {
+        MessageContextMenu.showForEvent(
+          context: context,
+          position: details.globalPosition,
+          event: event,
+          room: room,
+          timeline: timeline,
+          onReply: onReply ?? () {},
+          onForward: onForward,
+          onThread: onThread,
+          onOpenProfile: () => _openProfile(context),
+        );
+      },
+      onLongPressStart: (details) {
+        MessageContextMenu.showForEvent(
+          context: context,
+          position: details.globalPosition,
+          event: event,
+          room: room,
+          timeline: timeline,
+          onReply: onReply ?? () {},
+          onForward: onForward,
+          onThread: onThread,
+          onOpenProfile: () => _openProfile(context),
+        );
+      },
+      child: child,
     );
   }
 
@@ -271,7 +315,7 @@ class TimelineItem extends StatelessWidget {
                   onReply: onReply,
                   onForward: onForward,
                   onThread: onThread,
-                  child: _messageContent(context),
+                  child: _wrapWithContextMenu(context, _messageContent(context)),
                 ),
               ],
             ),
@@ -348,22 +392,25 @@ class TimelineItem extends StatelessWidget {
                   onReply: onReply,
                   onForward: onForward,
                   onThread: onThread,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: cs.primary.withValues(alpha: 0.5),
-                        width: 0.7,
+                  child: _wrapWithContextMenu(
+                    context,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: cs.primary.withValues(alpha: 0.5),
+                          width: 0.7,
+                        ),
                       ),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _messageContent(context),
-                        // No timestamp for continuation messages
-                      ],
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _messageContent(context),
+                          // No timestamp for continuation messages
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -400,24 +447,27 @@ class TimelineItem extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MessageEventHandler(
-            event: event,
-            timeline: timeline,
-            room: room,
-            fontSize: fontSize,
-            onJumpToEvent: onJumpToEvent,
-          ),
-          if (timeline != null)
-            ReactionsBar(
+      body: _wrapWithContextMenu(
+        context,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MessageEventHandler(
               event: event,
-              timeline: timeline!,
+              timeline: timeline,
               room: room,
+              fontSize: fontSize,
+              onJumpToEvent: onJumpToEvent,
             ),
-        ],
+            if (timeline != null)
+              ReactionsBar(
+                event: event,
+                timeline: timeline!,
+                room: room,
+              ),
+          ],
+        ),
       ),
     );
   }
