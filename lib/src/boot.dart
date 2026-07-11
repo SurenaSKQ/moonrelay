@@ -176,6 +176,9 @@ Future<BootContext> runBootPipeline({
   final settingsController = SettingsController(SettingsService());
   await settingsController.loadSettings();
 
+  // Apply verbose-release log preference now that settings are loaded.
+  logService.updateVerboseRelease(settingsController.logVerboseRelease);
+
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();
 
