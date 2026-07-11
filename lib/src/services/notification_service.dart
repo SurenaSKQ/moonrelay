@@ -435,6 +435,9 @@ class NotificationService {
 
         _processEvent(room, event);
       } else {
+        // ── Group chat: skip when DMs-only mode is active ──
+        if (_settings.notifyDmsOnly) continue;
+
         // ── Group chat: accumulate for summary notification ──
         final currentCount = room.notificationCount;
         final lastCount = _groupNotifiedCounts[room.id];
