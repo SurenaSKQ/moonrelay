@@ -178,8 +178,6 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
               // UI scale
               HubSettingsSection(
                 title: 'UI scale',
@@ -199,6 +197,21 @@ class HubAppearanceSettings extends StatelessWidget {
                         onChanged: (v) => controller.updateUiScale(v),
                       ),
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Animations toggle
+              HubSettingsSection(
+                title: l10n.accessibilityAnimations,
+                children: [
+                  SwitchListTile(
+                    title: Text(l10n.enableAnimations),
+                    subtitle: Text(l10n.enableAnimationsDescription),
+                    value: controller.enableAnimations,
+                    onChanged: (v) => controller.updateEnableAnimations(v),
+                    secondary: const Icon(Icons.movie_filter_outlined),
                   ),
                 ],
               ),
