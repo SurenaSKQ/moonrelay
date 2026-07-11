@@ -68,23 +68,41 @@ class HubNotificationSettings extends StatelessWidget {
                     onChanged: (v) => controller.updateNotificationsEnabled(v),
                     secondary: const Icon(LucideIcons.bell, size: 22),
                   ),
+                  SwitchListTile(
+                    title: Text(l10n.notifyDmsOnly),
+                    subtitle: Text(l10n.notifyDmsOnlyDescription),
+                    value: controller.notifyDmsOnly,
+                    onChanged: (v) => controller.updateNotifyDmsOnly(v),
+                    secondary: const Icon(LucideIcons.messageCircle, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.notifyWhenFocused),
+                    subtitle: Text(l10n.notifyWhenFocusedDescription),
+                    value: controller.notifyWhenFocused,
+                    onChanged: (v) => controller.updateNotifyWhenFocused(v),
+                    secondary: const Icon(LucideIcons.appWindow, size: 22),
+                  ),
+                  SwitchListTile(
+                    title: Text(l10n.notificationSoundEnabled),
+                    subtitle: Text(l10n.notificationSoundEnabledDescription),
+                    value: controller.notificationSoundEnabled,
+                    onChanged: (v) =>
+                        controller.updateNotificationSoundEnabled(v),
+                    secondary: const Icon(LucideIcons.volume2, size: 22),
+                  ),
                   const Divider(height: 1, indent: 72),
                   ListTile(
                     leading: const Icon(LucideIcons.play, size: 22),
-                    title: const Text('Test notification'),
-                    subtitle: const Text(
-                      'Send a test notification to verify delivery',
-                    ),
+                    title: Text(l10n.testNotification),
+                    subtitle: Text(l10n.testNotificationDescription),
                     onTap: () async {
                       final notif = context.read<NotificationService>();
                       try {
                         await notif.showTestNotification();
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Test notification fired — check logs',
-                            ),
+                          SnackBar(
+                            content: Text(l10n.testNotificationFired),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -92,7 +110,7 @@ class HubNotificationSettings extends StatelessWidget {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Notification failed: $e'),
+                            content: Text(l10n.notificationFailed('$e')),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
