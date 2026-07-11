@@ -45,6 +45,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/search_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -54,7 +55,7 @@ Future<void> showCommandPalette(BuildContext context) {
     PageRouteBuilder(
       opaque: false,
       barrierDismissible: true,
-      barrierColor: Colors.black54,
+      barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 150),
       pageBuilder: (_, __, ___) => const _CommandPalettePage(),
     ),
@@ -527,31 +528,34 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     _locCache = AppLocalizations.of(context)!;
     return Material(
       color: Colors.transparent,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              color: Theme.of(context).colorScheme.surface,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildInput(_locCache),
-                    const SizedBox(height: 8),
-                    _buildModeHint(_locCache),
-                    const SizedBox(height: 8),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 420),
-                      child: _buildList(_locCache),
-                    ),
-                  ],
+      child: BlurBackground(
+        overlayColor: Colors.black54,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                color: Theme.of(context).colorScheme.surface,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildInput(_locCache),
+                      const SizedBox(height: 8),
+                      _buildModeHint(_locCache),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 420),
+                        child: _buildList(_locCache),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
