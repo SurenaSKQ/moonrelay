@@ -17,7 +17,6 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +25,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
+import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/command_palette.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
@@ -362,7 +362,10 @@ class _HeaderProfileState extends State<_HeaderProfile> {
         '';
 
     return GestureDetector(
-      onTap: () => context.push('/hub/profile'),
+      onTap: () => showHubOverlay(
+        context,
+        selection: const HubCategorySelection(categoryKey: 'profile'),
+      ),
       child: Container(
         margin: const EdgeInsetsDirectional.only(start: 8, end: 4),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

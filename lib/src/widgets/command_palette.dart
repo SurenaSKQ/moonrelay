@@ -43,6 +43,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/search_provider.dart';
 import 'package:provider/provider.dart';
@@ -948,37 +949,81 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         key: 'open_settings',
         label: loc.commandPaletteOpenSettings,
         icon: LucideIcons.settings,
-        callback: (ctx) => ctx.go('/hub/settings'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(
+              categoryKey: 'settings',
+            ),
+          );
+        },
       ),
       CommandAction(
         key: 'open_accounts',
         label: loc.commandPaletteOpenAccounts,
         icon: LucideIcons.userRound,
-        callback: (ctx) => ctx.go('/hub/accounts'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(categoryKey: 'accounts'),
+          );
+        },
       ),
       CommandAction(
         key: 'open_logs',
         label: loc.commandPaletteOpenLogs,
         icon: LucideIcons.scrollText,
-        callback: (ctx) => ctx.go('/hub/settings/logs'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(
+              categoryKey: 'settings',
+              subKey: 'logs',
+            ),
+          );
+        },
       ),
       CommandAction(
         key: 'open_profile',
         label: loc.commandPaletteOpenProfile,
         icon: LucideIcons.userCircle,
-        callback: (ctx) => ctx.go('/hub/profile'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(categoryKey: 'profile'),
+          );
+        },
       ),
       CommandAction(
         key: 'open_about',
         label: loc.commandPaletteOpenAbout,
         icon: LucideIcons.info,
-        callback: (ctx) => ctx.go('/hub/about'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(categoryKey: 'about'),
+          );
+        },
       ),
       CommandAction(
         key: 'open_security',
         label: loc.commandPaletteOpenSecurity,
         icon: LucideIcons.shield,
-        callback: (ctx) => ctx.go('/hub/settings/security'),
+        callback: (ctx) {
+          Navigator.of(ctx, rootNavigator: true).pop();
+          showHubOverlay(
+            ctx,
+            selection: const HubCategorySelection(
+              categoryKey: 'settings',
+              subKey: 'security',
+            ),
+          );
+        },
       ),
       CommandAction(
         key: 'toggle_left_sidebar',
