@@ -589,6 +589,10 @@
   "customizeLayout": "Customize the arrangement of UI panels",
   "encryptionAndSecurity": "Encryption & Security",
   "chatSettings": "Chat",
+  "timeline": "Timeline",
+  "@timeline": {
+    "description": "Section title for chat timeline behaviour settings (read receipts, state events, etc.)."
+  },
   "timelineAndMessages": "Timeline and message display options",
   "selectCategory": "Select a category",
 
@@ -2840,5 +2844,435 @@
   "enableAnimationsDescription": "Smooth transitions, fades, and skeleton pulses",
   "@enableAnimationsDescription": {
     "description": "Subtitle for the animations toggle."
+  },
+
+  "privacy": "Privacy",
+  "@privacy": {
+    "description": "Title of the privacy settings sub-page in the hub."
+  },
+  "privacyDescription": "Deep-link behaviour, database management, auto-lock, and log retention.",
+  "@privacyDescription": {
+    "description": "Subtitle for the privacy settings page."
+  },
+  "deepLinks": "Deep links",
+  "@deepLinks": {
+    "description": "Section title for the matrix:// deep-link behaviour settings."
+  },
+  "deepLinkAutoJoin": "Auto-join via deep links",
+  "@deepLinkAutoJoin": {
+    "description": "Toggle that controls whether matrix.to / matrix: links auto-join rooms."
+  },
+  "deepLinkAutoJoinDescription": "When on, opening a matrix link joins the room.  When off, unknown rooms open as previews.",
+  "@deepLinkAutoJoinDescription": {
+    "description": "Subtitle for the deep-link auto-join toggle."
+  },
+  "database": "Database",
+  "@database": {
+    "description": "Section title for database-related privacy settings."
+  },
+  "dbWipeRequiresPrompt": "Prompt before database wipe",
+  "@dbWipeRequiresPrompt": {
+    "description": "Toggle that asks the user to confirm before wiping the local database on schema mismatch."
+  },
+  "dbWipeRequiresPromptDescription": "Show a confirmation before the local database is wiped on schema bumps.",
+  "@dbWipeRequiresPromptDescription": {
+    "description": "Subtitle for the database-wipe prompt toggle."
+  },
+  "dbBackupKeepCount": "Database backups to keep",
+  "@dbBackupKeepCount": {
+    "description": "How many .bak files to keep when the database is wiped."
+  },
+  "avatarCacheTtlDays": "Avatar cache retention (days)",
+  "@avatarCacheTtlDays": {
+    "description": "How many days to keep downloaded avatar thumbnails cached before re-downloading."
+  },
+  "autoLockEnabled": "Auto-lock when idle",
+  "@autoLockEnabled": {
+    "description": "Toggle for auto-locking the app after a period of inactivity."
+  },
+  "autoLockEnabledDescription": "Mark the account as offline after a period of no keyboard or mouse activity.",
+  "@autoLockEnabledDescription": {
+    "description": "Subtitle for the auto-lock toggle."
+  },
+  "autoLockMinutes": "Idle minutes before auto-lock",
+  "@autoLockMinutes": {
+    "description": "Number of minutes of inactivity before the auto-lock kicks in."
+  },
+  "wipeLogsOnLogout": "Wipe logs on logout",
+  "@wipeLogsOnLogout": {
+    "description": "Toggle that controls whether log files are deleted when the user logs out."
+  },
+  "wipeLogsOnLogoutDescription": "Remove all log files from disk when signing out of the active account.",
+  "@wipeLogsOnLogoutDescription": {
+    "description": "Subtitle for the wipe-logs-on-logout toggle."
+  },
+
+  "storage": "Storage",
+  "@storage": {
+    "description": "Title of the storage / media settings sub-page in the hub."
+  },
+  "storageDescription": "Automatic downloads, attachment thresholds, and draft retention.",
+  "@storageDescription": {
+    "description": "Subtitle for the storage settings page."
+  },
+  "autoDownloadImages": "Auto-download images",
+  "@autoDownloadImages": {
+    "description": "Policy for automatically downloading image attachments."
+  },
+  "autoDownloadFiles": "Auto-download files",
+  "@autoDownloadFiles": {
+    "description": "Policy for automatically downloading generic file attachments."
+  },
+  "autoDownloadVideos": "Auto-download videos",
+  "@autoDownloadVideos": {
+    "description": "Policy for automatically downloading video attachments."
+  },
+  "autoDownloadAlways": "Always",
+  "@autoDownloadAlways": {
+    "description": "AutoDownloadPolicy value: always download regardless of network."
+  },
+  "autoDownloadWifi": "On Wi-Fi only",
+  "@autoDownloadWifi": {
+    "description": "AutoDownloadPolicy value: only download while connected to Wi-Fi."
+  },
+  "autoDownloadNever": "Never",
+  "@autoDownloadNever": {
+    "description": "AutoDownloadPolicy value: never auto-download, require explicit click."
+  },
+  "attachmentClickThreshold": "Click-to-download threshold",
+  "@attachmentClickThreshold": {
+    "description": "Section title for the click-to-download attachment threshold."
+  },
+  "attachmentClickThresholdMb": "Click-to-download threshold (MB)",
+  "@attachmentClickThresholdMb": {
+    "description": "Attachments larger than this many MB require an explicit click to download."
+  },
+  "drafts": "Drafts",
+  "@drafts": {
+    "description": "Section title for composer draft settings."
+  },
+  "draftsEnabled": "Save message drafts",
+  "@draftsEnabled": {
+    "description": "Toggle for whether composer drafts are saved between sessions."
+  },
+  "draftsEnabledDescription": "Persist the in-progress composer text when the app closes or the user switches rooms.",
+  "@draftsEnabledDescription": {
+    "description": "Subtitle for the drafts-enabled toggle."
+  },
+  "draftRetentionDays": "Draft retention (days)",
+  "@draftRetentionDays": {
+    "description": "How many days to keep saved drafts before they expire."
+  },
+
+  "advanced": "Advanced",
+  "@advanced": {
+    "description": "Title of the advanced settings sub-page in the hub."
+  },
+  "advancedDescription": "Debounce timings, sync timeouts, and log rotation.",
+  "@advancedDescription": {
+    "description": "Subtitle for the advanced settings page."
+  },
+  "debounceTimings": "Debounce timings",
+  "@debounceTimings": {
+    "description": "Section title for the various debounce intervals."
+  },
+  "syncDebounceMs": "Sync debounce",
+  "@syncDebounceMs": {
+    "description": "Milliseconds to wait between sync updates before rebuilding the rooms list."
+  },
+  "searchDebounceMs": "Search debounce",
+  "@searchDebounceMs": {
+    "description": "Milliseconds to wait after the user stops typing before running a search."
+  },
+  "draftAutosaveMs": "Draft autosave debounce",
+  "@draftAutosaveMs": {
+    "description": "Milliseconds to wait after the user stops typing before persisting the draft."
+  },
+  "notificationPersistMs": "Notification persist debounce",
+  "@notificationPersistMs": {
+    "description": "Milliseconds to wait before persisting the notification dedupe state."
+  },
+  "deepLinkDedupMs": "Deep-link dedupe window",
+  "@deepLinkDedupMs": {
+    "description": "Milliseconds during which identical incoming deep-link URIs are collapsed."
+  },
+  "encryptionRefreshDebounceMs": "Encryption refresh debounce",
+  "@encryptionRefreshDebounceMs": {
+    "description": "Milliseconds to wait after sync before refreshing encryption state."
+  },
+  "timeoutsAndLimits": "Timeouts & limits",
+  "@timeoutsAndLimits": {
+    "description": "Section title for first-sync timeouts and search/notification batch sizes."
+  },
+  "firstSyncTimeoutS": "First-sync timeout",
+  "@firstSyncTimeoutS": {
+    "description": "Seconds to wait for the first sync before continuing the boot sequence."
+  },
+  "searchPageSize": "In-room search page size",
+  "@searchPageSize": {
+    "description": "How many events to fetch per page when searching within a room."
+  },
+  "notificationDedupeCacheSize": "Notification dedupe cache size",
+  "@notificationDedupeCacheSize": {
+    "description": "Maximum number of recently seen event IDs to keep in memory for dedupe."
+  },
+  "logLevel": "Minimum log level",
+  "@logLevel": {
+    "description": "Minimum severity persisted to log files."
+  },
+  "logMaxFileSizeMb": "Log file max size",
+  "@logMaxFileSizeMb": {
+    "description": "Maximum size of a single log file in megabytes before rotation."
+  },
+  "logMaxFiles": "Log files to keep",
+  "@logMaxFiles": {
+    "description": "Maximum number of rotated log files to retain on disk."
+  },
+  "logFlushDelayS": "Log flush delay",
+  "@logFlushDelayS": {
+    "description": "Seconds between batched log flushes."
+  },
+  "logVerboseRelease": "Verbose logging in release",
+  "@logVerboseRelease": {
+    "description": "When on, all log levels are persisted even in release builds."
+  },
+  "logVerboseReleaseDescription": "Persist debug and trace logs in release builds (off by default).",
+  "@logVerboseReleaseDescription": {
+    "description": "Subtitle for the verbose-logging-in-release toggle."
+  },
+  "logLevelAll": "All",
+  "@logLevelAll": {
+    "description": "LogLevel value: every severity."
+  },
+  "logLevelTrace": "Trace",
+  "@logLevelTrace": {
+    "description": "LogLevel value: trace-level events."
+  },
+  "logLevelDebug": "Debug",
+  "@logLevelDebug": {
+    "description": "LogLevel value: debug-level events."
+  },
+  "logLevelInfo": "Info",
+  "@logLevelInfo": {
+    "description": "LogLevel value: informational events."
+  },
+  "logLevelWarning": "Warning",
+  "@logLevelWarning": {
+    "description": "LogLevel value: warnings."
+  },
+  "logLevelError": "Error",
+  "@logLevelError": {
+    "description": "LogLevel value: errors."
+  },
+  "logLevelFatal": "Fatal",
+  "@logLevelFatal": {
+    "description": "LogLevel value: fatal / panic-level events."
+  },
+
+  "layoutDensity": "Layout density",
+  "@layoutDensity": {
+    "description": "Section title for the comfortable/compact list-row density."
+  },
+  "densityComfortable": "Comfortable",
+  "@densityComfortable": {
+    "description": "LayoutDensity value: roomy list rows."
+  },
+  "densityCompact": "Compact",
+  "@densityCompact": {
+    "description": "LayoutDensity value: tighter list rows for higher information density."
+  },
+  "bubbleRadius": "Bubble corner radius",
+  "@bubbleRadius": {
+    "description": "Corner radius (in px) applied to chat message bubbles."
+  },
+  "window": "Window",
+  "@window": {
+    "description": "Section title for desktop window-related settings."
+  },
+  "windowMinWidth": "Minimum window width",
+  "@windowMinWidth": {
+    "description": "Lower bound on the desktop window width in pixels."
+  },
+  "windowMinHeight": "Minimum window height",
+  "@windowMinHeight": {
+    "description": "Lower bound on the desktop window height in pixels."
+  },
+  "fonts": "Fonts",
+  "@fonts": {
+    "description": "Section title for primary and monospace font family settings."
+  },
+  "fontFamily": "App font family",
+  "@fontFamily": {
+    "description": "Font family used throughout the app."
+  },
+  "monoFontFamily": "Monospace font family",
+  "@monoFontFamily": {
+    "description": "Font family used for code blocks and inline code."
+  },
+
+  "sendReadReceipts": "Send read receipts",
+  "@sendReadReceipts": {
+    "description": "Toggle that controls whether the app sends m.read receipt events."
+  },
+  "sendReadReceiptsDescription": "Tell other clients when you have read their messages.",
+  "@sendReadReceiptsDescription": {
+    "description": "Subtitle for the send-read-receipts toggle."
+  },
+  "showReadReceipts": "Show read receipts",
+  "@showReadReceipts": {
+    "description": "Toggle that controls whether others' read receipts are rendered under messages."
+  },
+  "showReadReceiptsDescription": "Display the avatar stack of users who have read each message.",
+  "@showReadReceiptsDescription": {
+    "description": "Subtitle for the show-read-receipts toggle."
+  },
+  "linkPreviewsEnabled": "Show link previews",
+  "@linkPreviewsEnabled": {
+    "description": "Toggle that controls whether matrix:// and matrix.to URLs in messages render preview banners."
+  },
+  "linkPreviewsEnabledDescription": "Append a clickable banner to matrix.to / matrix: URLs detected in message bodies.",
+  "@linkPreviewsEnabledDescription": {
+    "description": "Subtitle for the link-previews toggle."
+  },
+  "replyPreviewThreshold": "Reply preview collapse length",
+  "@replyPreviewThreshold": {
+    "description": "Reply previews longer than this many characters get an expand toggle."
+  },
+  "sendTypingNotifications": "Send typing notifications",
+  "@sendTypingNotifications": {
+    "description": "Toggle that controls whether typing in the composer emits m.typing events."
+  },
+  "sendTypingNotificationsDescription": "Let the room know when you are typing a message.",
+  "@sendTypingNotificationsDescription": {
+    "description": "Subtitle for the send-typing-notifications toggle."
+  },
+  "showTypingIndicator": "Show typing indicator",
+  "@showTypingIndicator": {
+    "description": "Toggle that controls whether the \"X is typing…\" footer renders."
+  },
+  "showTypingIndicatorDescription": "Show the footer that lists users currently typing in the room.",
+  "@showTypingIndicatorDescription": {
+    "description": "Subtitle for the show-typing-indicator toggle."
+  },
+  "typing": "Typing",
+  "@typing": {
+    "description": "Section title for typing-indicator settings."
+  },
+  "composer": "Composer",
+  "@composer": {
+    "description": "Section title for chat-box / composer settings."
+  },
+  "sendShortcut": "Send shortcut",
+  "@sendShortcut": {
+    "description": "Section title for the keyboard shortcut that sends a message."
+  },
+  "sendShortcutEnter": "Enter",
+  "@sendShortcutEnter": {
+    "description": "SendShortcut value: pressing Enter alone sends the message."
+  },
+  "sendShortcutCmdEnter": "Cmd/Ctrl+Enter",
+  "@sendShortcutCmdEnter": {
+    "description": "SendShortcut value: pressing Cmd/Ctrl+Enter sends the message."
+  },
+  "sendShortcutBoth": "Both",
+  "@sendShortcutBoth": {
+    "description": "SendShortcut value: both Enter and Cmd/Ctrl+Enter send the message."
+  },
+  "mediaSizes": "Media bubble sizes",
+  "@mediaSizes": {
+    "description": "Section title for the per-media-type bubble dimension sliders."
+  },
+  "imageThumbnailMaxPx": "Image thumbnail max size",
+  "@imageThumbnailMaxPx": {
+    "description": "Maximum dimension (in px) for image thumbnails in the chat."
+  },
+  "stickerMaxPx": "Sticker max size",
+  "@stickerMaxPx": {
+    "description": "Maximum size (in px) for stickers in the chat."
+  },
+  "videoMaxPx": "Video preview max size",
+  "@videoMaxPx": {
+    "description": "Maximum size (in px) for video previews."
+  },
+  "audioMaxPx": "Audio message max size",
+  "@audioMaxPx": {
+    "description": "Maximum size (in px) for audio message bubbles."
+  },
+  "fileMaxPx": "File bubble max size",
+  "@fileMaxPx": {
+    "description": "Maximum size (in px) for generic file attachment bubbles."
+  },
+  "locationMaxPx": "Location bubble max size",
+  "@locationMaxPx": {
+    "description": "Maximum size (in px) for location message bubbles."
+  },
+
+  "testNotification": "Test notification",
+  "@testNotification": {
+    "description": "Action label that fires a test notification."
+  },
+  "testNotificationDescription": "Send a test notification to verify delivery",
+  "@testNotificationDescription": {
+    "description": "Subtitle for the test notification action."
+  },
+  "testNotificationFired": "Test notification fired — check logs",
+  "@testNotificationFired": {
+    "description": "Snackbar after firing a test notification."
+  },
+  "notificationFailed": "Notification failed: {error}",
+  "@notificationFailed": {
+    "description": "Snackbar shown when a test notification fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "notifyDmsOnly": "Only notify for direct messages",
+  "@notifyDmsOnly": {
+    "description": "Toggle that limits notifications to direct-message rooms."
+  },
+  "notifyDmsOnlyDescription": "Suppress notifications from non-DM rooms.",
+  "@notifyDmsOnlyDescription": {
+    "description": "Subtitle for the notify-DMs-only toggle."
+  },
+  "notifyWhenFocused": "Notify when window is focused",
+  "@notifyWhenFocused": {
+    "description": "Toggle that controls whether notifications fire while the window has focus."
+  },
+  "notifyWhenFocusedDescription": "When on, suppress notifications while the main window has focus.",
+  "@notifyWhenFocusedDescription": {
+    "description": "Subtitle for the notify-when-focused toggle."
+  },
+  "notificationSoundEnabled": "Play notification sound",
+  "@notificationSoundEnabled": {
+    "description": "Toggle that controls whether notifications play the default sound."
+  },
+  "notificationSoundEnabledDescription": "Emit the default sound alongside every notification.",
+  "@notificationSoundEnabledDescription": {
+    "description": "Subtitle for the notification-sound toggle."
+  },
+
+  "trayLeftClick": "Tray left-click action",
+  "@trayLeftClick": {
+    "description": "Section title for what happens when the user clicks the tray icon."
+  },
+  "trayClickToggle": "Toggle window",
+  "@trayClickToggle": {
+    "description": "TrayClickAction value: show/hide the main window."
+  },
+  "trayClickShow": "Show window",
+  "@trayClickShow": {
+    "description": "TrayClickAction value: always show the main window."
+  },
+  "trayClickOpenUnread": "Open unread",
+  "@trayClickOpenUnread": {
+    "description": "TrayClickAction value: jump to the first unread room."
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Generic save action button label."
+  },
+  "security": "Security",
+  "@security": {
+    "description": "Section title for security-related settings."
   }
 }

@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
-import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
