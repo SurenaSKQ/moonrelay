@@ -2034,6 +2034,47 @@
     }
   },
 
+  "openSenderProfile": "Open sender profile",
+  "@openSenderProfile": {
+    "description": "Context-menu item that opens the sender's profile page."
+  },
+  "copyMessage": "Copy message",
+  "@copyMessage": {
+    "description": "Context-menu item that copies the message body to the clipboard."
+  },
+  "copyEventId": "Copy event ID",
+  "@copyEventId": {
+    "description": "Context-menu item that copies the message's Matrix event ID."
+  },
+  "copyMessageLink": "Copy message link",
+  "@copyMessageLink": {
+    "description": "Context-menu item that copies a matrix.to permalink to the message."
+  },
+  "copyRawJson": "Copy raw JSON",
+  "@copyRawJson": {
+    "description": "Context-menu item that copies the event content as pretty-printed JSON."
+  },
+  "messageDetails": "Message details",
+  "@messageDetails": {
+    "description": "Context-menu item that opens the message details page."
+  },
+  "messageEventIdCopied": "Event ID copied to clipboard",
+  "@messageEventIdCopied": {
+    "description": "Snackbar after copying a message event ID."
+  },
+  "messageLinkCopied": "Message link copied to clipboard",
+  "@messageLinkCopied": {
+    "description": "Snackbar after copying a matrix.to message permalink."
+  },
+  "messageRawJsonCopied": "Raw event JSON copied to clipboard",
+  "@messageRawJsonCopied": {
+    "description": "Snackbar after copying a message's raw JSON."
+  },
+  "reportReasonHint": "Reason",
+  "@reportReasonHint": {
+    "description": "Placeholder text in the report-user dialog text field."
+  },
+
   "recordVoiceNote": "Record voice note",
   "@recordVoiceNote": {
     "description": "Tooltip on the chat-box voice record button."
