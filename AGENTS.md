@@ -47,6 +47,9 @@ lib/
     screens/                  # Full-page views (rooms, profiles, settings, etc.)
       encryption/             # Encryption setup screens
     chat/                     # Chat widgets (timeline, chat box, events)
+      message_action_runner.dart   # Canonical implementations of every message action (react, copy, edit, pin, delete, kick/ban/report)
+      message_actions.dart         # Floating hover toolbar that appears on message hover (delegates to runner)
+      message_context_menu.dart    # Right-click / long-press context menu exposing every hoverbar action plus copy event ID / link / raw JSON / open profile
       events/matrix_events/     # Message type renderers (image, audio, file, video, sticker)
       events/matrix_events/State/     # State event renderers, verification events
       events/
