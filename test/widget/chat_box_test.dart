@@ -11,7 +11,10 @@ import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mocks.dart';
 
@@ -19,11 +22,14 @@ void main() {
   late MockRoom room;
   late MockClient client;
   late MockLogger logger;
+  late SettingsController settings;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     room = MockRoom();
     client = MockClient();
     logger = MockLogger();
+    settings = SettingsController(SettingsService());
 
     when(() => room.client).thenReturn(client);
     when(() => room.sendTextEvent(any())).thenAnswer((_) async {
@@ -45,6 +51,8 @@ void main() {
     return MultiProvider(
       providers: [
         Provider<Logger>.value(value: logger),
+        ChangeNotifierProvider<SettingsController>.value(value: settings),
+        Provider<Client>.value(value: client),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -192,7 +200,11 @@ void main() {
         // doesn't crash the send pipeline.
         final replyTarget = ValueNotifier<Event?>(null);
         await tester.pumpWidget(MultiProvider(
-          providers: [Provider<Logger>.value(value: logger)],
+          providers: [
+            Provider<Logger>.value(value: logger),
+            ChangeNotifierProvider<SettingsController>.value(value: settings),
+            Provider<Client>.value(value: client),
+          ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
