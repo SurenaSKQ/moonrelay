@@ -23,7 +23,10 @@ import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// Displays an audio message with an in-app `just_audio` player.
 ///
@@ -47,17 +50,11 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
+  bool _autoDownloadResolved = false;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment().then((m) {
-        final bytes = m.bytes;
-        _bytes = bytes;
-        // Defer play start until next frame so we can attach the URL.
-        return m;
-      });
-    }
     _player.positionStream.listen((p) {
       if (mounted) setState(() => _position = p);
     });
@@ -72,6 +69,41 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
         });
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    if (!_shouldAutoDownload()) return;
+    _downloadFuture = widget.event.downloadAndDecryptAttachment().then((m) {
+      final bytes = m.bytes;
+      _bytes = bytes;
+      // Defer play start until next frame so we can attach the URL.
+      return m;
+    });
+  }
+
+  /// Checks the user's auto-download preference for files (audio).
+  bool _shouldAutoDownload() {
+    try {
+      final policy = context.read<SettingsController>().autoDownloadFiles;
+      switch (policy) {
+        case AutoDownloadPolicy.always:
+        case AutoDownloadPolicy.wifi:
+          return true;
+        case AutoDownloadPolicy.never:
+          return false;
+      }
+    } catch (_) {
+      return true;
+    }
   }
 
   @override

@@ -18,7 +18,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// Displays a file attachment with a polished card showing file type icon,
 /// name, size, and a download button.
@@ -33,11 +36,40 @@ class FileAttachedMessage extends StatefulWidget {
 class _FileAttachedMessageState extends State<FileAttachedMessage> {
   Future<MatrixFile>? _downloadFuture;
 
+  bool _autoDownloadResolved = false;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    if (!_shouldAutoDownload()) return;
+    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  /// Checks the user's auto-download preference for file attachments.
+  bool _shouldAutoDownload() {
+    try {
+      final policy = context.read<SettingsController>().autoDownloadFiles;
+      switch (policy) {
+        case AutoDownloadPolicy.always:
+        case AutoDownloadPolicy.wifi:
+          return true;
+        case AutoDownloadPolicy.never:
+          return false;
+      }
+    } catch (_) {
+      return true;
     }
   }
 
