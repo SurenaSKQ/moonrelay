@@ -692,6 +692,7 @@ class ChatTimelineState extends State<ChatTimeline> {
           room: widget.room,
           displayType: settings.displayType,
           fontSize: settings.fontSize,
+          bubbleRadius: settings.bubbleRadius,
           scrollController: _scrollController,
           onReply: widget.onReply,
           onThread: widget.onThread,
@@ -712,6 +713,7 @@ class ChatTimelineState extends State<ChatTimeline> {
       room: widget.room,
       displayType: settings.displayType,
       fontSize: settings.fontSize,
+      bubbleRadius: settings.bubbleRadius,
       scrollController: _scrollController,
       timelineVersion: _timelineVersion,
       onReply: widget.onReply,
@@ -1062,6 +1064,7 @@ class _PinnedEventsList extends StatelessWidget {
     required this.room,
     required this.displayType,
     required this.fontSize,
+    required this.bubbleRadius,
     required this.scrollController,
     this.onReply,
     this.onThread,
@@ -1072,6 +1075,7 @@ class _PinnedEventsList extends StatelessWidget {
   final Room room;
   final DisplayType displayType;
   final double fontSize;
+  final double bubbleRadius;
   final ScrollController scrollController;
   final void Function(Event event)? onReply;
   final void Function(Event event)? onThread;
@@ -1111,6 +1115,7 @@ class _PinnedEventsList extends StatelessWidget {
           isGroupStart: !isContinuation,
           isGroupContinuation: isContinuation,
           fontSize: fontSize,
+          bubbleRadius: bubbleRadius,
           onReply: onReply != null ? () => onReply!(event) : null,
           onThread: onThread != null ? () => onThread!(event) : null,
           onForward:

@@ -50,6 +50,7 @@ class TimelineView extends StatefulWidget {
     required this.displayType,
     required this.scrollController,
     required this.fontSize,
+    this.bubbleRadius = 12.0,
     this.timelineVersion,
     this.onReply,
     this.onThread,
@@ -66,6 +67,9 @@ class TimelineView extends StatefulWidget {
   /// Font size for message text, propagated from [SettingsController]
   /// once at the top level instead of watched inside each item.
   final double fontSize;
+
+  /// Corner radius for the message bubble in bubbles display mode.
+  final double bubbleRadius;
 
   /// Included so the parent can signal data changes without tearing down
   /// the ListView (no [ValueKey] used).
@@ -348,6 +352,7 @@ class _TimelineViewState extends State<TimelineView> {
           isGroupContinuation: isContinuation,
           timeline: widget.timeline,
           fontSize: widget.fontSize,
+          bubbleRadius: widget.bubbleRadius,
           threadReplyCount: replyCount,
           onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
           onThread:

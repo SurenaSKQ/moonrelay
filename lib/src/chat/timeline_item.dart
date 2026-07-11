@@ -53,6 +53,7 @@ class TimelineItem extends StatelessWidget {
     this.isGroupContinuation = false,
     this.timeline,
     required this.fontSize,
+    this.bubbleRadius = 12.0,
     this.threadReplyCount = 0,
     this.onReply,
     this.onForward,
@@ -70,6 +71,9 @@ class TimelineItem extends StatelessWidget {
   /// Font size for message text, passed from the parent to avoid
   /// a per-event [context.watch] on [SettingsController].
   final double fontSize;
+
+  /// Corner radius for the message bubble in bubbles display mode.
+  final double bubbleRadius;
 
   /// Precomputed number of thread replies (0 = no thread).
   final int threadReplyCount;
@@ -397,7 +401,7 @@ class TimelineItem extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         color: cs.primaryContainer.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(bubbleRadius),
                         border: Border.all(
                           color: cs.primary.withValues(alpha: 0.5),
                           width: 0.7,
