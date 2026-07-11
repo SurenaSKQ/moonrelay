@@ -93,7 +93,8 @@ class NotificationService {
   /// Other platforms fall through to their default tap behaviour
   /// (open the app), which the platform-specific plugin surfaces
   /// support for out of the box.
-  static NotificationDetails _buildDetails(String? payload) {
+  static NotificationDetails _buildDetails(String? payload,
+      {bool playSound = true}) {
     return NotificationDetails(
       android: AndroidNotificationDetails(
         'moonrelay_channel',
@@ -101,6 +102,7 @@ class NotificationService {
         channelDescription: 'Matrix message notifications',
         importance: Importance.high,
         priority: Priority.high,
+        playSound: playSound,
       ),
       iOS: DarwinNotificationDetails(),
       linux: LinuxNotificationDetails(defaultActionName: 'Open'),
@@ -190,6 +192,16 @@ class NotificationService {
   final Map<String, String> _lastNotifiedEventIds = {};
   final Map<String, int> _groupNotifiedCounts = {};
   bool _loadedMuted = false;
+
+  /// Whether the app window is currently focused (has input focus).
+  /// Used by the [notifyWhenFocused] toggle to suppress notifications
+  /// while the user is actively using the app.
+  bool _hasFocus = true;
+
+  /// Whether the app window was previously focused before a notification
+  /// check.  Updated on each [_processEvent] call so we don't spam the
+  /// window-manager bridge.
+  bool _focusChecked = false;
 
   /// Static, read-only snapshot of the muted-room set; cross-service
   /// consumers (notably the system tray, which uses it to skip muted
@@ -400,8 +412,27 @@ class NotificationService {
     );
   }
 
+  /// Refresh the cached focus state from the window manager.  Called
+  /// at most once per notification flush so we don't hammer the platform
+  /// bridge on every event.
+  Future<void> _updateFocusState() async {
+    if (_focusChecked) return;
+    _focusChecked = true;
+    try {
+      _hasFocus = await windowManager.isFocused();
+    } catch (_) {
+      // Window manager unavailable (e.g. tests) — assume focused.
+      _hasFocus = true;
+    }
+  }
+
   void _processRooms() {
     if (!_settings.notificationsEnabled) return;
+
+    // Refresh focus state once per sync tick so that the
+    // notifyWhenFocused check in _processEvent uses a recent value
+    // without making an async bridge call for every event.
+    unawaited(_updateFocusState());
 
     bool changed = false;
     bool groupChanged = false;
@@ -494,6 +525,11 @@ class NotificationService {
 
     if (event.senderId == _client.userID) return;
 
+    // Honour "don't notify when focused" toggle: suppress notification
+    // when the app window has input focus and the user chose not to be
+    // disturbed by foreground alerts.
+    if (!_settings.notifyWhenFocused && _hasFocus) return;
+
     // Encrypted messages should still notify the user — the SDK
     // may not have decrypted the event by the time the notification
     // fires, in which case the body string is empty. We surface a
@@ -521,6 +557,7 @@ class NotificationService {
           ? '$senderName sent an encrypted message'
           : '$senderName: $body',
       payload: _encodePayload('matrix:r/${room.id}'),
+      playSound: _settings.notificationSoundEnabled,
     );
   }
 
@@ -564,6 +601,7 @@ class NotificationService {
       title,
       body,
       payload: payload,
+      playSound: _settings.notificationSoundEnabled,
     );
   }
 
@@ -572,6 +610,7 @@ class NotificationService {
     String title,
     String body, {
     String? payload,
+    bool playSound = true,
   }) async {
     final plugin = _plugin;
     if (plugin == null) {
@@ -584,7 +623,7 @@ class NotificationService {
         id: 0, // ignored when a tag is provided on every supported platform
         title: title,
         body: body,
-        notificationDetails: _buildDetails(payload),
+        notificationDetails: _buildDetails(payload, playSound: playSound),
         payload: payload,
       );
     } catch (e) {
