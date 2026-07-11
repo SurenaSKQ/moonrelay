@@ -34,7 +34,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// key backup, device verification) and provides entry points to the
 /// detailed management screens.
 class EncryptionOverviewScreen extends StatefulWidget {
-  const EncryptionOverviewScreen({super.key});
+  const EncryptionOverviewScreen({super.key, this.embedded = false});
+
+  /// When `true`, the page is rendered without its own [Scaffold] /
+  /// [AppBar] so it can be embedded inside a parent widget (e.g. the
+  /// hub screen's content pane) without nesting scaffolds.
+  final bool embedded;
 
   @override
   State<EncryptionOverviewScreen> createState() =>
@@ -90,26 +95,9 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(loc.encryptionSecurity),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.refreshCw),
-            tooltip: loc.encryptionRefresh,
-            onPressed: () async {
-              await enc.refresh();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(loc.encryptionRefreshed)),
-              );
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+    final body = ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
           // ── Recovery key reminder ───────────────────────────────────
           // Shown when cross-signing is bootstrapped but the user has
           // not yet confirmed they have saved the recovery key. The
@@ -389,7 +377,27 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           const SizedBox(height: 32),
         ],
+    );
+
+    if (widget.embedded) return body;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(loc.encryptionSecurity),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.refreshCw),
+            tooltip: loc.encryptionRefresh,
+            onPressed: () async {
+              await enc.refresh();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(loc.encryptionRefreshed)),
+              );
+            },
+          ),
+        ],
       ),
+      body: body,
     );
   }
 
