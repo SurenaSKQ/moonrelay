@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/screens/logs_page.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
@@ -475,9 +476,9 @@ class _HubScreenState extends State<HubScreen> {
 
 // ── Hub overlay ────────────────────────────────────────────────────────────
 
-/// Opens the hub screen as a modal overlay on top of the current
-/// navigation stack (like the command palette), preserving the
-/// dashboard state underneath.
+/// Opens the hub screen as a centered modal overlay on top of the current
+/// navigation stack (like the command palette), preserving the dashboard
+/// state underneath and blurring the background.
 ///
 /// When [selection] is provided, the hub opens to the specified
 /// category/sub-item (e.g. profile, settings, accounts).
@@ -490,10 +491,47 @@ Future<void> showHubOverlay(
     PageRouteBuilder(
       opaque: false,
       barrierDismissible: true,
-      barrierColor: Colors.black54,
+      barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 150),
       reverseTransitionDuration: const Duration(milliseconds: 120),
-      pageBuilder: (_, __, ___) => HubScreen(client: client, selection: selection),
+      pageBuilder: (_, __, ___) => _HubOverlayPage(
+        client: client,
+        selection: selection,
+      ),
     ),
   );
+}
+
+/// Wraps [HubScreen] in a centered, blur-backed card so it appears as a
+/// floating overlay rather than a full-screen page.
+class _HubOverlayPage extends StatelessWidget {
+  const _HubOverlayPage({required this.client, this.selection});
+
+  final Client client;
+  final HubCategorySelection? selection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: BlurBackground(
+        overlayColor: Colors.black54,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Material(
+                elevation: 12,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                color: Theme.of(context).colorScheme.surface,
+                child: HubScreen(client: client, selection: selection),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
