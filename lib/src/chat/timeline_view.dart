@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -407,30 +408,31 @@ class _TimelineViewState extends State<TimelineView> {
     final hasMore = widget.isLoadingHistory;
     final extra = hasMore ? _buildHistoryLoadingSkeletons() : <Widget>[];
 
-    // Wrap the placeholder list in [SizeTransition] + [FadeTransition]
-    // so the block grows and fades in when the user first reaches the
-    // end of the loaded history, and collapses back to zero when the
-    // SDK clears `Room.prev_batch` (no more history to fetch).
-    // We use a controller-driven [AnimationController] so the
-    // transition is reversible and consistent with the rest of the
-    // app's motion budget.
+    // With `reverse: true` the items are painted top-of-viewport to
+    // bottom-of-viewport.  The LAST list index — our skeleton slot —
+    // therefore lands at the top of the viewport.  The first 5 items
+    // are at the top of the timeline (the oldest end), which is the
+    // region that gets replaced when new history arrives, so we wrap
+    // those entries with [_ItemAppearance] to fade them in cleanly
+    // instead of snapping.
     return ListView.builder(
       controller: widget.scrollController,
       reverse: true,
-      // Always reserve one slot for the skeleton block.  When the
-      // block is collapsed (no history to fetch) the slot is wrapped
-      // in a zero-height `SizeTransition`, so it doesn't add visible
-      // padding to the list.  With `reverse: true` the LAST index
-      // paints at the top of the viewport, which is where the
-      // placeholders belong.
       itemCount: items.length + 1,
       itemBuilder: (context, index) {
-        // index == items.length is the last slot, which `reverse: true`
-        // paints at the top of the viewport.
         if (index == items.length) {
           return _AnimatedHistorySkeleton(
             show: hasMore,
             children: extra,
+          );
+        }
+        // Animate items that just got paginated in: the oldest end of
+        // the timeline (top of the viewport when `reverse: true`).
+        final isNewestHistory = hasMore && index <= 4;
+        if (isNewestHistory) {
+          return _ItemAppearance(
+            key: ValueKey('${items.length}_$index'),
+            child: items[index],
           );
         }
         return items[index];
@@ -438,17 +440,17 @@ class _TimelineViewState extends State<TimelineView> {
     );
   }
 
-  /// Returns three skeleton message placeholders shown at the top of
-  /// the viewport while older history is being paginated in.
+  /// Returns skeleton message placeholders shown at the top of the
+  /// viewport while older history is being paginated in.
   ///
-  /// Heights are chosen to roughly match the average event density
-  /// so the new (real) events land below the skeleton without the
-  /// viewport jumping when the data arrives.
+  /// A single tile is shown — the timeline re-renders incrementally as
+  /// paginated events arrive, with each newly-arrived event fading in
+  /// from its top edge instead of being snapped into place.  Keeping
+  /// the placeholder count small avoids the prior "stacked skeleton"
+  /// gap that snapped out of view once any real event arrived.
   List<Widget> _buildHistoryLoadingSkeletons() {
     return const <Widget>[
       _HistorySkeletonTile(barFraction: 0.65),
-      _HistorySkeletonTile(barFraction: 0.9),
-      _HistorySkeletonTile(barFraction: 0.55),
     ];
   }
 
@@ -546,16 +548,21 @@ class _AnimatedHistorySkeletonState
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _animation;
+  late Motion _motion;
 
   @override
   void initState() {
     super.initState();
+    _motion = Motion.of(context);
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 220),
+      duration: _motion.duration(MotionDurations.slow),
       value: widget.show ? 1.0 : 0.0,
     );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: _motion.curve(),
+    );
   }
 
   @override
@@ -599,15 +606,87 @@ class _AnimatedHistorySkeletonState
   }
 }
 
+/// Per-item appearance transition.
+///
+/// Used to fade newly-paginated history into view at the top of the
+/// timeline (the oldest end with `reverse: true`).  When the
+/// animations setting is off, the wrapper reduces to its child so the
+/// frame budget stays free of unnecessary transitions.
+class _ItemAppearance extends StatefulWidget {
+  const _ItemAppearance({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<_ItemAppearance> createState() => _ItemAppearanceState();
+}
+
+class _ItemAppearanceState extends State<_ItemAppearance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+  late Motion _motion;
+
+  @override
+  void initState() {
+    super.initState();
+    _motion = Motion.of(context);
+    _controller = AnimationController(
+      vsync: this,
+      duration: _motion.duration(MotionDurations.medium),
+      value: 0.0,
+    );
+    _opacity = CurvedAnimation(parent: _controller, curve: _motion.curve());
+    // The new event is appended at the *top* of the list (which sits
+    // at the top of the viewport with `reverse: true`).  We want it
+    // to slide *down* into the viewport, so the slide begins from a
+    // small negative-Y offset (offscreen-above) and settles at zero.
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -0.05),
+      end: Offset.zero,
+    ).animate(_opacity);
+    // Defer the forward() call by one frame so the new widget first
+    // paints in its from-state; without this Flutter optimises the
+    // starting frame out and the transition is invisible.
+    if (_motion.enableAnimations) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _controller.forward());
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_motion.enableAnimations) return widget.child;
+    return ClipRect(
+      child: FadeTransition(
+        opacity: _opacity,
+        child: SlideTransition(
+          position: _slide,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 /// Single skeleton message tile used to fill the viewport while older
 /// history is being paginated in.
 ///
 /// Mirrors the visual rhythm of a real [TimelineItem] (avatar circle
 /// + a body block) but renders as muted rounded rectangles so the
 /// user sees feedback without misreading the placeholders for actual
-/// messages.  Three of these are shown stacked at the top of the
-/// timeline (the oldest end) while the SDK pulls more events.
-class _HistorySkeletonTile extends StatelessWidget {
+/// messages.  A subtle pulse animation cycles the bar opacity to
+/// communicate that loading is in progress; it is disabled when the
+/// user has turned off app animations in settings.
+class _HistorySkeletonTile extends StatefulWidget {
   const _HistorySkeletonTile({required this.barFraction});
 
   /// Width of the bottom "body" bar as a fraction of the available
@@ -616,52 +695,98 @@ class _HistorySkeletonTile extends StatelessWidget {
   final double barFraction;
 
   @override
+  State<_HistorySkeletonTile> createState() => _HistorySkeletonTileState();
+}
+
+class _HistorySkeletonTileState extends State<_HistorySkeletonTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    final motion = Motion.of(context);
+    // Use a slow pulse — the user is waiting for new events so the
+    // animation needs to convey "working" without flickering.
+    _controller = AnimationController(
+      vsync: this,
+      duration: motion.duration(const Duration(milliseconds: 1200)),
+    );
+    _opacity = Tween<double>(
+      begin: 0.6,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: motion.curve()));
+    if (motion.enableAnimations) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final base = scheme.surfaceContainerHighest;
     final width = MediaQuery.of(context).size.width;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar placeholder
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Container(
+            child: _pulse(child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
                 color: base,
                 shape: BoxShape.circle,
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 8),
-          // Body placeholders
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Sender-name bar
-                _skeletonBar(width: width * 0.32, height: 13, color: base),
+                _pulse(child: _skeletonBar(
+                  width: width * 0.32,
+                  height: 13,
+                  color: base,
+                )),
                 const SizedBox(height: 6),
-                _skeletonBar(
+                _pulse(child: _skeletonBar(
                   width: double.infinity,
                   height: 12,
                   color: base,
-                ),
+                )),
                 const SizedBox(height: 4),
-                _skeletonBar(
-                  width: width * barFraction,
+                _pulse(child: _skeletonBar(
+                  width: width * widget.barFraction,
                   height: 12,
                   color: base,
-                ),
+                )),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _pulse({required Widget child}) {
+    return AnimatedBuilder(
+      animation: _opacity,
+      builder: (context, c) => Opacity(opacity: _opacity.value, child: c),
+      child: child,
     );
   }
 

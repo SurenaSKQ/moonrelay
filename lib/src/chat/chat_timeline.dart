@@ -26,6 +26,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
@@ -455,8 +456,8 @@ class ChatTimelineState extends State<ChatTimeline> {
     if (distance < pos.viewportDimension * 0.6) return;
     _scrollController.animateTo(
       targetOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: motionDuration(300),
+      curve: motionCurve(Curves.easeInOut),
     );
   }
 
@@ -581,8 +582,13 @@ class ChatTimelineState extends State<ChatTimeline> {
     }
 
     // Keep the fully-read marker fresh — the SDK updates
-    // `Room.fullyRead` on every sync, so we just sample it on rebuild.
-    _refreshLastSeenMarker();
+    // `Room.fullyRead` on every sync, so we just sample it on
+    // rebuild.  We schedule the refresh on the next frame so that
+    // any `setState` it triggers runs *outside* this build, which
+    // would otherwise trip a "setState() during build" error and
+    // create a noisy rebuild loop during scroll events.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _refreshLastSeenMarker());
 
     return Consumer<SettingsController>(
       builder: (context, settings, _) {
@@ -802,10 +808,22 @@ class ChatTimelineState extends State<ChatTimeline> {
 
     _scrollController.animateTo(
       paddedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: motionDuration(300),
+      curve: motionCurve(Curves.easeInOut),
     );
   }
+
+  /// Smoothly-jumping scroll mappings resolved against the user's
+  /// animation preferences.  Both helpers fall through to the standard
+  /// curve / duration pair when motion is enabled and collapse to a
+  /// "do it instantly" no-op when the user has disabled animations
+  /// (the scroll controller still respects [duration] though, so even
+  /// with a zero duration we get the same result without jank).
+  Duration motionDuration(int millis) =>
+      Motion.of(context).duration(Duration(milliseconds: millis));
+
+  Curve motionCurve([Curve fallback = Curves.easeInOut]) =>
+      Motion.of(context).curve(fallback);
 
   /// Sends a read receipt for the newest event in the timeline so the server
   /// and other clients know that the user has seen the latest messages.
@@ -874,15 +892,20 @@ class _FloatingActionColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final motion = Motion.of(context);
+    final animDuration = motion.duration(const Duration(milliseconds: 180));
+    final animCurve = motion.curve();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedSize(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
+          duration: animDuration,
+          curve: animCurve,
           alignment: Alignment.bottomCenter,
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
+            duration: animDuration,
+            switchInCurve: animCurve,
+            switchOutCurve: animCurve,
             child: unreadVisible
                 ? _JumpToUnreadPill(
                     key: const ValueKey('jump-to-unread'),
@@ -893,11 +916,13 @@ class _FloatingActionColumn extends StatelessWidget {
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
+          duration: animDuration,
+          curve: animCurve,
           alignment: Alignment.bottomCenter,
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
+            duration: animDuration,
+            switchInCurve: animCurve,
+            switchOutCurve: animCurve,
             child: isScrolledUp
                 ? _ScrollToBottomPill(
                     key: const ValueKey('scroll-to-bottom'),

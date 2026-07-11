@@ -33,6 +33,7 @@ import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -275,12 +276,265 @@ class MoonRouter {
             ),
             GoRoute(
               path: '/main/myprofile',
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                ProfileDelegate(
+                  userid: null,
+                ),
+              ),
+            ),
+            // Hub screen — proper deep-linkable routes.  This shell
+            // is OUTSIDE the DashboardLayout because HubScreen ships
+            // its own two-column layout (category sidebar + content).
+            // Sub-routes expose the category and optional sub-item
+            // (e.g. /hub/settings/appearance) so command palette
+            // actions land on the correct pane.
+            GoRoute(
+              path: '/hub',
               pageBuilder: (context, state) {
                 final Client client =
                     Provider.of<Client>(context, listen: false);
                 return genericPageBuilder(
-                    context, state, HubScreen(client: client));
+                  context,
+                  state,
+                  HubScreen(client: client),
+                );
               },
+              routes: [
+                GoRoute(
+                  path: 'accounts',
+                  pageBuilder: (context, state) {
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      HubScreen(
+                        client: client,
+                        selection: const HubCategorySelection(
+                          categoryKey: 'accounts',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: 'profile',
+                  pageBuilder: (context, state) {
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      HubScreen(
+                        client: client,
+                        selection: const HubCategorySelection(
+                          categoryKey: 'profile',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: 'about',
+                  pageBuilder: (context, state) {
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      HubScreen(
+                        client: client,
+                        selection: const HubCategorySelection(
+                          categoryKey: 'about',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: 'settings',
+                  pageBuilder: (context, state) {
+                    final Client client =
+                        Provider.of<Client>(context, listen: false);
+                    return genericPageBuilder(
+                      context,
+                      state,
+                      HubScreen(
+                        client: client,
+                        selection: const HubCategorySelection(
+                          categoryKey: 'settings',
+                        ),
+                      ),
+                    );
+                  },
+                  routes: [
+                    GoRoute(
+                      path: 'appearance',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'appearance',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'layout',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'layout',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'security',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'security',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'chat',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'chat',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'network',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'network',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'logs',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'logs',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'background',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'background',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'notifications',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'notifications',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    GoRoute(
+                      path: 'blocked',
+                      pageBuilder: (context, state) {
+                        final Client client = Provider.of<Client>(context,
+                            listen: false);
+                        return genericPageBuilder(
+                          context,
+                          state,
+                          HubScreen(
+                            client: client,
+                            selection: const HubCategorySelection(
+                              categoryKey: 'settings',
+                              subKey: 'blocked',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
             GoRoute(
               path: '/main/encryption',
@@ -360,10 +614,31 @@ class MoonRouter {
     BuildContext context,
     GoRouterState state,
     Widget child,
-  ) =>
-      NoTransitionPage(
+  ) {
+    // Honour the user's animation preference: when motion is enabled
+    // we apply a soft fade to keep the navigation feeling responsive,
+    // and we collapse back to [NoTransitionPage] when the user has
+    // opted out (animations are off, accessibility reduced-motion).
+    final motion = Motion.of(context);
+    if (!motion.enableAnimations) {
+      return NoTransitionPage(
         key: state.pageKey,
         restorationId: state.pageKey.value,
         child: child,
       );
+    }
+    return CustomTransitionPage(
+      key: state.pageKey,
+      restorationId: state.pageKey.value,
+      transitionDuration: motion.duration(MotionDurations.medium),
+      reverseTransitionDuration: motion.duration(MotionDurations.fast),
+      transitionsBuilder: (context, animation, secondary, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+      child: child,
+    );
+  }
 }
