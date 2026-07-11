@@ -19,8 +19,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background & Tray Settings
@@ -99,6 +101,44 @@ class HubBackgroundSettings extends StatelessWidget {
                         ? (v) => controller.updateStartMinimized(v)
                         : null,
                     secondary: const Icon(LucideIcons.play, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              HubSettingsSection(
+                title: l10n.trayLeftClick,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.trayLeftClick,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final action in TrayClickAction.values)
+                              ChoiceChip(
+                                label: Text(
+                                  localizedTrayClickAction(action, l10n),
+                                ),
+                                selected: action == controller.trayLeftClick,
+                                onSelected: controller.showTrayIcon
+                                    ? (_) => controller.updateTrayLeftClick(action)
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

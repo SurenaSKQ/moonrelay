@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
@@ -215,10 +216,169 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Density
+              HubSettingsSection(
+                title: l10n.layoutDensity,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final d in LayoutDensity.values)
+                          ChoiceChip(
+                            label: Text(localizedLayoutDensity(d, l10n)),
+                            selected: d == controller.density,
+                            onSelected: (_) => controller.updateDensity(d),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Bubble radius
+              HubSettingsSection(
+                title: l10n.bubbleRadius,
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.square),
+                    title: Text(l10n.bubbleRadius),
+                    subtitle: Text('${controller.bubbleRadius.round()} px'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.bubbleRadius,
+                        min: 0,
+                        max: 24,
+                        divisions: 24,
+                        label: '${controller.bubbleRadius.round()} px',
+                        onChanged: (v) => controller.updateBubbleRadius(v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Window
+              HubSettingsSection(
+                title: l10n.window,
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.appWindow),
+                    title: Text(l10n.windowMinWidth),
+                    subtitle: Text('${controller.windowMinWidth.round()}'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.windowMinWidth,
+                        min: 320,
+                        max: 2000,
+                        divisions: 168,
+                        label: '${controller.windowMinWidth.round()}',
+                        onChanged: (v) => controller.updateWindowMinWidth(v),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.appWindow),
+                    title: Text(l10n.windowMinHeight),
+                    subtitle: Text('${controller.windowMinHeight.round()}'),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.windowMinHeight,
+                        min: 400,
+                        max: 2000,
+                        divisions: 160,
+                        label: '${controller.windowMinHeight.round()}',
+                        onChanged: (v) => controller.updateWindowMinHeight(v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Fonts
+              HubSettingsSection(
+                title: l10n.fonts,
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.type),
+                    title: Text(l10n.fontFamily),
+                    subtitle: Text(controller.fontFamily),
+                    onTap: () => _editTextField(
+                      context,
+                      controller,
+                      l10n.fontFamily,
+                      controller.fontFamily,
+                      controller.updateFontFamily,
+                    ),
+                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.code),
+                    title: Text(l10n.monoFontFamily),
+                    subtitle: Text(controller.monoFontFamily),
+                    onTap: () => _editTextField(
+                      context,
+                      controller,
+                      l10n.monoFontFamily,
+                      controller.monoFontFamily,
+                      controller.updateMonoFontFamily,
+                    ),
+                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                  ),
+                ],
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _editTextField(
+    BuildContext context,
+    SettingsController controller,
+    String label,
+    String initial,
+    Future<void> Function(String) onSave,
+  ) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final c = TextEditingController(text: initial);
+        return AlertDialog(
+          title: Text(label),
+          content: TextField(
+            controller: c,
+            autofocus: true,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(AppLocalizations.of(ctx)!.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
+              child: Text(AppLocalizations.of(ctx)!.save),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      await onSave(result);
+    }
   }
 }
