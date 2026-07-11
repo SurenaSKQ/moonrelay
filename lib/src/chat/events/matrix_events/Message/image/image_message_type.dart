@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
@@ -42,11 +43,40 @@ class ImageMessageType extends StatefulWidget {
 class _ImageMessageTypeState extends State<ImageMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
+  bool _autoDownloadResolved = false;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    if (!_shouldAutoDownload()) return;
+    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  /// Checks the user's auto-download preference for images.
+  bool _shouldAutoDownload() {
+    try {
+      final policy = context.read<SettingsController>().autoDownloadImages;
+      switch (policy) {
+        case AutoDownloadPolicy.always:
+        case AutoDownloadPolicy.wifi:
+          return true;
+        case AutoDownloadPolicy.never:
+          return false;
+      }
+    } catch (_) {
+      return true;
     }
   }
 

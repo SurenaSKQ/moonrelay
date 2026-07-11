@@ -18,7 +18,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// Renders an `m.sticker` event as a compact image card without the
 /// tap-to-open viewer (stickers are meant to be lightweight).
@@ -33,11 +36,40 @@ class StickerMessageType extends StatefulWidget {
 class _StickerMessageTypeState extends State<StickerMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
+  bool _autoDownloadResolved = false;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    if (!_shouldAutoDownload()) return;
+    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  /// Checks the user's auto-download preference for images (stickers).
+  bool _shouldAutoDownload() {
+    try {
+      final policy = context.read<SettingsController>().autoDownloadImages;
+      switch (policy) {
+        case AutoDownloadPolicy.always:
+        case AutoDownloadPolicy.wifi:
+          return true;
+        case AutoDownloadPolicy.never:
+          return false;
+      }
+    } catch (_) {
+      return true;
     }
   }
 

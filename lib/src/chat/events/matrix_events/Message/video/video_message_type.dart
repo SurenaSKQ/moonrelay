@@ -22,7 +22,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 /// Displays a video message with an in-app `video_player` controller.
@@ -44,15 +47,43 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Future<MatrixFile>? _thumbnailFuture;
   VideoPlayerController? _controller;
 
+  bool _autoDownloadResolved = false;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    if (!_shouldAutoDownload()) return;
+    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+    if (widget.event.hasThumbnail && _thumbnailFuture == null) {
+      _thumbnailFuture = widget.event.downloadAndDecryptAttachment(getThumbnail: true);
     }
-    if (widget.event.hasThumbnail) {
-      _thumbnailFuture =
-          widget.event.downloadAndDecryptAttachment(getThumbnail: true);
+  }
+
+  /// Checks the user's auto-download preference for videos.
+  bool _shouldAutoDownload() {
+    try {
+      final policy = context.read<SettingsController>().autoDownloadVideos;
+      switch (policy) {
+        case AutoDownloadPolicy.always:
+        case AutoDownloadPolicy.wifi:
+          return true;
+        case AutoDownloadPolicy.never:
+          return false;
+      }
+    } catch (_) {
+      return true;
     }
   }
 
