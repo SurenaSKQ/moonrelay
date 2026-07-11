@@ -18,8 +18,9 @@
 //
 // Mount this widget above the dashboard so the following shortcuts fire
 // from anywhere in the room page tree:
-//   - `Ctrl+K`        → command palette
-//   - `Ctrl+Shift+K`  → global search overlay
+//   - `Ctrl+Shift+P` → command palette (also reachable via the toolbar
+//                      button — there is no separate "search overlay"
+//                      any more; the palette absorbs every search mode)
 //   - `?` (Shift+/)   → keyboard shortcuts cheat sheet
 //
 // Shortcuts are swallowed when a text field has focus so users can still
@@ -28,7 +29,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:moonrelay/src/widgets/command_palette.dart';
-import 'package:moonrelay/src/widgets/global_search_overlay.dart';
 import 'package:moonrelay/src/widgets/keyboard_shortcuts_overlay.dart';
 
 class GlobalShortcutListener extends StatelessWidget {
@@ -45,10 +45,8 @@ class GlobalShortcutListener extends StatelessWidget {
   Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.keyK, control: true):
+        SingleActivator(LogicalKeyboardKey.keyP, control: true, shift: true):
             _OpenCommandPaletteIntent(),
-        SingleActivator(LogicalKeyboardKey.keyK, control: true, shift: true):
-            _OpenGlobalSearchIntent(),
         // `?` is Shift+/ on US layouts; CharacterActivator matches the
         // resulting character regardless of layout. We also bind
         // Shift+/ directly as a fallback for layouts where the
@@ -63,16 +61,6 @@ class GlobalShortcutListener extends StatelessWidget {
             onInvoke: (_) {
               if (_isTextFieldFocused()) return null;
               showCommandPalette(context);
-              return null;
-            },
-          ),
-          _OpenGlobalSearchIntent: CallbackAction<_OpenGlobalSearchIntent>(
-            onInvoke: (_) {
-              if (_isTextFieldFocused()) return null;
-              showDialog(
-                context: context,
-                builder: (_) => const GlobalSearchOverlay(),
-              );
               return null;
             },
           ),
@@ -95,10 +83,6 @@ class GlobalShortcutListener extends StatelessWidget {
 
 class _OpenCommandPaletteIntent extends Intent {
   const _OpenCommandPaletteIntent();
-}
-
-class _OpenGlobalSearchIntent extends Intent {
-  const _OpenGlobalSearchIntent();
 }
 
 class _ShowShortcutsIntent extends Intent {

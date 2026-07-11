@@ -45,12 +45,8 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
 
     final shortcuts = <_ShortcutEntry>[
       _ShortcutEntry(
-        keys: const ['Ctrl', 'K'],
+        keys: const ['Ctrl', 'Shift', 'P'],
         description: loc.shortcutOpenCommandPalette,
-      ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', '/'],
-        description: loc.shortcutOpenSearch,
       ),
       _ShortcutEntry(
         keys: const ['Ctrl', 'F'],
