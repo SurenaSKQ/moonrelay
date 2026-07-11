@@ -15,16 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/chat_event.dart';
-import 'package:moonrelay/src/chat/edit_history_dialog.dart';
-import 'package:moonrelay/src/chat/edit_message_dialog.dart';
-import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/message_details_page.dart';
-import 'package:provider/provider.dart';
 
 /// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
 /// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
@@ -232,125 +226,38 @@ class MessageActions extends StatelessWidget {
 
   /// Opens the reaction emoji picker and sends the chosen reaction.
   void _react(BuildContext context) {
-    showReactionPicker(
-      context,
-      onSelected: (emoji) {
-        room.sendReaction(event.eventId, emoji);
-      },
-    );
+    MessageActionRunner.react(context, event, room);
   }
 
   /// Copies the message body to the clipboard.
   void _copyMessage(BuildContext context) {
-    final body = event.body;
-    Clipboard.setData(ClipboardData(text: body));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.messageCopiedToClipboard),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    MessageActionRunner.copy(context, event);
   }
 
   /// Opens the message details page.
   void _showDetails(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MessageDetailsPage(
-          event: event,
-          room: room,
-        ),
-      ),
-    );
+    MessageActionRunner.showDetails(context, event, room);
   }
 
   /// Opens the in-place editor for the message body and writes the edit
   /// (m.replace) when the user confirms.
   void _editMessage(BuildContext context) async {
-    await showEditMessageDialog(context, event: event, room: room);
+    await MessageActionRunner.edit(context, event, room);
   }
 
   /// Shows the edit history dialog.
   void _showEditHistory(BuildContext context) {
-    final tl = timeline;
-    if (tl == null) return;
-    showEditHistoryDialog(context, event: event, timeline: tl, room: room);
+    MessageActionRunner.showEditHistory(context, event, timeline, room);
   }
 
   /// Toggles the pin state of this event.
   Future<void> _togglePin(BuildContext context) async {
-    final state = room.getState('m.room.pinned_events');
-    final existing = state?.content['pinned'];
-    final pinned = existing is List ? List<String>.from(existing.map((e) => e.toString())) : <String>[];
-    final eventId = event.eventId;
-
-    List<String> updated;
-    if (pinned.contains(eventId)) {
-      updated = pinned.where((id) => id != eventId).toList();
-    } else {
-      updated = [...pinned, eventId];
-    }
-
-    try {
-      await room.setPinnedEvents(updated);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              pinned.contains(eventId)
-                  ? AppLocalizations.of(context)!.unpinMessage
-                  : AppLocalizations.of(context)!.pinMessage,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
-        );
-      }
-    }
+    await MessageActionRunner.togglePin(context, event, room);
   }
 
   /// Shows a confirmation dialog before redacting the event.
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteMessage),
-        content: Text(
-          AppLocalizations.of(context)!.areYouSureDeleteMessage,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              AppLocalizations.of(context)!.delete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await event.redactEvent(reason: 'Deleted by user');
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.failedToDelete('$e'))),
-        );
-      }
-    }
+    await MessageActionRunner.confirmDelete(context, event);
   }
 }
 
@@ -423,9 +330,6 @@ class _ModerationMenu extends StatelessWidget {
   final AppLocalizations l10n;
   final ColorScheme cs;
 
-  String get _senderName =>
-      event.senderFromMemoryOrFallback.calcDisplayname();
-
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
@@ -436,11 +340,11 @@ class _ModerationMenu extends StatelessWidget {
       onSelected: (value) {
         switch (value) {
           case 'kick':
-            _confirmKick(context);
+            MessageActionRunner.kick(context, event, room);
           case 'ban':
-            _confirmBan(context);
+            MessageActionRunner.ban(context, event, room);
           case 'report':
-            _reportUser(context);
+            MessageActionRunner.report(context, event, room);
         }
       },
       itemBuilder: (_) => <PopupMenuEntry<String>>[
@@ -478,133 +382,5 @@ class _ModerationMenu extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  void _confirmKick(BuildContext context) async {
-    // Capture the logger before any await so we can use it after the
-    // gap without tripping the `use_build_context_synchronously` lint.
-    final log = context.read<Logger>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionKick),
-        content: Text(l10n.kickConfirm(_senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionKick),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await room.kick(event.senderId);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userKicked(_senderName))),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to kick', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  void _confirmBan(BuildContext context) async {
-    // Capture the logger before any await so we can use it after the
-    // gap without tripping the `use_build_context_synchronously` lint.
-    final log = context.read<Logger>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionBan),
-        content: Text(l10n.banConfirm(_senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionBan),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await room.ban(event.senderId);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userBanned(_senderName))),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to ban', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  void _reportUser(BuildContext context) async {
-    final log = context.read<Logger>();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: Text(l10n.actionReport),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Reason',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(controller.text.trim()),
-              child: Text(l10n.actionReport),
-            ),
-          ],
-        );
-      },
-    );
-    if (reason == null) return;
-    try {
-      await room.client.reportUser(event.senderId, reason);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userReported)),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to report user', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
   }
 }
