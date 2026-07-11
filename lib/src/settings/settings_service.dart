@@ -48,6 +48,7 @@ class SettingsSnapshot {
   final double fontSize;
   final double uiScale;
   final bool notificationsEnabled;
+  final bool enableAnimations;
 
   const SettingsSnapshot({
     this.themeOption = MoonrelayThemeOption.indigo,
@@ -73,6 +74,7 @@ class SettingsSnapshot {
     this.fontSize = 16.0,
     this.uiScale = 1.0,
     this.notificationsEnabled = true,
+    this.enableAnimations = true,
   });
 }
 
@@ -103,6 +105,7 @@ class SettingsService {
   static const _fontSizeKey = 'font_size';
   static const _uiScaleKey = 'ui_scale';
   static const _notificationsEnabledKey = 'notifications_enabled';
+  static const _enableAnimationsKey = 'enable_animations';
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -172,6 +175,7 @@ class SettingsService {
       fontSize: prefs.getDouble(_fontSizeKey) ?? 16.0,
       uiScale: prefs.getDouble(_uiScaleKey) ?? 1.0,
       notificationsEnabled: prefs.getBool(_notificationsEnabledKey) ?? true,
+      enableAnimations: prefs.getBool(_enableAnimationsKey) ?? true,
     );
   }
 
@@ -490,6 +494,16 @@ class SettingsService {
   Future<void> updateNotificationsEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_notificationsEnabledKey, value);
+  }
+
+  Future<bool> enableAnimations() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_enableAnimationsKey) ?? true;
+  }
+
+  Future<void> updateEnableAnimations(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_enableAnimationsKey, value);
   }
 
   // ── Space groups ────────────────────────────────────────────────

@@ -50,6 +50,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   double _fontSize = 16.0;
   double _uiScale = 1.0;
   bool _notificationsEnabled = true;
+  bool _enableAnimations = true;
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
@@ -73,6 +74,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   double get fontSize => _fontSize;
   double get uiScale => _uiScale;
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get enableAnimations => _enableAnimations;
   Future<void> loadSettings() async {
     final snapshot = await _settingsService.loadAll();
     _themeMode = snapshot.themeMode;
@@ -96,6 +98,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _fontSize = snapshot.fontSize;
     _uiScale = snapshot.uiScale;
     _notificationsEnabled = snapshot.notificationsEnabled;
+    _enableAnimations = snapshot.enableAnimations;
     notifyListeners();
   }
 
@@ -263,6 +266,14 @@ class SettingsController with ChangeNotifier, WindowListener {
       _notificationsEnabled = value;
       notifyListeners();
       await _settingsService.updateNotificationsEnabled(value);
+    }
+  }
+
+  Future<void> updateEnableAnimations(bool value) async {
+    if (value != _enableAnimations) {
+      _enableAnimations = value;
+      notifyListeners();
+      await _settingsService.updateEnableAnimations(value);
     }
   }
 
