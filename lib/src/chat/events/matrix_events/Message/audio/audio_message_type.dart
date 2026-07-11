@@ -23,6 +23,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
 
 /// Displays an audio message with an in-app `just_audio` player.
 ///
@@ -172,7 +173,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
             : (displayPos / displayDur).clamp(0.0, 1.0);
 
         return Container(
-          constraints: const BoxConstraints(maxWidth: 360),
+          constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).audioMax),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(14),

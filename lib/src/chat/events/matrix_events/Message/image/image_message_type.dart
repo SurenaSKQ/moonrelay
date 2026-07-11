@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// Displays an image message with a polished thumbnail card and tap-to-open
 /// full-screen viewer.
@@ -51,7 +53,11 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   /// Maximum display size for thumbnails in the timeline. Both axes are
   /// upper bounds — the larger dimension of the image decides the box,
   /// and the smaller dimension follows proportionally.
-  static const double _maxThumbnailDimension = 360;
+  ///
+  /// Honoured as a fallback when the [SettingsController] cannot be read
+  /// (e.g. isolated widget tests).  In production the value comes from
+  /// `SettingsController.imageThumbnailMaxPx`.
+  static const double _defaultMaxThumbnailDimension = 360;
 
   /// Image dimensions from the event content's `info` blob.
   int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
@@ -77,18 +83,30 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   ///   - a 100×100 square renders as 360×360.
   ///
   /// When dimensions are unknown we fall back to a square 240px default.
-  Size _imageSize() {
+  Size _imageSize(double maxDim) {
     final w = _imgWidth;
     final h = _imgHeight;
     if (w == null || h == null || w <= 0 || h <= 0) {
       return const Size(240, 240);
     }
 
-    final longSide =
-        w >= h ? _maxThumbnailDimension : _maxThumbnailDimension * (w / h);
-    final shortSide =
-        w >= h ? _maxThumbnailDimension * (h / w) : _maxThumbnailDimension;
+    final longSide = w >= h ? maxDim : maxDim * (w / h);
+    final shortSide = w >= h ? maxDim * (h / w) : maxDim;
     return Size(longSide, shortSide);
+  }
+
+  /// Returns the configured thumbnail max dimension (px).  Falls back to
+  /// [_defaultMaxThumbnailDimension] when the [SettingsController] is not
+  /// available in the widget tree.
+  double _resolveMaxThumbnailDimension() {
+    try {
+      return context
+          .read<SettingsController>()
+          .imageThumbnailMaxPx
+          .toDouble();
+    } catch (_) {
+      return _defaultMaxThumbnailDimension;
+    }
   }
 
   String _formatSize(int bytes) {
@@ -201,7 +219,8 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
-    final size = _imageSize();
+    final maxDim = _resolveMaxThumbnailDimension();
+    final size = _imageSize(maxDim);
 
     return GestureDetector(
       onTap: () => _openViewer(bytes),

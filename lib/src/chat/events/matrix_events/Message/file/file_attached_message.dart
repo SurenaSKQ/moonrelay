@@ -18,6 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
 
 /// Displays a file attachment with a polished card showing file type icon,
 /// name, size, and a download button.
@@ -116,7 +117,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
         final matrixFile = snapshot.data;
 
         return Container(
-          constraints: const BoxConstraints(maxWidth: 340),
+          constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(14),

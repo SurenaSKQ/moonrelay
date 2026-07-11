@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:video_player/video_player.dart';
 
 /// Displays a video message with an in-app `video_player` controller.
@@ -93,12 +94,12 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
   /// Computes the height-and-width-clamped box for the video player.
   ///
-  /// Constrains by height: video fills the available height (max 360)
-  /// while the width follows from the aspect ratio. Falls back to
-  /// 320×180 when dimensions are unknown.
-  Size _playerSize() {
-    const maxWidth = 360.0;
-    const maxHeight = 360.0;
+  /// Constrains by height: video fills the available height (max from
+  /// [MediaSizePrefs.videoMax]) while the width follows from the aspect
+  /// ratio. Falls back to 320×180 when dimensions are unknown.
+  Size _playerSize(double maxBox) {
+    final maxWidth = maxBox;
+    final maxHeight = maxBox;
     final w = _videoWidth?.toDouble();
     final h = _videoHeight?.toDouble();
     if (w == null || h == null || w <= 0 || h <= 0) {
@@ -182,10 +183,11 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final playerSize = _playerSize();
+    final prefs = MediaSizePrefs.of(context);
+    final playerSize = _playerSize(prefs.videoMax);
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
+      constraints: BoxConstraints(maxWidth: prefs.videoMax),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(14),
