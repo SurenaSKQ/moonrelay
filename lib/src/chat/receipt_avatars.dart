@@ -17,7 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// Renders a stacked list of small avatars for every user who has sent a
 /// read receipt for [event]. Used by [MessageEventHandler] in the timeline
@@ -40,6 +42,11 @@ class ReceiptAvatars extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final me = room.client.userID;
+
+    // Honour the user-level "show read receipts" toggle.
+    final showReceipts =
+        context.select<SettingsController, bool>((c) => c.showReadReceipts);
+    if (!showReceipts) return const SizedBox.shrink();
 
     final seen = <String, User>{};
     for (final r in event.receipts) {

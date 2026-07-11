@@ -18,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/matrix_url_banner.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 /// Wraps a message's [child] (the text/rich-content widget) and appends one
 /// [MatrixUrlBanner] per distinct Matrix URL detected in [textBody].
@@ -51,6 +53,10 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showPreviews =
+        context.select<SettingsController, bool>((c) => c.linkPreviewsEnabled);
+    if (!showPreviews) return child;
+
     final scanText = _stripReplyQuote(textBody);
     final results = MatrixUriParser.parseAll(scanText);
     if (results.isEmpty) return child;

@@ -827,10 +827,16 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// Sends a read receipt for the newest event in the timeline so the server
   /// and other clients know that the user has seen the latest messages.
+  ///
+  /// Honours the [SettingsController.sendReadReceipts] toggle — when the
+  /// user opts out we still mark locally but never tell the homeserver.
   void _markRoomRead() {
     if (_timeline == null) return;
     final events = _timeline!.events;
     if (events.isEmpty) return;
+    final sendReceipts =
+        context.read<SettingsController>().sendReadReceipts;
+    if (!sendReceipts) return;
     // events are newest-first, so index 0 is the most recent.
     final latestId = events.first.eventId;
     widget.room.setReadMarker(latestId, mRead: latestId);
