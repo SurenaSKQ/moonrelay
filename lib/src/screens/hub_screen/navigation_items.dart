@@ -22,10 +22,12 @@ import 'package:flutter/material.dart';
 
 /// A single selectable entry in the hub's category sidebar.
 class HubNavigationItem {
+  final String? key;
   final String label;
   final IconData icon;
 
   const HubNavigationItem({
+    this.key,
     required this.label,
     required this.icon,
   });
@@ -33,12 +35,14 @@ class HubNavigationItem {
 
 /// A category group that can contain sub-items (e.g. App Settings > Appearance).
 class HubCategory {
+  final String? key;
   final String label;
   final IconData icon;
   final List<HubNavigationItem> items;
   final bool isExpandable;
 
   const HubCategory({
+    this.key,
     required this.label,
     required this.icon,
     this.items = const [],

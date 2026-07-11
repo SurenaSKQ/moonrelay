@@ -46,9 +46,34 @@ import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 // The main Hub screen — two-column layout
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A category selection that may be deep-linked into the [HubScreen].
+///
+/// The hub has internal state for `_selectedCategoryIndex` and
+/// `_selectedSubItemIndex`.  When a route specifies a category (and
+/// optional sub-item) the screen must mirror that selection into its
+/// internal state so the sidebar highlight and content pane agree with
+/// the URL.
+///
+/// The values are stable enough to be passed via GoRouter path
+/// parameters rather than query strings, which makes them matchable
+/// to specific routes (e.g. `/hub/settings/appearance`).
+class HubCategorySelection {
+  const HubCategorySelection({this.categoryKey, this.subKey});
+  final String? categoryKey;
+  final String? subKey;
+}
+
 class HubScreen extends StatefulWidget {
-  const HubScreen({super.key, required this.client});
+  const HubScreen({super.key, required this.client, this.selection});
+
   final Client client;
+
+  /// Optional deep-link selection resolved by the router.  When
+  /// present, the screen synchronises its internal category/sub-item
+  /// indices to the supplied keys and reacts to subsequent changes
+  /// (e.g. the user tapping "Open Settings" from the command palette
+  /// while already on `/hub/accounts`).
+  final HubCategorySelection? selection;
 
   @override
   State<HubScreen> createState() => _HubScreenState();
@@ -77,6 +102,67 @@ class _HubScreenState extends State<HubScreen> {
       if (_categories.isNotEmpty) {
         _expandedCategories.add(0);
       }
+      // Apply initial selection from the route if one was supplied.
+      // Defer setState into a microtask if we're mid-build — direct
+      // setState() inside didChangeDependencies is technically safe
+      // but a few assertion paths disable it.  The simplest robust
+      // path is to compare and assign explicitly.
+      _applySelection(widget.selection, duringBuild: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HubScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // React to the user navigating from another hub path while
+    // already on the hub screen.
+    if (oldWidget.selection != widget.selection) {
+      _applySelection(widget.selection);
+    }
+  }
+
+  /// Maps a [HubCategorySelection] (category/sub keys) into the
+  /// screen's internal indices and expands the matching parent.
+  ///
+  /// When [duringBuild] is true, the indices are mutated directly and
+  /// a follow-up [setState] is scheduled for after the current frame.
+  /// This avoids triggering an assertion failure when the caller is
+  /// already inside a build cycle (e.g. [didChangeDependencies]).
+  void _applySelection(HubCategorySelection? selection,
+      {bool duringBuild = false}) {
+    if (selection == null) return;
+    final catIdx = _categories.indexWhere(
+      (c) => c.key == selection.categoryKey,
+    );
+    if (catIdx < 0) return;
+
+    int subIdx = -1;
+    if (selection.subKey != null &&
+        catIdx < _categories.length &&
+        _categories[catIdx].items.isNotEmpty) {
+      subIdx = _categories[catIdx].items
+          .indexWhere((s) => s.key == selection.subKey);
+    }
+
+    if (catIdx == _selectedCategoryIndex &&
+        subIdx == _selectedSubItemIndex) {
+      return;
+    }
+
+    if (_categories[catIdx].isExpandable) {
+      _expandedCategories.add(catIdx);
+    }
+    if (duringBuild) {
+      _selectedCategoryIndex = catIdx;
+      _selectedSubItemIndex = subIdx;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {
+        _selectedCategoryIndex = catIdx;
+        _selectedSubItemIndex = subIdx;
+      });
     }
   }
 
@@ -84,59 +170,72 @@ class _HubScreenState extends State<HubScreen> {
     final l10n = AppLocalizations.of(context)!;
     _categories = [
       HubCategory(
+        key: 'accounts',
         label: l10n.accounts,
         icon: LucideIcons.users,
         isExpandable: false,
       ),
       HubCategory(
+        key: 'profile',
         label: l10n.ownProfileDescriptor,
         icon: LucideIcons.user,
         isExpandable: false,
       ),
       HubCategory(
+        key: 'settings',
         label: l10n.appSettings,
         icon: LucideIcons.settings,
         isExpandable: true,
         items: [
           HubNavigationItem(
+            key: 'appearance',
             label: l10n.appearance,
             icon: LucideIcons.palette,
           ),
           HubNavigationItem(
+            key: 'layout',
             label: l10n.layout,
             icon: LucideIcons.layoutDashboard,
           ),
           HubNavigationItem(
+            key: 'security',
             label: l10n.encryptionAndSecurity,
             icon: LucideIcons.shield,
           ),
           HubNavigationItem(
+            key: 'chat',
             label: l10n.chatSettings,
             icon: LucideIcons.messageSquare,
           ),
           HubNavigationItem(
+            key: 'network',
             label: l10n.network,
             icon: LucideIcons.activity,
           ),
           HubNavigationItem(
+            key: 'logs',
             label: l10n.logs,
             icon: LucideIcons.fileText,
           ),
           HubNavigationItem(
+            key: 'background',
             label: l10n.backgroundAndTray,
             icon: LucideIcons.minimize2,
           ),
           HubNavigationItem(
+            key: 'notifications',
             label: l10n.notifications,
             icon: LucideIcons.bell,
           ),
           HubNavigationItem(
+            key: 'blocked',
             label: l10n.blockedUsers,
             icon: LucideIcons.ban,
           ),
         ],
       ),
       HubCategory(
+        key: 'about',
         label: l10n.about,
         icon: LucideIcons.info,
         isExpandable: false,
@@ -240,6 +339,8 @@ class _HubScreenState extends State<HubScreen> {
   void _onCategoryTap(int index) {
     // Toggle expansion for expandable categories; otherwise just select.
     final cat = _categories[index];
+    // Always sync the URL so deep links land on the right pane.
+    context.go('/hub/${cat.key ?? ''}');
     if (cat.isExpandable) {
       if (_expandedCategories.contains(index)) {
         _expandedCategories.remove(index);
@@ -260,6 +361,14 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   void _onSubItemTap(int catIndex, int subIndex) {
+    final cat = _categories[catIndex];
+    final sub = cat.items[subIndex];
+
+    // Push to a nested sub-route so the URL reflects the active sub-page.
+    if (cat.key != null && sub.key != null) {
+      context.go('/hub/${cat.key}/${sub.key}');
+    }
+
     setState(() {
       _selectedCategoryIndex = catIndex;
       _selectedSubItemIndex = subIndex;
