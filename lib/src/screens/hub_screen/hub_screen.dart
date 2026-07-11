@@ -357,8 +357,6 @@ class _HubScreenState extends State<HubScreen> {
   void _onCategoryTap(int index) {
     // Toggle expansion for expandable categories; otherwise just select.
     final cat = _categories[index];
-    // Always sync the URL so deep links land on the right pane.
-    context.go('/hub/${cat.key ?? ''}');
     if (cat.isExpandable) {
       if (_expandedCategories.contains(index)) {
         _expandedCategories.remove(index);
@@ -379,27 +377,10 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   void _onSubItemTap(int catIndex, int subIndex) {
-    final cat = _categories[catIndex];
-    final sub = cat.items[subIndex];
-
-    // Push to a nested sub-route so the URL reflects the active sub-page.
-    if (cat.key != null && sub.key != null) {
-      context.go('/hub/${cat.key}/${sub.key}');
-    }
-
     setState(() {
       _selectedCategoryIndex = catIndex;
       _selectedSubItemIndex = subIndex;
     });
-
-    // Navigate to the encryption overview when that item is tapped.
-    if (catIndex == 2 && subIndex == 2) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const EncryptionOverviewScreen(),
-        ),
-      );
-    }
   }
 
   void _onExpansionToggle(int index) {
@@ -464,6 +445,8 @@ class _HubScreenState extends State<HubScreen> {
           return const HubAppearanceSettings();
         case 1:
           return const HubLayoutSettings();
+        case 2:
+          return const EncryptionOverviewScreen(embedded: true);
         case 3:
           return const HubChatSettings();
         case 4:
@@ -488,4 +471,29 @@ class _HubScreenState extends State<HubScreen> {
     }
     return const SizedBox.shrink();
   }
+}
+
+// ── Hub overlay ────────────────────────────────────────────────────────────
+
+/// Opens the hub screen as a modal overlay on top of the current
+/// navigation stack (like the command palette), preserving the
+/// dashboard state underneath.
+///
+/// When [selection] is provided, the hub opens to the specified
+/// category/sub-item (e.g. profile, settings, accounts).
+Future<void> showHubOverlay(
+  BuildContext context, {
+  HubCategorySelection? selection,
+}) {
+  final client = Provider.of<Client>(context, listen: false);
+  return Navigator.of(context, rootNavigator: true).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 150),
+      reverseTransitionDuration: const Duration(milliseconds: 120),
+      pageBuilder: (_, __, ___) => HubScreen(client: client, selection: selection),
+    ),
+  );
 }
