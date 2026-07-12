@@ -200,6 +200,20 @@ void navigateToMatrixUri(
   // Import is at the bottom to avoid circular dependency issues.
   final client = Provider.of<Client>(context, listen: false);
 
+  // The matrix URI may have been queued while the user was on the
+  // welcome screen (e.g. cold-start with the URI on the command
+  // line).  In that case `client` is non-null but there is no
+  // session.  Any `context.go` against an auth-guarded route would
+  // bounce straight back to `/welcome` via [loggedOutRedirect], and
+  // the snackbar we show on validation errors would briefly flash on
+  // the welcome screen before the redirect ran.  Bail out so the
+  // login flow can take over cleanly.  The login page already
+  // listens to deep links via the same service so once login
+  // completes the URI will be reprocessed if needed.
+  if (!client.isLogged()) {
+    return;
+  }
+
   switch (result.entityType) {
     case MatrixUriEntity.room:
     case MatrixUriEntity.roomAlias:
@@ -220,9 +234,11 @@ void navigateToMatrixUri(
       // resolve a userid as a room id -- the profile overlay is now
       // decoupled from the room route.
       if (!RegExp(r'^@.+:.+$').hasMatch(result.entityId)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid Matrix user id: ${result.entityId}')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invalid Matrix user id: ${result.entityId}')),
+          );
+        }
         return;
       }
       context.go('/profile/${Uri.encodeComponent(result.entityId)}');
