@@ -302,7 +302,9 @@ Future<BootContext> runBootPipeline({
     if (client.isLogged()) {
       final enc = EncryptionService(client: client, logger: log);
       await enc.init();
+      return enc;
     }
+    return null;
   };
 
   log.i('Initialization complete');
