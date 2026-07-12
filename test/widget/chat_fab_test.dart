@@ -38,6 +38,7 @@ void main() {
     required bool scrolledUp,
     required int unreadCount,
     VoidCallback? onJump,
+    VoidCallback? onDismiss,
     VoidCallback? onScroll,
   }) {
     return MaterialApp(
@@ -57,6 +58,7 @@ void main() {
                 _TestJumpToUnreadPill(
                   count: unreadCount,
                   onTap: onJump,
+                  onDismiss: onDismiss,
                 ),
               if (scrolledUp)
                 _TestScrollToBottomPill(onTap: onScroll),
@@ -146,15 +148,59 @@ void main() {
       expect(tapped, 1);
     },
   );
+
+  testWidgets(
+    'jump-to-unread pill renders the dismiss (×) icon alongside the count',
+    (tester) async {
+      await tester.pumpWidget(
+        buildColumn(
+          unreadVisible: true,
+          scrolledUp: false,
+          unreadCount: 5,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byIcon(LucideIcons.arrowUp), findsOneWidget);
+      expect(find.byIcon(LucideIcons.x), findsOneWidget);
+      expect(find.text('5 new messages'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping the dismiss (×) icon fires onDismiss without firing onTap',
+    (tester) async {
+      var dismissed = 0;
+      var jumped = 0;
+      await tester.pumpWidget(
+        buildColumn(
+          unreadVisible: true,
+          scrolledUp: false,
+          unreadCount: 3,
+          onJump: () => jumped++,
+          onDismiss: () => dismissed++,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(LucideIcons.x));
+      await tester.pump();
+      expect(dismissed, 1);
+      expect(jumped, 0);
+    },
+  );
 }
 
 /// Test-only mock of the jump-to-unread pill matching the public
 /// behaviour of `_JumpToUnreadPill` in `chat_timeline.dart`.
 class _TestJumpToUnreadPill extends StatelessWidget {
-  const _TestJumpToUnreadPill({required this.count, required this.onTap});
+  const _TestJumpToUnreadPill({
+    required this.count,
+    required this.onTap,
+    required this.onDismiss,
+  });
 
   final int count;
   final VoidCallback? onTap;
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -164,28 +210,53 @@ class _TestJumpToUnreadPill extends StatelessWidget {
       color: scheme.primary,
       elevation: 4,
       borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.arrowUp, size: 14, color: scheme.onPrimary),
-              const SizedBox(width: 6),
-              Text(
-                count == 1
-                    ? l10n.jumpToFirstUnread
-                    : l10n.jumpToFirstUnreadMany(count),
-                style: TextStyle(
-                  color: scheme.onPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      LucideIcons.arrowUp,
+                      size: 14,
+                      color: scheme.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      count == 1
+                          ? l10n.jumpToFirstUnread
+                          : l10n.jumpToFirstUnreadMany(count),
+                      style: TextStyle(
+                        color: scheme.onPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 4),
+            InkResponse(
+              onTap: onDismiss,
+              radius: 14,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  LucideIcons.x,
+                  size: 12,
+                  color: scheme.onPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -57,6 +57,7 @@ class TimelineView extends StatefulWidget {
     this.showStateEvents = true,
     this.filterEvents,
     this.isLoadingHistory = false,
+    this.highlightedEventId,
   });
 
   final Timeline timeline;
@@ -96,6 +97,12 @@ class TimelineView extends StatefulWidget {
   /// an abrupt scroll cap while older history is being paginated in.
   final bool isLoadingHistory;
 
+  /// When non-null, the event with this id is rendered with a brief
+  /// highlight ring.  The TimelineView's own [jumpToEvent] path also
+  /// sets this internally, but the parent can pass it in to highlight
+  /// a target the parent selected (e.g. the jump-to-unread action).
+  final String? highlightedEventId;
+
   @override
   State<TimelineView> createState() => _TimelineViewState();
 }
@@ -129,7 +136,7 @@ class _TimelineViewState extends State<TimelineView> {
   /// embeds other display-affecting props so the cache is invalidated
   /// when font size, display type, or state-event visibility changes.
   String get _cacheKey =>
-      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}_${widget.isLoadingHistory}';
+      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}_${widget.isLoadingHistory}_${widget.highlightedEventId}';
 
   String _lastCacheKey = '';
 
@@ -364,7 +371,8 @@ class _TimelineViewState extends State<TimelineView> {
           ),
           onJumpToEvent:
               _jumpToEvent(widget.scrollController, eventIdToItemIndex),
-          highlightedEventId: _highlightedEventId,
+          highlightedEventId:
+              widget.highlightedEventId ?? _highlightedEventId,
         ));
 
         eventIdToItemIndex[event.eventId] = items.length - 1;
@@ -829,11 +837,12 @@ class _UndecryptableBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final _TimelineViewState? state =
         context.findAncestorStateOfType<_TimelineViewState>();
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
 
     final notifier = state?._undecryptableCount;
     if (notifier == null) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return ValueListenableBuilder<int>(
       valueListenable: notifier,

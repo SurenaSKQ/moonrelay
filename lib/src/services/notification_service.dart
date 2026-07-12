@@ -836,4 +836,28 @@ class NotificationService {
   /// `null` when no baseline has been recorded yet.
   int? lastNotifiedGroupCountFor(String roomId) =>
       _groupNotifiedCounts[roomId];
+
+  /// Mirrors the timeline's "I just marked this room read" event into
+  /// the local notification bookkeeping so the next sync tick doesn't
+  /// emit a stale "you have N new messages" notification for a room
+  /// the user has just caught up on.
+  ///
+  /// This is the timeline-side counterpart to [_markUriAsRead] — both
+  /// paths funnel through the same debounced persistence so the prefs
+  /// blob stays consistent regardless of which surface the user used to
+  /// clear the badge.
+  void onRoomReadByTimeline(String roomId, String eventId) {
+    final room = _client.getRoomById(roomId);
+    if (room == null) return;
+    _lastNotifiedEventIds[roomId] = eventId;
+    _groupNotifiedCounts[roomId] = room.notificationCount;
+    _persistDebouncer?.cancel();
+    _persistDebouncer = Timer(
+      const Duration(milliseconds: 750),
+      () async {
+        await _persistLastEventIds();
+        await _persistGroupNotifiedCounts();
+      },
+    );
+  }
 }
