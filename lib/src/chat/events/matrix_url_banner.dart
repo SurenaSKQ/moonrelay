@@ -223,23 +223,56 @@ class MatrixUrlBanner extends StatelessWidget {
   }
 
   /// Navigates to a joined room or opens the preview screen.
+  ///
+  /// When [room] is non-null the joined-room route is used; otherwise the
+  /// preview route is used so unjoined homeserver rooms still resolve to a
+  /// useful page.  Navigation errors surface a snackbar so a mis-routed URI
+  /// no longer silently does nothing.
   void _openRoom(BuildContext context, Room? room) {
-    if (room != null) {
-      // Navigate by resolved room ID (not alias) so RoomDelegate can
-      // find it via getRoomById().
-      context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
-    } else {
-      context.push(
-        '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (room != null) {
+        // Navigate by resolved room ID (not alias) so RoomDelegate can
+        // find it via getRoomById().
+        context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
+      } else {
+        context.push(
+          '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to open room: $e')),
       );
     }
   }
 
-  /// Navigates to a user profile via their user ID.
+  /// Navigates to a user profile via the top-level profile route.
+  ///
+  /// Validation and error recovery:
+  /// - Validates the userid matches the Matrix ID shape (`@localpart:domain`)
+  ///   before opening; otherwise surfaces a snackbar and aborts.
+  /// - Uses `context.go` against `/profile/:userid` so the navigation
+  ///   decouples from any room route the banner is currently sitting
+  ///   under -- previously this pushed to `/main/rooms/<userid>` which
+  ///   silently failed because `RoomDelegate` couldn't resolve a userid
+  ///   as a room id.
   void _openUser(BuildContext context) {
-    // Navigate using the user's Matrix ID as a profile target.
-    // The RoomDelegate will handle the lookup.
-    context.push('/main/rooms/${Uri.encodeComponent(result.entityId)}');
+    final userId = result.entityId;
+    if (!RegExp(r'^@.+:.+$').hasMatch(userId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid Matrix user id: $userId')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      context.go('/profile/${Uri.encodeComponent(userId)}');
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to open profile: $e')),
+      );
+    }
   }
 
   /// Searches joined rooms by canonical alias to find a matching room.

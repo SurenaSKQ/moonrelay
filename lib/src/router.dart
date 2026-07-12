@@ -222,8 +222,9 @@ class MoonRouter {
                         GoRoute(
                           path: ':userid',
                           redirect: (context, state) {
-                            final userid = state.pathParameters['userid'];
-                            if (userid == null) return null;
+                            final raw = state.pathParameters['userid'];
+                            if (raw == null) return null;
+                            final userid = Uri.decodeComponent(raw);
                             try {
                               final client =
                                   Provider.of<Client>(context, listen: false);
@@ -231,13 +232,21 @@ class MoonRouter {
                                 return '/main/myprofile';
                               }
                             } catch (_) {}
-                            return null;
+                            // Profile viewing is decoupled from the
+                            // room route — redirect any deep link with
+                            // the form /main/rooms/.../profile/<userid>
+                            // to the top-level /profile/<userid> so it
+                            // works even when the user isn't joined to
+                            // the originating room.
+                            return '/profile/${Uri.encodeComponent(userid)}';
                           },
                           pageBuilder: (context, state) => genericPageBuilder(
                             context,
                             state,
                             ProfileDelegate(
-                              userid: state.pathParameters['userid'],
+                              userid: Uri.decodeComponent(
+                                state.pathParameters['userid'] ?? '',
+                              ),
                             ),
                           ),
                         ),
@@ -281,6 +290,37 @@ class MoonRouter {
                 state,
                 ProfileDelegate(
                   userid: null,
+                ),
+              ),
+            ),
+            // Stand-alone profile route.  Decoupled from the room tree
+            // so opening a user profile from a matrix link, deep link,
+            // command palette, or inline mention doesn't require the
+            // user to be inside a particular room.  When the userid is
+            // the active account we redirect to `/main/myprofile` so
+            // the existing self-profile flow keeps working.
+            GoRoute(
+              path: '/profile/:userid',
+              redirect: (context, state) {
+                final raw = state.pathParameters['userid'];
+                if (raw == null || raw.isEmpty) return null;
+                final userid = Uri.decodeComponent(raw);
+                try {
+                  final client =
+                      Provider.of<Client>(context, listen: false);
+                  if (userid == client.userID) {
+                    return '/main/myprofile';
+                  }
+                } catch (_) {}
+                return null;
+              },
+              pageBuilder: (context, state) => genericPageBuilder(
+                context,
+                state,
+                ProfileDelegate(
+                  userid: Uri.decodeComponent(
+                    state.pathParameters['userid'] ?? '',
+                  ),
                 ),
               ),
             ),

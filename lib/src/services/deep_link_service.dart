@@ -206,13 +206,25 @@ void navigateToMatrixUri(
       // Check if already joined.
       final room = client.getRoomById(result.entityId);
       if (room != null) {
-        context.go('/main/rooms/${result.entityId}');
+        context.go('/main/rooms/${Uri.encodeComponent(result.entityId)}');
       } else {
         // Open room preview.
-        context.go('/main/room_preview/${result.entityId}');
+        context.go(
+          '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+        );
       }
     case MatrixUriEntity.user:
-      // Navigate to a user profile.
-      context.go('/main/rooms/${result.entityId}');
+      // Navigate to a user profile via the top-level profile route.
+      // The previous implementation pushed to `/main/rooms/<userid>`,
+      // which silently failed because `RoomDelegate` could not
+      // resolve a userid as a room id -- the profile overlay is now
+      // decoupled from the room route.
+      if (!RegExp(r'^@.+:.+$').hasMatch(result.entityId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invalid Matrix user id: ${result.entityId}')),
+        );
+        return;
+      }
+      context.go('/profile/${Uri.encodeComponent(result.entityId)}');
   }
 }
