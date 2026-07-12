@@ -1288,14 +1288,10 @@ class _SidebarMemberTile extends StatelessWidget {
       if (v == null || !context.mounted) return;
       switch (v) {
         case 'profile':
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ProfilePage(
-                client: member.room.client,
-                userID: member.id,
-                room: member.room,
-              ),
-            ),
+          showProfileOverlay(
+            context,
+            userId: member.id,
+            room: member.room,
           );
         case 'message':
           final log = context.read<Logger>();
