@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -1456,24 +1457,32 @@ class _ProfileOverlayPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      // Plain dim background (not blur) so the underlying chat stays
-      // legible and the user can still see what they were looking at.
-      child: ColoredBox(
-        color: Colors.black54,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460, maxHeight: 640),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Material(
-                elevation: 12,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                color: Theme.of(context).colorScheme.surface,
-                child: ProfilePage(
-                  client: client,
-                  userID: userId,
-                  room: room,
+      // Wrap the page body in a fullscreen outside-tap detector so
+      // tapping the dim background dismisses the profile overlay.  The
+      // PageRoute's barrierDismissible flag is not sufficient on its
+      // own because the page is laid out over the barrier; see
+      // [BarrierDismissableOverlay] for the full rationale.
+      child: BarrierDismissableOverlay(
+        // Plain dim background (not blur) so the underlying chat stays
+        // legible and the user can still see what they were looking at.
+        child: ColoredBox(
+          color: Colors.black54,
+          child: Center(
+            child: ConstrainedBox(
+              constraints:
+                  const BoxConstraints(maxWidth: 460, maxHeight: 640),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Material(
+                  elevation: 12,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  color: Theme.of(context).colorScheme.surface,
+                  child: ProfilePage(
+                    client: client,
+                    userID: userId,
+                    room: room,
+                  ),
                 ),
               ),
             ),
