@@ -135,9 +135,13 @@ class MoonRouter {
         ),
     // Unauthenticated route for adding a new account while another is
     // already active.  Bypasses the loggedInRedirect on the welcome
-    // shell by living outside that shell route hierarchy.
+    // shell by living outside that shell route hierarchy.  Also guards
+    // against being navigated to while logged out (e.g. a stale link
+    // resolved before logout completed) by redirecting to /welcome so
+    // the user is never stranded on a bare LoginPage without its frame.
     GoRoute(
       path: '/add-account',
+      redirect: loggedOutRedirect,
       pageBuilder: (context, state) => genericPageBuilder(
         context,
         state,
