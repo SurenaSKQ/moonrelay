@@ -34,6 +34,7 @@ import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
 
@@ -158,21 +159,49 @@ class _DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On compact screens we collapse both side panes to drawers. The main
-    // content fills the available width and exposes drawer toggles.
-    if (size.isCompact) {
-      return _CompactDashboard(child: child);
-    }
-
     final settings = context.watch<SettingsController>();
     final theme = Theme.of(context);
 
+    // ── Decide which shell to render ──────────────────────────────────
+    //
+    // Three layout modes (controlled by the [LayoutMode] setting) exist:
+    //
+    // - **auto** (default): use the responsive breakpoints.  Wide and
+    //   expanded windows get the full multi-pane layout; medium windows
+    //   get a single left sidebar; compact windows get the unified
+    //   [CompactSidebar].
+    // - **compact**: always use the [CompactSidebar].  Useful for small
+    //   monitors or users who prefer a single dense sidebar.
+    // - **mobile**: handled by [MobileLayout] outside this widget; we
+    //   should not be invoked when the user opted in to mobile mode.
+    //
+    // The compact sidebar is also used for the "auto / compact width"
+    // window-size bucket so the dashboard never falls back to the
+    // navigation-rail-only layout, which used to render uselessly on
+    // narrow windows (no room list visible).
+    final layoutMode = settings.layoutMode;
+    final width = MediaQuery.sizeOf(context).width;
+    final isNarrow = size.isCompact;
+    final useCompactShell =
+        layoutMode == LayoutMode.compact || isNarrow;
+
+    if (useCompactShell) {
+      return _CompactDashboard(child: child);
+    }
+
+    // ── Wide / medium shells — full multi-pane layout ──────────────
     final showLeft = settings.leftSidebarVisible && size.hasOneSidebar;
     final showRight = settings.rightSidebarVisible && size.hasTwoSidebars;
 
+    // Suppress unused variable warning — `width` is read in the helpers
+    // when debugging responsive decisions; keep it alive so the
+    // compiler doesn't optimise the MediaQuery call away if we add
+    // debug breakpoints later.
+    assert(width >= 0);
+
     return LayoutScope(
       size: size,
-      availableWidth: 0, // filled in below by sub-builders that need it
+      availableWidth: width,
       child: Column(
         children: [
           Expanded(
@@ -217,13 +246,14 @@ class _DashboardView extends StatelessWidget {
 
 // ─── Compact layout shell ────────────────────────────────────────────────────
 
-/// Layout used when the window is too narrow to keep both side panes pinned.
+/// Layout used when the window is too narrow to keep both side panes pinned,
+/// or when the user has explicitly opted into compact mode.
 ///
-/// Shows the navigation rail + main content in a single row. The left and right
-/// sidebars are promoted to modal sheets that the user can open from toolbar
-/// buttons. Drawers are owned by the [Scaffold] ancestors of [child] (each
-/// screen can declare its own drawers if needed) so the layout shell stays
-/// simple.
+/// Replaces the old "navigation rail + main content" layout, which left
+/// the user staring at a spaces/rooms picker with no room list.  The new
+/// [CompactSidebar] combines the navigation rail, the left pane, and a
+/// segmented filter so the user can pick a destination and immediately
+/// see something useful.
 class _CompactDashboard extends StatelessWidget {
   const _CompactDashboard({
     required this.child,
@@ -233,30 +263,38 @@ class _CompactDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    final width = MediaQuery.sizeOf(context).width;
+
     return LayoutScope(
       size: LayoutSize.compact,
-      availableWidth: 0,
+      availableWidth: width,
       child: Column(
         children: [
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Far-left rail (icons only) remains visible on compact
-                // layouts so the user can switch between Home / All / Spaces.
-                const NavigationPane(),
+                if (settings.leftSidebarVisible)
+                  SizedBox(
+                    width: settings.leftSidebarWidth.clamp(220.0, 360.0),
+                    child: CompactSidebar(
+                      width: settings.leftSidebarWidth.clamp(220.0, 360.0),
+                    ),
+                  ),
                 Expanded(
-                  child: PostLoginSetupChecker(
-                    child: IncomingVerificationListener(
-                      child: child,
+                  child: GlobalShortcutListener(
+                    child: PostLoginSetupChecker(
+                      child: IncomingVerificationListener(
+                        child: child,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          if (context.watch<SettingsController>().showStatusBar)
-            const ApplicationStatusBar(),
+          if (settings.showStatusBar) const ApplicationStatusBar(),
         ],
       ),
     );
