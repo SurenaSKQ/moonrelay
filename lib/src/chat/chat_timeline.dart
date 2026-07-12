@@ -25,6 +25,7 @@ import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -80,6 +81,22 @@ class ChatTimeline extends StatefulWidget {
   State<ChatTimeline> createState() => ChatTimelineState();
 }
 
+/// Counts the number of events in [events] that are newer than the
+/// fully-read marker [fullyReadEventId].  The list is expected in
+/// newest-first order (matching [Timeline.events]).  Returns the
+/// entire list length when no marker is set (a fresh account that has
+/// never opened the room has nothing to anchor the count against).
+int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
+  if (events == null || events.isEmpty) return 0;
+  if (fullyReadEventId.isEmpty) return events.length;
+  var count = 0;
+  for (final ev in events) {
+    if (ev.eventId == fullyReadEventId) break;
+    count++;
+  }
+  return count;
+}
+
 class ChatTimelineState extends State<ChatTimeline> {
   /// The resolved Timeline, or null while still initialising.
   Timeline? _timeline;
@@ -88,6 +105,12 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// True while a [requestHistory] call is in flight.
   bool _isLoadingHistory = false;
+
+  /// True while the jump-to-unread flow is paginating the timeline in
+  /// either direction to locate the first unread event.  When set, the
+  /// chat surface shows skeleton placeholders so the user has feedback
+  /// that work is in progress instead of staring at a stale viewport.
+  bool _isJumpingToUnread = false;
 
   /// True while the auto-fill loop is running.
   bool _isFillingViewport = false;
@@ -158,9 +181,12 @@ class ChatTimelineState extends State<ChatTimeline> {
     // The room id can change when the parent rebuilds with a new
     // [Room] instance (e.g. after an account switch).  Drop the
     // end-of-history flag so the previous room's skeleton doesn't
-    // linger in the new room.
+    // linger in the new room.  We also reset the dismissed-pill flag
+    // so the user gets a fresh affordance for any unread events in
+    // the new room.
     if (oldWidget.room.id != widget.room.id) {
       _atLocalEndOfHistory = false;
+      _pillDismissed = false;
     }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
@@ -197,6 +223,11 @@ class ChatTimelineState extends State<ChatTimeline> {
           _scrollController.addListener(_onScroll);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _ensureContentFillsScreen();
+            // Mark the room read as soon as the first batch of events
+            // is on screen.  Without this, the user has to manually
+            // tap the jump-to-unread pill before the server ever
+            // hears that they opened the room.
+            _markRoomRead();
           });
         }
       case RetryFailed(:final error):
@@ -262,6 +293,12 @@ class ChatTimelineState extends State<ChatTimeline> {
     if (_isFillingViewport) return;
     if (_scrollDebounce) return;
 
+    // Advance the read marker in the background.  _scheduleMarkRoomRead
+    // debounces so a fast drag doesn't generate dozens of HTTP calls —
+    // a single batched request fires ~250 ms after the last scroll
+    // event.
+    _scheduleMarkRoomRead();
+
     final pos = _scrollController.position;
     final atEnd = pos.pixels >= pos.maxScrollExtent - _scrollThreshold;
 
@@ -305,158 +342,318 @@ class ChatTimelineState extends State<ChatTimeline> {
   // Jump-to-last-seen
   // ---------------------------------------------------------------------------
 
-  /// True when the user has unread messages in this room that are
-  /// below the current viewport bottom.  Used to surface a "Jump to
-  /// first unread" pill at the bottom of the chat area.
-  bool get _hasUnreadBelow =>
-      _lastSeenEventId.isNotEmpty && widget.room.notificationCount > 0;
-
   /// The event ID the user has last read up to.  Pulled from the SDK
   /// (`m.fully_read` account data) at load time and on every sync.
   String _lastSeenEventId = '';
 
+  /// Highest event ID we have already pushed a read-marker for in this
+  /// session.  Used to avoid repeatedly POSTing the same marker (the SDK
+  /// also dedupes, but a local guard keeps the network quiet during
+  /// bursty scroll events).  Keyed by event id; values are unused.
+  final Set<String> _markReadSent = <String>{};
+
+  /// Debounce window for the scroll-driven read-marker update.  A single
+  /// drag covers many pixels in a few hundred ms; batching at 250 ms
+  /// ensures we only send the marker once the user has stopped scrolling.
+  static const Duration _markReadDebounce = Duration(milliseconds: 250);
+
+  /// Pending debounced mark-read future, cancelled and re-scheduled on
+  /// every scroll event.
+  Timer? _markReadDebounceTimer;
+
   /// Refreshes [_lastSeenEventId] from room account data. Safe to call
-  /// repeatedly — only sets state when the value changed.
+  /// repeatedly — only sets state when the value changed.  When the
+  /// server-acknowledged marker advances, the user has genuinely
+  /// caught up and the dismissed-pill flag is reset so a *future*
+  /// batch of unread events re-surfaces the affordance.
   void _refreshLastSeenMarker() {
     final next = widget.room.fullyRead;
     if (next != _lastSeenEventId) {
-      setState(() => _lastSeenEventId = next);
+      _lastSeenEventId = next;
+      // If the user has caught up, the pill is no longer needed.  If
+      // new unread events arrive later, [_showUnreadPill] will flip
+      // back to true on the next rebuild.
+      _pillDismissed = false;
+      setState(() {});
     }
   }
 
-  /// Scrolls the timeline to the first unread event.  If the unread
-  /// event isn't yet loaded from the server the timeline is mass-
-  /// paginated forward in 20-event chunks until it appears, then the
-  /// scroll lands on it.
+  /// Number of events in [Timeline.events] that are newer than
+  /// [Room.fullyRead].  Drives the jump-to-unread affordance so the pill
+  /// appears only when there is *actually* an unread event in the loaded
+  /// window, regardless of what the server-side `notification_count`
+  /// currently reports.
+  int get _unreadInWindow =>
+      countUnreadInWindow(_timeline?.events, _lastSeenEventId);
+
+  /// Set to `true` when the user explicitly dismisses the jump-to-unread
+  /// pill with its close button.  The pill stays dismissed for the
+  /// remainder of this room's visit; it re-appears on the next visit
+  /// when new events arrive.  Reset whenever the user actually engages
+  /// with the room (marking read or navigating away).
+  bool _pillDismissed = false;
+
+  /// True when the jump-to-unread pill should be shown.
   ///
-  /// When all unread events are already in the local cache we jump
-  /// straight to the oldest one above [Room.fullyRead] and briefly
-  /// highlight it.  This keeps the user oriented in long-running rooms
-  /// without forcing them to scroll past thousands of events they
-  /// have already seen.
+  /// The pill is shown when there is at least one unread event in the
+  /// loaded window AND the user has not explicitly dismissed it.
+  /// Crucially, the pill does **not** disappear just because the user
+  /// scrolled up — that was the previous behaviour and it confused
+  /// users into thinking the badge had cleared when in fact they had
+  /// merely moved the viewport.  Dismissing the pill is now a deliberate
+  /// user action: tap the close icon on the pill, jump to the unread
+  /// event, or have the server-acknowledged marker advance via the
+  /// normal read-receipt flow.
+  bool get _showUnreadPill =>
+      _unreadInWindow > 0 && !_pillDismissed && !_isJumpingToUnread;
+
+  /// Dismisses the jump-to-unread pill.  The pill will re-appear the
+  /// next time the user enters a state with unread events — either
+  /// when the room is reopened or when new events arrive that aren't
+  /// immediately read.
+  void dismissUnreadPill() {
+    if (!_pillDismissed) {
+      setState(() => _pillDismissed = true);
+    }
+  }
+
+  /// Scrolls the timeline to the first unread event — the chronologically
+  /// newest event newer than [Room.fullyRead] in the loaded window.
+  ///
+  /// The implementation is robust to "not yet loaded" targets:
+  ///
+  /// 1. If the marker (the event the user has read up to) is already in
+  ///    the cache, the first unread event is at `events[markerIdx - 1]`
+  ///    and we can jump to it directly.
+  /// 2. If the marker is older than the loaded window, the cache
+  ///    contains only events newer than the marker — the first unread is
+  ///    the oldest one in the cache.  We jump to that, and (if the
+  ///    scroll-up affordance is desired) optionally paginate older
+  ///    history so the user sees the exact boundary.
+  /// 3. If the cache is empty or the marker is still missing after
+  ///    pagination, we paginate the timeline in the appropriate
+  ///    direction until the marker is found, refreshing the pill with
+  ///    a "loading" label and the timeline with skeleton placeholders
+  ///    so the user has feedback that work is in progress.
+  ///
+  /// Bounded to a small number of pagination iterations so a stalled
+  /// server doesn't trap the user.
   Future<void> jumpToLastRead() async {
     final timeline = _timeline;
     if (timeline == null) return;
 
-    // Pull the live marker — `widget.room.fullyRead` is updated by the
-    // SDK whenever sync delivers new account data, but the cached
-    // value in [_lastSeenEventId] may lag a sync.
-    final targetId = widget.room.fullyRead;
-    if (targetId.isEmpty) {
+    // Always pull the live marker — `widget.room.fullyRead` is updated
+    // by the SDK on every sync, but [_lastSeenEventId] may be one frame
+    // behind.
+    final markerId = widget.room.fullyRead;
+
+    if (markerId.isEmpty) {
+      // No marker at all — the user has never read this room.  Drop
+      // them at the bottom so the newest messages are on screen.
       _scrollToBottom();
+      _markRoomRead(force: true);
       return;
     }
 
-    // The fully-read marker is *exclusive* of unread: the user has
-    // read up to it, so the first unread event is the one immediately
-    // **after** it in the timeline (newest-first order).
-    final events = timeline.events;
-    var foundIndex = -1;
+    // Fast path: the marker is in the cache.  The first unread event
+    // is the one immediately newer (lower index in newest-first order).
+    final initialIdx = _findMarkerIndex(timeline.events, markerId);
+    if (initialIdx > 0) {
+      _jumpToUnreadEvent(timeline.events[initialIdx - 1].eventId);
+      return;
+    }
+
+    // Slow path: we need to bring the target into the cache before we
+    // can scroll to it.  Show a "loading" affordance on the pill and
+    // skeleton placeholders on the timeline so the user knows work is
+    // in progress.
+    if (mounted) {
+      setState(() {
+        _isJumpingToUnread = true;
+        _atLocalEndOfHistory = true;
+      });
+    }
+
+    // Case A: the marker is older than the loaded window.  Every event
+    // in the cache is therefore unread and the first unread is the
+    // *oldest* event in the cache.  No pagination needed; we just
+    // need to scroll there.  Paginating older (requestHistory) would
+    // also work but is unnecessary — the cache already covers a
+    // contiguous stretch of unread content.
+    if (initialIdx == -1 && timeline.events.isNotEmpty) {
+      _jumpToUnreadEvent(timeline.events.last.eventId);
+      return;
+    }
+
+    // Case B: the cache is empty (or the pill was shown spuriously
+    // with no events).  We need to paginate the timeline to find *any*
+    // event to land on.  Try the older direction first since the
+    // marker is virtually always older than the cached window — the
+    // default SDK cache window is 20 events, the marker is the most
+    // recent read event, and the unread events are even more recent
+    // than the cache.
+    final loaded = await _paginateUntilMarker(markerId);
+    if (!mounted) return;
+    if (!loaded) {
+      // Server timed out or the marker genuinely doesn't exist on this
+      // server.  Fall back to scrolling to the bottom of whatever the
+      // cache holds so the user isn't left looking at an empty
+      // viewport, and clear the pill.
+      if (timeline.events.isNotEmpty) {
+        _scrollToBottom();
+      }
+      _markRoomRead(force: true);
+      return;
+    }
+    _refreshLastSeenMarker();
+    final eventsAfter = _timeline?.events ?? const [];
+    final markerIdx = _findMarkerIndex(eventsAfter, markerId);
+    if (markerIdx > 0) {
+      _jumpToUnreadEvent(eventsAfter[markerIdx - 1].eventId);
+    } else if (eventsAfter.isNotEmpty) {
+      // Marker is at index 0 or still not in the cache; the cache
+      // has only events older than the marker.  Scroll to the bottom
+      // (the newest in the cache) so the user sees the most recent
+      // message we have, and clear the pill.
+      _scrollToBottom();
+    }
+  }
+
+  /// Returns the index of the event with id [markerId] in [events], or
+  /// `-1` if it isn't in the list.  A `for` loop instead of
+  /// [List.indexWhere] keeps the helper allocation-free for the
+  /// hot-path in [_paginateUntilMarker].
+  int _findMarkerIndex(List<Event> events, String markerId) {
     for (var i = 0; i < events.length; i++) {
-      if (events[i].eventId == targetId) {
-        foundIndex = i + 1;
-        break;
-      }
+      if (events[i].eventId == markerId) return i;
     }
-
-    if (foundIndex == -1 || foundIndex >= events.length) {
-      // Marker is older than the loaded window, OR the next event
-      // hasn't loaded yet — paginate forward until we find something
-      // unread we can land on, or until the server says we're done.
-      await _paginateUntilUnread(targetId);
-      _refreshLastSeenMarker();
-      _scrollToFirstUnreadHighlight(targetId);
-      return;
-    }
-
-    _scrollToFirstUnreadHighlight(targetId);
+    return -1;
   }
 
-  /// Pages the timeline forward in 20-event chunks until an event
-  /// newer than [fullyReadEventId] is loaded, or until the server
-  /// stops returning more history.  Bounded to a small number of
-  /// iterations so a stalled server doesn't trap the user.
-  Future<void> _paginateUntilUnread(String fullyReadEventId) async {
+  /// Jumps the viewport to the unread event with [eventId] and clears
+  /// the loading state.  Centralises the success-path plumbing of
+  /// [jumpToLastRead] so the calling code stays readable.
+  void _jumpToUnreadEvent(String eventId) {
+    if (mounted) {
+      setState(() {
+        _isJumpingToUnread = false;
+        _atLocalEndOfHistory = false;
+      });
+    }
+    _scrollToEvent(eventId);
+    _flashHighlight(eventId);
+  }
+
+  /// Pages the timeline in the appropriate direction until the event
+  /// with id [markerId] is loaded, or until the server stops returning
+  /// more history.  Bounded to a small number of iterations so a
+  /// stalled server doesn't trap the user.
+  ///
+  /// The marker is virtually always older than the cached window (the
+  /// default cache holds 20 events and the marker is the most recent
+  /// read receipt), so we paginate *older* history first.  As a final
+  /// fallback we try the *future* direction in case the cache window
+  /// is unusually stale.
+  ///
+  /// Returns `true` if the marker was successfully brought into the
+  /// cache; `false` if the server ran out of events in both directions
+  /// or the iteration cap was reached.
+  Future<bool> _paginateUntilMarker(String markerId) async {
     final timeline = _timeline;
-    if (timeline == null) return;
+    if (timeline == null) return false;
     final log = context.read<Logger>();
-    const maxIterations = 50;
-    for (var i = 0; i < maxIterations; i++) {
-      if (!mounted) return;
-      final before = timeline.events.length;
-      // We page *backward* (older history) because newer events are at
-      // index 0; the unread events we want are at the *top* of the
-      // list once we reach `fullyReadEventId`.
-      try {
-        await withTimeout(
-          () => timeline.requestHistory(),
-          timeout: const Duration(seconds: 10),
-        );
-      } catch (e) {
-        log.w('jumpToLastRead: history request failed', error: e);
-        return;
+    const maxIterationsPerDirection = 25;
+
+    Future<bool> paginateOlder() async {
+      for (var i = 0; i < maxIterationsPerDirection; i++) {
+        if (!mounted) return false;
+        if (!timeline.canRequestHistory) return false;
+        _isLoadingHistory = true;
+        try {
+          await withTimeout(
+            () => timeline.requestHistory(),
+            timeout: const Duration(seconds: 10),
+          );
+        } catch (e) {
+          log.w('jumpToLastRead: history request failed', error: e);
+          return false;
+        } finally {
+          _isLoadingHistory = false;
+        }
+        if (!mounted) return false;
+        if (_findMarkerIndex(timeline.events, markerId) >= 0) return true;
+        if (!timeline.canRequestHistory) return false;
       }
-      if (!mounted) return;
-      final after = timeline.events.length;
-      // Found the marker — we're done.
-      if (timeline.events.any((e) => e.eventId == fullyReadEventId)) {
-        return;
-      }
-      // Server returned no new events.
-      if (after == before) return;
+      return false;
     }
+
+    Future<bool> paginateNewer() async {
+      for (var i = 0; i < maxIterationsPerDirection; i++) {
+        if (!mounted) return false;
+        if (!timeline.canRequestFuture) return false;
+        try {
+          await withTimeout(
+            () => timeline.requestFuture(),
+            timeout: const Duration(seconds: 10),
+          );
+        } catch (e) {
+          log.w('jumpToLastRead: future-history request failed', error: e);
+          return false;
+        }
+        if (!mounted) return false;
+        if (_findMarkerIndex(timeline.events, markerId) >= 0) return true;
+        if (!timeline.canRequestFuture) return false;
+      }
+      return false;
+    }
+
+    // Older first.
+    if (await paginateOlder()) return true;
+    if (!mounted) return false;
+    // Future as a fallback in case the cache is unusually stale.
+    if (await paginateNewer()) return true;
+    return false;
   }
 
-  /// Scrolls the timeline so the first unread event (the one right
-  /// after [fullyReadEventId] in newest-first order) sits roughly
-  /// one third from the top of the viewport, with a brief highlight
-  /// ring.
-  void _scrollToFirstUnreadHighlight(String fullyReadEventId) {
+  /// Scrolls the timeline so the event with [eventId] sits roughly one
+  /// third from the top of the viewport, with a brief highlight ring.
+  void _scrollToEvent(String eventId) {
     final timeline = _timeline;
     if (timeline == null) return;
     if (!_scrollController.hasClients) return;
 
     final events = timeline.events;
-    var foundIdx = 0;
-    for (var i = 0; i < events.length; i++) {
-      if (events[i].eventId == fullyReadEventId) {
-        foundIdx = (i - 1).clamp(0, events.length - 1);
-        break;
-      }
-    }
-    final targetEvent = events[foundIdx];
-    final targetId = targetEvent.eventId;
+    if (events.isEmpty) return;
+    final idx = events.indexWhere((e) => e.eventId == eventId);
+    if (idx < 0) return;
 
-    // Mark so the timeline item can render its highlight ring.
-    _highlightedEventId = targetId;
-    setState(() {});
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      if (_highlightedEventId == targetId) {
-        setState(() => _highlightedEventId = null);
-      }
-    });
-
-    // Estimate the item's position from the scrollable's visible area.
-    final pos = _scrollController.position;
-    final range = pos.maxScrollExtent - pos.minScrollExtent;
-    // Newest items live at the bottom (offset 0) in this reversed list,
-    // so a smaller index into `events` corresponds to a smaller scroll
-    // offset.  We just animate to the top — the unread events are
-    // typically the *oldest* unread ones in the loaded window.
-    final fraction = foundIdx == 0
-        ? 0.0
-        : 1.0 - (foundIdx / (events.length > 1 ? events.length - 1 : 1));
-    final targetOffset =
-        (pos.minScrollExtent + range * fraction)
-            .clamp(pos.minScrollExtent, pos.maxScrollExtent);
-    final distance = (targetOffset - pos.pixels).abs();
-    if (distance < pos.viewportDimension * 0.6) return;
+    final position = _scrollController.position;
+    final range = position.maxScrollExtent - position.minScrollExtent;
+    // List is reversed: index 0 is the bottom (offset 0), index n-1 is
+    // the top.  A smaller index into `events` corresponds to a smaller
+    // scroll offset.
+    final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
+    final paddedOffset =
+        (position.minScrollExtent + range * fraction - position.viewportDimension * 0.33)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
     _scrollController.animateTo(
-      targetOffset,
+      paddedOffset,
       duration: motionDuration(300),
       curve: motionCurve(Curves.easeInOut),
     );
+  }
+
+  /// Marks [eventId] as the highlighted event for ~2 seconds so the
+  /// user can see where the jump landed.
+  void _flashHighlight(String eventId) {
+    _highlightedEventId = eventId;
+    setState(() {});
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      if (_highlightedEventId == eventId) {
+        setState(() => _highlightedEventId = null);
+      }
+    });
   }
 
   /// Plain bottom-scroll helper used when we don't have a marker to
@@ -481,6 +678,13 @@ class ChatTimelineState extends State<ChatTimeline> {
     if (!_isScrolledUp) return;
     setState(() => _isScrolledUp = false);
     _scrollToBottom();
+    // The user is reaching the bottom of the timeline.  Push a mark-read
+    // in the background — the scroll listener would do this anyway, but
+    // `animateTo` only fires scroll events along the path so the final
+    // 250 ms debounce window may outlive the animation.  Forcing it here
+    // keeps the badge clear on the same frame the user lands at the
+    // bottom.
+    _scheduleMarkRoomRead();
   }
 
   /// Event ID currently highlighted by the "Jump to unread" affordance.
@@ -620,7 +824,7 @@ class ChatTimelineState extends State<ChatTimeline> {
         return Stack(
           children: [
             child,
-            if (_hasUnreadBelow || _isScrolledUp)
+            if (_showUnreadPill || _isScrolledUp)
               Positioned(
                 left: 0,
                 right: 0,
@@ -629,19 +833,24 @@ class ChatTimelineState extends State<ChatTimeline> {
                   top: false,
                   child: Center(
                     child: _FloatingActionColumn(
-                      unreadCount: widget.room.notificationCount,
+                      unreadCount: _unreadInWindow,
                       isScrolledUp: _isScrolledUp,
-                      unreadVisible: _hasUnreadBelow,
+                      unreadVisible: _showUnreadPill,
+                      isJumping: _isJumpingToUnread,
                       onJumpToUnread: () async {
                         await jumpToLastRead();
                         if (!mounted) return;
-                        // `_markRoomRead` returns void; the SDK call
-                        // inside is fire-and-forget.  We still await
-                        // `jumpToLastRead` so the scroll lands before
-                        // the user notices the badge clearing.
-                        _markRoomRead();
+                        // jumpToLastRead already advances the read
+                        // marker if it lands on the latest unread
+                        // event.  The explicit _markRoomRead(force:)
+                        // call here covers the "I want to clear the
+                        // badge right now" path when the user reaches
+                        // for the pill as a mark-read shortcut.
+                        _markRoomRead(force: true);
+                        if (mounted) dismissUnreadPill();
                       },
                       onScrollToBottom: scrollToBottom,
+                      onDismissUnread: dismissUnreadPill,
                     ),
                   ),
                 ),
@@ -727,6 +936,7 @@ class ChatTimelineState extends State<ChatTimeline> {
       // leaves the top, so the placeholder never flashes at the
       // bottom of the chat window during the initial load.
       isLoadingHistory: _atLocalEndOfHistory,
+      highlightedEventId: _highlightedEventId,
     );
   }
 
@@ -828,21 +1038,88 @@ class ChatTimelineState extends State<ChatTimeline> {
   Curve motionCurve([Curve fallback = Curves.easeInOut]) =>
       Motion.of(context).curve(fallback);
 
-  /// Sends a read receipt for the newest event in the timeline so the server
-  /// and other clients know that the user has seen the latest messages.
+  /// Sends a read receipt for the newest *synced* event in the timeline
+  /// so the server and other clients know the user has seen the latest
+  /// messages.
   ///
   /// Honours the [SettingsController.sendReadReceipts] toggle — when the
-  /// user opts out we still mark locally but never tell the homeserver.
-  void _markRoomRead() {
+  /// user opts out we still record the marker locally but never tell the
+  /// homeserver.
+  ///
+  /// [force] bypasses the local "already sent" cache and posts the
+  /// marker unconditionally; used by the "Jump to first unread" pill
+  /// when it lands on a state where the cache thinks the marker is
+  /// already current.
+  void _markRoomRead({bool force = false}) {
     if (_timeline == null) return;
     final events = _timeline!.events;
     if (events.isEmpty) return;
+    // The newest *synced* event in the cache.  Pending local sends
+    // (status == sending / sent) are excluded so we don't try to
+    // acknowledge a message the homeserver hasn't yet echoed back.
+    String? latestId;
+    for (final ev in events) {
+      if (ev.status == EventStatus.synced) {
+        latestId = ev.eventId;
+        break;
+      }
+    }
+    latestId ??= events.first.eventId;
+    if (latestId.isEmpty) return;
     final sendReceipts =
         context.read<SettingsController>().sendReadReceipts;
+    final alreadySent = !force && _markReadSent.contains(latestId);
+    if (!alreadySent) {
+      _markReadSent.add(latestId);
+      // Bound the cache so it doesn't grow without limit on busy rooms.
+      if (_markReadSent.length > 512) {
+        // Drop the oldest half; Set preserves insertion order.
+        final drop = _markReadSent.length ~/ 2;
+        final it = _markReadSent.iterator;
+        for (var i = 0; i < drop && it.moveNext(); i++) {
+          _markReadSent.remove(it.current);
+        }
+      }
+      // Mirror the new marker into the notification service's local
+      // bookkeeping so a sync tick right after we marked read doesn't
+      // re-emit a stale summary for a room we just caught up on.
+      // We do this regardless of [sendReceipts] — the user visibly
+      // reached the latest message and we shouldn't nag them about it.
+      // The notification service is optional in the provider tree
+      // (desktop-only) so guard with a try/read.
+      final notif = _maybeNotificationService();
+      notif?.onRoomReadByTimeline(widget.room.id, latestId);
+    }
     if (!sendReceipts) return;
-    // events are newest-first, so index 0 is the most recent.
-    final latestId = events.first.eventId;
+    if (alreadySent) return;
+    // ignore: discarded_futures
     widget.room.setReadMarker(latestId, mRead: latestId);
+  }
+
+  /// Returns the notification service if it has been provided in this
+  /// widget tree, or `null` on platforms (or in tests) where it isn't
+  /// available.  NotificationService is a desktop-only dependency so the
+  /// provider is conditionally added in main.dart.
+  NotificationService? _maybeNotificationService() {
+    try {
+      return context.read<NotificationService>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Scroll-driven read-marker update.  Called on every scroll event;
+  /// debounced so a single drag only sends one network request once
+  /// the user has stopped scrolling.
+  void _scheduleMarkRoomRead() {
+    if (_timeline == null) return;
+    if (!_scrollController.hasClients) return;
+    if (_scrollDebounce) return;
+    _markReadDebounceTimer?.cancel();
+    _markReadDebounceTimer = Timer(_markReadDebounce, () {
+      if (!mounted) return;
+      _markRoomRead();
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -863,6 +1140,8 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   @override
   void dispose() {
+    _markReadDebounceTimer?.cancel();
+    _markReadDebounceTimer = null;
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
@@ -891,6 +1170,8 @@ class _FloatingActionColumn extends StatelessWidget {
     required this.unreadVisible,
     required this.onJumpToUnread,
     required this.onScrollToBottom,
+    required this.onDismissUnread,
+    required this.isJumping,
   });
 
   final int unreadCount;
@@ -898,6 +1179,17 @@ class _FloatingActionColumn extends StatelessWidget {
   final bool unreadVisible;
   final Future<void> Function() onJumpToUnread;
   final VoidCallback onScrollToBottom;
+
+  /// Tapping the close icon on the jump-to-unread pill invokes this.
+  /// The pill is dismissed but the unread events themselves remain —
+  /// the user can still scroll up to see them, and a fresh pill will
+  /// re-appear the next time the room has unread state.
+  final VoidCallback onDismissUnread;
+
+  /// True while the timeline is paginating to bring the first unread
+  /// event into the cache.  The pill switches to a "loading" label so
+  /// the user has feedback that the tap was registered.
+  final bool isJumping;
 
   @override
   Widget build(BuildContext context) {
@@ -919,7 +1211,9 @@ class _FloatingActionColumn extends StatelessWidget {
                 ? _JumpToUnreadPill(
                     key: const ValueKey('jump-to-unread'),
                     count: unreadCount,
+                    isLoading: isJumping,
                     onTap: onJumpToUnread,
+                    onDismiss: onDismissUnread,
                   )
                 : const SizedBox.shrink(key: ValueKey('jump-to-unread-empty')),
           ),
@@ -997,54 +1291,143 @@ class _ScrollToBottomPill extends StatelessWidget {
 /// Floating "Jump to first unread" pill rendered above the chat composer
 /// when the room has unread messages below the current viewport.
 ///
-/// The pill is intentionally lightweight: it shows the unread count and a
-/// small chevron so the user can see at a glance how much they have missed
-/// without cluttering the chat surface. Tapping it scrolls the timeline
-/// to the first event newer than the fully-read marker and sends a read
-/// receipt so the badge clears.
+/// The pill is intentionally lightweight: it shows the unread count, an
+/// up-arrow to hint at the action, and a small dismiss (×) button so the
+/// user can close it without engaging.  Tapping the pill body scrolls the
+/// timeline to the first event newer than the fully-read marker and sends
+/// a read receipt so the badge clears.  Tapping the close icon only hides
+/// the pill — the unread state itself is unchanged and the pill will
+/// re-appear if the user navigates away and back into the room while
+/// there is still unread content.
 class _JumpToUnreadPill extends StatelessWidget {
-  const _JumpToUnreadPill({required this.count, required this.onTap, super.key});
+  const _JumpToUnreadPill({
+    required this.count,
+    required this.isLoading,
+    required this.onTap,
+    required this.onDismiss,
+    super.key,
+  });
 
   final int count;
+
+  /// When `true`, the pill swaps its label to a "loading" message and
+  /// shows a small progress indicator.  Tap handling is disabled so the
+  /// user can't queue up multiple paginate requests.
+  final bool isLoading;
+
   final Future<void> Function() onTap;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final label = count == 1
-        ? l10n.jumpToFirstUnread
-        : l10n.jumpToFirstUnreadMany(count);
+    final label = isLoading
+        ? l10n.jumpToUnreadLoading
+        : (count == 1
+            ? l10n.jumpToFirstUnread
+            : l10n.jumpToFirstUnreadMany(count));
 
+    // Two tap targets: the pill body (jump) and a small × button on the
+    // trailing edge (dismiss).  Using a single [Material] + a [Row] of
+    // two [InkWell]s keeps the rounded-pill silhouette without
+    // splitting the visual into two separate chips.
     return Material(
       color: scheme.primary,
       elevation: 4,
       borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: () {
-          // Fire and forget — the pill hides itself on the next rebuild
-          // once the read marker is updated and the unread count drops
-          // to zero.
-          // ignore: discarded_futures
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.arrowUp, size: 14, color: scheme.onPrimary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: scheme.onPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: isLoading
+                  ? null
+                  : () {
+                      // Fire and forget — the pill hides itself on the
+                      // next rebuild once the read marker is updated
+                      // and the unread count drops to zero.
+                      // ignore: discarded_futures
+                      onTap();
+                    },
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isLoading)
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          valueColor: AlwaysStoppedAnimation(scheme.onPrimary),
+                        ),
+                      )
+                    else
+                      Icon(
+                        LucideIcons.arrowUp,
+                        size: 14,
+                        color: scheme.onPrimary,
+                      ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: scheme.onPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
+            const SizedBox(width: 4),
+            _DismissButton(
+              tooltip: l10n.unreadPillDismissTooltip,
+              onTap: isLoading ? () {} : onDismiss,
+              color: scheme.onPrimary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tiny close icon used as the dismiss affordance on [_JumpToUnreadPill].
+/// Rendered as a separate widget so its hit-test region is its own
+/// (24×24 logical pixels) and the larger pill body underneath stays
+/// responsive to the "jump" action.
+class _DismissButton extends StatelessWidget {
+  const _DismissButton({
+    required this.tooltip,
+    required this.onTap,
+    required this.color,
+  });
+
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 14,
+        // Slightly darker overlay so the dismiss button reads as a
+        // separate affordance from the pill body.
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            LucideIcons.x,
+            size: 12,
+            color: color,
           ),
         ),
       ),

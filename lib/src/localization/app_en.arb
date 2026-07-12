@@ -300,6 +300,14 @@
   "@scrollToBottom": {
     "description": "Floating button shown when the user has scrolled up away from the newest messages. Tapping it animates the timeline back to the bottom."
   },
+  "unreadPillDismissTooltip": "Dismiss",
+  "@unreadPillDismissTooltip": {
+    "description": "Tooltip on the small × button next to the jump-to-first-unread pill. Tapping it hides the pill without changing the user's read state."
+  },
+  "jumpToUnreadLoading": "Loading messages…",
+  "@jumpToUnreadLoading": {
+    "description": "Inline label shown on the jump-to-unread pill while the timeline is being paginated to surface the first unread event."
+  },
   "encryptionUndecryptableMessage": "message can't be decrypted",
   "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
