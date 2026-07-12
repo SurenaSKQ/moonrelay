@@ -48,7 +48,12 @@ class RoomDelegate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Client client = Provider.of<Client>(context);
+    // `listen: false`: this delegate only consults
+    // [Client.getRoomById] / [Client.rooms] once per build, so listening
+    // would force the entire [RoomDelegate] (and therefore the timeline,
+    // chat box, and right sidebar) to rebuild on every sync tick
+    // which the Matrix SDK fires many times per second.
+    final Client client = Provider.of<Client>(context, listen: false);
 
     // ── Null / empty check ──────────────────────────────────────
     if (roomID == null || roomID!.isEmpty) {
