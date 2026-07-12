@@ -29,7 +29,6 @@ import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
-import 'package:moonrelay/src/screens/hub_screen/category_sidebar.dart';
 import 'package:moonrelay/src/screens/hub_screen/sub_page_header.dart';
 import 'package:moonrelay/src/screens/hub_screen/accounts_page.dart';
 import 'package:moonrelay/src/screens/hub_screen/my_profile_page.dart';
@@ -47,7 +46,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart'
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The main Hub screen — two-column layout
+// The main Hub screen — tab-based UI
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A category selection that may be deep-linked into the [HubScreen].
@@ -55,8 +54,8 @@ import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 /// The hub has internal state for `_selectedCategoryIndex` and
 /// `_selectedSubItemIndex`.  When a route specifies a category (and
 /// optional sub-item) the screen must mirror that selection into its
-/// internal state so the sidebar highlight and content pane agree with
-/// the URL.
+/// internal state so the active tab and content pane agree with the
+/// URL.
 ///
 /// The values are stable enough to be passed via GoRouter path
 /// parameters rather than query strings, which makes them matchable
@@ -65,6 +64,49 @@ class HubCategorySelection {
   const HubCategorySelection({this.categoryKey, this.subKey});
   final String? categoryKey;
   final String? subKey;
+}
+
+/// Whether a tab in the hub represents a top-level category or one of
+/// the sub-items that hang off an expandable parent.
+enum _HubTabScope {
+  /// The tab targets a top-level category (e.g. Accounts, Settings).
+  category,
+
+  /// The tab targets a sub-item of an expandable category (e.g.
+  /// Settings > Appearance).  Only used inside the settings tab.
+  subItem,
+}
+
+/// One entry in the hub's tab strip.
+///
+/// Each entry knows whether it represents a top-level category or a
+/// sub-item of an expandable parent; [controller] is the
+/// [TabController] that drives it.  Tapping a tab navigates to the
+/// canonical URL so deep links remain in sync.
+class _HubTab {
+  const _HubTab({
+    required this.label,
+    required this.icon,
+    required this.key,
+    required this.scope,
+    required this.parentCategoryIndex,
+  });
+
+  /// Localised label shown in the tab.
+  final String label;
+
+  /// Icon shown in the tab.
+  final IconData icon;
+
+  /// Stable key used to resolve content for this tab.
+  final String key;
+
+  /// Whether this is a top-level tab or a sub-tab.
+  final _HubTabScope scope;
+
+  /// The index of the parent top-level category in [_categories].  For
+  /// top-level tabs this equals the tab's own index in the strip.
+  final int parentCategoryIndex;
 }
 
 class HubScreen extends StatefulWidget {
@@ -87,11 +129,18 @@ class _HubScreenState extends State<HubScreen> {
   // Index tracking: which top-level category and which sub-item (if any).
   int _selectedCategoryIndex = 0;
   int _selectedSubItemIndex = -1;
-  final Set<int> _expandedCategories = {};
 
   // ── Category definitions ─────────────────────────────────────────────────
 
   List<HubCategory> _categories = [];
+
+  // When the user is inside an expandable category with sub-items, we
+  // swap the tab strip's contents for the parent category's items so
+  // the user can flip between Appearance / Layout / Encryption & …
+  // without leaving the parent tab.  The parent's index is preserved
+  // so we can render the parent's overview page (or first item) when
+  // the user re-selects the top-level tab.
+  int _subTabsParentIndex = -1;
 
   @override
   void initState() {
@@ -103,14 +152,7 @@ class _HubScreenState extends State<HubScreen> {
     super.didChangeDependencies();
     if (_categories.isEmpty) {
       _buildCategories();
-      if (_categories.isNotEmpty) {
-        _expandedCategories.add(0);
-      }
       // Apply initial selection from the route if one was supplied.
-      // Defer setState into a microtask if we're mid-build — direct
-      // setState() inside didChangeDependencies is technically safe
-      // but a few assertion paths disable it.  The simplest robust
-      // path is to compare and assign explicitly.
       _applySelection(widget.selection, duringBuild: true);
     }
   }
@@ -118,15 +160,18 @@ class _HubScreenState extends State<HubScreen> {
   @override
   void didUpdateWidget(covariant HubScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // React to the user navigating from another hub path while
-    // already on the hub screen.
     if (oldWidget.selection != widget.selection) {
       _applySelection(widget.selection);
     }
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   /// Maps a [HubCategorySelection] (category/sub keys) into the
-  /// screen's internal indices and expands the matching parent.
+  /// screen's internal indices.
   ///
   /// When [duringBuild] is true, the indices are mutated directly and
   /// a follow-up [setState] is scheduled for after the current frame.
@@ -153,12 +198,11 @@ class _HubScreenState extends State<HubScreen> {
       return;
     }
 
-    if (_categories[catIdx].isExpandable) {
-      _expandedCategories.add(catIdx);
-    }
     if (duringBuild) {
       _selectedCategoryIndex = catIdx;
       _selectedSubItemIndex = subIdx;
+      _subTabsParentIndex =
+          subIdx >= 0 ? catIdx : -1;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });
@@ -166,6 +210,7 @@ class _HubScreenState extends State<HubScreen> {
       setState(() {
         _selectedCategoryIndex = catIdx;
         _selectedSubItemIndex = subIdx;
+        _subTabsParentIndex = subIdx >= 0 ? catIdx : -1;
       });
     }
   }
@@ -262,6 +307,53 @@ class _HubScreenState extends State<HubScreen> {
     ];
   }
 
+  /// Returns the list of tabs to render in the top strip.
+  ///
+  /// When the user is inside a top-level category (or has just
+  /// selected one without a sub-item) the strip shows the four
+  /// top-level categories.  When the user is on a sub-item of an
+  /// expandable parent, the strip shows that parent's sub-items so the
+  /// user can flip between settings panes without going back through
+  /// the overview.
+  List<_HubTab> _tabsForCurrentSelection() {
+    if (_subTabsParentIndex >= 0) {
+      final parent = _categories[_subTabsParentIndex];
+      // First tab: the parent overview page.
+      final parentLabel = parent.label;
+      final tabs = <_HubTab>[
+        _HubTab(
+          label: parentLabel,
+          icon: parent.icon,
+          key: parent.key ?? '',
+          scope: _HubTabScope.category,
+          parentCategoryIndex: _subTabsParentIndex,
+        ),
+      ];
+      for (var i = 0; i < parent.items.length; i++) {
+        final sub = parent.items[i];
+        tabs.add(_HubTab(
+          label: sub.label,
+          icon: sub.icon,
+          key: sub.key ?? '',
+          scope: _HubTabScope.subItem,
+          parentCategoryIndex: _subTabsParentIndex,
+        ));
+      }
+      return tabs;
+    }
+    // Top-level strip — one tab per top-level category.
+    return [
+      for (var i = 0; i < _categories.length; i++)
+        _HubTab(
+          label: _categories[i].label,
+          icon: _categories[i].icon,
+          key: _categories[i].key ?? '',
+          scope: _HubTabScope.category,
+          parentCategoryIndex: i,
+        ),
+    ];
+  }
+
   int get categoryCount => _categories.length;
 
   Future<void> _logout() async {
@@ -293,9 +385,40 @@ class _HubScreenState extends State<HubScreen> {
     }
   }
 
+  void _selectTab(_HubTab tab) {
+    if (tab.scope == _HubTabScope.category) {
+      if (_subTabsParentIndex != tab.parentCategoryIndex ||
+          _selectedCategoryIndex != tab.parentCategoryIndex) {
+        setState(() {
+          _selectedCategoryIndex = tab.parentCategoryIndex;
+          _selectedSubItemIndex = -1;
+          // Entering a top-level tab that is expandable should NOT
+          // expand its sub-tabs automatically — the user has to tap
+          // a sub-tab or the parent overview page.  This matches the
+          // previous "category opens on its overview" behaviour.
+          _subTabsParentIndex = -1;
+        });
+        final cat = _categories[tab.parentCategoryIndex];
+        if (cat.key != null) _pushHubUrl(cat.key!, null);
+      }
+    } else {
+      final cat = _categories[tab.parentCategoryIndex];
+      setState(() {
+        _selectedCategoryIndex = tab.parentCategoryIndex;
+        _selectedSubItemIndex =
+            cat.items.indexWhere((s) => s.key == tab.key);
+        _subTabsParentIndex = tab.parentCategoryIndex;
+      });
+      if (cat.key != null) _pushHubUrl(cat.key!, tab.key);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final tabs = _tabsForCurrentSelection();
+    final activeIndex = _activeTabIndex(tabs);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -322,30 +445,34 @@ class _HubScreenState extends State<HubScreen> {
           return LayoutScope(
             size: size,
             availableWidth: constraints.maxWidth,
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Category sidebar ─────────────────────────────────
-                HubCategorySidebar(
-                  categories: _categories,
-                  selectedIndex: _selectedCategoryIndex,
-                  selectedSubIndex: _selectedSubItemIndex,
-                  expanded: _expandedCategories,
-                  onCategoryTap: _onCategoryTap,
-                  onSubItemTap: _onSubItemTap,
-                  onExpansionToggle: _onExpansionToggle,
+                _HubTabStrip(
+                  tabs: tabs,
+                  activeIndex: activeIndex,
+                  onTap: (i) {
+                    if (i < 0 || i >= tabs.length) return;
+                    _selectTab(tabs[i]);
+                  },
                 ),
-
-                // ── Vertical divider ───────────────────────────────
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor,
-                ),
-
-                // ── Content area ────────────────────────────────────
+                if (_subTabsParentIndex >= 0 &&
+                    _categories[_subTabsParentIndex].items.length > 1)
+                  _buildBackToTopRow(),
+                const Divider(height: 1),
                 Expanded(
-                  child: _buildContent(),
+                  child: KeyedSubtree(
+                    // Re-key on selection so each tab gets a fresh
+                    // element when it becomes visible.  Avoids the
+                    // [TabBarView] controller lifecycle issues and
+                    // doesn't eagerly build inactive tabs (which
+                    // would force all settings pages to mount
+                    // simultaneously and call into the [Client]).
+                    key: ValueKey(activeIndex),
+                    child: activeIndex >= 0 && activeIndex < tabs.length
+                        ? _buildTabBody(tabs[activeIndex])
+                        : const SizedBox.shrink(),
+                  ),
                 ),
               ],
             ),
@@ -355,112 +482,109 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
-  void _onCategoryTap(int index) {
-    // Toggle expansion for expandable categories; otherwise just select.
-    final cat = _categories[index];
-    if (cat.isExpandable) {
-      if (_expandedCategories.contains(index)) {
-        _expandedCategories.remove(index);
-        // If the selected sub-item was in this category, reset.
-        if (_selectedCategoryIndex == index) {
-          _selectedSubItemIndex = -1;
-        }
-        // Mirror the URL when collapsing a category: fall back to
-        // the bare `/hub/<key>` so the back button matches what is
-        // visible.
-        if (_selectedCategoryIndex == index && cat.key != null) {
-          _pushHubUrl(cat.key!, null);
-        }
-      } else {
-        _expandedCategories.add(index);
-      }
-      setState(() {});
-    } else {
-      setState(() {
-        _selectedCategoryIndex = index;
-        _selectedSubItemIndex = -1;
-      });
-      // Non-expandable category: push the canonical hub URL so the
-      // browser back button tracks selection.
-      if (cat.key != null) _pushHubUrl(cat.key!, null);
+  /// Computes which index in the current [tabs] list represents the
+  /// active selection.  Returns 0 when the selection does not match
+  /// any tab (e.g. the deep-link referenced a category the user has
+  /// since collapsed) so the strip and body stay in sync.
+  int _activeTabIndex(List<_HubTab> tabs) {
+    if (tabs.isEmpty) return 0;
+    if (_subTabsParentIndex >= 0) {
+      // Sub-tabs strip: index 0 is the parent overview, the rest are
+      // sub-items in order.
+      final sub = _selectedSubItemIndex;
+      if (sub < 0) return 0;
+      return (sub + 1).clamp(0, tabs.length - 1);
     }
+    return _selectedCategoryIndex.clamp(0, tabs.length - 1);
   }
 
-  void _onSubItemTap(int catIndex, int subIndex) {
-    final cat = _categories[catIndex];
-    final sub = cat.items[subIndex];
-    setState(() {
-      _selectedCategoryIndex = catIndex;
-      _selectedSubItemIndex = subIndex;
-    });
-    if (cat.key != null && sub.key != null) {
-      _pushHubUrl(cat.key!, sub.key);
-    }
+  /// Builds the top-level tab strip as a custom widget that does not
+  /// rely on [TabController].
+  Widget _buildBackToTopRow() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerLow,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        icon: const Icon(LucideIcons.chevronLeft, size: 14),
+        label: const Text('All categories'),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+        onPressed: () {
+          setState(() {
+            _subTabsParentIndex = -1;
+            _selectedSubItemIndex = -1;
+          });
+          final cat = _categories[_selectedCategoryIndex];
+          if (cat.key != null) _pushHubUrl(cat.key!, null);
+        },
+      ),
+    );
   }
 
-  void _onExpansionToggle(int index) {
-    if (_expandedCategories.contains(index)) {
-      _expandedCategories.remove(index);
-    } else {
-      _expandedCategories.add(index);
-    }
-    setState(() {});
-  }
-
-  // ── Content routing ─────────────────────────────────────────────────────
-
-  /// Renders the content pane for the currently-selected category /
-  /// sub-item.  Resolution is by stable key, not by array index, so
-  /// reordering or inserting new categories in `_categories` does
-  /// not silently misroute.
-  Widget _buildContent() {
-    final l10n = AppLocalizations.of(context)!;
-    final cat = _categories[_selectedCategoryIndex];
-
-    // When a sub-item is selected inside an expandable category,
-    // render that sub-item's content (handled by key lookup).
-    if (cat.isExpandable && _selectedSubItemIndex >= 0) {
-      final subItem = cat.items[_selectedSubItemIndex];
-      return HubSubPageHeader(
-        title: subItem.label,
-        child: _buildSubItemContent(subItem.key),
-      );
-    }
-
-    // Render a top-level category page keyed by the category's stable
-    // identifier.
-    switch (cat.key) {
-      case 'accounts':
-        return HubAccountsPage(
-          onLogout: _logout,
-          onAddAccount: () => context.push('/add-account'),
-        );
-      case 'profile':
-        return HubMyProfilePage(client: widget.client);
-      case 'settings':
-        // App settings overview — show sub-items as a quick menu.
+  Widget _buildTabBody(_HubTab tab) {
+    if (tab.scope == _HubTabScope.category) {
+      // First tab of a sub-tab strip is the parent's overview page.
+      final cat = _categories[tab.parentCategoryIndex];
+      if (_subTabsParentIndex >= 0) {
         return HubSubPageHeader(
           title: cat.label,
           child: HubAppSettingsOverview(
             items: cat.items,
             onItemTap: (i) {
-              final catIdx = _indexOfCategory('settings');
-              if (catIdx < 0) return;
+              final sub = cat.items[i];
               setState(() {
-                _selectedCategoryIndex = catIdx;
+                _selectedCategoryIndex = tab.parentCategoryIndex;
                 _selectedSubItemIndex = i;
-                _expandedCategories.add(catIdx);
+                _subTabsParentIndex = tab.parentCategoryIndex;
               });
-              _pushHubUrl(cat.key!, cat.items[i].key);
+              _pushHubUrl(cat.key!, sub.key);
             },
           ),
         );
-      case 'about':
-        return HubAboutPage(client: widget.client);
-      default:
-        return Center(child: Text(l10n.selectCategory));
+      }
+      switch (cat.key) {
+        case 'accounts':
+          return HubAccountsPage(
+            onLogout: _logout,
+            onAddAccount: () => context.push('/add-account'),
+          );
+        case 'profile':
+          return HubMyProfilePage(client: widget.client);
+        case 'settings':
+          return HubSubPageHeader(
+            title: cat.label,
+            child: HubAppSettingsOverview(
+              items: cat.items,
+              onItemTap: (i) {
+                final sub = cat.items[i];
+                setState(() {
+                  _selectedCategoryIndex = tab.parentCategoryIndex;
+                  _selectedSubItemIndex = i;
+                  _subTabsParentIndex = tab.parentCategoryIndex;
+                });
+                _pushHubUrl(cat.key!, sub.key);
+              },
+            ),
+          );
+        case 'about':
+          return HubAboutPage(client: widget.client);
+        default:
+          return const Center(child: Text('…'));
+      }
     }
+    // Sub-item body.
+    return HubSubPageHeader(
+      title: tab.label,
+      child: _buildSubItemContent(tab.key),
+    );
   }
+
+  // ── Content routing ─────────────────────────────────────────────────────
 
   /// Renders a settings sub-item page keyed by the item's stable
   /// identifier.  Adding a new sub-item is a one-line case and never
@@ -500,10 +624,6 @@ class _HubScreenState extends State<HubScreen> {
         return const SizedBox.shrink();
     }
   }
-
-  /// Look up a category's index by its stable `key`, or `-1` if missing.
-  int _indexOfCategory(String key) =>
-      _categories.indexWhere((c) => c.key == key);
 
   /// Build the canonical `/hub/<category>/<sub>` URL for the current
   /// selection.  Returns `null` for the bare `/hub` index route when
@@ -570,6 +690,119 @@ Future<void> showHubOverlay(
       ),
     ),
   );
+}
+
+/// A tab strip widget that does not depend on [TabController].
+///
+/// We avoid [TabController] here because its length is fixed at
+/// construction time and the hub swaps between two different tab
+/// strips (top-level categories vs. a parent's sub-items).  Using a
+/// controller would force us to dispose and re-create it on every
+/// swap, which trips [ChangeNotifier] assertions during paint.  A
+/// stateless strip driven by the parent's selection state is simpler
+/// and avoids the lifecycle pitfalls.
+class _HubTabStrip extends StatelessWidget {
+  const _HubTabStrip({
+    required this.tabs,
+    required this.activeIndex,
+    required this.onTap,
+  });
+
+  final List<_HubTab> tabs;
+  final int activeIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final scrollable = tabs.length > 4;
+    return Container(
+      color: scheme.surfaceContainerLow,
+      child: SizedBox(
+        height: 56,
+        child: scrollable
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < tabs.length; i++)
+                      _HubTabStripEntry(
+                        tab: tabs[i],
+                        active: i == activeIndex,
+                        onTap: () => onTap(i),
+                      ),
+                  ],
+                ),
+              )
+            : Row(
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    Expanded(
+                      child: _HubTabStripEntry(
+                        tab: tabs[i],
+                        active: i == activeIndex,
+                        onTap: () => onTap(i),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// A single tab button in [_HubTabStrip].  Visually mimics a Material
+/// [Tab] but stays a plain [InkWell] so the parent controls selection
+/// state directly.
+class _HubTabStripEntry extends StatelessWidget {
+  const _HubTabStripEntry({
+    required this.tab,
+    required this.active,
+    required this.onTap,
+  });
+
+  final _HubTab tab;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fg = active ? scheme.primary : scheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: active ? scheme.primary : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(tab.icon, size: 18, color: fg),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                tab.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  color: fg,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Wraps [HubScreen] in a centered, blur-backed card so it appears as a
