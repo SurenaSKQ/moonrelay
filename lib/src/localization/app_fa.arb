@@ -1220,6 +1220,11 @@
     "description": "Layout mode that uses a single-pane, route-driven mobile-style layout."
   },
 
+  "back": "Back",
+  "@back": {
+    "description": "Generic back button label used by the mobile layout."
+  },
+
   "deleteRoom": "Delete Room",
   "@deleteRoom": {
     "description": "Button to permanently delete a room."
