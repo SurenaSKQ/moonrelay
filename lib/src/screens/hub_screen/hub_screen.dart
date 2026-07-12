@@ -365,6 +365,12 @@ class _HubScreenState extends State<HubScreen> {
         if (_selectedCategoryIndex == index) {
           _selectedSubItemIndex = -1;
         }
+        // Mirror the URL when collapsing a category: fall back to
+        // the bare `/hub/<key>` so the back button matches what is
+        // visible.
+        if (_selectedCategoryIndex == index && cat.key != null) {
+          _pushHubUrl(cat.key!, null);
+        }
       } else {
         _expandedCategories.add(index);
       }
@@ -374,14 +380,22 @@ class _HubScreenState extends State<HubScreen> {
         _selectedCategoryIndex = index;
         _selectedSubItemIndex = -1;
       });
+      // Non-expandable category: push the canonical hub URL so the
+      // browser back button tracks selection.
+      if (cat.key != null) _pushHubUrl(cat.key!, null);
     }
   }
 
   void _onSubItemTap(int catIndex, int subIndex) {
+    final cat = _categories[catIndex];
+    final sub = cat.items[subIndex];
     setState(() {
       _selectedCategoryIndex = catIndex;
       _selectedSubItemIndex = subIndex;
     });
+    if (cat.key != null && sub.key != null) {
+      _pushHubUrl(cat.key!, sub.key);
+    }
   }
 
   void _onExpansionToggle(int index) {
@@ -395,82 +409,138 @@ class _HubScreenState extends State<HubScreen> {
 
   // ── Content routing ─────────────────────────────────────────────────────
 
+  /// Renders the content pane for the currently-selected category /
+  /// sub-item.  Resolution is by stable key, not by array index, so
+  /// reordering or inserting new categories in `_categories` does
+  /// not silently misroute.
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context)!;
     final cat = _categories[_selectedCategoryIndex];
 
+    // When a sub-item is selected inside an expandable category,
+    // render that sub-item's content (handled by key lookup).
     if (cat.isExpandable && _selectedSubItemIndex >= 0) {
-      // Render a sub-item page.
       final subItem = cat.items[_selectedSubItemIndex];
       return HubSubPageHeader(
         title: subItem.label,
-        child: _buildSubItemContent(_selectedCategoryIndex, subItem),
+        child: _buildSubItemContent(subItem.key),
       );
     }
 
-    // Render a top-level category page.
-    switch (_selectedCategoryIndex) {
-      case 0:
+    // Render a top-level category page keyed by the category's stable
+    // identifier.
+    switch (cat.key) {
+      case 'accounts':
         return HubAccountsPage(
           onLogout: _logout,
           onAddAccount: () => context.push('/add-account'),
         );
-      case 1:
+      case 'profile':
         return HubMyProfilePage(client: widget.client);
-      case 2:
+      case 'settings':
         // App settings overview — show sub-items as a quick menu.
         return HubSubPageHeader(
           title: cat.label,
           child: HubAppSettingsOverview(
             items: cat.items,
             onItemTap: (i) {
+              final catIdx = _indexOfCategory('settings');
+              if (catIdx < 0) return;
               setState(() {
+                _selectedCategoryIndex = catIdx;
                 _selectedSubItemIndex = i;
-                _expandedCategories.add(2);
+                _expandedCategories.add(catIdx);
               });
+              _pushHubUrl(cat.key!, cat.items[i].key);
             },
           ),
         );
-      case 3:
+      case 'about':
         return HubAboutPage(client: widget.client);
       default:
         return Center(child: Text(l10n.selectCategory));
     }
   }
 
-  Widget _buildSubItemContent(int categoryIndex, HubNavigationItem item) {
-    if (categoryIndex == 2) {
-      // App settings sub-items.
-      switch (_selectedSubItemIndex) {
-        case 0:
-          return const HubAppearanceSettings();
-        case 1:
-          return const HubLayoutSettings();
-        case 2:
-          return const EncryptionOverviewScreen(embedded: true);
-        case 3:
-          return const HubChatSettings();
-        case 4:
-          return const HubNetworkSettings();
-        case 5:
-          return const LogsPage();
-        case 6:
-          return const HubBackgroundSettings();
-        case 7:
-          return const HubNotificationSettings();
-        case 8:
-          return const HubPrivacySettings();
-        case 9:
-          return const HubStorageSettings();
-        case 10:
-          return const HubAdvancedSettings();
-        case 11:
-          return const HubBlockedUsersPage();
-        default:
-          return const SizedBox.shrink();
-      }
+  /// Renders a settings sub-item page keyed by the item's stable
+  /// identifier.  Adding a new sub-item is a one-line case and never
+  /// depends on positional indices.
+  Widget _buildSubItemContent(String? subKey) {
+    // Only the settings category currently has sub-items; other
+    // expandable categories would dispatch here too if added later.
+    final cat = _categories[_selectedCategoryIndex];
+    if (cat.key != 'settings') return const SizedBox.shrink();
+
+    switch (subKey) {
+      case 'appearance':
+        return const HubAppearanceSettings();
+      case 'layout':
+        return const HubLayoutSettings();
+      case 'security':
+        return const EncryptionOverviewScreen(embedded: true);
+      case 'chat':
+        return const HubChatSettings();
+      case 'network':
+        return const HubNetworkSettings();
+      case 'logs':
+        return const LogsPage();
+      case 'background':
+        return const HubBackgroundSettings();
+      case 'notifications':
+        return const HubNotificationSettings();
+      case 'privacy':
+        return const HubPrivacySettings();
+      case 'storage':
+        return const HubStorageSettings();
+      case 'advanced':
+        return const HubAdvancedSettings();
+      case 'blocked':
+        return const HubBlockedUsersPage();
+      default:
+        return const SizedBox.shrink();
     }
-    return const SizedBox.shrink();
+  }
+
+  /// Look up a category's index by its stable `key`, or `-1` if missing.
+  int _indexOfCategory(String key) =>
+      _categories.indexWhere((c) => c.key == key);
+
+  /// Build the canonical `/hub/<category>/<sub>` URL for the current
+  /// selection.  Returns `null` for the bare `/hub` index route when
+  /// the user is sitting on the top-level of a non-expandable category.
+  String? _hubUrlFor(String categoryKey, String? subKey) {
+    final base = '/hub/$categoryKey';
+    if (subKey == null || subKey.isEmpty) return base;
+    return '$base/$subKey';
+  }
+
+  /// Push the hub sub-route corresponding to the given category / sub
+  /// keys so the URL matches the visible selection and the back button
+  /// can exit cleanly.
+  ///
+  /// The hub can be opened in two ways: as a top-level [GoRoute] (where
+  /// the URL is the source of truth and `context.go` rewrites it) or
+  /// as a modal overlay via [showHubOverlay] (where the URL has no
+  /// effect on the visible state because the overlay sits on top of
+  /// the room page).  In the overlay case calling `context.go` would
+  /// *replace* the room page in the navigator stack — which is exactly
+  /// the bug we just fixed.  We detect the overlay case via
+  /// [ModalRoute.opaque] and skip the URL push.
+  void _pushHubUrl(String categoryKey, String? subKey) {
+    if (!_isOverlay) {
+      final url = _hubUrlFor(categoryKey, subKey);
+      if (url != null && mounted) context.go(url);
+    }
+  }
+
+  /// True when the hub is presented as a modal overlay (i.e. the
+  /// surrounding [ModalRoute] is non-opaque, which is what
+  /// [showHubOverlay] uses).  False when the hub is the top-level
+  /// [GoRoute] and a URL push is appropriate.
+  bool get _isOverlay {
+    final route = ModalRoute.of(context);
+    if (route == null) return false;
+    return !route.opaque;
   }
 }
 
@@ -514,19 +584,27 @@ class _HubOverlayPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: BlurBackground(
-        overlayColor: Colors.black54,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Material(
-                elevation: 12,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                color: Theme.of(context).colorScheme.surface,
-                child: HubScreen(client: client, selection: selection),
+      // Wrap the page body in a fullscreen outside-tap detector so
+      // tapping the dimmed background dismisses the hub overlay.  The
+      // PageRoute's barrierDismissible flag is not sufficient on its
+      // own because the page is laid out over the barrier in the
+      // overlay; see [BarrierDismissableOverlay] for the full
+      // rationale.
+      child: BarrierDismissableOverlay(
+        child: BlurBackground(
+          overlayColor: Colors.black54,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Material(
+                  elevation: 12,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  color: Theme.of(context).colorScheme.surface,
+                  child: HubScreen(client: client, selection: selection),
+                ),
               ),
             ),
           ),

@@ -199,15 +199,22 @@ class HubCategorySidebar extends StatelessWidget {
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      subItem.label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight:
-                            isSubSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSubSelected
-                            ? theme.colorScheme.secondary
-                            : theme.colorScheme.onSurface,
+                    // Wrap the text in [Expanded] so long labels
+                    // (e.g. localised "Notifications") wrap to two
+                    // lines instead of overflowing the 132-px-wide
+                    // sidebar row.
+                    Expanded(
+                      child: Text(
+                        subItem.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSubSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: isSubSelected
+                              ? theme.colorScheme.secondary
+                              : theme.colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ],
