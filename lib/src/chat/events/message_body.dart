@@ -30,10 +30,15 @@ class MessageBody extends StatelessWidget {
     super.key,
     required this.event,
     this.fontSize = 16.0,
+    this.room,
   });
 
   final Event event;
   final double fontSize;
+
+  /// Optional surrounding room.  When provided, the inline user-mention
+  /// pills have room context for moderation actions.
+  final Room? room;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +49,7 @@ class MessageBody extends StatelessWidget {
       return FormattedTextWidget(
         event: event,
         baseFontSize: fontSize,
+        room: room,
       );
     }
 
