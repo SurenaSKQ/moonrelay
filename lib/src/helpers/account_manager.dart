@@ -121,9 +121,13 @@ class AccountManager extends ChangeNotifier {
   /// Used by [switchToAccount] to obtain a fresh [Client] for a given account.
   Future<Client> Function(StoredAccount account)? clientFactory;
 
-  /// Called with (client, storedAccount) after a client is created so the
-  /// caller can attach any additional setup (encryption, tray, etc.).
-  Future<void> Function(Client client)? onClientReady;
+  /// Called with `client` after a client is created so the caller can attach
+  /// any additional setup (encryption, tray, etc.).
+  ///
+  /// Implementations should **return** the [EncryptionService] they create
+  /// for this client so the manager can install it; returning null is
+  /// allowed and means "no encryption service required".
+  Future<EncryptionService?> Function(Client client)? onClientReady;
 
   // ── Lifecycle ──────────────────────────────────────────────────────
 
@@ -215,8 +219,9 @@ class AccountManager extends ChangeNotifier {
   /// Switch to a different saved account.
   ///
   /// Disposes the current [Client] (if any), creates a fresh one for the
-  /// target account via [clientFactory], and notifies listeners.
-  /// Returns `true` if the new client has a valid session.
+  /// target account via [clientFactory], wires the [EncryptionService]
+  /// returned by [onClientReady], and notifies listeners.  Returns `true`
+  /// if the new client has a valid session.
   ///
   /// Tear-down is ordered so widgets never observe a disposed
   /// [EncryptionService] between the old and the new instance: the new
@@ -247,7 +252,15 @@ class AccountManager extends ChangeNotifier {
     _activeClient = await clientFactory!(target);
     final loggedIn = _activeClient!.isLogged();
     if (loggedIn) {
-      await onClientReady?.call(_activeClient!);
+      // Install the freshly-built encryption service.  Returning a
+      // value from the callback (rather than stashing it in the manager)
+      // avoids the prior bug where `onClientReady` constructed a new
+      // service but it was discarded because `_encryptionService` was
+      // never assigned here.
+      final fresh = await onClientReady?.call(_activeClient!);
+      if (fresh != null) {
+        _encryptionService = fresh;
+      }
     }
     await _save();
 
