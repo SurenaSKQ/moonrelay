@@ -292,6 +292,10 @@ class TrayService with tray.TrayListener {
     await destroyTray();
     await MoonShutdown.call();
     await windowManager.destroy();
+    // `windowManager.destroy()` only tears the window down; it does not
+    // terminate the Dart VM. Exit explicitly so the process does not
+    // linger on the system as a zombie after the UI is gone.
+    exit(0);
   }
 
   // ── TrayListener callbacks ─────────────────────────────────────────────

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -146,6 +147,11 @@ class _StartscreenFrameState extends State<StartscreenFrame>
                   Navigator.pop(context);
                   await MoonShutdown.call();
                   await windowManager.destroy();
+                  // `windowManager.destroy()` only tears the window down;
+                  // it does not terminate the Dart VM. Exit explicitly so
+                  // the process does not linger on the system as a zombie
+                  // after the UI is gone.
+                  exit(0);
                 },
               ),
               TextButton(
