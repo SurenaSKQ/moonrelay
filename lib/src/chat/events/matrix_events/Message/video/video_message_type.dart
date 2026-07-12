@@ -67,7 +67,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     if (!_shouldAutoDownload()) return;
     _downloadFuture = widget.event.downloadAndDecryptAttachment();
     if (widget.event.hasThumbnail && _thumbnailFuture == null) {
-      _thumbnailFuture = widget.event.downloadAndDecryptAttachment(getThumbnail: true);
+      _thumbnailFuture =
+          widget.event.downloadAndDecryptAttachment(getThumbnail: true);
     }
   }
 
@@ -203,11 +204,19 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Future<void> _openFullscreen() async {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullscreenVideoPlayer(controller: c),
-      ),
+    // Defer to the next frame so the modal route's OverlayPortal is
+    // attached after the surrounding router page transition has
+    // finished its current layout pass.  See MessageActionRunner.showDetails
+    // for the full rationale.
+    final navigator = Navigator.of(context);
+    final controller = c;
+    final route = MaterialPageRoute(
+      builder: (_) => _FullscreenVideoPlayer(controller: controller),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!navigator.mounted) return;
+      navigator.push(route);
+    });
   }
 
   @override
@@ -281,8 +290,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: cs.tertiaryContainer
-                                  .withValues(alpha: 0.5),
+                              color:
+                                  cs.tertiaryContainer.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -307,8 +316,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               _formatDuration(_duration!),
                               style: TextStyle(
                                 fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
+                                color:
+                                    cs.onSurfaceVariant.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -318,8 +327,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                               _formatSize(_fileSize!),
                               style: TextStyle(
                                 fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.5),
+                                color:
+                                    cs.onSurfaceVariant.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -378,9 +387,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
             children: [
               Positioned.fill(
                 child: AspectRatio(
-                  aspectRatio: c.value.aspectRatio == 0
-                      ? 1.0
-                      : c.value.aspectRatio,
+                  aspectRatio:
+                      c.value.aspectRatio == 0 ? 1.0 : c.value.aspectRatio,
                   child: VideoPlayer(c),
                 ),
               ),
@@ -542,8 +550,7 @@ class _FullscreenVideoPlayer extends StatefulWidget {
   final VideoPlayerController controller;
 
   @override
-  State<_FullscreenVideoPlayer> createState() =>
-      _FullscreenVideoPlayerState();
+  State<_FullscreenVideoPlayer> createState() => _FullscreenVideoPlayerState();
 }
 
 class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {

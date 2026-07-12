@@ -98,12 +98,28 @@ class MessageActionRunner {
   }
 
   /// Opens the message details page.
+  ///
+  /// Defer the navigation by one frame so the route is pushed outside the
+  /// current build / layout pass.  The message details page is a full
+  /// `MaterialPageRoute` over an existing page, and the surrounding
+  /// router page is built inside a `FadeTransition` from
+  /// [genericPageBuilder].  Pushing the `MaterialPageRoute` mid-build
+  /// makes the route's `OverlayPortal` insert its entry while the
+  /// `FadeTransition` is still performing layout, which trips Flutter's
+  /// "RenderObject was mutated in performLayout" assertion and the
+  /// `_elements.contains(element)` assertion that follows.  A
+  /// post-frame callback resolves the race without changing the visible
+  /// behaviour — the user sees the new page on the next frame either
+  /// way.
   static void showDetails(BuildContext context, Event event, Room room) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MessageDetailsPage(event: event, room: room),
-      ),
+    final navigator = Navigator.of(context);
+    final route = MaterialPageRoute(
+      builder: (_) => MessageDetailsPage(event: event, room: room),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!navigator.mounted) return;
+      navigator.push(route);
+    });
   }
 
   /// Opens the in-place editor for the message body and writes the edit
