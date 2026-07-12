@@ -675,14 +675,10 @@ class _FullMemberTileState extends State<_FullMemberTile> {
   }
 
   void _openProfile(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(
-          client: widget.member.room.client,
-          userID: widget.member.id,
-          room: widget.member.room,
-        ),
-      ),
+    showProfileOverlay(
+      context,
+      userId: widget.member.id,
+      room: widget.member.room,
     );
   }
 

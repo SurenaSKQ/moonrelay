@@ -1390,3 +1390,96 @@ class _ActionsSection extends StatelessWidget {
     }
   }
 }
+
+// ── Profile overlay ────────────────────────────────────────────────────────
+
+/// Opens the user profile as a centered modal overlay, similar to
+/// [showHubOverlay] but with a plain dim background instead of blur so the
+/// chat remains visible underneath.
+///
+/// The overlay is independent of the room route — it does not push onto
+/// GoRouter's stack.  When [room] is provided the profile renders room-
+/// scoped moderation actions (kick/ban/power level).
+///
+/// On entry the userid is validated against the Matrix ID format
+/// (`^@.+:.+`); invalid identifiers surface a snackbar and the overlay
+/// is not opened.
+Future<void> showProfileOverlay(
+  BuildContext context, {
+  required String userId,
+  Room? room,
+}) async {
+  final client = context.read<Client>();
+  // Validate the userid shape before opening — Matrix IDs look like
+  // `@localpart:domain` and anything else is a programming error or a
+  // mis-parsed URI.
+  if (!RegExp(r'^@.+:.+$').hasMatch(userId)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Invalid Matrix user id: $userId')),
+    );
+    return;
+  }
+  // Avoid opening a second overlay on top of an existing one for the
+  // same user — prevents stacking if the caller fires from multiple
+  // gestures in quick succession.
+  final navigator = Navigator.of(context, rootNavigator: true);
+  await navigator.push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 150),
+      reverseTransitionDuration: const Duration(milliseconds: 120),
+      pageBuilder: (_, __, ___) => _ProfileOverlayPage(
+        client: client,
+        userId: userId,
+        room: room,
+      ),
+    ),
+  );
+}
+
+/// Wraps [ProfilePage] in a centered, dim-backed card so it appears as a
+/// floating overlay rather than a full-screen page.
+class _ProfileOverlayPage extends StatelessWidget {
+  const _ProfileOverlayPage({
+    required this.client,
+    required this.userId,
+    this.room,
+  });
+
+  final Client client;
+  final String userId;
+  final Room? room;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      // Plain dim background (not blur) so the underlying chat stays
+      // legible and the user can still see what they were looking at.
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460, maxHeight: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Material(
+                elevation: 12,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                color: Theme.of(context).colorScheme.surface,
+                child: ProfilePage(
+                  client: client,
+                  userID: userId,
+                  room: room,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -22,10 +22,10 @@ import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/chat/receipt_avatars.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders a single event in the chat timeline with proper sender grouping,
@@ -107,11 +107,14 @@ class TimelineItem extends StatelessWidget {
   /// Whether the event was redacted (deleted).
   bool get _isRedacted => event.redacted;
 
-  /// Navigates to the sender's profile page.
+  /// Opens the sender's profile as a centered modal overlay.
+  ///
+  /// The overlay is decoupled from the room route -- it works even if
+  /// the user later leaves the originating room, and it doesn't pop
+  /// the current chat off the navigation stack.
   void _openProfile(BuildContext context) {
-    context.push(
-      '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
-    );
+    final senderId = event.senderFromMemoryOrFallback.id;
+    showProfileOverlay(context, userId: senderId, room: room);
   }
 
   /// Wraps [child] in a `GestureDetector` that opens the context menu on
