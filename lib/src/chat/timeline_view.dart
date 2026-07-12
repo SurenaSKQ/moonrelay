@@ -654,8 +654,13 @@ class _ItemAppearanceState extends State<_ItemAppearance>
     // paints in its from-state; without this Flutter optimises the
     // starting frame out and the transition is invisible.
     if (_motion.enableAnimations) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _controller.forward());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // The widget may have been disposed before the next frame was
+        // drawn (e.g. when paginated history is removed immediately
+        // after insertion); guard with `mounted` to avoid calling
+        // forward() on a disposed controller.
+        if (mounted) _controller.forward();
+      });
     } else {
       _controller.value = 1.0;
     }

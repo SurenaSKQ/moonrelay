@@ -80,7 +80,7 @@ class LayoutBreakpoints {
   static const double searchPanelWidth = 320;
 
   /// Width of the hub category sidebar.
-  static const double hubCategorySidebarWidth = 240;
+  static const double hubCategorySidebarWidth = 280;
 
   /// Width of a compact hub navigation rail.
   static const double hubNavRailWidth = 72;
