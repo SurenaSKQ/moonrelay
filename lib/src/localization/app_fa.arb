@@ -1199,6 +1199,27 @@
     "description": "Section header for pinned subspaces in the navigation pane."
   },
 
+  "layoutMode": "Layout mode",
+  "@layoutMode": {
+    "description": "Section label for the layout mode picker."
+  },
+  "layoutModeDescription": "Choose how the main window arranges its panes.",
+  "@layoutModeDescription": {
+    "description": "Helper text explaining what each layout mode does."
+  },
+  "layoutModeAuto": "Auto",
+  "@layoutModeAuto": {
+    "description": "Layout mode that adapts to the current window width."
+  },
+  "layoutModeCompact": "Compact",
+  "@layoutModeCompact": {
+    "description": "Layout mode that always uses a unified compact sidebar."
+  },
+  "layoutModeMobile": "Mobile",
+  "@layoutModeMobile": {
+    "description": "Layout mode that uses a single-pane, route-driven mobile-style layout."
+  },
+
   "deleteRoom": "Delete Room",
   "@deleteRoom": {
     "description": "Button to permanently delete a room."

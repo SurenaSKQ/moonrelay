@@ -35,6 +35,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   DisplayType _displayType = DisplayType.modern;
 
   // Layout state
+  LayoutMode _layoutMode = LayoutMode.auto;
   bool _leftSidebarVisible = true;
   double _leftSidebarWidth = 320.0;
   LeftPaneChoice _leftPaneChoice = LeftPaneChoice.rooms;
@@ -124,6 +125,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   DisplayType get displayType => _displayType;
 
   // Layout getters
+  LayoutMode get layoutMode => _layoutMode;
   bool get leftSidebarVisible => _leftSidebarVisible;
   double get leftSidebarWidth => _leftSidebarWidth;
   LeftPaneChoice get leftPaneChoice => _leftPaneChoice;
@@ -213,6 +215,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _displayType = snapshot.displayType;
 
     // Layout settings
+    _layoutMode = snapshot.layoutMode;
     _leftSidebarVisible = snapshot.leftSidebarVisible;
     _leftSidebarWidth = snapshot.leftSidebarWidth;
     _leftPaneChoice = snapshot.leftPaneChoice;
@@ -316,6 +319,13 @@ class SettingsController with ChangeNotifier, WindowListener {
   }
 
   // ── Layout mutators ──────────────────────────────────────────────────
+
+  Future<void> setLayoutMode(LayoutMode mode) async {
+    if (mode == _layoutMode) return;
+    _layoutMode = mode;
+    notifyListeners();
+    await _settingsService.updateLayoutMode(mode);
+  }
 
   Future<void> setLeftSidebarVisible(bool visible) async {
     if (visible != _leftSidebarVisible) {
