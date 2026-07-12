@@ -146,15 +146,24 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   /// Opens the full-screen image viewer.
+  ///
+  /// The push is deferred to the next frame for the same reason as
+  /// [MessageActionRunner.showDetails]: stacking a `MaterialPageRoute`
+  /// over the router page's `FadeTransition` mid-build mutates render
+  /// objects during `performLayout` and trips Flutter's assertions.
   void _openViewer(Uint8List bytes) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ImageViewerScreen(
-          bytes: bytes,
-          event: widget.event,
-        ),
+    final event = widget.event;
+    final navigator = Navigator.of(context);
+    final route = MaterialPageRoute(
+      builder: (_) => ImageViewerScreen(
+        bytes: bytes,
+        event: event,
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!navigator.mounted) return;
+      navigator.push(route);
+    });
   }
 
   @override
