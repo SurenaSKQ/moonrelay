@@ -29,6 +29,7 @@ class SettingsSnapshot {
   final MoonrelayThemeOption themeOption;
   final ThemeMode themeMode;
   final DisplayType displayType;
+  final LayoutMode layoutMode;
   final bool leftSidebarVisible;
   final double leftSidebarWidth;
   final LeftPaneChoice leftPaneChoice;
@@ -105,6 +106,7 @@ class SettingsSnapshot {
     this.themeOption = MoonrelayThemeOption.indigo,
     this.themeMode = ThemeMode.system,
     this.displayType = DisplayType.modern,
+    this.layoutMode = LayoutMode.auto,
     this.leftSidebarVisible = true,
     this.leftSidebarWidth = 320.0,
     this.leftPaneChoice = LeftPaneChoice.rooms,
@@ -184,6 +186,7 @@ class SettingsService {
   static const _themeModeKey = 'theme_mode';
   static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
+  static const _layoutModeKey = 'layout_mode';
 
   // Layout keys
   static const _leftSidebarVisibleKey = 'left_sidebar_visible';
@@ -311,6 +314,17 @@ class SettingsService {
     await prefs.setInt(_displayTypeKey, displayType.index);
   }
 
+  Future<LayoutMode> layoutMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? index = prefs.getInt(_layoutModeKey);
+    return index != null ? LayoutMode.values[index] : LayoutMode.auto;
+  }
+
+  Future<void> updateLayoutMode(LayoutMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_layoutModeKey, mode.index);
+  }
+
   // ── Batch load ────────────────────────────────────────────────────────
 
   /// Loads all settings in a single [SharedPreferences] read, returning a
@@ -322,6 +336,7 @@ class SettingsService {
       themeOption: _readThemeOption(prefs),
       themeMode: _readThemeMode(prefs),
       displayType: _readDisplayType(prefs),
+      layoutMode: _readLayoutMode(prefs),
       leftSidebarVisible: prefs.getBool(_leftSidebarVisibleKey) ?? true,
       leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ?? 320.0,
       leftPaneChoice: _readLeftPaneChoice(prefs),
@@ -451,6 +466,11 @@ class SettingsService {
   static DisplayType _readDisplayType(SharedPreferences prefs) {
     final index = prefs.getInt(_displayTypeKey);
     return index != null ? DisplayType.values[index] : DisplayType.modern;
+  }
+
+  static LayoutMode _readLayoutMode(SharedPreferences prefs) {
+    final index = prefs.getInt(_layoutModeKey);
+    return index != null ? LayoutMode.values[index] : LayoutMode.auto;
   }
 
   static LeftPaneChoice _readLeftPaneChoice(SharedPreferences prefs) {

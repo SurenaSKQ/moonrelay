@@ -59,6 +59,51 @@ class HubLayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
+              // ── Layout mode ──────────────────────────────────────────
+              HubSettingsSection(
+                title: l10n.layoutMode,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Text(
+                      l10n.layoutModeDescription,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  RadioListTile<LayoutMode>(
+                    title: Text(l10n.layoutModeAuto),
+                    value: LayoutMode.auto,
+                    groupValue: controller.layoutMode,
+                    onChanged: (v) {
+                      if (v != null) controller.setLayoutMode(v);
+                    },
+                    secondary: const Icon(LucideIcons.sparkles),
+                  ),
+                  RadioListTile<LayoutMode>(
+                    title: Text(l10n.layoutModeCompact),
+                    value: LayoutMode.compact,
+                    groupValue: controller.layoutMode,
+                    onChanged: (v) {
+                      if (v != null) controller.setLayoutMode(v);
+                    },
+                    secondary: const Icon(LucideIcons.columns2),
+                  ),
+                  RadioListTile<LayoutMode>(
+                    title: Text(l10n.layoutModeMobile),
+                    value: LayoutMode.mobile,
+                    groupValue: controller.layoutMode,
+                    onChanged: (v) {
+                      if (v != null) controller.setLayoutMode(v);
+                    },
+                    secondary: const Icon(LucideIcons.smartphone),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               // Left sidebar
               HubSettingsSection(
                 title: l10n.leftSidebar,
