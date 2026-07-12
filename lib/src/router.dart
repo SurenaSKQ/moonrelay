@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
+import 'package:moonrelay/src/layouts/mobile_layout.dart';
 import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
@@ -32,7 +33,9 @@ import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/helpers/room_delegate.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -170,19 +173,21 @@ class MoonRouter {
             // SettingsController and uses LayoutBuilder for responsive
             // breakpoints. The user profile button is now rendered
             // in the AppFrame header bar.
-            DashboardLayout(child: child),
+            //
+            // When the user opts into [LayoutMode.mobile] the shell
+            // renders the dedicated single-pane [MobileLayout] instead.
+            // Mobile mode does not need the far-left rail, the
+            // multi-pane sidebars, or the resize handles, so it lives
+            // outside the dashboard code path entirely.
+            _AdaptiveMainLayout(child: child),
           ),
           routes: [
             GoRoute(
               path: '/main/rooms',
               redirect: loggedOutRedirect,
-              pageBuilder: (context, state) => genericPageBuilder(
+              pageBuilder: (context, state) => _roomsListPageBuilder(
                 context,
                 state,
-                RoomDelegate(
-                  roomID: state.pathParameters['roomid'],
-                  threadRootEventId: state.uri.queryParameters['threadRoot'],
-                ),
               ),
               routes: [
                 GoRoute(
@@ -442,5 +447,53 @@ class MoonRouter {
       },
       child: child,
     );
+  }
+
+  /// Page builder for the `/main/rooms` route (no `:roomid`).
+  ///
+  /// Returns a [RoomDelegate] (which renders an empty space when the
+  /// room ID is absent) for the dashboard layout, or a fully-rendered
+  /// [MobileRoomsListPage] when the user is on the mobile layout.
+  ///
+  /// Both layouts share the same route — the difference is purely in
+  /// how the URL `/main/rooms` is presented.  Keeping the URL stable
+  /// means the existing deep-link handling, command-palette routing,
+  /// and back-button logic continue to work without modification.
+  static Page _roomsListPageBuilder(
+    BuildContext context,
+    GoRouterState state,
+  ) {
+    final settings = context.read<SettingsController>();
+    final isMobile = settings.layoutMode == LayoutMode.mobile;
+    final child = isMobile
+        ? const MobileRoomsListPage()
+        : RoomDelegate(
+            roomID: state.pathParameters['roomid'],
+            threadRootEventId: state.uri.queryParameters['threadRoot'],
+          );
+    return genericPageBuilder(context, state, child);
+  }
+}
+
+/// Selects between the multi-pane [DashboardLayout] and the single-pane
+/// [MobileLayout] for the main chat surface.
+///
+/// Both layouts live inside the same [ShellRoute] so they share the
+/// `/main/rooms` route tree; the only difference is how the route's
+/// `child` is wrapped.  Switching modes at runtime rebuilds this
+/// widget but does not change the route stack, so the chat the user
+/// was looking at stays open.
+class _AdaptiveMainLayout extends StatelessWidget {
+  const _AdaptiveMainLayout({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    return switch (settings.layoutMode) {
+      LayoutMode.mobile => MobileLayout(child: child),
+      LayoutMode.compact || LayoutMode.auto => DashboardLayout(child: child),
+    };
   }
 }
