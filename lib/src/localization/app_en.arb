@@ -1342,6 +1342,23 @@
     "description": "Layout mode that uses a single-pane, route-driven mobile-style layout."
   },
 
+  "hubTabAccounts": "Accounts",
+  "@hubTabAccounts": {
+    "description": "Tab label for the accounts category in the hub."
+  },
+  "hubTabProfile": "Profile",
+  "@hubTabProfile": {
+    "description": "Tab label for the profile category in the hub."
+  },
+  "hubTabSettings": "Settings",
+  "@hubTabSettings": {
+    "description": "Tab label for the app settings category in the hub."
+  },
+  "hubTabAbout": "About",
+  "@hubTabAbout": {
+    "description": "Tab label for the about category in the hub."
+  },
+
   "back": "Back",
   "@back": {
     "description": "Generic back button label used by the mobile layout."
