@@ -69,6 +69,28 @@ class _CommandPalettePage extends StatefulWidget {
   State<_CommandPalettePage> createState() => _CommandPalettePageState();
 }
 
+/// Helper struct that lets the parallel `Future.wait` in
+/// [_CommandPalettePageState._runFullSearchFirst] collect
+/// heterogeneous `SearchPage` results without a fan-out of
+/// `setState` calls.  Each field is nullable so a single sub-page
+/// failure doesn't poison the rest of the bundled result.
+class _InitialSearchResult {
+  const _InitialSearchResult({
+    this.messages,
+    this.homeserver,
+    this.users,
+  });
+
+  const _InitialSearchResult.empty()
+      : messages = null,
+        homeserver = null,
+        users = null;
+
+  final SearchPage<MessageSearchResult>? messages;
+  final SearchPage<PublishedRoomsChunk>? homeserver;
+  final SearchPage<Profile>? users;
+}
+
 /// The active palette mode.  Determined by the leading character of
 /// the input; the rest of the input is the *query*.
 enum _PaletteMode {
@@ -120,9 +142,16 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
 
   // Loading guard: when a list has scrolled to its bottom we request
   // the next page; the in-flight flag prevents duplicate requests.
-  bool _isPaginating = false;
+  // We track per-category flags so scroll-driven pagination in the
+  // `?` (search) mode can fetch from every category that still has
+  // results in parallel without one in-flight call blocking the rest.
   bool _isInitialSearch = false;
   bool _isInitialUsers = false;
+  bool _isPaginatingMessages = false;
+  bool _isPaginatingHomeserver = false;
+  bool _isPaginatingRooms = false;
+  bool _isPaginatingSpaces = false;
+  bool _isPaginatingUsers = false;
 
   // Cache the most recent localisation so widgets that read it
   // inside [build] don't have to do an O(1) but unmemoised lookup
@@ -263,6 +292,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       _isInitialSearch = true;
       _hasMoreMessages = false;
       _hasMoreHomeserver = false;
+      _hasMoreUsers = false;
     });
 
     // Local categories first — synchronous.
@@ -278,45 +308,54 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       _hasMoreSpaces = localSpaces.hasMore;
     });
 
-    // Server-side message search + homeserver public rooms
-    // (in parallel) — both are paged and progressively appended as
-    // the user scrolls.
-    try {
-      final messagesPage = await provider.searchMessagesFirstPage(
-        query,
-        limit: 20,
-      );
-      if (!mounted) return;
-      setState(() {
-        _msgResults = messagesPage.items;
-        _nextBatchMessages = messagesPage.nextBatch;
-        _hasMoreMessages = messagesPage.hasMore;
-      });
-    } catch (_) {/* swallow, surface no results */}
+    // Server-side message search, homeserver public rooms, and
+    // user-directory search all run in parallel — the user sees the
+    // local rooms/spaces immediately, then each server result
+    // streams in as it returns.  Each sub-page is independent so a
+    // slow homeserver doesn't block messages, and vice versa.
+    final results = await Future.wait<_InitialSearchResult>([
+      provider.searchMessagesFirstPage(query, limit: 20).then(
+        (v) => _InitialSearchResult(messages: v),
+        onError: (_) => _InitialSearchResult.empty(),
+      ),
+      provider.searchHomeserverFirstPage(query, limit: 10).then(
+        (v) => _InitialSearchResult(homeserver: v),
+        onError: (_) => _InitialSearchResult.empty(),
+      ),
+      provider.fetchUsersPage(query, limit: 10).then(
+        (v) => _InitialSearchResult(users: v),
+        onError: (_) => _InitialSearchResult.empty(),
+      ),
+    ]);
     if (!mounted) return;
-    try {
-      final homeserverPage = await provider.searchHomeserverFirstPage(
-        query,
-        limit: 10,
-      );
-      if (!mounted) return;
-      setState(() {
-        _homeserverResults = homeserverPage.items;
-        _nextBatchHomeserver = homeserverPage.nextBatch;
-        _hasMoreHomeserver = homeserverPage.hasMore;
-        _isInitialSearch = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isInitialSearch = false);
-    }
+    final messages = results[0].messages;
+    final homeserver = results[1].homeserver;
+    final users = results[2].users;
+    setState(() {
+      if (messages != null) {
+        _msgResults = messages.items;
+        _nextBatchMessages = messages.nextBatch;
+        _hasMoreMessages = messages.hasMore;
+      }
+      if (homeserver != null) {
+        _homeserverResults = homeserver.items;
+        _nextBatchHomeserver = homeserver.nextBatch;
+        _hasMoreHomeserver = homeserver.hasMore;
+      }
+      if (users != null) {
+        _userResults = users.items;
+        _usersOffset = users.items.length;
+        _hasMoreUsers = users.hasMore;
+      }
+      _isInitialSearch = false;
+    });
   }
 
   Future<void> _runFullSearchMoreMessages() async {
-    if (_isPaginating || !_hasMoreMessages) return;
+    if (_isPaginatingMessages || !_hasMoreMessages) return;
     final client = context.read<Client>();
     final provider = SearchProvider(client: client);
-    setState(() => _isPaginating = true);
+    setState(() => _isPaginatingMessages = true);
     try {
       final page = await provider.searchMessagesNextPage(
         SearchPageRequest(query: _query, nextBatch: _nextBatchMessages),
@@ -327,19 +366,19 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _msgResults = [..._msgResults, ...page.items];
         _nextBatchMessages = page.nextBatch;
         _hasMoreMessages = page.hasMore;
-        _isPaginating = false;
+        _isPaginatingMessages = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isPaginating = false);
+      setState(() => _isPaginatingMessages = false);
     }
   }
 
   Future<void> _runFullSearchMoreHomeserver() async {
-    if (_isPaginating || !_hasMoreHomeserver) return;
+    if (_isPaginatingHomeserver || !_hasMoreHomeserver) return;
     final client = context.read<Client>();
     final provider = SearchProvider(client: client);
-    setState(() => _isPaginating = true);
+    setState(() => _isPaginatingHomeserver = true);
     try {
       final page = await provider.searchHomeserverNextPage(
         SearchPageRequest(query: _query, nextBatch: _nextBatchHomeserver),
@@ -350,11 +389,34 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _homeserverResults = [..._homeserverResults, ...page.items];
         _nextBatchHomeserver = page.nextBatch;
         _hasMoreHomeserver = page.hasMore;
-        _isPaginating = false;
+        _isPaginatingHomeserver = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isPaginating = false);
+      setState(() => _isPaginatingHomeserver = false);
+    }
+  }
+
+  Future<void> _runFullSearchMoreUsers() async {
+    if (_isPaginatingUsers || !_hasMoreUsers) return;
+    final client = context.read<Client>();
+    final provider = SearchProvider(client: client);
+    setState(() => _isPaginatingUsers = true);
+    try {
+      final page = provider.nextUsersPage(
+        SearchPageRequest(query: _query, offset: _usersOffset),
+        limit: 10,
+      );
+      if (!mounted) return;
+      setState(() {
+        _userResults = [..._userResults, ...page.items];
+        _usersOffset += page.items.length;
+        _hasMoreUsers = page.hasMore;
+        _isPaginatingUsers = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isPaginatingUsers = false);
     }
   }
 
@@ -374,12 +436,15 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   }
 
   Future<void> _runRoomsMore() async {
-    if (_isPaginating) return;
+    // Local-cache pagination is synchronous, so we just guard with
+    // a single flag and fan out the room/space pages inside.
+    if (_isPaginatingRooms || _isPaginatingSpaces) return;
     final client = context.read<Client>();
     final provider = SearchProvider(client: client);
-    setState(() => _isPaginating = true);
-    // Pages one chunk at a time; the page that hits the cap ends
-    // the loop.
+    setState(() {
+      _isPaginatingRooms = _hasMoreRooms;
+      _isPaginatingSpaces = _hasMoreSpaces;
+    });
     if (_hasMoreRooms) {
       final rooms = provider.nextRoomsPage(
         SearchPageRequest(query: _query, offset: _roomsOffset),
@@ -389,6 +454,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _matchedRooms = [..._matchedRooms, ...rooms.items];
         _roomsOffset += rooms.items.length;
         _hasMoreRooms = rooms.hasMore;
+        _isPaginatingRooms = false;
       });
     }
     if (_hasMoreSpaces) {
@@ -400,9 +466,18 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _matchedSpaces = [..._matchedSpaces, ...spaces.items];
         _spacesOffset += spaces.items.length;
         _hasMoreSpaces = spaces.hasMore;
+        _isPaginatingSpaces = false;
       });
     }
-    setState(() => _isPaginating = false);
+    // Defensive: clear any flags that may have been set above but
+    // didn't get a chance to clear because the matching hasMore was
+    // false on entry.  Without this, a 0-item pagination would leave
+    // the spinner spinning forever.
+    if (!mounted) return;
+    setState(() {
+      _isPaginatingRooms = false;
+      _isPaginatingSpaces = false;
+    });
   }
 
   Future<void> _runUsersFirst(String query) async {
@@ -434,10 +509,10 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   }
 
   Future<void> _runUsersMore() async {
-    if (_isPaginating || !_hasMoreUsers) return;
+    if (_isPaginatingUsers || !_hasMoreUsers) return;
     final client = context.read<Client>();
     final provider = SearchProvider(client: client);
-    setState(() => _isPaginating = true);
+    setState(() => _isPaginatingUsers = true);
     final page = provider.nextUsersPage(
       SearchPageRequest(query: _query, offset: _usersOffset),
       limit: 10,
@@ -446,7 +521,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       _userResults = [..._userResults, ...page.items];
       _usersOffset += page.items.length;
       _hasMoreUsers = page.hasMore;
-      _isPaginating = false;
+      _isPaginatingUsers = false;
     });
   }
 
@@ -454,24 +529,31 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
 
   /// Detects when the user has scrolled near the bottom of the
   /// results list and kicks off the appropriate next-page fetch.
+  ///
+  /// In the `?` (search) mode we fire **every** category that still
+  /// has more results in parallel.  The previous implementation
+  /// picked a single category per scroll-tick and walked the
+  /// priority list (messages → homeserver → rooms) which meant
+  /// hundreds of pixels of scroll were needed to drain each
+  /// category in turn.  Firing them in parallel keeps the result
+  /// list "topped up" smoothly without one slow endpoint blocking
+  /// the rest.
   void _onResultsScroll() {
     if (!_resultsScroll.hasClients) return;
-    if (_isPaginating) return;
     final pos = _resultsScroll.position;
     // Threshold matches the timeline scroll-to-load: 150 px.
     final atEnd = pos.pixels >= pos.maxScrollExtent - 150;
     if (!atEnd) return;
     switch (_mode) {
       case _PaletteMode.search:
-        // Try both paginators in priority order so the user never
-        // waits on one when the other has more.
-        if (_hasMoreMessages) {
-          _runFullSearchMoreMessages();
-        } else if (_hasMoreHomeserver) {
-          _runFullSearchMoreHomeserver();
-        } else {
-          _runRoomsMore();
-        }
+        // Local categories first — they're synchronous, so the
+        // user sees the new entries immediately on the next frame.
+        if (_hasMoreRooms || _hasMoreSpaces) _runRoomsMore();
+        // Server-side categories — fire all in parallel; the
+        // per-paginator flags prevent duplicate in-flight requests.
+        if (_hasMoreMessages) _runFullSearchMoreMessages();
+        if (_hasMoreHomeserver) _runFullSearchMoreHomeserver();
+        if (_hasMoreUsers) _runFullSearchMoreUsers();
         break;
       case _PaletteMode.rooms:
         _runRoomsMore();
@@ -504,10 +586,40 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     context.go('/main/rooms/${room.id}');
   }
 
+  /// Opens the selected settings path.  The path is one of
+  /// `/hub/<category>/<sub>` (e.g. `/hub/settings/appearance`).
+  ///
+  /// We never call `context.go(path)` here.  That would route the
+  /// GoRouter to a full-page hub, which is the old behaviour the user
+  /// just had us remove: it replaces the room page in the navigator
+  /// stack.  Instead, we open the hub as a modal overlay via
+  /// [showHubOverlay] so the chat stays visible underneath.
   void _openSettingsRoute(String path) {
     Navigator.of(context).pop();
     if (!mounted) return;
-    context.go(path);
+    final selection = _hubSelectionForPath(path);
+    if (selection == null) {
+      // Path is not a hub path.  Fall back to a direct go.
+      context.go(path);
+      return;
+    }
+    showHubOverlay(context, selection: selection);
+  }
+
+  /// Parses a `/hub/<category>[/<sub>]` path into a
+  /// [HubCategorySelection].  Returns `null` for paths that don't
+  /// start with `/hub/`.
+  HubCategorySelection? _hubSelectionForPath(String path) {
+    if (!path.startsWith('/hub/')) return null;
+    final rest = path.substring('/hub/'.length);
+    if (rest.isEmpty) return const HubCategorySelection();
+    final segments = rest.split('/');
+    final category = segments.first;
+    final sub = segments.length > 1 ? segments[1] : null;
+    return HubCategorySelection(
+      categoryKey: category,
+      subKey: sub,
+    );
   }
 
   void _runMessage(MessageSearchResult msg) {
@@ -543,33 +655,41 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     _locCache = AppLocalizations.of(context)!;
     return Material(
       color: Colors.transparent,
-      child: BlurBackground(
-        overlayColor: Colors.black54,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                color: Theme.of(context).colorScheme.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildInput(_locCache),
-                      const SizedBox(height: 8),
-                      _buildModeHint(_locCache),
-                      const SizedBox(height: 8),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 420),
-                        child: _buildList(_locCache),
-                      ),
-                    ],
+      // Wrap the page body in a fullscreen outside-tap detector so
+      // tapping the dimmed background dismisses the palette.  The
+      // PageRoute's barrierDismissible flag is not sufficient because
+      // the page is laid out over the barrier in the overlay and the
+      // barrier's gesture detector loses the gesture arena.  See
+      // [BarrierDismissableOverlay] for the full rationale.
+      child: BarrierDismissableOverlay(
+        child: BlurBackground(
+          overlayColor: Colors.black54,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildInput(_locCache),
+                        const SizedBox(height: 8),
+                        _buildModeHint(_locCache),
+                        const SizedBox(height: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 420),
+                          child: _buildList(_locCache),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -820,10 +940,17 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   /// modes.  Showing it at the bottom of every list gives the user
   /// visual feedback that the palette is loading more items.
   Widget _loadingTail(AppLocalizations loc) {
-    final paginating = _isPaginating || _isInitialSearch || _isInitialUsers;
+    final paginating = _isInitialSearch ||
+        _isInitialUsers ||
+        _isPaginatingMessages ||
+        _isPaginatingHomeserver ||
+        _isPaginatingUsers ||
+        _isPaginatingRooms ||
+        _isPaginatingSpaces;
     final hasMore = _mode == _PaletteMode.search
         ? (_hasMoreMessages ||
             _hasMoreHomeserver ||
+            _hasMoreUsers ||
             _hasMoreRooms ||
             _hasMoreSpaces)
         : _mode == _PaletteMode.rooms
