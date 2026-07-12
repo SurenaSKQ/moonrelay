@@ -264,7 +264,11 @@ class MessageEventHandler extends StatelessWidget {
   /// any Matrix URLs (room aliases, user IDs, permalinks) found in the body
   /// render as interactive banners below the message.
   Widget _buildTextContent(double fontSize) {
-    final textWidget = FormattedTextWidget(event: event, baseFontSize: fontSize);
+    final textWidget = FormattedTextWidget(
+      event: event,
+      baseFontSize: fontSize,
+      room: room,
+    );
     if (room == null) return textWidget;
     return MatrixUrlBannerWrapper(
       textBody: event.body,

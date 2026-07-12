@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/matrix_url_banner.dart';
+import 'package:moonrelay/src/chat/events/user_mention.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
@@ -67,12 +68,42 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
       children: [
         child,
         for (final result in results)
-          MatrixUrlBanner(
-            result: result,
-            client: room.client,
-          ),
+          if (!_isCoveredByInlineMention(result, event, textBody))
+            MatrixUrlBanner(
+              result: result,
+              client: room.client,
+            ),
       ],
     );
+  }
+
+  /// Returns `true` when the inline [UserMentionPill] already surfaces
+  /// this entity inside the rendered message body, so we shouldn't
+  /// stack a redundant [MatrixUrlBanner] below the message.
+  ///
+  /// We treat any *user* entity whose id appears as a bare mention in
+  /// the body, or as a `matrix.to` / `matrix:u` href in the
+  /// `formatted_body`, as already covered.  Room entities are always
+  /// shown as banners.
+  bool _isCoveredByInlineMention(
+    MatrixUriResult result,
+    Event? event,
+    String body,
+  ) {
+    if (result.entityType != MatrixUriEntity.user) return false;
+    if (findUserMentions(body).any((m) => m.userId == result.entityId)) {
+      return true;
+    }
+    final formattedBody =
+        event?.content['formatted_body'] as String?;
+    if (formattedBody != null) {
+      if (formattedBodyContainsUserMention(formattedBody) &&
+          findUserMentions(formattedBody)
+              .any((m) => m.userId == result.entityId)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Strips the reply‑quote prefix from [text] when this event is a reply.

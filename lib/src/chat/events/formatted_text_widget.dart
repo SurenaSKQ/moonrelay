@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/user_mention.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Renders a Matrix message body with rich formatting support.
@@ -34,6 +35,7 @@ class FormattedTextWidget extends StatelessWidget {
     required this.event,
     this.formattedBodyOverride,
     this.baseFontSize = 16.0,
+    this.room,
   });
 
   final Event event;
@@ -46,6 +48,11 @@ class FormattedTextWidget extends StatelessWidget {
   /// The base font size for message body text (default 16.0).
   /// All internal font sizes are scaled relative to this value.
   final double baseFontSize;
+
+  /// Optional surrounding room.  When provided, inline user-mention
+  /// pills are rendered with room context so the hover preview and
+  /// profile overlay can offer room-scoped moderation actions.
+  final Room? room;
 
   double _fs(double defaultValue) => defaultValue * (baseFontSize / 16.0);
 
@@ -62,11 +69,14 @@ class FormattedTextWidget extends StatelessWidget {
       // parsed spans.
       final cacheKey =
           '${baseFontSize.toStringAsFixed(2)}::$formattedBody';
-      List<TextSpan>? spans = _HtmlParseCache.get(cacheKey);
+      List<InlineSpan>? spans = _HtmlParseCache.get(cacheKey);
       if (spans == null) {
-        spans =
-            _HtmlTagParser(formattedBody, context, baseFontSize: baseFontSize)
-                .parse();
+        spans = _HtmlTagParser(
+          formattedBody,
+          context,
+          baseFontSize: baseFontSize,
+          room: room,
+        ).parse();
         _HtmlParseCache.set(cacheKey, spans);
       }
       if (spans.isNotEmpty) {
@@ -90,7 +100,7 @@ class FormattedTextWidget extends StatelessWidget {
   /// tappable [TextSpan]s.
   ///
   /// URLs that form the full text become the only span (entirely clickable).
-  List<TextSpan> _linkifyPlainText(String text, BuildContext context) {
+  List<InlineSpan> _linkifyPlainText(String text, BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final uriRegExp = RegExp(
       r'\b(?:https?|ftp|matrix):\/\/(?:[^\s<>")()]|\([^\s<>")()]*\))*(?!\w)'
@@ -98,40 +108,72 @@ class FormattedTextWidget extends StatelessWidget {
       caseSensitive: false,
     );
 
-    final spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    for (final match in uriRegExp.allMatches(text)) {
-      // Plain segment before the URL.
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+    // First pass: split text on user mentions and URLs so each segment
+    // gets the right inline widget (pill, tappable URL, or plain text).
+    final tokens = <_PlainToken>[];
+    final matches = <_PlainMatch>[];
+    for (final m in userMentionPattern.allMatches(text)) {
+      final id = m.group(0)!;
+      if (RegExp(r'^@.+:.+$').hasMatch(id)) {
+        matches.add(_PlainMatch(m.start, m.end, _PlainTokenKind.mention, id));
       }
+    }
+    for (final m in uriRegExp.allMatches(text)) {
+      // Skip if this URL overlaps with an existing mention.
+      final overlaps = matches.any(
+        (other) => m.start < other.end && m.end > other.start,
+      );
+      if (overlaps) continue;
+      matches.add(_PlainMatch(m.start, m.end, _PlainTokenKind.url, m.group(0)!));
+    }
+    matches.sort((a, b) => a.start.compareTo(b.start));
 
-      final rawUrl = match.group(0)!;
-      final url = rawUrl.startsWith('www.') ? 'https://$rawUrl' : rawUrl;
-
-      spans.add(TextSpan(
-        text: rawUrl,
-        style: TextStyle(
-          color: accent,
-          decoration: TextDecoration.underline,
-          fontSize: _fs(16),
-        ),
-        recognizer: TapGestureRecognizer()..onTap = () => _openUrl(url),
-      ));
-
-      lastEnd = match.end;
+    int cursor = 0;
+    for (final m in matches) {
+      if (m.start > cursor) {
+        tokens.add(_PlainToken(_PlainTokenKind.plain, text.substring(cursor, m.start)));
+      }
+      tokens.add(_PlainToken(m.kind, text.substring(m.start, m.end), payload: m.payload));
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      tokens.add(_PlainToken(_PlainTokenKind.plain, text.substring(cursor)));
+    }
+    if (tokens.isEmpty) {
+      tokens.add(_PlainToken(_PlainTokenKind.plain, text));
     }
 
-    // Trailing plain text.
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
+    final spans = <InlineSpan>[];
+    for (final token in tokens) {
+      switch (token.kind) {
+        case _PlainTokenKind.plain:
+          spans.add(TextSpan(
+            text: token.text,
+            style: TextStyle(fontSize: _fs(16)),
+          ));
+        case _PlainTokenKind.url:
+          final rawUrl = token.payload;
+          final url = rawUrl.startsWith('www.') ? 'https://$rawUrl' : rawUrl;
+          spans.add(TextSpan(
+            text: rawUrl,
+            style: TextStyle(
+              color: accent,
+              decoration: TextDecoration.underline,
+              fontSize: _fs(16),
+            ),
+            recognizer: TapGestureRecognizer()..onTap = () => _openUrl(url),
+          ));
+        case _PlainTokenKind.mention:
+          spans.add(WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: UserMentionPill(
+              userId: token.payload,
+              room: room,
+              fontSize: _fs(16),
+            ),
+          ));
+      }
     }
-
-    if (spans.isEmpty) {
-      spans.add(TextSpan(text: text));
-    }
-
     return spans;
   }
 
@@ -171,14 +213,14 @@ class FormattedTextWidget extends StatelessWidget {
 class _HtmlParseCache {
   _HtmlParseCache._();
   static const int kMaxCacheEntries = 200;
-  static final Map<String, List<TextSpan>> _cache = {};
+  static final Map<String, List<InlineSpan>> _cache = {};
   static final List<String> _keys = [];
 
   /// Returns cached spans for [key], or `null` if not in cache.
-  static List<TextSpan>? get(String key) => _cache[key];
+  static List<InlineSpan>? get(String key) => _cache[key];
 
   /// Stores [spans] for [key], evicting the oldest entry if over capacity.
-  static void set(String key, List<TextSpan> spans) {
+  static void set(String key, List<InlineSpan> spans) {
     if (_cache.containsKey(key)) return;
     if (_keys.length >= kMaxCacheEntries) {
       final oldest = _keys.removeAt(0);
@@ -198,13 +240,18 @@ class _HtmlParseCache {
 /// - Void: `br`
 /// - Entities: `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;`, numeric
 class _HtmlTagParser {
-  _HtmlTagParser(this.source, this.context, {required double baseFontSize})
-      : _pos = 0,
+  _HtmlTagParser(
+    this.source,
+    this.context, {
+    required double baseFontSize,
+    this.room,
+  })  : _pos = 0,
         _depth = 0,
         _ratio = baseFontSize / 16.0;
 
   final String source;
   final BuildContext context;
+  final Room? room;
   final double _ratio;
   int _pos;
   int _depth;
@@ -213,9 +260,9 @@ class _HtmlTagParser {
 
   static const int _maxParseDepth = 64;
 
-  List<TextSpan> parse() => _parseNodes(isTopLevel: true);
+  List<InlineSpan> parse() => _parseNodes(isTopLevel: true);
 
-  List<TextSpan> _parseNodes({bool isTopLevel = false}) {
+  List<InlineSpan> _parseNodes({bool isTopLevel = false}) {
     _depth++;
     if (_depth > _maxParseDepth) {
       _depth--;
@@ -226,7 +273,7 @@ class _HtmlTagParser {
         )
       ];
     }
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
     final buffer = StringBuffer();
 
     while (_pos < source.length) {
@@ -296,7 +343,7 @@ class _HtmlTagParser {
     return spans;
   }
 
-  void _flushBuffer(StringBuffer buf, List<TextSpan> out) {
+  void _flushBuffer(StringBuffer buf, List<InlineSpan> out) {
     if (buf.isNotEmpty) {
       out.add(TextSpan(
         text: buf.toString(),
@@ -308,7 +355,7 @@ class _HtmlTagParser {
 
   // ---- Block content ----------------------------------------------------
 
-  List<TextSpan> _parseBlockContent(String tag, {int depth = 0}) {
+  List<InlineSpan> _parseBlockContent(String tag, {int depth = 0}) {
     if (depth > _maxParseDepth) {
       _pos = source.length;
       return [
@@ -318,7 +365,7 @@ class _HtmlTagParser {
         )
       ];
     }
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
     final buffer = StringBuffer();
 
     while (_pos < source.length) {
@@ -378,7 +425,7 @@ class _HtmlTagParser {
 
   // ---- Inline content ---------------------------------------------------
 
-  List<TextSpan> _parseInlineContent(String tag, {int depth = 0}) {
+  List<InlineSpan> _parseInlineContent(String tag, {int depth = 0}) {
     if (depth > _maxParseDepth) {
       _pos = source.length;
       return [
@@ -388,7 +435,7 @@ class _HtmlTagParser {
         )
       ];
     }
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
     final buffer = StringBuffer();
 
     while (_pos < source.length) {
@@ -463,9 +510,9 @@ class _HtmlTagParser {
         'li',
       }.contains(tag);
 
-  List<TextSpan> _wrapBlock(
+  List<InlineSpan> _wrapBlock(
     String tag,
-    List<TextSpan> inner,
+    List<InlineSpan> inner,
     Map<String, String> attrs,
   ) {
     final base = TextStyle(fontSize: _fs(16));
@@ -590,9 +637,9 @@ class _HtmlTagParser {
     }
   }
 
-  TextSpan _wrapInline(
+  InlineSpan _wrapInline(
     String tag,
-    List<TextSpan> inner,
+    List<InlineSpan> inner,
     Map<String, String> attrs,
   ) {
     final accent = Theme.of(context).colorScheme.primary;
@@ -626,6 +673,20 @@ class _HtmlTagParser {
         );
       case 'a':
         final href = attrs['href'] ?? '';
+        final userId = isUserPermalink(href) ? userIdFromHref(href) : null;
+        if (userId != null) {
+          // Render an inline mention pill instead of a tappable
+          // anchor.  The pill opens the profile overlay and shows the
+          // hover preview.
+          return WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: UserMentionPill(
+              userId: userId,
+              room: room,
+              fontSize: _fs(16),
+            ),
+          );
+        }
         return TextSpan(
           children: inner,
           style: base.copyWith(
@@ -651,15 +712,17 @@ class _HtmlTagParser {
 
   // ---- Helpers ----------------------------------------------------------
 
-  List<List<TextSpan>> _splitItems(List<TextSpan> spans) {
+  List<List<InlineSpan>> _splitItems(List<InlineSpan> spans) {
     if (spans.isEmpty) return [spans];
-    final items = <List<TextSpan>>[];
-    var cur = <TextSpan>[];
+    final items = <List<InlineSpan>>[];
+    var cur = <InlineSpan>[];
     for (final s in spans) {
-      if (s.text == '\n' && cur.isNotEmpty) {
+      final isNewline =
+          s is TextSpan && (s.text == '\n' || s.text == null);
+      if (isNewline && cur.isNotEmpty) {
         items.add(cur);
         cur = [];
-      } else if (s.text != '\n') {
+      } else if (!isNewline) {
         cur.add(s);
       }
     }
@@ -768,4 +831,23 @@ class _HtmlTagParser {
     _pos++;
     return '&';
   }
+}
+
+// ── Plain-text linkification helpers ─────────────────────────────────────
+
+enum _PlainTokenKind { plain, url, mention }
+
+class _PlainMatch {
+  _PlainMatch(this.start, this.end, this.kind, this.payload);
+  final int start;
+  final int end;
+  final _PlainTokenKind kind;
+  final String payload;
+}
+
+class _PlainToken {
+  _PlainToken(this.kind, this.text, {this.payload = ''});
+  final _PlainTokenKind kind;
+  final String text;
+  final String payload;
 }
