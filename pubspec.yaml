@@ -15,7 +15,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  matrix: ^7.2.3
+  matrix: ^8.0.0
   provider: ^6.1.2
   path_provider: ^2.1.2
   logger: ^2.2.0
