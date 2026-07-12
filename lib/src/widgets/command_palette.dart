@@ -488,37 +488,52 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   // ── Run helpers ────────────────────────────────────────────────────
 
   void _runAction(CommandAction action) {
+    // Pop first so the callback receives a context that lives in the
+    // parent route — calling Navigator.pop from inside the callback
+    // would pop whatever the callback just pushed.
     Navigator.of(context).pop();
+    if (!mounted) return;
     RecentActivity.instance.recordAction(action.key);
     action.callback(context);
   }
 
   void _runRoom(Room room) {
     Navigator.of(context).pop();
+    if (!mounted) return;
     RecentActivity.instance.recordRoom(room.id);
     context.go('/main/rooms/${room.id}');
   }
 
   void _openSettingsRoute(String path) {
     Navigator.of(context).pop();
+    if (!mounted) return;
     context.go(path);
   }
 
   void _runMessage(MessageSearchResult msg) {
     Navigator.of(context).pop();
+    if (!mounted) return;
     RecentActivity.instance.recordRoom(msg.room.id);
     context.go('/main/rooms/${msg.room.id}');
   }
 
   void _runUser(Profile user) {
     Navigator.of(context).pop();
-    context.push('/main/myprofile?user=${user.userId}');
+    if (!mounted) return;
+    // The profile is decoupled from the room route — push the top-level
+    // profile route.  The router redirects to /main/myprofile when the
+    // userid matches the active account.
+    final encoded = Uri.encodeComponent(user.userId);
+    context.go('/profile/$encoded');
   }
 
   void _runHomeserverRoom(PublishedRoomsChunk room) {
-    final alias = room.canonicalAlias ?? room.roomId;
+    // Homeserver rooms are not yet joined, so /main/rooms/:roomid (which
+    // expects RoomDelegate to find the room) would spin forever.  Use
+    // the dedicated preview route instead.
     Navigator.of(context).pop();
-    context.go('/main/rooms/$alias');
+    if (!mounted) return;
+    context.go('/main/room_preview/${room.roomId}');
   }
 
   // ── Build ──────────────────────────────────────────────────────────
@@ -954,7 +969,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenSettings,
         icon: LucideIcons.settings,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(
@@ -968,7 +982,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenAccounts,
         icon: LucideIcons.userRound,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(categoryKey: 'accounts'),
@@ -980,7 +993,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenLogs,
         icon: LucideIcons.scrollText,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(
@@ -995,7 +1007,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenProfile,
         icon: LucideIcons.userCircle,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(categoryKey: 'profile'),
@@ -1007,7 +1018,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenAbout,
         icon: LucideIcons.info,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(categoryKey: 'about'),
@@ -1019,7 +1029,6 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         label: loc.commandPaletteOpenSecurity,
         icon: LucideIcons.shield,
         callback: (ctx) {
-          Navigator.of(ctx, rootNavigator: true).pop();
           showHubOverlay(
             ctx,
             selection: const HubCategorySelection(
