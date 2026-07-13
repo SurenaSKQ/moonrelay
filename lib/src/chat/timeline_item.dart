@@ -28,6 +28,19 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
+/// Maximum width for a chat bubble so the bubble hugs its text instead
+/// of stretching to fill the chat column.  Width is capped at this
+/// constant; chat bubbles that exceed it grow vertically, never
+/// horizontally.  Keeps the visual rhythm of a real chat app and stops
+/// long messages from looking like enormous banners.
+const double _kMaxBubbleWidth = 480;
+
+/// Reserved right margin for every bubble row.  The bubble itself is
+/// also left-aligned, so the row ends up with a constant
+/// [_kBubbleRightMargin] gutter on the right of the chat column —
+/// giving bubbles a "floating" feel instead of a full-width slab.
+const double _kBubbleRightMargin = 64;
+
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
 ///
@@ -360,68 +373,89 @@ class TimelineItem extends StatelessWidget {
                 : null,
           ),
           const SizedBox(width: 8),
-          // Bubble content
+          // Bubble content.  The whole column is wrapped in an
+          // [Expanded] (filling the row) with a fixed right margin so
+          // the bubble never hugs the right edge of the chat column —
+          // the bubble visibly floats to the left and the gap on the
+          // right gives the layout visual breathing room.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isGroupStart)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4, left: 4),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            event.senderFromMemoryOrFallback.calcDisplayname(),
-                            style: TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          event.originServerTs.localizedTimeShort(context),
-                          style: TextStyle(
-                            fontSize: fontSize * 0.6875,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // Hover actions + bubble
-                _HoverActionsWrapper(
-                  event: event,
-                  room: room,
-                  timeline: timeline,
-                  onReply: onReply,
-                  onForward: onForward,
-                  onThread: onThread,
-                  child: _wrapWithContextMenu(
-                    context,
-                    Container(
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(bubbleRadius),
-                        border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.5),
-                          width: 0.7,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.only(right: _kBubbleRightMargin),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isGroupStart)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4, left: 4),
+                      child: Row(
                         children: [
-                          _messageContent(context),
-                          // No timestamp for continuation messages
+                          Flexible(
+                            child: Text(
+                              event.senderFromMemoryOrFallback.calcDisplayname(),
+                              style: TextStyle(
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            event.originServerTs.localizedTimeShort(context),
+                            style: TextStyle(
+                              fontSize: fontSize * 0.6875,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
                       ),
                     ),
+                  // Hover actions + bubble.  The bubble's max-width is
+                  // capped so it hugs its content; an [Align] keeps
+                  // the bubble at the left edge of the row, leaving
+                  // empty space on the right to look like a real
+                  // chat conversation rather than a single full-width
+                  // panel.
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: _HoverActionsWrapper(
+                      event: event,
+                      room: room,
+                      timeline: timeline,
+                      onReply: onReply,
+                      onForward: onForward,
+                      onThread: onThread,
+                      child: _wrapWithContextMenu(
+                        context,
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _kMaxBubbleWidth,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cs.primaryContainer.withValues(alpha: 0.3),
+                              borderRadius:
+                                  BorderRadius.circular(bubbleRadius),
+                              border: Border.all(
+                                color: cs.primary.withValues(alpha: 0.5),
+                                width: 0.7,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _messageContent(context),
+                                // No timestamp for continuation messages
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
