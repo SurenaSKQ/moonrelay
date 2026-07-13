@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'settings_service.dart';
@@ -39,6 +41,28 @@ class SpacePreferences extends ChangeNotifier {
   Map<String, List<String>> get spaceGroups =>
       Map.unmodifiable(_spaceGroups);
 
+  /// Pending microtask used to coalesce a tight run of mutations
+  /// (e.g. several drag-reorder steps in one frame) into a single
+  /// [notifyListeners] call. The auto-grouping path can fire dozens
+  /// of merges in a row; without coalescing every merge triggers a
+  /// sidebar rebuild.
+  bool _notifyScheduled = false;
+  bool _disposed = false;
+  void _scheduleNotify() {
+    if (_notifyScheduled || _disposed) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   // ── Load / persist ──────────────────────────────────────────────────
 
   /// Load all space preferences from [SettingsService].
@@ -48,7 +72,7 @@ class SpacePreferences extends ChangeNotifier {
     _spaceOrder = List.of(snapshot.spaceOrder);
     _collapsedGroups = snapshot.collapsedGroups.toSet();
     _spaceGroups = Map<String, List<String>>.from(snapshot.spaceGroups);
-    notifyListeners();
+    _scheduleNotify();
   }
 
   Future<void> _save() async {
@@ -69,7 +93,7 @@ class SpacePreferences extends ChangeNotifier {
     } else {
       _pinnedSpaces.add(spaceId);
     }
-    notifyListeners();
+    _scheduleNotify();
     await _settingsService.updatePinnedSpaces(_pinnedSpaces);
   }
 
@@ -80,7 +104,7 @@ class SpacePreferences extends ChangeNotifier {
   Future<void> updateSpaceOrder(List<String> order) async {
     if (order == _spaceOrder) return;
     _spaceOrder = List.of(order);
-    notifyListeners();
+    _scheduleNotify();
     await _settingsService.updateSpaceOrder(_spaceOrder);
   }
 
@@ -89,7 +113,7 @@ class SpacePreferences extends ChangeNotifier {
     if (idx > 0) {
       _spaceOrder.removeAt(idx);
       _spaceOrder.insert(idx - 1, id);
-      notifyListeners();
+      _scheduleNotify();
       await _settingsService.updateSpaceOrder(_spaceOrder);
     }
   }
@@ -99,7 +123,7 @@ class SpacePreferences extends ChangeNotifier {
     if (idx >= 0 && idx < _spaceOrder.length - 1) {
       _spaceOrder.removeAt(idx);
       _spaceOrder.insert(idx + 1, id);
-      notifyListeners();
+      _scheduleNotify();
       await _settingsService.updateSpaceOrder(_spaceOrder);
     }
   }
@@ -116,7 +140,7 @@ class SpacePreferences extends ChangeNotifier {
       changed = true;
     }
     if (!changed) return;
-    notifyListeners();
+    _scheduleNotify();
     await _settingsService.updateSpaceGroups(_spaceGroups);
   }
 
@@ -133,7 +157,7 @@ class SpacePreferences extends ChangeNotifier {
       _spaceOrder.remove(id);
     }
     _spaceOrder.insert(0, groupId);
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -143,7 +167,7 @@ class SpacePreferences extends ChangeNotifier {
     _removeFromAllGroups(spaceId);
     _spaceGroups[groupId] = [..._spaceGroups[groupId] ?? [], spaceId];
     _spaceOrder.remove(spaceId);
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -170,7 +194,7 @@ class SpacePreferences extends ChangeNotifier {
         break;
       }
     }
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -182,7 +206,7 @@ class SpacePreferences extends ChangeNotifier {
       }
     }
     _spaceGroups.removeWhere((_, v) => v.isEmpty);
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -204,7 +228,7 @@ class SpacePreferences extends ChangeNotifier {
       if (children != null) newOrder.addAll(children);
     }
     _spaceOrder = newOrder;
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -214,7 +238,7 @@ class SpacePreferences extends ChangeNotifier {
     _spaceOrder = [];
     _collapsedGroups = {};
     _spaceGroups = {};
-    notifyListeners();
+    _scheduleNotify();
     await _save();
   }
 
@@ -227,10 +251,11 @@ class SpacePreferences extends ChangeNotifier {
     } else {
       _collapsedGroups.add(spaceId);
     }
-    notifyListeners();
+    _scheduleNotify();
     await _settingsService.updateCollapsedGroups(_collapsedGroups);
   }
 
   bool isGroupCollapsed(String spaceId) =>
       _collapsedGroups.contains(spaceId);
 }
+
