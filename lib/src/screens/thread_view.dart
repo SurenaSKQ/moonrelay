@@ -49,6 +49,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
   Event? _rootEvent;
   Timeline? _timeline;
   bool _loading = true;
+  int _replyCount = 0;
 
   @override
   void initState() {
@@ -87,10 +88,19 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
       }
 
       if (!mounted) return;
+      // Pre-compute the reply count once so [build] doesn't run an
+      // O(N) scan per frame, and so a settings tweak doesn't
+      // recompute it.
+      final count = root != null
+          ? root
+              .aggregatedEvents(timeline, RelationshipTypes.thread)
+              .length
+          : 0;
       setState(() {
         _rootEvent = root;
         _timeline = timeline;
         _loading = false;
+        _replyCount = count;
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -101,15 +111,15 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final settings = context.watch<SettingsController>();
-    final fs = settings.fontSize;
+    // `select` so a font-size tweak only rebuilds this widget (and
+    // its descendants that read the value), not anything else that
+    // watches the whole settings controller.
+    final fs = context.select<SettingsController, double>(
+      (s) => s.fontSize,
+    );
 
-    // Count replies via the stored timeline.
-    final replyCount = _rootEvent != null && _timeline != null
-        ? _rootEvent!
-            .aggregatedEvents(_timeline!, RelationshipTypes.thread)
-            .length
-        : 0;
+    // Reply count is pre-computed; just read it.
+    final replyCount = _replyCount;
 
     return Scaffold(
       backgroundColor: scheme.surface,
