@@ -18,10 +18,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -270,50 +268,10 @@ class _SpacesPaneState extends State<SpacesPane> {
                 ),
               )
             : null,
-        onTap: () => _joinRoom(context, rooms[index]),
-      ),
-    );
-  }
-}
-
-/// Joins the [room] (if not already a member) and navigates to it.
-Future<void> _joinRoom(BuildContext context, Room room) async {
-  final log = Provider.of<Logger>(context, listen: false);
-  try {
-    if (room.membership != Membership.join) {
-      final result = await withRetry(
-        () => room.join(),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'spacesJoinRoom',
-      );
-      if (result is RetryFailed) {
-        throw (result).error;
-      }
-    }
-    if (!context.mounted) return;
-    context.push('/rooms/${room.id}');
-  } catch (e) {
-    log.f(
-      'Failed to join',
-      error: e,
-      stackTrace: StackTrace.current,
-      time: DateTime.now(),
-    );
-    if (!context.mounted) return;
-    final message = e is TimeoutException
-        ? AppLocalizations.of(context)!.couldNotJoinRoomTimeout
-        : e.toString();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(AppLocalizations.of(context)!.error),
-            Text(message),
-          ],
-        ),
+        onTap: () {
+          // Open the space home page directly
+          context.push('/main/space/${rooms[index].id}');
+        },
       ),
     );
   }
