@@ -104,10 +104,10 @@ class TimelineView extends StatefulWidget {
   final String? highlightedEventId;
 
   @override
-  State<TimelineView> createState() => _TimelineViewState();
+  State<TimelineView> createState() => TimelineViewState();
 }
 
-class _TimelineViewState extends State<TimelineView> {
+class TimelineViewState extends State<TimelineView> {
   /// The event ID currently highlighted by a "jump to event" action, or
   /// null if nothing is highlighted.
   String? _highlightedEventId;
@@ -116,6 +116,18 @@ class _TimelineViewState extends State<TimelineView> {
   /// exposed to the [_UndecryptableBanner] via [ValueListenable] so the
   /// banner reflects new arrivals without forcing a full item-list rebuild.
   final ValueNotifier<int> _undecryptableCount = ValueNotifier<int>(0);
+
+  /// Stable [GlobalKey] per visible event id. Re-built alongside the
+  /// cached item list so a `jumpToEvent` can resolve the rendered
+  /// [BuildContext] for any event currently on screen.  Without a
+  /// real key we'd have to fall back to a fraction-based scroll
+  /// estimate (items have variable heights so the fraction is
+  /// imprecise, and the user complained the previous behaviour
+  /// "doesn't jump enough  but not always").  Storing the keys on
+  /// the state object means they survive item-list rebuilds while
+  /// the timeline version stays the same, so an existing item keeps
+  /// the same key across rebuilds.
+  final Map<String, GlobalKey> _eventKeys = <String, GlobalKey>{};
 
   // ---------------------------------------------------------------------------
   // Cached computed values
@@ -145,6 +157,9 @@ class _TimelineViewState extends State<TimelineView> {
     _cachedItems = null;
     _cachedVisibleIndices = null;
     _cachedEventIdToItemIndex = null;
+    // The key map is rebuilt alongside the items  we don't drop it
+    // here so any keys that map to events still present on the next
+    // build can be reused; new events get fresh keys below.
   }
 
   /// Counts encrypted events currently visible according to the active
@@ -252,6 +267,24 @@ class _TimelineViewState extends State<TimelineView> {
     return null;
   }
 
+  /// Returns (and lazily creates) the stable [GlobalKey] for [eventId].
+  ///
+  /// Keys are kept on [_eventKeys] so a single event keeps the same
+  /// [GlobalKey] across rebuilds.  When the cached item list is
+  /// invalidated (e.g. the timeline version advances) keys for events
+  /// that are no longer present are pruned by [_pruneStaleKeys] which
+  /// the item builder calls after the new key map is assembled.
+  GlobalKey _keyFor(String eventId) {
+    return _eventKeys.putIfAbsent(eventId, () => GlobalKey(debugLabel: 'tl_$eventId'));
+  }
+
+  /// Drops entries from [_eventKeys] whose events are no longer
+  /// referenced by the freshly-built cache.  Keeps the map bounded
+  /// over long-lived views.
+  void _pruneStaleKeys(Set<String> liveIds) {
+    _eventKeys.removeWhere((id, _) => !liveIds.contains(id));
+  }
+
   /// True when [newer] and [older] fall on different calendar days.
   bool _isDifferentDay(Event newer, Event older) {
     final n = newer.originServerTs;
@@ -350,7 +383,7 @@ class _TimelineViewState extends State<TimelineView> {
         final replyCount = threadReplyCounts[event.eventId] ?? 0;
 
         items.add(TimelineItem(
-          key: ValueKey(event.eventId),
+          key: _keyFor(event.eventId),
           event: event,
           room: widget.room,
           displayType: widget.displayType,
@@ -386,6 +419,12 @@ class _TimelineViewState extends State<TimelineView> {
     _cachedItems = items;
     _cachedEventIdToItemIndex = eventIdToItemIndex;
     _lastCacheKey = _cacheKey;
+
+    // Drop key-map entries for events that no longer exist in the
+    // rendered item list.  Doing this after the items + index map are
+    // cached keeps the lookup hot path stable across calls  the
+    // pruning is a single pass over [_eventKeys].
+    _pruneStaleKeys(eventIdToItemIndex.keys.toSet());
 
     return items;
   }
@@ -469,15 +508,24 @@ class _TimelineViewState extends State<TimelineView> {
   ///
   /// Because the ListView uses `reverse: true`, newer items are at the
   /// bottom (scroll offset 0) and older items are at the top (max scroll
-  /// extent).  The offset is estimated proportionally, so the target may
-  /// not be pixel-perfect, but will be close enough for the user to see it.
+  /// extent).  The offset is computed against the rendered item itself
+  /// (via its [GlobalKey]) rather than a linear fraction of item
+  /// indices.  Items have variable heights  a 5-line image message is
+  /// several times taller than a single-line text reply  so a fraction
+  /// estimate routinely landed the user a few items away from the
+  /// target.  Using the actual [BuildContext] of the on-screen item
+  /// makes the jump pixel-accurate: when the item is visible, we ask
+  /// [Scrollable.ensureVisible] for the exact pixel offset; when it
+  /// isn't, we fall back to the previous fraction-based heuristic so
+  /// paginated-off-screen targets still scroll in the right direction.
   void _scrollToEventId(String eventId) {
-    final map = _cachedEventIdToItemIndex;
-    if (map == null) return;
-    final targetIdx = map[eventId];
-    if (targetIdx == null) return;
     final controller = widget.scrollController;
     if (!controller.hasClients) return;
+
+    final map = _cachedEventIdToItemIndex;
+    final itemCount = map?.length ?? 0;
+    final targetIdx = map?[eventId];
+    if (targetIdx == null) return;
 
     // Highlight the target event briefly.
     setState(() => _highlightedEventId = eventId);
@@ -491,22 +539,35 @@ class _TimelineViewState extends State<TimelineView> {
       }
     });
 
+    // Prefer [Scrollable.ensureVisible] when the item is currently
+    // mounted on screen: it computes the exact pixel offset of the
+    // rendered widget, so the target lands one-third from the top
+    // regardless of variable-height items above it.
+    final globalKey = _eventKeys[eventId];
+    final ctx = globalKey?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.33,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+
+    // Fallback: the target is virtualised out of the rendered window.
+    // Use the fraction estimate so we at least scroll in the right
+    // direction  the parent paginates enough history so this case is
+    // rare.
     final position = controller.position;
-    final itemCount = map.length;
-    // Estimate position in the list. With reverse: true, item 0 is at
-    // scroll offset 0 (bottom), and the last item is at maxScrollExtent.
     final range = position.maxScrollExtent - position.minScrollExtent;
     final fraction = itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
     final targetOffset = position.minScrollExtent + range * fraction;
 
-    // If the target is already roughly within viewport, skip scrolling
-    // and just show the highlight.
-    final distance = (targetOffset - position.pixels).abs();
+    final distancePx = (targetOffset - position.pixels).abs();
     final viewportHeight = position.viewportDimension;
-    if (distance < viewportHeight * 0.6) return;
+    if (distancePx < viewportHeight * 0.6) return;
 
-    // Scroll so the target sits about one third from the top of the
-    // viewport, preventing it from being hidden at the edge.
     final paddedOffset = (targetOffset - viewportHeight * 0.33).clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
@@ -551,6 +612,13 @@ class _TimelineViewState extends State<TimelineView> {
         break;
     }
   }
+
+  /// Public entry point used by [ChatTimeline] to jump to an arbitrary
+  /// event id without owning the [GlobalKey] map directly.  Delegates
+  /// to [_scrollToEventId] which already uses
+  /// [Scrollable.ensureVisible] for on-screen targets and the
+  /// fraction-based fallback otherwise.
+  void scrollToEventId(String eventId) => _scrollToEventId(eventId);
 }
 
 /// Smoothly-fading block of [SkeletonTile]s shown at the top of the
@@ -861,8 +929,8 @@ class _UndecryptableBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _TimelineViewState? state =
-        context.findAncestorStateOfType<_TimelineViewState>();
+    final TimelineViewState? state =
+        context.findAncestorStateOfType<TimelineViewState>();
 
     final notifier = state?._undecryptableCount;
     if (notifier == null) return const SizedBox.shrink();
