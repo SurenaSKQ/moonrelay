@@ -74,9 +74,17 @@ class MessageEventHandler extends StatelessWidget {
   Widget build(BuildContext context) {
     final fs = fontSize;
 
+    // Use `read` rather than `watch` so this widget does NOT subscribe
+    // to [EncryptionService] notifications. The verification result is
+    // memoized internally (see `EncryptionService.isDeviceVerifiedById`)
+    // so the cost per build is O(1), and the widget only needs to
+    // re-render when the underlying event or its surroundings change.
+    // Previously this `watch` caused every visible message in the
+    // timeline to rebuild on every sync tick.
+    final enc = context.read<EncryptionService>();
+
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
-      final enc = context.watch<EncryptionService>();
       final isVerified = _isDeviceVerified(enc);
 
       return Column(
@@ -96,7 +104,6 @@ class MessageEventHandler extends StatelessWidget {
 
     // Decrypted or non-encrypted events: show verification status inline.
     if (event.type == EventTypes.Message) {
-      final enc = context.watch<EncryptionService>();
       final isVerified = _isDeviceVerified(enc);
 
       return Column(
@@ -162,7 +169,7 @@ class MessageEventHandler extends StatelessWidget {
   }
 
   Widget _renderContent(double fontSize) {
-    // Failed decryption — show the decryption-failed placeholder
+    // Failed decryption  show the decryption-failed placeholder
     // with a manual key-request button.
     if (event.type == EventTypes.Encrypted) {
       return DecryptionFailedWidget(
@@ -364,6 +371,13 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
   /// long enough to truncate.
   bool _expanded = false;
 
+  /// Memoized future for the missing-event fetch. Without this the
+  /// build method would create a new `getEventById` future on every
+  /// parent rebuild — a sync tick while the preview is mounted would
+  /// re-issue the network call, leak the in-flight future, and
+  /// flicker the placeholder.
+  Future<Event?>? _pendingFetch;
+
   /// Number of characters above which the body is considered
   /// "long" and the expand toggle is shown.  Honoured as a fallback
   /// when the [SettingsController] cannot be read from the tree (e.g.
@@ -377,16 +391,19 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
       collapseThreshold =
           context.read<SettingsController>().replyPreviewThreshold;
     } catch (_) {
-      // No controller in tree — fall back to the static default.
+      // No controller in tree  fall back to the static default.
     }
     if (widget.repliedTo != null) {
       return _buildForBody(context, widget.repliedTo!.body, collapseThreshold);
     }
 
-    // If we have a room, try to fetch the replied-to event.
+    // If we have a room, try to fetch the replied-to event. The
+    // future is memoized per (room, replyId) so a parent rebuild
+    // doesn't re-issue the same fetch.
     if (widget.room != null) {
+      _pendingFetch ??= widget.room!.getEventById(widget.replyId);
       return FutureBuilder<Event?>(
-        future: widget.room!.getEventById(widget.replyId),
+        future: _pendingFetch,
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
             return _buildForBody(
@@ -402,6 +419,23 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReplyPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the reply target changed, drop the cached fetch so the next
+    // build kicks off a fresh one.
+    if (oldWidget.replyId != widget.replyId ||
+        oldWidget.room?.id != widget.room?.id) {
+      _pendingFetch = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pendingFetch = null;
+    super.dispose();
   }
 
   Widget _buildForBody(
@@ -428,7 +462,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
           constraints: BoxConstraints(
             minHeight: 20,
             // Cap the bar at a short height so very long quoted text
-            // doesn't push the rest of the chat down — the toggle
+            // doesn't push the rest of the chat down  the toggle
             // affordance below it gives the user a way to read the
             // full body when they actually want to.
             maxHeight: _expanded ? double.infinity : 40,
