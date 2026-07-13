@@ -274,9 +274,13 @@ class _CompactRoomTile extends StatelessWidget {
     final displayName = room.getLocalizedDisplayname();
     final subtitle = room.lastEvent?.body;
     final unread = room.notificationCount;
+    // Spaces are not chat rooms, tapping a space entry in the
+    // sidebar should open the dedicated space home page.
+    final target =
+        room.isSpace ? '/main/space/${room.id}' : '/main/rooms/${room.id}';
 
     return InkWell(
-      onTap: () => context.push('/main/rooms/${room.id}'),
+      onTap: () => context.push(target),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
