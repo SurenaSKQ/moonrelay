@@ -226,150 +226,164 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     final prefs = MediaSizePrefs.of(context);
     final playerSize = _playerSize(prefs.videoMax);
 
-    return Container(
-      constraints: BoxConstraints(maxWidth: prefs.videoMax),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Player / preview area ────────────────────────────────
-          SizedBox(
-            width: playerSize.width,
-            height: playerSize.height,
-            child: _buildPlayerArea(cs, l10n),
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: prefs.videoMax),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: cs.outlineVariant.withValues(alpha: 0.4),
           ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          // Children are sized to their natural width — the player
+          // SizedBox uses the video's intrinsic aspect (its
+          // [playerSize]) and the metadata row stretches to match.
+          // Previously the column used [CrossAxisAlignment.stretch]
+          // which forced both children to the full container width,
+          // letterboxing portrait videos with empty space on the sides.
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Player / preview area ────────────────────────────────
+            SizedBox(
+              width: playerSize.width,
+              height: playerSize.height,
+              child: _buildPlayerArea(cs, l10n),
+            ),
 
-          // ── Metadata row ───────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    LucideIcons.video,
-                    size: 18,
-                    color: cs.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _fileName ?? l10n.videoFileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+            // ── Metadata row ───────────────────────────────────────
+            SizedBox(
+              width: playerSize.width,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
+                      child: Icon(
+                        LucideIcons.video,
+                        size: 18,
+                        color: cs.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                          Text(
+                            _fileName ?? l10n.videoFileName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
-                            decoration: BoxDecoration(
-                              color:
-                                  cs.tertiaryContainer.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _extension,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onTertiaryContainer,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          if (_duration != null) ...[
-                            const SizedBox(width: 8),
-                            Icon(
-                              LucideIcons.clock,
-                              size: 12,
-                              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              _formatDuration(_duration!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.7),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.tertiaryContainer
+                                      .withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _extension,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: cs.onTertiaryContainer,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                          if (_fileSize != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatSize(_fileSize!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ],
+                              if (_duration != null) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  LucideIcons.clock,
+                                  size: 12,
+                                  color: cs.onSurfaceVariant
+                                      .withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  _formatDuration(_duration!),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                              if (_fileSize != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatSize(_fileSize!),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Download / save button.
-                Tooltip(
-                  message: l10n.downloadVideo,
-                  child: FutureBuilder<MatrixFile>(
-                    future: _downloadFuture,
-                    builder: (context, snapshot) {
-                      final isReady =
-                          snapshot.connectionState == ConnectionState.done &&
-                              !snapshot.hasError;
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            LucideIcons.download,
-                            size: 18,
-                            color: cs.primary,
-                          ),
-                          onPressed: isReady && snapshot.data != null
-                              ? () => _downloadFile(snapshot.data!)
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
+                    // Download / save button.
+                    Tooltip(
+                      message: l10n.downloadVideo,
+                      child: FutureBuilder<MatrixFile>(
+                        future: _downloadFuture,
+                        builder: (context, snapshot) {
+                          final isReady =
+                              snapshot.connectionState ==
+                                      ConnectionState.done &&
+                                  !snapshot.hasError;
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                LucideIcons.download,
+                                size: 18,
+                                color: cs.primary,
+                              ),
+                              onPressed: isReady && snapshot.data != null
+                                  ? () => _downloadFile(snapshot.data!)
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
