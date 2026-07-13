@@ -32,31 +32,31 @@ void main() {
       expect(LayoutBreakpoints.sizeForWidth(899), LayoutSize.medium);
     });
 
-    test('returns compact between 900 and 1280 (unified sidebar shell)', () {
-      // The dashboard treats the entire 900-1280 range as a compact
+    test('returns compact between 900 and 1100 (unified sidebar shell)', () {
+      // The dashboard treats the entire 900-1100 range as a compact
       // shell so the unified sidebar stays visible.  sizeForWidth still
       // returns LayoutSize.compact here for consumers that follow the
       // shell-selection helpers (shouldUseCompact / shouldUseMobile).
       expect(LayoutBreakpoints.sizeForWidth(900), LayoutSize.compact);
       expect(LayoutBreakpoints.sizeForWidth(1024), LayoutSize.compact);
-      expect(LayoutBreakpoints.sizeForWidth(1279), LayoutSize.compact);
+      expect(LayoutBreakpoints.sizeForWidth(1099), LayoutSize.compact);
     });
 
-    test('returns wide at or above 1280', () {
-      expect(LayoutBreakpoints.sizeForWidth(1280), LayoutSize.wide);
+    test('returns wide at or above 1100', () {
+      expect(LayoutBreakpoints.sizeForWidth(1100), LayoutSize.wide);
       expect(LayoutBreakpoints.sizeForWidth(1920), LayoutSize.wide);
     });
   });
 
   group('LayoutBreakpoints.shouldUseCompact', () {
-    test('true in the dashboard compact window (600-1280)', () {
+    test('true in the dashboard compact window (600-1100)', () {
       expect(LayoutBreakpoints.shouldUseCompact(600), isTrue);
       expect(LayoutBreakpoints.shouldUseCompact(900), isTrue);
-      expect(LayoutBreakpoints.shouldUseCompact(1279), isTrue);
+      expect(LayoutBreakpoints.shouldUseCompact(1099), isTrue);
     });
 
     test('false above expandedMax', () {
-      expect(LayoutBreakpoints.shouldUseCompact(1280), isFalse);
+      expect(LayoutBreakpoints.shouldUseCompact(1100), isFalse);
       expect(LayoutBreakpoints.shouldUseCompact(1600), isFalse);
     });
 
