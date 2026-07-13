@@ -15,6 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/helpers/room_state_bus.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
 import 'package:moonrelay/src/widgets/deep_link_listener.dart';
@@ -28,10 +30,40 @@ import 'encryption/encryption_service.dart';
 
 final _appTheme = MoonrelayAppTheme();
 
-class MoonrelayApp extends StatelessWidget {
+class MoonrelayApp extends StatefulWidget {
   const MoonrelayApp({super.key});
 
   static final GoRouter moonrouter = GoRouter(routes: MoonRouter.routes);
+
+  @override
+  State<MoonrelayApp> createState() => _MoonrelayAppState();
+}
+
+class _MoonrelayAppState extends State<MoonrelayApp> {
+  /// Process-wide sync pulse, owned by this widget so its lifetime
+  /// matches the running app. Re-bound to the active client every time
+  /// the account manager swaps in a new [Client].
+  final SyncPulse _syncPulse = SyncPulse();
+
+  /// Per-room state-event fan-out. Owned by this widget for the same
+  /// lifetime reason as [_syncPulse].
+  final RoomStateBus _roomStateBus = RoomStateBus();
+
+  Client? _boundClient;
+
+  @override
+  void dispose() {
+    _syncPulse.dispose();
+    _roomStateBus.dispose();
+    super.dispose();
+  }
+
+  void _bindPulse(Client client) {
+    if (identical(_boundClient, client)) return;
+    _boundClient = client;
+    _syncPulse.bind(client);
+    _roomStateBus.bind(client);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +87,7 @@ class MoonrelayApp extends StatelessWidget {
           listenable: settingsController,
           builder: (BuildContext context, Widget? child) {
             return MaterialApp.router(
-              routerConfig: moonrouter,
+              routerConfig: MoonrelayApp.moonrouter,
               debugShowCheckedModeBanner: false,
               restorationScopeId: "approot",
               localizationsDelegates:
@@ -85,7 +117,20 @@ class MoonrelayApp extends StatelessWidget {
         final enc = accountManager.encryptionService;
 
         if (client != null) {
+          _bindPulse(client);
           app = Provider<Client>.value(value: client, child: app);
+          app = ChangeNotifierProvider<SyncPulse>.value(
+            value: _syncPulse,
+            child: app,
+          );
+          // RoomStateBus is a ChangeNotifier (subscribers listen to
+          // per-room ValueNotifiers via the bus), so it must be
+          // wrapped in a ChangeNotifierProvider; a plain Provider
+          // would assert at runtime.
+          app = ChangeNotifierProvider<RoomStateBus>.value(
+            value: _roomStateBus,
+            child: app,
+          );
         }
         if (enc != null) {
           app = ChangeNotifierProvider<EncryptionService>.value(
