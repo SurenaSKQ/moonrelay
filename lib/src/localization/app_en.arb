@@ -852,6 +852,9 @@
   "unknownType": "Unknown type",
   "downloadVideo": "Download video",
   "selectDownloadTarget": "Select download target",
+  "saveImage": "Save image",
+  "downloadImage": "Download image",
+  "imageViewerHint": "Drag to move · pinch to zoom · long-press to save",
   "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
   "@fileInfo": {
     "description": "Information about an attached file.",
@@ -2194,6 +2197,14 @@
   "fullscreenVideo": "Fullscreen",
   "@fullscreenVideo": {
     "description": "Tooltip for the fullscreen video button."
+  },
+  "videoLoadFailed": "Couldn't load video",
+  "@videoLoadFailed": {
+    "description": "Message shown in the player area when the video attachment can't be initialized."
+  },
+  "tapToRetry": "Tap to retry",
+  "@tapToRetry": {
+    "description": "Hint shown beneath a retry-able error indicator."
   },
 
   "shareLocation": "Share location",

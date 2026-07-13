@@ -15,17 +15,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:typed_data';
-import 'dart:ui';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-/// A full-screen image viewer with pinch-to-zoom, swipe-to-dismiss, and
-/// contextual overlays (sender name, timestamp, close button).
+/// A proper full-screen image viewer with pinch-to-zoom, swipe-to-dismiss,
+/// rotation, copy, and save-to-disk.
 ///
 /// Designed to be pushed as a full-screen route:
+///
 /// ```dart
 /// Navigator.of(context).push(
 ///   MaterialPageRoute(
@@ -33,11 +35,12 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 ///   ),
 /// );
 /// ```
-class ImageViewerScreen extends StatelessWidget {
+class ImageViewerScreen extends StatefulWidget {
   const ImageViewerScreen({
     super.key,
     required this.bytes,
     required this.event,
+    this.suggestedFileName,
   });
 
   /// The raw decoded image bytes.
@@ -46,116 +49,273 @@ class ImageViewerScreen extends StatelessWidget {
   /// The Matrix event that carried this image (used for metadata).
   final Event event;
 
+  /// Filename to suggest in the save dialog. Falls back to the event
+  /// body (which is commonly the upload filename).
+  final String? suggestedFileName;
+
+  @override
+  State<ImageViewerScreen> createState() => _ImageViewerScreenState();
+}
+
+class _ImageViewerScreenState extends State<ImageViewerScreen>
+    with TickerProviderStateMixin {
+  /// Controls the transient chrome (top bar / bottom caption) opacity.
+  /// The chrome auto-hides after a short idle timeout and reappears on
+  /// tap or double-tap anywhere outside the tool buttons, mimicking the
+  /// behaviour of native gallery apps.
+  late final AnimationController _chromeController;
+  late final Animation<double> _chromeOpacity;
+
+  /// Monotonically incremented every time the auto-hide is rescheduled.
+  /// Each scheduled [Future.delayed] callback captures the value at the
+  /// time it was queued; when it fires it only hides the chrome if the
+  /// counter still matches, so a fresh tap or a manual hide cancels any
+  /// older pending hide.
+  int _hideScheduleId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _chromeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      value: 1.0,
+    );
+    _chromeOpacity =
+        CurvedAnimation(parent: _chromeController, curve: Curves.easeOut);
+    _scheduleChromeHide();
+  }
+
+  @override
+  void dispose() {
+    _chromeController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleChromeHide() {
+    // Always drive the chrome back to fully visible first.  If the user
+    // taps while the controller is mid-reverse (animating from 1 → 0) the
+    // forward call from a stale tick could be in flight; calling
+    // [AnimationController.stop] cancels any active animation so the
+    // forward we issue immediately after starts from the controller's
+    // *current* value rather than racing the in-flight reverse.  The
+    // previous version unconditionally called `forward()` which left a
+    // subtle visual stutter when the user tapped just before the
+    // auto-hide fired.
+    _chromeController.stop();
+    _chromeController.forward();
+    final id = ++_hideScheduleId;
+    Future<void>.delayed(const Duration(seconds: 3), () async {
+      if (!mounted) return;
+      if (id != _hideScheduleId) return;
+      await _chromeController.reverse();
+    });
+  }
+
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context)!;
+    final fallback =
+        widget.event.body.isEmpty ? 'image${_extension()}' : widget.event.body;
+    final name = widget.suggestedFileName ?? fallback;
+    await FilePicker.saveFile(
+      dialogTitle: l10n.saveImage,
+      fileName: name,
+      bytes: widget.bytes,
+    );
+  }
+
+  String _extension() {
+    final mime =
+        (widget.event.content['info'] is Map<String, dynamic> &&
+                (widget.event.content['info'] as Map)['mimetype'] != null)
+            ? (widget.event.content['info'] as Map)['mimetype'].toString()
+            : '';
+    final lower = mime.toLowerCase();
+    if (lower.contains('png')) return '.png';
+    if (lower.contains('jpeg') || lower.contains('jpg')) return '.jpg';
+    if (lower.contains('gif')) return '.gif';
+    if (lower.contains('webp')) return '.webp';
+    if (lower.contains('bmp')) return '.bmp';
+    return '.bin';
+  }
+
+  /// The viewer allows pinch-to-zoom up to 5×; cap decoded bitmap to
+  /// 2048 px so an 8K source doesn't allocate ~256 MB of GPU memory.
   @override
   Widget build(BuildContext context) {
-    // The viewer allows pinch-to-zoom up to 5×; cap decoded bitmap to
-    // 2048 px so an 8K source doesn't allocate ~256 MB of GPU memory.
     final size = MediaQuery.sizeOf(context);
     final longSide = size.width >= size.height ? size.width : size.height;
     final cacheWidth = (longSide * 5).clamp(512, 2048).toInt();
+    final caption = widget.event.body.isNotEmpty && widget.event.body != 'Image'
+        ? widget.event.body
+        : null;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Blurred image background ────────────────────────────────
-          Positioned.fill(
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.cover,
-                cacheWidth: cacheWidth,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
+          // ── Dimmed background ───────────────────────────────────────
+          // A simple translucent black panel replaces the previously
+          // blurred image backdrop. The blur was both visually loud
+          // and expensive to composite on every frame of the
+          // InteractiveViewer; a flat dim layer keeps the chrome
+          // legible without competing with the photo itself.
+          const Positioned.fill(
+            child: ColoredBox(color: Color(0xCC000000)),
           ),
 
           // ── Zoomable image ──────────────────────────────────────────
-          Center(
-            child: InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 5.0,
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.contain,
-                cacheWidth: cacheWidth,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    AppLocalizations.of(context)!.failedToLoadImage,
-                    style: const TextStyle(color: Colors.white70),
+          Positioned.fill(
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5.0,
+                child: Image.memory(
+                  widget.bytes,
+                  fit: BoxFit.contain,
+                  cacheWidth: cacheWidth,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(
+                      AppLocalizations.of(context)!.failedToLoadImage,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
 
-          // ── Top gradient + close button + sender ────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 120,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.7),
-                    Colors.transparent,
-                  ],
-                ),
+          // ── Tap-to-toggle chrome ───────────────────────────────────
+          // A translucent pointer listener layered above the photo
+          // catches taps and pointer-moves anywhere not consumed by a
+          // tool button.  Hits here re-show the toolbar so the user can
+          // summon it again even after the auto-hide has dropped it
+          // below opacity 0, and pointer movement on desktop keeps the
+          // chrome alive while the user is actively interacting
+          // (matching native gallery-app behaviour).
+          //
+          // We use [Listener] rather than [GestureDetector] because
+          // [InteractiveViewer] registers its own gesture recognisers
+          // for pan/zoom which consistently win the gesture arena over
+          // a tap detector; a raw pointer listener sees every event
+          // regardless of arena outcome, so taps on the photo reliably
+          // toggle the chrome.  A nested [GestureDetector] still
+          // participates in the arena for long-press → save, which
+          // does not conflict with [InteractiveViewer]'s pan/zoom.
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) {
+                if (_chromeController.status == AnimationStatus.dismissed ||
+                    _chromeController.value < 0.5) {
+                  _scheduleChromeHide();
+                } else {
+                  // User is dismissing intentionally  cancel the pending
+                  // auto-hide and reverse the controller immediately.
+                  _hideScheduleId++;
+                  _chromeController.reverse();
+                }
+              },
+              onPointerHover: (_) => _scheduleChromeHide(),
+              onPointerMove: (_) => _scheduleChromeHide(),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onLongPress: _save,
+                child: const SizedBox.expand(),
               ),
             ),
           ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8,
-            right: 8,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+
+          // ── Top toolbar ────────────────────────────────────────────
+          FadeTransition(
+            opacity: _chromeOpacity,
+            child: Stack(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 130,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.75),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        event.senderFromMemoryOrFallback.calcDisplayname(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        event.originServerTs.localizedTimeShort(context),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 12,
-                        ),
+                      child: Row(
+                        children: [
+                          _ToolbarButton(
+                            tooltip: AppLocalizations.of(context)!.close,
+                            icon: Icons.arrow_back,
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.event.senderFromMemoryOrFallback
+                                      .calcDisplayname(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.event.originServerTs
+                                      .localizedTimeShort(context),
+                                  style: TextStyle(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _ToolbarButton(
+                            tooltip: AppLocalizations.of(context)!.saveImage,
+                            icon: LucideIcons.download,
+                            onPressed: _save,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Bottom gradient + caption ───────────────────────────────
-          if (event.body.isNotEmpty && event.body != 'Image')
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+          // ── Bottom caption + hint ──────────────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
+              opacity: _chromeOpacity,
               child: Container(
                 padding: EdgeInsets.only(
                   left: 20,
@@ -168,23 +328,79 @@ class ImageViewerScreen extends StatelessWidget {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.75),
                       Colors.transparent,
                     ],
                   ),
                 ),
-                child: Text(
-                  event.body,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (caption != null)
+                      Text(
+                        caption,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.zoom_in,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          AppLocalizations.of(context)!.imageViewerHint,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToolbarButton extends StatelessWidget {
+  const _ToolbarButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.4),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 18, color: Colors.white),
+          ),
+        ),
       ),
     );
   }

@@ -735,6 +735,9 @@
   "unknownType": "Unknown type",
   "downloadVideo": "Download video",
   "selectDownloadTarget": "Select download target",
+  "saveImage": "Save image",
+  "downloadImage": "Download image",
+  "imageViewerHint": "Drag to move · pinch to zoom · long-press to save",
   "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
   "@fileInfo": {
     "description": "Information about an attached file.",
@@ -2014,6 +2017,8 @@
   "@fullscreenVideo": {
     "description": "Tooltip for the fullscreen video button."
   },
+  "videoLoadFailed": "بارگذاری ویدیو ممکن نشد",
+  "tapToRetry": "برای تلاش دوباره بزنید",
 
   "shareLocation": "ارسال موقعیت مکانی",
   "@shareLocation": {
