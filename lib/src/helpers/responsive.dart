@@ -56,10 +56,18 @@ class LayoutBreakpoints {
   /// shell with a unified sidebar)  anything narrower switches to the
   /// dedicated mobile layout via [LayoutBreakpoints.mobileMax].
   ///
-  /// Historical note: this used to be 600.  We now treat the entire range
-  /// 600-1280 as compact because the old "medium" shell only rendered a
-  /// left sidebar with no room list, which was useless on a 768px monitor.
-  static const double compactMax = 1280;
+  /// Historical note: this used to be 600, then 1280.  We now treat the
+  /// entire 600-1100 range as compact because the old "medium" shell only
+  /// rendered a left sidebar with no room list, which was useless on a
+  /// 768px monitor.  We deliberately leave the 1100-1280 band for the
+  /// full multi-pane layout because a 1100px window can still fit the
+  /// navigation rail (80px) + left pane (~280px) + chat + right pane
+  /// (~240px) without either sidebar dropping below its 200px minimum,
+  /// whereas 1280px is exactly the line where the right pane begins to
+  /// crowd the chat.  1100 gives the user a few extra pixels of headroom
+  /// so the multi-pane shell doesn't immediately collapse as soon as the
+  /// window is dragged in by a pixel.
+  static const double compactMax = 1100;
 
   /// Below this width we render the dedicated [MobileLayout] instead of
   /// the dashboard, even when the user has not opted into mobile mode
@@ -73,7 +81,7 @@ class LayoutBreakpoints {
   static const double mediumMax = 900;
 
   /// Below this width we treat the window as expanded (two sidebars).
-  static const double expandedMax = 1280;
+  static const double expandedMax = 1100;
 
   /// Minimum width allowed for any pinned pane.
   static const double minSidebarWidth = 200;
@@ -102,7 +110,7 @@ class LayoutBreakpoints {
   /// Computes the [LayoutSize] for the given width.
   ///
   /// Note: the dashboard no longer renders a distinct "medium" shell.
-  /// Anything in the 600-1280 range is now [LayoutSize.compact] so the
+  /// Anything in the 600-1100 range is now [LayoutSize.compact] so the
   /// unified sidebar stays visible.  Callers that need the historical
   /// medium bucket can compare against [mediumMax] directly.
   ///
@@ -110,7 +118,7 @@ class LayoutBreakpoints {
   /// inspect [LayoutSize.medium] / [LayoutSize.expanded] (e.g. the
   /// dashboard's wide-mode shell), but the actual layout decision now
   /// flows through [shouldUseCompact] / [shouldUseMobile] to avoid
-  /// ambiguity at the 900-1280 boundary.
+  /// ambiguity at the 900-1100 boundary.
   static LayoutSize sizeForWidth(double width) {
     if (width < mobileMax) return LayoutSize.compact;
     if (width < mediumMax) return LayoutSize.medium;

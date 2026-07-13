@@ -17,6 +17,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:moonrelay/src/helpers/responsive.dart';
@@ -28,7 +29,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 /// The dashboard needs to react to:
 ///   * the available window width (LayoutBuilder constraints)
 ///   * the user's forced layout mode ([SettingsController.layoutMode])
-///   * hysteresis around the 1280 px breakpoint so a continuous drag
+///   * hysteresis around the 1100 px breakpoint so a continuous drag
 ///     across the boundary doesn't oscillate between shells.
 ///
 /// Previously this state lived inside [_DashboardLayoutState] and
@@ -43,13 +44,19 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 class LayoutShellController extends ChangeNotifier {
   LayoutShellController();
 
-  /// Hysteresis: 20 px around the boundary. Crossing requires a net
-  /// 20 px move before the shell flips.
-  static const double _kShellHysteresisPx = 20.0;
+  /// Hysteresis: 60 px around the boundary. Crossing requires a net
+  /// 60 px move before the shell flips.  Wide enough that
+  /// near-boundary windows (e.g. dragging a 1102 px window over the
+  /// boundary by 5 px) stay in their current shell; narrow enough
+  /// that an honest 100 px resize commits within a settle window.
+  static const double _kShellHysteresisPx = 60.0;
 
   /// Settle delay: the new width must stay on the other side of the
-  /// boundary for this long before the flip is committed.
-  static const Duration _kShellSettleDuration = Duration(milliseconds: 220);
+  /// boundary for this long before the flip is committed.  400 ms is
+  /// slow enough that a single drag-handle jitter event won't trip the
+  /// shell change, but fast enough that the user perceives a
+  /// continuous drag as responsive.
+  static const Duration _kShellSettleDuration = Duration(milliseconds: 400);
 
   /// Currently committed layout size.
   LayoutSize _size = LayoutSize.expanded;
@@ -115,7 +122,18 @@ class LayoutShellController extends ChangeNotifier {
   LayoutSize _setSize(LayoutSize next) {
     if (next == _size) return _size;
     _size = next;
-    notifyListeners();
+    // Defer the notification until after the current frame: this
+    // controller is typically read from inside a [LayoutBuilder]
+    // during build.  Calling [notifyListeners] synchronously from
+    // there would re-enter the framework mid-layout, producing
+    // `_RenderLayoutBuilder was mutated in performLayout` and the
+    // `_elements.contains(element)` assertion failure when the
+    // listener schedules a rebuild before the current layout pass
+    // finishes.  Posting the notification to the end of the frame
+    // avoids the cycle entirely.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_size == next) notifyListeners();
+    }, debugLabel: 'LayoutShellController._setSize');
     return _size;
   }
 

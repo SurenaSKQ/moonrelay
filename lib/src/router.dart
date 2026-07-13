@@ -469,7 +469,7 @@ class MoonRouter {
     BuildContext context,
     GoRouterState state,
   ) {
-    final settings = context.read<SettingsController>();
+    final settings = Provider.of<SettingsController>(context, listen: false);
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = settings.layoutMode == LayoutMode.mobile ||
         LayoutBreakpoints.shouldUseMobile(width);
@@ -518,16 +518,21 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// showing up in the right sidebar).
   bool? _lastUseMobile;
 
+  /// Cached viewport width so the layout-transition check doesn't
+  /// rebuild on every other SettingsController change.  We only watch
+  /// [MediaQuery] (the shell decision reads window width) and the
+  /// [SettingsController.layoutMode] field (the user-forced override).
+  double? _lastWidth;
+  LayoutMode? _lastLayoutMode;
+
   /// Resolves whether the active shell should be the mobile layout
   /// for the current [LayoutMode] + viewport width.
   ///
   /// Extracted so the layout-transition check and the render branch
   /// stay in sync  both call the same helper and the threshold logic
   /// lives in exactly one place.
-  bool _resolveUseMobile() {
-    final settings = context.watch<SettingsController>();
-    final width = MediaQuery.sizeOf(context).width;
-    return settings.layoutMode == LayoutMode.mobile ||
+  bool _resolveUseMobile(LayoutMode layoutMode, double width) {
+    return layoutMode == LayoutMode.mobile ||
         LayoutBreakpoints.shouldUseMobile(width);
   }
 
@@ -587,8 +592,42 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final useMobile = _resolveUseMobile();
-    if (_lastUseMobile != null && _lastUseMobile != useMobile) {
+    // Only subscribe to the two values that actually drive the shell
+    // decision: the user-forced layout mode and the window width.
+    // Watching the entire SettingsController would rebuild this
+    // widget on every preference change (theme, font size, density,
+    // …) and could trigger spurious shell transitions.
+    final layoutMode = context.select<SettingsController, LayoutMode>(
+      (s) => s.layoutMode,
+    );
+    final width = MediaQuery.sizeOf(context).width;
+
+    // Hysteresis mirror: we use the same dead-band the
+    // [LayoutShellController] applies so this widget doesn't flip
+    // back and forth faster than the dashboard can settle.  Without
+    // it, dragging across the 600 px boundary would oscillate the
+    // shell selection each frame the cursor straddles the line.
+    const hysteresisPx = 60.0;
+    final last = _lastUseMobile;
+    final lastWidth = _lastWidth;
+    final lastLayout = _lastLayoutMode;
+    bool useMobile;
+    if (last != null &&
+        lastWidth != null &&
+        lastLayout != null &&
+        lastLayout == layoutMode) {
+      // Stable config  only commit a transition once the new width
+      // has crossed past the hysteresis band.
+      if (last) {
+        useMobile = width < LayoutBreakpoints.mobileMax + hysteresisPx;
+      } else {
+        useMobile = width < LayoutBreakpoints.mobileMax - hysteresisPx;
+      }
+    } else {
+      useMobile = _resolveUseMobile(layoutMode, width);
+    }
+
+    if (last != null && last != useMobile) {
       // Shell transitioned.  Defer the navigation to a post-frame
       // callback so we never call [GoRouter.go] from inside a build
       // pass (which trips an assertion in newer Flutter versions).
@@ -598,6 +637,8 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
       });
     }
     _lastUseMobile = useMobile;
+    _lastWidth = width;
+    _lastLayoutMode = layoutMode;
 
     if (useMobile) {
       return MobileLayout(child: widget.child);

@@ -80,11 +80,6 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   /// whole dashboard tree.
   final LayoutShellController _shell = LayoutShellController();
 
-  /// Backwards-compat: hold the most recent evaluated layout size so
-  /// widgets that read `LayoutScope.of(context).size` see a coherent
-  /// value without having to listen to the controller.
-  LayoutSize _layoutSize = LayoutSize.expanded;
-
   @override
   void dispose() {
     _shell.dispose();
@@ -125,18 +120,31 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        _layoutSize = LayoutBreakpoints.sizeForWidth(width);
-
         // ── Shell decision with hysteresis ──────────────────────────────
         //
-        // We subscribe to `LayoutBuilder.constraints` (which fires for
-        // every resize tick) instead of `MediaQuery.sizeOf(context)` so
-        // the layout-driven rebuild does not also pull in every
-        // `MediaQuery` listener across the tree.  Only this widget's
-        // `build` runs on a resize; everything downstream that does
-        // NOT depend on `LayoutBuilder.constraints` keeps its previous
-        // element.
+        // The shell decision reads the *outer* viewport width (via
+        // [MediaQuery.sizeOf]) instead of the inner [LayoutBuilder]
+        // constraints.  The inner constraints shrink and grow when the
+        // sidebars mount or unmount  the previous implementation used
+        // them as the breakpoint signal and ended up in a feedback
+        // loop where toggling the right sidebar could nudge the
+        // available width across the 1100 px threshold and flip the
+        // shell back to compact on its own.  Anchoring to the window
+        // width makes the shell decision independent of which
+        // sidebars are currently mounted.
+        //
+        // Importantly, this builder is pure: it reads precomputed
+        // state, calls a controller [update] that *may* schedule a
+        // timer / fire [notifyListeners] only asynchronously, and
+        // never mutates fields on this state.  Earlier revisions
+        // assigned `_layoutSize` and ran `_shell.update()` synchronously
+        // here, which under bursty resizes spawned
+        // `_RenderLayoutBuilder was mutated in performLayout` because
+        // a deferred [notifyListeners] could re-enter the tree mid-
+        // layout.  Keeping the body pure eliminates that race.
+        final width = MediaQuery.sizeOf(context).width;
+        final layoutSize = LayoutBreakpoints.sizeForWidth(width);
+
         final layoutMode = context.select<SettingsController, LayoutMode>(
           (s) => s.layoutMode,
         );
@@ -146,7 +154,10 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         // committed size via a [ValueListenable] (the controller
         // itself is a [ChangeNotifier]) so the shell subtree
         // re-renders only when the size actually flips, not on every
-        // resize tick.
+        // resize tick.  Note: [_shell.update] starts / cancels timers
+        // and may call [notifyListeners] but only from the Timer's
+        // callback (i.e. asynchronously), never synchronously from
+        // here.
         final committedSize = _shell.update(
           rawWidth: width,
           layoutMode: layoutMode,
@@ -157,7 +168,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         final shouldUseCompact = committedSize == LayoutSize.compact;
 
         return _DashboardView(
-          size: _layoutSize,
+          size: layoutSize,
           width: width,
           shouldUseCompact: shouldUseCompact,
           leftWidthNotifier: _leftWidth,
