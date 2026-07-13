@@ -822,7 +822,9 @@ class _HubOverlayPage extends StatelessWidget {
       // PageRoute's barrierDismissible flag is not sufficient on its
       // own because the page is laid out over the barrier in the
       // overlay; see [BarrierDismissableOverlay] for the full
-      // rationale.
+      // rationale.  The card itself is wrapped in
+      // [BarrierDismissBoundary] so taps inside the hub (including
+      // empty padding around widgets) don't dismiss the overlay.
       child: BarrierDismissableOverlay(
         child: BlurBackground(
           overlayColor: Colors.black54,
@@ -831,12 +833,14 @@ class _HubOverlayPage extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Material(
-                  elevation: 12,
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.antiAlias,
-                  color: Theme.of(context).colorScheme.surface,
-                  child: HubScreen(client: client, selection: selection),
+                child: BarrierDismissBoundary(
+                  child: Material(
+                    elevation: 12,
+                    borderRadius: BorderRadius.circular(16),
+                    clipBehavior: Clip.antiAlias,
+                    color: Theme.of(context).colorScheme.surface,
+                    child: HubScreen(client: client, selection: selection),
+                  ),
                 ),
               ),
             ),

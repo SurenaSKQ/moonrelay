@@ -96,14 +96,16 @@ void main() {
                           backgroundColor: Colors.transparent,
                           body: BarrierDismissableOverlay(
                             child: Center(
-                              child: GestureDetector(
-                                onTap: () {},
-                                child: Container(
-                                  width: 200,
-                                  height: 200,
-                                  color: Colors.blue,
-                                  child: const Center(
-                                    child: Text('inside'),
+                              child: BarrierDismissBoundary(
+                                child: GestureDetector(
+                                  onTap: () {},
+                                  child: Container(
+                                    width: 200,
+                                    height: 200,
+                                    color: Colors.blue,
+                                    child: const Center(
+                                      child: Text('inside'),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -130,6 +132,83 @@ void main() {
             reason: 'tapping inside the content should NOT dismiss the route');
         // The overlay is still on the stack.
         expect(find.text('inside'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'tapping empty space inside the card does NOT dismiss the route',
+      (tester) async {
+        // Verifies the bug fix where the helper used to dismiss on any
+        // tap that hit the page but not a widget inside it (e.g. a
+        // margin between rows).  Now only true outside-card taps
+        // dismiss  the card marks itself with [BarrierDismissBoundary]
+        // and the dismiss detector hit-tests that boundary.
+        bool popped = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorObservers: [_PopObserver(() => popped = true)],
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                      PageRouteBuilder(
+                        opaque: false,
+                        barrierDismissible: true,
+                        barrierColor: Colors.transparent,
+                        pageBuilder: (_, __, ___) => Scaffold(
+                          backgroundColor: Colors.transparent,
+                          body: BarrierDismissableOverlay(
+                            child: Center(
+                              child: BarrierDismissBoundary(
+                                child: SizedBox(
+                                  width: 200,
+                                  height: 200,
+                                  child: ColoredBox(
+                                    color: Colors.blue,
+                                    child: const Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Text('inside'),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        expect(find.text('inside'), findsOneWidget);
+
+        // Tap in the bottom-right corner of the card — empty space,
+        // not on the 'inside' text.  This must not dismiss.
+        final cardCenter = tester.getCenter(find.text('inside'));
+        final cardSize = tester.getSize(find.text('inside'));
+        final insideCard = Offset(
+          cardCenter.dx + cardSize.width / 2 + 16,
+          cardCenter.dy + 32,
+        );
+        await tester.tapAt(insideCard);
+        await tester.pump();
+        expect(popped, isFalse,
+            reason:
+                'tapping empty space inside the card must NOT dismiss');
+        expect(find.text('inside'), findsOneWidget);
+
+        // Tap well outside the card — true outside tap, must dismiss.
+        await tester.tapAt(const Offset(5, 5));
+        await tester.pumpAndSettle();
+        expect(popped, isTrue,
+            reason: 'tapping outside the card should dismiss');
       },
     );
 
