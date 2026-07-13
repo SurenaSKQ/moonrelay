@@ -17,6 +17,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
@@ -35,6 +36,11 @@ class FileAttachedMessage extends StatefulWidget {
 
 class _FileAttachedMessageState extends State<FileAttachedMessage> {
   Future<MatrixFile>? _downloadFuture;
+  /// Last error surfaced by the save flow.  When non-null, the bubble's
+  /// styling switches to error tones and the save icon flips to a retry
+  /// glyph instead of letting the user repeatedly trigger the same
+  /// failure silently.
+  Object? _lastError;
 
   bool _autoDownloadResolved = false;
 
@@ -128,12 +134,54 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
 
   // ---- Actions ----
 
+  /// Saves [attFile] to a user-chosen location.  Called when bytes are
+  /// already in memory (auto-download policy was anything other than
+  /// "never" or the bytes were already downloaded by another code path).
   Future<void> _downloadFile(MatrixFile attFile) async {
-    await FilePicker.saveFile(
-      dialogTitle: AppLocalizations.of(context)!.selectDownloadTarget,
-      fileName: _fileName ?? 'file',
-      bytes: attFile.bytes,
+    try {
+      await FilePicker.saveFile(
+        dialogTitle: AppLocalizations.of(context)!.selectDownloadTarget,
+        fileName: _fileName ?? 'file',
+        bytes: attFile.bytes,
+      );
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+    }
+  }
+
+  /// Ad-hoc download: pull the attachment when the user explicitly
+  /// asks for it even if the auto-download policy is "never".  Caches
+  /// the bytes via the shared [RoomMediaCache] so a second press (or a
+  /// different widget for the same event) reuses the result.
+  ///
+  /// Uses block-body lambdas for `setState` because the arrow form
+  /// `() => _x = future` returns the assigned `Future`, which
+  /// `State.setState` rejects as "the closure returned a Future".
+  Future<void> _downloadOnDemand() async {
+    final future = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
     );
+    setState(() {
+      _downloadFuture = future;
+      _lastError = null;
+    });
+    try {
+      final mf = await future;
+      if (!mounted) return;
+      await _downloadFile(mf);
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadFuture = null;
+        });
+      }
+    }
   }
 
   @override
@@ -151,10 +199,14 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
         return Container(
           constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+            color: _lastError != null
+                ? cs.errorContainer.withValues(alpha: 0.4)
+                : cs.surfaceContainerHighest.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.4),
+              color: _lastError != null
+                  ? cs.error.withValues(alpha: 0.5)
+                  : cs.outlineVariant.withValues(alpha: 0.4),
             ),
           ),
           child: Padding(
@@ -166,13 +218,17 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
+                    color: _lastError != null
+                        ? cs.error.withValues(alpha: 0.15)
+                        : cs.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    _fileIcon(),
+                    _lastError != null
+                        ? Icons.error_outline_rounded
+                        : _fileIcon(),
                     size: 22,
-                    color: cs.primary,
+                    color: _lastError != null ? cs.error : cs.primary,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -242,18 +298,42 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
 
                 // ── Download button ─────────────────────────────────────
                 Tooltip(
-                  message: l10n.downloadAudio,
+                  message: _lastError != null
+                      ? l10n.tapToRetry
+                      : l10n.downloadAudio,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
+                      color: _lastError != null
+                          ? cs.error.withValues(alpha: 0.15)
+                          : cs.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.download_rounded, size: 20),
-                      color: cs.primary,
-                      onPressed: isReady && matrixFile != null
-                          ? () => _downloadFile(matrixFile)
-                          : null,
+                      icon: snapshot.connectionState == ConnectionState.waiting
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: cs.primary,
+                              ),
+                            )
+                          : Icon(
+                              _lastError != null
+                                  ? Icons.refresh_rounded
+                                  : Icons.download_rounded,
+                              size: 20,
+                            ),
+                      color: _lastError != null ? cs.error : cs.primary,
+                      onPressed: snapshot.connectionState == ConnectionState.waiting
+                          ? null
+                          : () async {
+                              if (isReady && matrixFile != null) {
+                                await _downloadFile(matrixFile);
+                              } else {
+                                await _downloadOnDemand();
+                              }
+                            },
                     ),
                   ),
                 ),
