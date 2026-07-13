@@ -32,15 +32,50 @@ void main() {
       expect(LayoutBreakpoints.sizeForWidth(899), LayoutSize.medium);
     });
 
-    test('returns expanded between 900 and 1280', () {
-      expect(LayoutBreakpoints.sizeForWidth(900), LayoutSize.expanded);
-      expect(LayoutBreakpoints.sizeForWidth(1024), LayoutSize.expanded);
-      expect(LayoutBreakpoints.sizeForWidth(1279), LayoutSize.expanded);
+    test('returns compact between 900 and 1280 (unified sidebar shell)', () {
+      // The dashboard treats the entire 900-1280 range as a compact
+      // shell so the unified sidebar stays visible.  sizeForWidth still
+      // returns LayoutSize.compact here for consumers that follow the
+      // shell-selection helpers (shouldUseCompact / shouldUseMobile).
+      expect(LayoutBreakpoints.sizeForWidth(900), LayoutSize.compact);
+      expect(LayoutBreakpoints.sizeForWidth(1024), LayoutSize.compact);
+      expect(LayoutBreakpoints.sizeForWidth(1279), LayoutSize.compact);
     });
 
     test('returns wide at or above 1280', () {
       expect(LayoutBreakpoints.sizeForWidth(1280), LayoutSize.wide);
       expect(LayoutBreakpoints.sizeForWidth(1920), LayoutSize.wide);
+    });
+  });
+
+  group('LayoutBreakpoints.shouldUseCompact', () {
+    test('true in the dashboard compact window (600-1280)', () {
+      expect(LayoutBreakpoints.shouldUseCompact(600), isTrue);
+      expect(LayoutBreakpoints.shouldUseCompact(900), isTrue);
+      expect(LayoutBreakpoints.shouldUseCompact(1279), isTrue);
+    });
+
+    test('false above expandedMax', () {
+      expect(LayoutBreakpoints.shouldUseCompact(1280), isFalse);
+      expect(LayoutBreakpoints.shouldUseCompact(1600), isFalse);
+    });
+
+    test('false below mobileMax (mobile takes over)', () {
+      expect(LayoutBreakpoints.shouldUseCompact(599), isFalse);
+      expect(LayoutBreakpoints.shouldUseCompact(0), isFalse);
+    });
+  });
+
+  group('LayoutBreakpoints.shouldUseMobile', () {
+    test('true below mobileMax', () {
+      expect(LayoutBreakpoints.shouldUseMobile(0), isTrue);
+      expect(LayoutBreakpoints.shouldUseMobile(320), isTrue);
+      expect(LayoutBreakpoints.shouldUseMobile(599), isTrue);
+    });
+
+    test('false at or above mobileMax', () {
+      expect(LayoutBreakpoints.shouldUseMobile(600), isFalse);
+      expect(LayoutBreakpoints.shouldUseMobile(900), isFalse);
     });
   });
 

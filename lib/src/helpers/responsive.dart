@@ -52,10 +52,24 @@ extension LayoutSizeX on LayoutSize {
 class LayoutBreakpoints {
   const LayoutBreakpoints._();
 
-  /// Below this width we treat the window as compact.
-  static const double compactMax = 600;
+  /// Below this width we treat the window as compact (single-pane dashboard
+  /// shell with a unified sidebar) — anything narrower switches to the
+  /// dedicated mobile layout via [LayoutBreakpoints.mobileMax].
+  ///
+  /// Historical note: this used to be 600.  We now treat the entire range
+  /// 600-1280 as compact because the old "medium" shell only rendered a
+  /// left sidebar with no room list, which was useless on a 768px monitor.
+  static const double compactMax = 1280;
+
+  /// Below this width we render the dedicated [MobileLayout] instead of
+  /// the dashboard, even when the user has not opted into mobile mode
+  /// explicitly.  Below 600px the dashboard is unusable.
+  static const double mobileMax = 600;
 
   /// Below this width we treat the window as medium (single sidebar).
+  /// Retained for back-compat with code that still inspects
+  /// [LayoutSize.medium] — the new dashboard treats medium and compact
+  /// the same way.
   static const double mediumMax = 900;
 
   /// Below this width we treat the window as expanded (two sidebars).
@@ -86,12 +100,42 @@ class LayoutBreakpoints {
   static const double hubNavRailWidth = 72;
 
   /// Computes the [LayoutSize] for the given width.
+  ///
+  /// Note: the dashboard no longer renders a distinct "medium" shell.
+  /// Anything in the 600-1280 range is now [LayoutSize.compact] so the
+  /// unified sidebar stays visible.  Callers that need the historical
+  /// medium bucket can compare against [mediumMax] directly.
+  ///
+  /// The values returned here are kept stable for callers that still
+  /// inspect [LayoutSize.medium] / [LayoutSize.expanded] (e.g. the
+  /// dashboard's wide-mode shell), but the actual layout decision now
+  /// flows through [shouldUseCompact] / [shouldUseMobile] to avoid
+  /// ambiguity at the 900-1280 boundary.
   static LayoutSize sizeForWidth(double width) {
-    if (width < compactMax) return LayoutSize.compact;
+    if (width < mobileMax) return LayoutSize.compact;
     if (width < mediumMax) return LayoutSize.medium;
-    if (width < expandedMax) return LayoutSize.expanded;
+    if (width < expandedMax) return LayoutSize.compact;
     return LayoutSize.wide;
   }
+
+  /// Returns true when the dashboard should be replaced by the mobile
+  /// layout at the given viewport width.
+  ///
+  /// The dashboard assumes both side panes and a chat surface can fit
+  /// side-by-side; below [mobileMax] it cannot.  This helper is the
+  /// single source of truth for the switch — the router and the
+  /// dashboard both consult it.
+  static bool shouldUseMobile(double width) => width < mobileMax;
+
+  /// Returns true when the dashboard should use the unified
+  /// [CompactSidebar] rather than the full multi-pane layout at the
+  /// given viewport width.
+  ///
+  /// The compact shell kicks in at [compactMax] and stays in use all
+  /// the way down to [mobileMax] (where the dashboard itself is no
+  /// longer usable and [shouldUseMobile] takes over).
+  static bool shouldUseCompact(double width) =>
+      width < compactMax && !shouldUseMobile(width);
 
   /// Clamps a sidebar's requested [requestedWidth] against the given [viewportWidth],
 /// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
