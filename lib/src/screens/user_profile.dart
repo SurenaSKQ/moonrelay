@@ -1465,7 +1465,9 @@ class _ProfileOverlayPage extends StatelessWidget {
       // tapping the dim background dismisses the profile overlay.  The
       // PageRoute's barrierDismissible flag is not sufficient on its
       // own because the page is laid out over the barrier; see
-      // [BarrierDismissableOverlay] for the full rationale.
+      // [BarrierDismissableOverlay] for the full rationale.  The
+      // card is wrapped in [BarrierDismissBoundary] so taps inside
+      // the profile (including empty padding) don't dismiss it.
       child: BarrierDismissableOverlay(
         // Plain dim background (not blur) so the underlying chat stays
         // legible and the user can still see what they were looking at.
@@ -1476,15 +1478,17 @@ class _ProfileOverlayPage extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 460, maxHeight: 640),
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Material(
-                  elevation: 12,
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.antiAlias,
-                  color: Theme.of(context).colorScheme.surface,
-                  child: ProfilePage(
-                    client: client,
-                    userID: userId,
-                    room: room,
+                child: BarrierDismissBoundary(
+                  child: Material(
+                    elevation: 12,
+                    borderRadius: BorderRadius.circular(16),
+                    clipBehavior: Clip.antiAlias,
+                    color: Theme.of(context).colorScheme.surface,
+                    child: ProfilePage(
+                      client: client,
+                      userID: userId,
+                      room: room,
+                    ),
                   ),
                 ),
               ),

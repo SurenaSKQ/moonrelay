@@ -7,7 +7,7 @@
 
 # Moonrelay
 
-**A Matrix client for professionals secure, cross-platform, and built with Flutter.**
+**A Matrix client built for the desktop; secure, cross-platform, and built with Flutter.**
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/agpl-3.0)
 [![Version](https://img.shields.io/badge/version-0.6.0--alpha-6e3fbc?style=for-the-badge&logo=semver&logoColor=white)](https://github.com/SurenaSKQ/moonrelay/releases)
@@ -69,6 +69,7 @@ and the heat death of the universe.
 > DeepSeek and small FOSS local models. If you have a hard line
 > against AI-generated code, this probably isn't the project for
 > you.
+> The rest of the readme is pretty-fied by AI, by the way :3
 
 > **Logo note:** It's a placeholder. A real one will arrive when
 > the author learns 1337 vector art skillz.

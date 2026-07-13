@@ -660,7 +660,10 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       // PageRoute's barrierDismissible flag is not sufficient because
       // the page is laid out over the barrier in the overlay and the
       // barrier's gesture detector loses the gesture arena.  See
-      // [BarrierDismissableOverlay] for the full rationale.
+      // [BarrierDismissableOverlay] for the full rationale.  The
+      // card itself is wrapped in [BarrierDismissBoundary] so taps
+      // inside the palette (including the empty padding around
+      // widgets) don't dismiss the overlay.
       child: BarrierDismissableOverlay(
         child: BlurBackground(
           overlayColor: Colors.black54,
@@ -669,26 +672,28 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
               constraints: const BoxConstraints(maxWidth: 640),
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.antiAlias,
-                  color: Theme.of(context).colorScheme.surface,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildInput(_locCache),
-                        const SizedBox(height: 8),
-                        _buildModeHint(_locCache),
-                        const SizedBox(height: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 420),
-                          child: _buildList(_locCache),
-                        ),
-                      ],
+                child: BarrierDismissBoundary(
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(16),
+                    clipBehavior: Clip.antiAlias,
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildInput(_locCache),
+                          const SizedBox(height: 8),
+                          _buildModeHint(_locCache),
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 420),
+                            child: _buildList(_locCache),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
