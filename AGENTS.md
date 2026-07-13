@@ -1,6 +1,8 @@
-# Moonrelay — Agent Guide
+# Moonrelay  Agent Guide
 
 A Matrix chat client for professionals, built with Flutter. Targets **Linux** and **Windows** (desktop-first). Alpha stage.
+
+Important note: Absolutely never use '—' in your writing, I hate it.
 
 ## Essential Commands
 
@@ -83,8 +85,8 @@ test/
 
 ```
 main() → MoonrelayBootstrap → _boot()
-  1. initializeLog() — LogService
-  2. _initialize() — heavy init:
+  1. initializeLog()  LogService
+  2. _initialize()  heavy init:
      a. Vodozemac native crypto init
      b. SQLite FFI init
      c. Database schema version check (wipes on version bump)
@@ -121,9 +123,9 @@ Redirect guards: `loggedInRedirect` and `loggedOutRedirect` read `Provider.of<Cl
 ```
 AppFrame (custom titlebar + window controls)
 └── DashboardLayout (multi-pane desktop layout)
-    ├── NavigationPane (leftmost bar — Home, All, Spaces)
+    ├── NavigationPane (leftmost bar  Home, All, Spaces)
     ├── Left Sidebar (rooms/spaces/friends list, collapsible)
-    ├── Main content (route child — RoomPage, HubScreen, etc.)
+    ├── Main content (route child  RoomPage, HubScreen, etc.)
     ├── Right Sidebar (room info/members, collapsible, hides <1100px)
     └── StatusBar (sync status)
 ```
@@ -131,10 +133,10 @@ AppFrame (custom titlebar + window controls)
 ### State management
 
 **Provider** is the sole state management approach (no Riverpod/Bloc):
-- `SettingsController` — theme, display mode, sidebar sizes, layout choices. Persisted via `SharedPreferences`
-- `NavigationState` — selected space/home/all destination
-- `CurrentRoom` — currently active room (set by RoomPage, read by sidebar)
-- `EncryptionService` — cross-signing, key backup, device management
+- `SettingsController`  theme, display mode, sidebar sizes, layout choices. Persisted via `SharedPreferences`
+- `NavigationState`  selected space/home/all destination
+- `CurrentRoom`  currently active room (set by RoomPage, read by sidebar)
+- `EncryptionService`  cross-signing, key backup, device management
 
 Pattern: `Consumer2<A, B>` or `ListenableBuilder` for rebuild scoping. `context.read<T>()` for one-shot reads, `context.watch<T>()` for reactive reads.
 
@@ -183,21 +185,21 @@ final result = await withRetry(() => someOperation(), log: log, label: 'op');
 ## Testing
 
 ### Organization
-- `test/unit/` — pure Dart tests (no Flutter dependency needed)
-- `test/widget/` — Flutter widget tests
-- `test/helpers/` — shared mocks and provider wrappers
-- `integration_test/` — E2E (integration) tests that run against a real app on desktop
-  - `integration_test/helpers/mock_matrix_http_client.dart` — mock HTTP for the Matrix SDK
-  - `integration_test/helpers/test_app_boot.dart` — `buildTestApp()` helper that wires providers + mocked Client
+- `test/unit/`  pure Dart tests (no Flutter dependency needed)
+- `test/widget/`  Flutter widget tests
+- `test/helpers/`  shared mocks and provider wrappers
+- `integration_test/`  E2E (integration) tests that run against a real app on desktop
+  - `integration_test/helpers/mock_matrix_http_client.dart`  mock HTTP for the Matrix SDK
+  - `integration_test/helpers/test_app_boot.dart`  `buildTestApp()` helper that wires providers + mocked Client
 
 ### Mocking
-- **mocktail** (not mockito) — no code generation needed
+- **mocktail** (not mockito)  no code generation needed
 - Pre-defined mocks in `test/helpers/mocks.dart`: `MockClient`, `MockRoom`, `MockTimeline`, `MockEvent`, `MockUser`, `MockProfile`, `MockLogger`, `MockSyncUpdate`
 
 ### Test utilities
-- `wrapWithProviders(child)` — wraps widget in `MultiProvider` with mock `Client`, `Logger`, `SettingsController`
-- `wrapWithMaterialApp(child)` — wraps in bare `MaterialApp` (no providers)
-- `createTestSettingsController()` — creates `SettingsController` backed by in-memory `SettingsService` (requires `SharedPreferences` mock via `SharedPreferences.setMockInitialValues({})`)
+- `wrapWithProviders(child)`  wraps widget in `MultiProvider` with mock `Client`, `Logger`, `SettingsController`
+- `wrapWithMaterialApp(child)`  wraps in bare `MaterialApp` (no providers)
+- `createTestSettingsController()`  creates `SettingsController` backed by in-memory `SettingsService` (requires `SharedPreferences` mock via `SharedPreferences.setMockInitialValues({})`)
 
 ### Test patterns
 ```dart
@@ -218,8 +220,8 @@ E2E tests live in `integration_test/` and use the `integration_test` package. Th
 **Architecture:** The Matrix SDK's `Client` accepts an `http.Client?` parameter. E2E tests inject a `MockMatrixHttpClient` that intercepts all Matrix HTTP calls (login, sync, send, etc.) and returns pre-configured JSON responses. This makes tests deterministic, fast, and independent of a real Matrix server.
 
 **Key files:**
-- `integration_test/helpers/mock_matrix_http_client.dart` — stateful mock that holds room data and builds sync responses
-- `integration_test/helpers/test_app_boot.dart` — `buildTestApp(mockHttp:)` performs a minimal boot (native crypto + SQLite + mock Client) and returns a provider-wrapped widget tree
+- `integration_test/helpers/mock_matrix_http_client.dart`  stateful mock that holds room data and builds sync responses
+- `integration_test/helpers/test_app_boot.dart`  `buildTestApp(mockHttp:)` performs a minimal boot (native crypto + SQLite + mock Client) and returns a provider-wrapped widget tree
 
 **Sync loop note:** The Matrix SDK runs a periodic sync timer. Use `tester.pump()` (not `pumpAndSettle()`) to advance the fake clock without blocking on the active timer. Multiple pumps flush the async login → sync → navigation chain.
 
@@ -263,7 +265,7 @@ testWidgets('login then see rooms', (tester) async {
 
 ## Gotchas & Non-Obvious Details
 
-1. **Timeline is newest-first**: `Timeline.events[0]` is the most recent event. `ListView.builder(reverse: true)` renders from bottom. Events with `relationshipEventId != null` (replies, reactions, edits, threads) are filtered out — they render inline with their parent.
+1. **Timeline is newest-first**: `Timeline.events[0]` is the most recent event. `ListView.builder(reverse: true)` renders from bottom. Events with `relationshipEventId != null` (replies, reactions, edits, threads) are filtered out  they render inline with their parent.
 
 2. **Database wipe on version mismatch**: `kDbSchemaVersion = 1` in `main.dart`. If the stored version doesn't match, the DB is deleted entirely. Bump on every alpha release.
 
@@ -279,9 +281,9 @@ testWidgets('login then see rooms', (tester) async {
 
 8. **No CI found**: No `.github/` workflows. `dart analyze` must pass before PRs (per README).
 
-9. **`metadata` file exists**: Don't modify `.metadata` — Flutter uses it internally.
+9. **`metadata` file exists**: Don't modify `.metadata`  Flutter uses it internally.
 
-10. **env. SDK constraint**: `>=3.2.6 <4.0.0` — uses Dart 3 features (sealed classes in `async_utils.dart`).
+10. **env. SDK constraint**: `>=3.2.6 <4.0.0`  uses Dart 3 features (sealed classes in `async_utils.dart`).
 
 11. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
 
@@ -293,7 +295,7 @@ testWidgets('login then see rooms', (tester) async {
 
 ## Edge Cases When Editing
 
-- **Room lookup in Router**: `RoomDelegate` doesn't validate ID format — just calls `client.getRoomById()`. If the first sync hasn't completed (room list empty), shows a spinner instead of an error.
+- **Room lookup in Router**: `RoomDelegate` doesn't validate ID format  just calls `client.getRoomById()`. If the first sync hasn't completed (room list empty), shows a spinner instead of an error.
 - **ProfileDelegate**: Validates `@user:domain` format with regex `^@.+:.+`. Redirects own profile to hub screen.
 - **DB operations use `databaseFactoryFfi`**: set in init after `sqfliteFfiInit()`. Not the default `databaseFactory`.
 - **Native crypto is mandatory**: `flutter_vodozemac.init()` is called early in the init pipeline. If it fails, the app can't boot.
