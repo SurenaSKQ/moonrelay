@@ -274,51 +274,114 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
           ),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            // ── The image (BoxFit.contain keeps aspect ratio) ──────────
-            Positioned.fill(
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Container(
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                  child: Icon(
-                    Icons.image_outlined,
-                    size: 40,
-                    color: cs.onSurfaceVariant,
+        // Wrap the body in a MouseRegion so the metadata overlay (image
+        // dimensions + file size) only appears while the user is
+        // actually looking at the thumbnail — the rest of the time the
+        // image is just the picture itself, no chrome.  Using a
+        // stateful widget for the hover state would also work but
+        // would require lifting the hover state out of the build
+        // method, which complicates the FutureBuilder chain.  A
+        // dedicated [_ImageHoverRegion] is the smallest possible
+        // change.
+        child: _ImageHoverRegion(
+          isGif: _isGif,
+          imgWidth: _imgWidth,
+          imgHeight: _imgHeight,
+          fileSize: _fileSize,
+          formattedSize: _fileSize == null
+              ? null
+              : _formatSize(_fileSize!),
+          child: Image.memory(
+            bytes,
+            // fitWidth preserves aspect ratio while filling the box
+            // horizontally — no more centred letterboxing.  When the
+            // image's intrinsic aspect already matches the box (the
+            // common case) the picture fills it exactly.
+            fit: BoxFit.fitWidth,
+            alignment: AlignmentDirectional.centerStart,
+            errorBuilder: (_, __, ___) => Container(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              child: Icon(
+                Icons.image_outlined,
+                size: 40,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Lightweight [MouseRegion] wrapper that shows an informational
+/// overlay (GIF badge, dimensions, file size) only while the cursor
+/// is over the image.
+///
+/// Lives next to [ImageMessageType] because the thumbnail widget is
+/// stateful and exposing a dedicated stateful widget avoids a refactor
+/// of [ImageMessageType] to track hover state in its own
+/// `_ImageMessageTypeState`.
+class _ImageHoverRegion extends StatefulWidget {
+  const _ImageHoverRegion({
+    required this.child,
+    required this.isGif,
+    required this.imgWidth,
+    required this.imgHeight,
+    required this.fileSize,
+    required this.formattedSize,
+  });
+
+  final Widget child;
+  final bool isGif;
+  final int? imgWidth;
+  final int? imgHeight;
+  final int? fileSize;
+  final String? formattedSize;
+
+  @override
+  State<_ImageHoverRegion> createState() => _ImageHoverRegionState();
+}
+
+class _ImageHoverRegionState extends State<_ImageHoverRegion> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Stack(
+        children: [
+          widget.child,
+          // ── GIF badge (always visible — small corner label) ────
+          if (widget.isGif)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'GIF',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
             ),
 
-            // ── GIF badge ──────────────────────────────────────────────
-            if (_isGif)
-              Positioned(
-                top: 6,
-                left: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'GIF',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-              ),
-
-            // ── Hover / tap hint overlay ────────────────────────────────
+          // ── Dimensions / file size — only on hover ────────────────
+          if (_isHovered && _hasInfoToShow)
             Positioned(
               bottom: 0,
               left: 0,
@@ -328,13 +391,13 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                   horizontal: 10,
                   vertical: 6,
                 ),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.5),
-                      Colors.transparent,
+                      Color(0x80000000),
+                      Color(0x00000000),
                     ],
                   ),
                 ),
@@ -347,19 +410,18 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                       color: Colors.white.withValues(alpha: 0.8),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      _imgWidth != null && _imgHeight != null
-                          ? '$_imgWidth×$_imgHeight'
-                          : '',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.8),
+                    if (widget.imgWidth != null && widget.imgHeight != null)
+                      Text(
+                        '${widget.imgWidth}×${widget.imgHeight}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
                       ),
-                    ),
-                    if (_fileSize != null) ...[
+                    if (widget.fileSize != null) ...[
                       const SizedBox(width: 8),
                       Text(
-                        _formatSize(_fileSize!),
+                        widget.formattedSize ?? '',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.7),
@@ -370,9 +432,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
+
+  /// True when there's at least one piece of metadata to display in
+  /// the hover overlay.  When the event has no dimensions and no
+  /// file size we don't render the gradient at all — the GIF badge
+  /// and a clean thumbnail are enough.
+  bool get _hasInfoToShow =>
+      (widget.imgWidth != null && widget.imgHeight != null) ||
+      widget.fileSize != null;
 }
