@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/encryption_badge.dart';
 import 'package:provider/provider.dart';
@@ -68,7 +69,7 @@ class _ClientThumbnailCache {
 /// A scrollable list of rooms, optionally filtered by [roomFilter].
 ///
 /// If [roomFilter] is `null`, every room the user is a member of is shown.
-/// Otherwise only rooms for which the predicate returns `true` are shown —
+/// Otherwise only rooms for which the predicate returns `true` are shown
 /// this is used by the navigation pane to display direct chats, all rooms,
 /// or rooms belonging to a specific space.
 class RoomsPane extends StatefulWidget {
@@ -85,28 +86,34 @@ class RoomsPane extends StatefulWidget {
 }
 
 class _RoomsPaneState extends State<RoomsPane> {
-  /// Per-client thumbnail caches. Keyed by Client.hashCode so a logout/cleanup
+  /// Per-client thumbnail caches. Keyed by Client.userID so a logout/cleanup
   /// path can simply drop the matching entry instead of nuking everything.
-  static final Map<int, _ClientThumbnailCache> _clientCaches = {};
+  static final Map<String, _ClientThumbnailCache> _clientCaches = {};
 
-  /// Debounce window for sync-tick rebuilds. Without this, every incremental
-  /// sync triggers a full list rebuild even when the filtered set hasn't
-  /// changed.
-  static const Duration _syncDebounce = Duration(milliseconds: 350);
-
-  /// Holds the latest filtered rooms. Updated via a debounced listener
-  /// subscribed to `client.onSync.stream`.
+  /// Holds the latest filtered rooms. Updated via the shared [SyncPulse]
+  /// (a single debounced fan-out for the whole app) so multiple panes
+  /// don't all subscribe to `client.onSync.stream` and produce 3–5
+  /// rebuilds per tick.
   List<Room>? _filteredRooms;
-  Timer? _debounce;
-  StreamSubscription<Object?>? _syncSub;
+  int _lastFilteredVersion = -1;
+
   int? _subscribedClientId;
 
   /// Returns the per-client thumbnail cache for [client].
   static _ClientThumbnailCache _cacheFor(Client client) {
     return _clientCaches.putIfAbsent(
-      identityHashCode(client),
+      _clientKey(client),
       () => _ClientThumbnailCache(client),
     );
+  }
+
+  /// Stable key for [client]. Uses `userID` when available so a future
+  /// re-login of the same account reuses the cache; falls back to the
+  /// runtime hash only as a last resort.
+  static String _clientKey(Client client) {
+    final id = client.userID;
+    if (id != null && id.isNotEmpty) return id;
+    return 'anon:${identityHashCode(client)}';
   }
 
   /// Cached thumbnail promise for [key], scoped to the active [client].
@@ -128,21 +135,22 @@ class _RoomsPaneState extends State<RoomsPane> {
   void _ensureSubscription(Client client) {
     final id = identityHashCode(client);
     if (id == _subscribedClientId) return;
-    _syncSub?.cancel();
-    _syncSub = null;
     _subscribedClientId = id;
 
     // Seed the initial value synchronously so the first frame has data.
     _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
+    _lastFilteredVersion = context.read<SyncPulse>().version;
+  }
 
-    _syncSub = client.onSync.stream.listen((_) {
-      _debounce?.cancel();
-      _debounce = Timer(_syncDebounce, () {
-        if (!mounted) return;
-        setState(() {
-          _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
-        });
-      });
+  /// Called from [build] whenever the sync pulse version changes.
+  /// Coalesces rebuilds into one [setState] per debounced pulse.
+  void _onPulseChange(int version) {
+    if (version == _lastFilteredVersion) return;
+    _lastFilteredVersion = version;
+    final client = Provider.of<Client>(context, listen: false);
+    if (!mounted) return;
+    setState(() {
+      _filteredRooms = _applyFilter(widget.roomFilter, client.rooms);
     });
   }
 
@@ -165,23 +173,36 @@ class _RoomsPaneState extends State<RoomsPane> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _syncSub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final client = Provider.of<Client>(context);
+    // Read the client without subscribing — we already drive our own
+    // rebuilds via the shared [SyncPulse] (debounced 350 ms by the
+    // app-wide fan-out). Subscribing here would cause every Client
+    // notification (every sync tick, every key verification event,
+    // every room addition, etc.) to rebuild the entire pane even when
+    // the filtered rooms list hasn't changed.
+    final client = Provider.of<Client>(context, listen: false);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+
+    // React to the debounced sync pulse without subscribing to the
+    // client itself. _onPulseChange compares against the cached
+    // version and only setStates when the filtered set might have
+    // changed.
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
+    _onPulseChange(pulseVersion);
+
     final filtered = _filteredRooms;
 
     return Material(
       child: Builder(builder: (context) {
         // ── Loading state: waiting for initial sync ────────────────
-        if (filtered == null || (filtered.isEmpty && !_hasReceivedSync(client))) {
+        if (filtered == null ||
+            (filtered.isEmpty && !_hasReceivedSync(client))) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -239,42 +260,16 @@ class _RoomsPaneState extends State<RoomsPane> {
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final Room room = filtered[index];
-            final displayname =
-                room.getLocalizedDisplayname().trim().isEmpty
-                    ? AppLocalizations.of(context)!.untitledRoom
-                    : room.getLocalizedDisplayname();
+            final rawName = room.getLocalizedDisplayname().trim();
+            final displayname = rawName.isEmpty
+                ? AppLocalizations.of(context)!.untitledRoom
+                : room.getLocalizedDisplayname();
 
-            return ListTile(
-              leading:
-                  _RoomAvatar(room: room, client: client, scheme: scheme),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      displayname,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w300, fontSize: 18),
-                    ),
-                  ),
-                  RoomEncryptionBadge(room: room),
-                ],
-              ),
-              subtitle: Text(
-                room.lastEvent?.body ?? l10n.noMessages,
-                maxLines: 1,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w300,
-                  fontSize: 16,
-                ),
-              ),
-              // Unread / mention / highlight badges render on the right
-              // edge of the row.  Highlights take visual priority over
-              // plain mentions and plain mentions over silent unread
-              // counts so the user can scan the list at a glance.
-              trailing: _RoomUnreadBadges(
-                notificationCount: room.notificationCount,
-                highlightCount: room.highlightCount,
-              ),
+            return _RoomRow(
+              room: room,
+              client: client,
+              scheme: scheme,
+              displayname: displayname,
               onTap: () => _joinRoom(context, room),
             );
           },
@@ -392,8 +387,7 @@ class _RoomAvatar extends StatelessWidget {
       );
     }
 
-    final cacheKey =
-        '${room.id}::${room.avatar!.toString()}::56x56';
+    final cacheKey = '${room.id}::${room.avatar!.toString()}::56x56';
     return FutureBuilder<Uri?>(
       future: _RoomsPaneState.cachedThumbnail(
         client,
@@ -435,7 +429,7 @@ class _RoomAvatar extends StatelessWidget {
   /// Splits on whitespace and takes the first character of the first
   /// two non-empty parts.  `String.characters.firstOrNull` is used so
   /// the function is safe with empty parts and multi-byte Unicode
-  /// (e.g. Persian, CJK) displaynames — a direct `s[0]` would throw
+  /// (e.g. Persian, CJK) displaynames  a direct `s[0]` would throw
   /// on an empty split or split grapheme boundaries mid-codepoint.
   String _initialsForDisplayname(String displayname) {
     final parts = displayname
@@ -483,7 +477,7 @@ class _RoomUnreadBadges extends StatelessWidget {
       );
     }
     if (notificationCount > 0) {
-      // Plain unread (no @-mention) — softer accent so it doesn't
+      // Plain unread (no @-mention)  softer accent so it doesn't
       // compete with highlights when both could be present.
       return _Badge(
         count: notificationCount,
@@ -523,6 +517,84 @@ class _Badge extends StatelessWidget {
           color: foreground,
           fontSize: 12,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Lightweight custom replacement for [ListTile] in the room list.
+///
+/// [ListTile] is heavier than a hand-rolled [Row] + [InkWell] for the
+/// simple "avatar + name + subtitle + badges" layout we use here. With
+/// 200 rooms in a sidebar this swap measurably reduces paint time
+/// during scroll.
+class _RoomRow extends StatelessWidget {
+  const _RoomRow({
+    required this.room,
+    required this.client,
+    required this.scheme,
+    required this.displayname,
+    required this.onTap,
+  });
+
+  final Room room;
+  final Client client;
+  final ColorScheme scheme;
+  final String displayname;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            _RoomAvatar(room: room, client: client, scheme: scheme),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayname,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w300,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      RoomEncryptionBadge(room: room),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    room.lastEvent?.body ?? l10n.noMessages,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w300,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _RoomUnreadBadges(
+              notificationCount: room.notificationCount,
+              highlightCount: room.highlightCount,
+            ),
+          ],
         ),
       ),
     );
