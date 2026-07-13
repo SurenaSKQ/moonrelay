@@ -81,20 +81,50 @@ class ChatTimeline extends StatefulWidget {
   State<ChatTimeline> createState() => ChatTimelineState();
 }
 
-/// Counts the number of events in [events] that are newer than the
-/// fully-read marker [fullyReadEventId].  The list is expected in
-/// newest-first order (matching [Timeline.events]).  Returns the
-/// entire list length when no marker is set (a fresh account that has
-/// never opened the room has nothing to anchor the count against).
+/// Counts the number of unread events in [events], skipping state
+/// events so they don't trigger the jump-to-unread FAB.
+///
+/// The list is expected in newest-first order (matching
+/// [Timeline.events]).  An event counts as "unread" when it is
+/// positioned newer than [fullyReadEventId] in the cache.  When no
+/// marker is set (a fresh account that has never opened the room has
+/// nothing to anchor the count against) the entire visible window
+/// counts as unread.
+///
+/// State events (member joins, room renames, topic changes, etc.) are
+/// intentionally excluded — they are not messages the user needs to
+/// "catch up on" in the same way as regular messages, and including
+/// them caused the FAB to surface in rooms where there is genuinely no
+/// unread chat content.  The jump target inherits the same rule: when
+/// the user invokes it, the destination is the first real message after
+/// the marker, not the first state event.
 int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
   if (events == null || events.isEmpty) return 0;
-  if (fullyReadEventId.isEmpty) return events.length;
   var count = 0;
+  // When the marker is empty we treat every visible event as unread.
+  // Still skip state events so a room with only state activity (e.g.
+  // membership churn) does not pretend to have unread messages.
+  if (fullyReadEventId.isEmpty) {
+    for (final ev in events) {
+      if (_isMessageLikeEvent(ev)) count++;
+    }
+    return count;
+  }
   for (final ev in events) {
     if (ev.eventId == fullyReadEventId) break;
-    count++;
+    if (_isMessageLikeEvent(ev)) count++;
   }
   return count;
+}
+
+/// True when [event] should count toward the unread total: regular
+/// chat messages, stickers, and any future message-type event.  State
+/// events (member changes, topic edits, encryption, etc.) return
+/// `false` because they are bookkeeping the SDK manages on the user's
+/// behalf and don't warrant a "jump to unread" nudge.
+bool _isMessageLikeEvent(Event event) {
+  return event.type == EventTypes.Message ||
+      event.type == EventTypes.Sticker;
 }
 
 class ChatTimelineState extends State<ChatTimeline> {
@@ -420,16 +450,24 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// Scrolls the timeline to the first unread event — the chronologically
   /// newest event newer than [Room.fullyRead] in the loaded window.
   ///
+  /// State events are skipped during the search: the jump target is
+  /// always the first real message after the marker, not the first
+  /// state event.  A room with only state activity after the marker
+  /// (member churn, topic edits, encryption rollouts, …) has nothing
+  /// the user needs to "catch up on", so the FAB shouldn't surface in
+  /// the first place — that's enforced by [countUnreadInWindow].
+  ///
   /// The implementation is robust to "not yet loaded" targets:
   ///
   /// 1. If the marker (the event the user has read up to) is already in
-  ///    the cache, the first unread event is at `events[markerIdx - 1]`
-  ///    and we can jump to it directly.
+  ///    the cache, the first unread event is the closest message-like
+  ///    event newer than the marker (`events[markerIdx - 1]` or any
+  ///    earlier non-state event in the same window).
   /// 2. If the marker is older than the loaded window, the cache
-  ///    contains only events newer than the marker — the first unread is
-  ///    the oldest one in the cache.  We jump to that, and (if the
-  ///    scroll-up affordance is desired) optionally paginate older
-  ///    history so the user sees the exact boundary.
+  ///    contains only events newer than the marker — the first unread
+  ///    is the oldest message-like event in the cache.  We jump to
+  ///    that, and (if the scroll-up affordance is desired) optionally
+  ///    paginate older history so the user sees the exact boundary.
   /// 3. If the cache is empty or the marker is still missing after
   ///    pagination, we paginate the timeline in the appropriate
   ///    direction until the marker is found, refreshing the pill with
@@ -456,11 +494,18 @@ class ChatTimelineState extends State<ChatTimeline> {
     }
 
     // Fast path: the marker is in the cache.  The first unread event
-    // is the one immediately newer (lower index in newest-first order).
+    // is the closest message-like event newer (lower index in
+    // newest-first order) than the marker.  If every newer event in
+    // the window is a state event, the marker is effectively at index 0
+    // and we fall through to the slow path.
     final initialIdx = _findMarkerIndex(timeline.events, markerId);
     if (initialIdx > 0) {
-      _jumpToUnreadEvent(timeline.events[initialIdx - 1].eventId);
-      return;
+      final unreadIdx =
+          _findFirstUnreadMessageIndex(timeline.events, initialIdx - 1);
+      if (unreadIdx >= 0) {
+        _jumpToUnreadEvent(timeline.events[unreadIdx].eventId);
+        return;
+      }
     }
 
     // Slow path: we need to bring the target into the cache before we
@@ -474,14 +519,25 @@ class ChatTimelineState extends State<ChatTimeline> {
       });
     }
 
-    // Case A: the marker is older than the loaded window.  Every event
-    // in the cache is therefore unread and the first unread is the
-    // *oldest* event in the cache.  No pagination needed; we just
-    // need to scroll there.  Paginating older (requestHistory) would
-    // also work but is unnecessary — the cache already covers a
-    // contiguous stretch of unread content.
+    // Case A: the marker is older than the loaded window.  Scan the
+    // cache for the oldest message-like event — that's the first
+    // unread if and only if the marker truly is older than the
+    // window.  If only state events are in the cache we still have a
+    // useful target (the newest message at the bottom of the cache),
+    // but since we already know everything is unread, scrolling to
+    // the bottom is the right fallback.
     if (initialIdx == -1 && timeline.events.isNotEmpty) {
-      _jumpToUnreadEvent(timeline.events.last.eventId);
+      final oldestMessageIdx =
+          _findFirstUnreadMessageIndexFromEnd(timeline.events);
+      if (oldestMessageIdx >= 0) {
+        _jumpToUnreadEvent(timeline.events[oldestMessageIdx].eventId);
+      } else {
+        // No message in the loaded window — drop the user at the
+        // bottom and mark the room read.  This matches the pre-state-
+        // event-skip behaviour for empty-message windows.
+        _scrollToBottom();
+        _markRoomRead(force: true);
+      }
       return;
     }
 
@@ -509,14 +565,48 @@ class ChatTimelineState extends State<ChatTimeline> {
     final eventsAfter = _timeline?.events ?? const [];
     final markerIdx = _findMarkerIndex(eventsAfter, markerId);
     if (markerIdx > 0) {
-      _jumpToUnreadEvent(eventsAfter[markerIdx - 1].eventId);
-    } else if (eventsAfter.isNotEmpty) {
+      final unreadIdx =
+          _findFirstUnreadMessageIndex(eventsAfter, markerIdx - 1);
+      if (unreadIdx >= 0) {
+        _jumpToUnreadEvent(eventsAfter[unreadIdx].eventId);
+        return;
+      }
+    }
+    if (eventsAfter.isNotEmpty) {
       // Marker is at index 0 or still not in the cache; the cache
-      // has only events older than the marker.  Scroll to the bottom
-      // (the newest in the cache) so the user sees the most recent
-      // message we have, and clear the pill.
+      // has only events older than the marker (or only state events
+      // newer than the marker).  Scroll to the bottom (the newest in
+      // the cache) so the user sees the most recent message we have,
+      // and clear the pill.
       _scrollToBottom();
     }
+  }
+
+  /// Returns the index of the first message-like event at or below
+  /// [startIdx] in a newest-first event list, walking back from
+  /// [startIdx] toward older events.  Returns `-1` when the entire
+  /// tail newer than [startIdx] consists of state events — callers
+  /// should then fall back to scrolling-to-bottom or paginating for
+  /// older history.
+  ///
+  /// Used by [jumpToLastRead] so the FAB target lands on the first
+  /// real message after the read marker, not on a state event like a
+  /// member join or topic change.
+  int _findFirstUnreadMessageIndex(List<Event> events, int startIdx) {
+    for (var i = startIdx; i >= 0; i--) {
+      if (_isMessageLikeEvent(events[i])) return i;
+    }
+    return -1;
+  }
+
+  /// Like [_findFirstUnreadMessageIndex] but walks from the *end* of
+  /// the list.  Used when the read marker is older than the loaded
+  /// window so we need the newest message-like event in the cache.
+  int _findFirstUnreadMessageIndexFromEnd(List<Event> events) {
+    for (var i = events.length - 1; i >= 0; i--) {
+      if (_isMessageLikeEvent(events[i])) return i;
+    }
+    return -1;
   }
 
   /// Returns the index of the event with id [markerId] in [events], or
