@@ -16,6 +16,8 @@
 
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
@@ -120,8 +122,6 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
       ? widget.event.content['info'] as Map<String, dynamic>
       : const {};
 
-  int? get _fileSize => _infoMap['size'] as int?;
-
   /// Whether this image is a GIF (animated or static).
   bool get _isGif =>
       (_infoMap['mimetype'] as String?)?.toLowerCase() == 'image/gif';
@@ -159,12 +159,6 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     }
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
   /// Opens the full-screen image viewer.
   ///
   /// The push is deferred to the next frame for the same reason as
@@ -199,7 +193,6 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     if (cached != null && cached.isNotEmpty) {
       return _buildThumbnail(cs, cached);
     }
-
     if (_downloadFuture == null) {
       return _buildPlaceholder(cs);
     }
@@ -272,20 +265,65 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     );
   }
 
+  /// Re-attempts the download when the user taps the retry icon.  The
+  /// cache might hold a partial or poisoned entry, so it is invalidated
+  /// first; without that step every retry would replay the same error.
+  Future<void> _retryDownload() async {
+    if (!mounted) return;
+    final cache = RoomMediaCache.instance;
+    cache.invalidate(_roomId, widget.event.eventId);
+    setState(() {
+      _downloadFuture = null;
+    });
+    if (_shouldAutoDownload()) {
+      setState(() {
+        _downloadFuture = cache.getOrDownload(
+          _roomId,
+          widget.event.eventId,
+          () => widget.event.downloadAndDecryptAttachment(),
+        );
+      });
+    } else {
+      // Bypass the auto-download policy on explicit user retry.
+      setState(() {
+        _downloadFuture = cache.getOrDownload(
+          _roomId,
+          widget.event.eventId,
+          () => widget.event.downloadAndDecryptAttachment(),
+        );
+      });
+    }
+  }
+
   Widget _buildError(ColorScheme cs) {
     return Tooltip(
       message: AppLocalizations.of(context)!.failedToLoadImage,
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          color: cs.errorContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: cs.error.withValues(alpha: 0.3),
+      child: GestureDetector(
+        onTap: _retryDownload,
+        child: Container(
+          width: 180,
+          height: 140,
+          decoration: BoxDecoration(
+            color: cs.errorContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: cs.error.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.broken_image_outlined, size: 36, color: cs.error),
+                const SizedBox(height: 6),
+                Text(
+                  AppLocalizations.of(context)!.tapToRetry,
+                  style: TextStyle(fontSize: 11, color: cs.onErrorContainer),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Icon(Icons.broken_image_outlined, size: 40, color: cs.error),
       ),
     );
   }
@@ -300,182 +338,113 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     // it displays at a few hundred logical pixels.
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
-    return GestureDetector(
-      onTap: () => _openViewer(bytes),
-      child: Container(
-        width: size.width,
-        height: size.height,
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.4),
+    // Left-align the picture to its message so wide thumbnails don't
+    // centre-stretch across the timeline.  The chat_event wrapper
+    // inserts the message body inside an `Expanded` in a Row, which
+    // would otherwise force this widget to fill the row's width.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: GestureDetector(
+        onTap: () => _openViewer(bytes),
+        onLongPress: () => _saveToDisk(bytes),
+        child: Container(
+          width: size.width,
+          height: size.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        // Wrap the body in a MouseRegion so the metadata overlay (image
-        // dimensions + file size) only appears while the user is
-        // actually looking at the thumbnail  the rest of the time the
-        // image is just the picture itself, no chrome.  Using a
-        // stateful widget for the hover state would also work but
-        // would require lifting the hover state out of the build
-        // method, which complicates the FutureBuilder chain.  A
-        // dedicated [_ImageHoverRegion] is the smallest possible
-        // change.
-        child: _ImageHoverRegion(
-          isGif: _isGif,
-          imgWidth: _imgWidth,
-          imgHeight: _imgHeight,
-          fileSize: _fileSize,
-          formattedSize: _fileSize == null ? null : _formatSize(_fileSize!),
-          child: Image.memory(
-            bytes,
-            // fitWidth preserves aspect ratio while filling the box
-            // horizontally  no more centred letterboxing.  When the
-            // image's intrinsic aspect already matches the box (the
-            // common case) the picture fills it exactly.
-            fit: BoxFit.fitWidth,
-            alignment: AlignmentDirectional.centerStart,
-            cacheWidth: (size.width * dpr).ceil(),
-            errorBuilder: (_, __, ___) => Container(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-              child: Icon(
-                Icons.image_outlined,
-                size: 40,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Lightweight [MouseRegion] wrapper that shows an informational
-/// overlay (GIF badge, dimensions, file size) only while the cursor
-/// is over the image.
-///
-/// Lives next to [ImageMessageType] because the thumbnail widget is
-/// stateful and exposing a dedicated stateful widget avoids a refactor
-/// of [ImageMessageType] to track hover state in its own
-/// `_ImageMessageTypeState`.
-class _ImageHoverRegion extends StatefulWidget {
-  const _ImageHoverRegion({
-    required this.child,
-    required this.isGif,
-    required this.imgWidth,
-    required this.imgHeight,
-    required this.fileSize,
-    required this.formattedSize,
-  });
-
-  final Widget child;
-  final bool isGif;
-  final int? imgWidth;
-  final int? imgHeight;
-  final int? fileSize;
-  final String? formattedSize;
-
-  @override
-  State<_ImageHoverRegion> createState() => _ImageHoverRegionState();
-}
-
-class _ImageHoverRegionState extends State<_ImageHoverRegion> {
-  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
-
-  @override
-  void dispose() {
-    _isHovered.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => _isHovered.value = true,
-      onExit: (_) => _isHovered.value = false,
-      child: Stack(
-        children: [
-          widget.child,
-          if (widget.isGif)
-            const Positioned(
-              top: 6,
-              left: 6,
-              child: _GifBadge(),
-            ),
-          // The hover overlay is the only subtree that re-paints on
-          // hover; the image and the GIF badge stay put.
-          ValueListenableBuilder<bool>(
-            valueListenable: _isHovered,
-            builder: (context, hovered, _) {
-              if (!hovered || !_hasInfoToShow) {
-                return const SizedBox.shrink();
-              }
-              return Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Color(0x80000000),
-                        Color(0x00000000),
-                      ],
+          clipBehavior: Clip.antiAlias,
+          // The picture is the entire visible bubble — no background,
+          // border, or metadata overlay.  Stickers are now stripped of
+          // their backgrounds, and image thumbnails follow suit so the
+          // chat reads as a flow of images rather than a row of framed
+          // cards.  A long-press surfaces the save-to-disk action, which
+          // is also exposed inside the full-screen viewer.
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.memory(
+                  bytes,
+                  // Fit (not cover): the bubble already matches the
+                  // image's intrinsic aspect ratio, so cover would
+                  // crop into something the user can't see in the
+                  // viewer.  Contain fills the box exactly without
+                  // distortion.
+                  fit: BoxFit.contain,
+                  cacheWidth: (size.width * dpr).ceil(),
+                  errorBuilder: (_, __, ___) => Container(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 40,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.zoom_in,
-                        size: 14,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 4),
-                      if (widget.imgWidth != null && widget.imgHeight != null)
-                        Text(
-                          '${widget.imgWidth}x${widget.imgHeight}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      if (widget.fileSize != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.formattedSize ?? '',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
                 ),
-              );
-            },
+              ),
+              // Tiny download affordance in the corner — appears on hover
+              // so it doesn't clutter the bubble when reading.
+              Positioned(
+                top: 6,
+                right: 6,
+                child: _HoverDownloadButton(
+                  onPressed: () => _saveToDisk(bytes),
+                  tooltip: AppLocalizations.of(context)!.downloadImage,
+                ),
+              ),
+              if (_isGif)
+                const Positioned(
+                  top: 6,
+                  left: 6,
+                  child: _GifBadge(),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  /// True when there's at least one piece of metadata to display in
-  /// the hover overlay.  When the event has no dimensions and no
-  /// file size we don't render the gradient at all  the GIF badge
-  /// and a clean thumbnail are enough.
-  bool get _hasInfoToShow =>
-      (widget.imgWidth != null && widget.imgHeight != null) ||
-      widget.fileSize != null;
+  /// Writes the image bytes to a user-chosen path via the platform
+  /// save-file dialog.  Pulled out of the build tree so it can be
+  /// reached from the thumbnail itself, the hover download affordance,
+  /// and the full-screen viewer.
+  Future<void> _saveToDisk(Uint8List bytes) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final filename = _suggestedFileName();
+      final extension = _suggestedExtension();
+      await FilePicker.saveFile(
+        dialogTitle: l10n.saveImage,
+        fileName: filename.isEmpty ? 'image$extension' : filename,
+        bytes: bytes,
+      );
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      // User cancellation isn't a failure; only the platform errors
+      // get logged.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('Image save failed: $e');
+      }
+    }
+  }
+
+  String _suggestedFileName() {
+    final body = widget.event.body;
+    if (body.isEmpty || body == 'Image') return '';
+    return body;
+  }
+
+  String _suggestedExtension() {
+    final mime = (_infoMap['mimetype'] as String?)?.toLowerCase() ?? '';
+    if (mime == 'image/png') return '.png';
+    if (mime == 'image/jpeg') return '.jpg';
+    if (mime == 'image/gif') return '.gif';
+    if (mime == 'image/webp') return '.webp';
+    if (mime == 'image/bmp') return '.bmp';
+    return '.bin';
+  }
 }
 
 /// Small badge that overlays a "GIF" label in the top-left of an
@@ -500,6 +469,66 @@ class _GifBadge extends StatelessWidget {
           color: Colors.white,
           letterSpacing: 1.2,
         ),
+      ),
+    );
+  }
+}
+
+/// Download affordance that fades in only while the cursor is over
+/// the thumbnail.  Kept as a separate widget so its `State` (and
+/// listeners on the hover notifier) stays isolated from the rest of
+/// the image subtree — Image.memory on the parent never re-paints just
+/// because the cursor moved.
+class _HoverDownloadButton extends StatefulWidget {
+  const _HoverDownloadButton({required this.onPressed, required this.tooltip});
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  State<_HoverDownloadButton> createState() => _HoverDownloadButtonState();
+}
+
+class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _isHovered,
+        builder: (context, hovered, _) {
+          return AnimatedOpacity(
+            duration: const Duration(milliseconds: 150),
+            opacity: hovered ? 1.0 : 0.0,
+            child: Tooltip(
+              message: widget.tooltip,
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.6),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: widget.onPressed,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.download_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
