@@ -3,7 +3,7 @@
 Thanks for your interest in making Moonrelay better!
 Please read the
 [Contributing section in the README](README.md#-contributing)
-first — it covers workflow, code style, and what kinds of
+first it covers workflow, code style, and what kinds of
 contributions are most useful.
 
 ## Quick links

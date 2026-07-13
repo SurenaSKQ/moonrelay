@@ -7,7 +7,7 @@
 
 # Moonrelay
 
-**A Matrix client for professionals — secure, cross-platform, and built with Flutter.**
+**A Matrix client for professionals secure, cross-platform, and built with Flutter.**
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/agpl-3.0)
 [![Version](https://img.shields.io/badge/version-0.6.0--alpha-6e3fbc?style=for-the-badge&logo=semver&logoColor=white)](https://github.com/SurenaSKQ/moonrelay/releases)
@@ -78,41 +78,41 @@ and the heat death of the universe.
 ## ✨ Features
 
 ### 🔐 Crypto & Protocol
-- **Matrix Protocol** — full homeserver sync via the Matrix Dart SDK.
-- **End-to-End Encryption** — Olm/Megolm via Vodozemac (native Rust).
-- **Cross-Signing** — establish trust across your devices.
-- **Device Verification** — interactive emoji/QR flows.
-- **Key Backup** — encrypted backup of session keys.
+- **Matrix Protocol**  full homeserver sync via the Matrix Dart SDK.
+- **End-to-End Encryption**  Olm/Megolm via Vodozemac (native Rust).
+- **Cross-Signing**  establish trust across your devices.
+- **Device Verification**  interactive emoji/QR flows.
+- **Key Backup**  encrypted backup of session keys.
 
 ### 💬 Messaging
-- **Rich Messages** — text, HTML, formatted text, replies, edits.
-- **Media** — images, audio recordings, video playback, file sharing.
-- **Threads** — read and reply inside threads.
-- **Reactions & Edits** — inline modifications and reactions.
+- **Rich Messages**  text, HTML, formatted text, replies, edits.
+- **Media**  images, audio recordings, video playback, file sharing.
+- **Threads**  read and reply inside threads.
+- **Reactions & Edits**  inline modifications and reactions.
 
 ### 🎨 Customisation
-- **Three Display Modes** — Modern, Bubbles, IRC.
-- **Theme Modes** — Light, Dark, or follow System.
-- **Seed Colours** — pick a Material 3 seed; the rest derives.
-- **Sidebar Layouts** — adjustable widths, multi-pane desktop layout.
+- **Three Display Modes**  Modern, Bubbles, IRC.
+- **Theme Modes**  Light, Dark, or follow System.
+- **Seed Colours**  pick a Material 3 seed; the rest derives.
+- **Sidebar Layouts**  adjustable widths, multi-pane desktop layout.
 
 ### 🚪 Rooms & Spaces
-- **Room Management** — create, join, leave, browse, and search.
-- **Spaces** — native Matrix space support with a tree sidebar.
-- **Room Directory** — discover public rooms.
-- **User Profiles** — view any user's profile and devices.
-- **Multi-Account** — sign in to multiple homeservers.
+- **Room Management**  create, join, leave, browse, and search.
+- **Spaces**  native Matrix space support with a tree sidebar.
+- **Room Directory**  discover public rooms.
+- **User Profiles**  view any user's profile and devices.
+- **Multi-Account**  sign in to multiple homeservers.
 
 ### 🌍 Platform
-- **Desktop-First** — Linux (deb/rpm) and Windows (MSIX).
-- **Deep Linking** — register as the system handler for `matrix://`
+- **Desktop-First**  Linux (deb/rpm) and Windows (MSIX).
+- **Deep Linking**  register as the system handler for `matrix://`
   URIs on both Linux and Windows.
-- **Notification Support** — desktop notifications for mentions and DMs.
-- **Internationalisation** — full `flutter gen-l10n` plumbing; English
+- **Notification Support**  desktop notifications for mentions and DMs.
+- **Internationalisation**  full `flutter gen-l10n` plumbing; English
   ships, more locales are welcome.
 
 ### 📜 Licensing
-- **AGPL-3.0-or-later** — copyleft open source, source available
+- **AGPL-3.0-or-later**  copyleft open source, source available
   for any service that runs it.
 
 ---
@@ -144,8 +144,8 @@ If a release artifact is missing for your distro, please
 
 - **[Flutter SDK](https://docs.flutter.dev/get-started/install)**
   (3.24+ recommended; pin via the CI workflow's `FLUTTER_VERSION`)
-- **C++ Toolchain** — MSVC Build Tools on Windows, GCC or Clang on Linux
-- **Rust Toolchain** — required for Vodozemac; a missing Rust
+- **C++ Toolchain**  MSVC Build Tools on Windows, GCC or Clang on Linux
+- **Rust Toolchain**  required for Vodozemac; a missing Rust
   install surfaces as a **cryptic build failure** with no obvious
   cause, so install it before debugging anything else.
 
@@ -209,7 +209,7 @@ some inaccuracy). High-level priorities:
 
 ## 🤝 Contributing
 
-Contributions are very welcome — both code and non-code.
+Contributions are very welcome both code and non-code.
 
 ### Workflow
 
@@ -223,26 +223,26 @@ Contributions are very welcome — both code and non-code.
 3. **Make your changes.** Keep `flutter analyze` clean and add
    tests under `test/unit/` or `test/widget/` where applicable.
 4. **Open a PR** against `develop`. The CI must pass before merge.
-5. **For releases** — see [`docs/RELEASING.md`](docs/RELEASING.md).
+5. **For releases** see [`docs/RELEASING.md`](docs/RELEASING.md).
    Don't cut tags unless you're a maintainer.
 
 ### What helps most
 
-- **Issues** — bug reports with logs from `~/.local/share/Moonrelay/logs/`
+- **Issues** bug reports with logs from `~/.local/share/Moonrelay/logs/`
   (Linux) or `%APPDATA%/Moonrelay/logs/` (Windows).
-- **Translations** — fill in keys in
+- **Translations** fill in keys in
   [`lib/src/localization/app_en.arb`](lib/src/localization/app_en.arb)
   for your locale and open a PR.
-- **Code** — open an issue first on anything non-trivial so we can
+- **Code** open an issue first on anything non-trivial so we can
   agree on the approach.
-- **Packaging** — `.deb`/`.rpm`/`.msix` bugs or new distro requests.
+- **Packaging** `.deb`/`.rpm`/`.msix` bugs or new distro requests.
 
 ### Code style
 
 - 2-space indent, 80-column guides (`dart format`).
 - `flutter_lints` (already configured in `analysis_options.yaml`).
 - Doc comments (`///`) on every public API.
-- No untracked `print()` — use the `Logger` from
+- No untracked `print()` use the `Logger` from
   [`log_service.dart`](lib/src/helpers/log_service.dart).
 
 ---
@@ -266,17 +266,17 @@ Flutter 3.24+ (Dart >=3.2.6 <4.0)
 ```
 
 Built with **[Provider](https://pub.dev/packages/provider)** for
-state management (no Riverpod / Bloc — opinionated choice).
+state management (no Riverpod / Bloc; although Riverpod is strongly in consideration).
 Routing via **GoRouter** with `ShellRoute` nesting for the
 hub/main/welcome flows.
 
 For the deep dive, see:
 
-- [`AGENTS.md`](AGENTS.md) — authoritative architecture guide for AI
-  agents and humans alike.
-- [`docs/RELEASING.md`](docs/RELEASING.md) — versioning, CI, and
+- [`AGENTS.md`](AGENTS.md) authoritative architecture guide for AI
+  agents.
+- [`docs/RELEASING.md`](docs/RELEASING.md)  versioning, CI, and
   packaging pipeline.
-- [`docs/TESTING.md`](docs/TESTING.md) — test setup, mocking,
+- [`docs/TESTING.md`](docs/TESTING.md)  test setup, mocking,
   in-app boot pipeline for E2E.
 
 ---
@@ -301,14 +301,14 @@ A disclosure policy and PGP key will land before the 1.0 release.
 The actual crypto lives in the upstream
 [Vodozemac](https://gitlab.com/vodolaz095/vodozemac) library (Rust)
 via `flutter_vodozemac`. Moonrelay itself does not implement
-primitives — it composes them.
+primitives.
 
 ---
 
 ## 📝 License
 
 ```
-Moonrelay — a Matrix chat client for professionals.
+Moonrelay a Matrix chat client for professionals.
 Copyright (C) 2025 Surena Karimpour Ghannadi
 
 This program is free software: you can redistribute it and/or
@@ -344,20 +344,20 @@ For Apache/BSD/MIT dependencies shipped at runtime, see the in-app
 | **📨 Direct** | [@sudo_halt:matrix.org](https://matrix.to/#/@sudo_halt:matrix.org) |
 
 The Matrix support space is the recommended channel for getting
-help — the in-app About page has a one-tap "Join Support Space"
+help the in-app About page has a one-tap "Join Support Space"
 button.
 
 ---
 
 ## 🙏 Acknowledgements
 
-- **[Matrix.org Foundation](https://matrix.org)** — for the protocol.
-- **[Famedly GmbH](https://famedly.com)** — for the Matrix Dart SDK.
-- **[Vodozemac](https://gitlab.com/vodolaz095/vodozemac)** — for the
+- **[Matrix.org Foundation](https://matrix.org)** for the protocol.
+- **[Famedly GmbH](https://famedly.com)**  for the Matrix Dart SDK.
+- **[Vodozemac](https://gitlab.com/vodolaz095/vodozemac)**  for the
   Olm/Megolm Rust implementation.
-- **[Sven Moheit / The Flutter Authors](https://flutter.dev)** — for
+- **[Sven Moheit / The Flutter Authors](https://flutter.dev)**  for
   Flutter and its ecosystem.
-- **[Lucide](https://lucide.dev)** — for the icon set.
+- **[Lucide](https://lucide.dev)**  for the icon set.
 - All the small FOSS local models and DeepSeek that occasionally
   helped when the author's brain was offline.
 
