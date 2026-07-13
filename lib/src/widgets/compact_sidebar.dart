@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
@@ -60,41 +59,16 @@ class CompactSidebar extends StatefulWidget {
 
 class _CompactSidebarState extends State<CompactSidebar> {
   _CompactSidebarFilter _filter = _CompactSidebarFilter.all;
-  StreamSubscription? _syncSub;
 
-  @override
-  void initState() {
-    super.initState();
-    _syncSub = _clientOrNull(context)?.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
-    });
-  }
+  int _syncVersion = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Re-attach the sync listener if the client changed (e.g. login
-    // switch).  Listening twice would cause duplicate rebuilds.
-    final client = _clientOrNull(context);
-    if (client == null) return;
-    _syncSub?.cancel();
-    _syncSub = client.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _syncSub?.cancel();
-    super.dispose();
-  }
-
-  Client? _clientOrNull(BuildContext context) {
-    try {
-      return Provider.of<Client>(context, listen: false);
-    } catch (_) {
-      return null;
-    }
+    // `context.select` is only legal inside `build`. The pulse read
+    // happens there; the version check in [build] compares against
+    // the cached value and invalidates the cached room list when
+    // the pulse moves.
   }
 
   void _setFilter(_CompactSidebarFilter filter) {
@@ -106,13 +80,22 @@ class _CompactSidebarState extends State<CompactSidebar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final client = _clientOrNull(context);
+    // Read client without subscribing — we already drive our own
+    // rebuilds via the SyncPulse (and the local filter state).
+    final client = Provider.of<Client>(context, listen: false);
     final l10n = AppLocalizations.of(context)!;
+    // `context.select` is only legal inside `build`. Subscribing to
+    // the pulse here is the documented pattern: when the pulse
+    // version advances, this widget re-builds, then we compare to
+    // [_syncVersion] below to detect the change.
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
+    if (pulseVersion != _syncVersion) {
+      _syncVersion = pulseVersion;
+    }
 
     final width = widget.width ?? 320.0;
 
-    final rooms =
-        client == null ? const <Room>[] : _filteredRooms(client.rooms, _filter);
+    final rooms = _filteredRooms(client.rooms, _filter);
 
     return SizedBox(
       width: width,

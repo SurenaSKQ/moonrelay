@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -23,6 +21,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:provider/provider.dart';
@@ -53,8 +52,16 @@ class _NavigationPaneState extends State<NavigationPane> {
   Set<String> _knownIds = {};
   String? _dragHoverId;
   bool _pendingAutoGroup = false;
-  StreamSubscription<Object?>? _syncSub;
-  final ValueNotifier<int> _roomsVersion = ValueNotifier(0);
+
+  /// Cached set of space room ids. Refreshed only when the sync pulse
+  /// advances; previously recomputed on every parent rebuild.
+  Set<String>? _cachedSpaceIds;
+  int _cachedSpaceIdsVersion = -1;
+
+  /// Most recent pulse version we've observed. Compared against the
+  /// current value in [build] (where `context.select` is legal) to
+  /// detect sync ticks.
+  int _syncVersion = 0;
 
   @override
   void initState() {
@@ -62,26 +69,13 @@ class _NavigationPaneState extends State<NavigationPane> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _runPendingAutoGroup());
   }
 
-  bool _subscriptionAttached = false;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_subscriptionAttached) return;
-    final client = context.read<Client>();
-    _syncSub = client.onSync.stream.listen((_) {
-      // Increment the version so the build method knows to re-scan for
-      // new spaces, instead of running the scan on every widget rebuild.
-      _roomsVersion.value++;
-    });
-    _subscriptionAttached = true;
-  }
-
-  @override
-  void dispose() {
-    _syncSub?.cancel();
-    _roomsVersion.dispose();
-    super.dispose();
+    // Pulse reads happen in [build] (where `context.select` is
+    // legal). Nothing to do here; the first build will seed the
+    // version and any subsequent pulse tick will trigger a rebuild
+    // through the InheritedWidget contract.
   }
 
   void _runPendingAutoGroup() {
@@ -114,18 +108,29 @@ class _NavigationPaneState extends State<NavigationPane> {
     final l10n = AppLocalizations.of(context)!;
     final spacePrefs = context.watch<SpacePreferences>();
 
-    // Only re-scan for new spaces when the rooms version actually changes
-    // (driven by onSync.stream). Previously this ran O(spaces) on every
-    // build, including those triggered by unrelated rebuilds (e.g. when
-    // spacePrefs.spaceOrder changes due to a drag-drop).
-    final _ = _roomsVersion.value;
-    final ids = client.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
-    final newIds = ids.difference(_knownIds);
-    if (newIds.isNotEmpty) {
-      _knownIds = ids;
-      _pendingAutoGroup = true;
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _runPendingAutoGroup());
+    // `context.select` is only legal inside `build`. The pulse ticks
+    // every time the shared [SyncPulse] changes; we compare against
+    // the cached version to detect sync ticks and trigger the cached
+    // space-id scan only when the pulse actually moves.
+    final pulseVersion =
+        context.select<SyncPulse, int>((p) => p.version);
+    if (pulseVersion != _syncVersion) {
+      _syncVersion = pulseVersion;
+    }
+
+    // Refresh the cached space id set only when the sync pulse moves.
+    // This replaces the previous O(spaces) scan on every parent build.
+    if (_cachedSpaceIdsVersion != _syncVersion) {
+      _cachedSpaceIdsVersion = _syncVersion;
+      _cachedSpaceIds =
+          client.rooms.where((r) => r.isSpace).map((r) => r.id).toSet();
+      final newIds = _cachedSpaceIds!.difference(_knownIds);
+      if (newIds.isNotEmpty) {
+        _knownIds = _cachedSpaceIds!;
+        _pendingAutoGroup = true;
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _runPendingAutoGroup());
+      }
     }
 
     return Consumer<NavigationState>(
@@ -364,7 +369,7 @@ class _NavigationPaneState extends State<NavigationPane> {
     );
   }
 
-  /// The group icon — draggable when collapsed so users can reorder groups.
+  /// The group icon  draggable when collapsed so users can reorder groups.
   Widget _groupIcon(ThemeData theme, bool expanded, String gid,
       {VoidCallback? onDragEnd}) {
     final icon = _NIB(
@@ -473,7 +478,7 @@ class _DFeedback extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Context menu — tap navigates, long‑press/right‑click opens menu
+// Context menu  tap navigates, long‑press/right‑click opens menu
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _SCMenu extends StatefulWidget {
