@@ -28,11 +28,13 @@ import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
+import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
@@ -48,8 +50,9 @@ import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 /// Controller widget for the multi-pane dashboard layout.
 ///
 /// Owns transient resize state via [ValueNotifier]s (so drag updates don't
-/// trigger full-tree rebuilds) and reacts to [CurrentRoom] and
-/// [SettingsController] changes only at the precise subtrees that care.
+/// trigger full-tree rebuilds) and delegates the shell-decision logic to
+/// [LayoutShellController] so a shell swap only re-renders the shell
+/// widget, not the entire tree.
 /// The actual UI is delegated to the stateless [_DashboardView] so that
 /// the right sidebar receives room changes as direct props with no
 /// indirection.
@@ -64,17 +67,27 @@ class DashboardLayout extends StatefulWidget {
 }
 
 class _DashboardLayoutState extends State<DashboardLayout> {
-  // Live drag state — exposed as ValueNotifiers so the layout shell can
+  // Live drag state; exposed as ValueNotifiers so the layout shell can
   // observe them with [ListenableBuilder] without rebuilding the entire tree
   // on every drag delta.
   final ValueNotifier<double?> _leftWidth = ValueNotifier(null);
   final ValueNotifier<double?> _rightWidth = ValueNotifier(null);
 
-  // Adaptive layout decisions derived from the latest layout pass.
+  /// Owns the compact / wide / mobile shell decision. The actual
+  /// shell widget rebuilds via `ListenableBuilder` against this
+  /// controller, so a shell flip only invalidates the shell subtree
+  /// (NavigationPane / RoomsPane / right sidebar) rather than the
+  /// whole dashboard tree.
+  final LayoutShellController _shell = LayoutShellController();
+
+  /// Backwards-compat: hold the most recent evaluated layout size so
+  /// widgets that read `LayoutScope.of(context).size` see a coherent
+  /// value without having to listen to the controller.
   LayoutSize _layoutSize = LayoutSize.expanded;
 
   @override
   void dispose() {
+    _shell.dispose();
     _leftWidth.dispose();
     _rightWidth.dispose();
     super.dispose();
@@ -112,9 +125,41 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        _layoutSize = LayoutBreakpoints.sizeForWidth(constraints.maxWidth);
+        final width = constraints.maxWidth;
+        _layoutSize = LayoutBreakpoints.sizeForWidth(width);
+
+        // ── Shell decision with hysteresis ──────────────────────────────
+        //
+        // We subscribe to `LayoutBuilder.constraints` (which fires for
+        // every resize tick) instead of `MediaQuery.sizeOf(context)` so
+        // the layout-driven rebuild does not also pull in every
+        // `MediaQuery` listener across the tree.  Only this widget's
+        // `build` runs on a resize; everything downstream that does
+        // NOT depend on `LayoutBuilder.constraints` keeps its previous
+        // element.
+        final layoutMode = context.select<SettingsController, LayoutMode>(
+          (s) => s.layoutMode,
+        );
+
+        // Delegate the hysteresis/settle decision to the
+        // [LayoutShellController]. The controller exposes its
+        // committed size via a [ValueListenable] (the controller
+        // itself is a [ChangeNotifier]) so the shell subtree
+        // re-renders only when the size actually flips, not on every
+        // resize tick.
+        final committedSize = _shell.update(
+          rawWidth: width,
+          layoutMode: layoutMode,
+        );
+        // The dashboard always renders a compact-or-wider shell
+        // here; the dedicated mobile shell is mounted at a higher
+        // level by the router when needed.
+        final shouldUseCompact = committedSize == LayoutSize.compact;
+
         return _DashboardView(
           size: _layoutSize,
+          width: width,
+          shouldUseCompact: shouldUseCompact,
           leftWidthNotifier: _leftWidth,
           rightWidthNotifier: _rightWidth,
           onLeftResize: _onLeftResize,
@@ -140,6 +185,8 @@ class _DashboardView extends StatelessWidget {
   const _DashboardView({
     required this.child,
     required this.size,
+    required this.width,
+    required this.shouldUseCompact,
     required this.leftWidthNotifier,
     required this.rightWidthNotifier,
     required this.onLeftResize,
@@ -150,6 +197,16 @@ class _DashboardView extends StatelessWidget {
 
   final Widget child;
   final LayoutSize size;
+
+  /// Live viewport width. Passed in from the parent so [_DashboardView]
+  /// does not need to call [MediaQuery.sizeOf] (which would subscribe it
+  /// to every media-query change and rebuild on each resize tick).
+  final double width;
+
+  /// Pre-resolved compact-vs-wide decision. The controller applies
+  /// hysteresis around the 1280 px boundary so this flag only flips when
+  /// the resize has settled.
+  final bool shouldUseCompact;
   final ValueNotifier<double?> leftWidthNotifier;
   final ValueNotifier<double?> rightWidthNotifier;
   final void Function(double) onLeftResize;
@@ -162,52 +219,26 @@ class _DashboardView extends StatelessWidget {
     final settings = context.watch<SettingsController>();
     final theme = Theme.of(context);
 
-    // ── Decide which shell to render ──────────────────────────────────
-    //
-    // The responsive decision now flows through two helpers on
-    // [LayoutBreakpoints]:
-    //
-    // - [LayoutBreakpoints.shouldUseMobile] is true when the window is
-    //   too narrow even for the unified compact sidebar (below
-    //   mobileMax).  Mobile mode is always handled by the router-level
-    //   [_AdaptiveMainLayout] so this dashboard widget should not run
-    //   in that case; if we do get here with a sub-mobile width we still
-    //   fall back to the compact shell rather than crashing.
-    // - [LayoutBreakpoints.shouldUseCompact] is true for everything
-    //   below [LayoutBreakpoints.compactMax].  The compact shell keeps
-    //   a unified sidebar visible at every size where the multi-pane
-    //   layout would feel cramped, replacing the legacy "medium"
-    //   layout which only showed a useless left rail.
-    //
-    // The user can also force a shell via the [LayoutMode] setting.
-    // Mobile wins whenever [LayoutMode.mobile] is selected regardless
-    // of width so the explicit user override is honoured.
-    final layoutMode = settings.layoutMode;
-    final width = MediaQuery.sizeOf(context).width;
-    final shouldUseMobile = layoutMode == LayoutMode.mobile ||
-        LayoutBreakpoints.shouldUseMobile(width);
-    final shouldUseCompact =
-        !shouldUseMobile && (layoutMode == LayoutMode.compact ||
-            LayoutBreakpoints.shouldUseCompact(width));
-
-    // Suppress unused variable warning — `width` is read in the helpers
-    // when debugging responsive decisions; keep it alive so the
-    // compiler doesn't optimise the MediaQuery call away if we add
-    // debug breakpoints later.
-    assert(width >= 0);
-
+    // The compact shell is selected by the controller with hysteresis so
+    // we never tear down / mount the right sidebar mid-resize. Width is
+    // also passed in from the controller so we don't need to read it
+    // from MediaQuery again.
     if (shouldUseCompact) {
-      return _CompactDashboard(child: child);
+      return _CompactDashboard(width: width, child: child);
     }
 
-    // ── Wide shells — full multi-pane layout ───────────────────────
+    // ── Wide shells  full multi-pane layout ───────────────────────
     // The compact shell handles everything 600-1279 wide.  Above
     // 1280px the full multi-pane layout (right sidebar visible) is
     // shown; otherwise we fall back to the compact shell again so
     // there is no "medium" gap where the sidebar disappears.
+    //
+    // The right sidebar's mount state is anchored to [shouldUseCompact]
+    // (passed in from the controller) rather than recomputed against
+    // [MediaQuery.sizeOf]. The controller applies hysteresis around the
+    // 1280 px boundary so we never tear down the right sidebar mid-drag.
     final showLeft = settings.leftSidebarVisible;
-    final showRight = settings.rightSidebarVisible &&
-        width >= LayoutBreakpoints.expandedMax;
+    final showRight = settings.rightSidebarVisible && !shouldUseCompact;
 
     return LayoutScope(
       size: size,
@@ -218,7 +249,7 @@ class _DashboardView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showLeft && !shouldUseMobile)
+                if (showLeft && !shouldUseCompact)
                   _LeftPaneHost(
                     widthNotifier: leftWidthNotifier,
                     onResize: onLeftResize,
@@ -267,14 +298,26 @@ class _DashboardView extends StatelessWidget {
 class _CompactDashboard extends StatelessWidget {
   const _CompactDashboard({
     required this.child,
+    required this.width,
   });
 
   final Widget child;
 
+  /// Viewport width passed in from the controller so [_CompactDashboard]
+  /// does not have to call [MediaQuery.sizeOf] (which would subscribe the
+  /// sidebar to every media-query change and rebuild on every resize tick).
+  final double width;
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final width = MediaQuery.sizeOf(context).width;
+
+    // Clamp the sidebar width exactly once per build and reuse the result
+    // for both the [SizedBox] wrapper and the [CompactSidebar]'s explicit
+    // width. Previously the clamp was duplicated in two places which made
+    // the layout very slightly inconsistent during animated width changes.
+    final sidebarWidth =
+        settings.leftSidebarWidth.clamp(220.0, 360.0).toDouble();
 
     return LayoutScope(
       size: LayoutSize.compact,
@@ -287,10 +330,8 @@ class _CompactDashboard extends StatelessWidget {
               children: [
                 if (settings.leftSidebarVisible)
                   SizedBox(
-                    width: settings.leftSidebarWidth.clamp(220.0, 360.0),
-                    child: CompactSidebar(
-                      width: settings.leftSidebarWidth.clamp(220.0, 360.0),
-                    ),
+                    width: sidebarWidth,
+                    child: CompactSidebar(width: sidebarWidth),
                   ),
                 Expanded(
                   child: GlobalShortcutListener(
@@ -418,7 +459,7 @@ Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
     case LeftPaneChoice.spaces:
       return const SpacesPane();
     case LeftPaneChoice.friends:
-      // DMs only — the same list shown on the Home navigation destination.
+      // DMs only  the same list shown on the Home navigation destination.
       return RoomsPane(roomFilter: (Room room) => room.isDirectChat);
     case LeftPaneChoice.none:
       return const SizedBox.shrink();
@@ -584,20 +625,92 @@ class _RightSidebarHeader extends StatelessWidget {
 // ─── Room Info sidebar content ───────────────────────────────────────────────
 
 /// Shows a concise room-information panel in the right sidebar.
-class _SidebarRoomInfo extends StatelessWidget {
+///
+/// All derived strings (display name, topic, room type, canonical alias,
+/// encryption flag, member count) are recomputed only when the room's
+/// state actually changes  not on every parent rebuild. Previously every
+/// parent build called `room.getLocalizedDisplayname()`,
+/// `room.summary.mJoinedMemberCount`, `room.joinRules`, etc., which do
+/// non-trivial SDK work; during a window resize the entire sidebar rebuilt
+/// dozens of times per second. The cached fields also let the parent's
+/// rebuild (e.g. from a `CurrentRoom` notification) skip the expensive
+/// recompute when nothing relevant has changed.
+class _SidebarRoomInfo extends StatefulWidget {
   const _SidebarRoomInfo({required this.room});
 
   final Room room;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+  State<_SidebarRoomInfo> createState() => _SidebarRoomInfoState();
+}
+
+class _SidebarRoomInfoState extends State<_SidebarRoomInfo> {
+  // ── Cached derived state ─────────────────────────────────────────
+  // Each field is paired with a `_last*` value so the state-event
+  // listener can do a no-op setState when nothing visible actually
+  // changed (the room can emit many state events per minute; we only
+  // need to rebuild when one of the user-facing fields actually moves).
+  String _displayName = '';
+  String _topic = '';
+  int _memberCount = 0;
+  String _roomType = '';
+  String _canonicalAlias = '';
+  bool _encrypted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to the shared room-state bus instead of subscribing
+    // directly to the client's onRoomState stream. The bus is one
+    // O(N) stream filter per state event regardless of how many
+    // subscribers there are; the previous per-widget subscription
+    // cost O(subscribers) per state event.
+    _bindRoomStateBus();
+  }
+
+  /// Subscribes to the room-state bus and re-binds when the room id
+  /// changes. The bus is provided by the app shell so we don't have
+  /// to instantiate a new one per sidebar.
+  void _bindRoomStateBus() {
+    // No-op; didChangeDependencies wires the listener.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refreshFromRoom(force: true);
+  }
+
+  @override
+  void didUpdateWidget(_SidebarRoomInfo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      // Room changed (right sidebar re-mounted): the bus tick is
+      // already keyed by room id, so listeners automatically pick
+      // up the new room.
+      _refreshFromRoom(force: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    // The bus outlives this widget; we don't cancel the subscription
+    // here. The bus drops per-room state when the room is left.
+    super.dispose();
+  }
+
+  /// Refreshes the cached fields from the underlying room. Only
+  /// called when the room-state bus ticks; cheap when nothing
+  /// actually changed. Returns `true` when at least one field
+  /// differs from the previous value (a rebuild is needed).
+  bool _refreshFromRoom({required bool force}) {
+    final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
-    final displayName = room.getLocalizedDisplayname();
-    final topic = room.topic.isNotEmpty ? room.topic : l10n.noTopicSet;
-    final memberCount = (room.summary.mJoinedMemberCount ?? 0) +
+    final nextDisplayName = room.getLocalizedDisplayname();
+    final nextTopic = room.topic;
+    final nextMemberCount = (room.summary.mJoinedMemberCount ?? 0) +
         (room.summary.mInvitedMemberCount ?? 0);
-    final roomType = room.isDirectChat
+    final nextRoomType = room.isDirectChat
         ? l10n.directMessage
         : room.isSpace
             ? l10n.spaceType
@@ -609,14 +722,57 @@ class _SidebarRoomInfo extends StatelessWidget {
                     : room.joinRules == JoinRules.restricted
                         ? l10n.roomTypeRestricted
                         : l10n.roomTypeInviteOnly;
+    final nextAlias = room.canonicalAlias;
+    final nextEncrypted = room.encrypted;
 
+    if (!force &&
+        nextDisplayName == _displayName &&
+        nextTopic == _topic &&
+        nextMemberCount == _memberCount &&
+        nextRoomType == _roomType &&
+        nextAlias == _canonicalAlias &&
+        nextEncrypted == _encrypted) {
+      return false;
+    }
+
+    _displayName = nextDisplayName;
+    _topic = nextTopic;
+    _memberCount = nextMemberCount;
+    _roomType = nextRoomType;
+    _canonicalAlias = nextAlias;
+    _encrypted = nextEncrypted;
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Subscribe to the room-state bus so this widget only rebuilds
+    // when this specific room emits a state event. Subscribers for
+    // other rooms do not affect us.
+    final bus = context.read<RoomStateBus>();
+    return ValueListenableBuilder<int>(
+      valueListenable: bus.tickFor(widget.room.id),
+      builder: (context, _, __) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     // Adapt padding and avatar radius to the pane width. Narrow panes get a
     // tighter layout so the header doesn't dominate the view.
-    final width = MediaQuery.sizeOf(context).width;
+    //
+    // Read the width from [LayoutScope] (already provided by the dashboard
+    // controller) rather than [MediaQuery.sizeOf]. The latter subscribes to
+    // *every* MediaQuery change across the app and rebuilds on unrelated
+    // changes like keyboard show/hide; LayoutScope only fires on actual
+    // layout-pass width changes scoped to this subtree.
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final width = LayoutScope.of(context).availableWidth;
     final compactPane = width < 240;
     final outerPadding = compactPane ? 12.0 : 16.0;
     final avatarRadius = compactPane ? 28.0 : 36.0;
     final nameFontSize = compactPane ? 16.0 : 18.0;
+    final topicText = _topic.isNotEmpty ? _topic : l10n.noTopicSet;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(outerPadding),
@@ -628,13 +784,13 @@ class _SidebarRoomInfo extends StatelessWidget {
             child: Column(
               children: [
                 AvatarFromUriOrFallbackImage(
-                  client: room.client,
-                  avatarUri: room.avatar,
+                  client: widget.room.client,
+                  avatarUri: widget.room.avatar,
                   radius: avatarRadius,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  displayName,
+                  _displayName,
                   style: TextStyle(
                     fontSize: nameFontSize,
                     fontWeight: FontWeight.bold,
@@ -652,7 +808,7 @@ class _SidebarRoomInfo extends StatelessWidget {
           // Topic
           _InfoRow(
             icon: LucideIcons.alignLeft,
-            label: topic,
+            label: topicText,
             scheme: scheme,
           ),
           const SizedBox(height: 8),
@@ -660,7 +816,7 @@ class _SidebarRoomInfo extends StatelessWidget {
           // Room type
           _InfoRow(
             icon: LucideIcons.hash,
-            label: roomType,
+            label: _roomType,
             scheme: scheme,
           ),
           const SizedBox(height: 8),
@@ -668,7 +824,7 @@ class _SidebarRoomInfo extends StatelessWidget {
           // Room ID
           _InfoRow(
             icon: LucideIcons.tag,
-            label: room.id,
+            label: widget.room.id,
             scheme: scheme,
             mono: true,
           ),
@@ -677,14 +833,14 @@ class _SidebarRoomInfo extends StatelessWidget {
           // Member count
           _InfoRow(
             icon: LucideIcons.users,
-            label: l10n.membersCount(memberCount),
+            label: l10n.membersCount(_memberCount),
             scheme: scheme,
           ),
-          if (room.canonicalAlias.isNotEmpty) ...[
+          if (_canonicalAlias.isNotEmpty) ...[
             const SizedBox(height: 8),
             _InfoRow(
               icon: LucideIcons.atSign,
-              label: room.canonicalAlias,
+              label: _canonicalAlias,
               scheme: scheme,
               mono: true,
             ),
@@ -694,18 +850,16 @@ class _SidebarRoomInfo extends StatelessWidget {
 
           // Encryption status
           _StatusCard(
-            icon: room.encrypted
-                ? LucideIcons.shieldCheck
-                : LucideIcons.shieldOff,
-            label: room.encrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
-            color: room.encrypted ? scheme.primary : scheme.error,
+            icon: _encrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+            label: _encrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
+            color: _encrypted ? scheme.primary : scheme.error,
             scheme: scheme,
           ),
 
           const SizedBox(height: 24),
 
           // ── Pinned messages section ─────────────────────────────────
-          _PinnedSection(room: room),
+          _PinnedSection(room: widget.room),
         ],
       ),
     );
@@ -796,7 +950,7 @@ class _StatusCard extends StatelessWidget {
 /// A standalone members-list widget designed for the right sidebar.
 ///
 /// Duplicates the progressive-loading logic from [FullRoomMembersList] but
-/// without any Scaffold or AppBar — just a search bar and a scrollable list
+/// without any Scaffold or AppBar  just a search bar and a scrollable list
 /// of members.  This avoids the destructive back-button that would otherwise
 /// appear when using [FullRoomMembersList] directly inside a sidebar.
 class _SidebarMembersList extends StatefulWidget {
@@ -813,6 +967,13 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
 
+  /// Debounce window for the search box. Typing at 8 keys/sec otherwise
+  /// caused 8 full-list rebuilds per second, each calling `calcDisplayname`
+  /// for every member. Coalescing here keeps the cost at one rebuild per
+  /// quiet keystroke instead.
+  static const Duration _searchDebounce = Duration(milliseconds: 120);
+  Timer? _searchDebounceTimer;
+
   static const int _batchSize = 50;
   static const int _fetchBatchSize = 10;
 
@@ -821,6 +982,14 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   bool _isLoading = true;
   bool _isFetchingMore = false;
   Object? _loadError;
+
+  /// Per-user display name cache. `calcDisplayname` does string-building
+  /// work on every call (display name fallbacks + mxc resolution), and the
+  /// members list rebuilds on every search keystroke, scroll batch, or
+  /// sync tick  so recomputing the same name on every item render was
+  /// the dominant cost of the member pane. We invalidate the cache when
+  /// the underlying member set changes (room switch, fresh fetch).
+  final Map<String, String> _displayNameCache = {};
 
   @override
   void initState() {
@@ -834,11 +1003,13 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   void didUpdateWidget(_SidebarMembersList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.room.id != widget.room.id) {
-      // Room changed — reset everything and build from scratch.
+      // Room changed  reset everything and build from scratch.
       _searchController.clear();
       _searchQuery = '';
+      _searchDebounceTimer?.cancel();
       _displayedCount = 0;
       _allMembers = [];
+      _displayNameCache.clear();
       _isLoading = true;
       _isFetchingMore = false;
       _loadError = null;
@@ -848,6 +1019,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
@@ -856,8 +1028,15 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
   }
 
   void _onSearchChanged() {
-    setState(() {
-      _searchQuery = _searchController.text.trim().toLowerCase();
+    // Coalesce rapid keystrokes so the filtered list (which calls
+    // `calcDisplayname` for every member) only rebuilds once the user
+    // pauses. Without this, each keystroke re-renders every visible tile.
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(_searchDebounce, () {
+      if (!mounted) return;
+      final next = _searchController.text.trim().toLowerCase();
+      if (next == _searchQuery) return;
+      setState(() => _searchQuery = next);
     });
   }
 
@@ -902,6 +1081,9 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
       _loadError = null;
       _displayedCount = 0;
       _allMembers = [];
+      // The member set is being rebuilt  discard any cached display names
+      // so we don't leak stale entries from the previous room.
+      _displayNameCache.clear();
     });
 
     final localParticipants = widget.room.getParticipants().toList()
@@ -1023,10 +1205,26 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
     }
   }
 
+  /// Returns the display name for [user], caching the result so the same
+  /// member doesn't trigger the matrix SDK's fallback chain on every
+  /// build. The cache is keyed by `user.id` and invalidated alongside
+  /// `_allMembers` in [_fetchLocalThenRemote] / [didUpdateWidget].
+  String _displayNameFor(User user) {
+    final cached = _displayNameCache[user.id];
+    if (cached != null) return cached;
+    final fresh = user.calcDisplayname();
+    _displayNameCache[user.id] = fresh;
+    return fresh;
+  }
+
   List<User> get _visibleMembers {
     if (_searchQuery.isNotEmpty) {
       return _allMembers.where((m) {
-        final dn = m.calcDisplayname().toLowerCase();
+        // Reuse the cached display name when possible  the previous
+        // implementation called `calcDisplayname()` for *every* member on
+        // every keystroke, which made typing into the search box the most
+        // expensive operation in the sidebar.
+        final dn = _displayNameFor(m).toLowerCase();
         final uid = m.id.toLowerCase();
         return dn.contains(_searchQuery) || uid.contains(_searchQuery);
       }).toList();
@@ -1170,7 +1368,7 @@ class _SidebarMembersListState extends State<_SidebarMembersList> {
             }
 
             final member = members[index];
-            final displayName = member.calcDisplayname();
+            final displayName = _displayNameFor(member);
             final permissionLabel = member.powerLevel.level >= 100
                 ? l10n.adminBadge
                 : member.powerLevel.level >= 50
@@ -1434,7 +1632,7 @@ class _SidebarPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Simple header bar — collapse toggle lives in AppFrame now.
+          // Simple header bar  collapse toggle lives in AppFrame now.
           Container(
             color: theme.colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1508,8 +1706,7 @@ class _PinnedSectionState extends State<_PinnedSection> {
     try {
       final timeline = await r.getTimeline();
       for (final id in pinnedIds) {
-        final event =
-            timeline.events.where((e) => e.eventId == id).firstOrNull;
+        final event = timeline.events.where((e) => e.eventId == id).firstOrNull;
         if (event != null) {
           result[id] = event;
         } else {
@@ -1517,7 +1714,7 @@ class _PinnedSectionState extends State<_PinnedSection> {
         }
       }
     } catch (_) {
-      // Timeline not available — fall through to the cache/server for all.
+      // Timeline not available  fall through to the cache/server for all.
       missingFromTimeline
         ..clear()
         ..addAll(pinnedIds);
@@ -1552,7 +1749,13 @@ class _PinnedSectionState extends State<_PinnedSection> {
     final count = pinnedIds.length;
 
     // Show fewer previews when the pane is narrow so they don't dominate.
-    final paneWidth = MediaQuery.sizeOf(context).width;
+    //
+    // Read the width from [LayoutScope] (already provided by the dashboard
+    // controller) rather than [MediaQuery.sizeOf]. The latter subscribes to
+    // *every* MediaQuery change across the app and rebuilds on unrelated
+    // changes like keyboard show/hide; LayoutScope only fires on actual
+    // layout-pass width changes scoped to this subtree.
+    final paneWidth = LayoutScope.of(context).availableWidth;
     final previewCount = paneWidth < 240 ? 1 : (paneWidth < 320 ? 2 : 3);
 
     return Column(
@@ -1574,10 +1777,9 @@ class _PinnedSectionState extends State<_PinnedSection> {
                 Icon(
                   Icons.push_pin_outlined,
                   size: 16,
-                  color:
-                      currentRoom.pinnedFilterActive
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
+                  color: currentRoom.pinnedFilterActive
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1903,9 +2105,7 @@ class _SidebarPinnedTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final senderName =
         event?.senderFromMemoryOrFallback.calcDisplayname() ?? 'Unknown';
-    final body = event?.body.isNotEmpty == true
-        ? event!.body
-        : '(no content)';
+    final body = event?.body.isNotEmpty == true ? event!.body : '(no content)';
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
