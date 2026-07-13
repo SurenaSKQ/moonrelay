@@ -30,6 +30,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: '3.44.6'
+  RUST_TOOLCHAIN_PROFILE: minimal
 
 jobs:
   # ── Static analysis (fast, runs on every push) ────────────────────
@@ -43,6 +44,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: ${{ env.RUST_TOOLCHAIN_PROFILE }}
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -53,6 +60,7 @@ jobs:
           path: |
             .pub-cache
             ~/.gradle
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
@@ -80,6 +88,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: ${{ env.RUST_TOOLCHAIN_PROFILE }}
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -96,6 +111,7 @@ jobs:
           path: |
             .pub-cache
             ~/.gradle
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
@@ -123,6 +139,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: ${{ env.RUST_TOOLCHAIN_PROFILE }}
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -133,6 +156,7 @@ jobs:
           path: |
             .pub-cache
             ~/.gradle
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
@@ -165,6 +189,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: ${{ env.RUST_TOOLCHAIN_PROFILE }}
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -172,7 +203,9 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: .pub-cache
+          path: |
+            .pub-cache
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
@@ -202,6 +235,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: ${{ env.RUST_TOOLCHAIN_PROFILE }}
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -209,7 +249,9 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: .pub-cache
+          path: |
+            .pub-cache
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
