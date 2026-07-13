@@ -22,12 +22,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+          toolchain: stable
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - uses: actions/cache@v4
         with:
-          path: .pub-cache
+          path: |
+            .pub-cache
+            ~/.cargo/registry
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
       - name: Probe outdated
