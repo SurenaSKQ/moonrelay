@@ -554,7 +554,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           builder: (_) => BootstrapScreen(bootstrap: bootstrap),
         ),
       );
-      // Always notify the service that bootstrap finished — it re-runs
+      // Always notify the service that bootstrap finished  it re-runs
       // the full state refresh and re-evaluates setupRequirement.
       enc.onBootstrapFinished();
       if (!context.mounted) return;
@@ -593,7 +593,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
       );
       return;
     }
-    // Same wizard — it begins by asking whether to wipe existing SSSS,
+    // Same wizard  it begins by asking whether to wipe existing SSSS,
     // flows through cross-signing re-creation if needed, then asks
     // about the online key backup specifically.
     _startBootstrap(context, enc);

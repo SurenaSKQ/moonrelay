@@ -176,7 +176,7 @@ class TypingNotifier {
 
   /// Notifies the homeserver that the user is typing, restarting the
   /// auto-stop timer. Safe to call on every keystroke. No-op when the
-  /// client is not logged in (no `userID`) — callers in widget tests
+  /// client is not logged in (no `userID`)  callers in widget tests
   /// and pre-login flows depend on this guard.
   void notify() {
     final userId = _room.client.userID;

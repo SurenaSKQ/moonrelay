@@ -83,7 +83,7 @@ class ThreadsProvider extends ChangeNotifier {
       _nextBatch = response.nextBatch;
       _hasMore = response.nextBatch != null;
     } catch (_) {
-      // Silently swallow failures — the UI shows existing results.
+      // Silently swallow failures  the UI shows existing results.
     }
 
     if (!_disposed) {

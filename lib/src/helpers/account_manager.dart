@@ -26,7 +26,7 @@ import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StoredAccount — immutable serialisable metadata for a single Matrix session
+// StoredAccount  immutable serialisable metadata for a single Matrix session
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Lightweight account descriptor persisted in [SharedPreferences].
@@ -76,7 +76,7 @@ class StoredAccount {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AccountManager — ChangeNotifier that owns the multi-account lifecycle
+// AccountManager  ChangeNotifier that owns the multi-account lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Top-level controller for multi-account support.

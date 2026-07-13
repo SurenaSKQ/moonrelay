@@ -106,7 +106,7 @@ extension DateTimeExtension on DateTime {
     if (diff < day) return l10n.timeHours(diff ~/ hour);
     if (diff < week) return l10n.timeDays(diff ~/ day);
 
-    // Older than a week — show date.
+    // Older than a week  show date.
     final sameYear = now.year == year;
     if (sameYear) {
       return '${_monthAbbr(month)} $day';
@@ -116,8 +116,18 @@ extension DateTimeExtension on DateTime {
 
   static String _monthAbbr(int m) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[m - 1];
   }

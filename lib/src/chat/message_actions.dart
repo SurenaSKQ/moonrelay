@@ -30,7 +30,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 /// the full `m.replace` flow.
 ///
 /// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
-/// This widget does **not** manage its own visibility — the parent controls
+/// This widget does **not** manage its own visibility  the parent controls
 /// when it appears (e.g. via a hover wrapper).
 class MessageActions extends StatelessWidget {
   const MessageActions({

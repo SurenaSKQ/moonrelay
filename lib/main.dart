@@ -54,7 +54,7 @@ import 'src/splash_screen.dart';
 const int kDbSchemaVersion = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Init state — populated by the boot pipeline, consumed by the app on success
+// Init state  populated by the boot pipeline, consumed by the app on success
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppState {
@@ -94,7 +94,7 @@ Future<_AppState> _initialize({
   required Logger log,
   required LogService logService,
 }) async {
-  // Load saved accounts first — the boot pipeline needs them to know
+  // Load saved accounts first  the boot pipeline needs them to know
   // which database to open.
   final accountManager = AccountManager(log: log);
   await accountManager.load();
@@ -124,7 +124,7 @@ Future<_AppState> _initialize({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Root widget — swaps between splash and the real app via setState
+// Root widget  swaps between splash and the real app via setState
 // ─────────────────────────────────────────────────────────────────────────────
 
 class MoonrelayBootstrap extends StatefulWidget {
@@ -213,8 +213,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
     } catch (e) {
       log.f('Initialization failed', error: e);
       if (!mounted) return;
-      _splashKey.currentState
-          ?.markError('Initialization Failed', '$e');
+      _splashKey.currentState?.markError('Initialization Failed', '$e');
       setState(() {
         _errorTitle = 'Initialization Failed';
         _errorBody = '$e';
@@ -276,7 +275,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // ── Success state — the real app ──────────────────────────
+    // ── Success state  the real app ──────────────────────────
     if (_appState != null) {
       return MultiProvider(
         providers: [
@@ -299,14 +298,13 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           if (_appState!.notificationService != null)
             Provider<NotificationService>.value(
                 value: _appState!.notificationService!),
-          Provider<DeepLinkService>.value(
-              value: _appState!.deepLinkService),
+          Provider<DeepLinkService>.value(value: _appState!.deepLinkService),
         ],
         child: const MoonrelayApp(),
       );
     }
 
-    // ── Loading state — the splash screen ─────────────────────
+    // ── Loading state  the splash screen ─────────────────────
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

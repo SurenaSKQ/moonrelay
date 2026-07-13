@@ -77,7 +77,7 @@ class SplashScreenState extends State<SplashScreen> {
       setState(() {
         _done = true;
         // If we are swapping in the main app, do not flip the
-        // "waiting for sync" flag — the splash will be torn down
+        // "waiting for sync" flag  the splash will be torn down
         // almost immediately.  This branch is for the rare case
         // where we want to keep showing the splash until the first
         // sync arrives.

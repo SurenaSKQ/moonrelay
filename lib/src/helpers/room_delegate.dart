@@ -69,7 +69,7 @@ class RoomDelegate extends StatelessWidget {
 
     // ── Room not found yet ───────────────────────────────────────
     // If the client has *no* rooms at all the first sync hasn't
-    // delivered the room list yet — show a spinner, not an error.
+    // delivered the room list yet  show a spinner, not an error.
     if (client.rooms.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }

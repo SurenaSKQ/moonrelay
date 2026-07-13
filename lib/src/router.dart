@@ -137,21 +137,21 @@ class MoonRouter {
             ),
           ],
         ),
-    // Unauthenticated route for adding a new account while another is
-    // already active.  Bypasses the loggedInRedirect on the welcome
-    // shell by living outside that shell route hierarchy.  Also guards
-    // against being navigated to while logged out (e.g. a stale link
-    // resolved before logout completed) by redirecting to /welcome so
-    // the user is never stranded on a bare LoginPage without its frame.
-    GoRoute(
-      path: '/add-account',
-      redirect: loggedOutRedirect,
-      pageBuilder: (context, state) => genericPageBuilder(
-        context,
-        state,
-        const LoginPage(),
-      ),
-    ),
+        // Unauthenticated route for adding a new account while another is
+        // already active.  Bypasses the loggedInRedirect on the welcome
+        // shell by living outside that shell route hierarchy.  Also guards
+        // against being navigated to while logged out (e.g. a stale link
+        // resolved before logout completed) by redirecting to /welcome so
+        // the user is never stranded on a bare LoginPage without its frame.
+        GoRoute(
+          path: '/add-account',
+          redirect: loggedOutRedirect,
+          pageBuilder: (context, state) => genericPageBuilder(
+            context,
+            state,
+            const LoginPage(),
+          ),
+        ),
       ],
     ),
     ShellRoute(
@@ -243,7 +243,7 @@ class MoonRouter {
                               }
                             } catch (_) {}
                             // Profile viewing is decoupled from the
-                            // room route — redirect any deep link with
+                            // room route  redirect any deep link with
                             // the form /main/rooms/.../profile/<userid>
                             // to the top-level /profile/<userid> so it
                             // works even when the user isn't joined to
@@ -316,8 +316,7 @@ class MoonRouter {
                 if (raw == null || raw.isEmpty) return null;
                 final userid = Uri.decodeComponent(raw);
                 try {
-                  final client =
-                      Provider.of<Client>(context, listen: false);
+                  final client = Provider.of<Client>(context, listen: false);
                   if (userid == client.userID) {
                     return '/main/myprofile';
                   }
@@ -334,7 +333,7 @@ class MoonRouter {
                 ),
               ),
             ),
-            // Hub screen — opened exclusively as a modal overlay
+            // Hub screen  opened exclusively as a modal overlay
             // (see [showHubOverlay] in `hub_screen.dart`).  It is
             // *not* registered as a GoRouter route because the
             // hub-as-full-page behaviour used to replace the room
@@ -381,8 +380,7 @@ class MoonRouter {
                   pageBuilder: (context, state) {
                     final space = _spaceFromState(context, state);
                     if (space == null) {
-                      return _notFoundPage(
-                          context, state, 'Space not found');
+                      return _notFoundPage(context, state, 'Space not found');
                     }
                     return genericPageBuilder(
                       context,
@@ -457,7 +455,7 @@ class MoonRouter {
   /// room ID is absent) for the dashboard layout, or a fully-rendered
   /// [MobileRoomsListPage] when the user is on the mobile layout.
   ///
-  /// Both layouts share the same route — the difference is purely in
+  /// Both layouts share the same route  the difference is purely in
   /// how the URL `/main/rooms` is presented.  Keeping the URL stable
   /// means the existing deep-link handling, command-palette routing,
   /// and back-button logic continue to work without modification.
@@ -499,7 +497,7 @@ class MoonRouter {
 /// 2. The current viewport is too narrow for even the unified
 ///    compact sidebar (below [LayoutBreakpoints.mobileMax]).
 ///
-/// The second rule is what handles window resizes — a user who
+/// The second rule is what handles window resizes  a user who
 /// gradually shrinks the window sees the shell transition
 /// full → compact → mobile as horizontal space runs out.
 class _AdaptiveMainLayout extends StatefulWidget {
@@ -514,7 +512,7 @@ class _AdaptiveMainLayout extends StatefulWidget {
 class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// The shell the previous build chose.  Tracked so we can detect
   /// transitions and force a route navigation to a clean default
-  /// page — without it, the dashboard inherits the [MobileRoomsListPage]
+  /// page  without it, the dashboard inherits the [MobileRoomsListPage]
   /// (or vice versa) and ends up rendering the previous shell's
   /// content in a pane that wasn't designed for it (e.g. a rooms list
   /// showing up in the right sidebar).
@@ -524,7 +522,7 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// for the current [LayoutMode] + viewport width.
   ///
   /// Extracted so the layout-transition check and the render branch
-  /// stay in sync — both call the same helper and the threshold logic
+  /// stay in sync  both call the same helper and the threshold logic
   /// lives in exactly one place.
   bool _resolveUseMobile() {
     final settings = context.watch<SettingsController>();
@@ -537,8 +535,8 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// room is open) so the new shell renders a clean default state.
   ///
   /// Why this is needed: when the shell switches from mobile to
-  /// dashboard (or vice versa), the route's `child` widget — built
-  /// by [MoonRouter._roomsListPageBuilder] — may be stale for one
+  /// dashboard (or vice versa), the route's `child` widget  built
+  /// by [MoonRouter._roomsListPageBuilder]  may be stale for one
   /// frame.  The dashboard's right sidebar in particular happily
   /// accepts any widget and renders it, so the previous shell's
   /// `MobileRoomsListPage` can end up displayed in the right pane
@@ -547,20 +545,18 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// default and clears the stale state.
   ///
   /// The target URL is derived from [CurrentRoom] so the user keeps
-  /// the room they were looking at — the navigation just rebuilds
+  /// the room they were looking at  the navigation just rebuilds
   /// the page from a clean slate instead of leaving the previous
   /// shell's widget in place.
   void _navigateToActiveRoom() {
     final room = context.read<CurrentRoom>().room;
-    final target = room == null
-        ? '/main/rooms'
-        : '/main/rooms/${room.id}';
+    final target = room == null ? '/main/rooms' : '/main/rooms/${room.id}';
     // `context.go` is a no-op when the URL is unchanged, so when
     // the user is already sitting on the target URL (the common
     // case after a layout-mode change) we need a different
     // mechanism to force the page child to rebuild.  Pushing the
     // target and immediately popping is GoRouter's documented way
-    // to refresh the current route's child widget — the push
+    // to refresh the current route's child widget  the push
     // creates a new page entry, the pop drops it, and the resulting
     // rebuild produces a fresh [child] for the new shell.
     final router = GoRouter.of(context);

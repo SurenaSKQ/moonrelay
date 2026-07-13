@@ -51,7 +51,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     super.initState();
     _loadData();
     // React to sync events with a silent data refresh that does NOT
-    // show a loading spinner — avoids the "flashing" rebuild cycle.
+    // show a loading spinner  avoids the "flashing" rebuild cycle.
     _syncSub = widget.client.onSync.stream.listen((_) {
       if (mounted) _silentRefresh();
     });
@@ -63,21 +63,20 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     super.dispose();
   }
 
-  /// Initial load — shows progress.
+  /// Initial load  shows progress.
   Future<void> _loadData() async {
     try {
-      final profile = await widget.client
-          .getProfileFromUserId(widget.client.userID!);
+      final profile =
+          await widget.client.getProfileFromUserId(widget.client.userID!);
       CachedPresence? presence;
       try {
-        final resp = await widget.client
-            .getPresence(widget.client.userID!);
+        final resp = await widget.client.getPresence(widget.client.userID!);
         presence = CachedPresence.fromPresenceResponse(
           resp,
           widget.client.userID!,
         );
       } catch (_) {
-        // Presence not available — that's fine.
+        // Presence not available  that's fine.
       }
       if (!mounted) return;
       setState(() {
@@ -91,16 +90,15 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     }
   }
 
-  /// Silent refresh — updates the cached data without chasing into a
+  /// Silent refresh  updates the cached data without chasing into a
   /// loading state, so the UI stays stable.
   Future<void> _silentRefresh() async {
     try {
-      final profile = await widget.client
-          .getProfileFromUserId(widget.client.userID!);
+      final profile =
+          await widget.client.getProfileFromUserId(widget.client.userID!);
       CachedPresence? presence;
       try {
-        final resp = await widget.client
-            .getPresence(widget.client.userID!);
+        final resp = await widget.client.getPresence(widget.client.userID!);
         presence = CachedPresence.fromPresenceResponse(
           resp,
           widget.client.userID!,
@@ -112,7 +110,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
         _presence = presence;
       });
     } catch (_) {
-      // Swallow — keep showing stale data rather than flashing.
+      // Swallow  keep showing stale data rather than flashing.
     }
   }
 
@@ -162,8 +160,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   Future<void> _editDisplayName() async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
-    final controller =
-        TextEditingController(text: _profile?.displayName ?? '');
+    final controller = TextEditingController(text: _profile?.displayName ?? '');
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -214,8 +211,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   Future<void> _editStatusMessage() async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
-    final controller =
-        TextEditingController(text: _presence?.statusMsg ?? '');
+    final controller = TextEditingController(text: _presence?.statusMsg ?? '');
     final newStatus = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -325,9 +321,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                               radius: 40,
                               backgroundColor: cs.primaryContainer,
                               child: Text(
-                                (profile?.displayName ??
-                                        profile?.userId ??
-                                        '?')
+                                (profile?.displayName ?? profile?.userId ?? '?')
                                     .toUpperCase()
                                     .split(RegExp(' +'))
                                     .map((s) => s[0])

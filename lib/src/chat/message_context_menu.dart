@@ -328,7 +328,7 @@ class MessageContextMenu {
   /// Shows the context menu anchored at [position] (in global coordinates).
   ///
   /// Pass `null` for [onReply] / [onForward] / [onThread] / [onOpenProfile]
-  /// to hide those entries from the menu — they are filtered out
+  /// to hide those entries from the menu  they are filtered out
   /// automatically.
   static Future<void> showForEvent({
     required BuildContext context,

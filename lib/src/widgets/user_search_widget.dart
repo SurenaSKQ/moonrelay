@@ -72,7 +72,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
     super.dispose();
   }
 
-  /// Debounced search — waits 300ms after the user stops typing.
+  /// Debounced search  waits 300ms after the user stops typing.
   void _onSearchChanged() {
     final query = _searchController.text.trim();
     if (query == _searchQuery) return;
@@ -327,8 +327,8 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
           margin: const EdgeInsets.symmetric(vertical: 4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.5)),
+            side:
+                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),

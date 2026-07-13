@@ -71,7 +71,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
       );
     } catch (_) {
       // If the client is not yet fully initialised, silently skip
-      // the subscription — the tree will still render correctly.
+      // the subscription  the tree will still render correctly.
     }
     // Auto-expand the first level of subspaces on load.
     _autoExpandFirstLevel();

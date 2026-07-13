@@ -130,7 +130,7 @@
   "untitledRoom": "(untitled room)",
 
   "encryptionRecoveryKeyReminderTitle": "Encryption set up",
-  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key — the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
+  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key  the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
   "encryptionRecoveryKeyReminderAck": "I have saved my recovery key",
   "encryptionRecoveryKeyReminderLater": "I'll do this later",
 
@@ -646,7 +646,7 @@
   "encryptionLocalDataSection": "Local Encryption Data",
   "encryptionExportKeys": "Export E2EE keys",
   "encryptionExportKeysDescription": "Save the device's olm account and preferences to a file you can re-import on a new install.",
-  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password — anyone with the file can read your encrypted history. Continue?",
+  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password  anyone with the file can read your encrypted history. Continue?",
   "encryptionExportKeysDone": "Encryption keys exported.",
   "encryptionExportKeysCancelled": "Export cancelled.",
   "encryptionNoKeyInfo": "No key information",
@@ -1894,7 +1894,7 @@
   "@unpinMessage": {
     "description": "Tooltip for the unpin message action."
   },
-  "showPinnedOnly": "Viewing pinned messages only — tap to show all",
+  "showPinnedOnly": "Viewing pinned messages only  tap to show all",
   "@showPinnedOnly": {
     "description": "Tooltip for the pinned filter toggle when active."
   },

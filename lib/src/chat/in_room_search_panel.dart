@@ -141,8 +141,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     final sender = _senderController.text.trim().toLowerCase();
     final keywords = _parseKeywords(raw);
 
-    final queryChanged =
-        keywords.length != _keywords.length ||
+    final queryChanged = keywords.length != _keywords.length ||
         !keywords.every((k) => _keywords.contains(k));
     final senderChanged = sender != _senderFilter;
 
@@ -170,7 +169,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       return;
     }
 
-    // No point hitting the server if we only have type/sender filters —
+    // No point hitting the server if we only have type/sender filters
     // searchEvents needs a searchTerm to paginate.  We can still match
     // locally against the server-streamed results when a keyword is present.
     if (_keywords.isEmpty) {
@@ -213,7 +212,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       }
     }
 
-    // Keyword search — AND across all tokens.
+    // Keyword search  AND across all tokens.
     if (_keywords.isNotEmpty) {
       final haystack = _eventSearchText(event);
       if (!_keywords.every((kw) => haystack.contains(kw))) return false;
@@ -345,7 +344,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+          bottom:
+              BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Column(
@@ -353,7 +353,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
         children: [
           Row(
             children: [
-              Icon(LucideIcons.search, size: 18, color: scheme.onSurfaceVariant),
+              Icon(LucideIcons.search,
+                  size: 18, color: scheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
                 l10n.inRoomSearch,
@@ -559,8 +560,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             itemCount: _results.length,
-            separatorBuilder: (_, __) =>
-                Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
+            separatorBuilder: (_, __) => Divider(
+                height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
             itemBuilder: (context, index) {
               return _InRoomResultTile(
                 event: _results[index],
@@ -790,7 +791,8 @@ class _HighlightedText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (keywords.isEmpty) {
-      return Text(text, style: style, maxLines: maxLines, overflow: TextOverflow.ellipsis);
+      return Text(text,
+          style: style, maxLines: maxLines, overflow: TextOverflow.ellipsis);
     }
 
     // Build a single lower-case copy for case-insensitive scanning.
@@ -812,14 +814,15 @@ class _HighlightedText extends StatelessWidget {
       }
 
       if (earliestKw == null) {
-        // No more matches — emit the rest as plain text.
+        // No more matches  emit the rest as plain text.
         spans.add(TextSpan(text: text.substring(pos), style: style));
         break;
       }
 
       // Plain segment before the match.
       if (earliestStart > pos) {
-        spans.add(TextSpan(text: text.substring(pos, earliestStart), style: style));
+        spans.add(
+            TextSpan(text: text.substring(pos, earliestStart), style: style));
       }
 
       // Highlighted match.

@@ -30,10 +30,10 @@ import 'package:provider/provider.dart';
 
 /// The entry-point "Add Room" page that offers three methods:
 ///
-/// 1. **Browse directory** — search the homeserver's public room directory
-/// 2. **Join by ID** — join a room by its ID or alias, optionally through
+/// 1. **Browse directory**  search the homeserver's public room directory
+/// 2. **Join by ID**  join a room by its ID or alias, optionally through
 ///    a specific server.
-/// 3. **Create** — create a new room or space with a custom name and topic.
+/// 3. **Create**  create a new room or space with a custom name and topic.
 class AddRoomPage extends StatefulWidget {
   const AddRoomPage({super.key});
 

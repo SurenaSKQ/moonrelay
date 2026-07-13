@@ -25,7 +25,7 @@ import 'package:path_provider/path_provider.dart';
 /// Agreed-on regex patterns for sensitive data that must be redacted from
 /// log output before it hits disk.
 ///
-/// These patterns are intentionally coarse — false positives are safer
+/// These patterns are intentionally coarse  false positives are safer
 /// than false negatives.  At the same time we avoid removing structural
 /// characters that would break JSON in the log stream.
 ///
@@ -89,7 +89,7 @@ const List<_RedactionPattern> redactionPatterns = <_RedactionPattern>[
 /// having to construct a full [LogOutput] pipeline.
 ///
 /// Uses [String.replaceAllMapped] when the pattern is a [RegExp] so
-/// `$N` backreferences in the replacement string are honoured — Dart's
+/// `$N` backreferences in the replacement string are honoured  Dart's
 /// plain `String.replaceAll(Pattern, String)` treats `$N` as literal
 /// text and would silently drop the `Authorization:` prefix when
 /// redacting a bearer token.
