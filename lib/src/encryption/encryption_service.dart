@@ -67,6 +67,21 @@ class EncryptionService extends ChangeNotifier {
   final Logger _log;
 
   // -----------------------------------------------------------------------
+  // Memoized verification lookups
+  // -----------------------------------------------------------------------
+
+  /// Cache of `isUserVerifiedById` results, keyed by userId. Populated
+  /// on first lookup and invalidated whenever the device-keys cache is
+  /// updated (sync tick, key import, etc.). Without this every
+  /// `MessageEventHandler.build` walks `_client.userDeviceKeys` and
+  /// calls `masterKey.verified` for every visible message, which adds
+  /// up to a lot of work during a sync tick.
+  final Map<String, bool> _userVerifiedCache = {};
+
+  /// Cache of `isDeviceVerifiedById` results, keyed by `userId:deviceId`.
+  final Map<String, bool> _deviceVerifiedCache = {};
+
+  // -----------------------------------------------------------------------
   // Convenience accessors
   // -----------------------------------------------------------------------
 
@@ -159,7 +174,7 @@ class EncryptionService extends ChangeNotifier {
   /// the user's device id and a creation timestamp so the importer
   /// can refuse to load an out-of-date or wrong-device blob.
   ///
-  /// The export is gated behind a confirm dialog in the UI — the keys
+  /// The export is gated behind a confirm dialog in the UI  the keys
   /// are sensitive enough that they should never be exported without
   /// an explicit user action.  Returns the JSON string the caller can
   /// hand off to a file picker (or write to disk).  Throws when no
@@ -267,10 +282,12 @@ class EncryptionService extends ChangeNotifier {
   /// ticks inside [Duration] are rolled into a single background refresh,
   /// removing the per-tick HTTP spam noted in the perf audit.
   void _onSync(SyncUpdate _) {
-    _cachedUnverified = null;
+    // Invalidate the verification caches: any sync tick may have added
+    // new device keys, completed a SAS verification, or imported a
+    // trusted key. The next lookup will recompute on demand.
+    _bumpDeviceKeys();
 
-    // Always notify listeners for the badge counter tied to the
-    // cached value above, even if a refresh is already in flight.
+    // Refresh state in the background.
     _refreshDebounce?.cancel();
     _refreshDebounce = Timer(const Duration(milliseconds: 750), _runRefresh);
   }
@@ -335,8 +352,8 @@ class EncryptionService extends ChangeNotifier {
   /// On every wizard-state transition the service refreshes its derived
   /// state (cross-signing flag + backup flag + device list) and notifies
   /// listeners so the GUI mirrors the bootstrap's progress without a
-  /// manual `refresh()` call.  When the bootstrap finishes — with or
-  /// without cancellation — [_initialRefreshComplete] is reset so the
+  /// manual `refresh()` call.  When the bootstrap finishes  with or
+  /// without cancellation  [_initialRefreshComplete] is reset so the
   /// post-login checker no longer suppresses prompts.
   Bootstrap startBootstrap() {
     _log.i('EncryptionService: starting bootstrap');
@@ -360,7 +377,7 @@ class EncryptionService extends ChangeNotifier {
   /// `setupRequirement` evaluation fires on the next access.
   void onBootstrapFinished() {
     _initialRefreshComplete = true;
-    _cachedUnverified = null;
+    _bumpDeviceKeys();
     refresh();
   }
 
@@ -382,7 +399,7 @@ class EncryptionService extends ChangeNotifier {
       if (ed == null || ed.isEmpty) return null;
       // Decode base64 and render as 8 uppercase hex byte groups, the
       // same format used by Element web.  Fall back to the raw string
-      // if the decode fails (defensive — the SDK always produces valid
+      // if the decode fails (defensive  the SDK always produces valid
       // base64 here).
       try {
         final raw = base64Decode(ed);
@@ -427,21 +444,33 @@ class EncryptionService extends ChangeNotifier {
   /// (SAS or manual) of this user.  Their master key may be directly
   /// verified (after SAS) or cross-verified (via a valid signature chain
   /// back to a directly-verified key).
+  ///
+  /// Results are memoized per [userId] for the duration of a single
+  /// device-keys snapshot. The cache is invalidated by [_bumpDeviceKeys]
+  /// which is called from the sync listener and from any operation that
+  /// mutates trust (e.g. SAS completion, key import).
   bool isUserVerifiedById(String userId) {
+    final cached = _userVerifiedCache[userId];
+    if (cached != null) return cached;
+    bool computed;
     try {
       final enc = _enc;
-      if (enc == null) return false;
-      final mk = _client.userDeviceKeys[userId]?.masterKey;
-      if (mk == null) return false;
-      // `mk.verified` returns `directVerified || crossVerified` per the
-      // public Matrix SDK.  Both are required: a SAS completion marks
-      // directVerified; cross-signing chain validation alone marks
-      // crossVerified.  Either is sufficient to consider the user
-      // trustworthy for new encrypted sessions.
-      return mk.verified;
+      if (enc == null) {
+        computed = false;
+      } else {
+        final mk = _client.userDeviceKeys[userId]?.masterKey;
+        // `mk.verified` returns `directVerified || crossVerified` per the
+        // public Matrix SDK.  Both are required: a SAS completion marks
+        // directVerified; cross-signing chain validation alone marks
+        // crossVerified.  Either is sufficient to consider the user
+        // trustworthy for new encrypted sessions.
+        computed = mk?.verified ?? false;
+      }
     } catch (_) {
-      return false;
+      computed = false;
     }
+    _userVerifiedCache[userId] = computed;
+    return computed;
   }
 
   /// Whether a specific device belonging to [userId] is verified via
@@ -463,30 +492,39 @@ class EncryptionService extends ChangeNotifier {
   /// [deviceId] can be obtained from the original encrypted event content
   /// via `event.originalSource?.content['device_id']` for decrypted events.
   bool isDeviceVerifiedById(String userId, String deviceId) {
+    final cacheKey = '$userId:$deviceId';
+    final cached = _deviceVerifiedCache[cacheKey];
+    if (cached != null) return cached;
+    bool computed;
     try {
       final enc = _enc;
-      if (enc == null) return false;
-
-      // If it's our own device, we can skip the user-level fallback:
-      // self-verification is handled explicitly via cross-signing.
-      if (userId == _client.userID && deviceId == _client.deviceID) {
+      if (enc == null) {
+        computed = false;
+      } else if (userId == _client.userID && deviceId == _client.deviceID) {
         final dk = _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
-        if (dk == null) return false;
-        return dk.crossVerified;
+        computed = dk?.crossVerified ?? false;
+      } else {
+        final dk = _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
+        if (dk != null && dk.verified) {
+          computed = true;
+        } else {
+          // Device not found or not individually verified  fall back to
+          // the user-level master-key check.
+          computed = isUserVerifiedById(userId);
+        }
       }
-
-      // For other users' devices: try the device-level check first.
-      final dk = _client.userDeviceKeys[userId]?.deviceKeys[deviceId];
-      if (dk != null && dk.verified) return true;
-
-      // Device not found or not individually verified — fall back to
-      // the user-level master-key check.  If the user's master key is
-      // verified (SAS completed), all of their cross-signed devices
-      // are considered trusted.
-      return isUserVerifiedById(userId);
     } catch (_) {
-      return false;
+      computed = false;
     }
+    _deviceVerifiedCache[cacheKey] = computed;
+    return computed;
+  }
+
+  /// Invalidate the memoized verification caches. Called whenever the
+  /// device-keys snapshot may have changed.
+  void _bumpDeviceKeys() {
+    _userVerifiedCache.clear();
+    _deviceVerifiedCache.clear();
   }
 
   // -----------------------------------------------------------------------
@@ -503,7 +541,7 @@ class EncryptionService extends ChangeNotifier {
         return;
       }
       // `keyManager.enabled` mirrors whether the megolm backup secret
-      // is present in SSSS — i.e. whether the backup has been wired
+      // is present in SSSS  i.e. whether the backup has been wired
       // up locally.  This also implies the server has a backup, because
       // you cannot upload keys without uploading (or recovering) the
       // initial secret first.
@@ -649,7 +687,7 @@ class EncryptionService extends ChangeNotifier {
   /// nothing needs to be shown.
   ///
   /// The dialog surfaced by the caller is the [VerificationScreen]
-  /// (SAS / emoji matching) — that is the only authentication
+  /// (SAS / emoji matching)  that is the only authentication
   /// method the user is prompted to complete at sign-in.  Cross-
   /// signing bootstrap, recovery key prompts, and other SSSS
   /// operations are explicitly deferred to the encryption settings
@@ -717,7 +755,7 @@ class EncryptionService extends ChangeNotifier {
         if (keys?.deviceKeys[d.deviceId]?.verified != true) own++;
       }
 
-      // Other users — use a Set to avoid double-counting a user
+      // Other users  use a Set to avoid double-counting a user
       // who appears in multiple rooms.
       final seen = <String>{};
       for (final room in _client.rooms) {
@@ -747,7 +785,7 @@ class EncryptionService extends ChangeNotifier {
   /// `bootstrap` is returned when cross-signing is not yet configured
   /// for this account (any account, with or without an existing session).
   /// `verify` is returned when cross-signing exists but the current
-  /// device has not yet been verified — the trust chain to the master
+  /// device has not yet been verified  the trust chain to the master
   /// key is incomplete so we cannot decrypt historical messages sent
   /// by the user's other devices until this device is verified.
   /// `none` is returned when both cross-signing and this-device trust

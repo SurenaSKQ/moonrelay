@@ -64,17 +64,17 @@ class FormattedTextWidget extends StatelessWidget {
 
     if (formattedBody != null && format == 'org.matrix.custom.html') {
       // Check the parse cache before re-parsing.  Keyed on the raw
-      // formatted-body string instead of `hashCode` so two unrelated
-      // bodies with a colliding `hashCode` cannot return each other's
-      // parsed spans.
-      final cacheKey =
-          '${baseFontSize.toStringAsFixed(2)}::$formattedBody';
+      // formatted-body string (NOT including `baseFontSize` — the
+      // spans are stored at the canonical 16 px and re-scaled at
+      // render time via [_fs], so a font-size slider tweak no longer
+      // invalidates the entire cache and triggers a parse storm).
+      final cacheKey = formattedBody;
       List<InlineSpan>? spans = _HtmlParseCache.get(cacheKey);
       if (spans == null) {
         spans = _HtmlTagParser(
           formattedBody,
           context,
-          baseFontSize: baseFontSize,
+          baseFontSize: 16,
           room: room,
         ).parse();
         _HtmlParseCache.set(cacheKey, spans);
@@ -209,25 +209,102 @@ class FormattedTextWidget extends StatelessWidget {
 /// Simple bounded cache for HTML parse results keyed by formatted body text.
 ///
 /// Prevents re-parsing the same HTML string on every timeline rebuild.
-/// Only the most recent [kMaxCacheEntries] entries are kept.
+/// Each entry holds a list of [InlineSpan]s plus a per-entry byte
+/// estimate so the total memory footprint stays bounded even when a
+/// single body is very large.
+///
+/// The cache is LRU: on insert we move the key to the end of
+/// [_keys]; on eviction we drop the head. The previous implementation
+/// had a bug where re-inserting an existing key returned early and
+/// never refreshed the order, so the eviction actually picked a stale
+/// "oldest" rather than the real LRU entry.
 class _HtmlParseCache {
   _HtmlParseCache._();
+
+  /// Maximum number of entries. Each entry is sized via [_estimateSize].
   static const int kMaxCacheEntries = 200;
+
+  /// Approximate byte budget for the whole cache. InlineSpan trees can
+  /// hold WidgetSpans, gesture recognizers, and text — summing the
+  /// plain-text length plus a per-span overhead is a good-enough proxy
+  /// without dragging in a real measuring pass.
+  static const int kMaxCacheBytes = 4 * 1024 * 1024; // 4 MB
+
+  /// Estimated per-span overhead in bytes (recognizer, widget children,
+  /// etc.) added to the plain-text length of each cached entry.
+  static const int kPerSpanOverhead = 48;
+
   static final Map<String, List<InlineSpan>> _cache = {};
   static final List<String> _keys = [];
+  static int _bytes = 0;
 
-  /// Returns cached spans for [key], or `null` if not in cache.
-  static List<InlineSpan>? get(String key) => _cache[key];
+  /// Returns cached spans for [key], or `null` if not in cache. Promotes
+  /// the entry to most-recently-used.
+  static List<InlineSpan>? get(String key) {
+    final spans = _cache[key];
+    if (spans == null) return null;
+    _touch(key);
+    return spans;
+  }
 
-  /// Stores [spans] for [key], evicting the oldest entry if over capacity.
+  /// Stores [spans] for [key], promoting to MRU and evicting oldest
+  /// entries until the entry-count and byte caps are both satisfied.
   static void set(String key, List<InlineSpan> spans) {
-    if (_cache.containsKey(key)) return;
-    if (_keys.length >= kMaxCacheEntries) {
-      final oldest = _keys.removeAt(0);
-      _cache.remove(oldest);
+    final existing = _cache[key];
+    if (existing != null) {
+      // Replace the contents; update size tracking.
+      _bytes -= _estimateSize(existing);
+      _cache[key] = spans;
+      _bytes += _estimateSize(spans);
+      _touch(key);
+      return;
     }
-    _keys.add(key);
     _cache[key] = spans;
+    _keys.add(key);
+    _bytes += _estimateSize(spans);
+    _evictIfNeeded();
+  }
+
+  static void _touch(String key) {
+    final idx = _keys.indexOf(key);
+    if (idx < 0) return;
+    if (idx == _keys.length - 1) return;
+    _keys.removeAt(idx);
+    _keys.add(key);
+  }
+
+  static void _evictIfNeeded() {
+    while (_keys.length > kMaxCacheEntries || _bytes > kMaxCacheBytes) {
+      if (_keys.isEmpty) break;
+      final oldest = _keys.removeAt(0);
+      final removed = _cache.remove(oldest);
+      if (removed != null) {
+        _bytes -= _estimateSize(removed);
+      }
+    }
+  }
+
+  /// Rough byte estimate for an [InlineSpan] list: sum of plain-text
+  /// lengths plus a constant per-span overhead for recognizers, widget
+  /// children, and the [InlineSpan] object header.
+  static int _estimateSize(List<InlineSpan> spans) {
+    var bytes = 0;
+    for (final span in spans) {
+      bytes += _spanSize(span);
+    }
+    return bytes;
+  }
+
+  static int _spanSize(InlineSpan span) {
+    var bytes = kPerSpanOverhead;
+    final text = span.toPlainText();
+    bytes += text.length * 2; // UTF-16.
+    if (span is TextSpan && span.children != null) {
+      for (final child in span.children!) {
+        bytes += _spanSize(child);
+      }
+    }
+    return bytes;
   }
 }
 
