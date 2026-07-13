@@ -222,7 +222,7 @@ class _TimelineViewState extends State<TimelineView> {
   /// When they form a group, the **older** event acts as the group start
   /// (shows avatar/name) and the newer event is a continuation (no avatar).
   ///
-  /// Stickers never group with adjacent messages — they are short,
+  /// Stickers never group with adjacent messages  they are short,
   /// visually-distinct and conventionally shown as standalone rows
   /// with their own sender label.
   bool _isContinuation(Event newer, Event older) {
@@ -350,10 +350,9 @@ class _TimelineViewState extends State<TimelineView> {
         final replyCount = threadReplyCounts[event.eventId] ?? 0;
 
         items.add(TimelineItem(
+          key: ValueKey(event.eventId),
           event: event,
           room: widget.room,
-          previousEvent:
-              eventIndex >= 1 ? widget.timeline.events[eventIndex - 1] : null,
           displayType: widget.displayType,
           isGroupStart: !isContinuation,
           isGroupContinuation: isContinuation,
@@ -361,16 +360,12 @@ class _TimelineViewState extends State<TimelineView> {
           fontSize: widget.fontSize,
           bubbleRadius: widget.bubbleRadius,
           threadReplyCount: replyCount,
-          onReply: widget.onReply != null ? () => widget.onReply!(event) : null,
-          onThread:
-              widget.onThread != null ? () => widget.onThread!(event) : null,
-          onForward: () => showForwardDialog(
-            context: context,
-            event: event,
-            sourceRoom: widget.room,
-          ),
-          onJumpToEvent:
-              _jumpToEvent(widget.scrollController, eventIdToItemIndex),
+          // Single stable callback for every action: keeps the leaf
+          // closures' identity stable across rebuilds so Flutter can
+          // re-use the existing Element tree instead of inflating new
+          // TimelineItem nodes on every parent build.
+          onAction: (action, e) =>
+              _handleItemAction(action, e, eventIdToItemIndex),
           highlightedEventId:
               widget.highlightedEventId ?? _highlightedEventId,
         ));
@@ -415,14 +410,14 @@ class _TimelineViewState extends State<TimelineView> {
     // When the user has scrolled to the top of the loaded history and
     // the server still owes us more events, render skeleton message
     // tiles *after* the cached items.  Because the list is reversed,
-    // the new items sit at the top of the viewport — directly above
-    // the oldest known event — and are smoothly swapped out for
+    // the new items sit at the top of the viewport  directly above
+    // the oldest known event  and are smoothly swapped out for
     // real events as the SDK paginates them in.
     final hasMore = widget.isLoadingHistory;
     final extra = hasMore ? _buildHistoryLoadingSkeletons() : <Widget>[];
 
     // With `reverse: true` the items are painted top-of-viewport to
-    // bottom-of-viewport.  The LAST list index — our skeleton slot —
+    // bottom-of-viewport.  The LAST list index  our skeleton slot
     // therefore lands at the top of the viewport.  The first 5 items
     // are at the top of the timeline (the oldest end), which is the
     // region that gets replaced when new history arrives, so we wrap
@@ -456,7 +451,7 @@ class _TimelineViewState extends State<TimelineView> {
   /// Returns skeleton message placeholders shown at the top of the
   /// viewport while older history is being paginated in.
   ///
-  /// A single tile is shown — the timeline re-renders incrementally as
+  /// A single tile is shown  the timeline re-renders incrementally as
   /// paginated events arrive, with each newly-arrived event fading in
   /// from its top edge instead of being snapped into place.  Keeping
   /// the placeholder count small avoids the prior "stacked skeleton"
@@ -476,57 +471,85 @@ class _TimelineViewState extends State<TimelineView> {
   /// bottom (scroll offset 0) and older items are at the top (max scroll
   /// extent).  The offset is estimated proportionally, so the target may
   /// not be pixel-perfect, but will be close enough for the user to see it.
-  void Function(String eventId) _jumpToEvent(
-    ScrollController controller,
+  void _scrollToEventId(String eventId) {
+    final map = _cachedEventIdToItemIndex;
+    if (map == null) return;
+    final targetIdx = map[eventId];
+    if (targetIdx == null) return;
+    final controller = widget.scrollController;
+    if (!controller.hasClients) return;
+
+    // Highlight the target event briefly.
+    setState(() => _highlightedEventId = eventId);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          if (_highlightedEventId == eventId) {
+            _highlightedEventId = null;
+          }
+        });
+      }
+    });
+
+    final position = controller.position;
+    final itemCount = map.length;
+    // Estimate position in the list. With reverse: true, item 0 is at
+    // scroll offset 0 (bottom), and the last item is at maxScrollExtent.
+    final range = position.maxScrollExtent - position.minScrollExtent;
+    final fraction = itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
+    final targetOffset = position.minScrollExtent + range * fraction;
+
+    // If the target is already roughly within viewport, skip scrolling
+    // and just show the highlight.
+    final distance = (targetOffset - position.pixels).abs();
+    final viewportHeight = position.viewportDimension;
+    if (distance < viewportHeight * 0.6) return;
+
+    // Scroll so the target sits about one third from the top of the
+    // viewport, preventing it from being hidden at the edge.
+    final paddedOffset = (targetOffset - viewportHeight * 0.33).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+
+    controller.animateTo(
+      paddedOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  /// Single dispatch for every [TimelineItemAction].  Centralises the
+  /// routing so each [TimelineItem] can hand the view a single stable
+  /// callback closure (keeping the Element tree reusable across rebuilds).
+  ///
+  /// [eventIdToItemIndex] is captured for backwards compatibility with
+  /// callers that supplied it; the implementation reads the cached
+  /// [_cachedEventIdToItemIndex] instead so the map identity stays
+  /// consistent.
+  void _handleItemAction(
+    TimelineItemAction action,
+    Event event,
     Map<String, int> eventIdToItemIndex,
   ) {
-    return (String eventId) {
-      // Use the cached map if available (avoids passing the ephemeral
-      // map through the closure on every rebuild).
-      final map = _cachedEventIdToItemIndex ?? eventIdToItemIndex;
-      final targetIdx = map[eventId];
-      if (targetIdx == null) return;
-      if (!controller.hasClients) return;
-
-      // Highlight the target event briefly.
-      setState(() => _highlightedEventId = eventId);
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            if (_highlightedEventId == eventId) {
-              _highlightedEventId = null;
-            }
-          });
-        }
-      });
-
-      final position = controller.position;
-      final itemCount = eventIdToItemIndex.length;
-      // Estimate position in the list. With reverse: true, item 0 is at
-      // scroll offset 0 (bottom), and the last item is at maxScrollExtent.
-      final range = position.maxScrollExtent - position.minScrollExtent;
-      final fraction = itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
-      final targetOffset = position.minScrollExtent + range * fraction;
-
-      // If the target is already roughly within viewport, skip scrolling
-      // and just show the highlight.
-      final distance = (targetOffset - position.pixels).abs();
-      final viewportHeight = position.viewportDimension;
-      if (distance < viewportHeight * 0.6) return;
-
-      // Scroll so the target sits about one third from the top of the
-      // viewport, preventing it from being hidden at the edge.
-      final paddedOffset = (targetOffset - viewportHeight * 0.33).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-
-      controller.animateTo(
-        paddedOffset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    };
+    switch (action) {
+      case TimelineItemAction.reply:
+        widget.onReply?.call(event);
+        break;
+      case TimelineItemAction.thread:
+        widget.onThread?.call(event);
+        break;
+      case TimelineItemAction.forward:
+        showForwardDialog(
+          context: context,
+          event: event,
+          sourceRoom: widget.room,
+        );
+        break;
+      case TimelineItemAction.jumpToEvent:
+        _scrollToEventId(event.eventId);
+        break;
+    }
   }
 }
 
@@ -556,8 +579,7 @@ class _AnimatedHistorySkeleton extends StatefulWidget {
       _AnimatedHistorySkeletonState();
 }
 
-class _AnimatedHistorySkeletonState
-    extends State<_AnimatedHistorySkeleton>
+class _AnimatedHistorySkeletonState extends State<_AnimatedHistorySkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _animation;
@@ -725,7 +747,7 @@ class _HistorySkeletonTileState extends State<_HistorySkeletonTile>
   void initState() {
     super.initState();
     final motion = Motion.of(context);
-    // Use a slow pulse — the user is waiting for new events so the
+    // Use a slow pulse  the user is waiting for new events so the
     // animation needs to convey "working" without flickering.
     _controller = AnimationController(
       vsync: this,
@@ -761,7 +783,8 @@ class _HistorySkeletonTileState extends State<_HistorySkeletonTile>
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: _pulse(child: Container(
+            child: _pulse(
+                child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
@@ -775,19 +798,22 @@ class _HistorySkeletonTileState extends State<_HistorySkeletonTile>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _pulse(child: _skeletonBar(
+                _pulse(
+                    child: _skeletonBar(
                   width: width * 0.32,
                   height: 13,
                   color: base,
                 )),
                 const SizedBox(height: 6),
-                _pulse(child: _skeletonBar(
+                _pulse(
+                    child: _skeletonBar(
                   width: double.infinity,
                   height: 12,
                   color: base,
                 )),
                 const SizedBox(height: 4),
-                _pulse(child: _skeletonBar(
+                _pulse(
+                    child: _skeletonBar(
                   width: width * widget.barFraction,
                   height: 12,
                   color: base,
@@ -888,7 +914,8 @@ class _UndecryptableBanner extends StatelessWidget {
                             : '$count ${l10n.encryptionUndecryptableMessages}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: scheme.onTertiaryContainer.withValues(alpha: 0.75),
+                          color: scheme.onTertiaryContainer
+                              .withValues(alpha: 0.75),
                         ),
                       ),
                     ],

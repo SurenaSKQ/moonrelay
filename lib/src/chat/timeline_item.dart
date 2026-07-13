@@ -37,9 +37,20 @@ const double _kMaxBubbleWidth = 480;
 
 /// Reserved right margin for every bubble row.  The bubble itself is
 /// also left-aligned, so the row ends up with a constant
-/// [_kBubbleRightMargin] gutter on the right of the chat column —
+/// [_kBubbleRightMargin] gutter on the right of the chat column
 /// giving bubbles a "floating" feel instead of a full-width slab.
 const double _kBubbleRightMargin = 64;
+
+/// Tagged action identifier used by [TimelineItem.onAction].  Folding
+/// the four message actions into a single dispatch keeps the closure
+/// identities stable across rebuilds so the Flutter element tree can
+/// re-use existing children instead of inflating new ones.
+enum TimelineItemAction {
+  reply,
+  forward,
+  thread,
+  jumpToEvent,
+}
 
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
@@ -60,7 +71,6 @@ class TimelineItem extends StatelessWidget {
     super.key,
     required this.event,
     required this.room,
-    this.previousEvent,
     required this.displayType,
     this.isGroupStart = true,
     this.isGroupContinuation = false,
@@ -68,15 +78,11 @@ class TimelineItem extends StatelessWidget {
     required this.fontSize,
     this.bubbleRadius = 12.0,
     this.threadReplyCount = 0,
-    this.onReply,
-    this.onForward,
-    this.onThread,
-    this.onJumpToEvent,
+    this.onAction,
     this.highlightedEventId,
   });
 
   final Event event;
-  final Event? previousEvent;
   final Room room;
   final DisplayType displayType;
   final Timeline? timeline;
@@ -100,22 +106,30 @@ class TimelineItem extends StatelessWidget {
   /// in time). In this case the avatar and name header are hidden.
   final bool isGroupContinuation;
 
-  /// Called when the user wants to reply to this event.
-  final VoidCallback? onReply;
-
-  /// Called when the user wants to forward this event to another room.
-  final VoidCallback? onForward;
-
-  /// Called when the user wants to view the thread for this event.
-  final VoidCallback? onThread;
-
-  /// Called when the user taps a reply preview to jump to the replied-to
-  /// event.  Receives the event ID of the target event.
-  final void Function(String eventId)? onJumpToEvent;
+  /// Single stable callback used by the message actions (reply, forward,
+  /// thread, jump). Passing one callback with a tagged [TimelineItemAction]
+  /// means the closures handed to the leaf widgets have stable identity
+  /// across rebuilds, so Flutter can re-use the existing [Element]s
+  /// instead of inflating new ones on every parent build.
+  final void Function(TimelineItemAction action, Event event)? onAction;
 
   /// When non-null and matching this event's [event.eventId], the event
   /// is rendered with a brief highlight background flash.
   final String? highlightedEventId;
+
+  /// Convenience getters that call [onAction] with the right action tag.
+  VoidCallback? get _onReply => onAction == null
+      ? null
+      : () => onAction!(TimelineItemAction.reply, event);
+  VoidCallback? get _onForward => onAction == null
+      ? null
+      : () => onAction!(TimelineItemAction.forward, event);
+  VoidCallback? get _onThread => onAction == null
+      ? null
+      : () => onAction!(TimelineItemAction.thread, event);
+  void Function(String)? get _onJumpToEvent => onAction == null
+      ? null
+      : (id) => onAction!(TimelineItemAction.jumpToEvent, event);
 
   /// Whether the event was redacted (deleted).
   bool get _isRedacted => event.redacted;
@@ -137,9 +151,7 @@ class TimelineItem extends StatelessWidget {
   /// the menu can invoke them. When none of them are available, the gesture
   /// detector is omitted to avoid accidental interactions.
   Widget _wrapWithContextMenu(BuildContext context, Widget child) {
-    final hasAny =
-        onReply != null || onForward != null || onThread != null;
-    if (!hasAny) return child;
+    if (onAction == null) return child;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -150,9 +162,9 @@ class TimelineItem extends StatelessWidget {
           event: event,
           room: room,
           timeline: timeline,
-          onReply: onReply ?? () {},
-          onForward: onForward,
-          onThread: onThread,
+          onReply: _onReply ?? () {},
+          onForward: _onForward,
+          onThread: _onThread,
           onOpenProfile: () => _openProfile(context),
         );
       },
@@ -163,9 +175,9 @@ class TimelineItem extends StatelessWidget {
           event: event,
           room: room,
           timeline: timeline,
-          onReply: onReply ?? () {},
-          onForward: onForward,
-          onThread: onThread,
+          onReply: _onReply ?? () {},
+          onForward: _onForward,
+          onThread: _onThread,
           onOpenProfile: () => _openProfile(context),
         );
       },
@@ -223,7 +235,7 @@ class TimelineItem extends StatelessWidget {
           timeline: timeline,
           room: room,
           fontSize: fontSize,
-          onJumpToEvent: onJumpToEvent,
+          onJumpToEvent: _onJumpToEvent,
         ),
         if (timeline != null)
           ReactionsBar(
@@ -232,8 +244,7 @@ class TimelineItem extends StatelessWidget {
             room: room,
           ),
         // Read-receipt avatars under every message that someone has seen.
-        if (timeline != null)
-          ReceiptAvatars(event: event, room: room),
+        if (timeline != null) ReceiptAvatars(event: event, room: room),
         if (showDelivery)
           Padding(
             padding: const EdgeInsets.only(top: 2),
@@ -242,7 +253,7 @@ class TimelineItem extends StatelessWidget {
         if (threadReplyCount > 0)
           _ThreadIndicator(
             replyCount: threadReplyCount,
-            onTap: onThread,
+            onTap: _onThread,
           ),
       ],
     );
@@ -332,10 +343,11 @@ class TimelineItem extends StatelessWidget {
                   event: event,
                   room: room,
                   timeline: timeline,
-                  onReply: onReply,
-                  onForward: onForward,
-                  onThread: onThread,
-                  child: _wrapWithContextMenu(context, _messageContent(context)),
+                  onReply: _onReply,
+                  onForward: _onForward,
+                  onThread: _onThread,
+                  child:
+                      _wrapWithContextMenu(context, _messageContent(context)),
                 ),
               ],
             ),
@@ -375,7 +387,7 @@ class TimelineItem extends StatelessWidget {
           const SizedBox(width: 8),
           // Bubble content.  The whole column is wrapped in an
           // [Expanded] (filling the row) with a fixed right margin so
-          // the bubble never hugs the right edge of the chat column —
+          // the bubble never hugs the right edge of the chat column
           // the bubble visibly floats to the left and the gap on the
           // right gives the layout visual breathing room.
           Expanded(
@@ -391,7 +403,8 @@ class TimelineItem extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              event.senderFromMemoryOrFallback.calcDisplayname(),
+                              event.senderFromMemoryOrFallback
+                                  .calcDisplayname(),
                               style: TextStyle(
                                 fontSize: fontSize,
                                 fontWeight: FontWeight.w700,
@@ -422,9 +435,9 @@ class TimelineItem extends StatelessWidget {
                       event: event,
                       room: room,
                       timeline: timeline,
-                      onReply: onReply,
-                      onForward: onForward,
-                      onThread: onThread,
+                      onReply: _onReply,
+                      onForward: _onForward,
+                      onThread: _onThread,
                       child: _wrapWithContextMenu(
                         context,
                         ConstrainedBox(
@@ -434,8 +447,7 @@ class TimelineItem extends StatelessWidget {
                           child: Container(
                             decoration: BoxDecoration(
                               color: cs.primaryContainer.withValues(alpha: 0.3),
-                              borderRadius:
-                                  BorderRadius.circular(bubbleRadius),
+                              borderRadius: BorderRadius.circular(bubbleRadius),
                               border: Border.all(
                                 color: cs.primary.withValues(alpha: 0.5),
                                 width: 0.7,
@@ -499,7 +511,7 @@ class TimelineItem extends StatelessWidget {
               timeline: timeline,
               room: room,
               fontSize: fontSize,
-              onJumpToEvent: onJumpToEvent,
+              onJumpToEvent: _onJumpToEvent,
             ),
             if (timeline != null)
               ReactionsBar(
@@ -526,7 +538,8 @@ class TimelineItem extends StatelessWidget {
 /// permissions.
 ///
 /// When [onReply] is `null` the whole mechanism is skipped and [child] is
-/// returned as-is.
+/// returned as-is.  The [onReply], [onForward], and [onThread] callbacks
+/// are passed in from [TimelineItem] and are stable across rebuilds.
 class _HoverActionsWrapper extends StatefulWidget {
   const _HoverActionsWrapper({
     required this.child,
@@ -551,60 +564,75 @@ class _HoverActionsWrapper extends StatefulWidget {
 }
 
 class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
-  bool _isHovered = false;
+  /// Hover state held in a [ValueNotifier] so a mouse enter/exit
+  /// rebuilds only the overlay leaf, not the whole message body.
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // No reply callback means no actions at all – skip the overhead.
+    // No reply callback means no actions at all - skip the overhead.
     if (widget.onReply == null) return widget.child;
 
     final cs = Theme.of(context).colorScheme;
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
       child: Stack(
         children: [
           widget.child,
-          if (_isHovered)
-            Positioned(
-              top: -4,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: cs.outlineVariant,
-                    width: 0.5,
+          // Only the overlay re-builds on hover toggles; the message
+          // body subtree (the `widget.child` above) is unaffected.
+          ValueListenableBuilder<bool>(
+            valueListenable: _isHovered,
+            builder: (context, hovered, _) {
+              if (!hovered) return const SizedBox.shrink();
+              return Positioned(
+                top: -4,
+                right: 0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: cs.outlineVariant,
+                      width: 0.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: MessageActions(
+                    event: widget.event,
+                    room: widget.room,
+                    timeline: widget.timeline,
+                    onReply: widget.onReply!,
+                    onForward: widget.onForward,
+                    onThread: widget.onThread,
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 4,
-                ),
-                child: MessageActions(
-                  event: widget.event,
-                  room: widget.room,
-                  timeline: widget.timeline,
-                  onReply: widget.onReply!,
-                  onForward: widget.onForward,
-                  onThread: widget.onThread,
-                ),
-              ),
-            ),
+              );
+            },
+          ),
         ],
       ),
     );
