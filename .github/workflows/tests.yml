@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.24.5'
+  FLUTTER_VERSION: '3.44.6'
 
 jobs:
   # ── Static analysis (fast, runs on every push) ────────────────────

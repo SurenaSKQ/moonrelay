@@ -42,7 +42,7 @@ env:
   APP_NAME: Moonrelay
   PUBLISHER: 'CN=Surena Karimpour Ghannadi'
   PUBLISHER_DISPLAY_NAME: 'Surena Karimpour Ghannadi'
-  FLUTTER_VERSION: '3.24.5'
+  FLUTTER_VERSION: '3.44.6'
 
 jobs:
   build:
