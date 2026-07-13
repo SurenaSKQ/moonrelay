@@ -60,6 +60,55 @@ void main() {
       final events = _mkEvents(['a', 'b', 'c']);
       expect(countUnreadInWindow(events, '\$oldMarker'), 3);
     });
+
+    test('skips state events when counting unread messages', () {
+      // newest-first list with one real message and one state event
+      // newer than the marker; the state event should not count.
+      final message = _MockEventFactory.build(
+        id: 'm1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      final stateEvent = _MockEventFactory.build(
+        id: 's1',
+        status: EventStatus.synced,
+        type: EventTypes.RoomMember,
+      );
+      expect(countUnreadInWindow(<Event>[message, stateEvent], 'm2'), 1);
+    });
+
+    test('returns 0 when only state events are newer than the marker', () {
+      // A room with member churn, topic edits or encryption rollouts
+      // after the marker has nothing for the user to "catch up on",
+      // so the FAB shouldn't surface.  The count must be zero.
+      final stateA = _MockEventFactory.build(
+        id: 's1',
+        status: EventStatus.synced,
+        type: EventTypes.RoomTopic,
+      );
+      final stateB = _MockEventFactory.build(
+        id: 's2',
+        status: EventStatus.synced,
+        type: EventTypes.RoomMember,
+      );
+      expect(countUnreadInWindow(<Event>[stateA, stateB], 'marker'), 0);
+    });
+
+    test('skips state events when no marker is set either', () {
+      // A fresh account on a room full of state activity should not
+      // see "X unread" — there are no real messages to read.
+      final stateA = _MockEventFactory.build(
+        id: 's1',
+        status: EventStatus.synced,
+        type: EventTypes.RoomName,
+      );
+      final stateB = _MockEventFactory.build(
+        id: 's2',
+        status: EventStatus.synced,
+        type: EventTypes.RoomAvatar,
+      );
+      expect(countUnreadInWindow(<Event>[stateA, stateB], ''), 0);
+    });
   });
 }
 
@@ -67,18 +116,27 @@ void main() {
 /// `synced` so a derived `markRead` would consider them valid.
 List<Event> _mkEvents(List<String> ids) {
   return ids
-      .map((id) => _MockEventFactory.build(id: id, status: EventStatus.synced))
+      .map((id) => _MockEventFactory.build(
+            id: id,
+            status: EventStatus.synced,
+            type: EventTypes.Message,
+          ))
       .toList();
 }
 
 /// Local event factory: mocktail's standard `Mock` class doesn't
 /// accept constructor args, so we use a tiny subclass that overrides
-/// the two properties we read (eventId, status).
+/// the two properties we read (eventId, status, type).
 class _MockEventFactory {
-  static Event build({required String id, required EventStatus status}) {
+  static Event build({
+    required String id,
+    required EventStatus status,
+    String type = EventTypes.Message,
+  }) {
     final ev = MockEvent();
     when(() => ev.eventId).thenReturn(id);
     when(() => ev.status).thenReturn(status);
+    when(() => ev.type).thenReturn(type);
     return ev;
   }
 }
