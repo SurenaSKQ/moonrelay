@@ -34,11 +34,11 @@ void main() {
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      drafts = DraftService.forAccount('@user:example.com');
+      drafts = DraftService.instanceFor('@user:example.com');
     });
 
     tearDown(() async {
-      drafts.cancelPending();
+      drafts.release();
     });
 
     test('load returns an empty draft when nothing is stored', () async {
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('different accounts do not see each other\'s drafts', () async {
-      final otherDrafts = DraftService.forAccount('@other:example.com');
+      final otherDrafts = DraftService.instanceFor('@other:example.com');
       try {
         await drafts.saveNow('!room:example.com', 'user A draft');
         await otherDrafts.saveNow(
@@ -86,6 +86,7 @@ void main() {
         expect(aLoaded.body, isNot(bLoaded.body));
       } finally {
         await otherDrafts.clear('!room:example.com');
+        otherDrafts.release();
       }
     });
 
