@@ -19,7 +19,7 @@
 // Mount this widget above the dashboard so the following shortcuts fire
 // from anywhere in the room page tree:
 //   - `Ctrl+Shift+P` → command palette (also reachable via the toolbar
-//                      button — there is no separate "search overlay"
+//                      button  there is no separate "search overlay"
 //                      any more; the palette absorbs every search mode)
 //   - `?` (Shift+/)   → keyboard shortcuts cheat sheet
 //
