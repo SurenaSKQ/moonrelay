@@ -61,6 +61,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libc6 libstdc++6 libgtk-3-0 libnss3 libsecret-1-0 libsqlite3-0 \
+            libcurl4 libjsoncpp25 libayatana-appindicator3-1 \
             libsqlite3-dev libsecret-1-dev libjsoncpp-dev libcurl4-openssl-dev \
             cmake ninja-build clang pkg-config
 
@@ -102,6 +104,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libc6 libstdc++6 libgtk-3-0 libnss3 libsecret-1-0 libsqlite3-0 \
+            libcurl4 libjsoncpp25 libayatana-appindicator3-1 \
             libsqlite3-dev libsecret-1-dev libjsoncpp-dev libcurl4-openssl-dev
 
       - run: flutter pub get
@@ -137,6 +141,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libc6 libstdc++6 libgtk-3-0 libnss3 libsecret-1-0 libsqlite3-0 \
+            libcurl4 libjsoncpp25 libayatana-appindicator3-1 \
             libsqlite3-dev libsecret-1-dev libjsoncpp-dev libcurl4-openssl-dev \
             cmake ninja-build clang pkg-config xvfb libgtk-3-dev
 
@@ -174,6 +180,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libc6 libstdc++6 libgtk-3-0 libnss3 libsecret-1-0 libsqlite3-0 \
+            libcurl4 libjsoncpp25 libayatana-appindicator3-1 \
             libsqlite3-dev libsecret-1-dev libjsoncpp-dev libcurl4-openssl-dev \
             cmake ninja-build clang pkg-config
 
