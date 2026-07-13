@@ -34,12 +34,16 @@ class PinnedEventsCache {
 
   static final PinnedEventsCache instance = PinnedEventsCache._();
 
-  final Map<String, Future<Event?>> _inflight = {};
-  final Map<String, Event> _completed = {};
+  /// Approximate byte budget for completed entries. Each [Event] is
+  /// roughly proportional to its content map size; we use a simple
+  /// string-length estimate. 64 MB is enough for several thousand
+  /// small pinned messages without bloating the process.
+  static const int _maxBytes = 64 * 1024 * 1024;
 
-  /// Maximum number of completed entries to retain. Oldest entries are
-  /// evicted first; defaults to 512.
-  static const int _maxCompleted = 512;
+  final Map<String, Future<Event?>> _inflight = {};
+  final Map<String, _Entry> _completed = {};
+  final List<String> _lruOrder = [];
+  int _bytes = 0;
 
   String _key(String roomId, String eventId) => '$roomId::$eventId';
 
@@ -48,10 +52,12 @@ class PinnedEventsCache {
   Future<Event?> getEvent(Room room, String eventId) {
     final key = _key(room.id, eventId);
     final cached = _completed[key];
-    if (cached != null) return Future.value(cached);
+    if (cached != null) {
+      _touch(key);
+      return Future.value(cached.event);
+    }
     final inflight = _inflight[key];
     if (inflight != null) return inflight;
-
     final future = _fetch(room, eventId).whenComplete(() {
       _inflight.remove(key);
     });
@@ -63,7 +69,11 @@ class PinnedEventsCache {
     try {
       final event = await room.getEventById(eventId);
       if (event != null) {
-        _completed[_key(room.id, eventId)] = event;
+        final key = _key(room.id, eventId);
+        final size = _estimateSize(event);
+        _completed[key] = _Entry(event: event, size: size);
+        _lruOrder.add(key);
+        _bytes += size;
         _evictIfNeeded();
       }
       return event;
@@ -72,16 +82,64 @@ class PinnedEventsCache {
     }
   }
 
+  void _touch(String key) {
+    final idx = _lruOrder.indexOf(key);
+    if (idx < 0) return;
+    if (idx == _lruOrder.length - 1) return;
+    _lruOrder.removeAt(idx);
+    _lruOrder.add(key);
+  }
+
   void _evictIfNeeded() {
-    while (_completed.length > _maxCompleted) {
-      final oldest = _completed.keys.first;
-      _completed.remove(oldest);
+    while (_bytes > _maxBytes && _lruOrder.isNotEmpty) {
+      final oldest = _lruOrder.removeAt(0);
+      final entry = _completed.remove(oldest);
+      if (entry != null) {
+        _bytes -= entry.size;
+      }
     }
+  }
+
+  /// Rough byte estimate for an [Event]. The content map and the
+  /// type/keys dominate the size; the rest is small enough to ignore.
+  static int _estimateSize(Event event) {
+    var bytes = 256; // object header + senderId + originServerTs + ...
+    final content = event.content;
+    for (final entry in content.entries) {
+      bytes += entry.key.length * 2;
+      final value = entry.value;
+      if (value is String) {
+        bytes += value.length * 2;
+      } else if (value is Map) {
+        // Approximate nested map size by its JSON encoding.
+        try {
+          bytes += value.toString().length;
+        } catch (_) {
+          bytes += 64;
+        }
+      } else {
+        bytes += 32;
+      }
+    }
+    return bytes;
   }
 
   /// Drop all cached entries. Should be called on logout / client disposal.
   void clear() {
     _inflight.clear();
     _completed.clear();
+    _lruOrder.clear();
+    _bytes = 0;
   }
+
+  /// Diagnostic: total bytes held by the cache.
+  int get byteCount => _bytes;
+  int get entryCount => _completed.length;
+  int get inflightCount => _inflight.length;
+}
+
+class _Entry {
+  const _Entry({required this.event, required this.size});
+  final Event event;
+  final int size;
 }

@@ -37,21 +37,32 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   final double? radius;
 
   // ── Memoization ─────────────────────────────────────────────────────────
-  // Each (client, uri, size) triple resolves to a single Future<Uri>. Without
-  // this, every parent rebuild creates a new Future and FutureBuilder keeps
-  // showing the placeholder. Scoped to the client so logouts drop entries.
-  static final Map<int, Map<String, Future<Uri>>> _thumbnailPromises = {};
+  // Each (client, uri, size) triple resolves to a single Future<Uri>. The
+  // cache is a true LRU bounded by entry count; previously it grew without
+  // bound. Keyed by the client's `userID` (or the runtime hash as a last
+  // resort) so a future re-login reuses entries and a GC'd client cannot
+  // collide its hash with a freshly-allocated one.
+  static final Map<String, _LruCache<String, Future<Uri>>> _thumbnailPromises =
+      {};
+
+  /// Bounded per-client LRU for in-flight + completed thumbnail promises.
+  /// The cap is small because the only call site uses a single (uri, size)
+  /// per avatar and the avatar surface is finite.
+  static const int _maxEntries = 512;
 
   static Future<Uri> _getThumbnail(
     Client client,
     Uri uri,
     int displaySize,
   ) {
-    final byClient =
-        _thumbnailPromises.putIfAbsent(identityHashCode(client), () => {});
-    final key = '${uri.toString()}::$displaySize';
-    return byClient.putIfAbsent(
-      key,
+    final key = _clientKey(client);
+    final cache = _thumbnailPromises.putIfAbsent(key, () {
+      final c = _LruCache<String, Future<Uri>>(_maxEntries);
+      return c;
+    });
+    final entry = '${uri.toString()}::$displaySize';
+    return cache.getOrCompute(
+      entry,
       () => withTimeoutOrFallback(
         () => uri.getThumbnailUri(
           client,
@@ -64,10 +75,25 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     );
   }
 
+  /// Builds a stable per-client key. Uses `userID` when available so a
+  /// future re-login of the same account reuses the cache and so two
+  /// distinct accounts never collide on the runtime hash.
+  static String _clientKey(Client client) {
+    final id = client.userID;
+    if (id != null && id.isNotEmpty) return id;
+    return 'anon:${identityHashCode(client)}';
+  }
+
   /// Drops cached thumbnails for the given [client]. Call on logout /
   /// client disposal.
   static void clearCacheFor(Client client) {
-    _thumbnailPromises.remove(identityHashCode(client));
+    _thumbnailPromises.remove(_clientKey(client));
+  }
+
+  /// Drops every cached thumbnail. Useful from the settings "clear caches"
+  /// affordance and from tests.
+  static void clearAll() {
+    _thumbnailPromises.clear();
   }
 
   @override
@@ -126,5 +152,42 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
       backgroundColor: theme.colorScheme.primaryContainer,
       onBackgroundImageError: (_, __) {},
     );
+  }
+}
+
+/// Bounded LRU map used for the avatar-thumbnail memoization. Insertion
+/// order is tracked in [_lruOrder]; on a cache hit the entry is
+/// promoted to MRU; on overflow the LRU entry is dropped.
+class _LruCache<K, V> {
+  _LruCache(this._maxEntries);
+
+  final int _maxEntries;
+  final Map<K, V> _map = {};
+  final List<K> _lruOrder = [];
+
+  V? get(K key) => _map[key];
+
+  V getOrCompute(K key, V Function() compute) {
+    final existing = _map[key];
+    if (existing != null) {
+      _touch(key);
+      return existing;
+    }
+    final value = compute();
+    _map[key] = value;
+    _lruOrder.add(key);
+    while (_lruOrder.length > _maxEntries) {
+      final oldest = _lruOrder.removeAt(0);
+      _map.remove(oldest);
+    }
+    return value;
+  }
+
+  void _touch(K key) {
+    final idx = _lruOrder.indexOf(key);
+    if (idx < 0) return;
+    if (idx == _lruOrder.length - 1) return;
+    _lruOrder.removeAt(idx);
+    _lruOrder.add(key);
   }
 }
