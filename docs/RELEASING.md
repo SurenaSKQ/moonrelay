@@ -1,4 +1,4 @@
-# Moonrelay — releases, versioning, and packaging
+# Moonrelay releases, versioning, and packaging
 
 This document explains how Moonrelay is versioned, how CI builds
 artifacts, and how to cut a new release. The goal is **one source of
@@ -35,7 +35,7 @@ because those formats forbid `+` and `-`. They're derived into:
 | MSIX   | `0.6.0.0` (always four parts; revision becomes the suffix)   |
 
 The MSIX four-quad handling is documented in `package-windows.yml`
-`Resolve version from pubspec.yaml` — pre-release labels like
+`Resolve version from pubspec.yaml` pre-release labels like
 `0.7.0-rc.1` resolve to `0.7.0.0` and the human label is preserved as
 `<Identity>.DisplayVersion`.
 
@@ -52,7 +52,7 @@ tag vX.Y.Z                            ── immutable, triggers release.yml
 When `develop` is promoted to `main`, we make sure the merged commit
 on `main` has `pubspec.yaml` set to the version we want to ship, then
 tag `main`. **Never** tag a commit whose `pubspec.yaml` differs from
-the tag — the release workflow enforces this via a hard check.
+the tag the release workflow enforces this via a hard check.
 
 ## 3. Cutting a release
 
@@ -105,7 +105,7 @@ The CI uses Flutter `3.24.5` (pinned in env vars at the top of each
 workflow). Bump it consciously; SDK-level regressions from a major
 Flutter update are real.
 
-### Branch protection — recommended (UI setting)
+### Branch protection recommended (UI setting)
 
 Set on `main`:
 
@@ -155,7 +155,7 @@ a system lib, add it to both `linux/packaging/control` (Depends) and
 
 The PowerShell script tries chocolatey and winget for the Windows 10
 SDK. If neither path produces `makeappx.exe` (e.g. self-hosted
-runners without admin), the job short-circuits with a warning —
+runners without admin), the job short-circuits with a warning 
 manual repackaging with Visual Studio is still possible using the
 provided `AppxManifest.xml.in`. The warning path is also what you
 want for short-lived forks where MSIX signing isn't set up.
@@ -191,7 +191,7 @@ the release fail loudly. Update pubspec first, push, then re-tag.
 
 ### Where to spend time when you return after months away
 
-1. Look at `WORK_NEEDED.md` (existing) — feature debt.
+1. Look at `WORK_NEEDED.md` (existing)  feature debt.
 2. Run `flutter pub outdated` and check the major deps (`matrix`, `go_router`, `provider`).
 3. Run `./tools/release.sh patch && git push` to make sure the
    pipeline still produces artifacts end-to-end; this catches SDK
