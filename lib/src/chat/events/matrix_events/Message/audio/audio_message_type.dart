@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -49,6 +51,10 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   final ValueNotifier<Duration> _duration = ValueNotifier(Duration.zero);
   final ValueNotifier<bool> _isPlaying = ValueNotifier(false);
   final ValueNotifier<bool> _isReady = ValueNotifier(false);
+  /// Set when the most recent load or playback attempt failed.  We
+  /// swallow the underlying error so a transient network blip doesn't
+  /// throw across the widget tree; instead we surface a retry chip.
+  Object? _lastError;
   Uint8List? _bytes;
   bool _autoDownloadResolved = false;
 
@@ -152,15 +158,25 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
       final tmp = File('${Directory.systemTemp.path}/moonrelay_$name')
         ..writeAsBytesSync(_bytes!);
       await _player.setFilePath(tmp.path);
-    } catch (_) {}
+    } on Object catch (e, st) {
+      // Don't crash the chat — log and surface the failure.
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+      rethrow;
+    }
   }
 
   Future<void> _togglePlay() async {
-    if (_isPlaying.value) {
-      await _player.pause();
-    } else {
-      await _ensureAttached();
-      await _player.play();
+    try {
+      if (_isPlaying.value) {
+        await _player.pause();
+      } else {
+        await _ensureAttached();
+        await _player.play();
+      }
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
     }
   }
 
@@ -170,19 +186,75 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     final newPos = Duration(
       milliseconds: (value * d.inMilliseconds).round(),
     );
-    await _player.seek(newPos);
-    _position.value = newPos;
+    try {
+      await _player.seek(newPos);
+      _position.value = newPos;
+    } on Object catch (e, st) {
+      // Seeks are best-effort; never bubble them up.
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+    }
   }
 
   Future<void> _downloadFile() async {
     final bytes = _bytes;
     if (bytes == null) return;
     final l10n = AppLocalizations.of(context)!;
-    await FilePicker.saveFile(
-      dialogTitle: l10n.saveAudio,
-      fileName: _fileName ?? 'audio.$_extension',
-      bytes: bytes,
+    try {
+      await FilePicker.saveFile(
+        dialogTitle: l10n.saveAudio,
+        fileName: _fileName ?? 'audio.$_extension',
+        bytes: bytes,
+      );
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      // User dismissal is not an error — only report real failures.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('Audio save failed: $e');
+      }
+    }
+  }
+
+  Future<void> _retry() async {
+    setState(() => _lastError = null);
+    try {
+      await _togglePlay();
+    } on Object catch (_) {
+      // The toggle play surfaces a new error inside the catch chain.
+    }
+  }
+
+  /// Ad-hoc download path used when the auto-download policy is
+  /// "never" and the user taps the save icon anyway.  Reuses the
+  /// shared cache so a second tap doesn't refetch.
+  ///
+  /// Uses block-body lambdas for `setState` because the arrow form
+  /// `() => _x = future` returns the assigned `Future`, which
+  /// `State.setState` rejects as "the closure returned a Future".
+  Future<void> _downloadOnDemand() async {
+    final future = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
     );
+    setState(() {
+      _downloadFuture = future;
+    });
+    try {
+      final mf = await future;
+      _bytes = mf.bytes;
+      if (!mounted) return;
+      await _downloadFile();
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadFuture = null;
+        });
+      }
+    }
   }
 
   @override
@@ -241,11 +313,15 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                               maxWidth:
                                   MediaSizePrefs.of(context).audioMax),
                           decoration: BoxDecoration(
-                            color: cs.surfaceContainerHighest
-                                .withValues(alpha: 0.4),
+                            color: _lastError != null
+                                ? cs.errorContainer.withValues(alpha: 0.5)
+                                : cs.surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: cs.outlineVariant.withValues(alpha: 0.4),
+                              color: _lastError != null
+                                  ? cs.error.withValues(alpha: 0.5)
+                                  : cs.outlineVariant.withValues(alpha: 0.4),
                             ),
                           ),
                           child: Padding(
@@ -256,19 +332,27 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: cs.primary.withValues(alpha: 0.15),
+                                    color: _lastError != null
+                                        ? cs.error.withValues(alpha: 0.15)
+                                        : cs.primary.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: IconButton(
                                     icon: Icon(
-                                      isPlaying
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                      color: cs.primary,
+                                      _lastError != null
+                                          ? Icons.refresh_rounded
+                                          : isPlaying
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                      color: _lastError != null
+                                          ? cs.error
+                                          : cs.primary,
                                       size: 22,
                                     ),
                                     onPressed: downloaded && isReady
-                                        ? _togglePlay
+                                        ? (_lastError != null
+                                            ? _retry
+                                            : _togglePlay)
                                         : null,
                                   ),
                                 ),
@@ -382,14 +466,23 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: IconButton(
-                                      icon: Icon(
-                                        LucideIcons.download,
-                                        size: 18,
-                                        color: cs.primary,
-                                      ),
+                                      icon: downloaded
+                                          ? Icon(
+                                              LucideIcons.download,
+                                              size: 18,
+                                              color: cs.primary,
+                                            )
+                                          : SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: cs.primary,
+                                              ),
+                                            ),
                                       onPressed: downloaded
                                           ? _downloadFile
-                                          : null,
+                                          : _downloadOnDemand,
                                     ),
                                   ),
                                 ),
