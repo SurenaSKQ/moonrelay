@@ -59,7 +59,7 @@ class MotionDurations {
 /// Resolves animation-related helpers given the current settings.
 ///
 /// A new [Motion] is created on demand via [Motion.of] and re-used by
-/// passing the instance to descendant widgets.  The lookup is cheap —
+/// passing the instance to descendant widgets.  The lookup is cheap 
 /// `Provider.of` for a `ChangeNotifier` is O(1).
 class Motion {
   Motion._(this.enableAnimations);
@@ -94,7 +94,7 @@ class Motion {
   /// transition.
   ///
   /// Use this when conditionally returning different widgets based on
-  /// animation state — calling [AnimatedSwitcher] with a zero duration
+  /// animation state  calling [AnimatedSwitcher] with a zero duration
   /// still incurs a frame delay on some platforms.
   Widget instantSwap(Widget child, {Key? key}) =>
       enableAnimations

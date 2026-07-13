@@ -53,7 +53,7 @@ class LayoutBreakpoints {
   const LayoutBreakpoints._();
 
   /// Below this width we treat the window as compact (single-pane dashboard
-  /// shell with a unified sidebar) — anything narrower switches to the
+  /// shell with a unified sidebar)  anything narrower switches to the
   /// dedicated mobile layout via [LayoutBreakpoints.mobileMax].
   ///
   /// Historical note: this used to be 600.  We now treat the entire range
@@ -68,7 +68,7 @@ class LayoutBreakpoints {
 
   /// Below this width we treat the window as medium (single sidebar).
   /// Retained for back-compat with code that still inspects
-  /// [LayoutSize.medium] — the new dashboard treats medium and compact
+  /// [LayoutSize.medium]  the new dashboard treats medium and compact
   /// the same way.
   static const double mediumMax = 900;
 
@@ -123,7 +123,7 @@ class LayoutBreakpoints {
   ///
   /// The dashboard assumes both side panes and a chat surface can fit
   /// side-by-side; below [mobileMax] it cannot.  This helper is the
-  /// single source of truth for the switch — the router and the
+  /// single source of truth for the switch  the router and the
   /// dashboard both consult it.
   static bool shouldUseMobile(double width) => width < mobileMax;
 

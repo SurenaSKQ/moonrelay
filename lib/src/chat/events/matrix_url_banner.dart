@@ -191,7 +191,7 @@ class MatrixUrlBanner extends StatelessWidget {
     );
   }
 
-  /// Builds the room avatar — either a loaded avatar or a generic icon.
+  /// Builds the room avatar  either a loaded avatar or a generic icon.
   Widget _buildRoomAvatar(
     BuildContext context,
     ThemeData theme,

@@ -20,13 +20,13 @@ import 'package:matrix/matrix.dart';
 class ThreadUtils {
   ThreadUtils._();
 
-  /// Returns `true` when [event] is a thread root — an event whose
+  /// Returns `true` when [event] is a thread root  an event whose
   /// relationship type is `m.thread` and whose `event_id` points to itself.
   static bool isThreadRoot(Event event) =>
       event.relationshipType == RelationshipTypes.thread &&
       event.relationshipEventId == event.eventId;
 
-  /// Returns `true` when [event] is a thread reply — an event whose
+  /// Returns `true` when [event] is a thread reply  an event whose
   /// relationship type is `m.thread` that is NOT the root event.
   static bool isThreadReply(Event event) =>
       event.relationshipType == RelationshipTypes.thread &&
@@ -56,7 +56,7 @@ class ThreadUtils {
   }
 
   /// Returns `true` when the event should appear as a standalone item in
-  /// the main timeline — i.e. it's either a regular event (no relationship)
+  /// the main timeline  i.e. it's either a regular event (no relationship)
   /// or a thread root.  Everything else (reactions, edits, thread replies)
   /// is excluded.
   static bool isVisibleInMainTimeline(Event event) {
@@ -72,7 +72,7 @@ class ThreadUtils {
   /// [threadReplyCount] / [hasThreadReplies] once per visible event,
   /// each of which internally scans the timeline for matching replies.
   /// For a timeline of N events with M thread replies, that produced
-  /// O(N*M) work — a single linear pass here brings that down to O(N+M).
+  /// O(N*M) work  a single linear pass here brings that down to O(N+M).
   ///
   /// The returned map only contains entries for events with at least one
   /// reply, so callers can use `map[id] ?? 0` to read the count.

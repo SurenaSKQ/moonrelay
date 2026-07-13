@@ -124,7 +124,7 @@ class MoonrelayTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
 
-      // Font defaults — all Text widgets that don't explicitly set a
+      // Font defaults  all Text widgets that don't explicitly set a
       // fontFamily will inherit this value.
       fontFamily: defaultFontFamily,
 

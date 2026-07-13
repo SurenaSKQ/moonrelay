@@ -70,7 +70,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
   void initState() {
     super.initState();
     if (widget.parentSpace != null) {
-      // Creating a room inside a space — always a room, never a space.
+      // Creating a room inside a space  always a room, never a space.
       _isSpace = false;
     }
     _joinRule = _isPublic ? 'public' : 'invite';
@@ -738,7 +738,8 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
     );
   }
 
-  String get _typeLabel => widget.parentSpace != null ? 'room' : (_isSpace ? 'space' : 'room');
+  String get _typeLabel =>
+      widget.parentSpace != null ? 'room' : (_isSpace ? 'space' : 'room');
 }
 
 /// A radio list tile used inside the join rules picker.

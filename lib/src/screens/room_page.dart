@@ -74,7 +74,7 @@ class _RoomPageState extends State<RoomPage> {
   void initState() {
     super.initState();
     // Defer the CurrentRoom update to after the current frame.
-    // Calling setRoom here would fire during the parent's build phase —
+    // Calling setRoom here would fire during the parent's build phase 
     // DashboardLayout has already read CurrentRoom for this frame and
     // the notifyListeners would only take effect on the next frame,
     // causing the right sidebar to lag one navigation behind.

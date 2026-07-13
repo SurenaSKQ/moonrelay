@@ -47,7 +47,7 @@ class UserDevicesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${loc.encryptionDevices} — $userId'),
+        title: Text('${loc.encryptionDevices}  $userId'),
         actions: [
           if (!isUserVerified)
             TextButton.icon(

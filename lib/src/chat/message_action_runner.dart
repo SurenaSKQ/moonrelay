@@ -31,7 +31,7 @@ import 'package:provider/provider.dart';
 /// hoverbar, the right-click context menu, and the long-press menu.
 ///
 /// Centralising the action logic here keeps the hoverbar and the context
-/// menu perfectly in sync — every action appears identically (same snackbars,
+/// menu perfectly in sync  every action appears identically (same snackbars,
 /// same confirmation dialogs) regardless of how it was triggered.
 class MessageActionRunner {
   const MessageActionRunner._();
@@ -84,7 +84,7 @@ class MessageActionRunner {
     );
   }
 
-  /// Copies the raw event JSON to the clipboard — power-user / debug aid.
+  /// Copies the raw event JSON to the clipboard  power-user / debug aid.
   static void copyRawJson(BuildContext context, Event event) {
     final text = const JsonEncoder.withIndent('  ').convert(event.content);
     Clipboard.setData(ClipboardData(text: text));
@@ -109,7 +109,7 @@ class MessageActionRunner {
   /// "RenderObject was mutated in performLayout" assertion and the
   /// `_elements.contains(element)` assertion that follows.  A
   /// post-frame callback resolves the race without changing the visible
-  /// behaviour — the user sees the new page on the next frame either
+  /// behaviour  the user sees the new page on the next frame either
   /// way.
   static void showDetails(BuildContext context, Event event, Room room) {
     final navigator = Navigator.of(context);

@@ -25,7 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 /// card with a shield icon and a human-readable description.
 ///
 /// Unlike [VerificationRequestEvent] this widget does not provide
-/// interactive accept/decline buttons — it is purely informational.
+/// interactive accept/decline buttons  it is purely informational.
 class VerificationNoticeEvent extends StatelessWidget {
   const VerificationNoticeEvent({
     super.key,

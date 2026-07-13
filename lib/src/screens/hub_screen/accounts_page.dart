@@ -161,7 +161,7 @@ class HubAccountsPage extends StatelessWidget {
               const SizedBox(height: 12),
 
               // An account row with a sign-out action (future-proofed
-              // for multi-account — each account gets its own row).
+              // for multi-account  each account gets its own row).
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -236,8 +236,7 @@ class HubAccountsPage extends StatelessWidget {
                 child: ListTile(
                   leading: CircleAvatar(
                     radius: 22,
-                    backgroundColor:
-                        theme.colorScheme.secondaryContainer,
+                    backgroundColor: theme.colorScheme.secondaryContainer,
                     child: Icon(
                       LucideIcons.userPlus,
                       size: 20,
@@ -335,7 +334,8 @@ class HubAccountsPage extends StatelessWidget {
   /// Renders a single rounded grey "shimmer" line used to suggest
   /// placeholder text.  Kept static-feeling (no animation) so it
   /// does not fight the rest of the hub's motion budget.
-  Widget _shimmerLine(ColorScheme scheme, {required double height, required double width}) {
+  Widget _shimmerLine(ColorScheme scheme,
+      {required double height, required double width}) {
     return Container(
       width: width,
       height: height,

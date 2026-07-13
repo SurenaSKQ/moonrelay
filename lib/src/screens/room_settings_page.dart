@@ -1114,7 +1114,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final l10n = AppLocalizations.of(context)!;
     final room = widget.room;
     final client = context.read<Client>();
-    // The matrix SDK doesn't expose the current visibility directly —
+    // The matrix SDK doesn't expose the current visibility directly 
     // we read the `m.room.visibility` state, fall back to `private` for
     // joined rooms that the server hasn't yet published a state for.
     final current = room
@@ -1671,7 +1671,7 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
 
     // Confirmation dialog.  Showing display name + Matrix ID + a
     // "View profile" link gives the moderator enough context to be
-    // confident the right person is being invited — knock requests
+    // confident the right person is being invited  knock requests
     // are easy to spoof with a similar-looking displayname.
     final approved = await showDialog<bool>(
       context: context,
@@ -1714,7 +1714,7 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
         ],
       ),
     );
-    // "View profile" returns null — fall through to navigation so the
+    // "View profile" returns null  fall through to navigation so the
     // moderator can see who they're letting in.
     if (approved == null) {
       if (!mounted) return;

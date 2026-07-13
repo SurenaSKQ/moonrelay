@@ -110,8 +110,8 @@ class DeepLinkService {
 
   bool _isDuplicate(String uri) {
     final now = DateTime.now();
-    final isDuplicate = uri == _lastUri &&
-        now.difference(_lastAt) < _dedupWindow;
+    final isDuplicate =
+        uri == _lastUri && now.difference(_lastAt) < _dedupWindow;
     _lastUri = uri;
     _lastAt = now;
     return isDuplicate;
@@ -123,7 +123,7 @@ class DeepLinkService {
   /// registered protocol handler is invoked (Windows: as the trailing
   /// element of the command line; Linux: from `argv` exposed via
   /// [Platform.executableArguments]).  We do not rely on
-  /// `Platform.environment` here — that only catches child-process env
+  /// `Platform.environment` here  that only catches child-process env
   /// variables, not the arguments the app was launched with.
   void _processCommandLineArgs() {
     if (kIsWeb) return;
@@ -151,7 +151,7 @@ class DeepLinkService {
   ///
   /// Note: `Platform.executableArguments` is `@visibleForTesting` in
   /// the Flutter SDK. We still call it from production code because
-  /// the alternative — losing command-line links on first launch — is
+  /// the alternative  losing command-line links on first launch  is
   /// a worse trade-off than the `@visibleForTesting` lint. Upstream
   /// has discussed promoting the field; track
   /// https://github.com/flutter/flutter/issues/142523.
@@ -236,7 +236,8 @@ void navigateToMatrixUri(
       if (!RegExp(r'^@.+:.+$').hasMatch(result.entityId)) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Invalid Matrix user id: ${result.entityId}')),
+            SnackBar(
+                content: Text('Invalid Matrix user id: ${result.entityId}')),
           );
         }
         return;

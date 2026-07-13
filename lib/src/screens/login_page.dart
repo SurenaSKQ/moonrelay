@@ -500,7 +500,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-      // Token field — only shown when the user explicitly requests it.
+      // Token field  only shown when the user explicitly requests it.
       if (_showManualTokenEntry) ...[..._buildManualTokenEntry(colors, l10n)],
     ];
   }
@@ -792,7 +792,7 @@ class _LoginPageState extends State<LoginPage> {
       case RetryFailed(:final error, :final attempts):
         {
           // SECURITY: never pass the raw error to either the logger or the
-          // UI — `MatrixHttpException.toString()` echoes the request body,
+          // UI  `MatrixHttpException.toString()` echoes the request body,
           // which the homeserver can echo back the typed password in 4xx
           // responses. Log only the class and rethrow; the user-facing
           // message is a static copy that omits the offending field.
@@ -1117,7 +1117,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── 5. Token received — complete the login ─────────────────
+    // ── 5. Token received  complete the login ─────────────────
     setState(() {
       _statusMessage = l10n.ssoTokenDetected;
     });

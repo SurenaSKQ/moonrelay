@@ -33,7 +33,7 @@
 // through the search provider.
 //
 // The previous "global search overlay" used to live alongside this
-// palette.  It is gone — every search-backed query, including the
+// palette.  It is gone  every search-backed query, including the
 // recents lists, runs through the same provider.
 
 import 'dart:async';
@@ -295,7 +295,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       _hasMoreUsers = false;
     });
 
-    // Local categories first — synchronous.
+    // Local categories first  synchronous.
     final localRooms = provider.searchRoomsFirstPage(query, limit: 10);
     final localSpaces = provider.searchSpacesFirstPage(query, limit: 5);
 
@@ -309,7 +309,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     });
 
     // Server-side message search, homeserver public rooms, and
-    // user-directory search all run in parallel — the user sees the
+    // user-directory search all run in parallel  the user sees the
     // local rooms/spaces immediately, then each server result
     // streams in as it returns.  Each sub-page is independent so a
     // slow homeserver doesn't block messages, and vice versa.
@@ -546,10 +546,10 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     if (!atEnd) return;
     switch (_mode) {
       case _PaletteMode.search:
-        // Local categories first — they're synchronous, so the
+        // Local categories first  they're synchronous, so the
         // user sees the new entries immediately on the next frame.
         if (_hasMoreRooms || _hasMoreSpaces) _runRoomsMore();
-        // Server-side categories — fire all in parallel; the
+        // Server-side categories  fire all in parallel; the
         // per-paginator flags prevent duplicate in-flight requests.
         if (_hasMoreMessages) _runFullSearchMoreMessages();
         if (_hasMoreHomeserver) _runFullSearchMoreHomeserver();
@@ -571,7 +571,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
 
   void _runAction(CommandAction action) {
     // Pop first so the callback receives a context that lives in the
-    // parent route — calling Navigator.pop from inside the callback
+    // parent route  calling Navigator.pop from inside the callback
     // would pop whatever the callback just pushed.
     Navigator.of(context).pop();
     if (!mounted) return;
@@ -632,7 +632,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   void _runUser(Profile user) {
     Navigator.of(context).pop();
     if (!mounted) return;
-    // The profile is decoupled from the room route — push the top-level
+    // The profile is decoupled from the room route  push the top-level
     // profile route.  The router redirects to /main/myprofile when the
     // userid matches the active account.
     final encoded = Uri.encodeComponent(user.userId);

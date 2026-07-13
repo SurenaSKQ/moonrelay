@@ -226,7 +226,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                       : scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
 
-                // Settings gear — navigate to room settings
+                // Settings gear  navigate to room settings
                 IconButton(
                   icon: Icon(
                     LucideIcons.settings,

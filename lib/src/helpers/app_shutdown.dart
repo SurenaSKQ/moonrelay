@@ -53,7 +53,7 @@ class MoonShutdown {
     _cb = cb;
   }
 
-  /// Run the shutdown sequence.  Safe to call multiple times — the
+  /// Run the shutdown sequence.  Safe to call multiple times  the
   /// callback is cleared after the first invocation.
   static Future<void> call() async {
     final cb = _cb;
@@ -63,7 +63,7 @@ class MoonShutdown {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// performShutdown — the actual teardown sequence
+// performShutdown  the actual teardown sequence
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Runs an orderly teardown of every live service before the
@@ -72,7 +72,7 @@ class MoonShutdown {
 /// **Order matters.**  Sync-heavy consumers are disposed first so they
 /// stop reacting to events.  Then the Matrix [Client] is disposed,
 /// which tears down the [NativeImplementationsIsolate] background
-/// isolate — and crucially, joins the native OS threads that
+/// isolate  and crucially, joins the native OS threads that
 /// `vodozemac.dll` (Rust FFI) spawned inside that isolate.  If we
 /// skipped this step, those orphaned threads would keep the DLL
 /// loaded, preventing Windows from fully releasing the process and
@@ -102,8 +102,8 @@ Future<void> performShutdown({
   }
 
   // ── 2. Kill the Matrix client ─────────────────────────────────
-  // This shuts down the sync loop, closes the database, and — most
-  // importantly — tears down the NativeImplementationsIsolate which
+  // This shuts down the sync loop, closes the database, and  most
+  // importantly  tears down the NativeImplementationsIsolate which
   // joins the native OS threads inside vodozemac.dll.
   try {
     await client.dispose();

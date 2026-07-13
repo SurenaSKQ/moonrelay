@@ -39,7 +39,7 @@ import 'settings/settings_service.dart';
 import 'settings/space_preferences.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BootContext — result of the boot pipeline
+// BootContext  result of the boot pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// All initialized services produced by the boot pipeline.
@@ -72,7 +72,7 @@ class BootContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BootStep — single unit of the boot pipeline
+// BootStep  single unit of the boot pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A single initialisation step in the boot pipeline.

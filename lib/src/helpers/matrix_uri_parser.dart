@@ -81,7 +81,7 @@ class MatrixUriParser {
   /// or punctuation.  The trailing `(?<![.,;!?)])` lookbehind rejects
   /// sentence punctuation glued to the identifier, which used to make
   /// `Visit matrix.org!` detect `matrix.org` as a Matrix ID.  Bare room
-  /// IDs (`!…:…`) are intentionally excluded from the *scan* — they're
+  /// IDs (`!…:…`) are intentionally excluded from the *scan*  they're
   /// 26-character random strings that look identical to noise in normal
   /// prose, so an explicit `matrix:r/!…` URI is the only safe way to
   /// reference a bare room ID.
@@ -245,9 +245,9 @@ class MatrixUriParser {
   /// Parses a bare Matrix identifier (room ID, user ID, or room alias).
   ///
   /// Supported formats:
-  /// - `!roomid:domain` — room ID (allowed for direct lookups)
-  /// - `@user:domain` — user ID
-  /// - `#alias:domain` — room alias
+  /// - `!roomid:domain`  room ID (allowed for direct lookups)
+  /// - `@user:domain`  user ID
+  /// - `#alias:domain`  room alias
   static MatrixUriResult? _parseBareId(String id) {
     // Strip common trailing punctuation that might be adjacent in text.
     id = id.replaceAll(RegExp(r'[.,;!?)\]}]+$'), '');

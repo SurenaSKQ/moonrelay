@@ -25,14 +25,14 @@ import 'package:moonrelay/src/widgets/rooms_pane.dart';
 /// Single-pane layout shell used for very narrow windows and for users
 /// who opt into the [LayoutMode.mobile] experience.
 ///
-/// Unlike [DashboardLayout] — which keeps the chat and the sidebar
-/// side by side — the mobile layout only ever renders one of them at a
+/// Unlike [DashboardLayout]  which keeps the chat and the sidebar
+/// side by side  the mobile layout only ever renders one of them at a
 /// time and relies on the route stack to switch between them.  When the
 /// user is at `/main/rooms` the room list is the page; tapping a room
 /// pushes `/main/rooms/<id>` onto the stack and the chat fills the
 /// screen with a back button.  This is the same mental model that the
 /// rest of the app already uses for deep links and matrix.to URLs, so
-/// mobile mode does not require any new routing primitives — the same
+/// mobile mode does not require any new routing primitives  the same
 /// [ShellRoute] tree works, only the surrounding frame changes.
 ///
 /// The mobile shell intentionally renders no left sidebar at all: the

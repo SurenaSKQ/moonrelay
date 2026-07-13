@@ -58,7 +58,7 @@ class _LogsPageState extends State<LogsPage> {
         files.add(e);
       }
     }
-    // Sort — most recently modified first.
+    // Sort  most recently modified first.
     files.sort((a, b) {
       final aStat = a.statSync();
       final bStat = b.statSync();

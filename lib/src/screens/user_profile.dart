@@ -573,7 +573,8 @@ class _ProfileInfoCard extends StatelessWidget {
               _InfoRow(
                 icon: LucideIcons.clock,
                 label: l10n.lastActive,
-                value: presence!.lastActiveTimestamp!.relativeTimeShort(context),
+                value:
+                    presence!.lastActiveTimestamp!.relativeTimeShort(context),
                 scheme: scheme,
               ),
             ],
@@ -1139,7 +1140,8 @@ class _ActionsSection extends StatelessWidget {
         Card(
           elevation: 0,
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               // ── Start direct chat ──────────────────
@@ -1171,9 +1173,11 @@ class _ActionsSection extends StatelessWidget {
                   isBlocked ? LucideIcons.eyeOff : LucideIcons.ban,
                   color: scheme.error.withValues(alpha: 0.8),
                 ),
-                title: Text(isBlocked ? l10n.actionUnblockUser : l10n.actionBlockUser),
+                title: Text(
+                    isBlocked ? l10n.actionUnblockUser : l10n.actionBlockUser),
                 trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                onTap: () => isBlocked ? _unblockUser(context) : _blockUser(context),
+                onTap: () =>
+                    isBlocked ? _unblockUser(context) : _blockUser(context),
               ),
               Divider(height: 1, indent: 16, endIndent: 16),
               // ── Report ────────────────────────────
@@ -1398,7 +1402,7 @@ class _ActionsSection extends StatelessWidget {
 /// [showHubOverlay] but with a plain dim background instead of blur so the
 /// chat remains visible underneath.
 ///
-/// The overlay is independent of the room route — it does not push onto
+/// The overlay is independent of the room route  it does not push onto
 /// GoRouter's stack.  When [room] is provided the profile renders room-
 /// scoped moderation actions (kick/ban/power level).
 ///
@@ -1411,7 +1415,7 @@ Future<void> showProfileOverlay(
   Room? room,
 }) async {
   final client = context.read<Client>();
-  // Validate the userid shape before opening — Matrix IDs look like
+  // Validate the userid shape before opening  Matrix IDs look like
   // `@localpart:domain` and anything else is a programming error or a
   // mis-parsed URI.
   if (!RegExp(r'^@.+:.+$').hasMatch(userId)) {
@@ -1421,7 +1425,7 @@ Future<void> showProfileOverlay(
     return;
   }
   // Avoid opening a second overlay on top of an existing one for the
-  // same user — prevents stacking if the caller fires from multiple
+  // same user  prevents stacking if the caller fires from multiple
   // gestures in quick succession.
   final navigator = Navigator.of(context, rootNavigator: true);
   await navigator.push(
@@ -1469,8 +1473,7 @@ class _ProfileOverlayPage extends StatelessWidget {
           color: Colors.black54,
           child: Center(
             child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(maxWidth: 460, maxHeight: 640),
+              constraints: const BoxConstraints(maxWidth: 460, maxHeight: 640),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Material(

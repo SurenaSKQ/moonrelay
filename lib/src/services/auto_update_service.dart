@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-update check — polls the GitHub Releases API for newer Moonrelay
+// Auto-update check  polls the GitHub Releases API for newer Moonrelay
 // versions and surfaces an in-app banner so users can download the new
 // release without leaving the app.
 

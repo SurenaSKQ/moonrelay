@@ -87,7 +87,7 @@ class StartupScreen extends StatelessWidget {
           );
         }
 
-        // Narrow layout — single column, footer pinned at bottom.
+        // Narrow layout  single column, footer pinned at bottom.
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: ConstrainedBox(

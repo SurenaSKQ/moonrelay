@@ -49,7 +49,7 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
 
     try {
       // The SDK populates client.ignoredUsers from account data.
-      // Nothing extra to load — just wait a frame.
+      // Nothing extra to load  just wait a frame.
       await Future.delayed(Duration.zero);
       if (!mounted) return;
       setState(() => _loading = false);
@@ -136,13 +136,15 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
                     children: [
                       Icon(LucideIcons.eyeOff,
                           size: 20,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           l10n.blockedUsersEmpty,
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),

@@ -62,13 +62,13 @@ class DatabaseService {
         try {
           await sql.deleteDatabase(dbPath);
         } catch (e, s) {
-          // The wipe failed — if we let [openDatabase] proceed the SDK
+          // The wipe failed  if we let [openDatabase] proceed the SDK
           // will read the old schema with the new version constant and
           // explode at runtime.  Re-throw with a clear prefix so the
           // boot pipeline surfaces a Recovery / exit dialog instead
           // of a `SqliteException` deep inside the SDK.
           log.e(
-            'Database wipe failed for $dbPath — refusing to boot',
+            'Database wipe failed for $dbPath  refusing to boot',
             error: e,
             stackTrace: s,
           );

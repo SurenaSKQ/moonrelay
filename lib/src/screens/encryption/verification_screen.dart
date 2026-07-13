@@ -25,8 +25,8 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 /// SAS (emoji/number) verification dialog.
 ///
 /// This screen handles both sides of the verification flow:
-/// - **Incoming** — another user has sent us a verification request.
-/// - **Outgoing** — we initiated the request and are waiting for their response.
+/// - **Incoming**  another user has sent us a verification request.
+/// - **Outgoing**  we initiated the request and are waiting for their response.
 ///
 /// The widget takes a [KeyVerification] object and listens to its state
 /// transitions to drive the UI.  Callers should obtain the object from
@@ -58,12 +58,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
     super.initState();
 
     if (!widget.isIncoming) {
-      // We already called kv.start() in the service — listen for updates.
+      // We already called kv.start() in the service  listen for updates.
       widget.request.onUpdate = () {
         if (mounted) setState(() {});
       };
     } else {
-      // Incoming — we need to react to the request's built-in stream.
+      // Incoming  we need to react to the request's built-in stream.
       widget.request.onUpdate = () {
         if (mounted) setState(() {});
       };
@@ -295,7 +295,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   /// Builds the recovery prompt shown when the verification flow enters
-  /// the SDK's `askSSSS` state — usually because cross-signing is set up
+  /// the SDK's `askSSSS` state  usually because cross-signing is set up
   /// but locked behind SSSS / a recovery passphrase that the user has
   /// not yet provided to this client.  We cannot drive that step from
   /// the screen (the SDK expects callers to handle it via
