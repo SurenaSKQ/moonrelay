@@ -25,12 +25,12 @@
 // leak draft text between identities. They are persisted on a debounce
 // rather than on every keystroke to avoid disk thrashing.
 //
-// Usage:
-//   ```dart
-//   final drafts = DraftService.forAccount('user:example.com');
-//   await drafts.save('!room:example.com', 'half-written message');
-//   final draft = await drafts.load('!room:example.com');
-//   ```
+// One [DraftService] instance is created per account and shared across
+// every ChatBox in the app via [DraftService.instanceFor]. The instance
+// is reference-counted: each caller invokes [release] in a `finally`
+// block; the last release cancels the underlying [_saveTimer] so a
+// hot-swap of ChatBox instances (e.g. user switches rooms) doesn't
+// leak a pending disk write.
 
 import 'dart:async';
 import 'dart:convert';
@@ -44,20 +44,66 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// JSON object containing both the body and the optional `m.in_reply_to`
 /// target so a reply-in-progress isn't lost when the composer closes.
 class DraftService {
-  /// Builds a service scoped to a single Matrix account.
-  ///
-  /// The [accountId] is typically `client.userID` (e.g. `@user:server`).
-  DraftService.forAccount(String accountId)
-      : _accountId = accountId;
+  DraftService._internal(this._accountId) {
+    _liveInstances[_accountId] = (_liveInstances[_accountId] ?? 0) + 1;
+  }
 
   final String _accountId;
   Timer? _saveTimer;
+
+  /// Active services per account, used so that [instanceFor] returns
+  /// the same instance instead of allocating a new one every time the
+  /// ChatBox remounts.  Multiple instances would clobber each other's
+  /// in-flight debounce timers.
+  static final Map<String, DraftService> _services = <String, DraftService>{};
+
+  /// Tracks the number of [DraftService.instanceFor] consumers per
+  /// account. When the last consumer calls [release], the timer is
+  /// cancelled and the service is dropped from [_services] so a fresh
+  /// login allocates a clean instance.
+  static final Map<String, int> _liveInstances = <String, int>{};
+
+  /// Returns the shared [DraftService] for [accountId], allocating it
+  /// on first access. Increments the reference count; the caller MUST
+  /// invoke [release] in a `finally` block to balance it.
+  static DraftService instanceFor(String accountId) {
+    final existing = _services[accountId];
+    if (existing != null) {
+      existing._ref();
+      return existing;
+    }
+    final created = DraftService._internal(accountId);
+    _services[accountId] = created;
+    return created;
+  }
+
+  void _ref() {
+    _liveInstances[_accountId] = (_liveInstances[_accountId] ?? 0) + 1;
+  }
+
+  /// Decrements the reference count. When the count returns to zero
+  /// the pending debounce timer is cancelled and the service is
+  /// dropped from the shared map so the next login allocates a fresh
+  /// service.
+  void release() {
+    final count = (_liveInstances[_accountId] ?? 1) - 1;
+    if (count <= 0) {
+      _liveInstances.remove(_accountId);
+      _saveTimer?.cancel();
+      _saveTimer = null;
+      if (identical(_services[_accountId], this)) {
+        _services.remove(_accountId);
+      }
+    } else {
+      _liveInstances[_accountId] = count;
+    }
+  }
 
   static const Duration _debounce = Duration(milliseconds: 500);
 
   /// Loads the persisted draft for [roomId], or returns an empty draft
   /// if none is stored. Network failures are caught and treated as
-  /// "no draft" — composer restoration must never block startup.
+  /// "no draft" - composer restoration must never block startup.
   Future<RoomDraft> load(String roomId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -123,7 +169,7 @@ class DraftService {
         }),
       );
     } catch (_) {
-      // Persist failures are non-fatal — the composer continues working
+      // Persist failures are non-fatal - the composer continues working
       // in-memory; the next launch just won't restore this draft.
     }
   }
@@ -139,7 +185,8 @@ class DraftService {
     }
   }
 
-  /// Cancels any pending debounced write. Use from `dispose`.
+  /// Cancels any pending debounced write. The reference count is not
+  /// decremented; use [release] for that.
   void cancelPending() {
     _saveTimer?.cancel();
     _saveTimer = null;
