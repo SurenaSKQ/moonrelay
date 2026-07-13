@@ -14,6 +14,26 @@ contributions are most useful.
 - 📦 [Release process](docs/RELEASING.md)
 - 🧪 [Testing guide](docs/TESTING.md)
 
+## Integration tests
+
+The tests in `integration_test/` need a real desktop session (they boot
+the actual Flutter app and drive it with `IntegrationTestWidgetsFlutterBinding`).
+They are **not** run in CI — the hosted Windows runner can't reliably attach
+the debug VM, and the Linux runner only runs them under Xvfb.
+
+If your change touches login, sync, navigation, the chat box, or any screen
+under `lib/src/screens/`, please run the integration suite on your own
+machine before opening the PR:
+
+```bash
+flutter test integration_test/ -d linux    # Linux
+flutter test integration_test/ -d windows  # Windows
+```
+
+You only need a working Flutter SDK and the build deps already listed in
+`docs/TESTING.md` — no Matrix homeserver required, the suite uses the
+mock HTTP client in `integration_test/helpers/mock_matrix_http_client.dart`.
+
 ## Developer Certificate of Origin
 
 By submitting a contribution (patch, pull request, issue, comment,
