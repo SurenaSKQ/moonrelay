@@ -88,34 +88,27 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
       ? widget.event.content['info'] as Map<String, dynamic>
       : const {};
 
-  /// Computes a constrained box size that preserves aspect ratio.
-  BoxConstraints _stickerConstraints(double maxStickerDim) {
-    final maxStickerHeight = maxStickerDim; // keep sticker roughly square
-    if (_imgWidth == null || _imgHeight == null) {
-      return BoxConstraints(
-        maxWidth: maxStickerDim,
-        maxHeight: maxStickerHeight,
-      );
+  /// Computes the rendered sticker size preserving aspect ratio.
+  ///
+  /// Returns the on-screen size the sticker should be drawn at so it
+  /// never grows past [maxStickerDim] on either axis.  When the source
+  /// dimensions are unknown the bubble falls back to a square box of
+  /// [maxStickerDim] pixels.
+  Size _stickerSize(double maxStickerDim) {
+    final w = _imgWidth;
+    final h = _imgHeight;
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      return Size(maxStickerDim, maxStickerDim);
     }
-
-    final w = _imgWidth!.toDouble();
-    final h = _imgHeight!.toDouble();
-    final scale = (maxStickerDim / w).clamp(0.0, 1.0);
-    final displayWidth = w * scale;
-    final displayHeight = h * scale;
-
-    if (displayHeight > maxStickerHeight) {
-      final heightScale = maxStickerHeight / displayHeight;
-      return BoxConstraints(
-        maxWidth: displayWidth * heightScale,
-        maxHeight: maxStickerHeight,
-      );
+    final ar = w / h;
+    if (ar >= 1) {
+      final width = maxStickerDim;
+      final height = (maxStickerDim / ar).clamp(1.0, maxStickerDim);
+      return Size(width, height);
     }
-
-    return BoxConstraints(
-      maxWidth: displayWidth,
-      maxHeight: displayHeight,
-    );
+    final height = maxStickerDim;
+    final width = (maxStickerDim * ar).clamp(1.0, maxStickerDim);
+    return Size(width, height);
   }
 
   @override
@@ -154,25 +147,17 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
   }
 
   Widget _buildPlaceholder(ColorScheme cs) {
-    return Container(
+    return SizedBox(
       width: 100,
       height: 100,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Icon(Icons.sticky_note_2_outlined, size: 36, color: cs.onSurfaceVariant),
     );
   }
 
   Widget _buildLoading(ColorScheme cs) {
-    return Container(
+    return SizedBox(
       width: 100,
       height: 100,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Center(
         child: SizedBox(
           width: 20,
@@ -184,14 +169,9 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
   }
 
   Widget _buildError(ColorScheme cs) {
-    return Container(
+    return SizedBox(
       width: 80,
       height: 80,
-      decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
-      ),
       child: Icon(Icons.broken_image_outlined, size: 32, color: cs.error),
     );
   }
@@ -202,25 +182,25 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     // small but the raw attachment can still be a multi-megapixel PNG.
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final stickerMax = prefs.stickerMax;
-    return Container(
-      constraints: _stickerConstraints(stickerMax),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Image.memory(
-        bytes,
-        fit: BoxFit.contain,
-        width: double.infinity,
-        height: double.infinity,
-        cacheWidth: (stickerMax * dpr).ceil(),
-        errorBuilder: (_, __, ___) => Container(
-          height: 80,
+    final size = _stickerSize(stickerMax);
+    // Stickers render as the picture alone — no borders, no info
+    // overlays, no background card.  The sticker is the whole bubble.
+    return Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      width: size.width,
+      height: size.height,
+      cacheWidth: (stickerMax * dpr).ceil(),
+      errorBuilder: (_, __, ___) => SizedBox(
+        width: size.width,
+        height: size.height,
+        child: Container(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-          child: Icon(Icons.broken_image_outlined, size: 32, color: cs.onSurfaceVariant),
+          child: Icon(
+            Icons.broken_image_outlined,
+            size: 32,
+            color: cs.onSurfaceVariant,
+          ),
         ),
       ),
     );
