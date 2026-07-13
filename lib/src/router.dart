@@ -16,7 +16,9 @@
 
 import 'dart:async';
 
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
 import 'package:moonrelay/src/layouts/mobile_layout.dart';
@@ -459,12 +461,20 @@ class MoonRouter {
   /// how the URL `/main/rooms` is presented.  Keeping the URL stable
   /// means the existing deep-link handling, command-palette routing,
   /// and back-button logic continue to work without modification.
+  ///
+  /// The mobile branch fires when the user has explicitly opted in to
+  /// mobile mode *or* the window is too narrow for the compact shell.
+  /// The latter is what lets the shell switch from dashboard to mobile
+  /// smoothly as the user resizes the window down past
+  /// [LayoutBreakpoints.mobileMax].
   static Page _roomsListPageBuilder(
     BuildContext context,
     GoRouterState state,
   ) {
     final settings = context.read<SettingsController>();
-    final isMobile = settings.layoutMode == LayoutMode.mobile;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = settings.layoutMode == LayoutMode.mobile ||
+        LayoutBreakpoints.shouldUseMobile(width);
     final child = isMobile
         ? const MobileRoomsListPage()
         : RoomDelegate(
@@ -483,17 +493,119 @@ class MoonRouter {
 /// `child` is wrapped.  Switching modes at runtime rebuilds this
 /// widget but does not change the route stack, so the chat the user
 /// was looking at stays open.
-class _AdaptiveMainLayout extends StatelessWidget {
+///
+/// The mobile layout is used when:
+/// 1. The user explicitly opted in via [LayoutMode.mobile], OR
+/// 2. The current viewport is too narrow for even the unified
+///    compact sidebar (below [LayoutBreakpoints.mobileMax]).
+///
+/// The second rule is what handles window resizes — a user who
+/// gradually shrinks the window sees the shell transition
+/// full → compact → mobile as horizontal space runs out.
+class _AdaptiveMainLayout extends StatefulWidget {
   const _AdaptiveMainLayout({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  State<_AdaptiveMainLayout> createState() => _AdaptiveMainLayoutState();
+}
+
+class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
+  /// The shell the previous build chose.  Tracked so we can detect
+  /// transitions and force a route navigation to a clean default
+  /// page — without it, the dashboard inherits the [MobileRoomsListPage]
+  /// (or vice versa) and ends up rendering the previous shell's
+  /// content in a pane that wasn't designed for it (e.g. a rooms list
+  /// showing up in the right sidebar).
+  bool? _lastUseMobile;
+
+  /// Resolves whether the active shell should be the mobile layout
+  /// for the current [LayoutMode] + viewport width.
+  ///
+  /// Extracted so the layout-transition check and the render branch
+  /// stay in sync — both call the same helper and the threshold logic
+  /// lives in exactly one place.
+  bool _resolveUseMobile() {
     final settings = context.watch<SettingsController>();
-    return switch (settings.layoutMode) {
-      LayoutMode.mobile => MobileLayout(child: child),
-      LayoutMode.compact || LayoutMode.auto => DashboardLayout(child: child),
-    };
+    final width = MediaQuery.sizeOf(context).width;
+    return settings.layoutMode == LayoutMode.mobile ||
+        LayoutBreakpoints.shouldUseMobile(width);
+  }
+
+  /// Re-navigates to the active room (or to the rooms list when no
+  /// room is open) so the new shell renders a clean default state.
+  ///
+  /// Why this is needed: when the shell switches from mobile to
+  /// dashboard (or vice versa), the route's `child` widget — built
+  /// by [MoonRouter._roomsListPageBuilder] — may be stale for one
+  /// frame.  The dashboard's right sidebar in particular happily
+  /// accepts any widget and renders it, so the previous shell's
+  /// `MobileRoomsListPage` can end up displayed in the right pane
+  /// for a frame, looking like a content glitch.  Forcing a
+  /// navigation rebuilds the route child with the new shell's
+  /// default and clears the stale state.
+  ///
+  /// The target URL is derived from [CurrentRoom] so the user keeps
+  /// the room they were looking at — the navigation just rebuilds
+  /// the page from a clean slate instead of leaving the previous
+  /// shell's widget in place.
+  void _navigateToActiveRoom() {
+    final room = context.read<CurrentRoom>().room;
+    final target = room == null
+        ? '/main/rooms'
+        : '/main/rooms/${room.id}';
+    // `context.go` is a no-op when the URL is unchanged, so when
+    // the user is already sitting on the target URL (the common
+    // case after a layout-mode change) we need a different
+    // mechanism to force the page child to rebuild.  Pushing the
+    // target and immediately popping is GoRouter's documented way
+    // to refresh the current route's child widget — the push
+    // creates a new page entry, the pop drops it, and the resulting
+    // rebuild produces a fresh [child] for the new shell.
+    final router = GoRouter.of(context);
+    final currentPath = router.routeInformationProvider.value.uri.path;
+    if (_pathsEqual(currentPath, target)) {
+      router.push(target).whenComplete(() {
+        if (!mounted) return;
+        if (router.canPop()) router.pop();
+      });
+    } else {
+      router.go(target);
+    }
+  }
+
+  /// True when two GoRouter paths are equal (segment-wise, ignoring
+  /// a trailing slash).  Used to decide whether the user is
+  /// already on the target URL before we trigger the push/pop
+  /// "refresh" trick.
+  bool _pathsEqual(String a, String b) {
+    final aSegs = a.split('/').where((s) => s.isNotEmpty).toList();
+    final bSegs = b.split('/').where((s) => s.isNotEmpty).toList();
+    if (aSegs.length != bSegs.length) return false;
+    for (var i = 0; i < aSegs.length; i++) {
+      if (aSegs[i] != bSegs[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final useMobile = _resolveUseMobile();
+    if (_lastUseMobile != null && _lastUseMobile != useMobile) {
+      // Shell transitioned.  Defer the navigation to a post-frame
+      // callback so we never call [GoRouter.go] from inside a build
+      // pass (which trips an assertion in newer Flutter versions).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _navigateToActiveRoom();
+      });
+    }
+    _lastUseMobile = useMobile;
+
+    if (useMobile) {
+      return MobileLayout(child: widget.child);
+    }
+    return DashboardLayout(child: widget.child);
   }
 }
