@@ -78,7 +78,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
 
   /// The composer text captured immediately before [_send] cleared the
-  /// controller.  Stored so we can restore it if `sendFn` throws — the
+  /// controller.  Stored so we can restore it if `sendFn` throws  the
   /// user can correct and resend without retyping a long message.
   String? _draftValue;
 
@@ -113,7 +113,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final client = context.read<Client>();
     final userId = client.userID;
     if (userId == null) return;
-    final drafts = DraftService.forAccount(userId);
+    // Shared per-account DraftService so multiple ChatBox instances
+    // share the same debounce timer.  [release] is called in
+    // [dispose] to balance the reference count.
+    final drafts = DraftService.instanceFor(userId);
     _draftService = drafts;
     final draft = await drafts.load(widget.room.id);
     if (!mounted || draft.isEmpty) return;
@@ -138,7 +141,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _focusNode.dispose();
     _expandController.dispose();
     _typingNotifier.dispose();
-    _draftService?.cancelPending();
+    // Balance the ref count we took in [_loadDraft]; the underlying
+    // service may be torn down (timer cancelled) once we're the last
+    // ChatBox for this account.
+    _draftService?.release();
     super.dispose();
   }
 
@@ -203,8 +209,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
     // ── Slash commands ──────────────────────────────────────────────────
     // The chat composer accepts a tiny set of builtin commands:
-    //   /me <text>      — sends as m.emote (third-person action).
-    //   /shrug <text>   — prepends the ¯\_(ツ)_/¯ shrug glyph and sends
+    //   /me <text>       sends as m.emote (third-person action).
+    //   /shrug <text>    prepends the ¯\_(ツ)_/¯ shrug glyph and sends
     //                     as plain text.
     String effectiveBody = text;
     String? emoteMsgtype;
@@ -232,8 +238,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                AppLocalizations.of(context)!
-                    .unsupportedSlashCommand(cmd),
+                AppLocalizations.of(context)!.unsupportedSlashCommand(cmd),
               ),
               duration: const Duration(seconds: 2),
             ),
@@ -294,7 +299,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       _controller.clear();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
-      // Success — clear the draft.
+      // Success  clear the draft.
       _draftValue = null;
       _draftService?.cancelPending();
       unawaited(_draftService?.clear(widget.room.id));
@@ -508,8 +513,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                 _IconButton(
                   icon: LucideIcons.listChecks,
                   tooltip: l10n.createPoll,
-                  onPressed: () =>
-                      showPollCreateDialog(context, widget.room),
+                  onPressed: () => showPollCreateDialog(context, widget.room),
                   colorScheme: colorScheme,
                 ),
 
@@ -522,9 +526,11 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                     autofocus: false,
                     onKeyEvent: (event) {
                       if (event is KeyDownEvent) {
-                        final isMeta = HardwareKeyboard.instance.isMetaPressed ||
-                            HardwareKeyboard.instance.isControlPressed;
-                        final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+                        final isMeta =
+                            HardwareKeyboard.instance.isMetaPressed ||
+                                HardwareKeyboard.instance.isControlPressed;
+                        final isEnter = event.logicalKey ==
+                                LogicalKeyboardKey.enter ||
                             event.logicalKey == LogicalKeyboardKey.numpadEnter;
                         if (isEnter && isMeta) {
                           _send();
@@ -552,9 +558,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                         textInputAction: _shouldEnterSend()
                             ? TextInputAction.send
                             : TextInputAction.newline,
-                        onSubmitted: _shouldEnterSend()
-                            ? (_) => _send()
-                            : null,
+                        onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
                         style: TextStyle(
                           fontSize: 15,
                           color: colorScheme.onSurface,
@@ -563,8 +567,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                           hintText: l10n.chatBoxSendMessage,
                           hintStyle: TextStyle(
                             fontSize: 15,
-                            color: colorScheme.onSurface
-                                .withValues(alpha: 0.4),
+                            color: colorScheme.onSurface.withValues(alpha: 0.4),
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
