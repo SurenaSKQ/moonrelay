@@ -177,10 +177,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           xvfb-run -a flutter test integration_test/ -d linux
-
-      - name: Integration tests (Windows desktop)
-        if: runner.os == 'Windows'
-        run: flutter test integration_test/ -d windows
+        # Note: Integration tests require a real desktop session.
+        # On Windows runners the debug VM service can't attach reliably,
+        # so integration tests are run manually by contributors — see CONTRIBUTING.md.
 
   # ── Build smoke tests (release bundles) ───────────────────────────
   build-linux:
