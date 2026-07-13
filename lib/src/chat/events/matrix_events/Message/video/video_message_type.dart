@@ -21,6 +21,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
@@ -65,10 +66,24 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
     if (!_shouldAutoDownload()) return;
-    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+    // Share the in-flight future with the global cache. The thumbnail
+    // and the video bytes are downloaded as two separate MatrixFile
+    // objects, but the cache is keyed by eventId + getThumbnail so
+    // both code paths stay independent.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
     if (widget.event.hasThumbnail && _thumbnailFuture == null) {
-      _thumbnailFuture =
-          widget.event.downloadAndDecryptAttachment(getThumbnail: true);
+      // Thumbnail is small; keep a per-State future for it but route
+      // through the same cache so concurrent thumbnail requests
+      // share the bytes.
+      _thumbnailFuture = RoomMediaCache.instance.getOrDownload(
+        '${widget.event.roomId ?? widget.event.eventId}::thumb',
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(getThumbnail: true),
+      );
     }
   }
 
@@ -139,12 +154,12 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     }
     final ratio = w / h;
     if (h >= w) {
-      // Portrait — clamp height, follow width.
+      // Portrait  clamp height, follow width.
       final height = maxHeight;
       final width = (height * ratio).clamp(120.0, maxWidth);
       return Size(width, height);
     } else {
-      // Landscape — clamp width, follow height.
+      // Landscape  clamp width, follow height.
       final width = maxWidth;
       final height = (width / ratio).clamp(120.0, maxHeight);
       return Size(width, height);
@@ -171,12 +186,13 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
       await c.initialize();
       await c.setLooping(false);
       if (mounted) setState(() {});
-      c.addListener(_onControllerTick);
+      // The controller's `value` is a `ValueListenable<VideoPlayerValue>`
+      // — list builders can subscribe to it without a 60 Hz setState.
+      // (The `addListener` call that lived here previously caused a
+      // full widget rebuild on every frame, which painted the whole
+      // video tile — including the metadata row and the thumbnail
+      // fallback — for no visible change.)
     } catch (_) {}
-  }
-
-  void _onControllerTick() {
-    if (mounted) setState(() {});
   }
 
   Future<void> _togglePlay() async {
@@ -239,7 +255,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
-          // Children are sized to their natural width — the player
+          // Children are sized to their natural width  the player
           // SizedBox uses the video's intrinsic aspect (its
           // [playerSize]) and the metadata row stretches to match.
           // Previously the column used [CrossAxisAlignment.stretch]
@@ -391,85 +407,87 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Widget _buildPlayerArea(ColorScheme cs, AppLocalizations l10n) {
     final c = _controller;
     if (c != null && c.value.isInitialized) {
-      // ── Real video player ─────────────────────────────────────
-      return MouseRegion(
-        child: GestureDetector(
-          onTap: _togglePlay,
-          onDoubleTap: _openFullscreen,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned.fill(
-                child: AspectRatio(
-                  aspectRatio:
-                      c.value.aspectRatio == 0 ? 1.0 : c.value.aspectRatio,
-                  child: VideoPlayer(c),
-                ),
-              ),
-              // Play/pause overlay
-              if (!c.value.isPlaying)
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 2,
+      // Subscribe only to the controller's ValueListenable so a frame
+      // tick only re-paints the surface - the metadata row stays put.
+      return AnimatedBuilder(
+        animation: c,
+        builder: (context, _) {
+          return MouseRegion(
+            child: GestureDetector(
+              onTap: _togglePlay,
+              onDoubleTap: _openFullscreen,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: AspectRatio(
+                      aspectRatio:
+                          c.value.aspectRatio == 0 ? 1.0 : c.value.aspectRatio,
+                      child: VideoPlayer(c),
                     ),
                   ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 38,
-                  ),
-                ),
-              // Top-right fullscreen button
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Tooltip(
-                  message: l10n.fullscreenVideo,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _openFullscreen,
-                      child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Icon(
-                          LucideIcons.maximize,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.9),
+                  if (!c.value.isPlaying)
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 38,
+                      ),
+                    ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Tooltip(
+                      message: l10n.fullscreenVideo,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _openFullscreen,
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Icon(
+                              LucideIcons.maximize,
+                              size: 14,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              // Bottom progress bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: VideoProgressIndicator(
-                  c,
-                  allowScrubbing: true,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: VideoProgressIndicator(
+                      c,
+                      allowScrubbing: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
 
-    // ── Thumbnail placeholder ────────────────────────────────
     return _buildPreviewArea(cs, l10n);
   }
 
@@ -493,12 +511,19 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
+    // Cap the decoded video thumbnail to the player box (scaled by DPR).
+    // Without this the full-resolution thumbnail bitmap is held in GPU
+    // memory even though only a few hundred logical pixels are visible.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final size = _playerSize(MediaSizePrefs.of(context).videoMax);
+    final longSide = size.width >= size.height ? size.width : size.height;
     return Stack(
       children: [
         Positioned.fill(
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
+            cacheWidth: (longSide * dpr).ceil(),
             errorBuilder: (_, __, ___) => _buildPreviewFallback(cs, null),
           ),
         ),
@@ -569,46 +594,35 @@ class _FullscreenVideoPlayer extends StatefulWidget {
 
 class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
   @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onTick);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_onTick);
-    super.dispose();
-  }
-
-  void _onTick() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: GestureDetector(
-          onTap: () => c.value.isPlaying ? c.pause() : c.play(),
-          child: AspectRatio(
-            aspectRatio:
-                c.value.aspectRatio == 0 ? 16 / 9 : c.value.aspectRatio,
-            child: VideoPlayer(c),
+    return AnimatedBuilder(
+      animation: c,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
           ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        foregroundColor: Colors.white,
-        onPressed: () => c.value.isPlaying ? c.pause() : c.play(),
-        child: Icon(c.value.isPlaying ? Icons.pause : Icons.play_arrow),
-      ),
+          body: Center(
+            child: GestureDetector(
+              onTap: () => c.value.isPlaying ? c.pause() : c.play(),
+              child: AspectRatio(
+                aspectRatio:
+                    c.value.aspectRatio == 0 ? 16 / 9 : c.value.aspectRatio,
+                child: VideoPlayer(c),
+              ),
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            foregroundColor: Colors.white,
+            onPressed: () => c.value.isPlaying ? c.pause() : c.play(),
+            child: Icon(c.value.isPlaying ? Icons.pause : Icons.play_arrow),
+          ),
+        );
+      },
     );
   }
 }

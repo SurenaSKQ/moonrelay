@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
@@ -44,30 +45,30 @@ class AudioMessageType extends StatefulWidget {
 class _AudioMessageTypeState extends State<AudioMessageType> {
   Future<MatrixFile>? _downloadFuture;
   final AudioPlayer _player = AudioPlayer();
+  final ValueNotifier<Duration> _position = ValueNotifier(Duration.zero);
+  final ValueNotifier<Duration> _duration = ValueNotifier(Duration.zero);
+  final ValueNotifier<bool> _isPlaying = ValueNotifier(false);
+  final ValueNotifier<bool> _isReady = ValueNotifier(false);
   Uint8List? _bytes;
-  bool _isReady = false;
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-
   bool _autoDownloadResolved = false;
 
   @override
   void initState() {
     super.initState();
-    _player.positionStream.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
+    // Subscribe to streams once and forward to per-stream
+    // [ValueNotifier]s so the leaf widgets (slider, play/pause
+    // icon) rebuild via [ValueListenableBuilder] instead of forcing
+    // a full widget-tree rebuild. The previous implementation called
+    // `setState` from three separate stream listeners — for a
+    // position that ticks at ~10 Hz during playback that produced
+    // 10 setState calls per second per audio message.
+    _player.positionStream.listen((p) => _position.value = p);
     _player.durationStream.listen((d) {
-      if (mounted && d != null) setState(() => _duration = d);
+      if (d != null) _duration.value = d;
     });
     _player.playerStateStream.listen((s) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = s.playing;
-          _isReady = s.processingState != ProcessingState.loading;
-        });
-      }
+      _isPlaying.value = s.playing;
+      _isReady.value = s.processingState != ProcessingState.loading;
     });
   }
 
@@ -82,12 +83,16 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
     if (!_shouldAutoDownload()) return;
-    _downloadFuture = widget.event.downloadAndDecryptAttachment().then((m) {
-      final bytes = m.bytes;
-      _bytes = bytes;
-      // Defer play start until next frame so we can attach the URL.
-      return m;
-    });
+    // Share the in-flight future with the global cache so audio
+    // re-entries (e.g. scrolling away and back) don't re-download.
+    // `roomId` is nullable on the SDK type; fall back to the event
+    // id (which is guaranteed non-null) so the cache key stays valid
+    // even before the event has been attached to a room.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
   }
 
   /// Checks the user's auto-download preference for files (audio).
@@ -104,12 +109,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     } catch (_) {
       return true;
     }
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
   }
 
   // ---- Content helpers ----
@@ -157,7 +156,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   }
 
   Future<void> _togglePlay() async {
-    if (_isPlaying) {
+    if (_isPlaying.value) {
       await _player.pause();
     } else {
       await _ensureAttached();
@@ -166,13 +165,13 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   }
 
   Future<void> _seekTo(double value) async {
-    final d = _duration;
+    final d = _duration.value;
     if (d == Duration.zero) return;
     final newPos = Duration(
       milliseconds: (value * d.inMilliseconds).round(),
     );
     await _player.seek(newPos);
-    if (mounted) setState(() => _position = newPos);
+    _position.value = newPos;
   }
 
   Future<void> _downloadFile() async {
@@ -187,180 +186,224 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   }
 
   @override
+  void dispose() {
+    _player.dispose();
+    _position.dispose();
+    _duration.dispose();
+    _isPlaying.dispose();
+    _isReady.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
+    // Fast path: bytes are already in the shared cache, so we don't
+    // need a FutureBuilder at all. The audio player will lazily
+    // attach the file on first play.
+    final cached = RoomMediaCache.instance
+        .get(widget.event.roomId ?? widget.event.eventId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      _bytes ??= cached;
+    }
+
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
-        final isReady = snapshot.hasData;
-        final displayPos = _position.inSeconds.toDouble();
-        final displayDur = (_duration.inSeconds == 0
-                ? _durationMs ?? 0
-                : _duration.inMilliseconds) /
-            1000.0;
-        final progress = displayDur == 0
-            ? 0.0
-            : (displayPos / displayDur).clamp(0.0, 1.0);
-
-        return Container(
-          constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).audioMax),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Play/Pause button (or download icon while loading).
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: cs.primary,
-                      size: 22,
-                    ),
-                    onPressed: isReady && _isReady ? _togglePlay : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Track + metadata
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _fileName ?? l10n.audioFileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Slider
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 3,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 6,
-                          ),
-                        ),
-                        child: Slider(
-                          value: progress,
-                          onChanged: isReady ? _seekTo : null,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-
-                      // Time/duration and badges
-                      Row(
-                        children: [
-                          Text(
-                            _formatDuration(_position),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurface,
-                              fontFamily: 'JetBrainsMono',
+        final downloaded = snapshot.hasData;
+        // Subscribe to all four notifiers; only the widgets that
+        // actually read a value re-paint when it changes.
+        return ValueListenableBuilder<bool>(
+          valueListenable: _isPlaying,
+          builder: (context, isPlaying, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: _isReady,
+              builder: (context, isReady, _) {
+                return ValueListenableBuilder<Duration>(
+                  valueListenable: _position,
+                  builder: (context, position, _) {
+                    return ValueListenableBuilder<Duration>(
+                      valueListenable: _duration,
+                      builder: (context, duration, _) {
+                        final displayPos = position.inSeconds.toDouble();
+                        final resolvedDuration = duration.inSeconds == 0
+                            ? Duration(milliseconds: _durationMs ?? 0)
+                            : duration;
+                        final displayDur =
+                            resolvedDuration.inMilliseconds / 1000.0;
+                        final progress = displayDur == 0
+                            ? 0.0
+                            : (displayPos / displayDur).clamp(0.0, 1.0);
+                        return Container(
+                          constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaSizePrefs.of(context).audioMax),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: cs.outlineVariant.withValues(alpha: 0.4),
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '/',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: cs.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: cs.primary,
+                                      size: 22,
+                                    ),
+                                    onPressed: downloaded && isReady
+                                        ? _togglePlay
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _fileName ?? l10n.audioFileName,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      SliderTheme(
+                                        data: SliderTheme.of(context)
+                                            .copyWith(
+                                          trackHeight: 3,
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                            enabledThumbRadius: 6,
+                                          ),
+                                        ),
+                                        child: Slider(
+                                          value: progress,
+                                          onChanged: downloaded
+                                              ? _seekTo
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            _formatDuration(position),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: cs.onSurface,
+                                              fontFamily: 'JetBrainsMono',
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '/',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _formatDuration(resolvedDuration),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: cs.onSurfaceVariant,
+                                              fontFamily: 'JetBrainsMono',
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Container(
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: cs.tertiaryContainer
+                                                  .withValues(alpha: 0.5),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              _extension,
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                                color:
+                                                    cs.onTertiaryContainer,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_fileSize != null) ...[
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              _formatSize(_fileSize!),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: cs.onSurfaceVariant
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Tooltip(
+                                  message: l10n.downloadAudio,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        LucideIcons.download,
+                                        size: 18,
+                                        color: cs.primary,
+                                      ),
+                                      onPressed: downloaded
+                                          ? _downloadFile
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDuration(_duration == Duration.zero
-                                ? Duration(milliseconds: _durationMs ?? 0)
-                                : _duration),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontFamily: 'JetBrainsMono',
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cs.tertiaryContainer
-                                  .withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _extension,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onTertiaryContainer,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          if (_fileSize != null) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              _formatSize(_fileSize!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 6),
-
-                // Save button
-                Tooltip(
-                  message: l10n.downloadAudio,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        LucideIcons.download,
-                        size: 18,
-                        color: cs.primary,
-                      ),
-                      onPressed: isReady ? _downloadFile : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
         );
       },
     );

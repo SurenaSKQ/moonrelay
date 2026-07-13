@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -54,7 +55,13 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
     if (!_shouldAutoDownload()) return;
-    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+    // Share the in-flight future with the global cache so other
+    // States for the same event don't download a second copy.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
   }
 
   /// Checks the user's auto-download preference for images (stickers).
@@ -114,6 +121,12 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
+    final cached = RoomMediaCache.instance
+        .get(widget.event.roomId ?? widget.event.eventId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      return _buildSticker(cs, cached, context);
+    }
 
     if (_downloadFuture == null) {
       return _buildPlaceholder(cs);
@@ -185,8 +198,12 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
 
   Widget _buildSticker(ColorScheme cs, Uint8List bytes, BuildContext context) {
     final prefs = MediaSizePrefs.of(context);
+    // Cap decoded bitmap to display size × DPR. Stickers are typically
+    // small but the raw attachment can still be a multi-megapixel PNG.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final stickerMax = prefs.stickerMax;
     return Container(
-      constraints: _stickerConstraints(prefs.stickerMax),
+      constraints: _stickerConstraints(stickerMax),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
@@ -199,6 +216,7 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
         fit: BoxFit.contain,
         width: double.infinity,
         height: double.infinity,
+        cacheWidth: (stickerMax * dpr).ceil(),
         errorBuilder: (_, __, ___) => Container(
           height: 80,
           color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
