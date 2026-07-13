@@ -128,7 +128,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // The AppBar action button reuses LucideIcons.refreshCw — the
+      // The AppBar action button reuses LucideIcons.refreshCw  the
       // outlined "Re-run Setup" button on the cross-signing card uses
       // the same icon, so multiple matches are expected.  We pin at
       // least one in the AppBar (the topmost).

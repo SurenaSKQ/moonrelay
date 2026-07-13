@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local CI helper — runs the same checks as .github/workflows/tests.yml.
+# Local CI helper  runs the same checks as .github/workflows/tests.yml.
 # Usage: ./tools/test.sh [unit|widget|integration|all]
 
 set -euo pipefail

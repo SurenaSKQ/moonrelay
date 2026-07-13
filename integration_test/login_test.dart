@@ -56,7 +56,7 @@ void main() {
             ],
           });
         }
-        // POST — actual login
+        // POST  actual login
         if (req.method == 'POST') {
           final body = jsonDecode(req.body) as Map<String, dynamic>;
           if (body['type'] == 'm.login.password') {
@@ -125,8 +125,7 @@ void main() {
   // ─────────────────────────────────────────────────────────────────────
 
   group('Login flow', () {
-    testWidgets('renders welcome screen when not logged in',
-        (tester) async {
+    testWidgets('renders welcome screen when not logged in', (tester) async {
       configureLoginHandlers();
       await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
       // Initial render: splash/redirect
@@ -142,8 +141,7 @@ void main() {
       expect(find.text('Sign In'), findsWidgets);
     });
 
-    testWidgets('navigates to login page and shows form',
-        (tester) async {
+    testWidgets('navigates to login page and shows form', (tester) async {
       configureLoginHandlers();
       await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
       await tester.pump();
@@ -155,14 +153,13 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Now on login page — verify form fields
+      // Now on login page  verify form fields
       expect(find.text('Homeserver'), findsOneWidget);
       expect(find.text('Username or email'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
     });
 
-    testWidgets('completes login and navigates to room list',
-        (tester) async {
+    testWidgets('completes login and navigates to room list', (tester) async {
       configureLoginHandlers();
       await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
       await tester.pump();

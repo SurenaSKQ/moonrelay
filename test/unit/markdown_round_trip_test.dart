@@ -102,7 +102,7 @@ void main() {
 
   group('MarkdownToHtml safety / XSS', () {
     test('plain text is HTML-escaped', () {
-      // No markdown — the output should escape `<`, `>`, `&`, `"`.
+      // No markdown  the output should escape `<`, `>`, `&`, `"`.
       expect(MarkdownToHtml.convert('<script>.'), '<p>&lt;script&gt;.</p>');
       expect(MarkdownToHtml.convert('a & b.'), '<p>a &amp; b.</p>');
       expect(MarkdownToHtml.convert('"quoted".'), '<p>&quot;quoted&quot;.</p>');
@@ -123,7 +123,7 @@ void main() {
       // double-quote or `onclick=...`), the converter must never
       // emit an `<a …onclick=…>` tag that the browser would parse as
       // an event handler.  Escaping the offending characters into
-      // entities (e.g. `&quot;`) is acceptable — and in fact preferable
+      // entities (e.g. `&quot;`) is acceptable  and in fact preferable
       // to silently dropping the user input.
       final out = MarkdownToHtml.convert(
           '[x](https://example.com/x" onclick=alert(1))');

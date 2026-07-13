@@ -29,7 +29,7 @@
 // End-to-end "fire a GET and read the token future" tests are flaky in
 // a single Dart VM because the server calls `stop()` *during* request
 // processing, which closes the underlying socket before the client's
-// HTTP parser has finished reading the response headers — see
+// HTTP parser has finished reading the response headers  see
 // `lib/src/services/sso_server.dart` `_handleRequest` line ~185.
 // The real flow is exercised end-to-end in `integration_test/`.
 

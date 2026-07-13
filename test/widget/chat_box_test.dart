@@ -170,7 +170,7 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello world');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
-        // Allow the async Markdown conversion to settle — see the
+        // Allow the async Markdown conversion to settle  see the
         // note above about [MarkdownToHtml.convertAsync] requiring
         // real wall-clock time.
         await tester.runAsync(() async {

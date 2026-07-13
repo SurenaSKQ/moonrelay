@@ -259,7 +259,7 @@ void main() {
 
       test('does not detect bare room IDs in plain text', () {
         // Bare room IDs (starting with `!`) are deliberately excluded from
-        // `parseAll` — they are random-looking 26-character strings that
+        // `parseAll`  they are random-looking 26-character strings that
         // collide with normal prose.  Use `matrix:r/!room:domain` instead.
         final results = MatrixUriParser.parseAll(
           'Join !room:example.org for discussion',

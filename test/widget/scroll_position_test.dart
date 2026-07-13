@@ -35,7 +35,7 @@ void main() {
       final scrollController = ScrollController();
       addTearDown(scrollController.dispose);
 
-      // The "user has scrolled up" state — toggled on while the test
+      // The "user has scrolled up" state  toggled on while the test
       // simulates a scroll-up gesture.
       bool isScrolledUp = false;
 
@@ -46,7 +46,7 @@ void main() {
               home: Scaffold(
                 body: Stack(
                   children: [
-                    // Non-positioned child — the timeline listview.
+                    // Non-positioned child  the timeline listview.
                     Positioned.fill(
                       child: ListView.builder(
                         controller: scrollController,
@@ -60,7 +60,7 @@ void main() {
                         ),
                       ),
                     ),
-                    // Positioned overlay — only rendered when the
+                    // Positioned overlay  only rendered when the
                     // user is scrolled up.
                     if (isScrolledUp)
                       Positioned(
@@ -80,14 +80,14 @@ void main() {
         ),
       );
 
-      // Scroll the listview down (toward the oldest items) — the
+      // Scroll the listview down (toward the oldest items)  the
       // equivalent of the user scrolling up in the chat timeline.
       scrollController.jumpTo(300);
 
       // Verify the scroll position is at 300.
       expect(scrollController.position.pixels, 300);
 
-      // Toggle the "scrolled up" state — this triggers a rebuild.
+      // Toggle the "scrolled up" state  this triggers a rebuild.
       isScrolledUp = true;
       await tester.pump();
 
@@ -97,8 +97,7 @@ void main() {
       expect(
         scrollController.position.pixels,
         300,
-        reason:
-            'The scroll position should be preserved across the '
+        reason: 'The scroll position should be preserved across the '
             'FAB visibility toggle.  If this fails, the Stack/Positioned '
             'is invalidating the ListView layout.',
       );

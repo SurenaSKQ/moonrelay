@@ -36,7 +36,7 @@ void main() {
       final scrollController = ScrollController();
       addTearDown(scrollController.dispose);
 
-      // Mirrors `_isScrolledUp` — the FAB visibility flag in
+      // Mirrors `_isScrolledUp`  the FAB visibility flag in
       // production.
       bool isScrolledUp = false;
       // The actual "rebuild" we trigger after `setState` in
@@ -92,7 +92,7 @@ void main() {
       scrollController.jumpTo(500);
       await tester.pumpAndSettle();
 
-      // After the drag, pixels should be > 0 — the user has scrolled up.
+      // After the drag, pixels should be > 0  the user has scrolled up.
       expect(
         scrollController.position.pixels,
         greaterThan(200),
