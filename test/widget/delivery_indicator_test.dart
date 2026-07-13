@@ -20,7 +20,7 @@
 //   - DeliveryIndicator: rendering for each status, retry callback fires
 //   - KeyboardShortcutsOverlay: sheet opens and renders the cheatsheet
 //
-// These are intentionally minimal — they exist to lock the rendering
+// These are intentionally minimal  they exist to lock the rendering
 // contract so future refactors cannot silently break the surface.
 
 import 'package:flutter/material.dart';

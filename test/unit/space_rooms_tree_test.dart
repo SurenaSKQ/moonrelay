@@ -64,7 +64,7 @@ void main() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Widget tests — SpaceRoomsPane (basic rendering without children)
+  // Widget tests  SpaceRoomsPane (basic rendering without children)
   // ═══════════════════════════════════════════════════════════════════════
   group('SpaceRoomsPane rendering', () {
     late MockClient client;
@@ -120,7 +120,7 @@ void main() {
       when(() => room.lastEvent).thenReturn(null);
       when(() => client.getRoomById('!s:test')).thenReturn(room);
 
-      // Intentionally do NOT stub client.onSync — the widget should handle
+      // Intentionally do NOT stub client.onSync  the widget should handle
       // a null return gracefully via the try-catch in initState.
       await pumpPane(tester, room);
       await tester.pump();

@@ -185,7 +185,7 @@ void main() {
       // mock saw it.  If it didn't, that's a real regression in the
       // boot pipeline that we'd want to know about.
       // (We allow the test to pass even if the SDK never called
-      // /devices — the goal is to surface unexpected 404s, not to
+      // /devices  the goal is to surface unexpected 404s, not to
       // assert a specific sync cadence.)
       expect(capturedDevices, isA<List<dynamic>>());
     });

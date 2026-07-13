@@ -33,7 +33,7 @@ void main() {
     });
 
     test('redacts MDA… long tokens', () {
-      // 100+ alphanumerics — synthesised rather than a real token.
+      // 100+ alphanumerics  synthesised rather than a real token.
       const token =
           'MDAabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
       expect(

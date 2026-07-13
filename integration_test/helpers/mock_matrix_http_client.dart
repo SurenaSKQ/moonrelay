@@ -79,8 +79,8 @@ class MockMatrixHttpClient extends http.BaseClient {
     for (final entry in _handlers.entries) {
       if (_matches(entry.key, method, path, url)) {
         try {
-          final response =
-              entry.value(request is http.Request ? request : _toRequest(request));
+          final response = entry
+              .value(request is http.Request ? request : _toRequest(request));
           return http.StreamedResponse(
             Stream.value(utf8.encode(response.body)),
             response.statusCode,
@@ -235,32 +235,32 @@ class MockMatrixHttpClient extends http.BaseClient {
   void configureEncryptionHandlers() {
     // Devices for the current user.
     whenDevicesRequested = () => <Map<String, dynamic>>[
-      {
-        'device_id': currentDeviceId,
-        'user_id': '@self:matrix.org',
-        'display_name': 'Mock Test Device',
-        'last_seen_ip': '127.0.0.1',
-        'last_seen_ts': DateTime.now().millisecondsSinceEpoch,
-        'app_id': 'moonrelay.e2e',
-        'app_version': '0.6.0',
-        'platform': 'linux',
-        'url': null,
-      }
-    ];
+          {
+            'device_id': currentDeviceId,
+            'user_id': '@self:matrix.org',
+            'display_name': 'Mock Test Device',
+            'last_seen_ip': '127.0.0.1',
+            'last_seen_ts': DateTime.now().millisecondsSinceEpoch,
+            'app_id': 'moonrelay.e2e',
+            'app_version': '0.6.0',
+            'platform': 'linux',
+            'url': null,
+          }
+        ];
 
     // Upload device keys (initial sync handshake).
     final keysUploadRe = RegExp(r'_matrix/client/v3/keys/upload');
     registerRoute(
         keysUploadRe, (req) => _jsonResponse(200, {'one_time_key_counts': {}}));
 
-    // Cross-signing keys upload — accept whatever the SDK sends.
+    // Cross-signing keys upload  accept whatever the SDK sends.
     final signingKeysRe = RegExp(
         r'_matrix/client/v3/keys/device_signing/upload|_matrix/client/v3/keys/signatures/upload');
     registerRoute(
         signingKeysRe, (req) => _jsonResponse(200, <String, dynamic>{}));
   }
 
-  /// Public field — tests can rename this to a deterministic
+  /// Public field  tests can rename this to a deterministic
   /// `device_id` so login + sync responses stay referentially stable
   /// across runs.
   String currentDeviceId = 'E2ETEST-DEVICE';

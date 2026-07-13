@@ -45,7 +45,7 @@ void main() {
 
     test('counts events newer than the marker', () {
       final events = _mkEvents(['e1', 'e2', 'e3', 'e4', 'e5']);
-      // Marker is e3 — the two newer events (e1, e2) are unread.
+      // Marker is e3  the two newer events (e1, e2) are unread.
       expect(countUnreadInWindow(events, 'e3'), 2);
     });
 
@@ -56,7 +56,7 @@ void main() {
 
     test('returns 0 when the marker is not in the cache', () {
       // The marker being older than the loaded window still counts
-      // the entire list as unread — the user hasn't caught up.
+      // the entire list as unread  the user hasn't caught up.
       final events = _mkEvents(['a', 'b', 'c']);
       expect(countUnreadInWindow(events, '\$oldMarker'), 3);
     });
@@ -96,7 +96,7 @@ void main() {
 
     test('skips state events when no marker is set either', () {
       // A fresh account on a room full of state activity should not
-      // see "X unread" — there are no real messages to read.
+      // see "X unread"  there are no real messages to read.
       final stateA = _MockEventFactory.build(
         id: 's1',
         status: EventStatus.synced,

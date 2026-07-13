@@ -106,7 +106,7 @@ case "$cmd" in
     bold "Pushing tag (you can --set-upstream once if needed)..."
     git push origin HEAD || true
     git push origin "v$v" || true
-    ok "Tagged v$v — release workflow should fire momentarily."
+    ok "Tagged v$v  release workflow should fire momentarily."
     ;;
   help|--help|-h|*)
     cat <<EOF
@@ -119,7 +119,7 @@ Moonrelay release helpers
   alpha | beta | stable  -> cycle pre-release stage
   tag                    -> commit + push tag vX.Y.Z (fires release.yml)
 
-The version lives in \`pubspec.yaml\`. CI reads it directly — never
+The version lives in \`pubspec.yaml\`. CI reads it directly  never
 edit windows/Runner.rc, debian/changelog, or .spec by hand.
 EOF
     ;;
