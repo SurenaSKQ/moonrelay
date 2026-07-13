@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -31,7 +32,7 @@ import 'package:provider/provider.dart';
 /// images or tall portrait shots both render as a comfortable rectangle
 /// instead of stretching to the full timeline width. The image is then
 /// scaled with `BoxFit.contain` so its aspect ratio is preserved without
-/// cropping — it fits inside the box, not the other way around.
+/// cropping  it fits inside the box, not the other way around.
 class ImageMessageType extends StatefulWidget {
   const ImageMessageType({super.key, required this.event});
   final Event event;
@@ -44,6 +45,19 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
   bool _autoDownloadResolved = false;
+
+  /// Resolve the room id once for [RoomMediaCache] keying. Falls back
+  /// to the event id when the room id isn't yet attached (early in the
+  /// sync lifecycle); the cache key is per-event either way.
+  String get _roomId {
+    try {
+      final id = widget.event.roomId;
+      if (id == null) return widget.event.eventId;
+      return id.isNotEmpty ? id : widget.event.eventId;
+    } catch (_) {
+      return widget.event.eventId;
+    }
+  }
 
   @override
   void initState() {
@@ -61,7 +75,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
     if (!_shouldAutoDownload()) return;
-    _downloadFuture = widget.event.downloadAndDecryptAttachment();
+    // Use the shared cache so multiple State objects for the same
+    // event share a single downloaded blob and a single in-flight
+    // future. The State no longer holds a long-lived Future — once
+    // the cache resolves, the bytes live in the global cache and the
+    // State reads them from there.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      _roomId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
   }
 
   /// Checks the user's auto-download preference for images.
@@ -81,7 +104,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   /// Maximum display size for thumbnails in the timeline. Both axes are
-  /// upper bounds — the larger dimension of the image decides the box,
+  /// upper bounds  the larger dimension of the image decides the box,
   /// and the smaller dimension follows proportionally.
   ///
   /// Honoured as a fallback when the [SettingsController] cannot be read
@@ -130,10 +153,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   /// available in the widget tree.
   double _resolveMaxThumbnailDimension() {
     try {
-      return context
-          .read<SettingsController>()
-          .imageThumbnailMaxPx
-          .toDouble();
+      return context.read<SettingsController>().imageThumbnailMaxPx.toDouble();
     } catch (_) {
       return _defaultMaxThumbnailDimension;
     }
@@ -170,6 +190,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    // Fast path: bytes are already in the shared cache (e.g. we
+    // previously downloaded the same attachment, or this is a
+    // rebuild after the FutureBuilder resolved once). Avoid creating
+    // another FutureBuilder — the underlying bytes never go stale.
+    final cached =
+        RoomMediaCache.instance.get(_roomId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      return _buildThumbnail(cs, cached);
+    }
+
     if (_downloadFuture == null) {
       return _buildPlaceholder(cs);
     }
@@ -190,6 +220,9 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
           return _buildError(cs);
         }
 
+        // Bytes live in the shared cache; release this State's
+        // reference to the FutureBuilder's result so the next rebuild
+        // uses the fast-path cache lookup above.
         return _buildThumbnail(cs, bytes);
       },
     );
@@ -261,6 +294,12 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     final maxDim = _resolveMaxThumbnailDimension();
     final size = _imageSize(maxDim);
 
+    // Cap the decoded bitmap to the rendered box (scaled by device pixel
+    // ratio for HiDPI). Without this, Flutter decodes the full source
+    // image — a 4032×3024 photo becomes a ~48 MB ui.Image even though
+    // it displays at a few hundred logical pixels.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
     return GestureDetector(
       onTap: () => _openViewer(bytes),
       child: Container(
@@ -276,7 +315,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
         clipBehavior: Clip.antiAlias,
         // Wrap the body in a MouseRegion so the metadata overlay (image
         // dimensions + file size) only appears while the user is
-        // actually looking at the thumbnail — the rest of the time the
+        // actually looking at the thumbnail  the rest of the time the
         // image is just the picture itself, no chrome.  Using a
         // stateful widget for the hover state would also work but
         // would require lifting the hover state out of the build
@@ -288,17 +327,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
           imgWidth: _imgWidth,
           imgHeight: _imgHeight,
           fileSize: _fileSize,
-          formattedSize: _fileSize == null
-              ? null
-              : _formatSize(_fileSize!),
+          formattedSize: _fileSize == null ? null : _formatSize(_fileSize!),
           child: Image.memory(
             bytes,
             // fitWidth preserves aspect ratio while filling the box
-            // horizontally — no more centred letterboxing.  When the
+            // horizontally  no more centred letterboxing.  When the
             // image's intrinsic aspect already matches the box (the
             // common case) the picture fills it exactly.
             fit: BoxFit.fitWidth,
             alignment: AlignmentDirectional.centerStart,
+            cacheWidth: (size.width * dpr).ceil(),
             errorBuilder: (_, __, ___) => Container(
               color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
               child: Icon(
@@ -344,94 +382,88 @@ class _ImageHoverRegion extends StatefulWidget {
 }
 
 class _ImageHoverRegionState extends State<_ImageHoverRegion> {
-  bool _isHovered = false;
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
       child: Stack(
         children: [
           widget.child,
-          // ── GIF badge (always visible — small corner label) ────
           if (widget.isGif)
-            Positioned(
+            const Positioned(
               top: 6,
               left: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'GIF',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
+              child: _GifBadge(),
             ),
-
-          // ── Dimensions / file size — only on hover ────────────────
-          if (_isHovered && _hasInfoToShow)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0x80000000),
-                      Color(0x00000000),
-                    ],
+          // The hover overlay is the only subtree that re-paints on
+          // hover; the image and the GIF badge stay put.
+          ValueListenableBuilder<bool>(
+            valueListenable: _isHovered,
+            builder: (context, hovered, _) {
+              if (!hovered || !_hasInfoToShow) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.zoom_in,
-                      size: 14,
-                      color: Colors.white.withValues(alpha: 0.8),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Color(0x80000000),
+                        Color(0x00000000),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    if (widget.imgWidth != null && widget.imgHeight != null)
-                      Text(
-                        '${widget.imgWidth}×${widget.imgHeight}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.zoom_in,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
-                    if (widget.fileSize != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        widget.formattedSize ?? '',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.7),
+                      const SizedBox(width: 4),
+                      if (widget.imgWidth != null && widget.imgHeight != null)
+                        Text(
+                          '${widget.imgWidth}x${widget.imgHeight}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
                         ),
-                      ),
+                      if (widget.fileSize != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.formattedSize ?? '',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -439,9 +471,36 @@ class _ImageHoverRegionState extends State<_ImageHoverRegion> {
 
   /// True when there's at least one piece of metadata to display in
   /// the hover overlay.  When the event has no dimensions and no
-  /// file size we don't render the gradient at all — the GIF badge
+  /// file size we don't render the gradient at all  the GIF badge
   /// and a clean thumbnail are enough.
   bool get _hasInfoToShow =>
       (widget.imgWidth != null && widget.imgHeight != null) ||
       widget.fileSize != null;
+}
+
+/// Small badge that overlays a "GIF" label in the top-left of an
+/// image.  Pulled out so the parent Stack can use it via a `const`
+/// reference, which keeps the image subtree stable across rebuilds.
+class _GifBadge extends StatelessWidget {
+  const _GifBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'GIF',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
 }

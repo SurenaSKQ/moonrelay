@@ -48,6 +48,12 @@ class ImageViewerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The viewer allows pinch-to-zoom up to 5×; cap decoded bitmap to
+    // 2048 px so an 8K source doesn't allocate ~256 MB of GPU memory.
+    final size = MediaQuery.sizeOf(context);
+    final longSide = size.width >= size.height ? size.width : size.height;
+    final cacheWidth = (longSide * 5).clamp(512, 2048).toInt();
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -59,6 +65,7 @@ class ImageViewerScreen extends StatelessWidget {
               child: Image.memory(
                 bytes,
                 fit: BoxFit.cover,
+                cacheWidth: cacheWidth,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
@@ -72,6 +79,7 @@ class ImageViewerScreen extends StatelessWidget {
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
+                cacheWidth: cacheWidth,
                 errorBuilder: (_, __, ___) => Center(
                   child: Text(
                     AppLocalizations.of(context)!.failedToLoadImage,
