@@ -164,40 +164,50 @@ class _DashboardView extends StatelessWidget {
 
     // ── Decide which shell to render ──────────────────────────────────
     //
-    // Three layout modes (controlled by the [LayoutMode] setting) exist:
+    // The responsive decision now flows through two helpers on
+    // [LayoutBreakpoints]:
     //
-    // - **auto** (default): use the responsive breakpoints.  Wide and
-    //   expanded windows get the full multi-pane layout; medium windows
-    //   get a single left sidebar; compact windows get the unified
-    //   [CompactSidebar].
-    // - **compact**: always use the [CompactSidebar].  Useful for small
-    //   monitors or users who prefer a single dense sidebar.
-    // - **mobile**: handled by [MobileLayout] outside this widget; we
-    //   should not be invoked when the user opted in to mobile mode.
+    // - [LayoutBreakpoints.shouldUseMobile] is true when the window is
+    //   too narrow even for the unified compact sidebar (below
+    //   mobileMax).  Mobile mode is always handled by the router-level
+    //   [_AdaptiveMainLayout] so this dashboard widget should not run
+    //   in that case; if we do get here with a sub-mobile width we still
+    //   fall back to the compact shell rather than crashing.
+    // - [LayoutBreakpoints.shouldUseCompact] is true for everything
+    //   below [LayoutBreakpoints.compactMax].  The compact shell keeps
+    //   a unified sidebar visible at every size where the multi-pane
+    //   layout would feel cramped, replacing the legacy "medium"
+    //   layout which only showed a useless left rail.
     //
-    // The compact sidebar is also used for the "auto / compact width"
-    // window-size bucket so the dashboard never falls back to the
-    // navigation-rail-only layout, which used to render uselessly on
-    // narrow windows (no room list visible).
+    // The user can also force a shell via the [LayoutMode] setting.
+    // Mobile wins whenever [LayoutMode.mobile] is selected regardless
+    // of width so the explicit user override is honoured.
     final layoutMode = settings.layoutMode;
     final width = MediaQuery.sizeOf(context).width;
-    final isNarrow = size.isCompact;
-    final useCompactShell =
-        layoutMode == LayoutMode.compact || isNarrow;
-
-    if (useCompactShell) {
-      return _CompactDashboard(child: child);
-    }
-
-    // ── Wide / medium shells — full multi-pane layout ──────────────
-    final showLeft = settings.leftSidebarVisible && size.hasOneSidebar;
-    final showRight = settings.rightSidebarVisible && size.hasTwoSidebars;
+    final shouldUseMobile = layoutMode == LayoutMode.mobile ||
+        LayoutBreakpoints.shouldUseMobile(width);
+    final shouldUseCompact =
+        !shouldUseMobile && (layoutMode == LayoutMode.compact ||
+            LayoutBreakpoints.shouldUseCompact(width));
 
     // Suppress unused variable warning — `width` is read in the helpers
     // when debugging responsive decisions; keep it alive so the
     // compiler doesn't optimise the MediaQuery call away if we add
     // debug breakpoints later.
     assert(width >= 0);
+
+    if (shouldUseCompact) {
+      return _CompactDashboard(child: child);
+    }
+
+    // ── Wide shells — full multi-pane layout ───────────────────────
+    // The compact shell handles everything 600-1279 wide.  Above
+    // 1280px the full multi-pane layout (right sidebar visible) is
+    // shown; otherwise we fall back to the compact shell again so
+    // there is no "medium" gap where the sidebar disappears.
+    final showLeft = settings.leftSidebarVisible;
+    final showRight = settings.rightSidebarVisible &&
+        width >= LayoutBreakpoints.expandedMax;
 
     return LayoutScope(
       size: size,
@@ -208,7 +218,7 @@ class _DashboardView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showLeft)
+                if (showLeft && !shouldUseMobile)
                   _LeftPaneHost(
                     widthNotifier: leftWidthNotifier,
                     onResize: onLeftResize,
