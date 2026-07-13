@@ -87,7 +87,7 @@ class NotificationService {
   ///
   /// - **Mark as read**: silently clear the unread state for the
   ///   owning room without opening the app.
-  /// - **Open**: same behaviour as tapping the notification body —
+  /// - **Open**: same behaviour as tapping the notification body
   ///   bring the window forward and navigate to the room.
   ///
   /// Other platforms fall through to their default tap behaviour
@@ -169,7 +169,7 @@ class NotificationService {
   final DeepLinkService? _deepLinkService;
   final Logger _log;
   FlutterLocalNotificationsPlugin? _plugin;
-  StreamSubscription? _syncSubscription;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
   Timer? _persistDebouncer;
   bool _available = false;
 
@@ -291,7 +291,8 @@ class NotificationService {
       _available = true;
       return true;
     } catch (e) {
-      _log.w('Notification plugin init failed; falling back to no-op', error: e);
+      _log.w('Notification plugin init failed; falling back to no-op',
+          error: e);
       _plugin = null;
       _available = false;
       return false;
@@ -333,7 +334,7 @@ class NotificationService {
     if (decoded != null) {
       matrixUri = decoded.matrixUri;
       // A body tap and an explicit "open" button share the same intent
-      // — promote the body-tap default to "open".
+      //  promote the body-tap default to "open".
       if (fromButton == null || fromButton.isEmpty) {
         action = 'open';
       }
@@ -348,7 +349,7 @@ class NotificationService {
 
     if (action == 'markRead') {
       await _markUriAsRead(matrixUri);
-      // Still open the app — the user expects feedback that their tap
+      // Still open the app  the user expects feedback that their tap
       // was registered.
     }
 
@@ -371,9 +372,8 @@ class NotificationService {
     if (segments.length < 2) return;
     // matrix:r/<roomid>  -> segments[0]=='r', segments[1] is room id
     // matrix:roomid/<roomid>/<eventid>
-    final roomId = segments[0] == 'r' && segments.length >= 2
-        ? segments[1]
-        : segments[0];
+    final roomId =
+        segments[0] == 'r' && segments.length >= 2 ? segments[1] : segments[0];
     if (roomId.isEmpty) return;
 
     try {
@@ -399,17 +399,45 @@ class NotificationService {
         },
       );
     } catch (e) {
-      _log.w('Failed to mark room as read from notification action',
-          error: e);
+      _log.w('Failed to mark room as read from notification action', error: e);
     }
   }
 
   void _startListening() {
-    _syncSubscription = _client.onSync.stream.listen(
-      (_) => _processRooms(),
-      onError: (e) =>
-          _log.w('Sync stream error in notification service', error: e),
+    // Subscribe to onSync only; the onEvent stream is deprecated in
+    // recent Matrix SDK versions. [_processRoomsIfChanged] short-
+    // circuits on no-op ticks (same room, same last-event timestamp)
+    // so the per-tick scan is cheap when nothing has actually moved.
+    _subscriptions.add(
+      _client.onSync.stream.listen((_) => _processRoomsIfChanged()),
     );
+  }
+
+  /// Calls [_processRooms] only when something has actually changed
+  /// since the last tick.  Cheap O(rooms) check via the
+  /// [lastEventIdByRoom] map; if the cache is empty the first tick
+  /// still runs so we never get stuck.
+  String? _lastProcessTickRoomId;
+  int _lastProcessTickLastEvent = -1;
+  void _processRoomsIfChanged() {
+    final all = _client.rooms;
+    String? lastRoomId;
+    int lastEvent = -1;
+    for (final room in all) {
+      final e = room.lastEvent;
+      if (e == null) continue;
+      if (lastEvent < 0 || e.originServerTs.millisecondsSinceEpoch > lastEvent) {
+        lastEvent = e.originServerTs.millisecondsSinceEpoch;
+        lastRoomId = room.id;
+      }
+    }
+    if (lastRoomId == _lastProcessTickRoomId &&
+        lastEvent == _lastProcessTickLastEvent) {
+      return;
+    }
+    _lastProcessTickRoomId = lastRoomId;
+    _lastProcessTickLastEvent = lastEvent;
+    _processRooms();
   }
 
   /// Refresh the cached focus state from the window manager.  Called
@@ -421,7 +449,7 @@ class NotificationService {
     try {
       _hasFocus = await windowManager.isFocused();
     } catch (_) {
-      // Window manager unavailable (e.g. tests) — assume focused.
+      // Window manager unavailable (e.g. tests)  assume focused.
       _hasFocus = true;
     }
   }
@@ -440,7 +468,8 @@ class NotificationService {
     // Group summary accumulators.
     int totalGroupUnread = 0;
     int groupRoomCount = 0;
-    String? singleGroupName;
+    String? lastGroupName;
+    String? lastGroupRoomId;
 
     for (final room in _client.rooms) {
       if (room.membership != Membership.join) continue;
@@ -478,19 +507,20 @@ class NotificationService {
         _groupNotifiedCounts[room.id] = currentCount;
         groupChanged = true;
 
-        // First time seeing this room — record the baseline count
+        // First time seeing this room  record the baseline count
         // without notifying so we don't spam for pre-existing messages.
         if (lastCount == null) continue;
 
         final delta = currentCount - lastCount;
         if (delta <= 0) continue; // count decreased (user read messages)
 
-        final roomName = room.getLocalizedDisplayname();
         totalGroupUnread += delta;
         groupRoomCount++;
         // Last room with new messages wins for the single-room
-        // summary copy.
-        singleGroupName = roomName;
+        // summary copy. Track the room id too so the deep-link
+        // payload doesn't have to do a name-based lookup.
+        lastGroupName = room.getLocalizedDisplayname();
+        lastGroupRoomId = room.id;
       }
     }
 
@@ -514,7 +544,8 @@ class NotificationService {
       _sendGroupSummary(
         roomCount: groupRoomCount,
         totalUnread: totalGroupUnread,
-        singleGroupName: groupRoomCount == 1 ? singleGroupName : null,
+        singleGroupName: groupRoomCount == 1 ? lastGroupName : null,
+        singleGroupRoomId: groupRoomCount == 1 ? lastGroupRoomId : null,
       );
     }
   }
@@ -530,7 +561,7 @@ class NotificationService {
     // disturbed by foreground alerts.
     if (!_settings.notifyWhenFocused && _hasFocus) return;
 
-    // Encrypted messages should still notify the user — the SDK
+    // Encrypted messages should still notify the user  the SDK
     // may not have decrypted the event by the time the notification
     // fires, in which case the body string is empty. We surface a
     // dedicated "(encrypted message)" placeholder so the user is not
@@ -539,9 +570,7 @@ class NotificationService {
         (event.messageType.isEmpty && event.content['m.ciphertext'] != null);
     final rawBody = event.content.tryGet('body') as String? ?? '';
     final isUndecryptedPlaceholder = isEncrypted && rawBody.isEmpty;
-    final body = isUndecryptedPlaceholder
-        ? 'Encrypted message'
-        : rawBody;
+    final body = isUndecryptedPlaceholder ? 'Encrypted message' : rawBody;
     if (body.isEmpty) return;
 
     // Skip if the user is viewing this room
@@ -570,6 +599,7 @@ class NotificationService {
     required int roomCount,
     required int totalUnread,
     String? singleGroupName,
+    String? singleGroupRoomId,
   }) {
     final String title;
     final String body;
@@ -587,14 +617,11 @@ class NotificationService {
     // Use the deep-link payload only for the single-room case so
     // tapping it jumps straight to the room; for the multi-room case
     // we leave the payload empty and the listener just brings the
-    // window forward.
+    // window forward.  We have the room id directly from the caller
+    // so no scan over all rooms is needed.
     String? payload;
-    if (singleGroupName != null) {
-      final ids = _client.rooms
-          .where((r) => r.getLocalizedDisplayname() == singleGroupName)
-          .map((r) => r.id)
-          .toList();
-      if (ids.length == 1) payload = _encodePayload('matrix:r/${ids.first}');
+    if (singleGroupRoomId != null) {
+      payload = _encodePayload('matrix:r/$singleGroupRoomId');
     }
     _showNotification(
       groupSummaryTag,
@@ -766,8 +793,7 @@ class NotificationService {
         // ── Migration from old comma-separated format ────────
         final oldRaw = prefs.getString(_mutedRoomsKey);
         if (oldRaw != null) {
-          _mutedRooms =
-              oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
+          _mutedRooms = oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
           await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
           await prefs.remove('${_mutedRoomsKey}_legacy');
         }
@@ -805,8 +831,10 @@ class NotificationService {
   /// Cancels the sync subscription and any pending persistence work.
   /// Safe to call multiple times.
   void dispose() {
-    _syncSubscription?.cancel();
-    _syncSubscription = null;
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
     _persistDebouncer?.cancel();
     _persistDebouncer = null;
     // Reset the in-memory caches so a re-`init` after `dispose`
@@ -834,15 +862,14 @@ class NotificationService {
 
   /// Returns the last persisted group-unread count for [roomId] or
   /// `null` when no baseline has been recorded yet.
-  int? lastNotifiedGroupCountFor(String roomId) =>
-      _groupNotifiedCounts[roomId];
+  int? lastNotifiedGroupCountFor(String roomId) => _groupNotifiedCounts[roomId];
 
   /// Mirrors the timeline's "I just marked this room read" event into
   /// the local notification bookkeeping so the next sync tick doesn't
   /// emit a stale "you have N new messages" notification for a room
   /// the user has just caught up on.
   ///
-  /// This is the timeline-side counterpart to [_markUriAsRead] — both
+  /// This is the timeline-side counterpart to [_markUriAsRead]  both
   /// paths funnel through the same debounced persistence so the prefs
   /// blob stays consistent regardless of which surface the user used to
   /// clear the badge.
@@ -861,3 +888,4 @@ class NotificationService {
     );
   }
 }
+
