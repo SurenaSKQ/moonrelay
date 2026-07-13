@@ -133,6 +133,14 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   final ScrollController _scrollController = ScrollController();
 
+  /// [GlobalKey] into the rendered [TimelineView] so the orchestrator
+  /// can hand off jump requests to it once the view is mounted.  The
+  /// view owns the per-event [GlobalKey] map that powers
+  /// [Scrollable.ensureVisible]  we don't want to duplicate it on the
+  /// orchestrator.
+  final GlobalKey<TimelineViewState> _timelineViewKey =
+      GlobalKey<TimelineViewState>(debugLabel: 'chat_timeline_view');
+
   /// True while a [requestHistory] call is in flight.
   bool _isLoadingHistory = false;
 
@@ -176,11 +184,14 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// events above the current view.
   static const double _scrollUpThreshold = 200.0;
 
-  /// True when the user has scrolled away from the bottom of the
-  /// timeline.  Used to surface the "Scroll to bottom" floating
-  /// button so they can jump back to the newest messages without
-  /// having to swipe all the way down by hand.
-  bool _isScrolledUp = false;
+  /// Live scroll-up flag surfaced as a [ValueNotifier] so the floating
+  /// action column can rebuild via [ValueListenableBuilder] without
+  /// forcing the entire chat surface to rebuild on every scroll
+  /// tick.  Previously this was a plain [bool] field mutated via
+  /// [setState], which produced visible jitter during a continuous
+  /// drag because every drag tick that crossed the threshold
+  /// triggered a full [ChatTimeline] rebuild mid-frame.
+  final ValueNotifier<bool> _isScrolledUpNotifier = ValueNotifier<bool>(false);
 
   /// Public accessor for the scroll controller, exposed so callers
   /// outside this widget (e.g. the in-room search panel) can request
@@ -337,9 +348,15 @@ class ChatTimelineState extends State<ChatTimeline> {
     // means the user is reading older events.  We surface a
     // "Scroll to bottom" button in that state so they can jump back
     // to the newest messages without having to drag their way down.
+    // The flag is exposed as a [ValueNotifier] so the floating
+    // action column can rebuild via [ValueListenableBuilder] without
+    // the entire chat surface rebuilding on every scroll tick (the
+    // previous plain-field implementation called [setState] inside
+    // the scroll listener which produced visible jitter during a
+    // continuous drag).
     final scrolledUp = pos.pixels > _scrollUpThreshold;
-    if (scrolledUp != _isScrolledUp) {
-      setState(() => _isScrolledUp = scrolledUp);
+    if (scrolledUp != _isScrolledUpNotifier.value) {
+      _isScrolledUpNotifier.value = scrolledUp;
     }
 
     // Track whether the user is parked at the top of the loaded
@@ -747,6 +764,11 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// Scrolls the timeline so the event with [eventId] sits roughly one
   /// third from the top of the viewport, with a brief highlight ring.
+  ///
+  /// Uses [TimelineView.scrollToEventId] when available so on-screen
+  /// targets land pixel-perfect via [Scrollable.ensureVisible].  Falls
+  /// back to the index-based fraction estimate otherwise (older
+  /// code path, kept for safety).
   void _scrollToEvent(String eventId) {
     final timeline = _timeline;
     if (timeline == null) return;
@@ -754,14 +776,26 @@ class ChatTimelineState extends State<ChatTimeline> {
 
     final events = timeline.events;
     if (events.isEmpty) return;
-    final idx = events.indexWhere((e) => e.eventId == eventId);
-    if (idx < 0) return;
+    if (!events.any((e) => e.eventId == eventId)) return;
 
+    // Try the precise path first  if the TimelineView has the
+    // event rendered, [Scrollable.ensureVisible] lands the target
+    // exactly one third from the top of the viewport regardless of
+    // variable-height items above it.  This was the source of the
+    // "doesn't jump enough" complaint: the previous implementation
+    // always used a linear fraction estimate, which routinely missed
+    // by several items when neighbouring messages had very different
+    // heights (image messages vs short replies).
+    if (_timelineViewKey.currentState != null) {
+      _timelineViewKey.currentState!.scrollToEventId(eventId);
+      return;
+    }
+
+    // Fallback fraction path  used only until the TimelineView has
+    // been built and keyed.
+    final idx = events.indexWhere((e) => e.eventId == eventId);
     final position = _scrollController.position;
     final range = position.maxScrollExtent - position.minScrollExtent;
-    // List is reversed: index 0 is the bottom (offset 0), index n-1 is
-    // the top.  A smaller index into `events` corresponds to a smaller
-    // scroll offset.
     final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
     final paddedOffset =
         (position.minScrollExtent + range * fraction - position.viewportDimension * 0.33)
@@ -802,11 +836,11 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// Public entry point for the floating "Scroll to bottom" button.
   /// Animate-scrolls the timeline so the newest message sits at the
-  /// bottom of the viewport.  Resets the [_isScrolledUp] flag so
-  /// the button itself disappears once the scroll completes.
+  /// bottom of the viewport.  Resets the scroll-up flag so the button
+  /// itself disappears once the scroll completes.
   void scrollToBottom() {
-    if (!_isScrolledUp) return;
-    setState(() => _isScrolledUp = false);
+    if (!_isScrolledUpNotifier.value) return;
+    _isScrolledUpNotifier.value = false;
     _scrollToBottom();
     // The user is reaching the bottom of the timeline.  Push a mark-read
     // in the background  the scroll listener would do this anyway, but
@@ -953,40 +987,55 @@ class ChatTimelineState extends State<ChatTimeline> {
         // has scrolled up, the unread pill takes visual priority
         // (it sits on top) and the scroll-to-bottom button sits
         // below it.
+        // The floating action column is scoped to a
+        // [ValueListenableBuilder] on [_isScrolledUpNotifier] so the
+        // chat surface (the timeline list) does NOT rebuild every
+        // time the scroll-up flag toggles  the previous plain-field
+        // implementation called [setState] inside the scroll
+        // listener, which produced visible jitter during a continuous
+        // drag.  Now only the FAB column itself rebuilds, and only
+        // when the boolean actually flips.
         return Stack(
           children: [
             child,
-            if (_showUnreadPill || _isScrolledUp)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 12,
-                child: SafeArea(
-                  top: false,
-                  child: Center(
-                    child: _FloatingActionColumn(
-                      unreadCount: _unreadInWindow,
-                      isScrolledUp: _isScrolledUp,
-                      unreadVisible: _showUnreadPill,
-                      isJumping: _isJumpingToUnread,
-                      onJumpToUnread: () async {
-                        await jumpToLastRead();
-                        if (!mounted) return;
-                        // jumpToLastRead already advances the read
-                        // marker if it lands on the latest unread
-                        // event.  The explicit _markRoomRead(force:)
-                        // call here covers the "I want to clear the
-                        // badge right now" path when the user reaches
-                        // for the pill as a mark-read shortcut.
-                        _markRoomRead(force: true);
-                        if (mounted) dismissUnreadPill();
-                      },
-                      onScrollToBottom: scrollToBottom,
-                      onDismissUnread: dismissUnreadPill,
+            ValueListenableBuilder<bool>(
+              valueListenable: _isScrolledUpNotifier,
+              builder: (context, isScrolledUp, _) {
+                if (!_showUnreadPill && !isScrolledUp) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 12,
+                  child: SafeArea(
+                    top: false,
+                    child: Center(
+                      child: _FloatingActionColumn(
+                        unreadCount: _unreadInWindow,
+                        isScrolledUp: isScrolledUp,
+                        unreadVisible: _showUnreadPill,
+                        isJumping: _isJumpingToUnread,
+                        onJumpToUnread: () async {
+                          await jumpToLastRead();
+                          if (!mounted) return;
+                          // jumpToLastRead already advances the read
+                          // marker if it lands on the latest unread
+                          // event.  The explicit _markRoomRead(force:)
+                          // call here covers the "I want to clear the
+                          // badge right now" path when the user reaches
+                          // for the pill as a mark-read shortcut.
+                          _markRoomRead(force: true);
+                          if (mounted) dismissUnreadPill();
+                        },
+                        onScrollToBottom: scrollToBottom,
+                        onDismissUnread: dismissUnreadPill,
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
           ],
         );
       },
@@ -1050,6 +1099,7 @@ class ChatTimelineState extends State<ChatTimeline> {
     }
 
     return TimelineView(
+      key: _timelineViewKey,
       timeline: _timeline!,
       room: widget.room,
       displayType: settings.displayType,
@@ -1124,39 +1174,51 @@ class ChatTimelineState extends State<ChatTimeline> {
   // ---------------------------------------------------------------------------
 
   /// Scrolls the rendered timeline to the event with [eventId].
-  ///
-  /// The estimate is intentionally approximate (item index in the
-  /// visible list × viewport-fraction); the user can see the target and
-  /// scroll if it lands off by a few items.
-  ///
-  /// No-ops when [eventId] is null, no client is attached, or the
-  /// scroll controller isn't ready yet.
-  void jumpToEvent(String? eventId) {
-    final timeline = _timeline;
-    if (timeline == null || eventId == null) return;
-    if (!_scrollController.hasClients) return;
+///
+/// Delegates to [TimelineView.scrollToEventId] (which uses
+/// [Scrollable.ensureVisible] when the target is on-screen) and falls
+/// back to the index-based fraction estimate otherwise.  This avoids
+/// the previous imprecision: items have variable heights so a linear
+/// fraction estimate routinely missed the target by a few items,
+/// especially after image messages or long reply previews.
+///
+/// No-ops when [eventId] is null, no client is attached, or the
+/// scroll controller isn't ready yet.
+void jumpToEvent(String? eventId) {
+  final timeline = _timeline;
+  if (timeline == null || eventId == null) return;
+  if (!_scrollController.hasClients) return;
+  if (timeline.events.isEmpty) return;
+  if (!timeline.events.any((e) => e.eventId == eventId)) return;
 
-    final events = timeline.events;
-    if (events.isEmpty) return;
-    final idx = events.indexWhere((e) => e.eventId == eventId);
-    if (idx < 0) return;
-
-    final position = _scrollController.position;
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final fraction = idx / (events.length - 1);
-    final targetOffset = position.minScrollExtent + range * fraction;
-    final paddedOffset =
-        (targetOffset - position.viewportDimension * 0.33).clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-
-    _scrollController.animateTo(
-      paddedOffset,
-      duration: motionDuration(300),
-      curve: motionCurve(Curves.easeInOut),
-    );
+  // Prefer the precise jump via the TimelineView's per-event
+  // [GlobalKey] map.  When the TimelineView hasn't mounted yet (the
+  // first sync is still in flight) fall back to the fraction
+  // estimate so the call at least scrolls in the right direction.
+  final view = _timelineViewKey.currentState;
+  if (view != null) {
+    view.scrollToEventId(eventId);
+    return;
   }
+
+  final events = timeline.events;
+  final idx = events.indexWhere((e) => e.eventId == eventId);
+  final position = _scrollController.position;
+  final range = position.maxScrollExtent - position.minScrollExtent;
+  final fraction = idx / (events.length - 1);
+  final targetOffset = position.minScrollExtent + range * fraction;
+  final paddedOffset =
+      (targetOffset - position.viewportDimension * 0.33).clamp(
+    position.minScrollExtent,
+    position.maxScrollExtent,
+  );
+
+  _scrollController.animateTo(
+    paddedOffset,
+    duration: motionDuration(300),
+    curve: motionCurve(Curves.easeInOut),
+  );
+}
 
   /// Smoothly-jumping scroll mappings resolved against the user's
   /// animation preferences.  Both helpers fall through to the standard
@@ -1227,8 +1289,34 @@ class ChatTimelineState extends State<ChatTimeline> {
     }
     if (!sendReceipts) return;
     if (alreadySent) return;
-    // ignore: discarded_futures
-    widget.room.setReadMarker(latestId, mRead: latestId);
+    // Fire-and-forget: a stale [latestId] (e.g. an event that was
+    // redacted server-side) makes the homeserver reply with
+    // `M_UNKNOWN: Could not find event …`, which the matrix SDK
+    // surfaces as an uncaught [Object].  Swallow it here so a single
+    // bad marker doesn't tear down the timeline isolate.
+    unawaited(_sendReadMarker(latestId));
+  }
+
+  /// Sends a read marker and logs (but does not rethrow) any
+  /// failure.  Extracted from `_maybeSendReadMarker` so the call site
+  /// can wrap it in [unawaited] without lint warnings.
+  Future<void> _sendReadMarker(String latestId) async {
+    Logger? logger;
+    if (mounted) {
+      try {
+        logger = context.read<Logger>();
+      } catch (_) {
+        logger = null;
+      }
+    }
+    try {
+      await widget.room.setReadMarker(latestId, mRead: latestId);
+    } catch (err) {
+      logger?.w(
+        'setReadMarker($latestId) failed; ignoring',
+        error: err,
+      );
+    }
   }
 
   /// Returns the notification service if it has been provided in this
@@ -1279,6 +1367,7 @@ class ChatTimelineState extends State<ChatTimeline> {
     _markReadDebounceTimer = null;
     _lastSeenRefreshTimer?.cancel();
     _lastSeenRefreshTimer = null;
+    _isScrolledUpNotifier.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
