@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +40,7 @@ enum _CompactSidebarFilter {
 /// spaces in a single column.
 ///
 /// This is the sidebar used when the dashboard has been shrunk to a
-/// compact size — either because the user picked [LayoutMode.compact]
+/// compact size either because the user picked [LayoutMode.compact]
 /// or because [DashboardLayout] decided the window is too narrow for
 /// the full multi-pane layout.  Unlike the wide layout, which shows a
 /// separate far-left rail, a wide left pane, and an optional right
@@ -109,13 +108,11 @@ class _CompactSidebarState extends State<CompactSidebar> {
     final scheme = theme.colorScheme;
     final client = _clientOrNull(context);
     final l10n = AppLocalizations.of(context)!;
-    final nav = context.watch<NavigationState>();
 
     final width = widget.width ?? 320.0;
 
-    final rooms = client == null
-        ? const <Room>[]
-        : _filteredRooms(client.rooms, _filter);
+    final rooms =
+        client == null ? const <Room>[] : _filteredRooms(client.rooms, _filter);
 
     return SizedBox(
       width: width,
@@ -124,7 +121,7 @@ class _CompactSidebarState extends State<CompactSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildNavigationRow(nav, scheme, l10n),
+            _buildNavigationRow(scheme, l10n),
             Divider(height: 1, color: scheme.outlineVariant),
             _buildFilterRow(scheme, l10n),
             const Divider(height: 1),
@@ -136,27 +133,19 @@ class _CompactSidebarState extends State<CompactSidebar> {
   }
 
   Widget _buildNavigationRow(
-    NavigationState nav,
     ColorScheme scheme,
     AppLocalizations l10n,
   ) {
+    // The icon row at the top of the compact sidebar exposes only
+    // actions that don't already live in the segmented filter below
+    // it.  The "Home" / "All" navigation destinations are reachable
+    // through the Friends / Rooms filter pills, so we deliberately
+    // don't duplicate them as a top-row icon.
     return Container(
       color: scheme.surfaceContainerLow,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
         children: [
-          _NavIconButton(
-            icon: LucideIcons.home,
-            tooltip: l10n.navigationHome,
-            selected: nav.isHome,
-            onTap: nav.selectHome,
-          ),
-          _NavIconButton(
-            icon: LucideIcons.messageCircle,
-            tooltip: l10n.navigationAll,
-            selected: nav.isAll,
-            onTap: nav.selectAll,
-          ),
           _NavIconButton(
             icon: LucideIcons.plus,
             tooltip: l10n.addRoom,
@@ -267,9 +256,8 @@ class _NavIconButton extends StatelessWidget {
       onPressed: onTap,
       visualDensity: VisualDensity.compact,
       style: IconButton.styleFrom(
-        backgroundColor: selected
-            ? scheme.primaryContainer.withValues(alpha: 0.5)
-            : null,
+        backgroundColor:
+            selected ? scheme.primaryContainer.withValues(alpha: 0.5) : null,
       ),
     );
   }
