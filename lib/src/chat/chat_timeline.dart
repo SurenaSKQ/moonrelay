@@ -23,6 +23,7 @@ import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
@@ -127,7 +128,8 @@ bool _isMessageLikeEvent(Event event) {
       event.type == EventTypes.Sticker;
 }
 
-class ChatTimelineState extends State<ChatTimeline> {
+class ChatTimelineState extends State<ChatTimeline>
+    with LifecycleGeneration {
   /// The resolved Timeline, or null while still initialising.
   Timeline? _timeline;
 
@@ -143,6 +145,13 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// True while a [requestHistory] call is in flight.
   bool _isLoadingHistory = false;
+
+  /// Test accessor: returns the current value of the single-flight
+  /// guard. Used by `test/widget/history_single_flight_test.dart` to
+  /// assert the in-flight semantics without exposing the underlying
+  /// [_requestMoreHistory] helper.
+  @visibleForTesting
+  bool get isLoadingHistoryForTest => _isLoadingHistory;
 
   /// True while the jump-to-unread flow is paginating the timeline in
   /// either direction to locate the first unread event.  When set, the
@@ -166,6 +175,18 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// that layout-induced scroll notifications don't trigger another request
   /// before the user has had a chance to scroll manually.
   bool _scrollDebounce = false;
+
+  /// Pending timer that releases [_scrollDebounce] after [_scrollDebounceDelay].
+  /// Replaces the previous double-`addPostFrameCallback` chain, which depended
+  /// on the render engine producing exactly two frames of layout silence
+  /// before releasing the debounce. That assumption is fragile on
+  /// compositing engines that batch or skip frames.
+  Timer? _scrollDebounceTimer;
+
+  /// How long to keep [_scrollDebounce] set after a history load. Long enough
+  /// to swallow layout-induced scroll events but short enough that the user
+  /// can scroll again within human-perceptible time.
+  static const Duration _scrollDebounceDelay = Duration(milliseconds: 120);
 
   /// How many consecutive auto-fill requests have been issued without the
   /// viewport becoming scrollable.  Caps the retry loop when the server
@@ -223,6 +244,13 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   int _timelineVersion = 0;
 
+  /// Test accessor for the timeline version counter. Used by
+  /// `test/widget/timeline_content_update_test.dart` to assert that
+  /// `_onTimelineUpdate` actually bumps the version (the onUpdate
+  /// path that the test is verifying).
+  @visibleForTesting
+  int get timelineVersionForTest => _timelineVersion;
+
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
 
@@ -249,9 +277,23 @@ class ChatTimelineState extends State<ChatTimeline> {
     // so the user gets a fresh affordance for any unread events in
     // the new room.
     if (oldWidget.room.id != widget.room.id) {
+      // Invalidate any in-flight _initTimeline / _fetchFilteredEvents
+      // so the previous room's late future cannot overwrite the new
+      // room's state. The token captured by the old room's
+      // _initTimeline will compare unequal via [isStale] and the
+      // setState there is short-circuited.
+      invalidate();
       _atLocalEndOfHistory = false;
       _pillDismissed = false;
       _stateDrainCount = 0;
+      // Re-trigger timeline initialisation for the new room. We
+      // schedule it via a post-frame callback so we don't run an
+      // async-await chain inside the parent's build phase (Flutter
+      // asserts on build-phase side effects).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _initTimeline();
+      });
     }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
@@ -265,13 +307,22 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   Future<void> _initTimeline() async {
     final log = context.read<Logger>();
+    // Capture the generation BEFORE awaiting so the late continuation
+    // can detect whether the room has switched out from under us.
+    final gen = beginAsync();
 
     final result = await withRetry(
       () => widget.room.getTimeline(
         onChange: (_) => _onTimelineUpdate(),
         onInsert: (_) => _onTimelineUpdate(),
         onRemove: (_) => _onTimelineUpdate(),
-        onUpdate: () {},
+        onUpdate: () {
+          // Newly-decrypted events and aggregation updates touch
+          // event content but don't insert/remove anything. Bumping
+          // the timeline version invalidates the TimelineView cache
+          // so the user sees the up-to-date body.
+          _onTimelineUpdate();
+        },
       ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
@@ -279,7 +330,9 @@ class ChatTimelineState extends State<ChatTimeline> {
       label: 'getTimeline(${widget.room.id})',
     );
 
-    if (!mounted) return;
+    // The room switched (or the widget was disposed) while we were
+    // awaiting. Drop the result on the floor.
+    if (isStale(gen) || !mounted) return;
 
     switch (result) {
       case RetrySuccess(:final value):
@@ -287,6 +340,11 @@ class ChatTimelineState extends State<ChatTimeline> {
           setState(() => _timeline = value);
           _scrollController.addListener(_onScroll);
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Re-check mounted + staleness in the post-frame
+            // callback: a room switch can also happen between the
+            // setState above and the first layout of the new
+            // timeline.
+            if (isStale(gen) || !mounted) return;
             _ensureContentFillsScreen();
             // Mark the room read as soon as the first batch of events
             // is on screen.  Without this, the user has to manually
@@ -310,8 +368,19 @@ class ChatTimelineState extends State<ChatTimeline> {
 
   /// Requests more history from the server and debounces subsequent
   /// scroll-triggered loads so that layout reflow doesn't create a loop.
+  ///
+  /// Single-flight: re-entrant calls (e.g. [_onScroll] firing while
+  /// auto-fill is also requesting) are coalesced into the in-flight
+  /// request via the [_isLoadingHistory] flag. The flag is set on
+  /// entry and cleared on every exit path so a fast scroll can never
+  /// race past the guard.
+  @visibleForTesting
+  Future<void> requestMoreHistoryForTest() => _requestMoreHistory();
   Future<void> _requestMoreHistory() async {
     if (_timeline == null) return;
+    // Single-flight guard. Set BEFORE awaiting so a second call
+    // arriving in the same microtask still short-circuits.
+    if (_isLoadingHistory) return;
     final Logger log = context.read<Logger>();
     _isLoadingHistory = true;
     _scrollDebounce = true;
@@ -323,22 +392,34 @@ class ChatTimelineState extends State<ChatTimeline> {
       );
     } catch (e) {
       log.w('History request failed for ${widget.room.id}', error: e);
+      // On failure the skeleton flag must be cleared so the user is
+      // not stuck staring at placeholders that no longer represent
+      // pending work.
+      if (mounted && _atLocalEndOfHistory) {
+        setState(() => _atLocalEndOfHistory = false);
+      }
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      _isLoadingHistory = false;
+      return;
+    }
     _isLoadingHistory = false;
-    // Let the list lay out, then release the debounce two frames later
-    // to skip any layout-caused scroll events.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _scrollDebounce = false);
-      });
+    // Release the debounce via a real timer (not a frame-counting
+    // chain) so the release window is deterministic regardless of
+    // frame batching.
+    _scrollDebounceTimer?.cancel();
+    _scrollDebounceTimer = Timer(_scrollDebounceDelay, () {
+      _scrollDebounceTimer = null;
+      if (!mounted) return;
+      setState(() => _scrollDebounce = false);
     });
     // Release the auto-fill guard so that _ensureContentFillsScreen
     // can re-evaluate whether the viewport is full.
     _isFillingViewport = false;
     // Also re-check auto-fill after this load finishes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _ensureContentFillsScreen();
     });
   }
@@ -490,8 +571,15 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// appears only when there is *actually* an unread event in the loaded
   /// window, regardless of what the server-side `notification_count`
   /// currently reports.
+  ///
+  /// Reads `widget.room.fullyRead` live instead of the debounced
+  /// `_lastSeenEventId` cache. The debounce still applies to the
+  /// state-mutating refresh path (see [_refreshLastSeenMarker]) so
+  /// the pill reacts within one frame of a sync that bumps
+  /// `fullyRead`, instead of waiting for the 250 ms debounce window
+  /// to elapse first.
   int get _unreadInWindow =>
-      countUnreadInWindow(_timeline?.events, _lastSeenEventId);
+      countUnreadInWindow(_timeline?.events, widget.room.fullyRead);
 
   /// Set to `true` when the user explicitly dismisses the jump-to-unread
   /// pill with its close button.  The pill stays dismissed for the
@@ -714,8 +802,9 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// Pages the timeline in the appropriate direction until the event
   /// with id [markerId] is loaded, or until the server stops returning
   /// more history.  Bounded by a small per-direction iteration cap
-  /// *and* a global timeout so a stalled server can't trap the user
-  /// on the "loading" pill.
+  /// *and* a single shared stopwatch so a stalled server can't trap
+  /// the user on the "loading" pill for the combined runtime of both
+  /// directions.
   ///
   /// The marker is virtually always older than the cached window (the
   /// default cache holds 20 events and the marker is the most recent
@@ -723,25 +812,43 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// fallback we try the *future* direction in case the cache window
   /// is unusually stale.
   ///
+  /// Both directions run **in parallel** and the first to surface the
+  /// marker wins.  Without this, the worst-case wait was
+  /// `olderTimeout + newerTimeout` (previously 16 s); it is now bounded
+  /// by a single 8 s stopwatch.
+  ///
   /// Returns `true` if the marker was successfully brought into the
   /// cache; `false` if the server ran out of events in both directions
   /// or the iteration/timeout cap was reached.
+  @visibleForTesting
+  Future<bool> paginateUntilMarkerForTest(String markerId) =>
+      _paginateUntilMarker(markerId);
+
   Future<bool> _paginateUntilMarker(String markerId) async {
     final timeline = _timeline;
     if (timeline == null) return false;
     final log = context.read<Logger>();
     const maxIterationsPerDirection = 6;
     const globalTimeout = Duration(seconds: 8);
+    final stopwatch = Stopwatch()..start();
+    bool budgetExceeded() => stopwatch.elapsed >= globalTimeout;
 
     Future<bool> paginateOlder() async {
       for (var i = 0; i < maxIterationsPerDirection; i++) {
-        if (!mounted) return false;
+        if (!mounted || budgetExceeded()) return false;
         if (!timeline.canRequestHistory) return false;
         _isLoadingHistory = true;
         try {
+          // Per-iteration timeout is the remaining budget or 4 s,
+          // whichever is smaller. Keeps a long-running older-direction
+          // loop from blowing past the global cap on a single
+          // network stall.
+          final remaining = globalTimeout - stopwatch.elapsed;
           await withTimeout(
             () => timeline.requestHistory(),
-            timeout: const Duration(seconds: 4),
+            timeout: remaining < const Duration(seconds: 4)
+                ? remaining
+                : const Duration(seconds: 4),
           );
         } catch (e) {
           log.w('jumpToLastRead: history request failed', error: e);
@@ -749,7 +856,7 @@ class ChatTimelineState extends State<ChatTimeline> {
         } finally {
           _isLoadingHistory = false;
         }
-        if (!mounted) return false;
+        if (!mounted || budgetExceeded()) return false;
         if (_findMarkerIndex(timeline.events, markerId) >= 0) return true;
         if (!timeline.canRequestHistory) return false;
       }
@@ -758,32 +865,60 @@ class ChatTimelineState extends State<ChatTimeline> {
 
     Future<bool> paginateNewer() async {
       for (var i = 0; i < maxIterationsPerDirection; i++) {
-        if (!mounted) return false;
+        if (!mounted || budgetExceeded()) return false;
         if (!timeline.canRequestFuture) return false;
         try {
+          final remaining = globalTimeout - stopwatch.elapsed;
           await withTimeout(
             () => timeline.requestFuture(),
-            timeout: const Duration(seconds: 4),
+            timeout: remaining < const Duration(seconds: 4)
+                ? remaining
+                : const Duration(seconds: 4),
           );
         } catch (e) {
           log.w('jumpToLastRead: future-history request failed', error: e);
           return false;
         }
-        if (!mounted) return false;
+        if (!mounted || budgetExceeded()) return false;
         if (_findMarkerIndex(timeline.events, markerId) >= 0) return true;
         if (!timeline.canRequestFuture) return false;
       }
       return false;
     }
 
-    // Older first, with a global timeout that races both directions.
-    final older = paginateOlder().timeout(globalTimeout, onTimeout: () => false);
-    if (await older) return true;
-    if (!mounted) return false;
-    // Future as a fallback in case the cache is unusually stale.
-    final newer = paginateNewer().timeout(globalTimeout, onTimeout: () => false);
-    if (await newer) return true;
-    return false;
+    // Race the two directions. The first to surface the marker wins;
+    // the shared stopwatch bounds the combined wait. We use
+    // [Future.any]-style plumbing via a Completer so a winner in
+    // either direction short-circuits the loser as soon as possible.
+    final winner = Completer<bool>();
+    Future<void> raceOne(Future<bool> Function() direction) async {
+      if (winner.isCompleted) return;
+      try {
+        final ok = await direction();
+        if (!winner.isCompleted && (ok || budgetExceeded())) {
+          winner.complete(ok);
+        }
+      } catch (e, st) {
+        if (!winner.isCompleted) winner.completeError(e, st);
+      }
+    }
+
+    // Kick both off in parallel. The [Future.wait] is just to await
+    // cleanup; the [Completer] carries the actual answer.
+    unawaited(raceOne(paginateOlder));
+    unawaited(raceOne(paginateNewer));
+
+    // Outer hard cap: stopwatch-driven, independent of the inner
+    // completers so even a wedged future cannot exceed it.
+    final outerTimer = Timer(globalTimeout, () {
+      if (!winner.isCompleted) winner.complete(false);
+    });
+    try {
+      return await winner.future;
+    } finally {
+      outerTimer.cancel();
+      stopwatch.stop();
+    }
   }
 
   /// Scrolls the timeline so the event with [eventId] sits roughly one
@@ -834,15 +969,23 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// Marks [eventId] as the highlighted event for ~2 seconds so the
   /// user can see where the jump landed.
   void _flashHighlight(String eventId) {
+    _highlightHighlightTimer?.cancel();
     _highlightedEventId = eventId;
     setState(() {});
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    final gen = beginAsync();
+    _highlightHighlightTimer = Timer(const Duration(seconds: 2), () {
+      _highlightHighlightTimer = null;
+      if (!mounted || isStale(gen)) return;
       if (_highlightedEventId == eventId) {
         setState(() => _highlightedEventId = null);
       }
     });
   }
+
+  /// Pending timer for [_flashHighlight]. Cancellable so a second
+  /// jump that fires before the first highlight finishes doesn't leave
+  /// a dangling Timer holding a stale [gen] token.
+  Timer? _highlightHighlightTimer;
 
   /// Plain bottom-scroll helper used when we don't have a marker to
   /// jump to.  Useful for tests and as a catch-all fallback.
@@ -1452,6 +1595,14 @@ void jumpToEvent(String? eventId) {
   // Dispose
   // ---------------------------------------------------------------------------
 
+  /// Test accessor: invokes [_onTimelineUpdate] so tests can drive a
+  /// synthetic timeline update without spinning up a real Matrix
+  /// client. Used by `test/widget/timeline_content_update_test.dart`
+  /// to verify the [onUpdate] -> [_timelineVersion] -> cache
+  /// invalidation pipeline.
+  @visibleForTesting
+  void onTimelineUpdateForTest() => _onTimelineUpdate();
+
   void _onTimelineUpdate() {
     if (!mounted) return;
     // When new history arrives, the SDK clears `Room.prev_batch` once
@@ -1470,6 +1621,10 @@ void jumpToEvent(String? eventId) {
     _markReadDebounceTimer = null;
     _lastSeenRefreshTimer?.cancel();
     _lastSeenRefreshTimer = null;
+    _scrollDebounceTimer?.cancel();
+    _scrollDebounceTimer = null;
+    _highlightHighlightTimer?.cancel();
+    _highlightHighlightTimer = null;
     _isScrolledUpNotifier.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
