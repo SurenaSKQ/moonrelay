@@ -19,15 +19,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/chat/chat_timeline_floating_actions.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
-import 'package:moonrelay/src/chat/timeline_item.dart';
+import 'package:moonrelay/src/chat/pinned_events_list.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
-import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
@@ -56,8 +56,8 @@ import 'package:provider/provider.dart';
 ///
 /// A shared [scaffold] / debounce mechanism prevents cascading history loads.
 /// When a load completes, layout-induced scroll notifications are suppressed
-/// for two frames while the list stabilises, stopping the "load → layout
-/// change → scroll event → load" feedback loop that would otherwise overflow.
+/// for two frames while the list stabilises, stopping the "load â†’ layout
+/// change â†’ scroll event â†’ load" feedback loop that would otherwise overflow.
 class ChatTimeline extends StatefulWidget {
   const ChatTimeline(
       {super.key,
@@ -432,8 +432,8 @@ class ChatTimelineState extends State<ChatTimeline>
   /// near the top of the timeline (oldest messages).
   ///
   /// The ListView uses `reverse: true`, so:
-  /// - `pixels == 0` → bottom of the list (newest messages)
-  /// - `pixels >= maxScrollExtent - threshold` → near the top (oldest)
+  /// - `pixels == 0` â†’ bottom of the list (newest messages)
+  /// - `pixels >= maxScrollExtent - threshold` â†’ near the top (oldest)
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     if (_isFillingViewport) return;
@@ -618,7 +618,7 @@ class ChatTimelineState extends State<ChatTimeline>
   /// State events are skipped during the search: the jump target is
   /// always the first real message after the marker, not the first
   /// state event.  A room with only state activity after the marker
-  /// (member churn, topic edits, encryption rollouts, …) has nothing
+  /// (member churn, topic edits, encryption rollouts, â€¦) has nothing
   /// the user needs to "catch up on", so the FAB shouldn't surface in
   /// the first place  that's enforced by [countUnreadInWindow].
   ///
@@ -1210,7 +1210,7 @@ class ChatTimelineState extends State<ChatTimeline>
           if (_timelineLoadFailed) {
             return _buildError(context);
           }
-          // Still loading – sync indicator in ChatRoomHeader handles the
+          // Still loading â€“ sync indicator in ChatRoomHeader handles the
           // visual feedback, so we just show an empty container.
           return const SizedBox.shrink();
         }
@@ -1257,7 +1257,7 @@ class ChatTimelineState extends State<ChatTimeline>
                   child: SafeArea(
                     top: false,
                     child: Center(
-                      child: _FloatingActionColumn(
+                      child: ChatTimelineFloatingActions(
                         unreadCount: _unreadInWindow,
                         isScrolledUp: isScrolledUp,
                         unreadVisible: _showUnreadPill,
@@ -1323,7 +1323,7 @@ class ChatTimelineState extends State<ChatTimeline>
           );
         }
 
-        return _PinnedEventsList(
+        return PinnedEventsList(
           events: _fetchedFilteredEvents!,
           room: widget.room,
           displayType: settings.displayType,
@@ -1512,7 +1512,7 @@ void jumpToEvent(String? eventId) {
     if (!alreadySent) {
       _markReadSent.add(latestId);
       // Bound the cache so it doesn't grow without limit on busy
-      // rooms. A small cap is enough — the only purpose is to dedupe
+      // rooms. A small cap is enough â€” the only purpose is to dedupe
       // a few back-to-back identical marker writes during a single
       // drag, not to track the entire history.
       if (_markReadSent.length > 64) {
@@ -1537,7 +1537,7 @@ void jumpToEvent(String? eventId) {
     if (alreadySent) return;
     // Fire-and-forget: a stale [latestId] (e.g. an event that was
     // redacted server-side) makes the homeserver reply with
-    // `M_UNKNOWN: Could not find event …`, which the matrix SDK
+    // `M_UNKNOWN: Could not find event â€¦`, which the matrix SDK
     // surfaces as an uncaught [Object].  Swallow it here so a single
     // bad marker doesn't tear down the timeline isolate.
     unawaited(_sendReadMarker(latestId));
@@ -1646,375 +1646,3 @@ void jumpToEvent(String? eventId) {
 ///      dragging all the way down.
 ///
 /// Each pill animates in and out independently so a single state
-/// change does not cause the whole column to pop.
-class _FloatingActionColumn extends StatelessWidget {
-  const _FloatingActionColumn({
-    required this.unreadCount,
-    required this.isScrolledUp,
-    required this.unreadVisible,
-    required this.onJumpToUnread,
-    required this.onScrollToBottom,
-    required this.onDismissUnread,
-    required this.isJumping,
-  });
-
-  final int unreadCount;
-  final bool isScrolledUp;
-  final bool unreadVisible;
-  final Future<void> Function() onJumpToUnread;
-  final VoidCallback onScrollToBottom;
-
-  /// Tapping the close icon on the jump-to-unread pill invokes this.
-  /// The pill is dismissed but the unread events themselves remain 
-  /// the user can still scroll up to see them, and a fresh pill will
-  /// re-appear the next time the room has unread state.
-  final VoidCallback onDismissUnread;
-
-  /// True while the timeline is paginating to bring the first unread
-  /// event into the cache.  The pill switches to a "loading" label so
-  /// the user has feedback that the tap was registered.
-  final bool isJumping;
-
-  @override
-  Widget build(BuildContext context) {
-    final motion = Motion.of(context);
-    final animDuration = motion.duration(const Duration(milliseconds: 180));
-    final animCurve = motion.curve();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedSize(
-          duration: animDuration,
-          curve: animCurve,
-          alignment: Alignment.bottomCenter,
-          child: AnimatedSwitcher(
-            duration: animDuration,
-            switchInCurve: animCurve,
-            switchOutCurve: animCurve,
-            child: unreadVisible
-                ? _JumpToUnreadPill(
-                    key: const ValueKey('jump-to-unread'),
-                    count: unreadCount,
-                    isLoading: isJumping,
-                    onTap: onJumpToUnread,
-                    onDismiss: onDismissUnread,
-                  )
-                : const SizedBox.shrink(key: ValueKey('jump-to-unread-empty')),
-          ),
-        ),
-        AnimatedSize(
-          duration: animDuration,
-          curve: animCurve,
-          alignment: Alignment.bottomCenter,
-          child: AnimatedSwitcher(
-            duration: animDuration,
-            switchInCurve: animCurve,
-            switchOutCurve: animCurve,
-            child: isScrolledUp
-                ? _ScrollToBottomPill(
-                    key: const ValueKey('scroll-to-bottom'),
-                    onTap: onScrollToBottom,
-                  )
-                : const SizedBox.shrink(key: ValueKey('scroll-to-bottom-empty')),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// "Scroll to bottom" floating action button.  Shown when the user
-/// has scrolled away from the bottom of the timeline.  Tapping
-/// animates the scroll back to the newest message.
-class _ScrollToBottomPill extends StatelessWidget {
-  const _ScrollToBottomPill({required this.onTap, super.key});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Material(
-        color: scheme.secondaryContainer,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.arrowDown,
-                  size: 14,
-                  color: scheme.onSecondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.scrollToBottom,
-                  style: TextStyle(
-                    color: scheme.onSecondaryContainer,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Floating "Jump to first unread" pill rendered above the chat composer
-/// when the room has unread messages below the current viewport.
-///
-/// The pill is intentionally lightweight: it shows the unread count, an
-/// up-arrow to hint at the action, and a small dismiss (×) button so the
-/// user can close it without engaging.  Tapping the pill body scrolls the
-/// timeline to the first event newer than the fully-read marker and sends
-/// a read receipt so the badge clears.  Tapping the close icon only hides
-/// the pill  the unread state itself is unchanged and the pill will
-/// re-appear if the user navigates away and back into the room while
-/// there is still unread content.
-class _JumpToUnreadPill extends StatelessWidget {
-  const _JumpToUnreadPill({
-    required this.count,
-    required this.isLoading,
-    required this.onTap,
-    required this.onDismiss,
-    super.key,
-  });
-
-  final int count;
-
-  /// When `true`, the pill swaps its label to a "loading" message and
-  /// shows a small progress indicator.  Tap handling is disabled so the
-  /// user can't queue up multiple paginate requests.
-  final bool isLoading;
-
-  final Future<void> Function() onTap;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    final label = isLoading
-        ? l10n.jumpToUnreadLoading
-        : (count == 1
-            ? l10n.jumpToFirstUnread
-            : l10n.jumpToFirstUnreadMany(count));
-
-    // Two tap targets: the pill body (jump) and a small × button on the
-    // trailing edge (dismiss).  Using a single [Material] + a [Row] of
-    // two [InkWell]s keeps the rounded-pill silhouette without
-    // splitting the visual into two separate chips.
-    return Material(
-      color: scheme.primary,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: isLoading
-                  ? null
-                  : () {
-                      // Fire and forget  the pill hides itself on the
-                      // next rebuild once the read marker is updated
-                      // and the unread count drops to zero.
-                      // ignore: discarded_futures
-                      onTap();
-                    },
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isLoading)
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.6,
-                          valueColor: AlwaysStoppedAnimation(scheme.onPrimary),
-                        ),
-                      )
-                    else
-                      Icon(
-                        LucideIcons.arrowUp,
-                        size: 14,
-                        color: scheme.onPrimary,
-                      ),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: scheme.onPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            _DismissButton(
-              tooltip: l10n.unreadPillDismissTooltip,
-              onTap: isLoading ? () {} : onDismiss,
-              color: scheme.onPrimary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Tiny close icon used as the dismiss affordance on [_JumpToUnreadPill].
-/// Rendered as a separate widget so its hit-test region is its own
-/// (24×24 logical pixels) and the larger pill body underneath stays
-/// responsive to the "jump" action.
-class _DismissButton extends StatelessWidget {
-  const _DismissButton({
-    required this.tooltip,
-    required this.onTap,
-    required this.color,
-  });
-
-  final String tooltip;
-  final VoidCallback onTap;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 14,
-        // Slightly darker overlay so the dismiss button reads as a
-        // separate affordance from the pill body.
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            LucideIcons.x,
-            size: 12,
-            color: color,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Renders a list of events fetched by ID for the pinned-only filter.
-///
-/// These events are not necessarily present in the room's [Timeline.events]
-/// list, so they cannot be rendered by [TimelineView]'s filter mechanism.
-/// Instead, this widget takes the pre-fetched events and renders each one
-/// with a [TimelineItem], computing sender grouping from their timestamps.
-class _PinnedEventsList extends StatelessWidget {
-  const _PinnedEventsList({
-    required this.events,
-    required this.room,
-    required this.displayType,
-    required this.fontSize,
-    required this.bubbleRadius,
-    required this.scrollController,
-    this.onReply,
-    this.onThread,
-    this.onForward,
-  });
-
-  final List<Event> events;
-  final Room room;
-  final DisplayType displayType;
-  final double fontSize;
-  final double bubbleRadius;
-  final ScrollController scrollController;
-  final void Function(Event event)? onReply;
-  final void Function(Event event)? onThread;
-  final void Function(Event event)? onForward;
-
-  @override
-  Widget build(BuildContext context) {
-    // Events are already sorted oldest-first.  Compute sender grouping:
-    // each event is a continuation of the *newer* event below it
-    // (which appears later in the list).  Since the ListView is reversed,
-    // index 0 appears at the bottom (newest message) of the viewport.
-    final Map<String, int> eventIdToItemIndex = {};
-    final itemCount = events.length;
-
-    return ListView.builder(
-      controller: scrollController,
-      reverse: true,
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        // index 0 = last in list (newest), index n-1 = first (oldest)
-        final event = events[itemCount - 1 - index];
-
-        // Determine if this event is a continuation of the older event
-        // above it in the list (the *next* newer event in reversed order).
-        final isContinuation = index + 1 < itemCount &&
-            _isSameSenderAndCloseInTime(
-              events[itemCount - 1 - index],
-              events[itemCount - 2 - index],
-            );
-
-        eventIdToItemIndex[event.eventId] = index;
-
-        return TimelineItem(
-          event: event,
-          room: room,
-          displayType: displayType,
-          isGroupStart: !isContinuation,
-          isGroupContinuation: isContinuation,
-          fontSize: fontSize,
-          bubbleRadius: bubbleRadius,
-          onAction: (action, e) {
-            switch (action) {
-              case TimelineItemAction.reply:
-                onReply?.call(e);
-                break;
-              case TimelineItemAction.thread:
-                onThread?.call(e);
-                break;
-              case TimelineItemAction.forward:
-                onForward?.call(e);
-                break;
-              case TimelineItemAction.jumpToEvent:
-                // The pinned-events list does its own jump; the reply
-                // preview inside the bubble handles inline jumps to
-                // replied-to events. No global scroll needed here.
-                break;
-            }
-          },
-        );
-      },
-    );
-  }
-
-  /// True when [newer] and [older] are from the same sender within ~10 min.
-  bool _isSameSenderAndCloseInTime(Event newer, Event older) {
-    if (newer.senderId != older.senderId) return false;
-    return _sameEnvironment(newer.originServerTs, older.originServerTs);
-  }
-
-  /// True when two timestamps fall within 10 minutes of each other.
-  bool _sameEnvironment(DateTime a, DateTime b) {
-    final diff = a.difference(b).inMinutes.abs();
-    return diff <= 10;
-  }
-}
