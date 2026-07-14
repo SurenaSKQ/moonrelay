@@ -20,6 +20,7 @@ import 'package:moonrelay/src/chat/in_room_search_panel.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -33,7 +34,7 @@ class RoomPage extends StatefulWidget {
   State<RoomPage> createState() => _RoomPageState();
 }
 
-class _RoomPageState extends State<RoomPage> {
+class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   /// The event the user is currently replying to (or null).
   final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
 
@@ -64,8 +65,9 @@ class _RoomPageState extends State<RoomPage> {
   /// timeline is visible.
   void _jumpFromSearch(String eventId) {
     setState(() => _showInRoomSearch = false);
+    final gen = beginAsync();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || isStale(gen)) return;
       _timelineKey.currentState?.jumpToEvent(eventId);
     });
   }
@@ -74,14 +76,19 @@ class _RoomPageState extends State<RoomPage> {
   void initState() {
     super.initState();
     // Defer the CurrentRoom update to after the current frame.
-    // Calling setRoom here would fire during the parent's build phase 
+    // Calling setRoom here would fire during the parent's build phase
     // DashboardLayout has already read CurrentRoom for this frame and
     // the notifyListeners would only take effect on the next frame,
     // causing the right sidebar to lag one navigation behind.
+    //
+    // Capture the generation so a stale post-frame callback from an
+    // earlier mount (e.g. when this widget is reused for a different
+    // room via GoRouter's navigator caching) cannot overwrite the new
+    // room's CurrentRoom entry.
+    final gen = beginAsync();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<CurrentRoom>().setRoom(widget.room);
-      }
+      if (!mounted || isStale(gen)) return;
+      context.read<CurrentRoom>().setRoom(widget.room);
     });
   }
 
@@ -89,12 +96,16 @@ class _RoomPageState extends State<RoomPage> {
   void didUpdateWidget(RoomPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.room.id != widget.room.id) {
+      // Bumping the generation invalidates the previous initState's
+      // pending setRoom callback; the new one we schedule below
+      // captures the fresh generation so it survives.
+      invalidate();
+      final gen = beginAsync();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.read<CurrentRoom>().setRoom(widget.room);
-          // Close search when switching rooms
-          setState(() => _showInRoomSearch = false);
-        }
+        if (!mounted || isStale(gen)) return;
+        context.read<CurrentRoom>().setRoom(widget.room);
+        // Close search when switching rooms
+        setState(() => _showInRoomSearch = false);
       });
     }
   }
