@@ -18,6 +18,14 @@
 // user has actually seen in a given room. Persisted per (account, room)
 // and consulted by the chat timeline to jump to the last seen position
 // when the room is re-opened.
+//
+// ## Compare-and-swap semantics
+//
+// Every write carries a monotonic sequence number (_nextSeq, per-instance).
+// The stored marker is only overwritten when the incoming seq exceeds the
+// stored seq.  This eliminates the race where two concurrent async writes
+// (e.g. from back-to-back sync updates) could re-order a newer marker
+// behind an older one.
 
 import 'dart:convert';
 
@@ -28,18 +36,50 @@ class ReadMarkerService {
 
   final String _accountId;
 
+  /// Per-instance monotonic counter.  Bumped on every write attempt so
+  /// that even concurrent async invocations get distinct sequence numbers.
+  int _nextSeq = 0;
+
+  /// Persists [eventId] as the last-seen marker for [roomId].
+  ///
+  /// Only writes when the internal sequence number has advanced past the
+  /// stored value, preventing a stale async write from clobbering a more
+  /// recent marker.
   Future<void> setLastSeen(String roomId, String? eventId) async {
     final prefs = await SharedPreferences.getInstance();
     if (eventId == null || eventId.isEmpty) {
       await prefs.remove(_keyFor(roomId));
       return;
     }
+
+    final seq = ++_nextSeq;
+    final raw = prefs.getString(_keyFor(roomId));
+
+    // Compare-and-swap: skip write if the stored seq is >= ours.
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map && decoded['seq'] is int) {
+          final storedSeq = decoded['seq'] as int;
+          if (storedSeq >= seq) return; // stale write, discard
+        }
+      } catch (_) {
+        // Corrupt entry — overwrite it.
+      }
+    }
+
     await prefs.setString(
       _keyFor(roomId),
-      jsonEncode({'eventId': eventId, 'ts': DateTime.now().millisecondsSinceEpoch}),
+      jsonEncode({
+        'eventId': eventId,
+        'seq': seq,
+        'ts': DateTime.now().millisecondsSinceEpoch,
+      }),
     );
   }
 
+  /// Returns the last-seen event ID for [roomId], or `null` if no
+  /// marker has been persisted.
   Future<String?> getLastSeen(String roomId) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyFor(roomId));
