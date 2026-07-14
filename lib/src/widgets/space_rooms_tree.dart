@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -55,26 +56,42 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
   /// Room IDs of subspaces that are currently expanded (at any depth).
   final Set<String> _expanded = {};
 
-  StreamSubscription? _syncSub;
+  /// Last [SyncPulse.version] observed at build time. The build re-
+  /// triggers when the pulse advances; we compare against the previous
+  /// value so a build caused by another field doesn't double-refresh.
+  int _lastPulseVersion = -1;
+
+  /// Pulse we're subscribed to, captured on mount. Used in dispose to
+  /// detach the listener cleanly.
+  SyncPulse? _pulse;
 
   @override
   void initState() {
     super.initState();
-    try {
-      _syncSub = widget.client.onSync.stream.listen(
-        (_) {
-          if (mounted) setState(() {});
-        },
-        onError: (_) {
-          // Errors on the sync stream are non-fatal.
-        },
-      );
-    } catch (_) {
-      // If the client is not yet fully initialised, silently skip
-      // the subscription  the tree will still render correctly.
-    }
     // Auto-expand the first level of subspaces on load.
     _autoExpandFirstLevel();
+    // Register for sync pulse ticks so we can re-render on the next
+    // coalesced sync. We do this in a post-frame callback because
+    // SyncPulse may not be available during the first frame (e.g.
+    // splash-screen transition, or a widget test that doesn't mount
+    // a pulse provider).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pulse = maybeSyncPulse(context);
+      if (pulse != null) {
+        _pulse = pulse;
+        pulse.addListener(_onPulse);
+      }
+    });
+  }
+
+  void _onPulse() {
+    if (!mounted) return;
+    final pulse = _pulse;
+    if (pulse == null) return;
+    if (pulse.version == _lastPulseVersion) return;
+    _lastPulseVersion = pulse.version;
+    setState(() {});
   }
 
   void _autoExpandFirstLevel() {
@@ -90,7 +107,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    _pulse?.removeListener(_onPulse);
     super.dispose();
   }
 
@@ -106,6 +123,11 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
 
   @override
   Widget build(BuildContext context) {
+    // We rebuild via the [SyncPulse] listener registered in [initState],
+    // so [build] itself doesn't need to subscribe. The dependency on
+    // [widget.space.spaceChildren] and [widget.client] is implicit via
+    // the read below; any sync-driven change invalidates the cached
+    // child list through the listener.
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final children = widget.space.spaceChildren;

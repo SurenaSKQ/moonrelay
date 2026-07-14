@@ -18,10 +18,12 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/helpers/threads_provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// A full-screen page that lists all thread roots in a room with progressive
 /// loading from the server.
@@ -49,6 +51,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
   void initState() {
     super.initState();
     _provider = ThreadsProvider(room: widget.room);
+    _provider.bind(context.read<SyncPulse>());
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
     _provider.fetch(firstPage: true);

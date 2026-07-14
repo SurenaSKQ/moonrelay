@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
@@ -37,19 +38,33 @@ class TypingIndicator extends StatefulWidget {
 }
 
 class _TypingIndicatorState extends State<TypingIndicator> {
-  StreamSubscription<Object?>? _syncSub;
+  /// Bound to [SyncPulse] (debounced 350 ms fan-out) instead of
+  /// subscribing to [Client.onSync] directly. Typing notifications
+  /// don't need every raw sync tick — a debounced pulse is plenty
+  /// and saves us one raw stream subscription per typing indicator
+  /// instance.
+  VoidCallback? _pulseListener;
 
   @override
   void initState() {
     super.initState();
-    _syncSub = widget.room.client.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
-    });
+    final pulse = maybeSyncPulse(context);
+    if (pulse != null) {
+      _pulseListener = () {
+        if (mounted) setState(() {});
+      };
+      pulse.addListener(_pulseListener!);
+    }
   }
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    if (_pulseListener != null) {
+      final pulse = maybeSyncPulse(context);
+      if (pulse != null) {
+        pulse.removeListener(_pulseListener!);
+      }
+    }
     super.dispose();
   }
 

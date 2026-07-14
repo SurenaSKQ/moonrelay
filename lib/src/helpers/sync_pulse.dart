@@ -16,8 +16,9 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
+import 'package:provider/provider.dart';
 
 /// A single, debounced ChangeNotifier that fans out Matrix sync ticks
 /// to the UI.
@@ -115,5 +116,18 @@ class SyncPulse extends ChangeNotifier {
     _debounceTimer = null;
     _client = null;
     super.dispose();
+  }
+}
+
+/// Returns the nearest [SyncPulse] from the [BuildContext], or `null`
+/// if none is in scope (e.g. during the splash screen before the
+/// main app is mounted). Use this when a widget can be safely
+/// mounted in a context where the pulse may not be available — for
+/// example, a screen that briefly renders during a transition.
+SyncPulse? maybeSyncPulse(BuildContext context) {
+  try {
+    return Provider.of<SyncPulse>(context, listen: false);
+  } catch (_) {
+    return null;
   }
 }

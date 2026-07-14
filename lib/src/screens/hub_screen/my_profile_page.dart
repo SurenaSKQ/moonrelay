@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -44,22 +45,20 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   bool _loading = true;
   Profile? _profile;
   CachedPresence? _presence;
-  StreamSubscription<Object?>? _syncSub;
+
+  /// Last [SyncPulse.version] observed at build time. The build re-runs
+  /// the silent refresh whenever the pulse advances, so we no longer
+  /// need to subscribe to `client.onSync.stream` directly.
+  int _lastPulseVersion = -1;
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    // React to sync events with a silent data refresh that does NOT
-    // show a loading spinner  avoids the "flashing" rebuild cycle.
-    _syncSub = widget.client.onSync.stream.listen((_) {
-      if (mounted) _silentRefresh();
-    });
   }
 
   @override
   void dispose() {
-    _syncSub?.cancel();
     super.dispose();
   }
 
@@ -290,6 +289,16 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Read the debounced sync pulse so we run a silent refresh on every
+    // coalesced tick instead of every raw sync event. The hub is always
+    // mounted inside the account-aware router so the pulse is in scope.
+    final pulseVersion =
+        context.select<SyncPulse, int>((p) => p.version);
+    if (pulseVersion != _lastPulseVersion) {
+      _lastPulseVersion = pulseVersion;
+      if (!_loading) _silentRefresh();
+    }
+
     final l10n = AppLocalizations.of(context)!;
     final client = widget.client;
 

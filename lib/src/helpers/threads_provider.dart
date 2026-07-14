@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 
 /// Manages the list of thread roots for a single room, with progressive
 /// loading from the server via [Client.getThreadRoots].
@@ -42,15 +43,44 @@ class ThreadsProvider extends ChangeNotifier {
 
   static const int batchSize = 30;
 
-  StreamSubscription? _syncSub;
+  /// Debounced sync listener wired via [bind]. We attach to the shared
+  /// [SyncPulse] rather than subscribing to `client.onSync.stream`
+  /// directly so the room doesn't accumulate its own raw-sync
+  /// subscription (see WORK_DONE.md §10, "Sync listener
+  /// consolidation").
+  SyncPulse? _pulse;
+  VoidCallback? _pulseListener;
+  int _lastPulseVersion = -1;
+
   bool _disposed = false;
 
-  /// Start listening to sync events so the thread list auto-refreshes.
-  void listenToSync() {
-    _syncSub?.cancel();
-    _syncSub = room.client.onSync.stream.listen((_) {
-      if (!_disposed) fetch(firstPage: true);
-    });
+  /// Wire the provider to the shared [SyncPulse]. The provider
+  /// refreshes the first page whenever the pulse ticks. Idempotent
+  /// so the caller doesn't have to track bind state.
+  void bind(SyncPulse pulse) {
+    if (identical(_pulse, pulse)) return;
+    unbind();
+    _pulse = pulse;
+    _lastPulseVersion = pulse.version;
+    _pulseListener = _onPulse;
+    pulse.addListener(_pulseListener!);
+  }
+
+  void unbind() {
+    if (_pulse != null && _pulseListener != null) {
+      _pulse!.removeListener(_pulseListener!);
+    }
+    _pulse = null;
+    _pulseListener = null;
+  }
+
+  void _onPulse() {
+    if (_disposed) return;
+    final pulse = _pulse;
+    if (pulse == null) return;
+    if (pulse.version == _lastPulseVersion) return;
+    _lastPulseVersion = pulse.version;
+    fetch(firstPage: true);
   }
 
   /// Fetch the next page of thread roots.
@@ -95,7 +125,7 @@ class ThreadsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _syncSub?.cancel();
+    unbind();
     super.dispose();
   }
 }
