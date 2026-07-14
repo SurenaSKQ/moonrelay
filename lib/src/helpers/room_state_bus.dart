@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:matrix/matrix.dart';
@@ -32,16 +33,30 @@ import 'package:matrix/matrix.dart';
 /// [RoomStateBus] exposes per-room [ValueListenable]s that consumers
 /// can subscribe to with O(1) work; the bus only sees one stream
 /// subscription regardless of how many consumers there are.
+///
+/// Memory bound: the per-room [ValueNotifier] map is LRU-bounded at
+/// [_maxRooms] entries. Evicted rooms have their notifier disposed
+/// (so listeners drop their subscriptions cleanly) and are removed
+/// from the tick counter so a stale "v2" never leaks into a fresh
+/// allocation of the same room id.
 class RoomStateBus extends ChangeNotifier {
-  RoomStateBus();
+  RoomStateBus({int maxRooms = 500}) : _maxRooms = maxRooms;
+
+  /// Hard cap on tracked rooms. Sized to comfortably hold an entire
+  /// large Matrix account (≥500 rooms) without unbounded growth, while
+  /// still being small enough that an accidental subscription storm
+  /// doesn't OOM the process.
+  final int _maxRooms;
 
   /// One [ValueNotifier] per room id. Lazily allocated the first time
-  /// a consumer asks for the room.
-  final Map<String, ValueNotifier<int>> _perRoomTick = {};
+  /// a consumer asks for the room. Backed by a [LinkedHashMap] so we
+  /// can implement LRU eviction with O(1) move-to-end semantics.
+  final LinkedHashMap<String, ValueNotifier<int>> _perRoomTick =
+      LinkedHashMap<String, ValueNotifier<int>>();
 
   /// Monotonically increasing tick per room; consumers use the value
   /// to know "something changed" without storing the event itself.
-  final Map<String, int> _ticks = {};
+  final Map<String, int> _ticks = <String, int>{};
 
   StreamSubscription<dynamic>? _sub;
 
@@ -56,7 +71,15 @@ class RoomStateBus extends ChangeNotifier {
   void _onState(String roomId) {
     final next = (_ticks[roomId] ?? 0) + 1;
     _ticks[roomId] = next;
-    _perRoomTick[roomId]?.value = next;
+    final notifier = _perRoomTick[roomId];
+    if (notifier != null) {
+      // Move-to-end: most-recently-used rooms sit at the tail so the
+      // eviction policy below drops the head (least-recently used).
+      _perRoomTick.remove(roomId);
+      _perRoomTick[roomId] = notifier;
+      notifier.value = next;
+    }
+    _evictIfOverCapacity();
   }
 
   /// Returns a [ValueListenable] that ticks every time a state event
@@ -65,9 +88,16 @@ class RoomStateBus extends ChangeNotifier {
   /// share the listener.
   ValueListenable<int> tickFor(String roomId) {
     final existing = _perRoomTick[roomId];
-    if (existing != null) return existing;
+    if (existing != null) {
+      // Touch: move-to-end on read so an idle screen that opens and
+      // closes without state changes still keeps the room alive.
+      _perRoomTick.remove(roomId);
+      _perRoomTick[roomId] = existing;
+      return existing;
+    }
     final notifier = ValueNotifier<int>(_ticks[roomId] ?? 0);
     _perRoomTick[roomId] = notifier;
+    _evictIfOverCapacity();
     return notifier;
   }
 
@@ -78,6 +108,22 @@ class RoomStateBus extends ChangeNotifier {
     notifier?.dispose();
     _ticks.remove(roomId);
   }
+
+  /// Removes the least-recently-used entries until the map is at or
+  /// below [_maxRooms].  O(1) amortised because [LinkedHashMap] keeps
+  /// insertion order — the head is always the LRU entry.
+  void _evictIfOverCapacity() {
+    while (_perRoomTick.length > _maxRooms) {
+      final oldestKey = _perRoomTick.keys.first;
+      final notifier = _perRoomTick.remove(oldestKey);
+      notifier?.dispose();
+      _ticks.remove(oldestKey);
+    }
+  }
+
+  /// Read-only count of currently-tracked rooms. Exposed for tests.
+  @visibleForTesting
+  int get trackedRoomCount => _perRoomTick.length;
 
   @override
   void dispose() {
