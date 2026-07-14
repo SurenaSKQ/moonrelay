@@ -173,6 +173,29 @@ class ChatTimelineState extends State<ChatTimeline> {
   int _autoFillRetries = 0;
   static const int _maxAutoFillRetries = 5;
 
+  /// Hard cap for the "skip past state events" loop.  Rooms can contain
+  /// hundreds of consecutive state events (large spaces, brand new rooms
+  /// where every membership change is a state event, etc.).  We never want
+  /// to spin forever, so this caps the dedicated drain loop independently
+  /// of [_maxAutoFillRetries] which still guards the regular viewport-fill
+  /// behaviour.
+  static const int _maxStateDrainIterations = 50;
+
+  /// How many of the most-recent loaded events must *all* be state events
+  /// before we trigger another history fetch.  Inspecting a window (rather
+  /// than just `events.last`) catches the case where the SDK has loaded
+  /// a window that is entirely state events (e.g. a brand new room whose
+  /// first 50 events are membership changes), not only the case where the
+  /// single oldest loaded event is one.  Set high enough that a single
+  /// stray message in the loaded history doesn't shut off the drain,
+  /// but low enough that re-entry stays cheap.
+  static const int _stateDrainWindow = 20;
+
+  /// Counts how many times the state-event drain loop has fired.  Reset
+  /// when the room changes (see [didUpdateWidget]) so we don't carry a
+  /// half-spent budget across rooms.
+  int _stateDrainCount = 0;
+
   /// Trigger distance (logical pixels) from the top of the list.
   static const double _scrollThreshold = 150.0;
 
@@ -228,6 +251,7 @@ class ChatTimelineState extends State<ChatTimeline> {
     if (oldWidget.room.id != widget.room.id) {
       _atLocalEndOfHistory = false;
       _pillDismissed = false;
+      _stateDrainCount = 0;
     }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
@@ -862,6 +886,13 @@ class ChatTimelineState extends State<ChatTimeline> {
   /// If the current content does not overflow the viewport (i.e. no scrollbar
   /// is visible), requests more history until either the viewport is filled or
   /// no more events are available from the server.
+  ///
+  /// Additionally, if the chronologically oldest event in the loaded window
+  /// is a state event (and there is still history to fetch), keeps
+  /// requesting until the first non-state event is reached or the beginning
+  /// of the room is reached.  This handles rooms where large consecutive
+  /// runs of state events (membership churn, power-level churn, server
+  /// ACLs, etc.) sit between the user and the first real message.
   void _ensureContentFillsScreen() {
     if (!mounted) return;
     if (_isFillingViewport) return;
@@ -874,7 +905,14 @@ class ChatTimelineState extends State<ChatTimeline> {
       return;
     }
 
-    if (_autoFillRetries >= _maxAutoFillRetries) return;
+    if (_autoFillRetries >= _maxAutoFillRetries) {
+      // Standard viewport-fill budget is spent, but the state-drain loop
+      // may still have work to do.  Only bail completely once both
+      // budgets are exhausted (see [drainStateEventsAtEndOfTimeline]).
+      if (!_shouldDrainStateEvents()) return;
+      _drainStateEventsAtEndOfTimeline();
+      return;
+    }
 
     final maxScroll = _scrollController.position.maxScrollExtent;
     // Still too short -> request more.
@@ -884,7 +922,69 @@ class ChatTimelineState extends State<ChatTimeline> {
       _requestMoreHistory();
     } else {
       _isFillingViewport = false;
+
+      // Viewport is already full but the oldest loaded event might still
+      // be a state event sitting on top of more real history.  Drain
+      // those so the user actually sees the first message when entering
+      // a room with a fat state-event prefix.
+      if (_shouldDrainStateEvents()) {
+        _drainStateEventsAtEndOfTimeline();
+      }
     }
+  }
+
+  /// True when the trailing [_stateDrainWindow] most-recently loaded
+  /// events are *all* state events AND the server still has more history
+  /// to give us.  This is the guard that stops the drain as soon as a
+  /// non-state event surfaces (it stops being "all state events" the
+  /// moment a Message or Sticker enters the trailing window).
+  ///
+  /// [Timeline.events] is stored newest-first (`events.last` is the
+  /// oldest loaded event), but we only need the most-recently loaded
+  /// events in display order, so we walk from the tail of `events`
+  /// backwards.  Using a window rather than just the single oldest
+  /// event catches rooms whose entire loaded history is state events
+  /// (hundreds of member joins, etc.) even when pagination pulls fresh
+  /// state events onto the top of the window as it grows.
+  bool _shouldDrainStateEvents() {
+    final timeline = _timeline;
+    if (timeline == null) return false;
+    if (widget.room.prev_batch == null) return false;
+    final events = timeline.events;
+    if (events.isEmpty) return false;
+    final start = events.length > _stateDrainWindow
+        ? events.length - _stateDrainWindow
+        : 0;
+    for (var i = start; i < events.length; i++) {
+      final type = events[i].type;
+      if (type == EventTypes.Message || type == EventTypes.Sticker) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Drains consecutive state events at the chronological start of the
+  /// timeline by requesting more history until either:
+  /// - a non-state event is encountered ([_shouldDrainStateEvents] turns
+  ///   `false`), or
+  /// - the room has been paginated to its beginning
+  ///   (`room.prev_batch == null`), or
+  /// - the [_maxStateDrainIterations] safety cap is hit.
+  ///
+  /// Only one request is issued per call; the next page is fetched via
+  /// the post-frame re-entry hook inside [_requestMoreHistory], which
+  /// re-invokes [_ensureContentFillsScreen].  This keeps the actual
+  /// pagination call in a single place and avoids overlapping requests.
+  void _drainStateEventsAtEndOfTimeline() {
+    if (_isFillingViewport) return;
+    if (_isLoadingHistory) return;
+    if (!mounted) return;
+    if (!_shouldDrainStateEvents()) return;
+    if (_stateDrainCount >= _maxStateDrainIterations) return;
+    _stateDrainCount++;
+    _isFillingViewport = true;
+    _requestMoreHistory();
   }
 
   // ---------------------------------------------------------------------------
@@ -945,6 +1045,9 @@ class ChatTimelineState extends State<ChatTimeline> {
     if (_scrollController.hasClients &&
         _scrollController.position.maxScrollExtent > 50.0) {
       _autoFillRetries = 0;
+      // Reset the state-drain budget once the user is past the initial
+      // chunk  if they scroll back to the top later we'll start fresh.
+      _stateDrainCount = 0;
     }
 
     // Keep the fully-read marker fresh  the SDK updates
