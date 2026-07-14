@@ -440,6 +440,7 @@ Widget tests (preserved):
 test/widget/message_action_runner_test.dart, login_page_test.dart,
 delivery_indicator_test.dart, encryption_badge_test.dart.
 
+
 6. Media widget polish (July 2026 - second pass)
 
 Follow-up to section 3 P0/P1 work. Two sub-batches: a visual overhaul of
@@ -487,7 +488,7 @@ errors.
 8. _hideScheduleId counter cancels any in-flight hide callback when the
    user re-summons chrome. See lib/src/screens/image_viewer_screen.dart.
 
-7.2 Video bubble and fullscreen player
+6.2 Video bubble and fullscreen player
 
 9. Fixed a runtime crash in _downloadOnDemand. The pattern
    setState(() => _x = future) was returning the assigned Future, which
@@ -524,7 +525,7 @@ errors.
 16. Fullscreen chrome uses the same _hideScheduleId pattern as the image
     viewer. See video_message_type.dart.
 
-7.3 Download system for every applicable event type
+6.3 Download system for every applicable event type
 
 17. Image goes through FilePicker.saveFile from thumbnail, hover
     affordance, and viewer toolbar. See image_message_type.dart and
@@ -536,7 +537,7 @@ errors.
 
 19. Audio on-demand download path reuses RoomMediaCache; spinner swap;
     the play icon flips to a refresh icon after failure (see section
-    7.4). See audio_message_type.dart.
+    6.4). See audio_message_type.dart.
 
 20. Video is symmetric with file; spinner during fetch. See
     video_message_type.dart.
@@ -546,7 +547,7 @@ errors.
     video_message_type.dart, audio_message_type.dart,
     file_attached_message.dart.
 
-7.4 Robust error handling
+6.4 Robust error handling
 
 22. Every async hot-path now uses on Object catch (e, st) with
     FlutterError.reportError instead of bare catch (_) swallows. See all
@@ -581,7 +582,7 @@ errors.
     best-effort, no bubble-up of controller exceptions. See
     video_message_type.dart.
 
-7.5 Localization
+6.5 Localization
 
 30. New strings saveImage, downloadImage, imageViewerHint, videoLoadFailed,
     and tapToRetry added to app_en.arb, app_fa.arb, the abstract
@@ -589,14 +590,14 @@ errors.
     implementations. See lib/src/localization/.
 
 
-8. UX fixes - image viewer, compact mode, timeline, overlays (August 2026 - third pass)
+7. UX fixes - image viewer, compact mode, timeline, overlays (August 2026 - third pass)
 
 Targeted follow-up on four long-standing UX bugs. Tests at head: flutter
 test 441 green, flutter analyze 0 errors. Pre-existing
 Radio.groupValue deprecation warnings in layout_settings.dart are
 unchanged.
 
-8.1 Image viewer chrome (issue 1)
+7.1 Image viewer chrome (issue 1)
 
 1. The previous GestureDetector over InteractiveViewer lost the gesture
    arena to the viewer's pan/zoom recogniser, so a tap never reached the
@@ -617,7 +618,7 @@ unchanged.
    forward() so a stale in-flight reverse can't race the new show. See
    lib/src/screens/image_viewer_screen.dart.
 
-8.2 Compact mode threshold and flapping (issue 2)
+7.2 Compact mode threshold and flapping (issue 2)
 
 5. Lowered the compact-mode breakpoint. compactMax and expandedMax moved
    from 1280 down to 1100 px. A 1100 px window still fits nav-rail (80)
@@ -645,7 +646,7 @@ unchanged.
    resolution doesn't subscribe to the whole settings tree. See
    lib/src/router.dart.
 
-8.3 Timeline jitter and jump (issue 3)
+7.3 Timeline jitter and jump (issue 3)
 
 10. Moved _isScrolledUp from a bool field mutated via setState to a
     ValueNotifier<bool>. The FAB column now rebuilds via
@@ -675,7 +676,7 @@ unchanged.
     events currently in the item list. No unbounded growth on long-lived
     views. See lib/src/chat/timeline_view.dart.
 
-8.4 Barrier dismiss consistency (issue 4)
+7.4 Barrier dismiss consistency (issue 4)
 
 15. Rewrote BarrierDismissableOverlay to use Listener with
     HitTestBehavior.translucent (replacing the previous GestureDetector
@@ -704,3 +705,107 @@ unchanged.
 
 19. responsive_test.dart updated for the new 1100 px breakpoint. See
     test/unit/responsive_test.dart.
+
+7.5 Timeline state-event drain (issue 5)
+
+20. Rooms with hundreds of consecutive state events between messages
+    used to stop loading before the first real message surfaced. The
+    drain loop now triggers whenever the most-recently loaded
+    _stateDrainWindow events are *all* state events (and `prev_batch`
+    is still set), so a single non-state event breaking the window
+    stops the loop. Reading the trailing window rather than just the
+    single oldest event keeps the drain active in rooms whose entire
+    loaded history is state events (heavy membership churn, brand new
+    rooms where every join is a state event). The loop caps at
+    _maxStateDrainIterations and resets on room switch plus once the
+    viewport becomes scrollable. See
+    lib/src/chat/chat_timeline.dart:_ensureContentFillsScreen,
+    :_shouldDrainStateEvents, and :_drainStateEventsAtEndOfTimeline.
+
+8. Chat layout race when a tooltip is visible at page push
+   (issue 6)
+
+- The chat-page mount was tripping Flutter's
+  `_RenderLayoutBuilder was mutated in performLayout` assertion
+  whenever the user's mouse happened to be over a chat-box button
+  while navigating to a room. The cause: `Tooltip` (Material)
+  wraps the child in an internal `OverlayPortal` (via `RawTooltip`)
+  that activates the moment the page is mounted. The page lives
+  inside the dashboard's `LayoutBuilder` shell, so the portal's
+  activation marks that builder as needing layout mid-performLayout.
+  The follow-on `_elements.contains(element)` assertion and the
+  `traversalParentIdentifier must be unique` semantics error are
+  downstream effects of the same race. Fix: replace the `Tooltip`
+  wrappers that are part of the always-mounted chat surface
+  (chat-box `_IconButton`, the delivery-status indicator, and the
+  image/video/audio/file error tiles) with `Semantics` labels.
+  Hover/conditional tooltips (the unread-pill dismiss button, the
+  message hover-toolbar actions) keep the visual `Tooltip` because
+  they only mount on user interaction. See
+  lib/src/chat/chat_box.dart:_IconButton.build,
+  lib/src/chat/events/delivery_indicator.dart,
+  lib/src/chat/events/matrix_events/Message/image/image_message_type.dart:_buildError,
+  lib/src/chat/events/matrix_events/Message/video/video_message_type.dart,
+  lib/src/chat/events/matrix_events/Message/audio/audio_message_type.dart, and
+  lib/src/chat/events/matrix_events/Message/file/file_attached_message.dart.
+
+9. Image / video / sticker widget audit (issue 7)
+
+Audit pass on the four media-bubble widgets. Three real defects
+fixed; one comment-only misdirection corrected; the
+chat-page layout race is closed off on the remaining
+`Tooltip` (see issue 6) so hover affordances no longer
+participate.
+
+- `_infoMap['w'] as int?` and the same pattern on `h`, `width`,
+  `height`, `duration`, and `size` threw `TypeError` on any event
+  whose dimensions came back from the matrix SDK as `num` /
+  `double` (the local-DB cache round-trip drops the
+  int-vs-float distinction that an inline `as int?` cast
+  assumes). The thumbnail then collapsed to the placeholder
+  even though the dimensions were valid. Centralised the
+  coercion in a new
+  `coerceJsonInt(Object?) -> int?` helper at
+  lib/src/helpers/number_coercion.dart and routed the four
+  widgets (image, video, sticker, plus the video file/duration
+  getters) through it. Anything that is not a non-negative
+  `num` returns null, so callers fall through to their
+  existing fallbacks without an exception.
+
+- `_retryDownload` issued two back-to-back `setState` calls
+  and gated the second on `_shouldAutoDownload()`. The
+  conditional was a no-op: both branches did the same thing.
+  Collapsed to a single `setState` that captures the cache
+  result, and added a `mounted` re-check after the awaited
+  `cache.invalidate` so a rapid tap-then-dispose can no longer
+  fire `setState` after dispose. See
+  lib/src/chat/events/matrix_events/Message/image/image_message_type.dart:_retryDownload.
+
+- The image widget's always-mounted `_HoverDownloadButton`
+  wrapped a `Tooltip` so a hover activation could re-trigger
+  the chat-page layout race from issue 6 (the button mounts
+  on every image thumbnail). Replaced with a `Semantics`
+  label; the icon-button affordance already carries the
+  same role, so the popup was redundant. See
+  lib/src/chat/events/matrix_events/Message/image/image_message_type.dart:_HoverDownloadButtonState.
+
+- The image widget's `_infoMap` getter did a `as
+  Map<String, dynamic>` cast that would throw on a
+  `Map<dynamic, dynamic>`. Loosened to accept any `Map` and
+  copy into a `Map<String, dynamic>` so a future SDK change
+  to the content shape can't break thumbnails. See
+  lib/src/chat/events/matrix_events/Message/image/image_message_type.dart,
+  video_message_type.dart, and sticker_message_type.dart.
+
+- `setState(() { _x = future; })` pattern was a latent
+  crash on the next re-entry; documented why the new
+  retry path uses block-body setState, mirroring the
+  video / file / audio fix in 6.2 (issue 9). See
+  lib/src/chat/events/matrix_events/Message/image/image_message_type.dart:_retryDownload.
+
+Tests: 5 new unit cases in
+test/unit/number_coercion_test.dart cover int, double,
+arbitrary `num`, null, and non-numeric inputs. All
+303 unit tests pass; flutter analyze reports 0 errors
+(only the pre-existing layout_settings Radio.groupValue
+deprecations remain).
