@@ -137,8 +137,10 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
   int? get _duration => coerceJsonInt(_infoMap['duration']);
   int? get _fileSize => coerceJsonInt(_infoMap['size']);
-  int? get _videoWidth => coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
-  int? get _videoHeight => coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
+  int? get _videoWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _videoHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
   String _formatDuration(int ms) {
     final totalSeconds = ms ~/ 1000;
@@ -191,8 +193,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     }
     final token = ++_buildToken;
     try {
-      final snap = await (_downloadFuture ??=
-          RoomMediaCache.instance.getOrDownload(
+      final snap =
+          await (_downloadFuture ??= RoomMediaCache.instance.getOrDownload(
         widget.event.roomId ?? widget.event.eventId,
         widget.event.eventId,
         () => widget.event.downloadAndDecryptAttachment(),
@@ -362,7 +364,6 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
               height: playerSize.height,
               child: _buildPlayerArea(cs, l10n),
             ),
-
             SizedBox(
               width: playerSize.width,
               child: Padding(
@@ -486,10 +487,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                         child: FutureBuilder<MatrixFile>(
                           future: _downloadFuture,
                           builder: (context, snapshot) {
-                            final isReady =
-                                snapshot.connectionState ==
-                                        ConnectionState.done &&
-                                    !snapshot.hasError;
+                            final isReady = snapshot.connectionState ==
+                                    ConnectionState.done &&
+                                !snapshot.hasError;
                             final isWaiting = snapshot.connectionState ==
                                 ConnectionState.waiting;
                             return Container(
@@ -523,8 +523,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                 onPressed: isWaiting
                                     ? null
                                     : () async {
-                                        if (isReady &&
-                                            snapshot.data != null) {
+                                        if (isReady && snapshot.data != null) {
                                           await _downloadFile(snapshot.data!);
                                         } else {
                                           await _downloadOnDemand();
@@ -684,8 +683,20 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
           Positioned(
             top: 6,
             right: 6,
-            child: Tooltip(
-              message: AppLocalizations.of(context)!.fullscreenVideo,
+            // [Semantics] instead of [Tooltip]: the fullscreen
+            // overlay button is part of the always-mounted video
+            // thumbnail. Tooltip would mount an internal
+            // [OverlayPortal] that activates on mount; inside the
+            // dashboard's [LayoutBuilder] shell that activation
+            // marks a sibling [_RenderLayoutBuilder] as needing
+            // layout mid-performLayout and trips the
+            // `_RenderLayoutBuilder was mutated in performLayout`
+            // assertion (chat-page layout race). Semantics carries
+            // the same accessibility label without ever
+            // materialising an overlay entry.
+            child: Semantics(
+              label: AppLocalizations.of(context)!.fullscreenVideo,
+              button: true,
               child: Material(
                 color: Colors.black.withValues(alpha: 0.5),
                 shape: const CircleBorder(),
@@ -791,8 +802,7 @@ class _InitializedPlayer extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: AspectRatio(
-                    aspectRatio:
-                        v.aspectRatio == 0 ? 1.0 : v.aspectRatio,
+                    aspectRatio: v.aspectRatio == 0 ? 1.0 : v.aspectRatio,
                     child: VideoPlayer(controller),
                   ),
                 ),
@@ -817,8 +827,14 @@ class _InitializedPlayer extends StatelessWidget {
                 Positioned(
                   top: 6,
                   right: 6,
-                  child: Tooltip(
-                    message: l10n.fullscreenVideo,
+                  // [Semantics] instead of [Tooltip] for the same
+                  // reason as the thumbnail overlay above: this
+                  // button mounts as soon as the player
+                  // initialises, and Tooltip's OverlayPortal would
+                  // re-trigger the chat-page layout race.
+                  child: Semantics(
+                    label: l10n.fullscreenVideo,
+                    button: true,
                     child: Material(
                       color: Colors.black.withValues(alpha: 0.5),
                       shape: const CircleBorder(),

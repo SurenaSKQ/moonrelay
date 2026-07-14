@@ -445,8 +445,22 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
+    // [Semantics] instead of [Tooltip]: the toolbar is wrapped in a
+    // [FadeTransition] (driven by [_chromeOpacity]) so every
+    // [_ToolbarButton] is mounted for the entire lifetime of the
+    // [ImageViewerScreen], even when its opacity is 0. The route is
+    // pushed over the chat surface via [MaterialPageRoute] (see
+    // image_message_type.dart:_openViewer) and the chat page still
+    // owns the dashboard's [LayoutBuilder] ancestor; a Tooltip
+    // mounted here would activate its internal [OverlayPortal] on
+    // mount and mutate that [_RenderLayoutBuilder] mid-performLayout,
+    // tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics carries the same accessibility affordance without
+    // ever materialising an overlay entry.
+    return Semantics(
+      label: tooltip,
+      button: true,
       child: Material(
         color: Colors.black.withValues(alpha: 0.4),
         shape: const CircleBorder(),

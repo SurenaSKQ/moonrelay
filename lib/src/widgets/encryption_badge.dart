@@ -44,14 +44,22 @@ class RoomEncryptionBadge extends StatelessWidget {
         ? const Color(0xFF8FE3B0)
         : const Color(0xFF15803D);
 
-    return Tooltip(
-      message: loc.encryptionBadgeTooltip,
-      child: Icon(
-        LucideIcons.shieldCheck,
-        size: size,
-        color: color,
-        semanticLabel: loc.encryptionBadgeTooltip,
-      ),
+    // [Semantics] instead of [Tooltip]: this badge is rendered inside
+    // the dashboard's [LayoutBuilder] shell (RoomsPane row entries
+    // and the room-header bar). A Tooltip mounts an internal
+    // [OverlayPortal] that activates on mount and would mark a
+    // sibling [_RenderLayoutBuilder] as needing layout mid-
+    // performLayout, tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics provides the same accessibility label without
+    // materialising an overlay entry. The Icon's `semanticLabel`
+    // is preserved so screen-reader output matches what the Tooltip
+    // would have announced.
+    return Icon(
+      LucideIcons.shieldCheck,
+      size: size,
+      color: color,
+      semanticLabel: loc.encryptionBadgeTooltip,
     );
   }
 
