@@ -87,8 +87,18 @@ class ReceiptAvatars extends StatelessWidget {
       ],
     );
 
-    return Tooltip(
-      message: l10n.seenBy(seen.length),
+    // [Semantics] instead of [Tooltip]: this widget renders inline
+    // inside the chat timeline, which lives under the dashboard's
+    // [LayoutBuilder] shell. A Tooltip always mounts an internal
+    // [OverlayPortal] (via [RawTooltip]) that activates the moment
+    // the message appears; the activation marks a sibling
+    // [_RenderLayoutBuilder] as needing layout mid-performLayout,
+    // tripping the `_RenderLayoutBuilder was mutated in
+    // performLayout` assertion (the chat-page layout race). A
+    // Semantics label gives screen readers the same affordance
+    // without ever materialising an overlay entry.
+    return Semantics(
+      label: l10n.seenBy(seen.length),
       child: Padding(
         padding: const EdgeInsets.only(top: 2),
         child: chipWidget,

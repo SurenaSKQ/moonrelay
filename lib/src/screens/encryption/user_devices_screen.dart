@@ -176,8 +176,15 @@ class _TrustBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    return Tooltip(
-      message: verified ? l10n.encryptionVerified : l10n.encryptionUnverified,
+    final label =
+        verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
+    // [Semantics] instead of [Tooltip]: same reason as
+    // [_TrustBadge] in `device_list_screen.dart` — the page lives
+    // inside the dashboard's [LayoutBuilder] shell, and a Tooltip's
+    // internal [OverlayPortal] activation would mark a sibling
+    // [_RenderLayoutBuilder] as needing layout mid-performLayout.
+    return Semantics(
+      label: label,
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,

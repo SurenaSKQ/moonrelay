@@ -679,8 +679,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
             ),
           ),
           const SizedBox(width: 4),
-          Tooltip(
-            message: l10n.chatBoxCancelReply,
+          // [Semantics] instead of [Tooltip]: the cancel-reply button
+          // is part of the always-mounted chat surface. A Tooltip
+          // would mount an internal [OverlayPortal] (via
+          // [RawTooltip]) that activates the moment the page mounts;
+          // the page is wrapped in a [FadeTransition] from
+          // [genericPageBuilder] which lives inside the dashboard's
+          // [LayoutBuilder] shell, so the portal activation marks a
+          // sibling [_RenderLayoutBuilder] as needing layout mid-
+          // performLayout and trips the
+          // `_RenderLayoutBuilder was mutated in performLayout`
+          // assertion (the chat-page layout race). A Semantics label
+          // gives screen readers the same affordance without ever
+          // materialising an overlay entry.
+          Semantics(
+            label: l10n.chatBoxCancelReply,
+            button: true,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -789,11 +803,21 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     required VoidCallback onTap,
   }) {
     final cs = Theme.of(context).colorScheme;
+    // [Semantics] instead of [Tooltip] for the same reason as the
+    // rest of the chat-box chrome: this widget lives inside a
+    // [SizeTransition] inside the always-mounted chat surface, and
+    // Tooltip's internal [OverlayPortal] would activate on mount
+    // while the dashboard's [LayoutBuilder] ancestor is mid-
+    // performLayout, tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics carries the same accessibility label without ever
+    // materialising an overlay entry.
     return SizedBox(
       width: 32,
       height: 32,
-      child: Tooltip(
-        message: tooltip,
+      child: Semantics(
+        label: tooltip,
+        button: true,
         child: Material(
           color: Colors.transparent,
           child: InkWell(

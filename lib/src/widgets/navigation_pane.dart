@@ -112,8 +112,7 @@ class _NavigationPaneState extends State<NavigationPane> {
     // every time the shared [SyncPulse] changes; we compare against
     // the cached version to detect sync ticks and trigger the cached
     // space-id scan only when the pulse actually moves.
-    final pulseVersion =
-        context.select<SyncPulse, int>((p) => p.version);
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _syncVersion) {
       _syncVersion = pulseVersion;
     }
@@ -181,16 +180,14 @@ class _NavigationPaneState extends State<NavigationPane> {
                     children: items
                         .map((item) => switch (item) {
                               NavSpaceLeaf(:final space) => _buildLeaf(
-                                  context, space, nav, theme,
-                                  spacePrefs, l10n),
+                                  context, space, nav, theme, spacePrefs, l10n),
                               NavSpaceGroup(
                                 :final groupId,
                                 :final children,
                                 :final isExpanded
                               ) =>
                                 _buildGroup(context, groupId, children,
-                                    isExpanded, nav, theme,
-                                    spacePrefs, l10n),
+                                    isExpanded, nav, theme, spacePrefs, l10n),
                             })
                         .toList())),
           ]),
@@ -355,7 +352,8 @@ class _NavigationPaneState extends State<NavigationPane> {
             if (expanded)
               ...children.map((c) => Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: _buildLeaf(ctx, c.space, nav, theme, spacePrefs, l10n),
+                    child:
+                        _buildLeaf(ctx, c.space, nav, theme, spacePrefs, l10n),
                   )),
             if (!expanded && children.isNotEmpty)
               Padding(
@@ -580,19 +578,23 @@ class _SCMenuState extends State<_SCMenu> {
         case 'up':
           if (widget.space != null) widget.spacePrefs.moveUp(widget.space!.id);
         case 'dn':
-          if (widget.space != null) widget.spacePrefs.moveDown(widget.space!.id);
+          if (widget.space != null) {
+            widget.spacePrefs.moveDown(widget.space!.id);
+          }
         case 'gup':
           if (widget.groupId != null) widget.spacePrefs.moveUp(widget.groupId!);
         case 'gdn':
-          if (widget.groupId != null) widget.spacePrefs.moveDown(widget.groupId!);
+          if (widget.groupId != null) {
+            widget.spacePrefs.moveDown(widget.groupId!);
+          }
         case 'ungroup':
           if (widget.space != null) {
             widget.spacePrefs.removeFromGroup(widget.space!.id);
           }
         case 'ug_all':
           if (widget.groupId != null) {
-            for (final c
-                in List.of(widget.spacePrefs.spaceGroups[widget.groupId] ?? [])) {
+            for (final c in List.of(
+                widget.spacePrefs.spaceGroups[widget.groupId] ?? [])) {
               widget.spacePrefs.removeFromGroup(c);
             }
           }
@@ -664,11 +666,24 @@ class _NIB extends StatelessWidget {
     );
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 3, horizontal: (_pw - size) / 2),
+      // [Semantics] instead of [Tooltip] when [tip] is true: the
+      // navigation pane lives inside the dashboard's [LayoutBuilder]
+      // shell, which is the same shell that hosts the route
+      // transition. A Tooltip mounts an internal [OverlayPortal] (via
+      // [RawTooltip]) that activates on mount; inside the LayoutBuilder
+      // shell that activation marks a sibling [_RenderLayoutBuilder]
+      // as needing layout mid-performLayout and trips the
+      // `_RenderLayoutBuilder was mutated in performLayout`
+      // assertion. Semantics carries the same accessibility label
+      // without ever materialising an overlay entry, and on a
+      // navigation button the button role + label are what a screen
+      // reader announces anyway.
       child: tip
-          ? Tooltip(
-              message: label,
-              preferBelow: false,
-              child: GestureDetector(onTap: onTap, child: btn))
+          ? Semantics(
+              label: label,
+              button: true,
+              child: GestureDetector(onTap: onTap, child: btn),
+            )
           : GestureDetector(onTap: onTap, child: btn),
     );
   }

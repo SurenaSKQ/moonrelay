@@ -280,8 +280,20 @@ class _TrustBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    return Tooltip(
-      message: verified ? l10n.encryptionVerified : l10n.encryptionUnverified,
+    final label =
+        verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
+    // [Semantics] instead of [Tooltip]: the encryption screens are
+    // routed through [genericPageBuilder], so they enter through a
+    // [FadeTransition] and live inside the dashboard's
+    // [LayoutBuilder] shell. A Tooltip would mount an internal
+    // [OverlayPortal] that activates on mount and would mark a
+    // sibling [_RenderLayoutBuilder] as needing layout mid-
+    // performLayout, tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics carries the same accessibility label without
+    // materialising an overlay entry.
+    return Semantics(
+      label: label,
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,
