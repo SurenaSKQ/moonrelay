@@ -302,6 +302,7 @@
   "statusLabel": "Status",
   "reportUserReason": "Please describe why you are reporting this user.",
   "reportUserHint": "Reason for report…",
+  "reportUserDefaultReason": "Reported via Moonrelay",
 
   "leaveRoom": "Leave Room",
   "leaveRoomDescription": "Remove yourself from this room",
