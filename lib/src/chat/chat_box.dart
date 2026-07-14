@@ -836,8 +836,22 @@ class _IconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canTap = enabled && onPressed != null;
-    return Tooltip(
-      message: tooltip,
+    // We intentionally wrap in [Semantics] rather than [Tooltip] here.
+    // [Tooltip] mounts an internal [OverlayPortal] (via [RawTooltip])
+    // that activates the moment the page mounts.  When the page is
+    // pushed through a custom page transition (the dashboard's
+    // [LayoutBuilder] shell) the overlay portal's activation marks a
+    // sibling [_RenderLayoutBuilder] as needing layout mid-performLayout,
+    // which trips the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion
+    // and the associated `traversalParentIdentifier must be unique`
+    // semantics error.  A `Semantics` label gives screen readers the
+    // same affordance without ever materialising the overlay entry.
+    return Semantics(
+      label: tooltip,
+      button: true,
+      enabled: canTap,
+      excludeSemantics: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
