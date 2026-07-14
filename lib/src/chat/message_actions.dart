@@ -286,10 +286,19 @@ class _ActionIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Tooltip(
-      message: tooltip,
-      preferBelow: false,
-      verticalOffset: 6,
+    // [Semantics] instead of [Tooltip]: these action buttons are
+    // rendered inside the dashboard's [LayoutBuilder] shell (the hover
+    // toolbar appears over the timeline, which is hosted by the layout
+    // shell). A Tooltip mounts an internal [OverlayPortal] that
+    // activates on mount and would mark a sibling
+    // [_RenderLayoutBuilder] as needing layout mid-performLayout,
+    // tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics provides the same accessibility label without
+    // materialising an overlay entry.
+    return Semantics(
+      label: tooltip,
+      button: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
