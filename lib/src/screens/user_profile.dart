@@ -23,6 +23,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
+import 'package:moonrelay/src/widgets/common/feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -918,14 +919,10 @@ class _ModerationSection extends StatelessWidget {
               ? null
               : reasonController.text.trim()));
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userInvited(displayName))),
-      );
+      showFloatingSnackBar(context, l10n.userInvited(displayName));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
+      showFloatingSnackBar(context, l10n.actionFailed('$e'));
     }
   }
 
