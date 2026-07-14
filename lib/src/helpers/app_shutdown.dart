@@ -17,9 +17,7 @@
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:moonrelay/src/encryption/encryption_service.dart';
-import 'package:moonrelay/src/services/deep_link_service.dart';
-import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/helpers/service_registry.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 
 import 'log_service.dart';
@@ -81,25 +79,15 @@ Future<void> performShutdown({
   required Client client,
   required Logger log,
   required LogService logService,
-  EncryptionService? encryptionService,
-  NotificationService? notificationService,
-  DeepLinkService? deepLinkService,
+  required ServiceRegistry registry,
   TrayService? trayService,
 }) async {
   log.i('Shutting down…');
 
-  // ── 1. Stop sync-heavy consumers first ────────────────────────
-  try {
-    notificationService?.dispose();
-  } catch (e) {
-    log.w('NotificationService dispose failed', error: e);
-  }
-
-  try {
-    encryptionService?.dispose();
-  } catch (e) {
-    log.w('EncryptionService dispose failed', error: e);
-  }
+  // ── 1. Tear down all registry services in reverse order ──────
+  // This handles EncryptionService, NotificationService,
+  // DeepLinkService, and any other service that registered during boot.
+  await registry.shutdownAll(log);
 
   // ── 2. Kill the Matrix client ─────────────────────────────────
   // This shuts down the sync loop, closes the database, and  most
@@ -120,14 +108,7 @@ Future<void> performShutdown({
     }
   }
 
-  // ── 4. Deep-link service ──────────────────────────────────────
-  try {
-    deepLinkService?.dispose();
-  } catch (e) {
-    log.w('DeepLinkService dispose failed', error: e);
-  }
-
-  // ── 5. Wipe log files ─────────────────────────────────────────
+  // ── 4. Wipe log files ─────────────────────────────────────────
   try {
     await logService.wipeLogs();
   } catch (e) {
