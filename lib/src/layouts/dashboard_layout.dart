@@ -36,6 +36,8 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/sidebar_members_list.dart';
+import 'package:moonrelay/src/widgets/sidebar_pinned_messages.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_pane.dart';
@@ -541,11 +543,11 @@ class _RightSidebarWithSwitcher extends StatelessWidget {
             RightPaneChoice.none => const SizedBox.shrink(),
             RightPaneChoice.roomInfo => _SidebarRoomInfo(room: room),
             RightPaneChoice.members =>
-              _SidebarMembersList(key: ValueKey(room.id), room: room),
+              SidebarMembersList(key: ValueKey(room.id), room: room),
             RightPaneChoice.threads =>
               SidebarThreadList(key: ValueKey(room.id), room: room),
             RightPaneChoice.pinned =>
-              _SidebarPinnedMessages(key: ValueKey(room.id), room: room),
+              SidebarPinnedMessages(key: ValueKey(room.id), room: room),
           },
         ),
       ],
