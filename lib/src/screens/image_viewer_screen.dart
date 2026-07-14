@@ -65,6 +65,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
   /// behaviour of native gallery apps.
   late final AnimationController _chromeController;
   late final Animation<double> _chromeOpacity;
+  late final TransformationController _transform;
+  late final AnimationController _resetAnim;
+  Animation<double>? _doubleTapAnim;
 
   /// Monotonically incremented every time the auto-hide is rescheduled.
   /// Each scheduled [Future.delayed] callback captures the value at the
@@ -72,6 +75,12 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
   /// counter still matches, so a fresh tap or a manual hide cancels any
   /// older pending hide.
   int _hideScheduleId = 0;
+
+  /// User-defined minimum and maximum zoom factors. The minimum is
+  /// intentionally below 1.0 so a wide landscape image can be shrunk
+  /// into a portrait viewport without ever being cropped at rest.
+  static const double _minScale = 0.5;
+  static const double _maxScale = 5.0;
 
   @override
   void initState() {
@@ -83,11 +92,19 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
     );
     _chromeOpacity =
         CurvedAnimation(parent: _chromeController, curve: Curves.easeOut);
+    _transform = TransformationController();
+    _resetAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
     _scheduleChromeHide();
   }
 
   @override
   void dispose() {
+    _transform.dispose();
+    _resetAnim.dispose();
+    _doubleTapAnim?.removeListener(_onDoubleTapTick);
     _chromeController.dispose();
     super.dispose();
   }
@@ -139,6 +156,34 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
     return '.bin';
   }
 
+  void _onDoubleTapTick() {
+    _transform.value = Matrix4.identity()
+      ..translateByDouble(_doubleTapFocal!.dx, _doubleTapFocal!.dy, 0, 1)
+      ..scaleByDouble(_doubleTapAnim!.value, _doubleTapAnim!.value, 1, 1)
+      ..translateByDouble(-_doubleTapFocal!.dx, -_doubleTapFocal!.dy, 0, 1);
+  }
+
+  Offset? _doubleTapFocal;
+
+  void _handleDoubleTapDown(TapDownDetails details) {
+    _doubleTapFocal = details.localPosition;
+  }
+
+  /// Toggles between the identity matrix and a 2.5× zoom around the tapped
+  /// point, animated.  Pinch-to-zoom and drag are still driven by
+  /// [InteractiveViewer] once the animation lands.
+  void _handleDoubleTap() {
+    final current = _transform.value;
+    final isZoomed = !current.isIdentity();
+    _doubleTapAnim?.removeListener(_onDoubleTapTick);
+    _doubleTapAnim = Tween<double>(begin: current.getMaxScaleOnAxis(), end: isZoomed ? 1.0 : 2.5)
+        .animate(CurvedAnimation(parent: _resetAnim, curve: Curves.easeOut));
+    _doubleTapAnim!.addListener(_onDoubleTapTick);
+    _resetAnim
+      ..reset()
+      ..forward();
+  }
+
   /// The viewer allows pinch-to-zoom up to 5×; cap decoded bitmap to
   /// 2048 px so an 8K source doesn't allocate ~256 MB of GPU memory.
   @override
@@ -165,14 +210,24 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
           ),
 
           // ── Zoomable image ──────────────────────────────────────────
+          // The image is laid out at full viewport size with [BoxFit.cover],
+          // so at rest the photo extends edge-to-edge.  Pinch-to-zoom and
+          // double-tap then expand the photo past the viewport edges
+          // instead of being trapped inside a small fitted rectangle.
+          // Because the child occupies the entire viewport from the first
+          // frame (no aspect-ratio lookup, no FutureBuilder flash), the
+          // InteractiveViewer's gesture arena gets a stable child size
+          // immediately and zoom behaves predictably.
           Positioned.fill(
-            child: Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 5.0,
+            child: InteractiveViewer(
+              transformationController: _transform,
+              minScale: _minScale,
+              maxScale: _maxScale,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox.expand(
                 child: Image.memory(
                   widget.bytes,
-                  fit: BoxFit.contain,
+                  fit: BoxFit.cover,
                   cacheWidth: cacheWidth,
                   errorBuilder: (_, __, ___) => Center(
                     child: Text(
@@ -220,6 +275,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
               onPointerMove: (_) => _scheduleChromeHide(),
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
+                onDoubleTapDown: _handleDoubleTapDown,
+                onDoubleTap: _handleDoubleTap,
                 onLongPress: _save,
                 child: const SizedBox.expand(),
               ),
