@@ -20,6 +20,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
@@ -114,13 +115,19 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   /// `SettingsController.imageThumbnailMaxPx`.
   static const double _defaultMaxThumbnailDimension = 360;
 
-  /// Image dimensions from the event content's `info` blob.
-  int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _imgHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
+  /// Image dimensions from the event content's `info` blob. Tolerates
+  /// [num] of any runtime type via [coerceJsonInt].
+  int? get _imgWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _imgHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
 
   /// Whether this image is a GIF (animated or static).
   bool get _isGif =>
@@ -268,36 +275,30 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   /// Re-attempts the download when the user taps the retry icon.  The
   /// cache might hold a partial or poisoned entry, so it is invalidated
   /// first; without that step every retry would replay the same error.
+  ///
+  /// Resets [_downloadFuture] in a single `setState` call so the
+  /// build that follows the reset doesn't observe a torn state (a
+  /// half-applied reset + the same future would re-show the error tile).
+  /// Also re-checks `mounted` after the awaited invalidation so a
+  /// rapid tap-then-dispose doesn't fire a `setState` after dispose.
   Future<void> _retryDownload() async {
     if (!mounted) return;
     final cache = RoomMediaCache.instance;
     cache.invalidate(_roomId, widget.event.eventId);
+    if (!mounted) return;
     setState(() {
-      _downloadFuture = null;
+      _downloadFuture = cache.getOrDownload(
+        _roomId,
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(),
+      );
     });
-    if (_shouldAutoDownload()) {
-      setState(() {
-        _downloadFuture = cache.getOrDownload(
-          _roomId,
-          widget.event.eventId,
-          () => widget.event.downloadAndDecryptAttachment(),
-        );
-      });
-    } else {
-      // Bypass the auto-download policy on explicit user retry.
-      setState(() {
-        _downloadFuture = cache.getOrDownload(
-          _roomId,
-          widget.event.eventId,
-          () => widget.event.downloadAndDecryptAttachment(),
-        );
-      });
-    }
   }
 
   Widget _buildError(ColorScheme cs) {
-    return Tooltip(
-      message: AppLocalizations.of(context)!.failedToLoadImage,
+    return Semantics(
+      label: AppLocalizations.of(context)!.failedToLoadImage,
+      button: true,
       child: GestureDetector(
         onTap: _retryDownload,
         child: Container(
@@ -508,8 +509,16 @@ class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
           return AnimatedOpacity(
             duration: const Duration(milliseconds: 150),
             opacity: hovered ? 1.0 : 0.0,
-            child: Tooltip(
-              message: widget.tooltip,
+            // [Semantics] instead of [Tooltip] so the affordance is
+            // announced by screen readers but the widget never mounts
+            // an internal [OverlayPortal].  The IconButton already
+            // exposes the same role through its ink-well hit area;
+            // a popup would only repeat the same information and
+            // risks tripping the chat-page layout race when a hover
+            // is active during a route push.
+            child: Semantics(
+              label: widget.tooltip,
+              button: true,
               child: Material(
                 color: Colors.black.withValues(alpha: 0.6),
                 shape: const CircleBorder(),

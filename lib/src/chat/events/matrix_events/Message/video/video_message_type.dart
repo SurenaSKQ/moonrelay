@@ -22,6 +22,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -127,14 +128,17 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
       (_fileName?.split('.').last ?? _mimeType?.split('/').last ?? 'VIDEO')
           .toUpperCase();
 
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
 
-  int? get _duration => _infoMap['duration'] as int?;
-  int? get _fileSize => _infoMap['size'] as int?;
-  int? get _videoWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _videoHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
+  int? get _duration => coerceJsonInt(_infoMap['duration']);
+  int? get _fileSize => coerceJsonInt(_infoMap['size']);
+  int? get _videoWidth => coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _videoHeight => coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
   String _formatDuration(int ms) {
     final totalSeconds = ms ~/ 1000;
@@ -476,8 +480,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                     SizedBox(
                       width: 36,
                       height: 36,
-                      child: Tooltip(
-                        message: l10n.downloadVideo,
+                      child: Semantics(
+                        label: l10n.downloadVideo,
+                        button: true,
                         child: FutureBuilder<MatrixFile>(
                           future: _downloadFuture,
                           builder: (context, snapshot) {
