@@ -62,3 +62,5 @@ class MockAccountManager extends Mock implements AccountManager {}
 class MockEncryptionService extends Mock implements EncryptionService {}
 
 class MockDeepLinkService extends Mock implements DeepLinkService {}
+
+class MockReceipt extends Mock implements Receipt {}
