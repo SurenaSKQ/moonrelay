@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
@@ -80,13 +81,19 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     }
   }
 
-  /// Image dimensions from the event content's `info` blob.
-  int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _imgHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
+  /// Image dimensions from the event content's `info` blob. Tolerates
+  /// [num] of any runtime type via [coerceJsonInt].
+  int? get _imgWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _imgHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
 
   /// Computes the rendered sticker size preserving aspect ratio.
   ///
