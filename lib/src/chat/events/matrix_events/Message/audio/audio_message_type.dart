@@ -458,8 +458,9 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Tooltip(
-                                  message: l10n.downloadAudio,
+                                Semantics(
+                                  label: l10n.downloadAudio,
+                                  button: true,
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: cs.primary.withValues(alpha: 0.1),

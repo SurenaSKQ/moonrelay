@@ -43,8 +43,8 @@ class DeliveryIndicator extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     switch (status) {
       case DeliveryStatus.sending:
-        return Tooltip(
-          message: loc.deliverySending,
+        return Semantics(
+          label: loc.deliverySending,
           child: const SizedBox(
             width: 12,
             height: 12,
@@ -52,8 +52,8 @@ class DeliveryIndicator extends StatelessWidget {
           ),
         );
       case DeliveryStatus.sent:
-        return Tooltip(
-          message: loc.deliverySent,
+        return Semantics(
+          label: loc.deliverySent,
           child: Icon(
             LucideIcons.check,
             size: 12,
@@ -61,8 +61,9 @@ class DeliveryIndicator extends StatelessWidget {
           ),
         );
       case DeliveryStatus.failed:
-        return Tooltip(
-          message: loc.deliveryFailed,
+        return Semantics(
+          label: loc.deliveryFailed,
+          button: true,
           child: InkWell(
             onTap: onRetry,
             borderRadius: BorderRadius.circular(8),

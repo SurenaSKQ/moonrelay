@@ -297,10 +297,11 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                 const SizedBox(width: 8),
 
                 // ── Download button ─────────────────────────────────────
-                Tooltip(
-                  message: _lastError != null
+                Semantics(
+                  label: _lastError != null
                       ? l10n.tapToRetry
                       : l10n.downloadAudio,
+                  button: true,
                   child: Container(
                     decoration: BoxDecoration(
                       color: _lastError != null
