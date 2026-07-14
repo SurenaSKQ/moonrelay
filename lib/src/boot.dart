@@ -30,6 +30,7 @@ import 'helpers/account_manager.dart';
 import 'helpers/current_room.dart';
 import 'helpers/log_service.dart';
 import 'helpers/platform.dart';
+import 'helpers/service_registry.dart';
 import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/notification_service.dart';
@@ -56,6 +57,7 @@ class BootContext {
     required this.currentRoom,
     this.notificationService,
     required this.deepLinkService,
+    required this.registry,
   });
 
   final Logger log;
@@ -69,6 +71,7 @@ class BootContext {
   final CurrentRoom currentRoom;
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
+  final ServiceRegistry registry;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,6 +115,8 @@ Future<BootContext> runBootPipeline({
   required void Function(String) onStatus,
   void Function()? onWaitingForFirstSync,
 }) async {
+  final registry = ServiceRegistry();
+
   // ── 1. Vodozemac (native crypto) ────────────────────────────
   onStatus('Initializing encryption engine…');
   log.t('Boot: Vodozemac');
@@ -207,6 +212,7 @@ Future<BootContext> runBootPipeline({
   if (sdk.isLogged()) {
     await encryptionService.init();
   }
+  registry.register(encryptionService, disposer: () => encryptionService.dispose());
 
   // ── 8. CurrentRoom ──────────────────────────────────────────
   final currentRoom = CurrentRoom();
@@ -231,6 +237,8 @@ Future<BootContext> runBootPipeline({
   } catch (e) {
     log.w('Deep link service init failed', error: e);
   }
+  final dls = deepLinkService;
+  registry.register(dls, disposer: () => dls.dispose());
 
   if (sdk.isLogged()) {
     onStatus('Starting notification service…');
@@ -243,6 +251,8 @@ Future<BootContext> runBootPipeline({
         log: log,
         deepLinkService: deepLinkService,
       );
+      final notif = notificationService;
+      registry.register(notif, disposer: () => notif.dispose());
     } catch (e) {
       log.w('Notification service init failed', error: e);
     }
@@ -259,7 +269,6 @@ Future<BootContext> runBootPipeline({
     }
   }
 
-  // ── 11. Wire up AccountManager ──────────────────────────────
   // ── 11. Wire up AccountManager ──────────────────────────────
   // Initialise the persisted active-account → live client association
   // so widgets bound to `Provider<Client>` see the same pair after a
@@ -343,5 +352,6 @@ Future<BootContext> runBootPipeline({
     currentRoom: currentRoom,
     notificationService: notificationService,
     deepLinkService: deepLinkService,
+    registry: registry,
   );
 }

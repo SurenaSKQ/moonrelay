@@ -34,6 +34,7 @@ import 'src/helpers/app_version.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
+import 'src/helpers/service_registry.dart';
 import 'src/init_logger.dart';
 import 'src/services/deep_link_service.dart';
 import 'src/services/notification_service.dart';
@@ -69,6 +70,7 @@ class _AppState {
     required this.currentRoom,
     required this.notificationService,
     required this.deepLinkService,
+    required this.registry,
   });
 
   final Client sdk;
@@ -81,6 +83,7 @@ class _AppState {
   final CurrentRoom currentRoom;
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
+  final ServiceRegistry registry;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +123,7 @@ Future<_AppState> _initialize({
     currentRoom: ctx.currentRoom,
     notificationService: ctx.notificationService,
     deepLinkService: ctx.deepLinkService,
+    registry: ctx.registry,
   );
 }
 
@@ -205,9 +209,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
             client: state.sdk,
             log: state.log,
             logService: state.logService,
-            encryptionService: state.encryptionService,
-            notificationService: state.notificationService,
-            deepLinkService: state.deepLinkService,
+            registry: state.registry,
             trayService: TrayService.instance,
           ));
     } catch (e) {
