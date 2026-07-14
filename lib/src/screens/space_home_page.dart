@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -42,28 +43,31 @@ class SpaceHomePage extends StatefulWidget {
 }
 
 class _SpaceHomePageState extends State<SpaceHomePage> {
-  StreamSubscription? _syncSub;
-  bool _disposed = false;
+  /// Last [SyncPulse.version] observed at build time. We use
+  /// [context.select] in [build] instead of subscribing to
+  /// `client.onSync.stream` directly so this page rebuilds only on the
+  /// debounced pulse.
+  int _lastPulseVersion = -1;
 
   @override
   void initState() {
     super.initState();
-    // Refresh when new sync data arrives so child lists stay current.
-    final client = context.read<Client>();
-    _syncSub = client.onSync.stream.listen((_) {
-      if (mounted && !_disposed) setState(() {});
-    });
   }
 
   @override
   void dispose() {
-    _disposed = true;
-    _syncSub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Coalesce rebuilds through the shared sync pulse.
+    final pulseVersion =
+        context.select<SyncPulse, int>((p) => p.version);
+    if (pulseVersion != _lastPulseVersion) {
+      _lastPulseVersion = pulseVersion;
+    }
+
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
@@ -479,7 +483,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
       if (result is RetryFailed) {
         throw (result).error;
       }
-      if (mounted && !_disposed) setState(() {});
+      if (mounted) setState(() {});
     } catch (e) {
       if (!context.mounted) return;
       final l10n = AppLocalizations.of(context)!;

@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/helpers/threads_provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
@@ -42,7 +43,7 @@ class _SidebarThreadListState extends State<SidebarThreadList> {
   void initState() {
     super.initState();
     _provider = ThreadsProvider(room: widget.room);
-    _provider.listenToSync();
+    _provider.bind(context.read<SyncPulse>());
     _provider.fetch(firstPage: true);
   }
 

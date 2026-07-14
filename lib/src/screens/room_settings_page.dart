@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/room_notification_sheet.dart';
@@ -1620,16 +1621,18 @@ class _KnockRequestsSection extends StatefulWidget {
 }
 
 class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
-  StreamSubscription<Object?>? _syncSub;
   List<User> _knockingUsers = const [];
   bool _knocksLoaded = false;
+
+  /// Last [SyncPulse.version] observed at build time. The build re-runs
+  /// the knock-list fetch whenever the pulse version advances; we
+  /// compare against the previously observed value so a build caused by
+  /// another field (locale, theme) doesn't trigger a redundant fetch.
+  int _lastPulseVersion = -1;
 
   @override
   void initState() {
     super.initState();
-    _syncSub = widget.room.client.onSync.stream.listen((_) {
-      if (mounted) _loadKnocks();
-    });
     _loadKnocks();
   }
 
@@ -1659,7 +1662,6 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
 
   @override
   void dispose() {
-    _syncSub?.cancel();
     super.dispose();
   }
 
@@ -1764,6 +1766,19 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+
+    // Read the debounced sync pulse so we refresh the knock list on
+    // every coalesced tick. The pulse provider is always in scope for
+    // this screen (it's mounted inside the account-aware router), so a
+    // missing pulse would indicate a wiring bug rather than a transient
+    // state and we let the build continue without a refresh.
+    final pulseVersion =
+        context.select<SyncPulse, int>((p) => p.version);
+    if (pulseVersion != _lastPulseVersion) {
+      _lastPulseVersion = pulseVersion;
+      // Refresh asynchronously; the build phase must not await.
+      _loadKnocks();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
