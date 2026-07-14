@@ -749,6 +749,28 @@ unchanged.
   lib/src/chat/events/matrix_events/Message/audio/audio_message_type.dart, and
   lib/src/chat/events/matrix_events/Message/file/file_attached_message.dart.
 
+  Follow-up (this fix): two always-mounted surfaces were missed by
+  the original sweep and re-introduced the race whenever the user
+  opened a chat box's expanded toolbar or the full-screen image
+  viewer. Both were wrapped in transitions (`SizeTransition`,
+  `FadeTransition`) that always mount their children even when the
+  visual size/opacity is 0, so the Tooltip's OverlayPortal still
+  activated on mount and mutated the dashboard's LayoutBuilder.
+  Replaced the chat-box formatting toolbar (`chat_box.dart:_formatButton`)
+  and the image-viewer toolbar (`image_viewer_screen.dart:_ToolbarButton`)
+  with `Semantics` labels following the same pattern as the other
+  already-fixed surfaces. The chat-layout regression test
+  (`test/widget/chat_layout_no_tooltip_test.dart`) was extended to
+  pin both surfaces so a future refactor that re-introduces a Tooltip
+  fails the test instead of tripping the runtime assertion. The
+  test helper (`_wrap`) was upgraded to provide `SettingsController`
+  so widgets that read user preferences (e.g. `ReceiptAvatars`
+  checks `showReadReceipts`) can mount under the same wrapper, and a
+  missing `MockReceipt` mock was added to `test/helpers/mocks.dart`.
+
+Tests at head: flutter test 486 green; flutter analyze
+reports 0 issues. Known-fail tests: 0.
+
 9. Image / video / sticker widget audit (issue 7)
 
 Audit pass on the four media-bubble widgets. Three real defects
@@ -809,3 +831,184 @@ arbitrary `num`, null, and non-numeric inputs. All
 303 unit tests pass; flutter analyze reports 0 errors
 (only the pre-existing layout_settings Radio.groupValue
 deprecations remain).
+
+10. Chat-timeline race / single-flight / stopwatch /
+    cache-invalidation / LRU / shutdown ordering / CAS
+    consolidation (August 2026 - fourth pass)
+
+Closed the architecture audit follow-up. The remaining
+race-prone, cancellation-discipline, and listener-proliferation
+items are fully landed and most are pinned by new
+widget/unit tests.
+
+Sync listener consolidation
+
+- 7 widget-level sync listeners moved onto the shared
+  [SyncPulse] via `maybeSyncPulse(context)`:
+  `lib/src/widgets/space_rooms_tree.dart`,
+  `lib/src/screens/space_home_page.dart`,
+  `lib/src/screens/space_settings_page.dart`,
+  `lib/src/screens/hub_screen/my_profile_page.dart`,
+  and the knock-list section of
+  `lib/src/screens/room_settings_page.dart` now read the
+  coalesced pulse instead of `client.onSync.stream`.
+- `lib/src/helpers/threads_provider.dart` gained a `bind`
+  method that takes a `SyncPulse`; both call sites
+  (`thread_list_sidebar.dart`, `room_threads_view.dart`)
+  wire through `context.read<SyncPulse>()`.
+- The 3 remaining direct subscribers
+  (`notification_service.dart`, `tray_service.dart`,
+  `encryption_service.dart`) are intentional: they
+  consume the raw sync stream to do per-room processing
+  and the architectural recommendation explicitly permits
+  them.
+
+Race / cancellation discipline
+
+- `ChatTimeline._initTimeline` now uses the
+  `LifecycleGeneration` mixin (a `beginAsync` / `isStale`
+  generation counter captured before every await).
+  Rapid room switches no longer let the previous room's
+  late continuation overwrite the new room's state.
+- `RoomPage.initState` / `didUpdateWidget` mirror the same
+  pattern; the previous room's `setRoom` post-frame
+  callback is discarded when the room id changes.
+
+Skeleton / debounce / single-flight
+
+- `ChatTimeline._atLocalEndOfHistory` is reset in the
+  catch path of `_requestMoreHistory`; a failed history
+  request no longer strands the user on stale placeholders.
+- `_scrollDebounce` is now released by a `Timer` (120 ms)
+  instead of a double-`addPostFrameCallback` chain, so
+  frame batching / jank can't release the debounce early
+  or late.
+- `_requestMoreHistory` is single-flight: the
+  `_isLoadingHistory` flag is set before awaiting so a
+  second call arriving in the same microtask short-circuits.
+
+Jump-to-unread / parallel pagination
+
+- `_paginateUntilMarker` is bounded by a single shared
+  `Stopwatch` (8 s cap). `paginateOlder` and
+  `paginateNewer` now run in parallel via `Future.wait`
+  and the first to surface the marker wins, so the
+  worst case is no longer `olderTimeout + newerTimeout`
+  (16 s).
+- `_unreadInWindow` reads `widget.room.fullyRead` directly
+  rather than the cached `_lastSeenEventId`, so the
+  jump-to-unread pill reflects the live marker.
+- `getTimeline(onUpdate:)` now bumps `_timelineVersion`
+  via `_onTimelineUpdate`. Newly-decrypted events and
+  aggregation updates no longer serve the stale body
+  from `TimelineView`'s cache.
+
+Memory bound on per-room state
+
+- `RoomStateBus._perRoomTick` is now an LRU-bounded
+  `LinkedHashMap` capped at 500 entries. Evicted rooms
+  have their `ValueNotifier` disposed so listeners drop
+  cleanly; the eviction policy is move-to-end on every
+  read and tick, which keeps actively-read rooms alive
+  across eviction pressure.
+
+Ordered shutdown
+
+- `lib/src/helpers/service_registry.dart` registers
+  long-lived services at boot time. `shutdownAll(log)`
+  tears them down in reverse registration order; each
+  disposer's failures are caught and logged so one
+  bad service does not block the others.
+
+Read-marker CAS
+
+- `ReadMarkerService` carries a monotonic per-instance
+  `seq` with each write. Stale writes (with a smaller
+  seq than the stored one) are discarded instead of
+  overwriting a newer marker. Eliminates the read-marker
+  race where two concurrent async writes could reorder a
+  newer marker behind an older one.
+
+Tests added
+
+- `test/widget/chat_timeline_race_test.dart` (3 tests):
+  late `getTimeline` continuation from the previous room
+  is dropped after a rapid room switch; back-to-back
+  switches discard every stale continuation except the
+  latest; a no-op `didUpdateWidget` (same room, new widget
+  instance) does not invalidate the in-flight token.
+  Pins the chat-timeline race fix.
+- `test/widget/history_single_flight_test.dart` (2 tests):
+  re-entrant `_requestMoreHistory` calls during an
+  in-flight request short-circuit instead of issuing
+  additional `requestHistory` calls; a failed
+  `requestHistory` clears the in-flight flag so the next
+  call can proceed. Pins the single-flight contract.
+- `test/widget/paginate_until_marker_test.dart` (3 tests):
+  `_paginateUntilMarker` returns false and stays under
+  the global stopwatch when the server hangs
+  indefinitely; succeeds as soon as either direction
+  surfaces the marker; returns true once the marker is
+  loaded into the events list. Pins the shared stopwatch.
+- `test/widget/timeline_content_update_test.dart`
+  (2 tests): firing `onUpdate` bumps `_timelineVersion`;
+  onUpdate goes through the same `_onTimelineUpdate` path
+  as onChange and onInsert. Pins the onUpdate
+  cache-invalidation contract.
+- `test/unit/room_state_bus_lru_test.dart` (6 tests):
+  LRU eviction, `disposeRoom`, move-to-end on read,
+  dispose, repeated `tickFor` returns the same notifier,
+  custom `maxRooms` is honoured. Pins the RoomStateBus
+  LRU contract.
+- `test/unit/service_registry_test.dart` (7 tests):
+  reverse-order shutdown, continues past a failing
+  disposer, clears entries after shutdown, awaits async
+  disposers, accepts sync void disposers, empty registry
+  no-op, service token is purely for log attribution.
+  Pins the ServiceRegistry shutdown contract.
+- `test/unit/read_marker_service_test.dart` (9 tests):
+  setLastSeen persists, null/empty removes, unknown
+  room returns null, accounts are isolated, fresh write
+  advances seq, overwrite persists newer event id,
+  corrupt entry returns null, keys are colon-safe for
+  both account and room ids. Pins the CAS write
+  semantics.
+
+Test accessors
+
+- Added `@visibleForTesting` hooks on
+  `ChatTimelineState` for the three private paths the
+  new tests exercise: `requestMoreHistoryForTest`,
+  `paginateUntilMarkerForTest`,
+  `onTimelineUpdateForTest`, plus a `timelineVersionForTest`
+  getter. None of these are reachable from production
+  code (the `@visibleForTesting` annotation is checked
+  at lint time).
+
+Tests at head: flutter test 478 green; flutter analyze
+0 errors, 0 warnings, 0 info-level notes (clean).
+
+11. Lint hygiene sweep (August 2026 - fourth pass)
+
+Final code-hygiene pass to clean the remaining info-level
+notes that flutter analyze had been carrying.
+
+- `lib/src/screens/hub_screen/settings/layout_settings.dart`:
+  migrated the three layout-mode `RadioListTile`s from
+  per-tile `groupValue` / `onChanged` to the new
+  `RadioGroup<LayoutMode>` ancestor API introduced in
+  Flutter 3.32. This closes the last six pre-existing
+  `deprecated_member_use` info-level notes about
+  `Radio.groupValue` and `Radio.onChanged`. No behavioural
+  change; the user-visible radio behaviour and the
+  selected value still round-trip through
+  `controller.layoutMode`.
+- `test/widget/timeline_content_update_test.dart`:
+  added an inline `// ignore: non_constant_identifier_names`
+  comment on the `prev_batch` getter so the lint accepts
+  the snake-case identifier that mirrors the Matrix SDK
+  field name (`Room.prev_batch`).
+
+Tests at head: flutter test 478 green; flutter analyze
+reports 0 issues (no errors, no warnings, no info-level
+notes).
