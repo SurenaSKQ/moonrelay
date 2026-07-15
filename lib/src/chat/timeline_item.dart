@@ -16,8 +16,8 @@
 
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
-import 'package:moonrelay/src/chat/hover_actions_wrapper.dart';
 import 'package:moonrelay/src/chat/hover_highlight.dart';
+import 'package:moonrelay/src/chat/hover_item.dart';
 import 'package:moonrelay/src/chat/irc_row.dart';
 import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
@@ -69,7 +69,7 @@ enum TimelineItemAction {
 ///   Reply, Forward, Delete) appear at the top‑right when hovering anywhere
 ///   on the message.
 /// - [DisplayType.irc]: compact format with no hover actions.
-class TimelineItem extends StatelessWidget {
+class TimelineItem extends StatefulWidget {
   const TimelineItem({
     super.key,
     required this.event,
@@ -83,12 +83,23 @@ class TimelineItem extends StatelessWidget {
     this.threadReplyCount = 0,
     this.onAction,
     this.highlightedEventId,
+    this.itemKey,
   });
 
   final Event event;
   final Room room;
   final DisplayType displayType;
   final Timeline? timeline;
+
+  /// Stable [GlobalKey] for this item, supplied by [TimelineView].
+  /// The inner [HoverItem] registers this key with the shared
+  /// [HoverOverlayController] so the overlay can resolve the on-screen
+  /// position of the hovered item without scanning the widget tree.
+  ///
+  /// When `null` (e.g. in widget tests that mount a `TimelineItem`
+  /// directly), the item still renders correctly but the hover
+  /// toolbar stays disabled.
+  final GlobalKey? itemKey;
 
   /// Font size for message text, passed from the parent to avoid
   /// a per-event [context.watch] on [SettingsController].
@@ -120,22 +131,105 @@ class TimelineItem extends StatelessWidget {
   /// is rendered with a brief highlight background flash.
   final String? highlightedEventId;
 
-  /// Convenience getters that call [onAction] with the right action tag.
-  VoidCallback? get _onReply => onAction == null
+  @override
+  State<TimelineItem> createState() => _TimelineItemState();
+}
+
+class _TimelineItemState extends State<TimelineItem> {
+  /// Convenience getters that call [widget.onAction] with the right action tag.
+  VoidCallback? get _onReply => widget.onAction == null
       ? null
-      : () => onAction!(TimelineItemAction.reply, event);
-  VoidCallback? get _onForward => onAction == null
+      : () => widget.onAction!(TimelineItemAction.reply, widget.event);
+  VoidCallback? get _onForward => widget.onAction == null
       ? null
-      : () => onAction!(TimelineItemAction.forward, event);
-  VoidCallback? get _onThread => onAction == null
+      : () => widget.onAction!(TimelineItemAction.forward, widget.event);
+  VoidCallback? get _onThread => widget.onAction == null
       ? null
-      : () => onAction!(TimelineItemAction.thread, event);
-  void Function(String)? get _onJumpToEvent => onAction == null
+      : () => widget.onAction!(TimelineItemAction.thread, widget.event);
+  void Function(String)? get _onJumpToEvent => widget.onAction == null
       ? null
-      : (id) => onAction!(TimelineItemAction.jumpToEvent, event);
+      : (id) => widget.onAction!(TimelineItemAction.jumpToEvent, widget.event);
 
   /// Whether the event was redacted (deleted).
-  bool get _isRedacted => event.redacted;
+  bool get _isRedacted => widget.event.redacted;
+
+  /// Captures the inputs that influence what this widget renders.  Used
+  /// by [didUpdateWidget] to skip the rebuild cost during rapid
+  /// scrolling when an item's content has not actually changed.
+  ///
+  /// The matrix SDK mutates [Event.content] and [Event.status] in place,
+  /// so identity comparison is not enough: we hash the fields that
+  /// affect rendering.  The list is intentionally small (display type,
+  /// font size, bubble radius, group-start flags, status, content
+  /// length, redaction flag, highlight).  When the cache matches the
+  /// previous build we return the cached subtree instead of re-running
+  /// every descendant's `build()`.
+  late _ItemRenderKey _renderKey;
+  Widget? _cachedSubtree;
+
+  @override
+  void initState() {
+    super.initState();
+    _renderKey = _computeKey();
+  }
+
+  /// Hashes the rendering-relevant fields of the current widget into a
+  /// small comparable record.
+  _ItemRenderKey _computeKey() {
+    final ev = widget.event;
+    final content = ev.content;
+    return _ItemRenderKey(
+      displayType: widget.displayType,
+      fontSize: widget.fontSize,
+      bubbleRadius: widget.bubbleRadius,
+      isGroupStart: widget.isGroupStart,
+      isGroupContinuation: widget.isGroupContinuation,
+      threadReplyCount: widget.threadReplyCount,
+      highlight: widget.highlightedEventId == ev.eventId,
+      redacted: ev.redacted,
+      // Some test mocks omit [EventStatus]; coalesce to the synced
+      // sentinel so we never throw from a build path.  In real SDK
+      // use [EventStatus] is always populated.
+      statusName: _safeStatusName(ev),
+      // `content` is a mutable Map; hashing it directly is expensive
+      // for big bodies.  Instead, we capture identity (length + map
+      // identity) -- the SDK reallocates the map when the message is
+      // edited, so identity-equality is enough to detect an edit for
+      // the common case.  We additionally hash the body string so
+      // in-place mutations of the body map (rare but possible) still
+      // invalidate the cache.
+      contentIdentity: identityHashCode(content),
+      bodyLength: (content['body'] as String?)?.length ?? 0,
+      senderId: ev.senderId,
+      originServerTsMs: ev.originServerTs.millisecondsSinceEpoch,
+    );
+  }
+
+  /// Reads [EventStatus.name] from the event without throwing when the
+  /// underlying value is null (test mocks sometimes leave it unset).
+  /// Falling back to the synced sentinel keeps equality stable across
+  /// builds so the cache hit rate stays high.
+  static String _safeStatusName(Event ev) {
+    try {
+      final s = ev.status;
+      // [EventStatus] is declared non-nullable on [Event]; test mocks
+      // sometimes leave it unset, which surfaces as a [TypeError] at
+      // the getter.  Catch and fall back to the synced sentinel.
+      return s.name;
+    } catch (_) {
+      return EventStatus.synced.name;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TimelineItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newKey = _computeKey();
+    if (newKey != _renderKey) {
+      _renderKey = newKey;
+      _cachedSubtree = null;
+    }
+  }
 
   /// Opens the sender's profile as a centered modal overlay.
   ///
@@ -143,8 +237,8 @@ class TimelineItem extends StatelessWidget {
   /// the user later leaves the originating room, and it doesn't pop
   /// the current chat off the navigation stack.
   void _openProfile(BuildContext context) {
-    final senderId = event.senderFromMemoryOrFallback.id;
-    showProfileOverlay(context, userId: senderId, room: room);
+    final senderId = widget.event.senderFromMemoryOrFallback.id;
+    showProfileOverlay(context, userId: senderId, room: widget.room);
   }
 
   /// Wraps [child] in a `GestureDetector` that opens the context menu on
@@ -154,7 +248,7 @@ class TimelineItem extends StatelessWidget {
   /// the menu can invoke them. When none of them are available, the gesture
   /// detector is omitted to avoid accidental interactions.
   Widget _wrapWithContextMenu(BuildContext context, Widget child) {
-    if (onAction == null) return child;
+    if (widget.onAction == null) return child;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -162,9 +256,9 @@ class TimelineItem extends StatelessWidget {
         MessageContextMenu.showForEvent(
           context: context,
           position: details.globalPosition,
-          event: event,
-          room: room,
-          timeline: timeline,
+          event: widget.event,
+          room: widget.room,
+          timeline: widget.timeline,
           onReply: _onReply ?? () {},
           onForward: _onForward,
           onThread: _onThread,
@@ -175,9 +269,9 @@ class TimelineItem extends StatelessWidget {
         MessageContextMenu.showForEvent(
           context: context,
           position: details.globalPosition,
-          event: event,
-          room: room,
-          timeline: timeline,
+          event: widget.event,
+          room: widget.room,
+          timeline: widget.timeline,
           onReply: _onReply ?? () {},
           onForward: _onForward,
           onThread: _onThread,
@@ -192,15 +286,29 @@ class TimelineItem extends StatelessWidget {
   Widget build(BuildContext context) {
     if (_isRedacted) {
       return RedactedEvent(
-        event: event,
-        isGroupContinuation: isGroupContinuation,
+        event: widget.event,
+        isGroupContinuation: widget.isGroupContinuation,
       );
     }
 
-    final isHighlighted = highlightedEventId == event.eventId;
+    final isHighlighted = widget.highlightedEventId == widget.event.eventId;
+
+    // When nothing rendering-relevant has changed since the previous
+    // build, replay the cached subtree verbatim.  This avoids the
+    // cost of allocating Padding/Row/Column and re-running every
+    // descendant `build()` on each parent rebuild -- the common case
+    // during fast scrolling.
+    final cached = _cachedSubtree;
+    if (cached != null) {
+      // [HoverHighlight] needs to react to the highlight toggle, which
+      // is captured in [_renderKey.highlight].  We re-wrap the cached
+      // subtree so the highlight state stays in sync with the latest
+      // widget input.
+      return HoverHighlight(isHighlighted: isHighlighted, child: cached);
+    }
 
     Widget content;
-    switch (displayType) {
+    switch (widget.displayType) {
       case DisplayType.modern:
         content = _buildModern(context);
       case DisplayType.bubbles:
@@ -209,10 +317,20 @@ class TimelineItem extends StatelessWidget {
         content = _buildIrc(context);
     }
 
+    // Cache the rendering subtree (before [HoverHighlight] wrapping so
+    // the highlight state isn't snapshotted).  The next build will
+    // replay this subtree without re-running any descendants.
+    _cachedSubtree = content;
+
     content = HoverHighlight(
       isHighlighted: isHighlighted,
       child: content,
     );
+
+    // Wrapping the full highlight region with the context menu so that
+    // right-click / long-press activates anywhere in the highlight area
+    // (including the avatar column), not just on the message body.
+    content = _wrapWithContextMenu(context, content);
 
     return content;
   }
@@ -226,36 +344,39 @@ class TimelineItem extends StatelessWidget {
     // haven't yet been confirmed by sync.  Events that arrived via
     // sync (`EventStatus.synced`) are already in their final state and
     // don't need a spinner / check / retry icon next to them.
-    final isOutgoing = event.senderId == room.client.userID;
-    final showDelivery = isOutgoing && event.status != EventStatus.synced;
+    final isOutgoing = widget.event.senderId == widget.room.client.userID;
+    final showDelivery =
+        isOutgoing && widget.event.status != EventStatus.synced;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         MessageEventHandler(
-          event: event,
-          timeline: timeline,
-          room: room,
-          fontSize: fontSize,
+          event: widget.event,
+          timeline: widget.timeline,
+          room: widget.room,
+          fontSize: widget.fontSize,
           onJumpToEvent: _onJumpToEvent,
         ),
-        if (timeline != null)
+        if (widget.timeline != null)
           ReactionsBar(
-            event: event,
-            timeline: timeline!,
-            room: room,
+            event: widget.event,
+            timeline: widget.timeline!,
+            room: widget.room,
           ),
         // Read-receipt avatars under every message that someone has seen.
-        if (timeline != null) ReceiptAvatars(event: event, room: room),
+        if (widget.timeline != null)
+          ReceiptAvatars(event: widget.event, room: widget.room),
         if (showDelivery)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: DeliveryIndicator(status: _deliveryStatusFor(event)),
+            child: DeliveryIndicator(
+                status: _deliveryStatusFor(widget.event)),
           ),
-        if (threadReplyCount > 0)
+        if (widget.threadReplyCount > 0)
           ThreadIndicator(
-            replyCount: threadReplyCount,
+            replyCount: widget.threadReplyCount,
             onTap: _onThread,
           ),
       ],
@@ -282,7 +403,7 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
-    final showAvatar = isGroupStart && !isGroupContinuation;
+    final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -296,8 +417,9 @@ class TimelineItem extends StatelessWidget {
                 ? Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: AvatarFromUriOrFallbackImage(
-                      client: room.client,
-                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                      client: widget.room.client,
+                      avatarUri: widget.event.senderFromMemoryOrFallback
+                          .avatarUrl,
                       onTap: () => _openProfile(context),
                     ),
                   )
@@ -311,16 +433,17 @@ class TimelineItem extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Sender name + timestamp (only for group-start)
-                if (isGroupStart)
+                if (widget.isGroupStart)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
                         Flexible(
                           child: Text(
-                            event.senderFromMemoryOrFallback.calcDisplayname(),
+                            widget.event.senderFromMemoryOrFallback
+                                .calcDisplayname(),
                             style: TextStyle(
-                              fontSize: fontSize,
+                              fontSize: widget.fontSize,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurface,
                             ),
@@ -329,9 +452,10 @@ class TimelineItem extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          event.originServerTs.localizedTimeShort(context),
+                          widget.event.originServerTs
+                              .localizedTimeShort(context),
                           style: TextStyle(
-                            fontSize: fontSize * 0.6875,
+                            fontSize: widget.fontSize * 0.6875,
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.45),
@@ -342,15 +466,15 @@ class TimelineItem extends StatelessWidget {
                   ),
                 // No timestamp for continuation messages (time shown on group start)
                 // Hover actions (right-aligned -- away from sender info)
-                HoverActionsWrapper(
-                  event: event,
-                  room: room,
-                  timeline: timeline,
+                HoverItem(
+                  itemKey: widget.itemKey ?? GlobalKey(),
+                  event: widget.event,
+                  room: widget.room,
+                  timeline: widget.timeline,
                   onReply: _onReply,
                   onForward: _onForward,
                   onThread: _onThread,
-                  child:
-                      _wrapWithContextMenu(context, _messageContent(context)),
+                  child: _messageContent(context),
                 ),
               ],
             ),
@@ -366,7 +490,7 @@ class TimelineItem extends StatelessWidget {
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final showAvatar = isGroupStart && !isGroupContinuation;
+    final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -380,8 +504,9 @@ class TimelineItem extends StatelessWidget {
                 ? Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: AvatarFromUriOrFallbackImage(
-                      client: room.client,
-                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                      client: widget.room.client,
+                      avatarUri: widget.event.senderFromMemoryOrFallback
+                          .avatarUrl,
                       onTap: () => _openProfile(context),
                     ),
                   )
@@ -399,17 +524,17 @@ class TimelineItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (isGroupStart)
+                  if (widget.isGroupStart)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4, left: 4),
                       child: Row(
                         children: [
                           Flexible(
                             child: Text(
-                              event.senderFromMemoryOrFallback
+                              widget.event.senderFromMemoryOrFallback
                                   .calcDisplayname(),
                               style: TextStyle(
-                                fontSize: fontSize,
+                                fontSize: widget.fontSize,
                                 fontWeight: FontWeight.w700,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -417,9 +542,10 @@ class TimelineItem extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            event.originServerTs.localizedTimeShort(context),
+                            widget.event.originServerTs
+                                .localizedTimeShort(context),
                             style: TextStyle(
-                              fontSize: fontSize * 0.6875,
+                              fontSize: widget.fontSize * 0.6875,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -434,36 +560,36 @@ class TimelineItem extends StatelessWidget {
                   // panel.
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: HoverActionsWrapper(
-                      event: event,
-                      room: room,
-                      timeline: timeline,
+                    child: HoverItem(
+                      itemKey: widget.itemKey ?? GlobalKey(),
+                      event: widget.event,
+                      room: widget.room,
+                      timeline: widget.timeline,
                       onReply: _onReply,
                       onForward: _onForward,
                       onThread: _onThread,
-                      child: _wrapWithContextMenu(
-                        context,
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: _kMaxBubbleWidth,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: _kMaxBubbleWidth,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color:
+                                cs.primaryContainer.withValues(alpha: 0.3),
+                            borderRadius:
+                                BorderRadius.circular(widget.bubbleRadius),
+                            border: Border.all(
+                              color: cs.primary.withValues(alpha: 0.5),
+                              width: 0.7,
+                            ),
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: cs.primaryContainer.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(bubbleRadius),
-                              border: Border.all(
-                                color: cs.primary.withValues(alpha: 0.5),
-                                width: 0.7,
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _messageContent(context),
-                                // No timestamp for continuation messages
-                              ],
-                            ),
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _messageContent(context),
+                              // No timestamp for continuation messages
+                            ],
                           ),
                         ),
                       ),
@@ -487,9 +613,9 @@ class TimelineItem extends StatelessWidget {
       sender: SizedBox(
         width: 120,
         child: Text(
-          '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
+          '<${widget.event.senderFromMemoryOrFallback.calcDisplayname()}>',
           style: TextStyle(
-            fontSize: fontSize,
+            fontSize: widget.fontSize,
             fontWeight: FontWeight.w700,
           ),
           overflow: TextOverflow.ellipsis,
@@ -497,36 +623,113 @@ class TimelineItem extends StatelessWidget {
         ),
       ),
       timestamp: Text(
-        event.originServerTs.localizedTimeShort(context),
+        widget.event.originServerTs.localizedTimeShort(context),
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
       ),
-      body: _wrapWithContextMenu(
-        context,
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MessageEventHandler(
-              event: event,
-              timeline: timeline,
-              room: room,
-              fontSize: fontSize,
-              onJumpToEvent: _onJumpToEvent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MessageEventHandler(
+            event: widget.event,
+            timeline: widget.timeline,
+            room: widget.room,
+            fontSize: widget.fontSize,
+            onJumpToEvent: _onJumpToEvent,
+          ),
+          if (widget.timeline != null)
+            ReactionsBar(
+              event: widget.event,
+              timeline: widget.timeline!,
+              room: widget.room,
             ),
-            if (timeline != null)
-              ReactionsBar(
-                event: event,
-                timeline: timeline!,
-                room: room,
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
+}
+
+/// Compact equality record used by [_TimelineItemState] to short-circuit
+/// rebuilds when no rendering-relevant input has changed.
+///
+/// Captures identity (content map), length, sender id, timestamp and a
+/// handful of structural flags.  An in-place edit of the event body
+/// invalidates this key via the [contentIdentity] + [bodyLength] pair;
+/// a redaction flips [redacted]; an outgoing send flips [status].
+@immutable
+class _ItemRenderKey {
+  const _ItemRenderKey({
+    required this.displayType,
+    required this.fontSize,
+    required this.bubbleRadius,
+    required this.isGroupStart,
+    required this.isGroupContinuation,
+    required this.threadReplyCount,
+    required this.highlight,
+    required this.redacted,
+    required this.statusName,
+    required this.contentIdentity,
+    required this.bodyLength,
+    required this.senderId,
+    required this.originServerTsMs,
+  });
+
+  final DisplayType displayType;
+  final double fontSize;
+  final double bubbleRadius;
+  final bool isGroupStart;
+  final bool isGroupContinuation;
+  final int threadReplyCount;
+  final bool highlight;
+  final bool redacted;
+
+  /// Captures the [EventStatus.name] (a stable string) rather than the
+  /// enum value itself so the equality check tolerates null returns
+  /// from test mocks without throwing.
+  final String statusName;
+  final int contentIdentity;
+  final int bodyLength;
+  final String senderId;
+  final int originServerTsMs;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _ItemRenderKey &&
+        other.displayType == displayType &&
+        other.fontSize == fontSize &&
+        other.bubbleRadius == bubbleRadius &&
+        other.isGroupStart == isGroupStart &&
+        other.isGroupContinuation == isGroupContinuation &&
+        other.threadReplyCount == threadReplyCount &&
+        other.highlight == highlight &&
+        other.redacted == redacted &&
+        other.statusName == statusName &&
+        other.contentIdentity == contentIdentity &&
+        other.bodyLength == bodyLength &&
+        other.senderId == senderId &&
+        other.originServerTsMs == originServerTsMs;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        displayType,
+        fontSize,
+        bubbleRadius,
+        isGroupStart,
+        isGroupContinuation,
+        threadReplyCount,
+        highlight,
+        redacted,
+        statusName,
+        contentIdentity,
+        bodyLength,
+        senderId,
+        originServerTsMs,
+      );
 }
 
 

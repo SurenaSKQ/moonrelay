@@ -17,6 +17,8 @@
 import 'package:moonrelay/src/chat/animated_history_skeleton.dart';
 import 'package:moonrelay/src/chat/events/date_separator.dart';
 import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
+import 'package:moonrelay/src/chat/hover_overlay.dart';
+import 'package:moonrelay/src/chat/hover_overlay_layer.dart';
 import 'package:moonrelay/src/chat/item_appearance.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
@@ -27,6 +29,7 @@ import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders the list of timeline events with event-type filtering, sender
@@ -123,6 +126,20 @@ class TimelineViewState extends State<TimelineView> {
   /// changes without accessing the private field directly.
   ValueNotifier<int> get undecryptableCountNotifier => _undecryptableCount;
 
+  /// Owns the per-timeline hover state.  Each item registers its hit
+  /// region through a [HoverTarget] that reads / writes this controller;
+  /// the action bar is rendered once at the [TimelineView] root via
+  /// [HoverOverlay].  Lifting the bar out of every item drops a
+  /// per-item [Stack] + [Positioned] + [BoxDecoration] from the hot
+  /// scrolling path.
+  final HoverOverlayController _hoverController = HoverOverlayController();
+
+  /// Key on the [MouseRegion] covering the list viewport.  Used by
+  /// [_onGlobalHover] to convert the [PointerEvent]'s local
+  /// coordinates into global coordinates so the hit-test matches
+  /// against the per-item rects stored via [RenderBox.localToGlobal].
+  final GlobalKey _mouseRegionKey = GlobalKey(debugLabel: 'timeline_mouse');
+
   /// Stable [GlobalKey] per visible event id. Re-built alongside the
   /// cached item list so a `jumpToEvent` can resolve the rendered
   /// [BuildContext] for any event currently on screen.  Without a
@@ -153,8 +170,13 @@ class TimelineViewState extends State<TimelineView> {
   /// The [widget.timelineVersion] when the cache was last built.  Also
   /// embeds other display-affecting props so the cache is invalidated
   /// when font size, display type, or state-event visibility changes.
+  ///
+  /// `highlightedEventId` is intentionally NOT part of the key: the
+  /// highlight is applied per-item via [HoverHighlight] and a
+  /// highlight toggle doesn't require rebuilding the entire item
+  /// list.
   String get _cacheKey =>
-      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}_${widget.isLoadingHistory}_${widget.highlightedEventId}';
+      '${widget.timelineVersion}_${widget.fontSize}_${widget.displayType.index}_${widget.showStateEvents}_${widget.filterEvents.hashCode}_${widget.isLoadingHistory}';
 
   String _lastCacheKey = '';
 
@@ -196,16 +218,24 @@ class TimelineViewState extends State<TimelineView> {
     if (newKey != _lastCacheKey) {
       _invalidateCache();
     }
-    // Recompute the undecryptable count on every prop change. The banner
-    // listens to the ValueNotifier so an arriving encrypted event that
-    // doesn't touch the cache key still produces a correct count as long
-    // as the parent rebuilds this widget (which it does on every sync).
-    _undecryptableCount.value = _countUndecryptable();
+    // Only recompute the undecryptable count when the underlying
+    // timeline content changes (timelineVersion bumped).  Other prop
+    // changes (font size, display type, highlight toggle, filter
+    // changes that don't touch the event set) don't change the count
+    // so we skip the O(n) scan to keep rapid scrolling cheap.  The
+    // banner listens to the ValueNotifier so an arriving encrypted
+    // event that doesn't touch the cache key still produces a correct
+    // count as long as the parent rebuilds this widget (which it does
+    // on every sync via [TimelineView.timelineVersion]).
+    if (oldWidget.timelineVersion != widget.timelineVersion) {
+      _undecryptableCount.value = _countUndecryptable();
+    }
   }
 
   @override
   void dispose() {
     _undecryptableCount.dispose();
+    _hoverController.dispose();
     super.dispose();
   }
 
@@ -388,25 +418,39 @@ class TimelineViewState extends State<TimelineView> {
         // scanning the timeline for each event.
         final replyCount = threadReplyCounts[event.eventId] ?? 0;
 
-        items.add(TimelineItem(
+        items.add(RepaintBoundary(
+          // Each item gets its own layer so a single dirty item
+          // (hover, highlight, optimistic outgoing) only invalidates
+          // its own paint, not the entire viewport. This is the
+          // single biggest win for rapid scrolling: scroll-induced
+          // builds stay cheap because Flutter composites pre-painted
+          // layers instead of repainting every visible message.
           key: _keyFor(event.eventId),
-          event: event,
-          room: widget.room,
-          displayType: widget.displayType,
-          isGroupStart: !isContinuation,
-          isGroupContinuation: isContinuation,
-          timeline: widget.timeline,
-          fontSize: widget.fontSize,
-          bubbleRadius: widget.bubbleRadius,
-          threadReplyCount: replyCount,
-          // Single stable callback for every action: keeps the leaf
-          // closures' identity stable across rebuilds so Flutter can
-          // re-use the existing Element tree instead of inflating new
-          // TimelineItem nodes on every parent build.
-          onAction: (action, e) =>
-              _handleItemAction(action, e, eventIdToItemIndex),
-          highlightedEventId:
-              widget.highlightedEventId ?? _highlightedEventId,
+          child: TimelineItem(
+            event: event,
+            room: widget.room,
+            displayType: widget.displayType,
+            isGroupStart: !isContinuation,
+            isGroupContinuation: isContinuation,
+            timeline: widget.timeline,
+            fontSize: widget.fontSize,
+            bubbleRadius: widget.bubbleRadius,
+            threadReplyCount: replyCount,
+            // Per-item GlobalKey reused by the [HoverTarget] inside
+            // the item to register its hit region with the shared
+            // hover controller.  Same key as the [RepaintBoundary]
+            // above, so the overlay's positioning logic finds the
+            // item's render box via the same anchor the sliver uses.
+            itemKey: _eventKeys[event.eventId],
+            // Single stable callback for every action: keeps the leaf
+            // closures' identity stable across rebuilds so Flutter can
+            // re-use the existing Element tree instead of inflating new
+            // TimelineItem nodes on every parent build.
+            onAction: (action, e) =>
+                _handleItemAction(action, e, eventIdToItemIndex),
+            highlightedEventId:
+                widget.highlightedEventId ?? _highlightedEventId,
+          ),
         ));
 
         eventIdToItemIndex[event.eventId] = items.length - 1;
@@ -461,36 +505,131 @@ class TimelineViewState extends State<TimelineView> {
     final hasMore = widget.isLoadingHistory;
     final extra = hasMore ? _buildHistoryLoadingSkeletons() : <Widget>[];
 
-    // With `reverse: true` the items are painted top-of-viewport to
-    // bottom-of-viewport.  The LAST list index  our skeleton slot
-    // therefore lands at the top of the viewport.  The first 5 items
-    // are at the top of the timeline (the oldest end), which is the
-    // region that gets replaced when new history arrives, so we wrap
-    // those entries with [ItemAppearance] to fade them in cleanly
-    // instead of snapping.
-    return ListView.builder(
+    // `findChildIndexCallback` needs a Key -> index map so a caller
+    // can resolve a [GlobalKey] back to a sliver index in O(1).  Each
+    // item's [Widget.key] is the same [GlobalKey] we hand out from
+    // [_keyFor]; we walk the list once here so the delegate's
+    // callback stays O(1).
+    final Map<Key, int> keyToIndex = <Key, int>{
+      for (var i = 0; i < items.length; i++)
+        if (items[i].key != null) items[i].key!: i,
+    };
+    // The skeleton entry sits at the last sliver index.  We use a
+    // constant key so [_scrollToEventId] can recognise it if it ever
+    // needs to scroll to "the loading-more indicator".
+    const skeletonKey = ValueKey<String>('tl_skeleton');
+
+    final list = ListView.custom(
       controller: widget.scrollController,
       reverse: true,
-      itemCount: items.length + 1,
-      itemBuilder: (context, index) {
-        if (index == items.length) {
-          return AnimatedHistorySkeleton(
-            show: hasMore,
-            children: extra,
-          );
-        }
-        // Animate items that just got paginated in: the oldest end of
-        // the timeline (top of the viewport when `reverse: true`).
-        final isNewestHistory = hasMore && index <= 4;
-        if (isNewestHistory) {
-          return ItemAppearance(
-            key: ValueKey('${items.length}_$index'),
-            child: items[index],
-          );
-        }
-        return items[index];
-      },
+      childrenDelegate: SliverChildBuilderDelegate(
+        _buildItemAt(items, hasMore, extra),
+        childCount: items.length + 1,
+        // Bidirectional Key <-> index map.  Lets
+        // [ScrollPosition.ensureVisible] (and any other call site)
+        // resolve an event id to its exact sliver index in O(1),
+        // dropping the old fraction-based fallback for off-screen
+        // jumps.
+        findChildIndexCallback: (Key key) {
+          if (key == skeletonKey) return items.length;
+          return keyToIndex[key];
+        },
+        addRepaintBoundaries: false,
+        // Each item already wraps itself in a [RepaintBoundary]; we
+        // disable the delegate's automatic per-item layers so we don't
+        // pay for two of them.  We also opt out of the automatic
+        // keep-alive wrapper: chat items are pure functions of their
+        // event plus display inputs, so we don't need to keep
+        // off-screen state alive across scrolls.
+        addAutomaticKeepAlives: false,
+      ),
     );
+
+    // Wrap the list in a [HoverScope] so [HoverItem]s inside each
+    // row can register their hit regions with the shared
+    // controller.  A single global [MouseRegion] covers the list
+    // viewport and drives [HoverOverlayController.hitTest] on
+    // every pointer move: items don't host their own [MouseRegion]
+    // anymore, which avoids the brief "exit-no-enter" gap that
+    // produced the toolbar flash.
+    //
+    // [HoverOverlay] lives alongside so it can find
+    // [Overlay.of(context)] for its toolbar entry.  It returns a
+    // zero-size widget; the toolbar is inserted into the route's
+    // overlay.
+    return HoverScope(
+      controller: _hoverController,
+      child: MouseRegion(
+        key: _mouseRegionKey,
+        // The hit-test region covers the entire timeline so the
+        // global mouse listener sees every cursor move across the
+        // list.  [HitTestBehavior.opaque] ensures this MouseRegion
+        // wins the pointer arena even over child ItemsWigets.
+        hitTestBehavior: HitTestBehavior.opaque,
+        onHover: _onGlobalHover,
+        onExit: _onGlobalExit,
+        child: Stack(
+          children: [
+            // The list is the non-positioned child so the Stack
+            // always sizes to the full available constraints.
+            // [HoverOverlay] returns a zero-size widget and
+            // paints into the route's Overlay, so it doesn't
+            // contribute to the Stack's intrinsic size.
+            list,
+            const HoverOverlay(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Global [MouseRegion] callback.  Converts the pointer's local
+  /// position (relative to this region) into global screen
+  /// coordinates so the hit-test matches against the per-item rects
+  /// stored via [RenderBox.localToGlobal].
+  void _onGlobalHover(PointerHoverEvent event) {
+    final box = _mouseRegionKey.currentContext?.findRenderObject();
+    if (box is! RenderBox) return;
+    final globalPos = box.localToGlobal(event.position);
+    _hoverController.hitTest(globalPos);
+  }
+
+  /// Global [MouseRegion] callback when the cursor leaves the
+  /// timeline viewport entirely.  Schedules a debounced hide so a
+  /// brief excursion outside the timeline (e.g. to the right
+  /// sidebar) doesn't immediately cancel hover.
+  void _onGlobalExit(PointerEvent event) {
+    _hoverController.hitTest(Offset.infinite);
+  }
+
+  /// Builds the per-index builder used by [ListView.custom].
+  ///
+  /// Pulled into a method so the closure captured by the sliver delegate
+  /// stays small (just `items`, `hasMore`, `extra`) and the actual
+  /// branching can be unit tested in isolation.
+  Widget Function(BuildContext, int) _buildItemAt(
+    List<Widget> items,
+    bool hasMore,
+    List<Widget> extra,
+  ) {
+    return (BuildContext context, int index) {
+      if (index == items.length) {
+        return AnimatedHistorySkeleton(
+          show: hasMore,
+          children: extra,
+        );
+      }
+      // Animate items that just got paginated in: the oldest end of
+      // the timeline (top of the viewport when `reverse: true`).
+      final isNewestHistory = hasMore && index <= 4;
+      if (isNewestHistory) {
+        return ItemAppearance(
+          key: ValueKey('${items.length}_$index'),
+          child: items[index],
+        );
+      }
+      return items[index];
+    };
   }
 
   /// Returns skeleton message placeholders shown at the top of the
@@ -524,6 +663,12 @@ class TimelineViewState extends State<TimelineView> {
   /// [Scrollable.ensureVisible] for the exact pixel offset; when it
   /// isn't, we fall back to the previous fraction-based heuristic so
   /// paginated-off-screen targets still scroll in the right direction.
+  ///
+  /// [ListView.custom]'s [SliverChildBuilderDelegate.findChildIndexCallback]
+  /// lets external callers (notably [ChatTimelineState.jumpToEvent])
+  /// resolve an event id to its sliver index in O(1), bypassing this
+  /// callback entirely when the target has been built.  This method
+  /// remains the in-state entry point for jump-to-reply / jump-to-thread.
   void _scrollToEventId(String eventId) {
     final controller = widget.scrollController;
     if (!controller.hasClients) return;
