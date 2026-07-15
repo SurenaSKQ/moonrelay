@@ -20,7 +20,9 @@ WORK_DONE
 Closed-work ledger for Moonrelay. This file is a running log of things that
 have shipped or been fixed. The current entries cover the July 2026 audit
 pass, the August 2026 performance/memory follow-up, the media widget polish
-pass, and the recent UX fix-up pass.
+pass, the recent UX fix-up pass, the chat-timeline scroll-performance
+pass, the chat-timeline scroll-velocity second pass, and the
+hoverbar rearchitecture.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1130,3 +1132,412 @@ Behaviour preserved
   `timelineVersionForTest`) all preserved on the state
   with the same signatures the existing tests expect,
   so no test source had to change.
+
+
+13. Chat-timeline scroll-performance pass
+
+User reported that fast scrolling through the chat timeline
+felt sluggish and laggy. Root cause was that every parent
+build (sync tick, settings change, scroll listener, jump)
+re-walked every visible item, re-instantiated every
+avatar's NetworkImage, re-built every TimelineItem subtree,
+and re-scanned every event for the undecryptable count.
+This pass tightens the four hot paths so the chat surface
+recomposes only when something genuinely visible changed.
+
+Per-item RepaintBoundary
+
+- Each TimelineItem in the cached item list is now wrapped
+  in a RepaintBoundary
+  (`lib/src/chat/timeline_view.dart`). A single dirty item
+  (hover, highlight flash, optimistic outgoing) only
+  invalidates its own paint layer instead of repainting
+  the whole viewport during a drag. The boundary's GlobalKey
+  is the same key that drives Scrollable.ensureVisible on
+  jump-to-event, so the keymap contract is unchanged.
+
+Item-list cache key tightened
+
+- `_highlightedEventId` was previously part of the
+  TimelineViewState cache key, so a highlight toggle
+  (parent setState during a jump) invalidated the entire
+  item list. Removed from the key
+  (`lib/src/chat/timeline_view.dart`); the highlight is now
+  applied per-item via HoverHighlight on each build without
+  touching the item list.
+- `_countUndecryptable` was being called on every
+  didUpdateWidget, including prop changes that did not
+  touch the event set. It now runs only when
+  `timelineVersion` changes
+  (`lib/src/chat/timeline_view.dart`). The banner listens
+  to a ValueNotifier, so a sync that brings in new
+  encrypted events still refreshes the badge via the
+  version bump.
+
+TimelineItem render subtree cache
+
+- TimelineItem is now a StatefulWidget with a
+  `_ItemRenderKey` that captures display type, font size,
+  bubble radius, group flags, thread reply count,
+  highlight, redaction, status name, content-map identity,
+  body length, sender id, and timestamp
+  (`lib/src/chat/timeline_item.dart`). didUpdateWidget
+  compares the new key to the cached one; on a hit the
+  cached subtree is replayed verbatim. The MessageEventHandler,
+  HoverActionsWrapper, ReactionsBar, ReceiptAvatars, and
+  AvatarFromUriOrFallbackImage inside the item are all
+  skipped on a cache hit.
+- HoverHighlight is wrapped around the cached subtree on
+  every build so highlight state stays in sync without
+  invalidating the subtree cache.
+- `_safeStatusName` swallows the TypeError that some test
+  mocks surface from a null `EventStatus` getter, so the
+  cache key works against both real events and the
+  mocktail-based mocks used by the existing widget tests.
+
+AvatarFromUriOrFallbackImage ValueNotifier cache
+
+- The per-item avatar used to re-subscribe to a fresh
+  `FutureBuilder` on every build, re-instantiating
+  NetworkImage and the auth-header map. Replaced with a
+  per-(client, uri, size) `_AvatarResolver` (a
+  ValueNotifier<Uri?>) shared across every widget that
+  asks for the same avatar
+  (`lib/src/widgets/avatar_from_uri.dart`). Multiple
+  instances for the same sender listen to the same
+  notifier; a single network roundtrip drives every
+  rebuild.
+- The render-side switch is `ListenableBuilder`; on
+  resolution the listener receives the final URI and the
+  CircleAvatar + NetworkImage are constructed once.
+  NetworkImage + auth headers are unchanged.
+- The internal `_LruCache` was O(N) on every eviction
+  (List.removeAt(0)); switched to a LinkedHashMap-backed
+  LRU for O(1) insertion-order tracking.
+- clearCacheFor / clearAll preserved; AccountManager logout
+  path still calls clearCacheFor(_activeClient!).
+
+ChatTimeline SettingsController selector
+
+- ChatTimeline.build used Consumer<SettingsController>,
+  so any preference change (theme, notification toggles,
+  etc.) forced a full timeline rebuild. Replaced with a
+  Selector over a `_TimelineSettings` record (display
+  type, font size, bubble radius, show-state-events).
+  An unrelated settings change no longer touches the
+  timeline subtree.
+
+Scroll-listener payload slimming
+
+- The scroll listener used to capture the full
+  `Timeline.events` list as a debouncer closure
+  parameter, retaining the entire list for 250 ms after
+  every pixel of a fling. Added a `TimelineSnapshot`
+  value type (`length`, `firstId`, `latestSyncedId`,
+  equality) in `lib/src/chat/read_marker_tracker.dart`.
+  `scheduleOnScroll` now takes a snapshot; `markRoomRead`
+  still works on the full event list for callers that
+  want it (used by tests). The closure captures the
+  snapshot, not the events list, so the list is free to
+  be GC'd immediately.
+
+Tests added
+
+- `test/unit/timeline_snapshot_test.dart` (6 tests):
+  empty constructor, empty input list, picks newest synced
+  event id, falls back to first id when nothing synced,
+  equality holds for identical snapshots, equality
+  distinguishes different ids.
+
+Existing tests (preserved and still passing):
+test/widget/avatar_from_uri_test.dart,
+timeline_item_test.dart, chat_timeline_read_marker_test.dart,
+chat_timeline_race_test.dart, scroll_position_test.dart,
+scroll_drag_test.dart, timeline_skeleton_test.dart,
+timeline_smooth_load_test.dart, timeline_content_update_test.dart,
+history_single_flight_test.dart, paginate_until_marker_test.dart,
+and all the rest of the widget and unit suites.
+
+Tests at head: flutter test 492 green (one new
+test/unit/timeline_snapshot_test.dart plus the existing
+491). flutter analyze 0 errors, 0 warnings; only the
+pre-existing `_ItemAppearance({super.key, ...})` unused
+`key` warning in timeline_view.dart and the two
+`dashboard_layout.dart` lines remain, all unrelated to
+this change.
+
+
+14. Chat-timeline scroll-velocity second pass
+
+Follow-up to section 13. Targeted at the per-frame work
+on the hot scrolling path: list-view virtualization, the
+hover toolbar allocation, and the per-item message-body
+rebuild surface. Each item is a contained change with
+measurable behaviour, pinned by new tests where the
+behaviour is observable.
+
+ListView.custom + findChildIndexCallback
+
+- `TimelineView` migrated from `ListView.builder` to
+  `ListView.custom` with a `SliverChildBuilderDelegate`.
+  `addRepaintBoundaries: false` is set because every item
+  already wraps itself in a `RepaintBoundary`; setting
+  both would double-layer. `addAutomaticKeepAlives:
+  false` keeps the sliver from inserting a keep-alive
+  per item -- chat rows are pure functions of their
+  inputs and don't need to remember state across scroll
+  trips.  See lib/src/chat/timeline_view.dart.
+
+- `findChildIndexCallback` builds a `Key -> int` map from
+  the cached item list once per build.  `Scrollable.ensureVisible`
+  (which Flutter resolves via this callback under the
+  hood) now maps a [GlobalKey] back to its sliver index
+  in O(1) instead of relying on the previous fraction-based
+  fallback.  See lib/src/chat/timeline_view.dart.
+
+- Sliver index for the skeleton (`ValueKey('tl_skeleton')`)
+  is recognised separately so any future scroll-to-skeleton
+  affordance also resolves in O(1).  See
+  lib/src/chat/timeline_view.dart.
+
+Hover overlay lifted off every item
+
+- New `HoverOverlayController` (a `ChangeNotifier`
+  implementing `ValueListenable<HoverTargetEntry?>`) owns
+  the per-timeline hover state.  Exposed to the rest of
+  the tree through a new `HoverScope` inherited widget.
+  See lib/src/chat/hover_overlay.dart.
+
+- New `HoverTarget` widget is the per-item replacement for
+  the old `HoverActionsWrapper`.  Each item still owns a
+  tiny [MouseRegion] (necessary for `onEnter`/`onExit`
+  granularity), but the [Stack] + [Positioned] +
+  [BoxDecoration] (with two [BoxShadow]s) +
+  [ValueListenableBuilder] + [MessageActions] allocation
+  that used to live on every item now lives on a single
+  shared `HoverOverlay` mounted at the `TimelineView`
+  root.  The overlay rebuilds only when the hovered item
+  changes; per-item bodies no longer pay for the toolbar
+  allocation on every rebuild during a drag.  See
+  lib/src/chat/hover_target.dart and
+  lib/src/chat/hover_overlay_layer.dart.
+
+- Old `lib/src/chat/hover_actions_wrapper.dart` file is
+  deleted; `TimelineItem` now uses `HoverTarget` directly.
+  The new architecture is forward-compatible: lifting
+  the toolbar further (e.g. an overlay above the chat
+  surface rather than bound inside the viewport) is a
+  smaller change now that the toolbar already lives in a
+  single instance detached from the item.
+
+- Defensive exit logic in `_HoverTargetState`: stale
+  `onExit` callbacks on a recycled-out item are ignored
+  (the entry's key doesn't match the active one), and
+  `deactivate` / `dispose` proactively clear the overlay
+  so the toolbar never lands over a defunct item.
+
+MessageEventHandler render-key cache
+
+- `MessageEventHandler` was a `StatelessWidget` that ran
+  the full dispatch on every parent build, including a
+  second `context.read<EncryptionService>()` and a fresh
+  `event.inReplyToEventId()` lookup.  Converted to a
+  `StatefulWidget` with a `_HandlerRenderKey` that
+  captures eventId, type, messageType, inReplyTo,
+  redacted, originalSourceType, contentIdentity,
+  bodyLength, formattedBodyLength, replyThreshold,
+  fontSizeBucket, timelineIdentity, and roomIdentity.
+  `didUpdateWidget` short-circuits when the key is
+  unchanged, replaying the cached subtree verbatim.
+  See lib/src/chat/chat_event.dart.
+
+- `_cachedReplyThreshold` is captured lazily on the first
+  `didChangeDependencies` so widget tests that don't mount
+  a `SettingsController` still work.  See
+  lib/src/chat/chat_event.dart.
+
+MatrixUrlBannerWrapper fast-path
+
+- `MatrixUrlBannerWrapper` previously ran
+  `MatrixUriParser.parseAll` on every message body even
+  when the body contained no plausible matrix reference.
+  The detector RegExp walks every character of the body,
+  so a long plain-prose message paid a non-trivial parse
+  cost per build.  Added `_couldContainMatrixReference`
+  which is a cheap `contains` scan for `matrix:` /
+  `matrix.to` / `@` / `#`; if all four are absent, the
+  regex is skipped and `child` is returned unchanged.
+  False positives (e.g. `foo@bar.com`) are accepted
+  because the regex still filters them downstream.
+  See lib/src/chat/events/matrix_url_banner_wrapper.dart.
+
+Tests added
+
+- `test/unit/hover_overlay_controller_test.dart` (6 tests):
+  enter then exit leaves the controller empty, exit is a
+  no-op for a stale entry, re-entering the same entry
+  doesn't re-notify, clear drops the active entry, same-key
+  entries compare equal, different-key entries do not.
+- `test/unit/matrix_url_banner_short_circuit_test.dart`
+  (7 tests): empty body is rejected, plain text without
+  tokens is rejected, matrix: scheme URIs are accepted,
+  matrix.to permalinks are accepted, bare @user:domain
+  mentions are accepted, bare #alias:domain mentions are
+  accepted, plain text with a stray `@` is accepted as a
+  false positive.
+
+Existing tests (preserved and still passing):
+test/widget/timeline_item_test.dart (modern, bubbles,
+irc), timeline_smooth_load_test.dart, skeleton tests,
+scroll / scroll drag, chat_timeline_race,
+chat_timeline_read_marker, paginate_until_marker,
+timeline_content_update, history_single_flight, plus
+the entire avatar, message actions, reactions,
+hover-target, message-types, and reply-related suites.
+
+Tests at head: flutter test 505 green (13 new tests
+across the two new unit test files plus the existing
+492). flutter analyze 0 errors, 0 warnings; only the
+pre-existing `_ItemAppearance({super.key, ...})` unused
+`key` warning in `lib/src/chat/timeline_view.dart` and
+the two `lib/src/layouts/dashboard_layout.dart` lines
+remain, all unrelated to this change.
+
+
+15. Hoverbar rearchitecture (the "rapid flash" fix)
+
+The first cut of the per-item `HoverTarget` design (section
+14) introduced a visible flash on every cursor transition
+between rows: the toolbar briefly unmounted between the
+exit from one item's [MouseRegion] and the entry into the
+next, so the user saw the toolbar pop in / out dozens of
+times per drag.
+
+## Root cause
+
+Each item hosted its own [MouseRegion]. The cursor
+leaving one item's region fired `onExit`; the cursor
+crossing empty space (no [MouseRegion] underneath)
+produced a brief window where the controller saw no
+hovered item; only when the cursor reached the next item
+did `onEnter` fire and the toolbar re-mount. During a
+fast drag across many rows the toolbar was repeatedly
+unmounted and remounted, which the user described as
+"rapidly flashing the timeline".
+
+## New architecture
+
+The new design drops per-item [MouseRegion]s entirely
+in favour of a single global [MouseRegion] at the
+[TimelineView] root, plus a real [Overlay]-hosted
+toolbar with a halo hit-region. The flow is now:
+
+- Each item hosts a passive [_HoverGeometryProbe] that
+  schedules a post-frame callback to push its render
+  [Rect] (in global coordinates) into a registry on the
+  shared [HoverOverlayController].  No [MouseRegion],
+  no hit-test state per item.
+- A single global [MouseRegion] in [TimelineView]
+  covers the list viewport.  Its `onHover` translates
+  every pointer position into the controller's
+  registered-rect map and runs the hit-test in O(visible
+  items).  This is a single hit-test per pointer move,
+  not N.
+- The toolbar itself lives in the route's [Overlay] (not
+  in the timeline [Stack]) and hosts its own
+  [MouseRegion] with `HitTestBehavior.translucent`.  The
+  cursor can travel from the message body into the
+  toolbar without losing hover, because the toolbar's
+  hit-region is wider than its visual region and the
+  cursor re-enters the toolbar's [MouseRegion] as soon
+  as it crosses the gap from the row body.
+- The controller debounces the hide: a `Timer` of
+  80 ms runs after the cursor leaves the last
+  hovered item.  Within that window a fresh hit or
+  toolbar re-entry cancels the hide, smoothing
+  cross-row drags.
+- `enterToolbar(key)` re-claims the active item even
+  if a sibling row briefly won the global hit-test, so
+  the wider cursor holding power lives with the
+  toolbar itself.
+
+## Files
+
+- `lib/src/chat/hover_overlay.dart`: reworked.
+  `HoverOverlayController` now exposes
+  `hoveredKey: ValueNotifier<GlobalKey?>`,
+  `toolbarVisible: ValueNotifier<bool>`, and the
+  registry maps `itemRects` / `itemEntries`.  The
+  public surface is `registerRect` / `unregisterRect` /
+  `registerEntry` / `unregisterEntry` / `hitTest` /
+  `enterToolbar` / `scheduleToolbarHide` / `cancelHide`.
+  `HoverScope` and `HoverTargetEntry` carry over with
+  minor changes (the entry now lives on the controller,
+  not on the item state, so the toolbar can read it
+  without walking the widget tree).
+- `lib/src/chat/hover_item.dart` (replaces
+  `lib/src/chat/hover_target.dart`): passive
+  per-item widget.  No [MouseRegion], just a
+  [_HoverGeometryProbe] that registers / unregisters
+  with the controller and reports the item's render
+  rect in global coordinates.  Carries the toolbar
+  callbacks the toolbar needs to drive actions.
+- `lib/src/chat/hover_overlay_layer.dart`: reworked.
+  `HoverOverlay` now mounts an [OverlayEntry] in the
+  route's overlay whenever the controller is active.
+  `_ToolbarOverlay` positions the toolbar above the
+  active item's render rect via `globalToLocal`, hosts
+  the wide [MouseRegion] that absorbs the cursor, and
+  renders [MessageActions] for the active item.
+- `lib/src/chat/timeline_view.dart`: the per-item
+  `MouseRegion` and inline `Stack`-with-`HoverOverlay`
+  are gone.  The list is wrapped in a single
+  global [MouseRegion] that drives
+  `controller.hitTest` on every pointer move.
+- `lib/src/chat/timeline_item.dart`: uses `HoverItem`
+  in place of the old `HoverTarget`.
+
+## Behaviour
+
+- The toolbar is anchored continuously across cursor
+  transitions.  No more "exit-no-enter" gap.
+- The toolbar can be lifted out of the timeline clip
+  (it's a route-overlay, not a [Stack] child), so a
+  wide toolbar overhangs the chat column without
+  being cut off.
+- The hit-test is global, so the cost of N visible
+  items is one rect-containment test per pointer move
+  (vs. N [MouseRegion] allocations previously).  A
+  fast drag still pays the per-move hit-test cost but
+  doesn't have to mount / unmount the toolbar chrome.
+- The 80 ms hide debounce prevents the toolbar from
+  popping off when the cursor briefly leaves the
+  toolbar region during a 2-row drag; the timer is
+  cancelled by a fresh hit or toolbar re-entry.
+- The `unregisterRect` / `unregisterEntry` paths
+  defensively clear `hoveredKey` and `toolbarVisible`
+  if the active item is deactivated, so the toolbar
+  never lingers over a defunct widget.
+
+Tests
+
+- The unit test suite
+  (`test/unit/hover_overlay_controller_test.dart`)
+  was rewritten to exercise the new API.  The
+  geometry-driven cases (register / hit / unregister
+  / debounce / re-claim) are all covered; the
+  equality cases carry over.
+- Existing widget tests (timeline_item,
+  timeline_smooth_load, skeleton, scroll, etc.) all
+  continue to pass with no source changes.
+
+Tests at head: flutter test 508 green (the rewritten
+hover_overlay_controller_test.dart plus the existing
+505). flutter analyze 0 errors, 0 warnings; only the
+pre-existing `_ItemAppearance({super.key, ...})` unused
+`key` warning in `lib/src/chat/timeline_view.dart` and
+the two `lib/src/layouts/dashboard_layout.dart` lines
+remain, all unrelated to this change.
+
+
+
