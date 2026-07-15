@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
@@ -22,6 +24,16 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 /// while the thumbnail URL resolves and the image downloads.
 ///
 /// When [avatarUri] is `null` a generic person icon is shown instead.
+///
+/// ## Performance
+///
+/// The thumbnail-resolved URI is cached per `(client, uri, size)` triple
+/// behind a [ValueNotifier].  Multiple widgets asking for the same avatar
+/// all listen to the same notifier, so a single network roundtrip drives
+/// every rebuild.  The widget itself uses [ListenableBuilder] (not
+/// [FutureBuilder]) so a parent rebuild does not re-subscribe to a fresh
+/// Future and re-instantiate the [NetworkImage] -- the resolved image URL
+/// is the only thing that changes once the cache is warm.
 class AvatarFromUriOrFallbackImage extends StatelessWidget {
   const AvatarFromUriOrFallbackImage({
     super.key,
@@ -37,41 +49,26 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   final double? radius;
 
   // ── Memoization ─────────────────────────────────────────────────────────
-  // Each (client, uri, size) triple resolves to a single Future<Uri>. The
-  // cache is a true LRU bounded by entry count; previously it grew without
-  // bound. Keyed by the client's `userID` (or the runtime hash as a last
-  // resort) so a future re-login reuses entries and a GC'd client cannot
-  // collide its hash with a freshly-allocated one.
-  static final Map<String, _LruCache<String, Future<Uri>>> _thumbnailPromises =
-      {};
+  // Each (client, uri, size) triple resolves to a single ValueNotifier
+  // whose value transitions `null -> Uri` once the SDK returns. The
+  // underlying Future is shared across concurrent subscribers.
+  static final Map<String, _LruCache<_AvatarKey, _AvatarResolver>> _resolvers =
+      <String, _LruCache<_AvatarKey, _AvatarResolver>>{};
 
-  /// Bounded per-client LRU for in-flight + completed thumbnail promises.
+  /// Bounded per-client LRU for active avatar resolvers.
   /// The cap is small because the only call site uses a single (uri, size)
   /// per avatar and the avatar surface is finite.
   static const int _maxEntries = 512;
 
-  static Future<Uri> _getThumbnail(
-    Client client,
-    Uri uri,
-    int displaySize,
-  ) {
-    final key = _clientKey(client);
-    final cache = _thumbnailPromises.putIfAbsent(key, () {
-      final c = _LruCache<String, Future<Uri>>(_maxEntries);
-      return c;
-    });
-    final entry = '${uri.toString()}::$displaySize';
+  static _AvatarResolver _getResolver(Client client, Uri uri, int size) {
+    final cache = _resolvers.putIfAbsent(
+      _clientKey(client),
+      () => _LruCache<_AvatarKey, _AvatarResolver>(_maxEntries),
+    );
+    final key = _AvatarKey(uri, size);
     return cache.getOrCompute(
-      entry,
-      () => withTimeoutOrFallback(
-        () => uri.getThumbnailUri(
-          client,
-          width: displaySize,
-          height: displaySize,
-        ),
-        timeout: kDefaultTimeout,
-        fallback: uri,
-      ),
+      key,
+      () => _AvatarResolver(client, uri, size),
     );
   }
 
@@ -87,38 +84,38 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   /// Drops cached thumbnails for the given [client]. Call on logout /
   /// client disposal.
   static void clearCacheFor(Client client) {
-    _thumbnailPromises.remove(_clientKey(client));
+    _resolvers.remove(_clientKey(client));
   }
 
   /// Drops every cached thumbnail. Useful from the settings "clear caches"
   /// affordance and from tests.
   static void clearAll() {
-    _thumbnailPromises.clear();
+    _resolvers.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displaySize = ((radius ?? 20) * 2).round();
+    final uri = avatarUri;
 
+    if (uri == null) {
+      return GestureDetector(onTap: onTap, child: _placeholder(theme));
+    }
+
+    final resolver = _getResolver(client, uri, displaySize);
     return GestureDetector(
       onTap: onTap,
-      child: avatarUri == null
-          ? _placeholder(theme)
-          : FutureBuilder<Uri>(
-              future: _getThumbnail(client, avatarUri!, displaySize),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return _avatarWithErrorHandling(
-                    context,
-                    theme,
-                    snapshot.data.toString(),
-                  );
-                }
-                // Themed placeholder while the thumbnail URL resolves.
-                return _placeholder(theme);
-              },
-            ),
+      child: ListenableBuilder(
+        listenable: resolver,
+        builder: (context, _) {
+          final resolved = resolver.value;
+          if (resolved != null) {
+            return _avatarWithErrorHandling(context, theme, resolved);
+          }
+          return _placeholder(theme);
+        },
+      ),
     );
   }
 
@@ -137,14 +134,14 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   Widget _avatarWithErrorHandling(
     BuildContext context,
     ThemeData theme,
-    String imageUrl,
+    Uri resolvedUri,
   ) {
     final avatarRadius = radius ?? 20.0;
 
     return CircleAvatar(
       radius: avatarRadius,
       backgroundImage: NetworkImage(
-        imageUrl,
+        resolvedUri.toString(),
         headers: {
           'authorization': 'Bearer ${client.accessToken}',
         },
@@ -155,39 +152,93 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   }
 }
 
-/// Bounded LRU map used for the avatar-thumbnail memoization. Insertion
-/// order is tracked in [_lruOrder]; on a cache hit the entry is
-/// promoted to MRU; on overflow the LRU entry is dropped.
+@immutable
+class _AvatarKey {
+  const _AvatarKey(this.uri, this.size);
+  final Uri uri;
+  final int size;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _AvatarKey && other.uri == uri && other.size == size;
+
+  @override
+  int get hashCode => Object.hash(uri, size);
+}
+
+/// Resolves a Matrix thumbnail URI exactly once and exposes the result
+/// as a [ValueListenable].
+///
+/// The same [Uri] requested from many widget instances reuses the same
+/// resolver, so a single network roundtrip drives every listener.
+class _AvatarResolver extends ValueNotifier<Uri?> {
+  _AvatarResolver(this._client, this._uri, this._size) : super(null) {
+    _kickOff();
+  }
+
+  final Client _client;
+  final Uri _uri;
+  final int _size;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _kickOff() {
+    // Kick off the async work eagerly.  Using an immediate async
+    // invocation (rather than `Future(() async {...})`) avoids
+    // scheduling a Timer on platforms where `Future(...)` would defer
+    // to the timer queue; it also matches the original FutureBuilder
+    // behaviour where the underlying Future was created synchronously.
+    _runAsync();
+  }
+
+  Future<void> _runAsync() async {
+    try {
+      final resolved = await withTimeoutOrFallback(
+        () => _uri.getThumbnailUri(
+          _client,
+          width: _size,
+          height: _size,
+        ),
+        timeout: kDefaultTimeout,
+        fallback: _uri,
+      );
+      if (!_disposed) value = resolved;
+    } catch (_) {
+      if (!_disposed) value = _uri;
+    }
+  }
+}
+
+/// Bounded LRU map used for the avatar-thumbnail memoization.
+///
+/// Uses [LinkedHashMap] for O(1) insertion-order tracking; previously
+/// the implementation walked a parallel [List] on every eviction which
+/// made rapid scrolling across many distinct senders visibly slower.
 class _LruCache<K, V> {
   _LruCache(this._maxEntries);
 
   final int _maxEntries;
-  final Map<K, V> _map = {};
-  final List<K> _lruOrder = [];
-
-  V? get(K key) => _map[key];
+  final LinkedHashMap<K, V> _map = LinkedHashMap<K, V>();
 
   V getOrCompute(K key, V Function() compute) {
     final existing = _map[key];
     if (existing != null) {
-      _touch(key);
+      // Reinsert to move the entry to the most-recently-used end.
+      _map.remove(key);
+      _map[key] = existing;
       return existing;
     }
     final value = compute();
     _map[key] = value;
-    _lruOrder.add(key);
-    while (_lruOrder.length > _maxEntries) {
-      final oldest = _lruOrder.removeAt(0);
-      _map.remove(oldest);
+    while (_map.length > _maxEntries) {
+      _map.remove(_map.keys.first);
     }
     return value;
-  }
-
-  void _touch(K key) {
-    final idx = _lruOrder.indexOf(key);
-    if (idx < 0) return;
-    if (idx == _lruOrder.length - 1) return;
-    _lruOrder.removeAt(idx);
-    _lruOrder.add(key);
   }
 }
