@@ -16,12 +16,15 @@
 
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
-import 'package:moonrelay/src/chat/message_actions.dart';
+import 'package:moonrelay/src/chat/hover_actions_wrapper.dart';
+import 'package:moonrelay/src/chat/hover_highlight.dart';
+import 'package:moonrelay/src/chat/irc_row.dart';
 import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/chat/receipt_avatars.dart';
+import 'package:moonrelay/src/chat/redacted_event.dart';
+import 'package:moonrelay/src/chat/thread_indicator.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -188,7 +191,7 @@ class TimelineItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isRedacted) {
-      return _RedactedEvent(
+      return RedactedEvent(
         event: event,
         isGroupContinuation: isGroupContinuation,
       );
@@ -206,7 +209,7 @@ class TimelineItem extends StatelessWidget {
         content = _buildIrc(context);
     }
 
-    content = _HoverHighlight(
+    content = HoverHighlight(
       isHighlighted: isHighlighted,
       child: content,
     );
@@ -251,7 +254,7 @@ class TimelineItem extends StatelessWidget {
             child: DeliveryIndicator(status: _deliveryStatusFor(event)),
           ),
         if (threadReplyCount > 0)
-          _ThreadIndicator(
+          ThreadIndicator(
             replyCount: threadReplyCount,
             onTap: _onThread,
           ),
@@ -339,7 +342,7 @@ class TimelineItem extends StatelessWidget {
                   ),
                 // No timestamp for continuation messages (time shown on group start)
                 // Hover actions (right-aligned -- away from sender info)
-                _HoverActionsWrapper(
+                HoverActionsWrapper(
                   event: event,
                   room: room,
                   timeline: timeline,
@@ -431,7 +434,7 @@ class TimelineItem extends StatelessWidget {
                   // panel.
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: _HoverActionsWrapper(
+                    child: HoverActionsWrapper(
                       event: event,
                       room: room,
                       timeline: timeline,
@@ -480,7 +483,7 @@ class TimelineItem extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    return _IRCRow(
+    return IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
@@ -526,327 +529,6 @@ class TimelineItem extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hover actions wrapper (Modern & Bubbles only)
-// ---------------------------------------------------------------------------
 
-/// Wraps [child] with a [MouseRegion] and overlays action buttons at the
-/// top‑right corner of the message when the user hovers over it.
-///
-/// Actions include **React**, **Reply**, **Forward**, **Details**, **Edit**,
-/// **Delete** (when permitted), and **Moderation** for users with sufficient
-/// permissions.
-///
-/// When [onReply] is `null` the whole mechanism is skipped and [child] is
-/// returned as-is.  The [onReply], [onForward], and [onThread] callbacks
-/// are passed in from [TimelineItem] and are stable across rebuilds.
-class _HoverActionsWrapper extends StatefulWidget {
-  const _HoverActionsWrapper({
-    required this.child,
-    required this.event,
-    required this.room,
-    required this.timeline,
-    this.onReply,
-    this.onForward,
-    this.onThread,
-  });
 
-  final Widget child;
-  final Event event;
-  final Room room;
-  final Timeline? timeline;
-  final VoidCallback? onReply;
-  final VoidCallback? onForward;
-  final VoidCallback? onThread;
 
-  @override
-  State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
-}
-
-class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
-  /// Hover state held in a [ValueNotifier] so a mouse enter/exit
-  /// rebuilds only the overlay leaf, not the whole message body.
-  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
-
-  @override
-  void dispose() {
-    _isHovered.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // No reply callback means no actions at all - skip the overhead.
-    if (widget.onReply == null) return widget.child;
-
-    final cs = Theme.of(context).colorScheme;
-
-    return MouseRegion(
-      onEnter: (_) => _isHovered.value = true,
-      onExit: (_) => _isHovered.value = false,
-      child: Stack(
-        children: [
-          widget.child,
-          // Only the overlay re-builds on hover toggles; the message
-          // body subtree (the `widget.child` above) is unaffected.
-          ValueListenableBuilder<bool>(
-            valueListenable: _isHovered,
-            builder: (context, hovered, _) {
-              if (!hovered) return const SizedBox.shrink();
-              return Positioned(
-                top: -4,
-                right: 0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: cs.outlineVariant,
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  child: MessageActions(
-                    event: widget.event,
-                    room: widget.room,
-                    timeline: widget.timeline,
-                    onReply: widget.onReply!,
-                    onForward: widget.onForward,
-                    onThread: widget.onThread,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Redacted event indicator
-// ---------------------------------------------------------------------------
-
-/// Renders a compact placeholder for redacted (deleted) messages.
-class _RedactedEvent extends StatelessWidget {
-  const _RedactedEvent({
-    required this.event,
-    required this.isGroupContinuation,
-  });
-
-  final Event event;
-  final bool isGroupContinuation;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.delete,
-            size: 14,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            AppLocalizations.of(context)!.messageDeleted,
-            style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Thread indicator ──────────────────────────────────────────────────────────
-
-/// A clickable indicator shown below a message when it has thread replies.
-/// Shows the reply count and navigates to the thread view on tap.
-class _ThreadIndicator extends StatelessWidget {
-  const _ThreadIndicator({
-    required this.replyCount,
-    this.onTap,
-  });
-
-  final int replyCount;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: scheme.primary.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.forum_rounded,
-                size: 14,
-                color: scheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.threadReplies(replyCount),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.primary,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right,
-                size: 14,
-                color: scheme.primary.withValues(alpha: 0.6),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Hover highlight & reply-jump flash
-// ---------------------------------------------------------------------------
-
-/// Wraps a chat item and applies a subtle background tint when the mouse
-/// hovers over it, plus a stronger flash when [isHighlighted] is true
-/// (triggered by a reply jump-to).
-///
-/// Uses [ColorScheme.surfaceContainerHighest] tones that adapt cleanly
-/// to both light and dark themes.
-class _HoverHighlight extends StatefulWidget {
-  const _HoverHighlight({
-    required this.isHighlighted,
-    required this.child,
-  });
-
-  final bool isHighlighted;
-  final Widget child;
-
-  @override
-  State<_HoverHighlight> createState() => _HoverHighlightState();
-}
-
-class _HoverHighlightState extends State<_HoverHighlight> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    Color bgColor;
-    if (widget.isHighlighted) {
-      bgColor = cs.primary.withValues(alpha: 0.15);
-    } else if (_isHovered) {
-      bgColor = cs.surfaceContainerHighest.withValues(alpha: 0.5);
-    } else {
-      bgColor = Colors.transparent;
-    }
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: bgColor,
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// IRC row layout
-// ---------------------------------------------------------------------------
-
-/// Renders a single IRC-style message row with the sender always visible and
-/// the timestamp shown only on hover at the end of the row.
-class _IRCRow extends StatefulWidget {
-  const _IRCRow({
-    required this.sender,
-    required this.timestamp,
-    required this.body,
-  });
-
-  final Widget sender;
-  final Widget timestamp;
-  final Widget body;
-
-  @override
-  State<_IRCRow> createState() => _IRCRowState();
-}
-
-class _IRCRowState extends State<_IRCRow> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                widget.sender,
-                const SizedBox(width: 8),
-                Expanded(child: widget.body),
-              ],
-            ),
-            if (_isHovered)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: widget.timestamp,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
