@@ -44,7 +44,7 @@ import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
 ///
 /// Encrypted events (m.room.encrypted) are automatically handled by the SDK;
 /// this widget wraps the decrypted content with a trust indicator.
-class MessageEventHandler extends StatelessWidget {
+class MessageEventHandler extends StatefulWidget {
   const MessageEventHandler({
     super.key,
     required this.event,
@@ -71,9 +71,98 @@ class MessageEventHandler extends StatelessWidget {
   final void Function(String eventId)? onJumpToEvent;
 
   @override
-  Widget build(BuildContext context) {
-    final fs = fontSize;
+  State<MessageEventHandler> createState() => _MessageEventHandlerState();
+}
 
+class _MessageEventHandlerState extends State<MessageEventHandler> {
+  /// Captures the inputs that influence what this widget renders.  Used
+  /// by [didUpdateWidget] to short-circuit rebuilds when nothing
+  /// rendering-relevant has changed.
+  ///
+  /// The matrix SDK mutates [Event.content] and [Event.messageType]
+  /// in place, so identity comparison alone isn't enough: we hash the
+  /// dispatch-determining fields.  This trims the rebuild cost on every
+  /// parent build during rapid scrolling -- the cached subtree is
+  /// replayed verbatim when the key is unchanged.
+  late _HandlerRenderKey _renderKey;
+  Widget? _cachedSubtree;
+
+  @override
+  void initState() {
+    super.initState();
+    _renderKey = _computeKey();
+  }
+
+  @override
+  void didUpdateWidget(covariant MessageEventHandler oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _computeKey();
+    if (next == _renderKey) return;
+    _renderKey = next;
+    _cachedSubtree = null;
+  }
+
+  /// Hash of every input that influences the rendered widget subtree.
+  /// Captures identity via the [contentIdentity] / [bodyLength] /
+  /// [formattedBodyLength] pair so an in-place edit of an existing
+  /// event invalidates the cache.
+  _HandlerRenderKey _computeKey() {
+    final ev = widget.event;
+    final content = ev.content;
+    final rawBody = content['body'] as String?;
+    final rawFormatted = content['formatted_body'] as String?;
+    return _HandlerRenderKey(
+      eventId: ev.eventId,
+      type: ev.type,
+      messageType: ev.messageType,
+      inReplyTo: ev.inReplyToEventId(),
+      redacted: ev.redacted,
+      originalSourceType: ev.originalSource?.type,
+      contentIdentity: identityHashCode(content),
+      bodyLength: rawBody?.length ?? 0,
+      formattedBodyLength: rawFormatted?.length ?? 0,
+      replyThreshold: _cachedReplyThreshold,
+      fontSizeBucket: (widget.fontSize * 10).round(),
+      timelineIdentity: identityHashCode(widget.timeline),
+      roomIdentity: identityHashCode(widget.room),
+    );
+  }
+
+  /// Cached read of [SettingsController.replyPreviewThreshold], populated
+  /// lazily on the first [didChangeDependencies] so widget tests that
+  /// don't mount a provider tree still work.  Keying on this in the
+  /// [_HandlerRenderKey] lets the cache survive a font-size / threshold
+  /// change without being torn down wholesale.
+  int _cachedReplyThreshold = 90;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final next =
+          context.read<SettingsController>().replyPreviewThreshold;
+      if (next != _cachedReplyThreshold) {
+        _cachedReplyThreshold = next;
+        final updated = _computeKey();
+        if (updated != _renderKey) {
+          setState(() {
+            _renderKey = updated;
+            _cachedSubtree = null;
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // No provider in tree -- keep the static default.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cached = _cachedSubtree;
+    if (cached != null) return cached;
+
+    final fs = widget.fontSize;
     // Use `read` rather than `watch` so this widget does NOT subscribe
     // to [EncryptionService] notifications. The verification result is
     // memoized internally (see `EncryptionService.isDeviceVerifiedById`)
@@ -82,6 +171,15 @@ class MessageEventHandler extends StatelessWidget {
     // Previously this `watch` caused every visible message in the
     // timeline to rebuild on every sync tick.
     final enc = context.read<EncryptionService>();
+    final result = _build(enc, fs);
+    _cachedSubtree = result;
+    return result;
+  }
+
+  /// The actual dispatch.  Pulled out of [build] so the cache-replay
+  /// short-circuit stays one path.
+  Widget _build(EncryptionService enc, double fs) {
+    final event = widget.event;
 
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
@@ -128,7 +226,7 @@ class MessageEventHandler extends StatelessWidget {
     return _renderContent(fs);
   }
 
-  /// Checks whether the device that sent this event is verified via
+  /// Checks whether the device that sent [event] is verified via
   /// cross-signing.
   ///
   /// For decrypted events the sender's device ID is extracted from
@@ -139,7 +237,8 @@ class MessageEventHandler extends StatelessWidget {
   ///
   /// Falls back to user-level verification when the sender's device ID is
   /// not available (e.g. unencrypted events).
-  bool _isDeviceVerified(EncryptionService enc) {
+  static bool _isDeviceVerifiedFor(
+      EncryptionService enc, Event event) {
     // 1. Try the original encrypted source (available after decryption).
     final fromOriginal = event.originalSource?.content['device_id'] as String?;
     if (fromOriginal != null) {
@@ -159,6 +258,12 @@ class MessageEventHandler extends StatelessWidget {
     return enc.isUserVerifiedById(event.senderId);
   }
 
+  /// Convenience instance accessor used by [_build] so the call sites
+  /// stay short and reference the current widget event without a
+  /// shadowing local.
+  bool _isDeviceVerified(EncryptionService enc) =>
+      _isDeviceVerifiedFor(enc, widget.event);
+
   /// Strips the `<mx-reply>…</mx-reply>` wrapper from a Matrix HTML body
   /// so that the actual message content remains.
   static String _stripReplyHtml(String html) {
@@ -169,6 +274,9 @@ class MessageEventHandler extends StatelessWidget {
   }
 
   Widget _renderContent(double fontSize) {
+    final event = widget.event;
+    final room = widget.room;
+    final timeline = widget.timeline;
     // Failed decryption  show the decryption-failed placeholder
     // with a manual key-request button.
     if (event.type == EventTypes.Encrypted) {
@@ -271,6 +379,8 @@ class MessageEventHandler extends StatelessWidget {
   /// any Matrix URLs (room aliases, user IDs, permalinks) found in the body
   /// render as interactive banners below the message.
   Widget _buildTextContent(double fontSize) {
+    final event = widget.event;
+    final room = widget.room;
     final textWidget = FormattedTextWidget(
       event: event,
       baseFontSize: fontSize,
@@ -279,7 +389,7 @@ class MessageEventHandler extends StatelessWidget {
     if (room == null) return textWidget;
     return MatrixUrlBannerWrapper(
       textBody: event.body,
-      room: room!,
+      room: room,
       event: event,
       child: textWidget,
     );
@@ -288,6 +398,9 @@ class MessageEventHandler extends StatelessWidget {
   /// Builds the content for a reply event: a reply preview header followed
   /// by the actual message body (with the `<mx-reply>` wrapper stripped).
   Widget _buildReplyContent(String replyId, double fontSize) {
+    final event = widget.event;
+    final room = widget.room;
+    final timeline = widget.timeline;
     // Strip reply HTML from the formatted body so we only render the
     // actual message.
     final rawFormatted = event.content['formatted_body'] as String?;
@@ -298,7 +411,7 @@ class MessageEventHandler extends StatelessWidget {
     Event? repliedTo;
     if (timeline != null) {
       try {
-        repliedTo = timeline!.events.firstWhere(
+        repliedTo = timeline.events.firstWhere(
           (e) => e.eventId == replyId,
         );
       } catch (_) {
@@ -314,7 +427,7 @@ class MessageEventHandler extends StatelessWidget {
           repliedTo: repliedTo,
           replyId: replyId,
           room: room,
-          onJumpToEvent: onJumpToEvent,
+          onJumpToEvent: widget.onJumpToEvent,
         ),
         const SizedBox(height: 4),
         FormattedTextWidget(
@@ -328,7 +441,7 @@ class MessageEventHandler extends StatelessWidget {
     if (room == null) return content;
     return MatrixUrlBannerWrapper(
       textBody: event.body,
-      room: room!,
+      room: room,
       event: event,
       child: content,
     );
@@ -565,4 +678,81 @@ bool isEditedMessage(Event event) {
   } catch (_) {
     return false;
   }
+}
+
+/// Compact equality record used by
+/// [_MessageEventHandlerState] to short-circuit rebuilds when nothing
+/// rendering-relevant has changed.
+///
+/// Captures identity (content map, timeline, room) so an in-place
+/// edit of an event invalidates the cache, plus length fingerprints
+/// of the body / formatted body so an SDK mutation that swaps the
+/// string in place still triggers a rebuild.
+@immutable
+class _HandlerRenderKey {
+  const _HandlerRenderKey({
+    required this.eventId,
+    required this.type,
+    required this.messageType,
+    required this.inReplyTo,
+    required this.redacted,
+    required this.originalSourceType,
+    required this.contentIdentity,
+    required this.bodyLength,
+    required this.formattedBodyLength,
+    required this.replyThreshold,
+    required this.fontSizeBucket,
+    required this.timelineIdentity,
+    required this.roomIdentity,
+  });
+
+  final String eventId;
+  final String type;
+  final String messageType;
+  final String? inReplyTo;
+  final bool redacted;
+  final String? originalSourceType;
+  final int contentIdentity;
+  final int bodyLength;
+  final int formattedBodyLength;
+  final int replyThreshold;
+  final int fontSizeBucket;
+  final int timelineIdentity;
+  final int roomIdentity;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _HandlerRenderKey &&
+        other.eventId == eventId &&
+        other.type == type &&
+        other.messageType == messageType &&
+        other.inReplyTo == inReplyTo &&
+        other.redacted == redacted &&
+        other.originalSourceType == originalSourceType &&
+        other.contentIdentity == contentIdentity &&
+        other.bodyLength == bodyLength &&
+        other.formattedBodyLength == formattedBodyLength &&
+        other.replyThreshold == replyThreshold &&
+        other.fontSizeBucket == fontSizeBucket &&
+        other.timelineIdentity == timelineIdentity &&
+        other.roomIdentity == roomIdentity;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        eventId,
+        type,
+        messageType,
+        inReplyTo,
+        redacted,
+        originalSourceType,
+        contentIdentity,
+        bodyLength,
+        formattedBodyLength,
+        replyThreshold,
+        fontSizeBucket,
+        timelineIdentity,
+        roomIdentity,
+      );
 }
