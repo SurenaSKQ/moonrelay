@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/chat_timeline_floating_actions.dart';
+import 'package:moonrelay/src/chat/chat_unread_utils.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/pinned_events_list.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
@@ -99,34 +100,10 @@ class ChatTimeline extends StatefulWidget {
 /// unread chat content.  The jump target inherits the same rule: when
 /// the user invokes it, the destination is the first real message after
 /// the marker, not the first state event.
-int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
-  if (events == null || events.isEmpty) return 0;
-  var count = 0;
-  // When the marker is empty we treat every visible event as unread.
-  // Still skip state events so a room with only state activity (e.g.
-  // membership churn) does not pretend to have unread messages.
-  if (fullyReadEventId.isEmpty) {
-    for (final ev in events) {
-      if (_isMessageLikeEvent(ev)) count++;
-    }
-    return count;
-  }
-  for (final ev in events) {
-    if (ev.eventId == fullyReadEventId) break;
-    if (_isMessageLikeEvent(ev)) count++;
-  }
-  return count;
-}
-
-/// True when [event] should count toward the unread total: regular
-/// chat messages, stickers, and any future message-type event.  State
-/// events (member changes, topic edits, encryption, etc.) return
-/// `false` because they are bookkeeping the SDK manages on the user's
-/// behalf and don't warrant a "jump to unread" nudge.
-bool _isMessageLikeEvent(Event event) {
-  return event.type == EventTypes.Message ||
-      event.type == EventTypes.Sticker;
-}
+///
+/// Implemented in [chat_unread_utils.dart] and re-exported for
+/// convenience.  Replaces a duplicated inline version that was
+/// previously defined here.
 
 class ChatTimelineState extends State<ChatTimeline>
     with LifecycleGeneration {
@@ -759,7 +736,7 @@ class ChatTimelineState extends State<ChatTimeline>
   /// member join or topic change.
   int _findFirstUnreadMessageIndex(List<Event> events, int startIdx) {
     for (var i = startIdx; i >= 0; i--) {
-      if (_isMessageLikeEvent(events[i])) return i;
+      if (isMessageLikeEvent(events[i])) return i;
     }
     return -1;
   }
@@ -769,7 +746,7 @@ class ChatTimelineState extends State<ChatTimeline>
   /// window so we need the newest message-like event in the cache.
   int _findFirstUnreadMessageIndexFromEnd(List<Event> events) {
     for (var i = events.length - 1; i >= 0; i--) {
-      if (_isMessageLikeEvent(events[i])) return i;
+      if (isMessageLikeEvent(events[i])) return i;
     }
     return -1;
   }
