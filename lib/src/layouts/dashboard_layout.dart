@@ -36,6 +36,7 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/common/status_card.dart';
 import 'package:moonrelay/src/widgets/sidebar_members_list.dart';
 import 'package:moonrelay/src/widgets/sidebar_pinned_messages.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
@@ -862,7 +863,7 @@ class _SidebarRoomInfoState extends State<_SidebarRoomInfo> {
           const SizedBox(height: 24),
 
           // Encryption status
-          _StatusCard(
+          StatusCard(
             icon: _encrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: _encrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             color: _encrypted ? scheme.primary : scheme.error,
@@ -913,47 +914,6 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// A small card that highlights a status (e.g. encryption state).
-class _StatusCard extends StatelessWidget {
-  const _StatusCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
