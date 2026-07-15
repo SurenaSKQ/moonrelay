@@ -14,17 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/chat/animated_history_skeleton.dart';
 import 'package:moonrelay/src/chat/events/date_separator.dart';
+import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
+import 'package:moonrelay/src/chat/item_appearance.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
 import 'package:moonrelay/src/chat/timeline_item.dart';
-import 'package:moonrelay/src/helpers/date_time_extension.dart';
-import 'package:moonrelay/src/helpers/thread_utils.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/chat/undecryptable_banner.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders the list of timeline events with event-type filtering, sender
@@ -113,9 +115,13 @@ class TimelineViewState extends State<TimelineView> {
   String? _highlightedEventId;
 
   /// Count of currently-visible encrypted events that can't be decrypted,
-  /// exposed to the [_UndecryptableBanner] via [ValueListenable] so the
+  /// exposed to the [UndecryptableBanner] via [ValueListenable] so the
   /// banner reflects new arrivals without forcing a full item-list rebuild.
   final ValueNotifier<int> _undecryptableCount = ValueNotifier<int>(0);
+
+  /// Public accessor so [UndecryptableBanner] can listen for count
+  /// changes without accessing the private field directly.
+  ValueNotifier<int> get undecryptableCountNotifier => _undecryptableCount;
 
   /// Stable [GlobalKey] per visible event id. Re-built alongside the
   /// cached item list so a `jumpToEvent` can resolve the rendered
@@ -414,7 +420,7 @@ class TimelineViewState extends State<TimelineView> {
     // means new encrypted events refresh the badge without invalidating
     // the item-list cache or rebuilding every [TimelineItem].
     _undecryptableCount.value = undecryptableCount;
-    items.insert(0, const _UndecryptableBanner());
+    items.insert(0, const UndecryptableBanner());
 
     _cachedItems = items;
     _cachedEventIdToItemIndex = eventIdToItemIndex;
@@ -460,7 +466,7 @@ class TimelineViewState extends State<TimelineView> {
     // therefore lands at the top of the viewport.  The first 5 items
     // are at the top of the timeline (the oldest end), which is the
     // region that gets replaced when new history arrives, so we wrap
-    // those entries with [_ItemAppearance] to fade them in cleanly
+    // those entries with [ItemAppearance] to fade them in cleanly
     // instead of snapping.
     return ListView.builder(
       controller: widget.scrollController,
@@ -468,7 +474,7 @@ class TimelineViewState extends State<TimelineView> {
       itemCount: items.length + 1,
       itemBuilder: (context, index) {
         if (index == items.length) {
-          return _AnimatedHistorySkeleton(
+          return AnimatedHistorySkeleton(
             show: hasMore,
             children: extra,
           );
@@ -477,7 +483,7 @@ class TimelineViewState extends State<TimelineView> {
         // the timeline (top of the viewport when `reverse: true`).
         final isNewestHistory = hasMore && index <= 4;
         if (isNewestHistory) {
-          return _ItemAppearance(
+          return ItemAppearance(
             key: ValueKey('${items.length}_$index'),
             child: items[index],
           );
@@ -497,7 +503,7 @@ class TimelineViewState extends State<TimelineView> {
   /// gap that snapped out of view once any real event arrived.
   List<Widget> _buildHistoryLoadingSkeletons() {
     return const <Widget>[
-      _HistorySkeletonTile(barFraction: 0.65),
+      HistorySkeletonTile(barFraction: 0.65),
     ];
   }
 
@@ -918,82 +924,4 @@ class _HistorySkeletonTileState extends State<_HistorySkeletonTile>
   }
 }
 
-/// Banner shown at the bottom of the timeline when one or more messages
-/// can't be decrypted (no session key, device not verified, etc.).
-///
-/// The [TimelineViewState] owns a [ValueNotifier] for the undecryptable
-/// count and feeds it into this widget, so the count updates whenever a
-/// new encrypted event arrives without a full timeline rebuild.
-class _UndecryptableBanner extends StatelessWidget {
-  const _UndecryptableBanner();
 
-  @override
-  Widget build(BuildContext context) {
-    final TimelineViewState? state =
-        context.findAncestorStateOfType<TimelineViewState>();
-
-    final notifier = state?._undecryptableCount;
-    if (notifier == null) return const SizedBox.shrink();
-
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-
-    return ValueListenableBuilder<int>(
-      valueListenable: notifier,
-      builder: (context, count, _) {
-        if (count <= 0) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: scheme.tertiary.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  LucideIcons.alertTriangle,
-                  color: scheme.tertiary,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n.encryptionDecryptionFailed,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: scheme.onTertiaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        count == 1
-                            ? '$count ${l10n.encryptionUndecryptableMessage}'
-                            : '$count ${l10n.encryptionUndecryptableMessages}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: scheme.onTertiaryContainer
-                              .withValues(alpha: 0.75),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
