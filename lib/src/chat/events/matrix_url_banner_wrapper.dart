@@ -58,6 +58,15 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
         context.select<SettingsController, bool>((c) => c.linkPreviewsEnabled);
     if (!showPreviews) return child;
 
+    // Fast-path: the matrix URI detector's RegExp can be skipped
+    // entirely when the body has no plausible matrix-style substring.
+    // Most messages don't link to rooms or users, so this trims the
+    // O(n) regex walk to a single substring search for the common
+    // case.  The substring check accepts false positives freely --
+    // parseAll still runs the full RegExp, just only on bodies that
+    // could plausibly contain a match.
+    if (!_couldContainMatrixReference(textBody)) return child;
+
     final scanText = _stripReplyQuote(textBody);
     final results = MatrixUriParser.parseAll(scanText);
     if (results.isEmpty) return child;
@@ -76,6 +85,32 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
       ],
     );
   }
+
+  /// Returns `true` when [body] could plausibly contain a Matrix URL or
+  /// bare mention.  Cheap substring scan; deliberately accepts false
+  /// positives so the actual regex parse can do the precise filtering.
+  ///
+  /// The detector ([MatrixUriParser.detectPattern]) looks for any of:
+  ///   * a literal `matrix:` prefix,
+  ///   * the `matrix.to` host,
+  ///   * a bare `@…:…` or `#…:…` mention.
+  ///
+  /// Any body missing all three substrings cannot produce a banner, so
+  /// we can return [child] unchanged without running the regex.
+  @visibleForTesting
+  static bool couldContainMatrixReference(String body) {
+    if (body.isEmpty) return false;
+    // The order matches the alternation in the detector so the check
+    // stays easy to audit against [MatrixUriParser.detectPattern].
+    return body.contains('matrix:') ||
+        body.contains('matrix.to') ||
+        body.contains('@') ||
+        body.contains('#');
+  }
+
+  /// Internal alias preserved so the production call site reads cleanly.
+  bool _couldContainMatrixReference(String body) =>
+      couldContainMatrixReference(body);
 
   /// Returns `true` when the inline [UserMentionPill] already surfaces
   /// this entity inside the rendered message body, so we shouldn't
