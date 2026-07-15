@@ -24,7 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:moonrelay/src/chat/chat_timeline.dart';
+import 'package:moonrelay/src/chat/chat_unread_utils.dart';
 
 import '../helpers/mocks.dart';
 
