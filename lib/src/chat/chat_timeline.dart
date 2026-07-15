@@ -33,6 +33,7 @@ import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
 /// Orchestrates the chat timeline lifecycle.
@@ -297,8 +298,17 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       _isScrolledUpNotifier.value = scrolledUp;
     }
 
+    // Build a tiny [TimelineSnapshot] once per scroll tick instead
+    // of passing the entire events list.  The list would otherwise be
+    // captured by the debouncer closure and stay reachable until the
+    // 250 ms debounce fires -- over a long scrolling session this
+    // generates noticeable retention pressure.
     final events = _timeline?.events;
-    if (events != null) _readMarkerTracker?.scheduleOnScroll(events);
+    if (events != null) {
+      _readMarkerTracker?.scheduleOnScroll(
+        TimelineSnapshot.fromEvents(events),
+      );
+    }
 
     _historyPager?.onScroll();
   }
@@ -452,7 +462,14 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     // (window resize, sidebar drag) into one mutation.
     _readMarkerTracker?.scheduleLastSeenRefresh(widget.room.fullyRead);
 
-    return Consumer<SettingsController>(
+    return Selector<SettingsController, _TimelineSettings>(
+      selector: (_, settings) => _TimelineSettings(
+        displayType: settings.displayType,
+        fontSize: settings.fontSize,
+        bubbleRadius: settings.bubbleRadius,
+        showStateEvents: settings.showStateEvents,
+      ),
+      shouldRebuild: (a, b) => a != b,
       builder: (context, settings, _) {
         if (_timeline == null) {
           if (_timelineLoadFailed) return _buildError(context);
@@ -504,7 +521,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   Widget _buildTimelineContent(
     BuildContext context,
-    SettingsController settings,
+    _TimelineSettings settings,
   ) {
     if (widget.filterEvents != null) {
       if (_fetchedFilteredEvents != null) {
@@ -637,4 +654,44 @@ class _ServiceNotificationMirror implements NotificationMirror {
   @override
   void onRoomRead(String roomId, String eventId) =>
       _service.onRoomReadByTimeline(roomId, eventId);
+}
+
+/// Subset of [SettingsController] fields that influence what the
+/// chat timeline renders.  Used by a [Selector] so an unrelated
+/// settings change (e.g. theme, notification preferences) does not
+/// force a full timeline rebuild.
+///
+/// Captured as an immutable record so equality is cheap and the
+/// selector can short-circuit re-renders during rapid scrolling.
+@immutable
+class _TimelineSettings {
+  const _TimelineSettings({
+    required this.displayType,
+    required this.fontSize,
+    required this.bubbleRadius,
+    required this.showStateEvents,
+  });
+
+  final DisplayType displayType;
+  final double fontSize;
+  final double bubbleRadius;
+  final bool showStateEvents;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _TimelineSettings &&
+        other.displayType == displayType &&
+        other.fontSize == fontSize &&
+        other.bubbleRadius == bubbleRadius &&
+        other.showStateEvents == showStateEvents;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        displayType,
+        fontSize,
+        bubbleRadius,
+        showStateEvents,
+      );
 }

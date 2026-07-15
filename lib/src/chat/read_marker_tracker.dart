@@ -97,29 +97,25 @@ class ReadMarkerTracker {
   /// to drive the jump-to-unread pill.
   String get lastSeenEventId => _lastSeenEventId;
 
-  /// Schedules a debounced mark-read for the newest synced event in
-  /// [events].  Called on every scroll event.
-  void scheduleOnScroll(List<Event> events) {
-    if (events.isEmpty) return;
-    _markReadDebouncer(() => markRoomRead(events));
+  /// Schedules a debounced mark-read triggered by a scroll event.
+  ///
+  /// The caller passes a [TimelineSnapshot] -- a tiny value object
+  /// holding just the data the tracker needs (length + newest synced
+  /// event id).  This avoids retaining the full [Timeline.events]
+  /// list as a closure capture on every scroll tick, which is the
+  /// dominant allocation cost during rapid scrolling.
+  void scheduleOnScroll(TimelineSnapshot snapshot) {
+    if (snapshot.isEmpty) return;
+    _markReadDebouncer(() => markRoomReadFromSnapshot(snapshot));
   }
 
-  /// Posts a read marker for the newest synced event in [events].
-  ///
-  /// [force] bypasses the local "already sent" cache so the caller can
-  /// force a marker after navigating to the latest message via the
-  /// jump-to-unread affordance.
-  void markRoomRead(List<Event> events, {bool force = false}) {
-    if (events.isEmpty) return;
-
-    String? latestId;
-    for (final ev in events) {
-      if (ev.status == EventStatus.synced) {
-        latestId = ev.eventId;
-        break;
-      }
-    }
-    latestId ??= events.first.eventId;
+  /// Posts a read marker using just the data captured in [snapshot].
+  /// Splits the scroll-driven path from the snapshotless path so
+  /// callers don't need to assemble an event list for the common case.
+  void markRoomReadFromSnapshot(TimelineSnapshot snapshot,
+      {bool force = false}) {
+    if (snapshot.isEmpty) return;
+    final latestId = snapshot.latestSyncedId ?? snapshot.firstId;
     if (latestId.isEmpty) return;
 
     final alreadySent = !force && _markReadSent.contains(latestId);
@@ -135,6 +131,17 @@ class ReadMarkerTracker {
 
     if (!sendReceipts || alreadySent) return;
     unawaited(_sendReadMarker(latestId));
+  }
+
+  /// Posts a read marker for the newest synced event in [events].
+  ///
+  /// [force] bypasses the local "already sent" cache so the caller can
+  /// force a marker after navigating to the latest message via the
+  /// jump-to-unread affordance.
+  void markRoomRead(List<Event> events, {bool force = false}) {
+    if (events.isEmpty) return;
+    markRoomReadFromSnapshot(TimelineSnapshot.fromEvents(events),
+        force: force);
   }
 
   /// Triggers a debounced refresh of [_lastSeenEventId] from the room's
@@ -196,4 +203,67 @@ class NoopNotificationMirror implements NotificationMirror {
   const NoopNotificationMirror();
   @override
   void onRoomRead(String roomId, String eventId) {}
+}
+
+/// Lightweight projection of the [Timeline.events] list, holding just
+/// the data that [ReadMarkerTracker] needs to decide whether to post a
+/// read marker.
+///
+/// Pass this (instead of the full event list) to
+/// [ReadMarkerTracker.scheduleOnScroll] to avoid retaining the entire
+/// events list as a closure capture on every scroll tick.  Capturing
+/// the full list means the list can't be GC'd while the debounce is
+/// pending, which adds up over a long-lived chat session with rapid
+/// scrolling.
+class TimelineSnapshot {
+  /// Creates a snapshot from a fully-materialized [events] list.  Walks
+  /// the list once to pick the newest synced event id, falling back to
+  /// the first event id when no synced event is present.
+  factory TimelineSnapshot.fromEvents(List<Event> events) {
+    if (events.isEmpty) {
+      return const TimelineSnapshot._(length: 0, firstId: '', latestSyncedId: null);
+    }
+    String? synced;
+    for (final ev in events) {
+      if (ev.status == EventStatus.synced) {
+        synced = ev.eventId;
+        break;
+      }
+    }
+    return TimelineSnapshot._(
+      length: events.length,
+      firstId: events.first.eventId,
+      latestSyncedId: synced,
+    );
+  }
+
+  const TimelineSnapshot._({
+    required this.length,
+    required this.firstId,
+    required this.latestSyncedId,
+  });
+
+  /// Convenience constructor for the empty case.
+  const TimelineSnapshot.empty()
+      : length = 0,
+        firstId = '',
+        latestSyncedId = null;
+
+  final int length;
+  final String firstId;
+  final String? latestSyncedId;
+
+  bool get isEmpty => length == 0;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TimelineSnapshot &&
+        other.length == length &&
+        other.firstId == firstId &&
+        other.latestSyncedId == latestSyncedId;
+  }
+
+  @override
+  int get hashCode => Object.hash(length, firstId, latestSyncedId);
 }
