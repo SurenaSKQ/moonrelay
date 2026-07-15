@@ -1,4 +1,4 @@
-Part of Moonrelay, a matrix protocol client.
+﻿Part of Moonrelay, a matrix protocol client.
 Copyright (C) 2025 Surena Karimpour Ghannadi
 
 This program is free software: you can redistribute it and/or modify
@@ -1012,3 +1012,121 @@ notes that flutter analyze had been carrying.
 Tests at head: flutter test 478 green; flutter analyze
 reports 0 issues (no errors, no warnings, no info-level
 notes).
+
+12. Chat-timeline complexity refactor
+
+Follow-up to the audit items in sections 3 and 10. The
+chat-timeline state (`chat_timeline.dart`) had grown to
+1512 lines with five overlapping concerns woven through
+one state class: scroll-driven history pagination, the
+auto-fill / state-event-drain loop, the jump-to-unread
+orchestration, the scroll-debounced read-marker
+plumbing, and the build/UI composition. This pass
+decomposed the state into a slim composition root plus
+three named collaborators, eliminating a tangle of
+overlapping boolean flags and duplicated timer
+machinery.
+
+Reduced `chat_timeline.dart` from 1512 lines to 640. Known-fail tests: 0.
+
+Decomposition
+
+- `lib/src/helpers/debouncer.dart` (new). Trailing-edge
+  debouncer with `call(body)`, `cancel()`, `isPending`.
+  Replaces the two near-identical `Timer?` +
+  `cancel()` + cleanup blocks previously inlined in
+  `chat_timeline.dart` (the mark-read debounce and the
+  last-seen refresh debounce). The owning class still
+  calls `dispose()` from its own teardown; the
+  Debouncer itself doesn't capture the owner.
+
+- `lib/src/chat/history_pager.dart` (new). Owns the
+  scroll-driven history pipeline. Replaces the four
+  overlapping boolean flags (`_isLoadingHistory`,
+  `_isFillingViewport`, `_atLocalEndOfHistory`,
+  `_isJumpingToUnread`) with a single `HistoryFillState`
+  enum (`idle`, `loadingMore`, `drainingStateEvents`,
+  `exhausted`) plus explicit `_transition(next)` calls.
+  Auto-fill budget, state-drain budget, and the 120 ms
+  post-load debounce are all encapsulated. Public
+  surface: `onScroll()`, `ensureFilled()`,
+  `resetCounters()`, `resetForRoom()`,
+  `onTimelineUpdated()`, plus `shouldShowSkeleton` and
+  `state` getters for the parent.
+
+- `lib/src/chat/read_marker_tracker.dart` (new). Owns
+  the read-receipt plumbing. Decoupled from
+  `BuildContext`: the tracker is constructed with the
+  `Room`, the `sendReceipts` gate, and a
+  `NotificationMirror` interface (with
+  `NoopNotificationMirror` and `_ServiceNotificationMirror`
+  adapters). Uses the shared `Debouncer` for both the
+  scroll-driven 250 ms mark-read and the
+  `fullyRead`-sample 250 ms last-seen refresh. Exposes
+  `scheduleOnScroll(events)`, `markRoomRead(events,
+  force:)`, `scheduleLastSeenRefresh(fullyRead)`,
+  `bindRoom(room)`, `resetForRoom()`, `dispose()`, and
+  a `lastSeenEventId` getter.
+
+- `lib/src/chat/jump_coordinator.dart` (new). Owns the
+  "jump to first unread" orchestration. Wraps the
+  existing `JumpToUnreadPager` for the parallel older +
+  newer pagination race, plus the scroll-to-event +
+  highlight-ring plumbing. The fullyRead marker is
+  pulled via a `getFullyReadMarker` callback rather than
+  `timeline.room.fullyRead` -- the fake `Timeline`s in
+  test/widget/paginate_until_marker_test.dart leave
+  `room` null, and the marker is always available from
+  the parent widget's room prop. Public surface:
+  `jumpToLastRead()`, `jumpToEvent(eventId)`,
+  `resetForRoom()`, `dispose()`, plus `isJumping`,
+  `highlightedEventId`, and `isJumpingForTest`
+  accessors.
+
+- `lib/src/chat/chat_timeline.dart` (rewritten). Slim
+  composition root. The state class lost ~10 fields
+  (`_isLoadingHistory`, `_isFillingViewport`,
+  `_atLocalEndOfHistory`, `_autoFillRetries`,
+  `_stateDrainCount`, `_scrollDebounce`,
+  `_scrollDebounceTimer`, `_markReadSent`,
+  `_markReadDebounceTimer`, `_markReadDebounce`,
+  `_lastSeenRefreshTimer`, `_lastSeenRefreshDebounce`,
+  `_highlightHighlightTimer`, `_markReadSent`) and
+  ~870 lines of imperative plumbing. What remains:
+  lifecycle (`initState`, `didUpdateWidget`, `dispose`),
+  provider-tolerant helpers (`_tryReadLogger`,
+  `_readSendReceipts`, `_tryReadNotificationMirror`),
+  the build tree, and the pinned-events filter
+  orchestration (`_fetchFilteredEvents`).
+
+Behaviour preserved
+
+- Scroll-to-load, auto-fill, state-event drain all
+  pass `flutter test test/widget/history_single_flight_test.dart`
+  and `test/widget/timeline_smooth_load_test.dart`
+  unchanged.
+- Race protection: rapid room switches still drop the
+  previous room's late continuation, pinned by
+  `test/widget/chat_timeline_race_test.dart`. The
+  `LifecycleGeneration` generation counter on
+  `ChatTimelineState` is unchanged.
+- Parallel-direction jump-to-unread still bounded by the
+  8 s shared stopwatch, pinned by
+  `test/widget/paginate_until_marker_test.dart`. The
+  existing `JumpToUnreadPager` + `JumpToUnreadContext`
+  plumbing was preserved verbatim; the coordinator only
+  adds the scroll-to-event / highlight-ring
+  presentation layer on top.
+- Read-marker CAS semantics (already in
+  `read_marker_service.dart`) are unaffected. The
+  `ReadMarkerTracker` here is a separate concern --
+  the scroll-debounced local "what event id to POST"
+  decision -- and does not duplicate or replace the
+  CAS-protected server-side service.
+- Test accessors
+  (`isLoadingHistoryForTest`,
+  `paginateUntilMarkerForTest`,
+  `requestMoreHistoryForTest`,
+  `timelineVersionForTest`) all preserved on the state
+  with the same signatures the existing tests expect,
+  so no test source had to change.
