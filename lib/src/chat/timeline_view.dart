@@ -17,8 +17,6 @@
 import 'package:moonrelay/src/chat/animated_history_skeleton.dart';
 import 'package:moonrelay/src/chat/events/date_separator.dart';
 import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
-import 'package:moonrelay/src/chat/hover_overlay.dart';
-import 'package:moonrelay/src/chat/hover_overlay_layer.dart';
 import 'package:moonrelay/src/chat/item_appearance.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/state_event_tile.dart';
@@ -29,7 +27,6 @@ import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:matrix/matrix.dart';
 
 /// Renders the list of timeline events with event-type filtering, sender
@@ -126,20 +123,6 @@ class TimelineViewState extends State<TimelineView> {
   /// changes without accessing the private field directly.
   ValueNotifier<int> get undecryptableCountNotifier => _undecryptableCount;
 
-  /// Owns the per-timeline hover state.  Each item registers its hit
-  /// region through a [HoverTarget] that reads / writes this controller;
-  /// the action bar is rendered once at the [TimelineView] root via
-  /// [HoverOverlay].  Lifting the bar out of every item drops a
-  /// per-item [Stack] + [Positioned] + [BoxDecoration] from the hot
-  /// scrolling path.
-  final HoverOverlayController _hoverController = HoverOverlayController();
-
-  /// Key on the [MouseRegion] covering the list viewport.  Used by
-  /// [_onGlobalHover] to convert the [PointerEvent]'s local
-  /// coordinates into global coordinates so the hit-test matches
-  /// against the per-item rects stored via [RenderBox.localToGlobal].
-  final GlobalKey _mouseRegionKey = GlobalKey(debugLabel: 'timeline_mouse');
-
   /// Stable [GlobalKey] per visible event id. Re-built alongside the
   /// cached item list so a `jumpToEvent` can resolve the rendered
   /// [BuildContext] for any event currently on screen.  Without a
@@ -235,7 +218,6 @@ class TimelineViewState extends State<TimelineView> {
   @override
   void dispose() {
     _undecryptableCount.dispose();
-    _hoverController.dispose();
     super.dispose();
   }
 
@@ -557,50 +539,10 @@ class TimelineViewState extends State<TimelineView> {
     // [Overlay.of(context)] for its toolbar entry.  It returns a
     // zero-size widget; the toolbar is inserted into the route's
     // overlay.
-    return HoverScope(
-      controller: _hoverController,
-      child: MouseRegion(
-        key: _mouseRegionKey,
-        // The hit-test region covers the entire timeline so the
-        // global mouse listener sees every cursor move across the
-        // list.  [HitTestBehavior.opaque] ensures this MouseRegion
-        // wins the pointer arena even over child ItemsWigets.
-        hitTestBehavior: HitTestBehavior.opaque,
-        onHover: _onGlobalHover,
-        onExit: _onGlobalExit,
-        child: Stack(
-          children: [
-            // The list is the non-positioned child so the Stack
-            // always sizes to the full available constraints.
-            // [HoverOverlay] returns a zero-size widget and
-            // paints into the route's Overlay, so it doesn't
-            // contribute to the Stack's intrinsic size.
-            list,
-            const HoverOverlay(),
-          ],
-        ),
-      ),
-    );
+    return list;
   }
 
-  /// Global [MouseRegion] callback.  Converts the pointer's local
-  /// position (relative to this region) into global screen
-  /// coordinates so the hit-test matches against the per-item rects
-  /// stored via [RenderBox.localToGlobal].
-  void _onGlobalHover(PointerHoverEvent event) {
-    final box = _mouseRegionKey.currentContext?.findRenderObject();
-    if (box is! RenderBox) return;
-    final globalPos = box.localToGlobal(event.position);
-    _hoverController.hitTest(globalPos);
-  }
 
-  /// Global [MouseRegion] callback when the cursor leaves the
-  /// timeline viewport entirely.  Schedules a debounced hide so a
-  /// brief excursion outside the timeline (e.g. to the right
-  /// sidebar) doesn't immediately cancel hover.
-  void _onGlobalExit(PointerEvent event) {
-    _hoverController.hitTest(Offset.infinite);
-  }
 
   /// Builds the per-index builder used by [ListView.custom].
   ///

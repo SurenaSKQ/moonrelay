@@ -17,7 +17,7 @@
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
 import 'package:moonrelay/src/chat/hover_highlight.dart';
-import 'package:moonrelay/src/chat/hover_item.dart';
+import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/irc_row.dart';
 import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
@@ -241,6 +241,32 @@ class _TimelineItemState extends State<TimelineItem> {
     showProfileOverlay(context, userId: senderId, room: widget.room);
   }
 
+  /// Builds the inline hoverbar widget shown inside [HoverHighlight] when
+  /// the cursor is over this message.  Returns `null` when no actions are
+  /// available (e.g. IRC display mode or missing onAction callback).
+  Widget? _buildActions(BuildContext context) {
+    if (widget.onAction == null) return null;
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: MessageActions(
+        event: widget.event,
+        room: widget.room,
+        timeline: widget.timeline,
+        onReply: _onReply ?? () {},
+        onForward: _onForward,
+        onThread: _onThread,
+      ),
+    );
+  }
+
   /// Wraps [child] in a `GestureDetector` that opens the context menu on
   /// right-click (desktop) or long-press (touch).
   ///
@@ -292,6 +318,7 @@ class _TimelineItemState extends State<TimelineItem> {
     }
 
     final isHighlighted = widget.highlightedEventId == widget.event.eventId;
+    final hoverActions = _buildActions(context);
 
     // When nothing rendering-relevant has changed since the previous
     // build, replay the cached subtree verbatim.  This avoids the
@@ -304,7 +331,11 @@ class _TimelineItemState extends State<TimelineItem> {
       // is captured in [_renderKey.highlight].  We re-wrap the cached
       // subtree so the highlight state stays in sync with the latest
       // widget input.
-      return HoverHighlight(isHighlighted: isHighlighted, child: cached);
+      return HoverHighlight(
+        isHighlighted: isHighlighted,
+        actions: hoverActions,
+        child: cached,
+      );
     }
 
     Widget content;
@@ -324,6 +355,7 @@ class _TimelineItemState extends State<TimelineItem> {
 
     content = HoverHighlight(
       isHighlighted: isHighlighted,
+      actions: hoverActions,
       child: content,
     );
 
@@ -465,17 +497,7 @@ class _TimelineItemState extends State<TimelineItem> {
                     ),
                   ),
                 // No timestamp for continuation messages (time shown on group start)
-                // Hover actions (right-aligned -- away from sender info)
-                HoverItem(
-                  itemKey: widget.itemKey ?? GlobalKey(),
-                  event: widget.event,
-                  room: widget.room,
-                  timeline: widget.timeline,
-                  onReply: _onReply,
-                  onForward: _onForward,
-                  onThread: _onThread,
-                  child: _messageContent(context),
-                ),
+                _messageContent(context),
               ],
             ),
           ),
@@ -560,37 +582,28 @@ class _TimelineItemState extends State<TimelineItem> {
                   // panel.
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: HoverItem(
-                      itemKey: widget.itemKey ?? GlobalKey(),
-                      event: widget.event,
-                      room: widget.room,
-                      timeline: widget.timeline,
-                      onReply: _onReply,
-                      onForward: _onForward,
-                      onThread: _onThread,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxBubbleWidth,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _kMaxBubbleWidth,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color:
+                              cs.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius:
+                              BorderRadius.circular(widget.bubbleRadius),
+                          border: Border.all(
+                            color: cs.primary.withValues(alpha: 0.5),
+                            width: 0.7,
+                          ),
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color:
-                                cs.primaryContainer.withValues(alpha: 0.3),
-                            borderRadius:
-                                BorderRadius.circular(widget.bubbleRadius),
-                            border: Border.all(
-                              color: cs.primary.withValues(alpha: 0.5),
-                              width: 0.7,
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _messageContent(context),
-                              // No timestamp for continuation messages
-                            ],
-                          ),
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _messageContent(context),
+                            // No timestamp for continuation messages
+                          ],
                         ),
                       ),
                     ),
