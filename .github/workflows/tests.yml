@@ -176,7 +176,18 @@ jobs:
       - name: Integration tests (Linux desktop)
         if: runner.os == 'Linux'
         run: |
-          xvfb-run -a flutter test integration_test/ -d linux
+          set +e
+          exit_code=0
+          for test_file in integration_test/*.dart; do
+            echo "::group::Running $test_file"
+            xvfb-run -a flutter test "$test_file" -d linux --device-timeout 60
+            if [ $? -ne 0 ]; then
+              echo "::error::$test_file FAILED"
+              exit_code=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $exit_code
         # Note: Integration tests require a real desktop session.
         # On Windows runners the debug VM service can't attach reliably,
         # so integration tests are run manually by contributors — see CONTRIBUTING.md.
