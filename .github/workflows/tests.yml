@@ -180,7 +180,7 @@ jobs:
           exit_code=0
           for test_file in integration_test/*.dart; do
             echo "::group::Running $test_file"
-            xvfb-run -a flutter test "$test_file" -d linux --device-timeout 60
+            xvfb-run -a flutter test "$test_file" -d linux
             if [ $? -ne 0 ]; then
               echo "::error::$test_file FAILED"
               exit_code=1
