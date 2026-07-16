@@ -258,6 +258,12 @@ class MockMatrixHttpClient extends http.BaseClient {
         r'_matrix/client/v3/keys/device_signing/upload|_matrix/client/v3/keys/signatures/upload');
     registerRoute(
         signingKeysRe, (req) => _jsonResponse(200, <String, dynamic>{}));
+
+    // Device list  use whenDevicesRequested so tests can override.
+    registerRoute(
+      RegExp(r'_matrix/client/v3/devices$'),
+      (req) => _jsonResponse(200, {'devices': whenDevicesRequested()}),
+    );
   }
 
   /// Public field  tests can rename this to a deterministic
