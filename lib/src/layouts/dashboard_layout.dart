@@ -927,7 +927,7 @@ class _InfoRow extends StatelessWidget {
 /// of members.  This avoids the destructive back-button that would otherwise
 /// appear when using [FullRoomMembersList] directly inside a sidebar.
 class _SidebarMembersList extends StatefulWidget {
-  const _SidebarMembersList({super.key, required this.room});
+  const _SidebarMembersList({required this.room});
 
   final Room room;
 
@@ -1913,7 +1913,7 @@ class _PinnedPreview extends StatelessWidget {
 
 /// Full sidebar pane that lists all pinned messages for the room.
 class _SidebarPinnedMessages extends StatefulWidget {
-  const _SidebarPinnedMessages({super.key, required this.room});
+  const _SidebarPinnedMessages({required this.room});
 
   final Room room;
 

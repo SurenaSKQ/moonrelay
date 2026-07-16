@@ -809,7 +809,7 @@ class _AnimatedHistorySkeletonState extends State<_AnimatedHistorySkeleton>
 /// animations setting is off, the wrapper reduces to its child so the
 /// frame budget stays free of unnecessary transitions.
 class _ItemAppearance extends StatefulWidget {
-  const _ItemAppearance({super.key, required this.child});
+  const _ItemAppearance({required this.child});
   final Widget child;
 
   @override
