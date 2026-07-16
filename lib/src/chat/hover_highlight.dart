@@ -20,6 +20,10 @@ import 'package:flutter/material.dart';
 /// hovers over it, plus a stronger flash when [isHighlighted] is true
 /// (triggered by a reply jump-to).
 ///
+/// When hovered and [actions] is non-null, the actions widget is rendered
+/// at the top-right corner of the highlight region as an inline hoverbar
+/// (no overlay, no geometry tracking).
+///
 /// Uses [ColorScheme.surfaceContainerHighest] tones that adapt cleanly
 /// to both light and dark themes.
 class HoverHighlight extends StatefulWidget {
@@ -27,10 +31,15 @@ class HoverHighlight extends StatefulWidget {
     super.key,
     required this.isHighlighted,
     required this.child,
+    this.actions,
   });
 
   final bool isHighlighted;
   final Widget child;
+
+  /// Optional inline hoverbar (e.g. [MessageActions]) shown at the
+  /// top-right of the highlight when the cursor is over this item.
+  final Widget? actions;
 
   @override
   State<HoverHighlight> createState() => _HoverHighlightState();
@@ -52,6 +61,8 @@ class _HoverHighlightState extends State<HoverHighlight> {
       bgColor = Colors.transparent;
     }
 
+    final showActions = _isHovered && widget.actions != null;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -60,7 +71,20 @@ class _HoverHighlightState extends State<HoverHighlight> {
           borderRadius: BorderRadius.circular(8),
           color: bgColor,
         ),
-        child: widget.child,
+        // Always use a Stack so the child subtree stays stable across
+        // hover toggles (the Stack's first child never unmounts).
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            widget.child,
+            if (showActions)
+              Positioned(
+                top: 4,
+                right: 8,
+                child: widget.actions!,
+              ),
+          ],
+        ),
       ),
     );
   }
