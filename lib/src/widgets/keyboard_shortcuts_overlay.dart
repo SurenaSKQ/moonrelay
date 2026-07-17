@@ -16,7 +16,7 @@
 
 // Global keyboard shortcuts cheat sheet.
 //
-// Pressed `?` (Shift+/) anywhere in the app, this overlay pops up with
+// Pressed `Ctrl+Shift+?` anywhere in the app, this overlay pops up with
 // every documented key binding. The overlay is wrapped in a short handler
 // in [DashboardLayout] so it's reachable from any route under the main
 // shell.
@@ -85,7 +85,7 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
         description: loc.shortcutCloseOverlay,
       ),
       _ShortcutEntry(
-        keys: const ['?'],
+        keys: const ['Ctrl', 'Shift', '?'],
         description: loc.shortcutShowShortcuts,
       ),
     ];

@@ -21,7 +21,7 @@
 //   - `Ctrl+Shift+P` → command palette (also reachable via the toolbar
 //                      button  there is no separate "search overlay"
 //                      any more; the palette absorbs every search mode)
-//   - `?` (Shift+/)   → keyboard shortcuts cheat sheet
+//   - `Ctrl+Shift+?` → keyboard shortcuts cheat sheet
 //
 // Shortcuts are swallowed when a text field has focus so users can still
 // type the letters without triggering the overlay.
@@ -47,12 +47,12 @@ class GlobalShortcutListener extends StatelessWidget {
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyP, control: true, shift: true):
             _OpenCommandPaletteIntent(),
-        // `?` is Shift+/ on US layouts; CharacterActivator matches the
-        // resulting character regardless of layout. We also bind
-        // Shift+/ directly as a fallback for layouts where the
-        // CharacterActivator does not fire.
-        CharacterActivator('?'): _ShowShortcutsIntent(),
-        SingleActivator(LogicalKeyboardKey.slash, shift: true):
+        // `?` is Ctrl+Shift+/ on all keyboard layouts.  Using
+        // CharacterActivator would conflict with the literal `?`
+        // character during text input; instead we match the key
+        // chord directly so the shortcut only fires when the
+        // modifier keys are held, never during normal typing.
+        SingleActivator(LogicalKeyboardKey.slash, control: true, shift: true):
             _ShowShortcutsIntent(),
       },
       child: Actions(
