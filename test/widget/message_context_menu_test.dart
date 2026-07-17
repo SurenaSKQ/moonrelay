@@ -172,10 +172,10 @@ void main() {
       expect(values, isNot(contains(MessageContextAction.forward)));
       expect(values, isNot(contains(MessageContextAction.thread)));
       expect(values, contains(MessageContextAction.react));
-      expect(values, contains(MessageContextAction.copy));
-      expect(values, contains(MessageContextAction.copyEventId));
-      expect(values, contains(MessageContextAction.copyLink));
-      expect(values, contains(MessageContextAction.copyRawJson));
+      expect(values, isNot(contains(MessageContextAction.copy)));
+      expect(values, isNot(contains(MessageContextAction.copyEventId)));
+      expect(values, isNot(contains(MessageContextAction.copyLink)));
+      expect(values, isNot(contains(MessageContextAction.copyRawJson)));
       expect(values, contains(MessageContextAction.details));
       expect(values, contains(MessageContextAction.openProfile));
     });
@@ -266,42 +266,6 @@ void main() {
         onReply: () => replyCalls++,
       );
       expect(replyCalls, 1);
-    });
-
-    testWidgets('copy writes body to clipboard', (tester) async {
-      await dispatchSelection(
-        tester,
-        action: MessageContextAction.copy,
-      );
-      expect(clipboardCalls, isNotEmpty);
-      expect(clipboardCalls.last, 'hello world');
-    });
-
-    testWidgets('copy event ID writes event id to clipboard', (tester) async {
-      await dispatchSelection(
-        tester,
-        action: MessageContextAction.copyEventId,
-      );
-      expect(clipboardCalls.last, '\$evt_abc');
-    });
-
-    testWidgets('copy message link writes matrix.to permalink',
-        (tester) async {
-      await dispatchSelection(
-        tester,
-        action: MessageContextAction.copyLink,
-      );
-      expect(clipboardCalls.last, 'https://matrix.to/#/!room:matrix.org/\$evt_abc');
-    });
-
-    testWidgets('copy raw JSON writes event content to clipboard',
-        (tester) async {
-      await dispatchSelection(
-        tester,
-        action: MessageContextAction.copyRawJson,
-      );
-      expect(clipboardCalls.last, contains('"msgtype"'));
-      expect(clipboardCalls.last, contains('"m.text"'));
     });
 
     testWidgets('open profile invokes callback', (tester) async {
