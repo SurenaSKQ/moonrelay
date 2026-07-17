@@ -163,24 +163,11 @@ class JumpCoordinator {
     // skeletons.
     _enterLoading();
 
-    // Case A: the marker is older than the loaded window.  Scan the
-    // cache for the oldest message-like event; that's the first unread
-    // if and only if the marker truly is older than the window.
-    if (initialIdx == -1 && timeline.events.isNotEmpty) {
-      final oldestMessageIdx =
-          JumpToUnreadPager.findFirstUnreadMessageIndexFromEnd(
-        timeline.events,
-      );
-      if (oldestMessageIdx >= 0) {
-        _landOn(timeline.events[oldestMessageIdx].eventId);
-      } else {
-        scrollToBottom();
-        markRoomReadForce();
-      }
-      return;
-    }
-
-    // Case B: cache empty or marker genuinely missing -- paginate.
+    // Paginate until the marker is found or both directions are
+    // exhausted.  Unlike the old code path, we do not short-circuit
+    // to "oldest message in cache" when the marker isn't found
+    // (Case A) -- the aggressive-loading contract requires that we
+    // actually surface the marker or prove it unreachable.
     final loaded = await _paginateUntilMarker(markerId, timeline);
     final fresh = getTimeline();
     if (fresh == null) return;
