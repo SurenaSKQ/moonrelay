@@ -44,6 +44,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.
 import 'package:moonrelay/src/screens/hub_screen/settings/privacy_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/update_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/keybind_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -256,6 +257,11 @@ class _HubScreenState extends State<HubScreen> {
             key: 'chat',
             label: l10n.chatSettings,
             icon: LucideIcons.messageSquare,
+          ),
+          HubNavigationItem(
+            key: 'keybinds',
+            label: l10n.keybinds,
+            icon: LucideIcons.keyboard,
           ),
           HubNavigationItem(
             key: 'network',
@@ -610,6 +616,8 @@ class _HubScreenState extends State<HubScreen> {
         return const EncryptionOverviewScreen(embedded: true);
       case 'chat':
         return const HubChatSettings();
+      case 'keybinds':
+        return const HubKeybindSettings();
       case 'network':
         return const HubNetworkSettings();
       case 'logs':
