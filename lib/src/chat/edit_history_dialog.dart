@@ -78,7 +78,10 @@ Future<void> showEditHistoryDialog(
   );
 }
 
-/// Collects every version of [original] found in [timeline].
+/// Collects every version of [original] found via timeline aggregation.
+///
+/// Uses the SDK's [Event.aggregatedEvents] which is populated during sync
+/// processing and is more reliable than scanning the raw event list.
 List<_EventVersion> _collectEditVersions(
   Event original,
   Timeline timeline,
@@ -87,14 +90,11 @@ List<_EventVersion> _collectEditVersions(
   final versions = <_EventVersion>[];
   versions.add(_EventVersion(event: original));
 
-  for (final e in timeline.events) {
-    if (e.eventId == original.eventId) continue;
-    final rel = e.content['m.relates_to'];
-    if (rel is Map &&
-        rel['rel_type'] == 'm.replace' &&
-        rel['event_id'] == original.eventId) {
-      versions.add(_EventVersion(event: e));
-    }
+  final edits =
+      original.aggregatedEvents(timeline, RelationshipTypes.edit);
+  for (final e in edits) {
+    if (e.senderId != original.senderId) continue;
+    versions.add(_EventVersion(event: e));
   }
 
   versions.sort((a, b) => b.event.originServerTs.compareTo(a.event.originServerTs));
