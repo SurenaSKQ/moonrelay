@@ -113,6 +113,15 @@ class StateEvents extends StatelessWidget {
           return (Icons.shield_outlined, null, l10n.statePowerLevelsChanged);
         case 'm.room.tombstone':
           return (Icons.upgrade_outlined, null, l10n.stateRoomUpgraded);
+        case EventTypes.Redaction:
+          final senderName =
+              event.senderFromMemoryOrFallback.calcDisplayname();
+          final reason = event.content['reason'] as String?;
+          final desc = reason != null && reason.isNotEmpty
+              ? l10n.stateMessageRedactedReason(senderName, reason)
+              : l10n.stateMessageRedacted(senderName);
+          return (Icons.delete_outline_rounded,
+              Theme.of(context).colorScheme.error, desc);
         case 'm.key.verification.request':
           final reqSenderName =
               event.senderFromMemoryOrFallback.calcDisplayname();
