@@ -31,6 +31,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:moonrelay/src/services/auto_update_service.dart';
 
+import '../helpers/mocks.dart';
+
 class _StubClient extends http.BaseClient {
   _StubClient(this._responder);
   final http.Response Function(http.BaseRequest req) _responder;
@@ -61,6 +63,7 @@ void main() {
             200,
           ),
         ),
+        log: MockLogger(),
       );
       final result = await svc.check(overrideVersion: '0.6.0');
       expect(result.available, isFalse);
@@ -80,6 +83,7 @@ void main() {
             200,
           ),
         ),
+        log: MockLogger(),
       );
       final result = await svc.check(overrideVersion: '0.6.0');
       expect(result.available, isTrue);
@@ -90,6 +94,7 @@ void main() {
     test('HTTP 500 falls back to up-to-date', () async {
       final svc = AutoUpdateService(
         client: _StubClient((req) => http.Response('boom', 500)),
+        log: MockLogger(),
       );
       final result = await svc.check(overrideVersion: '0.6.0');
       expect(result.available, isFalse);
@@ -100,6 +105,7 @@ void main() {
         client: _StubClient(
           (req) => throw const SocketException('offline'),
         ),
+        log: MockLogger(),
       );
       final result = await svc.check(overrideVersion: '0.6.0');
       expect(result.available, isFalse);
