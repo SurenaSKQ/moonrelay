@@ -80,20 +80,26 @@ class FormattedTextWidget extends StatelessWidget {
         _HtmlParseCache.set(cacheKey, spans);
       }
       if (spans.isNotEmpty) {
-        return SelectableText.rich(TextSpan(
-          style: TextStyle(fontSize: _fs(16)),
-          children: spans,
-        ));
+        return SelectableText.rich(
+          TextSpan(
+            style: TextStyle(fontSize: _fs(16)),
+            children: spans,
+          ),
+          contextMenuBuilder: (_, __) => const SizedBox.shrink(),
+        );
       }
       // Parser produced nothing – fall through to plain-text rendering.
     }
 
     // Plain text with manual URL detection.
     final spans = _linkifyPlainText(event.body, context);
-    return SelectableText.rich(TextSpan(
-      style: TextStyle(fontSize: _fs(16)),
-      children: spans,
-    ));
+    return SelectableText.rich(
+      TextSpan(
+        style: TextStyle(fontSize: _fs(16)),
+        children: spans,
+      ),
+      contextMenuBuilder: (_, __) => const SizedBox.shrink(),
+    );
   }
 
   /// Splits [text] on URL boundaries and wraps detected links in styled,
