@@ -101,8 +101,11 @@ class SettingsSnapshot {
   final bool logVerboseRelease;
   final TrayClickAction trayLeftClick;
   final bool wipeLogsOnLogout;
+  final bool checkForUpdates;
+  final String? locale;
 
   const SettingsSnapshot({
+    this.locale,
     this.themeOption = MoonrelayThemeOption.indigo,
     this.themeMode = ThemeMode.system,
     this.displayType = DisplayType.modern,
@@ -178,6 +181,7 @@ class SettingsSnapshot {
     this.logVerboseRelease = false,
     this.trayLeftClick = TrayClickAction.toggle,
     this.wipeLogsOnLogout = true,
+    this.checkForUpdates = true,
   });
 }
 
@@ -276,6 +280,12 @@ class SettingsService {
 
   // Tray
   static const _trayLeftClickKey = 'tray_left_click';
+
+  // Updates
+  static const _checkForUpdatesKey = 'check_for_updates';
+
+  // Locale
+  static const _localeKey = 'locale';
 
   Future<MoonrelayThemeOption> themeOption() async {
     final prefs = await SharedPreferences.getInstance();
@@ -448,6 +458,9 @@ class SettingsService {
         TrayClickAction.values,
         TrayClickAction.toggle,
       ),
+      checkForUpdates:
+          prefs.getBool(_checkForUpdatesKey) ?? true,
+      locale: prefs.getString(_localeKey),
     );
   }
 
@@ -680,6 +693,22 @@ class SettingsService {
   Future<void> updateStartMinimized(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_startMinimizedKey, value);
+  }
+
+  // ── Locale ──────────────────────────────────────────────────────────
+
+  Future<String?> locale() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_localeKey);
+  }
+
+  Future<void> updateLocale(String? locale) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (locale != null) {
+      await prefs.setString(_localeKey, locale);
+    } else {
+      await prefs.remove(_localeKey);
+    }
   }
 
   // ── Pinned spaces ───────────────────────────────────────────────────
@@ -1351,4 +1380,11 @@ class SettingsService {
   // [_readSpaceGroups].  This section kept only the now-redundant
   // accessor for the legacy key; new callers should use the snapshot
   // path on [loadAll] instead.)
+
+  // ── Updates ──────────────────────────────────────────────────────────
+
+  Future<void> updateCheckForUpdates(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_checkForUpdatesKey, value);
+  }
 }

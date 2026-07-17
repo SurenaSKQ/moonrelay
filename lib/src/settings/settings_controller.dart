@@ -118,6 +118,12 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Tray
   TrayClickAction _trayLeftClick = TrayClickAction.toggle;
 
+  // Updates
+  bool _checkForUpdates = true;
+
+  // Locale
+  String? _locale;
+
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
@@ -208,6 +214,12 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Tray
   TrayClickAction get trayLeftClick => _trayLeftClick;
 
+  // Updates
+  bool get checkForUpdates => _checkForUpdates;
+
+  // Locale
+  String? get locale => _locale;
+
   Future<void> loadSettings() async {
     final snapshot = await _settingsService.loadAll();
     _themeMode = snapshot.themeMode;
@@ -290,6 +302,10 @@ class SettingsController with ChangeNotifier, WindowListener {
     _logVerboseRelease = snapshot.logVerboseRelease;
 
     _trayLeftClick = snapshot.trayLeftClick;
+
+    _checkForUpdates = snapshot.checkForUpdates;
+
+    _locale = snapshot.locale;
 
     notifyListeners();
   }
@@ -910,5 +926,23 @@ class SettingsController with ChangeNotifier, WindowListener {
     _trayLeftClick = value;
     notifyListeners();
     await _settingsService.updateTrayLeftClick(value);
+  }
+
+  // ── Updates ──────────────────────────────────────────────────────────
+
+  Future<void> updateCheckForUpdates(bool value) async {
+    if (value == _checkForUpdates) return;
+    _checkForUpdates = value;
+    notifyListeners();
+    await _settingsService.updateCheckForUpdates(value);
+  }
+
+  // ── Locale ──────────────────────────────────────────────────────────
+
+  Future<void> updateLocale(String? locale) async {
+    if (locale == _locale) return;
+    _locale = locale;
+    notifyListeners();
+    await _settingsService.updateLocale(locale);
   }
 }

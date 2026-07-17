@@ -28,6 +28,19 @@ class MoonrelayAppTheme extends ChangeNotifier {
     _textDirection = direction;
     notifyListeners();
   }
+
+  /// Update text direction based on a locale code.
+  ///
+  /// Sets RTL for Persian (fa) and LTR for everything else.
+  void updateFromLocale(String? localeCode) {
+    final dir = localeCode != null && localeCode.startsWith('fa')
+        ? TextDirection.rtl
+        : TextDirection.ltr;
+    if (_textDirection != dir) {
+      _textDirection = dir;
+      notifyListeners();
+    }
+  }
 }
 
 /// Preconfigured theme option a user can select in settings.

@@ -339,6 +339,35 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Language
+              HubSettingsSection(
+                title: l10n.language,
+                children: [
+                  RadioGroup<String?>(
+                    groupValue: controller.locale,
+                    onChanged: (v) => controller.updateLocale(v),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<String?>(
+                          title: Text(l10n.languageSystem),
+                          value: null,
+                        ),
+                        RadioListTile<String?>(
+                          title: Text(l10n.languageEnglish),
+                          value: 'en',
+                        ),
+                        RadioListTile<String?>(
+                          title: Text(l10n.languagePersian),
+                          value: 'fa',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
