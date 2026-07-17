@@ -14,32 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Opens a location-share dialog that sends the device's current location
 /// as a Matrix `m.location` event.
 ///
 /// The event content follows the spec at
-/// <https://spec.matrix.org/v1.13/client-server-api/#mlocation>:
-/// ```
-/// {
-///   'msgtype':     'm.location',
-///   'body':        'Location: 52.52,13.40',
-///   'geo_uri':     'geo:52.52,13.40',
-///   'info': {
-///     'latitude':  52.52,
-///     'longitude': 13.40,
-///     'accuracy':  15,
-///   }
-/// }
-/// ```
+/// <https://spec.matrix.org/v1.13/client-server-api/#mlocation>.
+/// We omit the optional `info` block because some servers (Synapse)
+/// reject float values in event content with `M_BAD_JSON`.  The
+/// renderer falls back to the `geo_uri` field when `info` is absent.
 Future<void> showShareLocationDialog(BuildContext context, Room room) async {
   await showDialog<void>(
     context: context,
@@ -87,26 +75,27 @@ class _ShareLocationDialogState extends State<_ShareLocationDialog> {
         ),
       );
 
+      final lat = position.latitude;
+      final lon = position.longitude;
+
+      // Build the event content without an `info` block: some Matrix
+      // servers (Synapse) reject float values in event content with
+      // M_BAD_JSON.  Spec-wise the `info` block is optional — the
+      // renderer falls back to the geo_uri when info is absent.
       final content = <String, dynamic>{
         'msgtype': 'm.location',
-        'body':
-            'Location: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
-        'geo_uri':
-            'geo:${position.latitude},${position.longitude}',
-        'info': <String, dynamic>{
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-          'accuracy': position.accuracy,
-        },
+        'body': 'Location: ${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
+        'geo_uri': 'geo:${lat.toStringAsFixed(6)},${lon.toStringAsFixed(6)}',
       };
 
-      await withRetry(
-        () => widget.room.sendEvent(content),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: null,
-        label: 'sendLocation',
-      );
+      // Room.sendEvent returns null when the SDK catches a fatal
+      // MatrixException internally (M_BAD_JSON, M_FORBIDDEN, etc.).
+      // Without this check the dialog would pop on failure and the
+      // event would land in the timeline with error status.
+      final eventId = await widget.room.sendEvent(content);
+      if (eventId == null) {
+        throw Exception(l10n.locationFailedToFetch);
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop();
