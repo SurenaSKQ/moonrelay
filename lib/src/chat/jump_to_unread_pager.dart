@@ -39,8 +39,10 @@ class JumpToUnreadPager {
   /// nothing in here mutates the parent state directly.
   final JumpToUnreadContext context;
 
-  static const Duration _globalTimeout = Duration(seconds: 8);
-  static const int _maxIterationsPerDirection = 6;
+  /// Shared timeout across both pagination directions.  Increased from 8s
+  /// to 30s so large rooms with sparse sync intervals don't leave the user
+  /// on the loading pill unnecessarily.
+  static const Duration _globalTimeout = Duration(seconds: 30);
 
   /// Pages the timeline in the appropriate direction until the event
   /// with id [markerId] is loaded, or until the server stops returning
@@ -59,11 +61,12 @@ class JumpToUnreadPager {
     if (!context.canRun()) return false;
 
     final stopwatch = Stopwatch()..start();
+    final winner = Completer<bool>();
     bool budgetExceeded() => stopwatch.elapsed >= _globalTimeout;
 
     Future<bool> paginateOlder() async {
-      for (var i = 0; i < _maxIterationsPerDirection; i++) {
-        if (!context.canRun() || budgetExceeded()) return false;
+      while (context.canRun() && !budgetExceeded()) {
+        if (winner.isCompleted) return false;
         if (!timeline.canRequestHistory) return false;
         context.onHistoryAttempt();
         try {
@@ -74,16 +77,18 @@ class JumpToUnreadPager {
         } finally {
           context.onHistoryAttemptEnd();
         }
-        if (!context.canRun() || budgetExceeded()) return false;
+        if (!context.canRun() || budgetExceeded() || winner.isCompleted) {
+          return false;
+        }
         if (findMarkerIndex(timeline.events, markerId) >= 0) return true;
-        if (!timeline.canRequestHistory) return false;
+        // Continue until history is exhausted.
       }
       return false;
     }
 
     Future<bool> paginateNewer() async {
-      for (var i = 0; i < _maxIterationsPerDirection; i++) {
-        if (!context.canRun() || budgetExceeded()) return false;
+      while (context.canRun() && !budgetExceeded()) {
+        if (winner.isCompleted) return false;
         if (!timeline.canRequestFuture) return false;
         try {
           await context.runWithTimeout(() => timeline.requestFuture());
@@ -91,14 +96,15 @@ class JumpToUnreadPager {
           context.onFutureError(e);
           return false;
         }
-        if (!context.canRun() || budgetExceeded()) return false;
+        if (!context.canRun() || budgetExceeded() || winner.isCompleted) {
+          return false;
+        }
         if (findMarkerIndex(timeline.events, markerId) >= 0) return true;
-        if (!timeline.canRequestFuture) return false;
+        // Continue until future is exhausted.
       }
       return false;
     }
 
-    final winner = Completer<bool>();
     Future<void> raceOne(Future<bool> Function() direction) async {
       if (winner.isCompleted) return;
       try {

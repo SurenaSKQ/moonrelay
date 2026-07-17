@@ -80,6 +80,13 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
 
+  /// Set to false when a jump-to-last-read pagination starts and back to
+  /// true when it resolves (success or failure).  The unread pill is gated
+  /// on this flag so it never appears mid-pagination or immediately after a
+  /// failed attempt -- the pill only comes back when the user has fresh
+  /// unread events from a new sync.
+  bool _jumpLoadingDone = true;
+
   /// Events explicitly fetched for the pinned filter (fetched by ID
   /// from the server when they aren't in the local timeline batch).
   List<Event>? _fetchedFilteredEvents;
@@ -155,6 +162,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       _jumpCoordinator?.resetForRoom();
       _readMarkerTracker?.resetForRoom();
       _pillDismissed = false;
+      _jumpLoadingDone = true;
       _timeline = null;
       _fetchedFilteredEvents = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -353,7 +361,8 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   bool get _showUnreadPill =>
       _unreadInWindow > 0 &&
       !_pillDismissed &&
-      !(_jumpCoordinator?.isJumping ?? false);
+      !(_jumpCoordinator?.isJumping ?? false) &&
+      _jumpLoadingDone;
 
   void _dismissUnreadPill() {
     if (!_pillDismissed) {
@@ -486,7 +495,16 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
             ValueListenableBuilder<bool>(
               valueListenable: _isScrolledUpNotifier,
               builder: (context, isScrolledUp, _) {
-                if (!_showUnreadPill && !isScrolledUp) {
+                final isJumping =
+                    _jumpCoordinator?.isJumping ?? false;
+                // Only show floating actions when the user has scrolled
+                // away from the bottom (actively reading older messages)
+                // or while a jump-to-unread pagination is in flight.
+                // When the user is at the bottom of the timeline they
+                // can already see the newest messages, so the unread
+                // pill would be redundant.
+                final showColumn = isScrolledUp || isJumping;
+                if (!showColumn) {
                   return const SizedBox.shrink();
                 }
                 return Positioned(
@@ -499,10 +517,13 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
                       child: ChatTimelineFloatingActions(
                         unreadCount: _unreadInWindow,
                         isScrolledUp: isScrolledUp,
-                        unreadVisible: _showUnreadPill,
-                        isJumping: _jumpCoordinator?.isJumping ?? false,
+                        unreadVisible:
+                            (_showUnreadPill && isScrolledUp) || isJumping,
+                        isJumping: isJumping,
                         onJumpToUnread: () async {
+                          _jumpLoadingDone = false;
                           await _jumpCoordinator?.jumpToLastRead();
+                          _jumpLoadingDone = true;
                           if (!mounted) return;
                           _markRoomRead(force: true);
                           if (mounted) _dismissUnreadPill();
