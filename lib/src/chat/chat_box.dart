@@ -90,7 +90,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _controller = TextEditingController();
-    _focusNode = FocusNode();
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
     _expandController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -189,6 +189,36 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       case SendShortcut.cmdEnter:
         return false;
     }
+  }
+
+  /// Handles raw key events on the composer's [FocusNode] so we can
+  /// intercept Enter / Cmd+Enter regardless of [TextInputAction].
+  ///
+  /// Plain Enter dispatches [_send] or inserts a newline depending on
+  /// the user's [SendShortcut] preference.  Cmd/Ctrl+Enter always sends.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final isMeta = HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isControlPressed;
+
+    if (event.logicalKey != LogicalKeyboardKey.enter &&
+        event.logicalKey != LogicalKeyboardKey.numpadEnter) {
+      return KeyEventResult.ignored;
+    }
+
+    if (isMeta) {
+      _send();
+      return KeyEventResult.handled;
+    }
+
+    if (_shouldEnterSend() && !HardwareKeyboard.instance.isShiftPressed) {
+      _send();
+      return KeyEventResult.handled;
+    }
+
+    // Let Shift+Enter / plain Enter when not in send-mode insert a newline.
+    return KeyEventResult.ignored;
   }
 
   // ---------------------------------------------------------------------------
@@ -521,23 +551,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
                 // Text field
                 Expanded(
-                  child: KeyboardListener(
-                    focusNode: FocusNode(),
-                    autofocus: false,
-                    onKeyEvent: (event) {
-                      if (event is KeyDownEvent) {
-                        final isMeta =
-                            HardwareKeyboard.instance.isMetaPressed ||
-                                HardwareKeyboard.instance.isControlPressed;
-                        final isEnter = event.logicalKey ==
-                                LogicalKeyboardKey.enter ||
-                            event.logicalKey == LogicalKeyboardKey.numpadEnter;
-                        if (isEnter && isMeta) {
-                          _send();
-                        }
-                      }
-                    },
-                    child: Container(
+                  child: Container(
                       constraints: BoxConstraints(
                         maxHeight: _isExpanded ? 200 : 48,
                       ),
@@ -576,7 +590,6 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                           ),
                           isDense: true,
                         ),
-                      ),
                     ),
                   ),
                 ),
