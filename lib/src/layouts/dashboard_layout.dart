@@ -254,6 +254,39 @@ class _DashboardView extends StatelessWidget {
     final showLeft = settings.leftSidebarVisible;
     final showRight = settings.rightSidebarVisible && !shouldUseCompact;
 
+    // In RTL mode the sidebar order must be reversed so that the
+    // "left" sidebar appears on the right side of the window.
+    final paneChildren = <Widget>[
+      if (showLeft && !shouldUseCompact)
+        _LeftPaneHost(
+          widthNotifier: leftWidthNotifier,
+          onResize: onLeftResize,
+          onResizeEnd: onLeftResizeEnd,
+          theme: theme,
+        ),
+      Expanded(
+        child: GlobalShortcutListener(
+          child: PostLoginSetupChecker(
+            child: IncomingVerificationListener(
+              child: child,
+            ),
+          ),
+        ),
+      ),
+      if (showRight) ...[
+        _ResizeHandle(
+          onDrag: onRightResize,
+          onDragEnd: onRightResizeEnd,
+        ),
+        _RightPaneHost(
+          widthNotifier: rightWidthNotifier,
+          theme: theme,
+        ),
+      ],
+    ];
+
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+
     return LayoutScope(
       size: size,
       availableWidth: width,
@@ -262,34 +295,7 @@ class _DashboardView extends StatelessWidget {
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (showLeft && !shouldUseCompact)
-                  _LeftPaneHost(
-                    widthNotifier: leftWidthNotifier,
-                    onResize: onLeftResize,
-                    onResizeEnd: onLeftResizeEnd,
-                    theme: theme,
-                  ),
-                Expanded(
-                  child: GlobalShortcutListener(
-                    child: PostLoginSetupChecker(
-                      child: IncomingVerificationListener(
-                        child: child,
-                      ),
-                    ),
-                  ),
-                ),
-                if (showRight) ...[
-                  _ResizeHandle(
-                    onDrag: onRightResize,
-                    onDragEnd: onRightResizeEnd,
-                  ),
-                  _RightPaneHost(
-                    widthNotifier: rightWidthNotifier,
-                    theme: theme,
-                  ),
-                ],
-              ],
+              children: isRtl ? paneChildren.reversed.toList() : paneChildren,
             ),
           ),
           if (settings.showStatusBar) const ApplicationStatusBar(),
@@ -333,6 +339,26 @@ class _CompactDashboard extends StatelessWidget {
     final sidebarWidth =
         settings.leftSidebarWidth.clamp(220.0, 360.0).toDouble();
 
+    // In RTL mode the sidebar order must be reversed.
+    final compactChildren = <Widget>[
+      if (settings.leftSidebarVisible)
+        SizedBox(
+          width: sidebarWidth,
+          child: CompactSidebar(width: sidebarWidth),
+        ),
+      Expanded(
+        child: GlobalShortcutListener(
+          child: PostLoginSetupChecker(
+            child: IncomingVerificationListener(
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+
     return LayoutScope(
       size: LayoutSize.compact,
       availableWidth: width,
@@ -341,22 +367,8 @@ class _CompactDashboard extends StatelessWidget {
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (settings.leftSidebarVisible)
-                  SizedBox(
-                    width: sidebarWidth,
-                    child: CompactSidebar(width: sidebarWidth),
-                  ),
-                Expanded(
-                  child: GlobalShortcutListener(
-                    child: PostLoginSetupChecker(
-                      child: IncomingVerificationListener(
-                        child: child,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              children:
+                  isRtl ? compactChildren.reversed.toList() : compactChildren,
             ),
           ),
           if (settings.showStatusBar) const ApplicationStatusBar(),
@@ -390,6 +402,7 @@ class _LeftPaneHost extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     return Row(
+      textDirection: TextDirection.ltr,
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -455,8 +468,15 @@ Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
     case LeftPaneChoice.rooms:
       return Consumer<NavigationState>(
         builder: (context, nav, _) {
+          final Client? client;
+          try {
+            client = Provider.of<Client>(context, listen: false);
+          } catch (_) {
+            // Client may be absent during logout transition; show
+            // nothing until the route changes away from the dashboard.
+            return const SizedBox.shrink();
+          }
           if (nav.isSpace) {
-            final Client client = Provider.of<Client>(context, listen: false);
             final Room? space = client.getRoomById(nav.selectedId);
             if (space != null) {
               return SpaceRoomsPane(space: space, client: client);
