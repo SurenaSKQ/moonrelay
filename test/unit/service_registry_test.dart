@@ -21,8 +21,9 @@
 // ones.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logger/logger.dart';
 import 'package:moonrelay/src/helpers/service_registry.dart';
+
+import '../helpers/mocks.dart';
 
 void main() {
   group('ServiceRegistry', () {
@@ -33,7 +34,7 @@ void main() {
       registry.register('B', disposer: () => order.add('B'));
       registry.register('C', disposer: () => order.add('C'));
 
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
 
       expect(order, ['C', 'B', 'A']);
     });
@@ -52,7 +53,7 @@ void main() {
       registry.register('C', disposer: () => order.add('C'));
 
       // Must not throw and must still run A after B fails.
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
 
       // C runs first (LIFO), then B (which throws), then A.
       expect(order, ['C', 'B', 'A']);
@@ -64,12 +65,12 @@ void main() {
       final registry = ServiceRegistry();
       registry.register('A', disposer: () => order.add('A'));
 
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
       expect(order, ['A']);
 
       // Second shutdown: nothing was registered since the first
       // call, so the order list is unchanged.
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
       expect(order, ['A']);
     });
 
@@ -92,7 +93,7 @@ void main() {
       );
 
       final sw = Stopwatch()..start();
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
       sw.stop();
 
       // fast runs first (LIFO), then slow. The total should be at
@@ -111,14 +112,14 @@ void main() {
         },
       );
 
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
       expect(order, ['sync']);
     });
 
     test('empty registry shutdown is a no-op', () async {
       final registry = ServiceRegistry();
       // Must not throw.
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
     });
 
     test('the service instance is stored only for log attribution '
@@ -132,7 +133,7 @@ void main() {
         tokenA,
         disposer: () => order.add('a'),
       );
-      await registry.shutdownAll(Logger());
+      await registry.shutdownAll(MockLogger());
       expect(order, ['a']);
     });
   });
