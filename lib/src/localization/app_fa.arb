@@ -128,7 +128,6 @@
   "registerTitle": "ایجاد حساب",
   "registerHomeserverHint": "matrix.org",
   "usernameText": "نام کاربری",
-  "usernameHint": "یک نام کاربری انتخاب کنید",
   "confirmPasswordLabel": "تأیید رمز عبور",
   "agreeToTerms": "با شرایط خدمات این سرور اصلی موافقم",
   "creatingAccount": "در حال ایجاد حساب…",
@@ -304,7 +303,6 @@
   "copyRoomIdTooltip": "کپی شناسه اتاق",
   "actionsSection": "اقدامات",
   "roleLabel": "نقش",
-  "statusLabel": "وضعیت",
   "reportUserReason": "لطفاً دلیل گزارش این کاربر را توضیح دهید.",
   "reportUserHint": "دلیل گزارش…",
   "reportUserDefaultReason": "گزارش‌شده از طریق Moonrelay",
@@ -3457,5 +3455,41 @@
   "encryptionBackupRecoveryKeyHint": "اگر در هنگام تنظیم عبارت عبور یا کلید بازیابی تنظیم نکرده‌اید، تنظیمات را دوباره اجرا کنید. بدون آن نمی‌توانید تاریخچه رمزنگاری‌شده را در دستگاه جدید بازیابی کنید.",
   "@encryptionBackupRecoveryKeyHint": {
     "description": "Hint for recovery key setup."
+  },
+  "stateMessageRedacted": "پیام توسط {name} حذف شد",
+  "@stateMessageRedacted": {
+    "description": "Timeline event showing that someone deleted a message.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "stateMessageRedactedReason": "پیام توسط {name} حذف شد: {reason}",
+  "@stateMessageRedactedReason": {
+    "description": "Timeline event showing a message deletion with reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedBy": "حذف شده توسط {name}",
+  "@redactedBy": {
+    "description": "Label next to a redacted message showing who performed the deletion.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "redactedWithReason": "حذف شده توسط {name}: {reason}",
+  "@redactedWithReason": {
+    "description": "Redacted message label including the reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedForAdmin": "به دلیل نقض قوانین حذف شد",
+
+  "cancelFailedSendConfirm": "این پیام با موفقیت ارسال نشده است. از جدول زمانی حذف خواهد شد. نسخه‌ای که قبلاً روی سرور وجود دارد (قابل مشاهده برای سایر کاربران) حذف نخواهد شد.",
+  "@cancelFailedSendConfirm": {
+    "description": "Confirmation shown when discarding a stuck failed-send event."
   }
 }
