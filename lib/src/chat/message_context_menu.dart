@@ -46,6 +46,8 @@ enum MessageContextAction {
   pin,
   unpin,
   delete,
+  retry,
+  cancelSend,
   kick,
   ban,
   report,
@@ -157,7 +159,25 @@ class MessageContextMenu {
     final showEditHistory =
         isOwnMessage && isEditedMessage(event) && timeline != null;
 
+    final isFailed = event.status.isError;
+
     return <PopupMenuEntry<MessageContextAction>>[
+      // ─── Failed-send group (only for events stuck in error state) ───
+      if (isFailed) ...[
+        _menuItem(
+          value: MessageContextAction.retry,
+          icon: Icons.refresh_rounded,
+          label: l10n.retry,
+          color: cs.tertiary,
+        ),
+        _menuItem(
+          value: MessageContextAction.cancelSend,
+          icon: Icons.close_rounded,
+          label: l10n.cancel,
+          color: cs.onSurfaceVariant,
+        ),
+        const PopupMenuDivider(),
+      ],
       // ─── Compose group ──────────────────────────────────────────────
       _menuItem(
         value: MessageContextAction.react,
@@ -329,6 +349,10 @@ class MessageContextMenu {
         await MessageActionRunner.togglePin(context, event, room);
       case MessageContextAction.delete:
         await MessageActionRunner.confirmDelete(context, event);
+      case MessageContextAction.retry:
+        await MessageActionRunner.retrySend(context, event, room);
+      case MessageContextAction.cancelSend:
+        await MessageActionRunner.cancelFailedSend(context, event);
       case MessageContextAction.kick:
         await MessageActionRunner.kick(context, event, room);
       case MessageContextAction.ban:
@@ -489,6 +513,7 @@ class MessageContextMenu {
   }) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final isFailed = event.status.isError;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -499,6 +524,21 @@ class MessageContextMenu {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (isFailed) ...[
+            _quickIcon(
+              icon: Icons.refresh_rounded,
+              tooltip: l10n.retry,
+              color: cs.tertiary,
+              onTap: () => MessageActionRunner.retrySend(context, event, room),
+            ),
+            _quickIcon(
+              icon: Icons.close_rounded,
+              tooltip: l10n.cancel,
+              color: cs.onSurfaceVariant,
+              onTap: () => MessageActionRunner.cancelFailedSend(context, event),
+            ),
+            const SizedBox(width: 4),
+          ],
           _quickIcon(
             icon: Icons.add_reaction_rounded,
             tooltip: l10n.reactTooltip,

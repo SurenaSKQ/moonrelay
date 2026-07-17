@@ -47,6 +47,7 @@ void main() {
     });
     when(() => event.relationshipEventId).thenReturn(null);
     when(() => event.senderFromMemoryOrFallback).thenReturn(sender);
+    when(() => event.status).thenReturn(EventStatus.synced);
     when(() => sender.calcDisplayname()).thenReturn('Other User');
     when(() => sender.id).thenReturn('@other:matrix.org');
 

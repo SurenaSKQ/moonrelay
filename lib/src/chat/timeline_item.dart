@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
 import 'package:moonrelay/src/chat/hover_highlight.dart';
@@ -241,6 +243,12 @@ class _TimelineItemState extends State<TimelineItem> {
     showProfileOverlay(context, userId: senderId, room: widget.room);
   }
 
+  /// Retries sending a failed event via the SDK's [Event.sendAgain].
+  /// Called from the [DeliveryIndicator] retry icon.
+  void _onRetrySend() {
+    unawaited(widget.event.sendAgain());
+  }
+
   /// Builds the inline hoverbar widget shown inside [HoverHighlight] when
   /// the cursor is over this message.  Returns `null` when no actions are
   /// available (e.g. IRC display mode or missing onAction callback).
@@ -404,7 +412,11 @@ class _TimelineItemState extends State<TimelineItem> {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: DeliveryIndicator(
-                status: _deliveryStatusFor(widget.event)),
+              status: _deliveryStatusFor(widget.event),
+              onRetry: widget.event.status.isError
+                  ? _onRetrySend
+                  : null,
+            ),
           ),
         if (widget.threadReplyCount > 0)
           ThreadIndicator(
