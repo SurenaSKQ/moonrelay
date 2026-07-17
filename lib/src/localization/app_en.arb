@@ -3436,5 +3436,42 @@
   "languageSystem": "System default",
   "@languageSystem": {
     "description": "Option label to follow the system locale."
+  },
+
+  "stateMessageRedacted": "Message deleted by {name}",
+  "@stateMessageRedacted": {
+    "description": "Timeline event showing that someone deleted a message.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "stateMessageRedactedReason": "Message deleted by {name}: {reason}",
+  "@stateMessageRedactedReason": {
+    "description": "Timeline event showing a message deletion with reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedBy": "Deleted by {name}",
+  "@redactedBy": {
+    "description": "Label next to a redacted message showing who performed the deletion.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "redactedWithReason": "Deleted by {name}: {reason}",
+  "@redactedWithReason": {
+    "description": "Redacted message label including the reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedForAdmin": "Redacted for violation",
+
+  "cancelFailedSendConfirm": "This message was not sent successfully. It will be removed from the timeline. The copy already on the server (visible to other clients) will not be deleted.",
+  "@cancelFailedSendConfirm": {
+    "description": "Confirmation shown when discarding a stuck failed-send event."
   }
 }
