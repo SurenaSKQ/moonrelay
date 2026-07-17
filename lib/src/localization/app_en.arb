@@ -3337,5 +3337,89 @@
   "security": "Security",
   "@security": {
     "description": "Section title for security-related settings."
+  },
+
+  "updates": "Updates",
+  "@updates": {
+    "description": "Hub navigation item for the Updates settings page."
+  },
+  "updatesDescription": "Check for new versions of Moonrelay and configure update preferences.",
+  "@updatesDescription": {
+    "description": "Subtitle for the Updates settings page."
+  },
+  "checkForUpdates": "Check for Updates",
+  "@checkForUpdates": {
+    "description": "Button label to manually check for application updates."
+  },
+  "checkForUpdatesOnStartup": "Check for updates on startup",
+  "@checkForUpdatesOnStartup": {
+    "description": "Toggle label for checking for updates when the app starts."
+  },
+  "checkForUpdatesOnStartupDescription": "Automatically check for new versions when Moonrelay launches",
+  "@checkForUpdatesOnStartupDescription": {
+    "description": "Subtitle for the check-on-startup toggle."
+  },
+  "updateAvailable": "Update Available",
+  "@updateAvailable": {
+    "description": "Title for the update-available dialog."
+  },
+  "updateAvailableBody": "Moonrelay {version} is now available. You are running {current}. Would you like to download it?",
+  "@updateAvailableBody": {
+    "description": "Body of the update-available dialog.",
+    "placeholders": {
+      "version": { "type": "String" },
+      "current": { "type": "String" }
+    }
+  },
+  "updateDownload": "Download",
+  "@updateDownload": {
+    "description": "Button to download the new version from GitHub."
+  },
+  "updateLater": "Later",
+  "@updateLater": {
+    "description": "Button to dismiss the update notification."
+  },
+  "updateChecking": "Checking for updates…",
+  "@updateChecking": {
+    "description": "Status shown while checking for updates."
+  },
+  "updateUpToDate": "Moonrelay is up to date ({version}).",
+  "@updateUpToDate": {
+    "description": "Message shown when the app is already the latest version.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "updateCheckFailed": "Could not check for updates. Please try again later.",
+  "@updateCheckFailed": {
+    "description": "Message shown when the update check fails."
+  },
+  "updateCheckResult": "Latest version: {version}",
+  "@updateCheckResult": {
+    "description": "Result showing the latest version found during update check.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "language": "Language",
+  "@language": {
+    "description": "Section title for the language selector."
+  },
+  "languageDescription": "Choose the application language",
+  "@languageDescription": {
+    "description": "Subtitle for the language selector."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "Option label for English language."
+  },
+  "languagePersian": "Persian",
+  "@languagePersian": {
+    "description": "Option label for Persian (Farsi) language."
+  },
+  "languageSystem": "System default",
+  "@languageSystem": {
+    "description": "Option label to follow the system locale."
   }
 }
