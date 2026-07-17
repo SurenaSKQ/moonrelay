@@ -55,12 +55,14 @@ class ChatTimeline extends StatefulWidget {
     required this.room,
     this.onReply,
     this.onThread,
+    this.onEdit,
     this.filterEvents,
   });
 
   final Room room;
   final void Function(Event event)? onReply;
   final void Function(Event event)? onThread;
+  final void Function(Event event)? onEdit;
   final bool Function(Event)? filterEvents;
 
   @override
@@ -581,6 +583,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       timelineVersion: _timelineVersion,
       onReply: widget.onReply,
       onThread: widget.onThread,
+      onEdit: widget.onEdit,
       showStateEvents: settings.showStateEvents,
       filterEvents: widget.filterEvents,
       isLoadingHistory: _historyPager?.shouldShowSkeleton ?? false,

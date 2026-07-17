@@ -49,6 +49,7 @@ class ChatBox extends StatefulWidget {
     super.key,
     required this.room,
     this.replyTarget,
+    this.editTarget,
     this.threadRootEventId,
   });
 
@@ -57,6 +58,12 @@ class ChatBox extends StatefulWidget {
   /// A notifier that signals which event (if any) the user is currently
   /// replying to.  Set to `null` to clear the reply preview.
   final ValueNotifier<Event?>? replyTarget;
+
+  /// A notifier that signals which event (if any) the user is currently
+  /// editing.  When non-null the chat box enters edit mode: the message
+  /// body is loaded into the composer, a banner marks the event being
+  /// edited, and sending edits the event instead of posting a new message.
+  final ValueNotifier<Event?>? editTarget;
 
   /// When non-null, messages are sent as replies in this thread.
   final String? threadRootEventId;
@@ -74,6 +81,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isEmpty = true;
   Event? _replyEvent;
+  Event? _editEvent;
   bool _disposed = false;
   late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
 
@@ -81,6 +89,9 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   /// controller.  Stored so we can restore it if `sendFn` throws  the
   /// user can correct and resend without retyping a long message.
   String? _draftValue;
+
+  /// Saved draft text from before entering edit mode, restored on cancel.
+  String? _previousDraft;
 
   /// Per-room draft persistence.  Initialized when a room is available
   /// and [draftsEnabled] is true.
@@ -101,6 +112,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
     _controller.addListener(_onTextChanged);
     widget.replyTarget?.addListener(_onReplyTargetChanged);
+    widget.editTarget?.addListener(_onEditTargetChanged);
     // Load persisted draft after init so the listener is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft());
   }
@@ -130,12 +142,17 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       oldWidget.replyTarget?.removeListener(_onReplyTargetChanged);
       widget.replyTarget?.addListener(_onReplyTargetChanged);
     }
+    if (oldWidget.editTarget != widget.editTarget) {
+      oldWidget.editTarget?.removeListener(_onEditTargetChanged);
+      widget.editTarget?.addListener(_onEditTargetChanged);
+    }
   }
 
   @override
   void dispose() {
     _disposed = true;
     widget.replyTarget?.removeListener(_onReplyTargetChanged);
+    widget.editTarget?.removeListener(_onEditTargetChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -153,6 +170,33 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     setState(() => _replyEvent = widget.replyTarget?.value);
     if (widget.replyTarget?.value != null) {
       _focusNode.requestFocus();
+    }
+  }
+
+  void _onEditTargetChanged() {
+    if (!mounted) return;
+    final target = widget.editTarget?.value;
+    if (target == _editEvent) return;
+    if (target != null) {
+      // Save the current composer text so it can be restored on cancel.
+      _previousDraft = _controller.text;
+      // Pre-fill the composer with the event's body, preferring the
+      // latest edited body from the timeline when available.
+      _fillEditText(target);
+      _clearReply();
+      _focusNode.requestFocus();
+    }
+    setState(() => _editEvent = target);
+  }
+
+  /// Loads the body of [target] into the composer, using the SDK's
+  /// [Event.getDisplayEvent] when a timeline is available.
+  Future<void> _fillEditText(Event target) async {
+    try {
+      final tl = await target.room.getTimeline();
+      _controller.text = target.getDisplayEvent(tl).body;
+    } catch (_) {
+      _controller.text = target.body;
     }
   }
 
@@ -228,6 +272,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+
+    final editEvent = _editEvent;
+    if (editEvent != null) {
+      await _sendEdit(text, editEvent);
+      return;
+    }
 
     final log = context.read<Logger>();
     final replyTo = _replyEvent;
@@ -356,6 +406,74 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   void _clearReply() {
     widget.replyTarget?.value = null;
     setState(() => _replyEvent = null);
+  }
+
+  void _clearEdit() {
+    // Restore the draft that was in the composer before editing.
+    if (_previousDraft != null && _previousDraft!.isNotEmpty) {
+      _controller.text = _previousDraft!;
+    }
+    _previousDraft = null;
+    widget.editTarget?.value = null;
+    setState(() => _editEvent = null);
+  }
+
+  /// Sends an `m.replace` edit for [editEvent] with [newBody].
+  Future<void> _sendEdit(String newBody, Event editEvent) async {
+    final log = context.read<Logger>();
+    final html = await MarkdownToHtml.convertAsync(newBody);
+    final hasHtml = html.isNotEmpty && html != newBody;
+
+    final content = <String, dynamic>{
+      'msgtype': editEvent.messageType,
+      'body': newBody,
+      if (hasHtml) ...<String, dynamic>{
+        'format': 'org.matrix.custom.html',
+        'formatted_body': html,
+      },
+      'm.new_content': <String, dynamic>{
+        'msgtype': editEvent.messageType,
+        'body': newBody,
+        if (hasHtml) ...<String, dynamic>{
+          'format': 'org.matrix.custom.html',
+          'formatted_body': html,
+        },
+      },
+      'm.relates_to': <String, dynamic>{
+        'rel_type': 'm.replace',
+        'event_id': editEvent.eventId,
+      },
+    };
+
+    // Preserve thread context if the edited event belongs to a thread.
+    if (editEvent.relationshipType == RelationshipTypes.thread &&
+        editEvent.relationshipEventId != null) {
+      (content['m.relates_to'] as Map<String, dynamic>)['m.thread'] =
+          <String, dynamic>{
+        'event_id': editEvent.relationshipEventId,
+      };
+    }
+
+    try {
+      await withTimeout(
+        () => widget.room.sendEvent(content),
+        timeout: kDefaultTimeout,
+      );
+      if (!mounted) return;
+      _clearEdit();
+      _controller.clear();
+      _draftService?.cancelPending();
+    } catch (e) {
+      log.w('Failed to edit message', error: e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.editFailed('$e'),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _attachFile() async {
@@ -487,8 +605,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
             child: _buildFormattingToolbar(colorScheme),
           ),
 
-          // Reply preview banner
-          if (_replyEvent != null) _buildReplyPreview(colorScheme, l10n),
+          // Reply preview banner (hidden during editing)
+          if (_replyEvent != null && _editEvent == null)
+            _buildReplyPreview(colorScheme, l10n),
+
+          // Edit-mode banner
+          if (_editEvent != null) _buildEditBanner(colorScheme, l10n),
 
           // Main input row
           Padding(
@@ -713,6 +835,97 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
               child: InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: _clearReply,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Edit-mode banner
+  // ---------------------------------------------------------------------------
+
+  /// Builds a banner showing which message is being edited, with a
+  /// dismiss button to cancel the edit.
+  Widget _buildEditBanner(ColorScheme colorScheme, AppLocalizations? l10n) {
+    final editTarget = _editEvent;
+    if (editTarget == null) return const SizedBox.shrink();
+
+    final preview = editTarget.body.length > 80
+        ? '${editTarget.body.substring(0, 80)}...'
+        : editTarget.body;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 2),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 32,
+            decoration: BoxDecoration(
+              color: colorScheme.tertiary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.edit_outlined,
+            size: 16,
+            color: colorScheme.tertiary,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n!.editMessageTitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.tertiary,
+                  ),
+                ),
+                Text(
+                  preview,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          Semantics(
+            label: l10n.chatBoxCancelEdit,
+            button: true,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: _clearEdit,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: Icon(
