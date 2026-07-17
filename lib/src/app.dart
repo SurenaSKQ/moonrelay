@@ -83,6 +83,10 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
     // briefly showing the prior account right after a fresh login.
     return Consumer<AccountManager>(
       builder: (context, accountManager, _) {
+        // Derive text direction from the selected locale so RTL
+        // languages (Persian) flip the entire app layout.
+        _appTheme.updateFromLocale(settingsController.locale);
+
         Widget app = ListenableBuilder(
           listenable: settingsController,
           builder: (BuildContext context, Widget? child) {
@@ -93,6 +97,9 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
               localizationsDelegates:
                   AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
+              locale: settingsController.locale != null
+                  ? Locale(settingsController.locale!)
+                  : null,
               onGenerateTitle: (context) =>
                   AppLocalizations.of(context)!.appTitle,
               theme: MoonrelayTheme.light(settingsController.themeOption),
@@ -116,22 +123,27 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
         final client = accountManager.client;
         final enc = accountManager.encryptionService;
 
+        // SyncPulse and RoomStateBus are always provided — they are owned
+        // by this widget and survive logout so that downstream widgets
+        // (RoomsPane, NavigationPane, SpacesPane) can safely reference
+        // them during the logout transition before the route changes.
+        // Client and EncryptionService are only provided when active.
         if (client != null) {
           _bindPulse(client);
           app = Provider<Client>.value(value: client, child: app);
-          app = ChangeNotifierProvider<SyncPulse>.value(
-            value: _syncPulse,
-            child: app,
-          );
-          // RoomStateBus is a ChangeNotifier (subscribers listen to
-          // per-room ValueNotifiers via the bus), so it must be
-          // wrapped in a ChangeNotifierProvider; a plain Provider
-          // would assert at runtime.
-          app = ChangeNotifierProvider<RoomStateBus>.value(
-            value: _roomStateBus,
-            child: app,
-          );
         }
+        app = ChangeNotifierProvider<SyncPulse>.value(
+          value: _syncPulse,
+          child: app,
+        );
+        // RoomStateBus is a ChangeNotifier (subscribers listen to
+        // per-room ValueNotifiers via the bus), so it must be
+        // wrapped in a ChangeNotifierProvider; a plain Provider
+        // would assert at runtime.
+        app = ChangeNotifierProvider<RoomStateBus>.value(
+          value: _roomStateBus,
+          child: app,
+        );
         if (enc != null) {
           app = ChangeNotifierProvider<EncryptionService>.value(
             value: enc,

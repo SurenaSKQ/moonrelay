@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'src/app.dart';
 import 'src/boot.dart';
@@ -36,7 +37,9 @@ import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/helpers/service_registry.dart';
 import 'src/init_logger.dart';
+import 'src/localization/app_localizations.dart';
 import 'src/services/deep_link_service.dart';
+import 'src/services/auto_update_service.dart';
 import 'src/services/notification_service.dart';
 import 'src/services/tray_service.dart';
 import 'src/settings/settings_controller.dart';
@@ -71,6 +74,7 @@ class _AppState {
     required this.notificationService,
     required this.deepLinkService,
     required this.registry,
+    required this.autoUpdateService,
   });
 
   final Client sdk;
@@ -84,6 +88,7 @@ class _AppState {
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
   final ServiceRegistry registry;
+  final AutoUpdateService autoUpdateService;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -124,6 +129,7 @@ Future<_AppState> _initialize({
     notificationService: ctx.notificationService,
     deepLinkService: ctx.deepLinkService,
     registry: ctx.registry,
+    autoUpdateService: ctx.autoUpdateService,
   );
 }
 
@@ -212,6 +218,13 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
             registry: state.registry,
             trayService: TrayService.instance,
           ));
+
+      // ── Startup update check ──────────────────────────────────
+      if (state.settingsController.checkForUpdates) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _performStartupUpdateCheck(state);
+        });
+      }
     } catch (e) {
       log.f('Initialization failed', error: e);
       if (!mounted) return;
@@ -220,6 +233,69 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
         _errorTitle = 'Initialization Failed';
         _errorBody = '$e';
       });
+    }
+  }
+
+  /// Checks for updates on startup and shows a dialog if available.
+  void _performStartupUpdateCheck(_AppState state) {
+    final log = state.log;
+    log.t('Startup update check');
+    state.autoUpdateService.check().then((result) {
+      if (!mounted || !result.available) return;
+      // Use a post-frame callback since we may be called during
+      // initial render.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showUpdateDialog(context, result);
+      });
+    }).catchError((e) {
+      log.w('Startup update check failed', error: e);
+    });
+  }
+
+  /// Shows the update-available dialog using the current context.
+  void _showUpdateDialog(BuildContext dialogContext, UpdateCheckResult result) {
+    final l10n = AppLocalizations.of(dialogContext)!;
+    showDialog<bool>(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.system_update,
+              color: Theme.of(ctx).colorScheme.primary,
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            Text(l10n.updateAvailable),
+          ],
+        ),
+        content: Text(
+          l10n.updateAvailableBody(result.latestVersion, result.currentVersion),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.updateLater),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _launchUpdateUrl(result.releaseUrl);
+            },
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(l10n.updateDownload),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUpdateUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -301,6 +377,8 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
             Provider<NotificationService>.value(
                 value: _appState!.notificationService!),
           Provider<DeepLinkService>.value(value: _appState!.deepLinkService),
+          Provider<AutoUpdateService>.value(
+              value: _appState!.autoUpdateService),
         ],
         child: const MoonrelayApp(),
       );
