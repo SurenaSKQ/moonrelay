@@ -31,12 +31,15 @@ Future<bool> showEditMessageDialog(
   BuildContext context, {
   required Event event,
   required Room room,
+  Timeline? timeline,
 }) async {
   final l10n = AppLocalizations.of(context)!;
   final log = context.read<Logger>();
 
+  final displayEvent =
+      timeline != null ? event.getDisplayEvent(timeline) : event;
   final controller = TextEditingController(
-    text: latestEditedBody(event),
+    text: latestEditedBody(displayEvent),
   );
 
   final result = await showDialog<bool>(
@@ -127,6 +130,9 @@ Future<bool> showEditMessageDialog(
 
 /// Returns the most recent edited body for [event], or its original body
 /// when the event hasn't been edited.
+///
+/// Prefers [Event.getDisplayEvent] (which merges `m.new_content` from the
+/// latest edit in the timeline) over the manual `m.new_content` fallback.
 String latestEditedBody(Event event) {
   try {
     final newContent = event.content['m.new_content'];
