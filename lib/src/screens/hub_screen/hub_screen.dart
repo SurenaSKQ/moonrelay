@@ -708,6 +708,12 @@ Future<void> showHubOverlay(
   );
 }
 
+/// Maximum number of tabs shown inline before the strip switches to a
+/// dropdown selector.  Beyond this threshold a [PopupMenuButton] with
+/// the active tab as its label replaces the scrollable row, so items
+/// never overflow off-screen or require horizontal scrolling.
+const int _kMaxInlineTabs = 6;
+
 /// A tab strip widget that does not depend on [TabController].
 ///
 /// We avoid [TabController] here because its length is fixed at
@@ -717,6 +723,10 @@ Future<void> showHubOverlay(
 /// swap, which trips [ChangeNotifier] assertions during paint.  A
 /// stateless strip driven by the parent's selection state is simpler
 /// and avoids the lifecycle pitfalls.
+///
+/// When the number of tabs exceeds [_kMaxInlineTabs] the strip
+/// switches to a dropdown selector so items never overflow or require
+/// off-screen horizontal scrolling.
 class _HubTabStrip extends StatelessWidget {
   const _HubTabStrip({
     required this.tabs,
@@ -731,37 +741,104 @@ class _HubTabStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final scrollable = tabs.length > 4;
+    final useDropdown = tabs.length > _kMaxInlineTabs;
     return Container(
       color: scheme.surfaceContainerLow,
       child: SizedBox(
         height: 56,
-        child: scrollable
-            ? SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+        child: useDropdown
+            ? _buildDropdown(context, scheme)
+            : (tabs.length > 4
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < tabs.length; i++)
+                          _HubTabStripEntry(
+                            tab: tabs[i],
+                            active: i == activeIndex,
+                            onTap: () => onTap(i),
+                          ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    children: [
+                      for (var i = 0; i < tabs.length; i++)
+                        Expanded(
+                          child: _HubTabStripEntry(
+                            tab: tabs[i],
+                            active: i == activeIndex,
+                            onTap: () => onTap(i),
+                          ),
+                        ),
+                    ],
+                  )),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(BuildContext context, ColorScheme scheme) {
+    final activeTab = activeIndex >= 0 && activeIndex < tabs.length
+        ? tabs[activeIndex]
+        : tabs.first;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Center(
+        child: PopupMenuButton<int>(
+          initialValue: activeIndex,
+          onSelected: onTap,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(activeTab.icon, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text(
+                activeTab.label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                LucideIcons.chevronDown,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+          itemBuilder: (context) => [
+            for (var i = 0; i < tabs.length; i++)
+              PopupMenuItem<int>(
+                value: i,
                 child: Row(
                   children: [
-                    for (var i = 0; i < tabs.length; i++)
-                      _HubTabStripEntry(
-                        tab: tabs[i],
-                        active: i == activeIndex,
-                        onTap: () => onTap(i),
-                      ),
-                  ],
-                ),
-              )
-            : Row(
-                children: [
-                  for (var i = 0; i < tabs.length; i++)
-                    Expanded(
-                      child: _HubTabStripEntry(
-                        tab: tabs[i],
-                        active: i == activeIndex,
-                        onTap: () => onTap(i),
+                    Icon(
+                      tabs[i].icon,
+                      size: 16,
+                      color: i == activeIndex
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      tabs[i].label,
+                      style: TextStyle(
+                        fontWeight: i == activeIndex
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: i == activeIndex
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
+          ],
+        ),
       ),
     );
   }
