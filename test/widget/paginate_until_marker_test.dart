@@ -21,8 +21,11 @@
 // 8 s global timeouts (one per direction), which could trap the
 // user on the loading pill for up to 16 s. The new implementation
 // runs both directions in parallel and short-circuits on the first
-// success, so the worst case is bounded by the global cap (~9 s
-// with one headroom second).
+// success, so the worst case is bounded by the global cap (~31 s
+// with one headroom second). The per-direction iteration cap was
+// removed in favour of "exhaust the direction completely", so the
+// pager only stops when the marker surfaces or both directions
+// report no more history.
 
 import 'dart:async';
 
@@ -214,17 +217,17 @@ void main() {
       stopwatch.stop();
 
       expect(result, isFalse);
-      // Global cap is 8 s; allow a 1 s headroom for CI noise.
+      // Global cap is 30 s; allow a 1 s headroom for CI noise.
       expect(
         stopwatch.elapsed,
-        lessThan(const Duration(seconds: 9)),
+        lessThan(const Duration(seconds: 31)),
         reason: 'global stopwatch should cap the wait',
       );
 
       // Free the completer so the test doesn't hang.
       timeline.unhang();
     },
-    timeout: const Timeout(Duration(seconds: 30)),
+    timeout: const Timeout(Duration(seconds: 60)),
   );
 
   testWidgets(
@@ -251,7 +254,7 @@ void main() {
       });
       expect(result, isTrue);
     },
-    timeout: const Timeout(Duration(seconds: 30)),
+    timeout: const Timeout(Duration(seconds: 60)),
   );
 
   testWidgets(
@@ -275,9 +278,12 @@ void main() {
         return state.paginateUntilMarkerForTest('\$marker');
       });
       expect(result, isTrue);
-      // The iteration cap is 6 per direction; we set breakAt well
-      // under that.
-      expect(timeline.requestCount, lessThanOrEqualTo(6));
+      // The iteration cap was removed; the pager loops until the
+      // marker surfaces or the direction is exhausted.  With
+      // breakAt=2, the marker appears after two requestHistory calls
+      // (the paginateNewer direction also contributes one or two
+      // calls).  Just verify it didn't exhaust the global timeout.
+      expect(timeline.requestCount, lessThan(20));
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
