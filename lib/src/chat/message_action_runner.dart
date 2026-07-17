@@ -127,9 +127,11 @@ class MessageActionRunner {
   static Future<void> edit(
     BuildContext context,
     Event event,
-    Room room,
-  ) async {
-    await showEditMessageDialog(context, event: event, room: room);
+    Room room, {
+    Timeline? timeline,
+  }) async {
+    await showEditMessageDialog(context,
+        event: event, room: room, timeline: timeline);
   }
 
   /// Shows the edit history dialog.
@@ -181,12 +183,60 @@ class MessageActionRunner {
     }
   }
 
-  /// Shows a confirmation dialog before redacting the event.
+  /// Shows a confirmation dialog before redacting (or cancelling) the event.
+  ///
+  /// For events stuck in [EventStatus.error] whose `eventId` may still be a
+  /// local transaction ID (UUID), a redact request would fail since the
+  /// server doesn't know about that ID.  Instead we cancel the local echo.
   static Future<void> confirmDelete(
     BuildContext context,
     Event event,
   ) async {
     final l10n = AppLocalizations.of(context)!;
+
+    if (event.status.isError) {
+      // Stuck local echo — remove it from the timeline instead of
+      // attempting to redact a server event that may not exist or
+      // whose eventId we don't know.
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.deleteMessage),
+          content: Text(l10n.cancelFailedSendConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                l10n.delete,
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      try {
+        await event.cancelSend();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.sendCancelled),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.failedToDelete('$e'))),
+        );
+      }
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
