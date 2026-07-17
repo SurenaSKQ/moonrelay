@@ -16,7 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/chat/chat_event.dart';
+
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
@@ -40,6 +40,7 @@ class MessageActions extends StatelessWidget {
     required this.onReply,
     this.onForward,
     this.onThread,
+    this.onEdit,
     this.timeline,
   });
 
@@ -54,6 +55,11 @@ class MessageActions extends StatelessWidget {
   /// Optional callback to open the thread view for this event.
   /// When null, the thread button is hidden.
   final VoidCallback? onThread;
+
+  /// Optional callback triggered when the user wants to edit this event
+  /// inline instead of opening the edit dialog.  When null, the edit
+  /// button opens the dialog via [MessageActionRunner.edit].
+  final VoidCallback? onEdit;
 
   /// When non-null, the action toolbar offers an "Edit history" affordance
   /// that scans the timeline for `m.replace` events related to this one.
@@ -122,9 +128,9 @@ class MessageActions extends StatelessWidget {
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
     final isPinned = _isPinned(room, event.eventId);
     final canEdit = _canEditText(context);
-    final showEditHistory = isOwnMessage &&
-        isEditedMessage(event) &&
-        timeline != null;
+    final t = timeline;
+    final showEditHistory = t != null &&
+        event.hasAggregatedEvents(t, RelationshipTypes.edit);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -183,6 +189,7 @@ class MessageActions extends StatelessWidget {
         ],
         if (showEditHistory) ...[
           const SizedBox(width: 4),
+          if (showEditHistory)
           _ActionIcon(
             icon: Icons.history_rounded,
             tooltip: l10n.viewEditHistory,
@@ -242,7 +249,11 @@ class MessageActions extends StatelessWidget {
   /// Opens the in-place editor for the message body and writes the edit
   /// (m.replace) when the user confirms.
   void _editMessage(BuildContext context) async {
-    await MessageActionRunner.edit(context, event, room);
+    if (onEdit != null) {
+      onEdit!();
+    } else {
+      await MessageActionRunner.edit(context, event, room, timeline: timeline);
+    }
   }
 
   /// Shows the edit history dialog.

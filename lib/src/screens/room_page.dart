@@ -38,6 +38,9 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   /// The event the user is currently replying to (or null).
   final ValueNotifier<Event?> _replyTarget = ValueNotifier(null);
 
+  /// The event the user is currently editing (or null).
+  final ValueNotifier<Event?> _editTarget = ValueNotifier(null);
+
   /// Whether the in-room search panel is visible.
   bool _showInRoomSearch = false;
 
@@ -113,6 +116,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   @override
   void dispose() {
     _replyTarget.dispose();
+    _editTarget.dispose();
     super.dispose();
   }
 
@@ -140,6 +144,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
                     room: widget.room,
                     onReply: (event) => _replyTarget.value = event,
                     onThread: _onThread,
+                    onEdit: (event) => _editTarget.value = event,
                     filterEvents: pinnedFilterActive ? _pinnedFilter : null,
                   ),
                 ),
@@ -158,6 +163,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
           ChatBox(
             room: widget.room,
             replyTarget: _replyTarget,
+            editTarget: _editTarget,
             threadRootEventId: widget.threadRootEventId,
           ),
         ],

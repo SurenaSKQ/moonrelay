@@ -19,7 +19,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/chat/chat_event.dart';
+
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
@@ -156,8 +156,9 @@ class MessageContextMenu {
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
     final isPinned = _isPinned(room, event.eventId);
     final canEdit = _canEditText(event, room);
-    final showEditHistory =
-        isOwnMessage && isEditedMessage(event) && timeline != null;
+    final t = timeline;
+    final showEditHistory = t != null &&
+        event.hasAggregatedEvents(t, RelationshipTypes.edit);
 
     final isFailed = event.status.isError;
 
@@ -271,32 +272,7 @@ class MessageContextMenu {
           color: cs.error,
         ),
       ],
-      // ─── Clipboard / inspection group ───────────────────────────────
-      const PopupMenuDivider(),
-      _menuItem(
-        value: MessageContextAction.copy,
-        icon: Icons.copy_rounded,
-        label: l10n.copyMessage,
-        color: cs.onSurfaceVariant,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyEventId,
-        icon: Icons.tag_rounded,
-        label: l10n.copyEventId,
-        color: cs.onSurfaceVariant,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyLink,
-        icon: Icons.link_rounded,
-        label: l10n.copyMessageLink,
-        color: cs.onSurfaceVariant,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyRawJson,
-        icon: Icons.data_object_rounded,
-        label: l10n.copyRawJson,
-        color: cs.onSurfaceVariant,
-      ),
+      // ─── Details group ──────────────────────────────────────────────
       const PopupMenuDivider(),
       _menuItem(
         value: MessageContextAction.details,
@@ -320,6 +296,7 @@ class MessageContextMenu {
     VoidCallback? onForward,
     VoidCallback? onThread,
     VoidCallback? onOpenProfile,
+    VoidCallback? onEdit,
   }) async {
     switch (action) {
       case MessageContextAction.react:
@@ -341,7 +318,12 @@ class MessageContextMenu {
       case MessageContextAction.details:
         MessageActionRunner.showDetails(context, event, room);
       case MessageContextAction.edit:
-        await MessageActionRunner.edit(context, event, room);
+        if (onEdit != null) {
+          onEdit();
+        } else {
+          await MessageActionRunner.edit(context, event, room,
+              timeline: timeline);
+        }
       case MessageContextAction.viewEditHistory:
         MessageActionRunner.showEditHistory(context, event, timeline, room);
       case MessageContextAction.pin:
@@ -405,6 +387,7 @@ class MessageContextMenu {
     VoidCallback? onForward,
     VoidCallback? onThread,
     VoidCallback? onOpenProfile,
+    VoidCallback? onEdit,
   }) async {
     final overlayState = Overlay.of(context, rootOverlay: true);
     final mediaQuery = MediaQuery.of(context);
@@ -487,6 +470,7 @@ class MessageContextMenu {
               onForward: resolvedOnForward,
               onThread: resolvedOnThread,
               onOpenProfile: resolvedOnOpenProfile,
+              onEdit: onEdit,
             );
           },
         );
@@ -886,7 +870,10 @@ class _MenuCard extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final entry = entries[index];
                       if (entry is PopupMenuDivider) {
-                        return entry;
+                        return const SizedBox(
+                          height: 1,
+                          child: Divider(thickness: 1),
+                        );
                       }
                       if (entry is PopupMenuItem<MessageContextAction>) {
                         return InkWell(
@@ -895,10 +882,16 @@ class _MenuCard extends StatelessWidget {
                           splashColor: colorScheme.onSurfaceVariant
                               .withValues(alpha: 0.12),
                           onTap: () => onSelected(entry.value!),
-                          child: entry,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            child: entry.child ?? const SizedBox.shrink(),
+                          ),
                         );
                       }
-                      return entry;
+                      return const SizedBox.shrink();
                     },
                   ),
                 ),

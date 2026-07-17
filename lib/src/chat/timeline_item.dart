@@ -86,6 +86,7 @@ class TimelineItem extends StatefulWidget {
     this.onAction,
     this.highlightedEventId,
     this.itemKey,
+    this.onEdit,
   });
 
   final Event event;
@@ -128,6 +129,11 @@ class TimelineItem extends StatefulWidget {
   /// across rebuilds, so Flutter can re-use the existing [Element]s
   /// instead of inflating new ones on every parent build.
   final void Function(TimelineItemAction action, Event event)? onAction;
+
+  /// Optional callback triggered when the user wants to edit this event
+  /// inline.  When set, the edit action delegates to this callback instead
+  /// of opening the dialog via [MessageActionRunner.edit].
+  final VoidCallback? onEdit;
 
   /// When non-null and matching this event's [event.eventId], the event
   /// is rendered with a brief highlight background flash.
@@ -271,6 +277,7 @@ class _TimelineItemState extends State<TimelineItem> {
         onReply: _onReply ?? () {},
         onForward: _onForward,
         onThread: _onThread,
+        onEdit: widget.onEdit,
       ),
     );
   }
@@ -297,6 +304,7 @@ class _TimelineItemState extends State<TimelineItem> {
           onForward: _onForward,
           onThread: _onThread,
           onOpenProfile: () => _openProfile(context),
+          onEdit: widget.onEdit,
         );
       },
       onLongPressStart: (details) {
@@ -310,6 +318,7 @@ class _TimelineItemState extends State<TimelineItem> {
           onForward: _onForward,
           onThread: _onThread,
           onOpenProfile: () => _openProfile(context),
+          onEdit: widget.onEdit,
         );
       },
       child: child,
@@ -322,6 +331,11 @@ class _TimelineItemState extends State<TimelineItem> {
       return RedactedEvent(
         event: widget.event,
         isGroupContinuation: widget.isGroupContinuation,
+        room: widget.room,
+        onForward: _onForward,
+        onThread: _onThread,
+        onReply: _onReply,
+        onOpenProfile: () => _openProfile(context),
       );
     }
 
