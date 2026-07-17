@@ -111,6 +111,24 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
     final content = ev.content;
     final rawBody = content['body'] as String?;
     final rawFormatted = content['formatted_body'] as String?;
+    final timeline = widget.timeline;
+    // Compute a hash that changes when a new edit arrives for this event.
+    // The SDK stores edits in timeline.aggregatedEvents but does NOT
+    // mutate the original event's content, so contentIdentity alone
+    // won't detect an edit.  We hash the latest edit event's timestamp
+    // to bust the cache when edits arrive.
+    int editVersion = 0;
+    if (timeline != null &&
+        ev.hasAggregatedEvents(timeline, RelationshipTypes.edit)) {
+      final edits = ev.aggregatedEvents(timeline, RelationshipTypes.edit);
+      // Use the most recent edit's timestamp for versioning.
+      var latestTs = 0;
+      for (final e in edits) {
+        final ts = e.originServerTs.millisecondsSinceEpoch;
+        if (ts > latestTs) latestTs = ts;
+      }
+      editVersion = latestTs;
+    }
     return _HandlerRenderKey(
       eventId: ev.eventId,
       type: ev.type,
@@ -123,8 +141,9 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
       formattedBodyLength: rawFormatted?.length ?? 0,
       replyThreshold: _cachedReplyThreshold,
       fontSizeBucket: (widget.fontSize * 10).round(),
-      timelineIdentity: identityHashCode(widget.timeline),
+      timelineIdentity: identityHashCode(timeline),
       roomIdentity: identityHashCode(widget.room),
+      editVersion: editVersion,
     );
   }
 
@@ -301,6 +320,9 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
           return VerificationNoticeEvent(event: event);
         }
 
+        final isEdited = timeline != null &&
+            event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
+
         switch (event.messageType) {
           case MessageTypes.Text:
           case MessageTypes.Emote:
@@ -313,21 +335,63 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTextContent(fontSize),
-                if (isEditedMessage(event)) _EditedMarker(event: event),
+                if (isEdited) _EditedMarker(event: event),
               ],
             );
           case MessageTypes.Image:
-            return ImageMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ImageMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Audio:
-            return AudioMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AudioMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Video:
-            return VideoMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                VideoMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.File:
-            return FileAttachedMessage(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FileAttachedMessage(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Location:
-            return LocationMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LocationMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Sticker:
-            return StickerMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StickerMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           default:
             if (event.type == 'm.poll.start' || event.type == 'm.poll') {
               return PollMessageType(
@@ -381,16 +445,21 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
   Widget _buildTextContent(double fontSize) {
     final event = widget.event;
     final room = widget.room;
+    final timeline = widget.timeline;
+    // Use the SDK's edit-aware display event so edited messages render
+    // with the latest m.new_content body instead of the original text.
+    final displayEvent =
+        timeline != null ? event.getDisplayEvent(timeline) : event;
     final textWidget = FormattedTextWidget(
-      event: event,
+      event: displayEvent,
       baseFontSize: fontSize,
       room: room,
     );
     if (room == null) return textWidget;
     return MatrixUrlBannerWrapper(
-      textBody: event.body,
+      textBody: displayEvent.body,
       room: room,
-      event: event,
+      event: displayEvent,
       child: textWidget,
     );
   }
@@ -401,9 +470,16 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
     final event = widget.event;
     final room = widget.room;
     final timeline = widget.timeline;
+    final isEdited = timeline != null &&
+        event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
+    // Use the SDK's edit-aware display event so the reply body reflects
+    // the latest edit.
+    final displayEvent =
+        timeline != null ? event.getDisplayEvent(timeline) : event;
     // Strip reply HTML from the formatted body so we only render the
-    // actual message.
-    final rawFormatted = event.content['formatted_body'] as String?;
+    // actual message.  For edited messages m.new_content already lacks
+    // the <mx-reply> wrapper so stripping is a no-op.
+    final rawFormatted = displayEvent.content['formatted_body'] as String?;
     final strippedHtml =
         rawFormatted != null ? _stripReplyHtml(rawFormatted) : null;
 
@@ -431,18 +507,19 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
         ),
         const SizedBox(height: 4),
         FormattedTextWidget(
-          event: event,
+          event: displayEvent,
           formattedBodyOverride: strippedHtml,
           baseFontSize: fontSize,
         ),
+        if (isEdited) _EditedMarker(event: event),
       ],
     );
 
     if (room == null) return content;
     return MatrixUrlBannerWrapper(
-      textBody: event.body,
+      textBody: displayEvent.body,
       room: room,
-      event: event,
+      event: displayEvent,
       child: content,
     );
   }
@@ -669,17 +746,6 @@ class _EditedMarker extends StatelessWidget {
   }
 }
 
-/// Whether [event] has a `m.replace` relation pointing to an original event.
-bool isEditedMessage(Event event) {
-  try {
-    final rel = event.content['m.relates_to'];
-    if (rel is! Map) return false;
-    return rel['rel_type'] == 'm.replace' && rel['event_id'] is String;
-  } catch (_) {
-    return false;
-  }
-}
-
 /// Compact equality record used by
 /// [_MessageEventHandlerState] to short-circuit rebuilds when nothing
 /// rendering-relevant has changed.
@@ -704,6 +770,7 @@ class _HandlerRenderKey {
     required this.fontSizeBucket,
     required this.timelineIdentity,
     required this.roomIdentity,
+    required this.editVersion,
   });
 
   final String eventId;
@@ -719,6 +786,11 @@ class _HandlerRenderKey {
   final int fontSizeBucket;
   final int timelineIdentity;
   final int roomIdentity;
+
+  /// Monotonic version bumped by the latest edit's timestamp so an edit
+  /// arriving via sync invalidates the render cache even though the
+  /// original event's content map is untouched.
+  final int editVersion;
 
   @override
   bool operator ==(Object other) {
@@ -736,7 +808,8 @@ class _HandlerRenderKey {
         other.replyThreshold == replyThreshold &&
         other.fontSizeBucket == fontSizeBucket &&
         other.timelineIdentity == timelineIdentity &&
-        other.roomIdentity == roomIdentity;
+        other.roomIdentity == roomIdentity &&
+        other.editVersion == editVersion;
   }
 
   @override
@@ -754,5 +827,6 @@ class _HandlerRenderKey {
         fontSizeBucket,
         timelineIdentity,
         roomIdentity,
+        editVersion,
       );
 }

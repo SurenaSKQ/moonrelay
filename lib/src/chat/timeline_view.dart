@@ -56,6 +56,7 @@ class TimelineView extends StatefulWidget {
     this.timelineVersion,
     this.onReply,
     this.onThread,
+    this.onEdit,
     this.showStateEvents = true,
     this.filterEvents,
     this.isLoadingHistory = false,
@@ -83,6 +84,9 @@ class TimelineView extends StatefulWidget {
 
   /// Called when the user wants to open or create a thread for an event.
   final void Function(Event event)? onThread;
+
+  /// Called when the user wants to edit a specific event inline.
+  final void Function(Event event)? onEdit;
 
   /// Whether to render state events (join/leave/room metadata changes).
   /// When false, state events are hidden from the timeline.
@@ -331,6 +335,15 @@ class TimelineViewState extends State<TimelineView> {
   /// re-scanning every event.  The cache is invalidated when [widget.timelineVersion]
   /// or any display-affecting prop changes.
   List<Widget> _buildItemList(BuildContext context) {
+    // Check the cache key before returning cached items so that a change to
+    // timelineVersion (edit, redaction, new events) or display-affecting
+    // props busts the cache. Without this check edits and redactions never
+    // update the visible widget tree.
+    final key = _cacheKey;
+    if (key != _lastCacheKey) {
+      _invalidateCache();
+      _lastCacheKey = key;
+    }
     if (_cachedItems != null) return _cachedItems!;
 
     final visibleIndices = _visibleIndices(); // newest -> oldest
@@ -430,6 +443,9 @@ class TimelineViewState extends State<TimelineView> {
             // TimelineItem nodes on every parent build.
             onAction: (action, e) =>
                 _handleItemAction(action, e, eventIdToItemIndex),
+            onEdit: widget.onEdit != null
+                ? () => widget.onEdit!(event)
+                : null,
             highlightedEventId:
                 widget.highlightedEventId ?? _highlightedEventId,
           ),
