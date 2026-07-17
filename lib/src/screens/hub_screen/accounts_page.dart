@@ -42,6 +42,11 @@ class HubAccountsPage extends StatelessWidget {
     final client = Provider.of<Client>(context, listen: false);
     final theme = Theme.of(context);
 
+    // If the session has been torn down (userID is null) return an empty
+    // placeholder — the overlay will be dismissed and the route will
+    // redirect to /welcome on the next frame.
+    if (client.userID == null) return const SizedBox.shrink();
+
     return FutureBuilder<Profile>(
       future: client.getProfileFromUserId(client.userID!),
       builder: (context, snapshot) {

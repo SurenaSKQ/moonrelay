@@ -133,7 +133,14 @@ class _SpacesPaneState extends State<SpacesPane> {
 
   @override
   Widget build(BuildContext context) {
-    final Client client = Provider.of<Client>(context);
+    final Client client;
+    try {
+      client = Provider.of<Client>(context);
+    } catch (_) {
+      // Client may be absent during logout transition; return empty
+      // widget until the route changes away from the dashboard.
+      return const SizedBox.shrink();
+    }
     final scheme = Theme.of(context).colorScheme;
 
     // `context.select` is only legal inside [build]. Subscribe to

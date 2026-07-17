@@ -104,7 +104,14 @@ class _NavigationPaneState extends State<NavigationPane> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final client = Provider.of<Client>(context);
+    final Client client;
+    try {
+      client = Provider.of<Client>(context);
+    } catch (_) {
+      // Client may be absent during logout transition; return empty
+      // widget until the route changes away from the dashboard.
+      return const SizedBox.shrink();
+    }
     final l10n = AppLocalizations.of(context)!;
     final spacePrefs = context.watch<SpacePreferences>();
 
