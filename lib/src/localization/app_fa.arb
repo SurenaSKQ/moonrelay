@@ -1,27 +1,22 @@
 {
   "@@locale": "fa",
   "@@author": "Surena Karimpour Ghannadi",
-
   "appLicenseNotice": "این برنامه تحت مجوز همگانی آفرو GNU AGPL نسخه ۳ یا بالاتر در اختیار شما قرار گرفته است. اگر مجوز را به همراه برنامه دریافت نکرده‌اید، لطفاً برای اطلاعات بیشتر به مخزن Moonrelay مراجعه کنید.",
   "@appLicenseNotice": {
     "description": "Inform the user of the license and how to obtain it."
   },
-
   "appTitle": "Moonrelay (Alpha)",
   "@appTitle": {
     "description": "The main application title shown in the window header."
   },
-
   "projectName": "Moonrelay (Alpha)",
   "@projectName": {
     "description": "The brand name of the application."
   },
-
-  "author": "Surena Karimpour Ghannadi",
+  "author": "سورنا کریم‌پور قنادی",
   "@author": {
     "description": "The application author's name."
   },
-
   "loading": "در حال بارگذاری…",
   "done": "انجام شد",
   "close": "بستن",
@@ -33,9 +28,7 @@
   "warning": "هشدار",
   "unknown": "نامشخص",
   "notSet": "تنظیم نشده",
-
   "homeserverText": "سرور اصلی",
-
   "confirmClose": "تأیید خروج",
   "areYouSureExit": "آیا از خروج از برنامه مطمئن هستید؟",
   "yesOrAffirmitive": "بله",
@@ -47,782 +40,839 @@
   "restore": "بازیابی",
   "closeWindow": "بستن پنجره",
   "showSystemMenu": "نمایش منوی سیستم",
-
   "lightMode": "حالت روشن",
   "darkMode": "حالت تاریک",
   "home": "خانه",
   "directMessages": "پیام‌های مستقیم",
-
   "thirdPartyLicense": "مجوزها",
   "privacyPolicy": "حریم خصوصی و داده‌های شما",
-
   "startupTagline": "پیام‌رسان منفعت عمومی",
   "startupDescription": "یک کلاینت Matrix امن و غیرمتمرکز با تمرکز بر ارتباطات حرفه‌ای.",
   "getStarted": "شروع کنید",
   "signInDescription": "به حساب موجود خود وارد شوید یا یک حساب جدید ایجاد کنید.",
   "signIn": "ورود",
   "createAccount": "ایجاد حساب",
-  "signInWithSso": "Sign in with Single Sign-On",
-  "welcomeToApp": "Welcome to Moonrelay",
-  "syncingYourAccount": "Syncing your account…",
-  "fetchingRooms": "Fetching your rooms and messages…",
-
-  "loginButton": "Sign In",
-  "signInTitle": "Sign In",
+  "signInWithSso": "ورود با Single Sign-On",
+  "welcomeToApp": "به Moonrelay خوش آمدید",
+  "syncingYourAccount": "در حال همگام‌سازی حساب شما…",
+  "fetchingRooms": "دریافت اتاق‌ها و پیام‌های شما…",
+  "loginButton": "ورود",
+  "signInTitle": "ورود",
   "ssoTitle": "Single Sign-On",
-  "tokenLoginTitle": "Token Login",
-  "usernameOrEmail": "Username or email",
+  "tokenLoginTitle": "ورود با توکن",
+  "usernameOrEmail": "نام کاربری یا ایمیل",
   "usernameHint": "@user:matrix.org",
-  "passwordText": "Password",
-  "passwordHint": "Enter your password",
-  "ssoUrlLabel": "SSO Login URL",
-  "ssoStartingHint": "Click \"Open in Browser\" to start.",
-  "tokenLabel": "Login Token",
-  "tokenHint": "Paste your login token here…",
-  "signingIn": "Signing in…",
-  "openInBrowser": "Open in Browser",
-  "preparing": "Preparing…",
-  "completeLogin": "Complete Login",
-  "signInWithToken": "Sign in with Token",
-  "useSsoInstead": "Use Single Sign-On instead",
-  "usePasswordInstead": "Use password instead",
-  "useTokenInstead": "Use login token instead",
-  "backToPasswordLogin": "Back to password login",
-
-  "loginHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
-  "loginHomeserverError": "Could not connect to homeserver: {error}",
+  "passwordText": "رمز عبور",
+  "passwordHint": "رمز عبور خود را وارد کنید",
+  "ssoUrlLabel": "URL ورود SSO",
+  "ssoStartingHint": "برای شروع روی \"باز کردن در مرورگر\" کلیک کنید.",
+  "tokenLabel": "توکن ورود",
+  "tokenHint": "توکن ورود خود را اینجا بچسبانید…",
+  "signingIn": "در حال ورود…",
+  "openInBrowser": "باز کردن در مرورگر",
+  "preparing": "در حال آماده‌سازی…",
+  "completeLogin": "تکمیل ورود",
+  "signInWithToken": "ورود با توکن",
+  "useSsoInstead": "به جای آن از Single Sign-On استفاده کنید",
+  "usePasswordInstead": "به جای آن از رمز عبور استفاده کنید",
+  "useTokenInstead": "به جای آن از توکن ورود استفاده کنید",
+  "backToPasswordLogin": "بازگشت به ورود با رمز عبور",
+  "loginHomeserverTimeout": "اتصال به سرور اصلی ممکن نشد: سرور پاسخ نداد. لطفاً اتصال خود را بررسی کنید و دوباره تلاش کنید.",
+  "loginHomeserverError": "اتصال به سرور اصلی ممکن نشد: {error}",
   "@loginHomeserverError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "passwordLoginNotSupported": "This homeserver does not support password login.",
-  "ssoNotSupported": "This homeserver does not support SSO login.",
-  "loginFailed": "Login failed: {error}",
+  "passwordLoginNotSupported": "این سرور اصلی از ورود با رمز عبور پشتیبانی نمی‌کند.",
+  "ssoNotSupported": "این سرور اصلی از ورود SSO پشتیبانی نمی‌کند.",
+  "loginFailed": "ورود ناموفق: {error}",
   "@loginFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "loginTimedOut": "Login timed out. The server may be overloaded. Please try again.",
-  "tokenLoginFailed": "Token login failed: {error}",
+  "loginTimedOut": "زمان ورود به پایان رسید. سرور ممکن است بیش از حد بارگذاری شده باشد. لطفاً دوباره تلاش کنید.",
+  "tokenLoginFailed": "ورود با توکن ناموفق: {error}",
   "@tokenLoginFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "pleaseEnterToken": "Please enter a login token.",
-  "pleasePasteToken": "Please paste the login token from your browser.",
-  "couldNotOpenBrowser": "Could not open browser. Use the URL above.",
-
-  "ssoWaitingForBrowser": "Waiting for browser authentication…",
-  "ssoSwitchToManual": "Switch to manual setup",
-  "ssoAutomaticFailed": "Automatic SSO login failed. You can try manually below.",
-  "ssoLocalServerError": "Could not start local server. Trying manual method.",
-  "ssoWaitingForToken": "Waiting for the login token from your browser…",
-  "ssoTokenDetected": "Login token received! Completing sign-in…",
-  "ssoPasteManually": "Paste token manually",
-  "ssoConfirmHomeserverTitle": "Continue with single sign-on?",
-  "ssoConfirmHomeserverBody": "You are about to open a browser window and send your SSO credentials to the following homeserver:\n\n{host}\n\nOnly proceed if this is the homeserver you intended to sign in to. A wrong or unfamiliar address can leak your SSO credentials to a third party.",
-  "ssoConfirmHomeserverContinue": "Continue",
-  "ssoConfirmHomeserverSwitch": "Use a different server",
-  "ssoHomeserverInvalid": "The homeserver address is not a valid URL.",
-  "untitledRoom": "(untitled room)",
-
-  "encryptionRecoveryKeyReminderTitle": "Encryption set up",
-  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key  the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
-  "encryptionRecoveryKeyReminderAck": "I have saved my recovery key",
-  "encryptionRecoveryKeyReminderLater": "I'll do this later",
-
-  "registerTitle": "Create Account",
+  "pleaseEnterToken": "لطفاً یک توکن ورود وارد کنید.",
+  "pleasePasteToken": "لطفاً توکن ورود را از مرورگر خود بچسبانید.",
+  "couldNotOpenBrowser": "باز کردن مرورگر ممکن نشد. از URL بالا استفاده کنید.",
+  "ssoWaitingForBrowser": "در انتظار تأیید مرورگر…",
+  "ssoSwitchToManual": "تغییر به روش دستی",
+  "ssoAutomaticFailed": "ورود خودکار SSO ناموفق بود. می‌توانید به صورت دستی زیر تلاش کنید.",
+  "ssoLocalServerError": "راه‌اندازی سرور محلی ممکن نشد. تلاش با روش دستی.",
+  "ssoWaitingForToken": "در انتظار توکن ورود از مرورگر شما…",
+  "ssoTokenDetected": "توکن ورود دریافت شد! در حال تکمیل ورود…",
+  "ssoPasteManually": "چسباندن توکن به صورت دستی",
+  "ssoConfirmHomeserverTitle": "ادامه با Single Sign-On؟",
+  "ssoConfirmHomeserverBody": "شما در حال باز کردن یک پنجره مرورگر و ارسال اطلاعات SSO خود به سرور اصلی زیر هستید:\n\n{host}\n\nفقط در صورتی ادامه دهید که این سرور اصلی مورد نظر شما برای ورود است. آدرس اشتباه یا ناآشنا می‌تواند اطلاعات SSO شما را در اختیار شخص ثالث قرار دهد.",
+  "ssoConfirmHomeserverContinue": "ادامه",
+  "ssoConfirmHomeserverSwitch": "استفاده از سرور دیگر",
+  "ssoHomeserverInvalid": "آدرس سرور اصلی یک URL معتبر نیست.",
+  "untitledRoom": "(اتاق بدون نام)",
+  "encryptionRecoveryKeyReminderTitle": "رمزنگاری تنظیم شد",
+  "encryptionRecoveryKeyReminderBody": "کلیدهای رمزنگاری شما روی این دستگاه تنظیم شده است، اما Moonrelay نمی‌تواند کلید بازیابی را نمایش دهد - SDK ماتریکس آن را قبل از اینکه بخوانیم رمزنگاری می‌کند.\n\nکلید امنیتی یا عبارت بازیابی خود را در جایی امن یادداشت کنید قبل از اینکه دسترسی به این حساب را از دست بدهید. اگر آن را فراموش کنید، نمی‌توانید پیام‌های رمزنگاری‌شده خود را در دستگاه جدید بخوانید.",
+  "encryptionRecoveryKeyReminderAck": "کلید بازیابی خود را ذخیره کرده‌ام",
+  "encryptionRecoveryKeyReminderLater": "بعداً انجام می‌دهم",
+  "registerTitle": "ایجاد حساب",
   "registerHomeserverHint": "matrix.org",
-  "usernameText": "Username",
-  "usernameHint": "Choose a username",
-  "confirmPasswordLabel": "Confirm password",
-  "agreeToTerms": "I agree to the Terms of Service of this homeserver",
-  "creatingAccount": "Creating account…",
-  "alreadyHaveAccount": "Already have an account? Sign in",
-
-  "usernameRequired": "Please enter a username.",
-  "usernameNoAt": "Enter just the local part (e.g. \"alice\"), not your full Matrix ID.",
-  "usernameTooShort": "Username must be at least 3 characters.",
-  "passwordRequired": "Please enter a password.",
-  "passwordTooShort": "Password must be at least 8 characters.",
-  "passwordsDoNotMatch": "Passwords do not match.",
-  "mustAgreeToTerms": "You must agree to the Terms of Service.",
-
-  "registerHomeserverTimeout": "Could not connect to homeserver: The server did not respond in time. Please check your connection and try again.",
-  "registerHomeserverError": "Could not connect to homeserver: {error}",
+  "usernameText": "نام کاربری",
+  "usernameHint": "یک نام کاربری انتخاب کنید",
+  "confirmPasswordLabel": "تأیید رمز عبور",
+  "agreeToTerms": "با شرایط خدمات این سرور اصلی موافقم",
+  "creatingAccount": "در حال ایجاد حساب…",
+  "alreadyHaveAccount": "قبلاً حساب دارید؟ وارد شوید",
+  "usernameRequired": "لطفاً یک نام کاربری وارد کنید.",
+  "usernameNoAt": "فقط بخش محلی را وارد کنید (مثلاً \"alice\")، نه شناسه کامل Matrix خود.",
+  "usernameTooShort": "نام کاربری باید حداقل ۳ حرف باشد.",
+  "passwordRequired": "لطفاً یک رمز عبور وارد کنید.",
+  "passwordTooShort": "رمز عبور باید حداقل ۸ حرف باشد.",
+  "passwordsDoNotMatch": "رمزهای عبور مطابقت ندارند.",
+  "mustAgreeToTerms": "باید با شرایط خدمات موافقت کنید.",
+  "registerHomeserverTimeout": "اتصال به سرور اصلی ممکن نشد: سرور پاسخ نداد. لطفاً اتصال خود را بررسی کنید و دوباره تلاش کنید.",
+  "registerHomeserverError": "اتصال به سرور اصلی ممکن نشد: {error}",
   "@registerHomeserverError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "registerRequiresAdditionalSteps": "This homeserver requires additional steps to register (e.g. email verification or CAPTCHA). Please create an account on the homeserver's website instead.",
-  "registerTimedOut": "Registration timed out. The server may be overloaded. Please try again.",
-  "registerFailed": "Registration failed: {error}",
+  "registerRequiresAdditionalSteps": "این سرور اصلی برای ثبت‌نام به مراحل اضافی نیاز دارد (مانند تأیید ایمیل یا CAPTCHA). لطفاً به جای آن در وب‌سایت سرور اصلی حساب ایجاد کنید.",
+  "registerTimedOut": "زمان ثبت‌نام به پایان رسید. سرور ممکن است بیش از حد بارگذاری شده باشد. لطفاً دوباره تلاش کنید.",
+  "registerFailed": "ثبت‌نام ناموفق: {error}",
   "@registerFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "chatBoxSendMessage": "Send a message…",
-  "chatBoxSend": "Send",
-  "chatBoxAttach": "Attach file",
-  "chatBoxExpand": "Expand editor",
-  "chatBoxCollapse": "Collapse",
-  "chatBoxReplyingTo": "Replying to {sender}",
+  "chatBoxSendMessage": "ارسال پیام…",
+  "chatBoxSend": "ارسال",
+  "chatBoxAttach": "پیوست فایل",
+  "chatBoxExpand": "باز کردن ویرایشگر",
+  "chatBoxCollapse": "جمع کردن",
+  "chatBoxReplyingTo": "در حال پاسخ به {sender}",
   "@chatBoxReplyingTo": {
     "description": "Label shown in the reply preview banner.",
     "placeholders": {
-      "sender": { "type": "String" }
+      "sender": {
+        "type": "String"
+      }
     }
   },
-  "chatBoxSticker": "Sticker",
+  "chatBoxSticker": "استیکر",
   "@chatBoxSticker": {
     "description": "Tooltip for the sticker picker button in the chat box."
   },
-  "chatBoxCancelReply": "Cancel reply",
-
-  "formatBold": "Bold",
-  "formatItalic": "Italic",
-  "formatStrikethrough": "Strikethrough",
-  "formatInlineCode": "Inline code",
-  "formatCodeBlock": "Code block",
-  "formatBlockquote": "Blockquote",
-  "formatHeading": "Heading",
-  "formatUnorderedList": "Unordered list",
-  "formatOrderedList": "Ordered list",
-  "formatLink": "Link",
-
-  "sendFailed": "Failed to send message.",
-  "sendTimedOut": "The request timed out.",
-  "uploadTimedOut": "Upload timed out.",
-
-  "reactTooltip": "React",
-  "replyTooltip": "Reply",
-  "forwardTooltip": "Forward",
-  "forwardMessageTitle": "Forward Message",
+  "chatBoxCancelReply": "لغو پاسخ",
+  "formatBold": "پررنگ",
+  "formatItalic": "ایتالیک",
+  "formatStrikethrough": "خط‌خورده",
+  "formatInlineCode": "کد درون‌خطی",
+  "formatCodeBlock": "بلوک کد",
+  "formatBlockquote": "نقل قول",
+  "formatHeading": "عنوان",
+  "formatUnorderedList": "لیست نامرتب",
+  "formatOrderedList": "لیست مرتب",
+  "formatLink": "لینک",
+  "sendFailed": "ارسال پیام ناموفق.",
+  "sendTimedOut": "درخواست زمانش را تمام کرد.",
+  "uploadTimedOut": "آپلود زمانش را تمام کرد.",
+  "reactTooltip": "واکنش",
+  "replyTooltip": "پاسخ",
+  "forwardTooltip": "ارسال مجدد",
+  "forwardMessageTitle": "ارسال مجدد پیام",
   "@forwardMessageTitle": {
     "description": "Title of the forward message dialog."
   },
-  "forwardSearchRooms": "Search rooms…",
+  "forwardSearchRooms": "جست‌وجوی اتاق‌ها…",
   "@forwardSearchRooms": {
     "description": "Hint text for the room search field in the forward dialog."
   },
-  "forwardNoRooms": "No other rooms to forward to",
+  "forwardNoRooms": "اتاق دیگری برای ارسال مجدد وجود ندارد",
   "@forwardNoRooms": {
     "description": "Empty state when the user has no other rooms."
   },
-  "forwardNoMatchingRooms": "No rooms match your search",
+  "forwardNoMatchingRooms": "اتاقی با جست‌وجوی شما مطابقت ندارد",
   "@forwardNoMatchingRooms": {
     "description": "Empty state when the search filter matches no rooms."
   },
-  "forwardMessagePreviewLabel": "Forwarding",
+  "forwardMessagePreviewLabel": "در حال ارسال مجدد",
   "@forwardMessagePreviewLabel": {
     "description": "Label above the message preview in the forward dialog."
   },
-  "forwardNonTextContent": "(non-text content)",
+  "forwardNonTextContent": "(محتوای غیر متنی)",
   "@forwardNonTextContent": {
     "description": "Fallback text shown when the forwarded message has no text body."
   },
-  "forwardMessageSent": "Forwarded to {room}",
+  "forwardMessageSent": "به {room} ارسال شد",
   "@forwardMessageSent": {
     "description": "Snackbar confirmation after forwarding a message.",
     "placeholders": {
-      "room": { "type": "String" }
+      "room": {
+        "type": "String"
+      }
     }
   },
-  "forwardFailed": "Failed to forward: {error}",
+  "forwardFailed": "ارسال مجدد ناموفق: {error}",
   "@forwardFailed": {
     "description": "Error shown when forwarding fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "copyTooltip": "Copy",
-  "detailsTooltip": "Details",
-  "deleteTooltip": "Delete",
-  "messageCopiedToClipboard": "Message copied to clipboard",
-  "deleteMessage": "Delete message",
-  "areYouSureDeleteMessage": "Are you sure you want to delete this message?",
-  "delete": "Delete",
-  "failedToDelete": "Failed to delete: {error}",
+  "copyTooltip": "کپی",
+  "detailsTooltip": "جزئیات",
+  "deleteTooltip": "حذف",
+  "messageCopiedToClipboard": "پیام در کلیپ‌بورد کپی شد",
+  "deleteMessage": "حذف پیام",
+  "areYouSureDeleteMessage": "آیا از حذف این پیام مطمئن هستید؟",
+  "delete": "حذف",
+  "failedToDelete": "حذف ناموفق: {error}",
   "@failedToDelete": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "failedToSendReaction": "Failed to send reaction: {error}",
+  "failedToSendReaction": "ارسال واکنش ناموفق: {error}",
   "@failedToSendReaction": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "couldNotLoadMessages": "Could not load messages",
-  "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
-  "jumpToFirstUnread": "Jump to first unread",
-  "jumpToFirstUnreadMany": "{count} new messages",
-  "scrollToBottom": "Scroll to bottom",
-  "encryptionUndecryptableMessage": "message can't be decrypted",
-  "encryptionUndecryptableMessages": "messages can't be decrypted",
-  "messageDeleted": "Message deleted",
-  "unsupportedEvent": "{sender} has sent an unsupported event of type {type} with messageType {messageType}",
+  "couldNotLoadMessages": "بارگذاری پیام‌ها ممکن نشد",
+  "serverMayBeUnreachable": "سرور ممکن است در دسترس نباشد یا اتاق حاوی پیام‌های رمزنگاری‌شده‌ای باشد که نمی‌توانند رمزگشایی شوند. برای تلاش مجدد به پایین بکشید.",
+  "jumpToFirstUnread": "پرش به اولین نخوانده",
+  "jumpToFirstUnreadMany": "{count} پیام جدید",
+  "scrollToBottom": "پایین رفتن",
+  "encryptionUndecryptableMessage": "پیام قابل رمزگشایی نیست",
+  "encryptionUndecryptableMessages": "پیام‌ها قابل رمزگشایی نیستند",
+  "messageDeleted": "پیام حذف شد",
+  "unsupportedEvent": "{sender} یک رویداد پشتیبانی‌نشده از نوع {type} با messageType {messageType} ارسال کرده است",
   "@unsupportedEvent": {
     "placeholders": {
-      "sender": { "type": "String" },
-      "type": { "type": "String" },
-      "messageType": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "type": {
+        "type": "String"
+      },
+      "messageType": {
+        "type": "String"
+      }
     }
   },
-  "noTopicSet": "No topic set",
-  "stateEventCount": "{count} state events",
+  "noTopicSet": "موضوعی تنظیم نشده",
+  "stateEventCount": "{count} رویداد وضعیت",
   "@stateEventCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-
-  "roomInfoTitle": "Room Info",
-  "roomSettings": "Room Settings",
+  "roomInfoTitle": "اطلاعات اتاق",
+  "roomSettings": "تنظیمات اتاق",
   "@roomSettings": {
     "description": "Title for the room settings page."
   },
-  "roomSettingsDescription": "Manage room settings and moderation",
+  "roomSettingsDescription": "مدیریت تنظیمات اتاق و نظارت",
   "@roomSettingsDescription": {
     "description": "Subtitle for the room settings action."
   },
-  "copyRoomIdTooltip": "Copy Room ID",
-  "actionsSection": "Actions",
-
-  "roleLabel": "Role",
-  "statusLabel": "Status",
-  "reportUserReason": "Please describe why you are reporting this user.",
-  "reportUserHint": "Reason for report…",
-  "reportUserDefaultReason": "Reported via Moonrelay",
-
-  "leaveRoom": "Leave Room",
-  "leaveRoomDescription": "Remove yourself from this room",
-  "copyRoomId": "Copy Room ID",
-  "detailsSection": "Details",
-  "roomIdLabel": "Room ID",
+  "copyRoomIdTooltip": "کپی شناسه اتاق",
+  "actionsSection": "اقدامات",
+  "roleLabel": "نقش",
+  "statusLabel": "وضعیت",
+  "reportUserReason": "لطفاً دلیل گزارش این کاربر را توضیح دهید.",
+  "reportUserHint": "دلیل گزارش…",
+  "reportUserDefaultReason": "گزارش‌شده از طریق Moonrelay",
+  "leaveRoom": "ترک اتاق",
+  "leaveRoomDescription": "خود را از این اتاق حذف کنید",
+  "copyRoomId": "کپی شناسه اتاق",
+  "detailsSection": "جزئیات",
+  "roomIdLabel": "شناسه اتاق",
   "@roomIdLabel": {
     "description": "Label for the room/space ID field."
   },
-  "typeLabel": "Type",
-  "encryptionLabel": "Encryption",
-  "addressLabel": "Address",
-  "createdLabel": "Created",
-  "endToEndEncrypted": "End-to-end encrypted",
-  "notEncrypted": "Not encrypted",
-  "securitySection": "Security",
-  "notEnabled": "Not enabled",
-  "membersSection": "Members",
-  "directMessage": "Direct Message",
-  "spaceType": "Space",
-  "publicRoom": "Public Room",
-  "privateRoom": "Private Room",
-  "unknownDate": "Unknown",
-  "leaveRoomTitle": "Leave Room",
-  "leaveRoomConfirm": "Are you sure you want to leave \"{roomName}\"?",
+  "typeLabel": "نوع",
+  "encryptionLabel": "رمزنگاری",
+  "addressLabel": "آدرس",
+  "createdLabel": "ایجاد شده",
+  "endToEndEncrypted": "رمزنگاری سرتاسر",
+  "notEncrypted": "رمزنگاری نشده",
+  "securitySection": "امنیت",
+  "notEnabled": "فعال نشده",
+  "membersSection": "اعضا",
+  "directMessage": "پیام مستقیم",
+  "spaceType": "فضا",
+  "publicRoom": "اتاق عمومی",
+  "privateRoom": "اتاق خصوصی",
+  "unknownDate": "نامشخص",
+  "leaveRoomTitle": "ترک اتاق",
+  "leaveRoomConfirm": "آیا از ترک \"{roomName}\" مطمئن هستید؟",
   "@leaveRoomConfirm": {
     "placeholders": {
-      "roomName": { "type": "String" }
+      "roomName": {
+        "type": "String"
+      }
     }
   },
-  "leave": "Leave",
-  "failedToLeaveRoom": "Failed to leave room: {error}",
+  "leave": "ترک",
+  "failedToLeaveRoom": "ترک اتاق ناموفق: {error}",
   "@failedToLeaveRoom": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "roomIdCopied": "Room ID copied to clipboard",
-  "rotateMegolmSession": "Rotate megolm session",
-  "rotateMegolmSessionDescription": "Force a fresh encryption session. Members will receive a new key on your next message.",
-  "rotateMegolmSessionConfirm": "The next message you send will be encrypted with a new session. Other members' already-encrypted history remains readable. Rotate now?",
-  "rotateMegolmSessionDone": "Megolm session rotated. The next message will use the new key.",
-  "rotateMegolmSessionFailed": "Could not rotate the megolm session. Make sure encryption is set up.",
-
-  "knockRoom": "Knock",
+  "roomIdCopied": "شناسه اتاق در کلیپ‌بورد کپی شد",
+  "rotateMegolmSession": "چرخش نشست megolm",
+  "rotateMegolmSessionDescription": "اجبار یک نشست رمزنگاری تازه. اعضا در پیام بعدی شما یک کلید جدید دریافت خواهند کرد.",
+  "rotateMegolmSessionConfirm": "پیام بعدی که ارسال می‌کنید با یک نشست جدید رمزنگاری می‌شود. تاریخچه رمزنگاری‌شده سایر اعضا قابل خواندن باقی می‌ماند. اکنون بچرخانم؟",
+  "rotateMegolmSessionDone": "نشست Megolm چرخانده شد. پیام بعدی از کلید جدید استفاده خواهد کرد.",
+  "rotateMegolmSessionFailed": "چرخش نشست Megolm ممکن نشد. مطمئن شوید رمزنگاری تنظیم شده است.",
+  "knockRoom": "درخواست ورود",
   "@knockRoom": {
     "description": "Button label for knocking (requesting to join) a room."
   },
-  "knockRoomDescription": "Request to join this room",
+  "knockRoomDescription": "درخواست پیوستن به این اتاق",
   "@knockRoomDescription": {
     "description": "Subtitle for the knock action."
   },
-  "knockingRoom": "Knocking…",
+  "knockingRoom": "در حال درخواست…",
   "@knockingRoom": {
     "description": "Loading state while sending a knock request."
   },
-  "knockSent": "Knock sent to {room}",
+  "knockSent": "درخواست به {room} ارسال شد",
   "@knockSent": {
     "description": "Confirmation shown after successfully knocking on a room.",
     "placeholders": {
-      "room": { "type": "String" }
+      "room": {
+        "type": "String"
+      }
     }
   },
-  "knockFailed": "Failed to knock: {error}",
+  "knockFailed": "درخواست ناموفق: {error}",
   "@knockFailed": {
     "description": "Error shown when knocking fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "knockRetracted": "Knock retracted",
+  "knockRetracted": "درخواست پس گرفته شد",
   "@knockRetracted": {
     "description": "Confirmation after retracting a knock."
   },
-  "knockRetractFailed": "Failed to retract knock: {error}",
+  "knockRetractFailed": "پس‌گیری درخواست ناموفق: {error}",
   "@knockRetractFailed": {
     "description": "Error shown when retracting a knock fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "retractKnock": "Retract knock",
+  "retractKnock": "پس‌گیری درخواست",
   "@retractKnock": {
     "description": "Button label to retract a pending knock request."
   },
-  "roomTypeKnock": "Knock-based room",
+  "roomTypeKnock": "اتاق مبتنی بر درخواست",
   "@roomTypeKnock": {
     "description": "Label for rooms with knock join rules."
   },
-  "roomTypeRestricted": "Restricted room",
+  "roomTypeRestricted": "اتاق محدود",
   "@roomTypeRestricted": {
     "description": "Label for rooms with restricted join rules."
   },
-  "roomTypeInviteOnly": "Invite only",
+  "roomTypeInviteOnly": "فقط با دعوت",
   "@roomTypeInviteOnly": {
     "description": "Label for invite-only rooms."
   },
-  "joinRequiresKnock": "This room requires approval to join. Would you like to knock instead?",
+  "joinRequiresKnock": "این اتاق برای پیوستن نیاز به تأیید دارد. آیا مایل به درخواست هستید؟",
   "@joinRequiresKnock": {
     "description": "Prompt shown when trying to join a room that requires knocking."
   },
-  "knockReasonHint": "Optional reason for knocking…",
+  "knockReasonHint": "دلیل اختیاری برای درخواست…",
   "@knockReasonHint": {
     "description": "Hint text for the knock reason input field."
   },
-  "editRoomName": "Edit Room Name",
-  "editRoomNameHint": "Enter a new name for this room",
-  "editRoomTopic": "Edit Topic",
-  "editRoomTopicHint": "Enter a new topic for this room",
-  "changeRoomAvatar": "Change Avatar",
-  "changeRoomAvatarDescription": "Upload a new room picture",
-  "removeRoomAvatar": "Remove Avatar",
-  "roomNameUpdated": "Room name updated",
-  "roomTopicUpdated": "Room topic updated",
-  "roomAvatarUpdated": "Room avatar updated",
-  "saving": "Saving…",
-  "showAllMembers": "Show all members ({count})",
+  "editRoomName": "ویرایش نام اتاق",
+  "editRoomNameHint": "نام جدیدی برای این اتاق وارد کنید",
+  "editRoomTopic": "ویرایش موضوع",
+  "editRoomTopicHint": "موضوع جدیدی برای این اتاق وارد کنید",
+  "changeRoomAvatar": "تغییر آواتار",
+  "changeRoomAvatarDescription": "آپلود تصویر جدید اتاق",
+  "removeRoomAvatar": "حذف آواتار",
+  "roomNameUpdated": "نام اتاق به‌روزرسانی شد",
+  "roomTopicUpdated": "موضوع اتاق به‌روزرسانی شد",
+  "roomAvatarUpdated": "آواتار اتاق به‌روزرسانی شد",
+  "saving": "در حال ذخیره…",
+  "showAllMembers": "نمایش همه اعضا ({count})",
   "@showAllMembers": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "viewProfile": "View Profile",
-  "sendMessage": "Send Message",
-  "couldNotOpenChat": "Could not open chat: {error}",
+  "viewProfile": "مشاهده پروفایل",
+  "sendMessage": "ارسال پیام",
+  "couldNotOpenChat": "باز کردن گفت‌وگو ممکن نشد: {error}",
   "@couldNotOpenChat": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "userIsVerified": "User is verified",
-  "userIsNotVerified": "User is not verified",
-  "adminBadge": "Admin",
-  "moderatorBadge": "Moderator",
-  "bannedBadge": "Banned",
-  "invitedBadge": "Invited",
-  "knockingBadge": "Knocking",
-  "leftBadge": "Left",
-
-  "membersCount": "Members ({count})",
+  "userIsVerified": "کاربر تأیید شده است",
+  "userIsNotVerified": "کاربر تأیید نشده است",
+  "adminBadge": "مدیر",
+  "moderatorBadge": "مدیر",
+  "bannedBadge": "ممنوع",
+  "invitedBadge": "دعوت‌شده",
+  "knockingBadge": "درخواست‌دهنده",
+  "leftBadge": "ترک کرده",
+  "membersCount": "اعضا ({count})",
   "@membersCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "searchMembers": "Search members…",
-  "noMembersMatchSearch": "No members match your search",
-  "noMembersFound": "No members found",
-  "searchUsers": "Search users…",
+  "searchMembers": "جست‌وجوی اعضا…",
+  "noMembersMatchSearch": "عضوی با جست‌وجوی شما مطابقت ندارد",
+  "noMembersFound": "عضوی یافت نشد",
+  "searchUsers": "جست‌وجوی کاربران…",
   "@searchUsers": {
     "description": "Placeholder text for the user search field."
   },
-  "searchUsersHint": "Search for users by name or Matrix ID to start a direct chat.",
+  "searchUsersHint": "برای شروع گفت‌وگوی مستقیم، کاربران را با نام یا شناسه Matrix جست‌وجو کنید.",
   "@searchUsersHint": {
     "description": "Hint shown when the user search field is empty."
   },
-  "noUsersFound": "No users match your search",
+  "noUsersFound": "کاربری با جست‌وجوی شما مطابقت ندارد",
   "@noUsersFound": {
     "description": "Message shown when the user search returns no results."
   },
-  "searching": "Searching…",
+  "searching": "در حال جست‌وجو…",
   "@searching": {
     "description": "Message shown while searching the user directory."
   },
-  "startDirectChat": "Start DM",
+  "startDirectChat": "شروع DM",
   "@startDirectChat": {
     "description": "Button label to start a direct chat with a user."
   },
-  "directChatSearch": "Direct Messages",
+  "directChatSearch": "پیام‌های مستقیم",
   "@directChatSearch": {
     "description": "Tab title for finding users and starting direct chats."
   },
-  "couldNotStartChatTimeout": "Could not start chat: The server did not respond in time.",
-  "couldNotStartChat": "Could not start chat: {error}",
+  "couldNotStartChatTimeout": "شروع گفت‌وگو ممکن نشد: سرور به موقع پاسخ نداد.",
+  "couldNotStartChat": "شروع گفت‌وگو ممکن نشد: {error}",
   "@couldNotStartChat": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "messageDetails": "Message Details",
-  "senderSection": "Sender",
-  "displayNameLabel": "Display name",
-  "userIdLabel": "User ID",
-  "timestampsSection": "Timestamps",
-  "sentAt": "Sent at",
-  "eventInfo": "Event Info",
-  "eventType": "Event type",
-  "eventId": "Event ID",
-  "roomId": "Room ID",
-  "statusLabel": "Status",
-  "redactedStatus": "Redacted (deleted)",
-  "activeStatus": "Active",
-  "relationshipLabel": "Relationship",
-  "relatedEventId": "Related event ID",
-  "replyToEventId": "Reply to event ID",
-  "rawContent": "Raw Content",
-
-  "joinRoomInstructions": "Search for the room you wish to join:",
-  "roomIdOrAlias": "Room ID or Alias",
-  "serverInstructions": "Enter the server to join through:",
-  "serverOptionalHint": "If left empty, your own homeserver will be used.",
-  "serverLabel": "Server",
-  "joining": "Joining…",
-  "addRoom": "Add Room",
-  "joiningTimedOut": "Joining room timed out. The server may be unreachable.",
-  "couldNotJoinRoom": "Could not join room: {error}",
+  "messageDetails": "جزئیات پیام",
+  "senderSection": "فرستنده",
+  "displayNameLabel": "نام نمایشی",
+  "userIdLabel": "شناسه کاربر",
+  "timestampsSection": "زمان‌ها",
+  "sentAt": "ارسال شده در",
+  "eventInfo": "اطلاعات رویداد",
+  "eventType": "نوع رویداد",
+  "eventId": "شناسه رویداد",
+  "roomId": "شناسه اتاق",
+  "statusLabel": "وضعیت",
+  "redactedStatus": "حذف‌شده",
+  "activeStatus": "فعال",
+  "relationshipLabel": "رابطه",
+  "relatedEventId": "شناسه رویداد مرتبط",
+  "replyToEventId": "شناسه رویداد پاسخ",
+  "rawContent": "محتوای خام",
+  "joinRoomInstructions": "اتاق مورد نظر خود را جست‌وجو کنید:",
+  "roomIdOrAlias": "شناسه اتاق یا نام مستعار",
+  "serverInstructions": "سروری که از طریق آن بپیوندید را وارد کنید:",
+  "serverOptionalHint": "اگر خالی بماند، از سرور اصلی شما استفاده خواهد شد.",
+  "serverLabel": "سرور",
+  "joining": "در حال پیوستن…",
+  "addRoom": "افزودن اتاق",
+  "joiningTimedOut": "زمان پیوستن به اتاق به پایان رسید. سرور ممکن است در دسترس نباشد.",
+  "couldNotJoinRoom": "پیوستن به اتاق ممکن نشد: {error}",
   "@couldNotJoinRoom": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "createNewRoom": "Create New Room",
-  "createRoom": "Create Room",
-  "creatingRoomTimedOut": "Creating room timed out. The server may be unreachable.",
-  "couldNotCreateRoom": "Could not create room: {error}",
+  "createNewRoom": "ایجاد اتاق جدید",
+  "createRoom": "ایجاد اتاق",
+  "creatingRoomTimedOut": "زمان ایجاد اتاق به پایان رسید. سرور ممکن است در دسترس نباشد.",
+  "couldNotCreateRoom": "ایجاد اتاق ممکن نشد: {error}",
   "@couldNotCreateRoom": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "loadingRooms": "Loading rooms…",
-  "noRoomsYet": "No rooms yet",
-  "noMessages": "No messages",
-  "couldNotJoinRoomTimeout": "Could not join room: The server did not respond in time.",
-
-  "accounts": "Accounts",
-  "manageAccounts": "Manage your connected Matrix accounts",
-  "myProfile": "My Profile",
-  "appSettings": "App Settings",
-  "customizeExperience": "Customize your experience",
-  "appearance": "Appearance",
-  "controlLookAndFeel": "Control the look and feel of the app",
-  "layout": "Layout",
-  "customizeLayout": "Customize the arrangement of UI panels",
-  "encryptionAndSecurity": "Encryption & Security",
-  "chatSettings": "Chat",
-  "timelineAndMessages": "Timeline and message display options",
-  "selectCategory": "Select a category",
-
-  "themeMode": "Theme mode",
-  "system": "System",
-  "light": "Light",
-  "dark": "Dark",
-  "colourTheme": "Colour theme",
-  "enable": "Enable",
-  "chatDisplayType": "Chat display type",
-
-  "leftSidebar": "Left sidebar",
-  "visible": "Visible",
-  "showOrHideLeftSidebar": "Show or hide the left sidebar",
-  "content": "Content",
-  "widthLabel": "Width",
-  "rooms": "Rooms",
-  "spaces": "Spaces",
-  "friends": "Friends",
-  "hidden": "Hidden",
-  "rightSidebar": "Right sidebar (experimental)",
-  "showOrHideRightSidebar": "Show or hide the right sidebar (hidden on medium screens)",
-  "none": "None",
-  "roomInfo": "Room Info",
-  "members": "Members",
-  "header": "Header",
-  "reversedHeader": "Reversed header",
-  "reversedHeaderDescription": "Window buttons on the left, title on the right",
-  "stateEventsSection": "State events",
-  "showStateEvents": "Show state events",
-  "showStateEventsDescription": "Display join/leave/room changes in the timeline",
-  "hub": "Hub",
-  "logOut": "Log Out",
-  "sessions": "Sessions",
-
-  "ownProfileDescriptor": "Your Profile",
-  "profileLoadError": "Could not load profile: {error}",
+  "loadingRooms": "در حال بارگذاری اتاق‌ها…",
+  "noRoomsYet": "هنوز اتاقی وجود ندارد",
+  "noMessages": "پیامی وجود ندارد",
+  "couldNotJoinRoomTimeout": "پیوستن به اتاق ممکن نشد: سرور به موقع پاسخ نداد.",
+  "accounts": "حساب‌ها",
+  "manageAccounts": "مدیریت حساب‌های Matrix متصل شما",
+  "myProfile": "پروفایل من",
+  "appSettings": "تنظیمات برنامه",
+  "customizeExperience": "تجربه خود را سفارشی کنید",
+  "appearance": "ظاهر",
+  "controlLookAndFeel": "کنترل ظاهر و احساس برنامه",
+  "layout": "چیدمان",
+  "customizeLayout": "سفارشی‌سازی چیدمان پنل‌های رابط",
+  "encryptionAndSecurity": "رمزنگاری و امنیت",
+  "chatSettings": "گفت‌وگو",
+  "timelineAndMessages": "گزینه‌های نمایش زمان‌خط و پیام",
+  "selectCategory": "یک دسته را انتخاب کنید",
+  "themeMode": "حالت تم",
+  "system": "سیستم",
+  "light": "روشن",
+  "dark": "تاریک",
+  "colourTheme": "تم رنگی",
+  "enable": "فعال",
+  "chatDisplayType": "نوع نمایش گفت‌وگو",
+  "leftSidebar": "نوار کناری چپ",
+  "visible": "قابل مشاهده",
+  "showOrHideLeftSidebar": "نمایش یا مخفی کردن نوار کناری چپ",
+  "content": "محتوا",
+  "widthLabel": "عرض",
+  "rooms": "اتاق‌ها",
+  "spaces": "فضاها",
+  "friends": "دوستان",
+  "hidden": "مخفی",
+  "rightSidebar": "نوار کناری راست (آزمایشی)",
+  "showOrHideRightSidebar": "نمایش یا مخفی کردن نوار کناری راست (در صفحه‌نمایش‌های متوسط مخفی می‌شود)",
+  "none": "هیچ",
+  "roomInfo": "اطلاعات اتاق",
+  "members": "اعضا",
+  "header": "سربرگ",
+  "reversedHeader": "سربرگ معکوس",
+  "reversedHeaderDescription": "دکمه‌های پنجره در چپ، عنوان در راست",
+  "stateEventsSection": "رویدادهای وضعیت",
+  "showStateEvents": "نمایش رویدادهای وضعیت",
+  "showStateEventsDescription": "نمایش تغییرات ورود/خروج/اتاق در زمان‌خط",
+  "hub": "مرکز",
+  "logOut": "خروج",
+  "sessions": "نشست‌ها",
+  "ownProfileDescriptor": "پروفایل شما",
+  "profileLoadError": "بارگذاری پروفایل ممکن نشد: {error}",
   "@profileLoadError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "profileLoadTimeout": "Could not load profile: The server did not respond in time.",
-  "noDisplayNameSet": "You have not set a display name!",
-
-  "profilePageTitle": "Profile View",
-  "userProfilePageBanner": "{username}'s Profile",
+  "profileLoadTimeout": "بارگذاری پروفایل ممکن نشد: سرور به موقع پاسخ نداد.",
+  "noDisplayNameSet": "نام نمایشی تنظیم نکرده‌اید!",
+  "profilePageTitle": "مشاهده پروفایل",
+  "userProfilePageBanner": "پروفایل {username}",
   "@userProfilePageBanner": {
     "placeholders": {
-      "username": { "type": "String" }
+      "username": {
+        "type": "String"
+      }
     }
   },
-  "userNoDisplayNameSet": "The user has not set a display name!",
-
-  "encryptionSecurity": "Encryption & Security",
-  "encryptionSetupTitle": "Encryption Setup",
-  "encryptionCrossSigning": "Cross-Signing",
-  "encryptionCrossSigningActive": "Cross-signing is active",
-  "encryptionCrossSigningInactive": "Cross-signing is not set up",
-  "encryptionDeviceVerified": "This device is verified",
-  "encryptionDeviceNotVerified": "This device is not verified",
-  "encryptionBootstrap": "Set Up Encryption",
-  "encryptionReBootstrap": "Re-run Setup",
-  "encryptionDevices": "Devices",
-  "encryptionDevicesLower": "devices",
-  "encryptionManageDevices": "Manage Devices",
-  "encryptionNoDevices": "No devices found",
-  "encryptionDevice": "Device",
-  "encryptionThisDevice": "This device",
-  "encryptionDeleteDevice": "Delete Device",
-  "encryptionDeleteDeviceConfirm": "Are you sure you want to delete",
-  "encryptionDeleteDeviceWarning": "This will permanently sign out the selected session. You will need to log in again from that device.",
-  "encryptionDeleteDeviceConfirmButton": "Delete Session",
-  "encryptionMarkAsVerifiedTitle": "Mark Device as Verified",
-  "encryptionMarkAsVerifiedDesc": "This will trust \"{device}\" and all future messages from it. Only verify devices you recognise.",
+  "userNoDisplayNameSet": "این کاربر نام نمایشی تنظیم نکرده است!",
+  "encryptionSecurity": "رمزنگاری و امنیت",
+  "encryptionSetupTitle": "تنظیم رمزنگاری",
+  "encryptionCrossSigning": "امضای متقابل",
+  "encryptionCrossSigningActive": "امضای متقابل فعال است",
+  "encryptionCrossSigningInactive": "امضای متقابل تنظیم نشده است",
+  "encryptionDeviceVerified": "این دستگاه تأیید شده است",
+  "encryptionDeviceNotVerified": "این دستگاه تأیید نشده است",
+  "encryptionBootstrap": "تنظیم رمزنگاری",
+  "encryptionReBootstrap": "اجرای مجدد تنظیمات",
+  "encryptionDevices": "دستگاه‌ها",
+  "encryptionDevicesLower": "دستگاه",
+  "encryptionManageDevices": "مدیریت دستگاه‌ها",
+  "encryptionNoDevices": "دستگاهی یافت نشد",
+  "encryptionDevice": "دستگاه",
+  "encryptionThisDevice": "این دستگاه",
+  "encryptionDeleteDevice": "حذف دستگاه",
+  "encryptionDeleteDeviceConfirm": "آیا از حذف مطمئن هستید",
+  "encryptionDeleteDeviceWarning": "این کار نشست انتخاب‌شده را برای همیشه خارج می‌کند. باید از آن دستگاه دوباره وارد شوید.",
+  "encryptionDeleteDeviceConfirmButton": "حذف نشست",
+  "encryptionMarkAsVerifiedTitle": "علامت‌گذاری دستگاه به عنوان تأییدشده",
+  "encryptionMarkAsVerifiedDesc": "این کار به \"{device}\" و همه پیام‌های آینده از آن اعتماد می‌کند. فقط دستگاه‌هایی را که می‌شناسید تأیید کنید.",
   "@encryptionMarkAsVerifiedDesc": {
     "placeholders": {
-      "device": { "type": "String" }
+      "device": {
+        "type": "String"
+      }
     }
   },
-  "encryptionMarkAsUnverifiedTitle": "Mark Device as Unverified",
-  "encryptionMarkAsUnverifiedDesc": "This will stop trusting \"{device}\" for encryption verification. Messages from it will show an unverified warning.",
+  "encryptionMarkAsUnverifiedTitle": "علامت‌گذاری دستگاه به عنوان تأییدنشده",
+  "encryptionMarkAsUnverifiedDesc": "این کار اعتماد به \"{device}\" برای تأیید رمزنگاری را متوقف می‌کند. پیام‌های آن یک هشدار تأییدنشده نشان خواهند داد.",
   "@encryptionMarkAsUnverifiedDesc": {
     "placeholders": {
-      "device": { "type": "String" }
+      "device": {
+        "type": "String"
+      }
     }
   },
-  "encryptionDeviceDeleted": "Device deleted",
-  "encryptionMarkAsVerified": "Mark as Verified",
-  "encryptionMarkAsUnverified": "Mark as Unverified",
-  "encryptionKeyBackup": "Key Backup",
-  "encryptionKeyBackupActive": "Key backup is enabled",
-  "encryptionKeyBackupInactive": "Key backup is not enabled",
-  "encryptionSetupKeyBackup": "Set Up Key Backup",
-  "encryptionSetupCrossSigningFirst": "Set up cross-signing first",
-  "encryptionVerifiedUsers": "Verified Users",
-  "encryptionUnverifiedOwn": "My unverified devices",
-  "encryptionUnverifiedOther": "Unverified other users",
-  "encryptionVerifyUser": "Verify User",
-  "encryptionUserVerified": "This user is verified",
-  "encryptionUserNotVerified": "This user is not verified",
-  "encryptionVerify": "Verify",
-  "encryptionLocalDataSection": "Local Encryption Data",
-  "encryptionExportKeys": "Export E2EE keys",
-  "encryptionExportKeysDescription": "Save the device's olm account and preferences to a file you can re-import on a new install.",
-  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password  anyone with the file can read your encrypted history. Continue?",
-  "encryptionExportKeysDone": "Encryption keys exported.",
-  "encryptionExportKeysCancelled": "Export cancelled.",
-  "encryptionNoKeyInfo": "No key information",
-  "encryptionEnabledTitle": "Encrypted",
-  "encryptionNotEnabledTitle": "Not Encrypted",
-  "encryptionStatusInfo": "End-to-end encryption status",
-  "encryptionDecryptionFailed": "Decryption failed",
-  "encryptionRequestKeys": "Request keys",
-  "encryptionKeysRequested": "Key request sent to other devices",
-  "encryptionUnsupported": "Encryption is not supported in this build",
-  "encryptionSetupCrossSigning": "Set Up Cross-Signing",
-  "encryptionSetupCrossSigningDesc": "Cross-signing allows you to verify other users and devices. This will create signing keys that are stored in your encrypted secret storage.",
-  "encryptionSetupAllKeys": "Set Up All Keys",
-  "encryptionSkipKeySetup": "Skip Key Setup",
-  "encryptionExistingSsssFound": "Existing encrypted secrets storage found",
-  "encryptionWipeExisting": "Wipe and Start Fresh",
-  "encryptionKeepExisting": "Keep Existing",
-  "encryptionUseExistingSsss": "Use Existing Secret Storage",
-  "encryptionBadSsss": "Some secrets could not be read. Continue anyway?",
-  "encryptionContinueAnyway": "Continue Anyway",
-  "encryptionUnlockSsss": "Unlock Existing Secrets",
-  "encryptionUnlockDescription": "Enter the passphrase or recovery key for your existing secret storage.",
-  "encryptionEnterRecoveryKey": "Enter Recovery Key",
-  "encryptionPassphraseOrKey": "Passphrase or Recovery Key",
-  "encryptionUnlock": "Unlock",
-  "encryptionCouldNotUnlock": "Could not unlock with the provided value",
-  "encryptionCreatePassphrase": "Create a Recovery Passphrase",
-  "encryptionSetPassphrase": "Set Passphrase",
-  "encryptionUnlocking": "Unlocking…",
-  "encryptionCrossSigningExists": "Cross-signing is already set up",
-  "encryptionRecreateKeys": "Re-create Keys",
-  "encryptionKeepKeys": "Keep Existing Keys",
-  "encryptionBackupExists": "Online key backup already exists",
-  "encryptionRecreateBackup": "Re-create Backup",
-  "encryptionKeepBackup": "Keep Existing Backup",
-  "encryptionSetupBackup": "Set Up Online Key Backup",
-  "encryptionSetupBackupDesc": "An encrypted backup of your message keys will be stored on the server so you can recover your conversation history on new devices.",
-  "encryptionEnableBackup": "Enable Backup",
-  "encryptionSkipBackup": "Skip",
-  "encryptionVerifyUserTitle": "Verify User",
-  "encryptionVerificationRequest": "Verification Request",
-  "encryptionChooseMethod": "Choose Verification Method",
-  "encryptionMethodEmoji": "Emoji / Numbers (SAS)",
-  "encryptionMethodQr": "QR Code",
-  "encryptionCompareEmojis": "Compare Emojis",
-  "encryptionCompareDescription": "Verify that the following emojis (or numbers) match on both devices.",
-  "encryptionDoTheyMatch": "Do they match?",
-  "encryptionTheyMatch": "They Match",
-  "encryptionTheyDontMatch": "They Don't Match",
-  "encryptionWaitingForYou": "Waiting for you to accept…",
-  "encryptionWaitingForOther": "Waiting for the other device…",
-  "encryptionVerificationWaitingDesc": "The verification request has been sent.",
-  "encryptionWaitingForSas": "Waiting for the emoji/number comparison…",
-  "encryptionDone": "Encryption Setup Complete!",
-  "encryptionVerificationDone": "Verification Complete!",
-  "encryptionVerificationFailed": "Verification Failed",
-
-  "encryptionVerified": "Verified",
-  "encryptionUnverified": "Unverified",
-  "encryptionFailedAction": "Failed: {error}",
+  "encryptionDeviceDeleted": "دستگاه حذف شد",
+  "encryptionMarkAsVerified": "علامت‌گذاری به عنوان تأییدشده",
+  "encryptionMarkAsUnverified": "علامت‌گذاری به عنوان تأییدنشده",
+  "encryptionKeyBackup": "پشتیبان‌گیری کلید",
+  "encryptionKeyBackupActive": "پشتیبان‌گیری کلید فعال است",
+  "encryptionKeyBackupInactive": "پشتیبان‌گیری کلید فعال نیست",
+  "encryptionSetupKeyBackup": "تنظیم پشتیبان‌گیری کلید",
+  "encryptionSetupCrossSigningFirst": "ابتدا امضای متقابل را تنظیم کنید",
+  "encryptionVerifiedUsers": "کاربران تأییدشده",
+  "encryptionUnverifiedOwn": "دستگاه‌های تأییدنشده من",
+  "encryptionUnverifiedOther": "کاربران تأییدنشده دیگر",
+  "encryptionVerifyUser": "تأیید کاربر",
+  "encryptionUserVerified": "این کاربر تأیید شده است",
+  "encryptionUserNotVerified": "این کاربر تأیید نشده است",
+  "encryptionVerify": "تأیید",
+  "encryptionLocalDataSection": "داده‌های رمزنگاری محلی",
+  "encryptionExportKeys": "خروجی کلیدهای E2EE",
+  "encryptionExportKeysDescription": "ذخیره حساب olm و تنظیمات دستگاه در یک فایل که می‌توانید در نصب جدید دوباره وارد کنید.",
+  "encryptionExportKeysConfirm": "فایل خروجی شامل کلیدهای خصوصی دستگاه شماست. مانند رمز عبور با آن رفتار کنید - هر کسی با این فایل می‌تواند تاریخچه رمزنگاری‌شده شما را بخواند. ادامه می‌دهید؟",
+  "encryptionExportKeysDone": "کلیدهای رمزنگاری خروجی گرفته شد.",
+  "encryptionExportKeysCancelled": "خروجی لغو شد.",
+  "encryptionNoKeyInfo": "اطلاعات کلید موجود نیست",
+  "encryptionEnabledTitle": "رمزنگاری‌شده",
+  "encryptionNotEnabledTitle": "رمزنگاری‌نشده",
+  "encryptionStatusInfo": "وضعیت رمزنگاری سرتاسر",
+  "encryptionDecryptionFailed": "رمزگشایی ناموفق",
+  "encryptionRequestKeys": "درخواست کلید",
+  "encryptionKeysRequested": "درخواست کلید به سایر دستگاه‌ها ارسال شد",
+  "encryptionUnsupported": "رمزنگاری در این نسخه پشتیبانی نمی‌شود",
+  "encryptionSetupCrossSigning": "تنظیم امضای متقابل",
+  "encryptionSetupCrossSigningDesc": "امضای متقابل به شما امکان می‌دهد سایر کاربران و دستگاه‌ها را تأیید کنید. این کار کلیدهای امضایی ایجاد می‌کند که در فضای ذخیره‌سازی رمزنگاری‌شده شما ذخیره می‌شوند.",
+  "encryptionSetupAllKeys": "تنظیم همه کلیدها",
+  "encryptionSkipKeySetup": "رد کردن تنظیم کلید",
+  "encryptionExistingSsssFound": "فضای ذخیره‌سازی رمزنگاری‌شده موجود یافت شد",
+  "encryptionWipeExisting": "پاک کردن و شروع تازه",
+  "encryptionKeepExisting": "نگهداشت موجود",
+  "encryptionUseExistingSsss": "استفاده از فضای ذخیره‌سازی موجود",
+  "encryptionBadSsss": "برخی اسرار قابل خواندن نبودند. ادامه می‌دهید؟",
+  "encryptionContinueAnyway": "به هر حال ادامه بده",
+  "encryptionUnlockSsss": "باز کردن قفل اسرار موجود",
+  "encryptionUnlockDescription": "عبارت عبور یا کلید بازیابی فضای ذخیره‌سازی اسرار موجود خود را وارد کنید.",
+  "encryptionEnterRecoveryKey": "ورود کلید بازیابی",
+  "encryptionPassphraseOrKey": "عبارت عبور یا کلید بازیابی",
+  "encryptionUnlock": "باز کردن قفل",
+  "encryptionCouldNotUnlock": "با مقدار ارائه شده نمی‌توان قفل را باز کرد",
+  "encryptionCreatePassphrase": "ایجاد عبارت عبور بازیابی",
+  "encryptionSetPassphrase": "تنظیم عبارت عبور",
+  "encryptionUnlocking": "در حال باز کردن قفل…",
+  "encryptionCrossSigningExists": "امضای متقابل از قبل تنظیم شده است",
+  "encryptionRecreateKeys": "ایجاد دوباره کلیدها",
+  "encryptionKeepKeys": "نگهداشت کلیدهای موجود",
+  "encryptionBackupExists": "پشتیبان‌گیری آنلاین کلید از قبل وجود دارد",
+  "encryptionRecreateBackup": "ایجاد دوباره پشتیبان",
+  "encryptionKeepBackup": "نگهداشت پشتیبان موجود",
+  "encryptionSetupBackup": "تنظیم پشتیبان‌گیری آنلاین کلید",
+  "encryptionSetupBackupDesc": "یک پشتیبان رمزنگاری‌شده از کلیدهای پیام شما روی سرور ذخیره می‌شود تا بتوانید تاریخچه گفت‌وگوهای خود را در دستگاه‌های جدید بازیابی کنید.",
+  "encryptionEnableBackup": "فعال‌سازی پشتیبان",
+  "encryptionSkipBackup": "رد کردن",
+  "encryptionVerifyUserTitle": "تأیید کاربر",
+  "encryptionVerificationRequest": "درخواست تأیید",
+  "encryptionChooseMethod": "انتخاب روش تأیید",
+  "encryptionMethodEmoji": "ایموجی / اعداد (SAS)",
+  "encryptionMethodQr": "کد QR",
+  "encryptionCompareEmojis": "مقایسه ایموجی‌ها",
+  "encryptionCompareDescription": "تأیید کنید که ایموجی‌ها (یا اعداد) زیر در هر دو دستگاه یکسان هستند.",
+  "encryptionDoTheyMatch": "آیا مطابقت دارند؟",
+  "encryptionTheyMatch": "مطابقت دارند",
+  "encryptionTheyDontMatch": "مطابقت ندارند",
+  "encryptionWaitingForYou": "منتظر تأیید شما…",
+  "encryptionWaitingForOther": "منتظر دستگاه دیگر…",
+  "encryptionVerificationWaitingDesc": "درخواست تأیید ارسال شده است.",
+  "encryptionWaitingForSas": "منتظر مقایسه ایموجی/اعداد…",
+  "encryptionDone": "تنظیم رمزنگاری کامل شد!",
+  "encryptionVerificationDone": "تأیید کامل شد!",
+  "encryptionVerificationFailed": "تأیید ناموفق",
+  "encryptionVerified": "تأییدشده",
+  "encryptionUnverified": "تأییدنشده",
+  "encryptionFailedAction": "ناموفق: {error}",
   "@encryptionFailedAction": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "encryptionUnknownError": "Unknown error",
-
-  "encryptionPostLoginBootstrap": "End-to-end encryption is not set up on this account. Would you like to set it up now? You can also do this later from Settings.",
-  "encryptionPostLoginVerify": "This device is not yet verified. You can verify it using a recovery passphrase or by confirming with one of your other devices.",
-  "encryptionVerifyDevice": "Verify This Device",
-  "encryptionVerifyDeviceAction": "Verify",
-  "encryptionLater": "Do This Later",
-
-  "failedToLoadImage": "Failed to load image",
-  "failedToLoadImageWithError": "Failed to load image: {error}",
+  "encryptionUnknownError": "خطای ناشناخته",
+  "encryptionPostLoginBootstrap": "رمزنگاری سرتاسر در این حساب تنظیم نشده است. آیا مایل به تنظیم آن اکنون هستید؟ همچنین می‌توانید بعداً از تنظیمات این کار را انجام دهید.",
+  "encryptionPostLoginVerify": "این دستگاه هنوز تأیید نشده است. می‌توانید آن را با استفاده از عبارت عبور بازیابی یا تأیید با یکی از دستگاه‌های دیگر خود تأیید کنید.",
+  "encryptionVerifyDevice": "تأیید این دستگاه",
+  "encryptionVerifyDeviceAction": "تأیید",
+  "encryptionLater": "بعداً انجام می‌دهم",
+  "failedToLoadImage": "بارگذاری تصویر ممکن نشد",
+  "failedToLoadImageWithError": "بارگذاری تصویر ممکن نشد: {error}",
   "@failedToLoadImageWithError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "saveAudio": "Save audio",
+  "saveAudio": "ذخیره صدا",
   "audioFileName": "audio_file",
-  "downloadAudio": "Download audio",
-  "saveVideo": "Save video",
+  "downloadAudio": "دانلود صدا",
+  "saveVideo": "ذخیره ویدیو",
   "videoFileName": "video_file",
-  "unknownType": "Unknown type",
-  "downloadVideo": "Download video",
-  "selectDownloadTarget": "Select download target",
-  "saveImage": "Save image",
-  "downloadImage": "Download image",
-  "imageViewerHint": "Drag to move · pinch to zoom · long-press to save",
-  "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
+  "unknownType": "نوع ناشناخته",
+  "downloadVideo": "دانلود ویدیو",
+  "selectDownloadTarget": "انتخاب مقصد دانلود",
+  "saveImage": "ذخیره تصویر",
+  "downloadImage": "دانلود تصویر",
+  "imageViewerHint": "کشیدن برای جابه‌جایی · نیشگون برای بزرگ‌نمایی · نگه‌داشتن برای ذخیره",
+  "fileInfo": "فایل: {name} از نوع: {mimeType} با پسوند: {ext}",
   "@fileInfo": {
     "description": "Information about an attached file.",
     "placeholders": {
-      "name": { "type": "String" },
-      "mimeType": { "type": "String" },
-      "ext": { "type": "String" }
+      "name": {
+        "type": "String"
+      },
+      "mimeType": {
+        "type": "String"
+      },
+      "ext": {
+        "type": "String"
+      }
     }
   },
-
-  "stateJoined": "{sender} joined",
+  "stateJoined": "{sender} پیوست",
   "@stateJoined": {
     "description": "State event: a user joined a room.",
     "placeholders": {
-      "sender": { "type": "String" }
+      "sender": {
+        "type": "String"
+      }
     }
   },
-  "stateLeft": "{sender} left",
+  "stateLeft": "{sender} ترک کرد",
   "@stateLeft": {
     "description": "State event: a user left a room.",
     "placeholders": {
-      "sender": { "type": "String" }
+      "sender": {
+        "type": "String"
+      }
     }
   },
-  "stateBanned": "{sender} banned {target}",
+  "stateBanned": "{sender} {target} را ممنوع کرد",
   "@stateBanned": {
     "description": "State event: a user was banned.",
     "placeholders": {
-      "sender": { "type": "String" },
-      "target": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
-  "stateBannedSimple": "{sender} banned someone",
+  "stateBannedSimple": "{sender} کسی را ممنوع کرد",
   "@stateBannedSimple": {
     "description": "State event: a ban with no target name available.",
     "placeholders": {
-      "sender": { "type": "String" }
+      "sender": {
+        "type": "String"
+      }
     }
   },
-  "stateInvited": "{sender} invited {user}",
+  "stateInvited": "{sender} {user} را دعوت کرد",
   "@stateInvited": {
     "description": "State event: a user was invited.",
     "placeholders": {
-      "sender": { "type": "String" },
-      "user": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "user": {
+        "type": "String"
+      }
     }
   },
-  "stateKnocked": "{sender} knocked",
+  "stateKnocked": "{sender} درخواست ورود داد",
   "@stateKnocked": {
     "description": "State event: a user knocked on a room.",
     "placeholders": {
-      "sender": { "type": "String" }
+      "sender": {
+        "type": "String"
+      }
     }
   },
-  "stateKicked": "{mod} kicked {target}",
+  "stateKicked": "{mod} {target} را اخراج کرد",
   "@stateKicked": {
     "description": "State event: a moderator kicked a user from a room.",
     "placeholders": {
-      "mod": { "type": "String" },
-      "target": { "type": "String" }
+      "mod": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
-  "moderationTooltip": "Moderate",
+  "moderationTooltip": "مدیریت",
   "@moderationTooltip": {
     "description": "Tooltip for the moderation popup button in message hover actions."
   },
-  "stateMembershipChanged": "{sender} membership changed: {membership}",
+  "stateMembershipChanged": "عضویت {sender} تغییر کرد: {membership}",
   "@stateMembershipChanged": {
     "description": "State event: membership change with unknown state.",
     "placeholders": {
-      "sender": { "type": "String" },
-      "membership": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "membership": {
+        "type": "String"
+      }
     }
   },
-  "stateRoomNameChanged": "Room name changed",
-  "stateRoomTopicChanged": "Room topic changed",
-  "stateRoomAvatarChanged": "Room avatar changed",
-  "stateRoomCreated": "Room created",
-  "stateEncryptionEnabled": "Encryption enabled",
-  "statePinnedMessagesChanged": "Pinned messages changed",
-  "stateMainAddressChanged": "Main address changed",
-  "statePowerLevelsChanged": "Power levels changed",
-  "stateRoomUpgraded": "Room upgraded",
-  "stateVerificationRequest": "{sender} requests to verify",
+  "stateRoomNameChanged": "نام اتاق تغییر کرد",
+  "stateRoomTopicChanged": "موضوع اتاق تغییر کرد",
+  "stateRoomAvatarChanged": "آواتار اتاق تغییر کرد",
+  "stateRoomCreated": "اتاق ایجاد شد",
+  "stateEncryptionEnabled": "رمزنگاری فعال شد",
+  "statePinnedMessagesChanged": "پیام‌های سنجاق‌شده تغییر کرد",
+  "stateMainAddressChanged": "نشانی اصلی تغییر کرد",
+  "statePowerLevelsChanged": "سطوح قدرت تغییر کرد",
+  "stateRoomUpgraded": "اتاق ارتقا یافت",
+  "stateVerificationRequest": "{sender} درخواست تأیید می‌کند",
   "@stateVerificationRequest": {
     "description": "A `m.key.verification.request` event: a user wants to verify with you in this room.",
     "placeholders": {
@@ -831,854 +881,870 @@
       }
     }
   },
-  "stateVerificationCancel": "Verification cancelled",
-  "stateVerificationDone": "Verification completed",
-  "stateVerificationStart": "Verification started",
-  "stateVerificationEvent": "Verification event",
-
-  "today": "Today",
-  "yesterday": "Yesterday",
-
-  "themeDefault": "Default (Indigo)",
-  "themeOceanBlue": "Ocean Blue",
-  "themeMidnightSlate": "British Racing Green",
-  "themeCrimson": "Bright Maroon",
-  "themeAmber": "Amber",
-  "themeSteel": "Lime Green",
-  "themeSky": "Sky",
-
-  "displayModern": "Modern",
+  "stateVerificationCancel": "تأیید لغو شد",
+  "stateVerificationDone": "تأیید انجام شد",
+  "stateVerificationStart": "تأیید شروع شد",
+  "stateVerificationEvent": "رویداد تأیید",
+  "today": "امروز",
+  "yesterday": "دیروز",
+  "themeDefault": "پیش‌فرض (نیلی)",
+  "themeOceanBlue": "آبی اقیانوس",
+  "themeMidnightSlate": "سبز مسابقه بریتانیایی",
+  "themeCrimson": "زرشکی روشن",
+  "themeAmber": "کهربایی",
+  "themeSteel": "سبز لیمویی",
+  "themeSky": "آسمانی",
+  "displayModern": "مدرن",
   "displayIrc": "IRC",
-  "displayBubbles": "Bubbles",
-
-  "paneRooms": "Rooms",
-  "paneSpaces": "Spaces",
-  "paneFriends": "Friends",
-  "paneHidden": "Hidden",
-  "paneNone": "None",
-  "paneRoomInfo": "Room Info",
-  "paneMembers": "Members",
-
-  "displayName": "Display Name",
-  "displayNameLabel": "Display name",
-  "userIDLabel": "User ID",
-
-  "logoutError": "Logout error: {error}",
+  "displayBubbles": "حبابی",
+  "paneRooms": "اتاق‌ها",
+  "paneSpaces": "فضاها",
+  "paneFriends": "دوستان",
+  "paneHidden": "مخفی",
+  "paneNone": "هیچ",
+  "paneRoomInfo": "اطلاعات اتاق",
+  "paneMembers": "اعضا",
+  "displayName": "نام نمایشی",
+  "displayNameLabel": "نام نمایشی",
+  "userIDLabel": "شناسه کاربر",
+  "logoutError": "خطای خروج: {error}",
   "@logoutError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "privacyPolicyText": "Moonrelay does not transmit any information beyond what is necessary for the application's operation. We do not collect data, run telemetry, or serve advertisements. Any content shared through the Matrix network falls outside this privacy policy; it resides on Matrix homeservers and is subject to their respective policies.",
-
-  "encryptedTooltip": "Encrypted",
-  "notEncryptedTooltip": "Not encrypted",
-  "verifiedTooltip": "Verified",
-  "unverifiedTooltip": "Unverified",
-
-  "navigationHome": "Home",
-  "navigationAll": "All",
-
-  "welcomeProjectNews": "Project News",
+  "privacyPolicyText": "Moonrelay هیچ اطلاعاتی فراتر از آنچه برای عملکرد برنامه لازم است منتقل نمی‌کند. ما داده جمع‌آوری نمی‌کنیم، تله‌متری اجرا نمی‌کنیم و تبلیغات نمایش نمی‌دهیم. هر محتوایی که از طریق شبکه Matrix به اشتراک گذاشته شود خارج از این خط‌مشی حریم خصوصی است؛ در سرورهای اصلی Matrix قرار دارد و تابع خط‌مشی‌های مربوط به آنهاست.",
+  "encryptedTooltip": "رمزنگاری‌شده",
+  "notEncryptedTooltip": "رمزنگاری‌نشده",
+  "verifiedTooltip": "تأییدشده",
+  "unverifiedTooltip": "تأییدنشده",
+  "navigationHome": "خانه",
+  "navigationAll": "همه",
+  "welcomeProjectNews": "اخبار پروژه",
   "@welcomeProjectNews": {
     "description": "Title for the project news card on the welcome screen."
   },
-
-  "welcomeProjectNewsContent": "Stay up to date with the latest Moonrelay developments, releases, and community announcements.",
+  "welcomeProjectNewsContent": "از آخرین تحولات، انتشارات و اعلامیه‌های انجمن Moonrelay مطلع باشید.",
   "@welcomeProjectNewsContent": {
     "description": "Content for the project news card on the welcome screen."
   },
-
-  "welcomeDonators": "Supporters",
+  "welcomeDonators": "حامیان",
   "@welcomeDonators": {
     "description": "Title for the donators / supporters card on the welcome screen."
   },
-
-  "welcomeDonatorsContent": "Moonrelay is made possible thanks to the generous support of our community. We deeply appreciate every contribution, big or small.",
+  "welcomeDonatorsContent": "Moonrelay به لطف حمایت سخاوتمندانه انجمن ما ممکن شده است. ما عمیقاً از هر کمک، بزرگ یا کوچک، قدردانی می‌کنیم.",
   "@welcomeDonatorsContent": {
     "description": "Content for the donators / supporters card on the welcome screen."
   },
-
-  "welcomeToggleLight": "Switch to light mode",
+  "welcomeToggleLight": "تغییر به حالت روشن",
   "@welcomeToggleLight": {
     "description": "Tooltip for the theme toggle button to switch to light mode."
   },
-
-  "welcomeToggleDark": "Switch to dark mode",
+  "welcomeToggleDark": "تغییر به حالت تاریک",
   "@welcomeToggleDark": {
     "description": "Tooltip for the theme toggle button to switch to dark mode."
   },
-
-  "presenceOnline": "Online",
-  "presenceOffline": "Offline",
-  "presenceUnavailable": "Unavailable",
-  "presenceUnknown": "Unknown",
-
-  "lastActive": "Last Active",
+  "presenceOnline": "آنلاین",
+  "presenceOffline": "آفلاین",
+  "presenceUnavailable": "غیرقابل دسترس",
+  "presenceUnknown": "نامشخص",
+  "lastActive": "آخرین فعالیت",
   "@lastActive": {
     "description": "Label for the last active timestamp field."
   },
-
-  "sectionAbout": "About",
-  "sectionModeration": "Moderation",
-
-  "powerLevelLabel": "Power Level",
-  "membershipLabel": "Membership",
-
-  "actionKick": "Kick",
-  "actionBan": "Ban",
-  "actionUnban": "Unban",
-  "actionSetModerator": "Set as Moderator",
-  "actionSetAdmin": "Set as Admin",
-  "actionRemovePrivileges": "Remove Privileges",
-  "actionInvite": "Invite to Room",
-  "actionReport": "Report User",
-  "actionStartDirectChat": "Send Direct Message",
-
-  "kickConfirm": "Are you sure you want to kick {displayName}? They will be able to rejoin.",
+  "sectionAbout": "درباره",
+  "sectionModeration": "مدیریت",
+  "powerLevelLabel": "سطح قدرت",
+  "membershipLabel": "عضویت",
+  "actionKick": "اخراج",
+  "actionBan": "ممنوعیت",
+  "actionUnban": "رفع ممنوعیت",
+  "actionSetModerator": "تنظیم به عنوان مدیر",
+  "actionSetAdmin": "تنظیم به عنوان ادمین",
+  "actionRemovePrivileges": "حذف امتیازات",
+  "actionInvite": "دعوت به اتاق",
+  "actionReport": "گزارش کاربر",
+  "actionStartDirectChat": "ارسال پیام مستقیم",
+  "kickConfirm": "آیا از اخراج {displayName} مطمئن هستید؟ آنها می‌توانند دوباره بپیوندند.",
   "@kickConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "banConfirm": "Are you sure you want to ban {displayName}? This will prevent them from joining.",
+  "banConfirm": "آیا از ممنوعیت {displayName} مطمئن هستید؟ این کار از پیوستن آنها جلوگیری می‌کند.",
   "@banConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "unbanConfirm": "Unban {displayName}?",
+  "unbanConfirm": "رفع ممنوعیت {displayName}؟",
   "@unbanConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "changePowerLevelConfirm": "Change power level of {displayName} to {level}?",
+  "changePowerLevelConfirm": "تغییر سطح قدرت {displayName} به {level}؟",
   "@changePowerLevelConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" },
-      "level": { "type": "int" }
+      "displayName": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
     }
   },
-  "userKicked": "{displayName} has been kicked from the room.",
+  "userKicked": "{displayName} از اتاق اخراج شد.",
   "@userKicked": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "userBanned": "{displayName} has been banned from the room.",
+  "userBanned": "{displayName} از اتاق ممنوع شد.",
   "@userBanned": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "userUnbanned": "{displayName} has been unbanned.",
+  "userUnbanned": "ممنوعیت {displayName} رفع شد.",
   "@userUnbanned": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "powerLevelChanged": "{displayName}'s power level changed to {level}.",
+  "powerLevelChanged": "سطح قدرت {displayName} به {level} تغییر کرد.",
   "@powerLevelChanged": {
     "placeholders": {
-      "displayName": { "type": "String" },
-      "level": { "type": "int" }
+      "displayName": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
     }
   },
-  "userInvited": "Invitation sent to {displayName}.",
+  "userInvited": "دعوتنامه به {displayName} ارسال شد.",
   "@userInvited": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "userReported": "User has been reported to the server admin.",
-  "actionFailed": "Action failed: {error}",
+  "userReported": "کاربر به مدیر سرور گزارش شد.",
+  "actionFailed": "عملیات ناموفق: {error}",
   "@actionFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "moderationNotAvailable": "Room context required for moderation actions.",
-
-  "encryptionBackupVersion": "Backup version",
-  "encryptionKeysBackedUp": "Keys backed up",
-  "encryptionBackupRecoveryKeySet": "Recovery key is set",
-  "encryptionBackupNoRecoveryKey": "No recovery key set",
-
-  "roomNotFound": "Room not found",
-  "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
-
-  "profileIdNullError": "The User's ID could not be understood. Please try again later, or report a bug to our project.",
-  "profileIdInvalid": "The User's ID could not be understood ({error}). Please try again later, or report a bug to our project.",
+  "moderationNotAvailable": "برای اقدامات مدیریتی، زمینه اتاق لازم است.",
+  "encryptionBackupVersion": "نسخه پشتیبان",
+  "encryptionKeysBackedUp": "کلیدهای پشتیبان‌گیری‌شده",
+  "encryptionBackupRecoveryKeySet": "کلید بازیابی تنظیم شده است",
+  "encryptionBackupNoRecoveryKey": "کلید بازیابی تنظیم نشده است",
+  "roomNotFound": "اتاق یافت نشد",
+  "roomNotFoundHint": "باید قبل از مشاهده پیام‌ها به یک اتاق بپیوندید. از نوار جست‌وجوی بالا برای یافتن و پیوستن به اتاق‌ها استفاده کنید.",
+  "profileIdNullError": "شناسه کاربر قابل درک نبود. لطفاً بعداً دوباره تلاش کنید یا یک باگ به پروژه ما گزارش دهید.",
+  "profileIdInvalid": "شناسه کاربر قابل درک نبود ({error}). لطفاً بعداً دوباره تلاش کنید یا یک باگ به پروژه ما گزارش دهید.",
   "@profileIdInvalid": {
     "description": "Error shown when the profile user ID is invalid.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "network": "Network",
+  "network": "شبکه",
   "@network": {
     "description": "Title for the Network settings page."
   },
-  "networkDescription": "Network and synchronisation settings.",
+  "networkDescription": "تنظیمات شبکه و همگام‌سازی.",
   "@networkDescription": {
     "description": "Subtitle description for the Network settings page."
   },
-  "statusBarSection": "Status bar",
+  "statusBarSection": "نوار وضعیت",
   "@statusBarSection": {
     "description": "Section title for the status bar toggle."
   },
-  "showStatusBar": "Show status bar",
-  "showStatusBarDescription": "Display the sync status bar at the bottom of the screen.",
+  "showStatusBar": "نمایش نوار وضعیت",
+  "showStatusBarDescription": "نمایش نوار وضعیت همگام‌سازی در پایین صفحه.",
   "@showStatusBarDescription": {
     "description": "Description for the status bar toggle."
   },
-
-  "statusWaitingForResponse": "Waiting for response",
-  "statusSyncing": "Syncing",
-  "statusError": "Error",
-  "statusSynced": "Synced",
-  "statusBarLabel": "Status: {status}",
+  "statusWaitingForResponse": "منتظر پاسخ",
+  "statusSyncing": "در حال همگام‌سازی",
+  "statusError": "خطا",
+  "statusSynced": "همگام‌سازی شد",
+  "statusBarLabel": "وضعیت: {status}",
   "@statusBarLabel": {
     "description": "Label for the status bar showing the current sync state.",
     "placeholders": {
-      "status": { "type": "String" }
+      "status": {
+        "type": "String"
+      }
     }
   },
-
-  "logs": "Logs",
+  "logs": "گزارش‌ها",
   "@logs": {
     "description": "Title for the Logs page."
   },
-  "logsDescription": "View application logs or open the logs folder.",
-  "openLogsFolder": "Open logs folder",
-  "clearLog": "Clear log",
-  "clearLogDescription": "Delete all log files.",
-  "logFile": "Log file",
-  "refresh": "Refresh",
-  "clearLogsTitle": "Clear logs",
-  "clearLogsConfirmation": "Delete all log files? This cannot be undone.",
-  "delete": "Delete",
-  "logFilesCleared": "(log files cleared)",
-  "showingLastKb": "(showing last 50 KB)",
+  "logsDescription": "مشاهده گزارش‌های برنامه یا باز کردن پوشه گزارش‌ها.",
+  "openLogsFolder": "باز کردن پوشه گزارش‌ها",
+  "clearLog": "پاک کردن گزارش",
+  "clearLogDescription": "حذف همه فایل‌های گزارش.",
+  "logFile": "فایل گزارش",
+  "refresh": "به‌روزرسانی",
+  "clearLogsTitle": "پاک کردن گزارش‌ها",
+  "clearLogsConfirmation": "همه فایل‌های گزارش حذف شوند؟ این کار قابل بازگشت نیست.",
+  "delete": "حذف",
+  "logFilesCleared": "(فایل‌های گزارش پاک شدند)",
+  "showingLastKb": "(نمایش 50 کیلوبایت آخر)",
   "@showingLastKb": {
     "description": "Indicator shown when only the last portion of a log file is displayed."
   },
-
-  "spaceHome": "Space Home",
+  "spaceHome": "خانه فضا",
   "@spaceHome": {
     "description": "Title for the space home page."
   },
-  "spaceChildRooms": "Rooms",
+  "spaceChildRooms": "اتاق‌ها",
   "@spaceChildRooms": {
     "description": "Section header for child rooms in a space."
   },
-  "spaceChildSpaces": "Subspaces",
+  "spaceChildSpaces": "زیرفضاها",
   "@spaceChildSpaces": {
     "description": "Section header for child subspaces in a space."
   },
-  "spaceNoChildren": "This space has no rooms yet",
+  "spaceNoChildren": "این فضا هنوز اتاقی ندارد",
   "@spaceNoChildren": {
     "description": "Empty state when a space has no child rooms or subspaces."
   },
-  "spaceSettings": "Space Settings",
+  "spaceSettings": "تنظیمات فضا",
   "@spaceSettings": {
     "description": "Title for the space settings page."
   },
-  "spaceSettingsDescription": "Manage rooms in this space",
+  "spaceSettingsDescription": "مدیریت اتاق‌ها در این فضا",
   "@spaceSettingsDescription": {
     "description": "Subtitle for the space settings page."
   },
-  "addRoomToSpace": "Add Room to Space",
+  "addRoomToSpace": "افزودن اتاق به فضا",
   "@addRoomToSpace": {
     "description": "Button to add a room to the current space."
   },
-  "removeRoomFromSpace": "Remove from Space",
+  "removeRoomFromSpace": "حذف از فضا",
   "@removeRoomFromSpace": {
     "description": "Button to remove a room from a space."
   },
-  "selectRoomToAdd": "Select a room to add",
+  "selectRoomToAdd": "یک اتاق برای افزودن انتخاب کنید",
   "@selectRoomToAdd": {
     "description": "Prompt shown when picking a room to add to a space."
   },
-  "roomAddedToSpace": "Room added to space",
+  "roomAddedToSpace": "اتاق به فضا اضافه شد",
   "@roomAddedToSpace": {
     "description": "Confirmation shown after adding a room to a space."
   },
-  "roomRemovedFromSpace": "Room removed from space",
+  "roomRemovedFromSpace": "اتاق از فضا حذف شد",
   "@roomRemovedFromSpace": {
     "description": "Confirmation shown after removing a room from a space."
   },
-  "createAsSpace": "Create as Space",
+  "createAsSpace": "ایجاد به عنوان فضا",
   "@createAsSpace": {
     "description": "Toggle label for creating a space instead of a room."
   },
-  "createAsSpaceDescription": "Create a space to organise your rooms",
+  "createAsSpaceDescription": "برای سازماندهی اتاق‌های خود یک فضا ایجاد کنید",
   "@createAsSpaceDescription": {
     "description": "Description for the create-as-space toggle."
   },
-  "createSpace": "Create Space",
+  "createSpace": "ایجاد فضا",
   "@createSpace": {
     "description": "Button label for creating a new space."
   },
-  "spaceCreated": "Space created",
+  "spaceCreated": "فضا ایجاد شد",
   "@spaceCreated": {
     "description": "Confirmation shown after creating a space."
   },
-  "openSpaceSettings": "Space Settings",
+  "openSpaceSettings": "تنظیمات فضا",
   "@openSpaceSettings": {
     "description": "Button to open the space settings page."
   },
-
-  "editSpaceName": "Edit Space Name",
+  "editSpaceName": "ویرایش نام فضا",
   "@editSpaceName": {
     "description": "Button to edit the space name."
   },
-  "editSpaceNameHint": "Enter a new name for this space",
+  "editSpaceNameHint": "نام جدیدی برای این فضا وارد کنید",
   "@editSpaceNameHint": {
     "description": "Hint text for the space name edit dialog."
   },
-  "editSpaceTopic": "Edit Space Topic",
+  "editSpaceTopic": "ویرایش موضوع فضا",
   "@editSpaceTopic": {
     "description": "Button to edit the space topic."
   },
-  "editSpaceTopicHint": "Enter a new topic for this space",
+  "editSpaceTopicHint": "موضوع جدیدی برای این فضا وارد کنید",
   "@editSpaceTopicHint": {
     "description": "Hint text for the space topic edit dialog."
   },
-  "changeSpaceAvatar": "Change Space Avatar",
+  "changeSpaceAvatar": "تغییر آواتار فضا",
   "@changeSpaceAvatar": {
     "description": "Button to change the space avatar."
   },
-  "changeSpaceAvatarDescription": "Upload a new avatar image",
+  "changeSpaceAvatarDescription": "آپلود تصویر جدید آواتار",
   "@changeSpaceAvatarDescription": {
     "description": "Description for the change space avatar action."
   },
-  "spaceNameUpdated": "Space name updated",
+  "spaceNameUpdated": "نام فضا به‌روزرسانی شد",
   "@spaceNameUpdated": {
     "description": "Confirmation shown after updating the space name."
   },
-  "spaceTopicUpdated": "Space topic updated",
+  "spaceTopicUpdated": "موضوع فضا به‌روزرسانی شد",
   "@spaceTopicUpdated": {
     "description": "Confirmation shown after updating the space topic."
   },
-  "spaceAvatarUpdated": "Space avatar updated",
+  "spaceAvatarUpdated": "آواتار فضا به‌روزرسانی شد",
   "@spaceAvatarUpdated": {
     "description": "Confirmation shown after updating the space avatar."
   },
-
-  "addToSpace": "Add to Space",
+  "addToSpace": "افزودن به فضا",
   "@addToSpace": {
     "description": "Context menu item to add the current room to a space."
   },
-  "suggested": "Suggested",
+  "suggested": "پیشنهادشده",
   "@suggested": {
     "description": "Label for suggested rooms in a space."
   },
-  "joinSpace": "Join Space",
+  "joinSpace": "پیوستن به فضا",
   "@joinSpace": {
     "description": "Button for non-members to join a space."
   },
-
-  "pinSpace": "Pin to navigation",
+  "pinSpace": "سنجاق به ناوبری",
   "@pinSpace": {
     "description": "Context menu item to pin a subspace to the navigation pane."
   },
-  "unpinSpace": "Unpin from navigation",
+  "unpinSpace": "برداشتن سنجاق از ناوبری",
   "@unpinSpace": {
     "description": "Context menu item to remove a pinned subspace from the navigation pane."
   },
-  "openSpace": "Open Space Home",
+  "openSpace": "باز کردن خانه فضا",
   "@openSpace": {
     "description": "Context menu item to open the space home page."
   },
-  "rootSpaces": "Spaces",
+  "rootSpaces": "فضاها",
   "@rootSpaces": {
     "description": "Section header for root spaces in the navigation pane."
   },
-  "pinnedSpaces": "Pinned",
+  "pinnedSpaces": "سنجاق‌شده",
   "@pinnedSpaces": {
     "description": "Section header for pinned subspaces in the navigation pane."
   },
-
-  "layoutMode": "Layout mode",
+  "layoutMode": "حالت چیدمان",
   "@layoutMode": {
     "description": "Section label for the layout mode picker."
   },
-  "layoutModeDescription": "Choose how the main window arranges its panes.",
+  "layoutModeDescription": "نحوه چیدمان پنل‌ها در پنجره اصلی را انتخاب کنید.",
   "@layoutModeDescription": {
     "description": "Helper text explaining what each layout mode does."
   },
-  "layoutModeAuto": "Auto",
+  "layoutModeAuto": "خودکار",
   "@layoutModeAuto": {
     "description": "Layout mode that adapts to the current window width."
   },
-  "layoutModeCompact": "Compact",
+  "layoutModeCompact": "فشرده",
   "@layoutModeCompact": {
     "description": "Layout mode that always uses a unified compact sidebar."
   },
-  "layoutModeMobile": "Mobile",
+  "layoutModeMobile": "موبایل",
   "@layoutModeMobile": {
     "description": "Layout mode that uses a single-pane, route-driven mobile-style layout."
   },
-
-  "hubTabAccounts": "Accounts",
+  "hubTabAccounts": "حساب‌ها",
   "@hubTabAccounts": {
     "description": "Tab label for the accounts category in the hub."
   },
-  "hubTabProfile": "Profile",
+  "hubTabProfile": "پروفایل",
   "@hubTabProfile": {
     "description": "Tab label for the profile category in the hub."
   },
-  "hubTabSettings": "Settings",
+  "hubTabSettings": "تنظیمات",
   "@hubTabSettings": {
     "description": "Tab label for the app settings category in the hub."
   },
-  "hubTabAbout": "About",
+  "hubTabAbout": "درباره",
   "@hubTabAbout": {
     "description": "Tab label for the about category in the hub."
   },
-
-  "back": "Back",
+  "back": "بازگشت",
   "@back": {
     "description": "Generic back button label used by the mobile layout."
   },
-
-  "deleteRoom": "Delete Room",
+  "deleteRoom": "حذف اتاق",
   "@deleteRoom": {
     "description": "Button to permanently delete a room."
   },
-  "deleteRoomDescription": "Permanently delete this room and all its messages",
+  "deleteRoomDescription": "حذف دائمی این اتاق و همه پیام‌های آن",
   "@deleteRoomDescription": {
     "description": "Subtitle for the delete room action."
   },
-  "deleteRoomConfirm": "Are you sure you want to permanently delete \"{roomName}\"? This action cannot be undone.",
+  "deleteRoomConfirm": "آیا از حذف دائمی \"{roomName}\" مطمئن هستید؟ این عمل قابل بازگشت نیست.",
   "@deleteRoomConfirm": {
     "description": "Confirmation dialog for deleting a room.",
     "placeholders": {
-      "roomName": { "type": "String" }
+      "roomName": {
+        "type": "String"
+      }
     }
   },
-  "deleteRoomSuccess": "Room deleted",
+  "deleteRoomSuccess": "اتاق حذف شد",
   "@deleteRoomSuccess": {
     "description": "Confirmation shown after deleting a room."
   },
-  "deleteRoomFailed": "Failed to delete room: {error}",
+  "deleteRoomFailed": "حذف اتاق ناموفق: {error}",
   "@deleteRoomFailed": {
     "description": "Error shown when room deletion fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "forgetRoom": "Forget Room",
+  "forgetRoom": "فراموش کردن اتاق",
   "@forgetRoom": {
     "description": "Button to forget a room locally."
   },
-  "forgetRoomDescription": "Remove this room from your account",
+  "forgetRoomDescription": "حذف این اتاق از حساب شما",
   "@forgetRoomDescription": {
     "description": "Subtitle for the forget room action."
   },
-  "deleteRoomAdminOnly": "Only room administrators can delete rooms",
+  "deleteRoomAdminOnly": "فقط مدیران اتاق می‌توانند اتاق را حذف کنند",
   "@deleteRoomAdminOnly": {
     "description": "Message shown when a non-admin tries to delete a room."
   },
-
-  "deleteSpace": "Delete Space and Channels",
+  "deleteSpace": "حذف فضا و کانال‌ها",
   "@deleteSpace": {
     "description": "Button to delete a space and all its child rooms."
   },
-  "deleteSpaceDescription": "Delete this space and all its rooms",
+  "deleteSpaceDescription": "حذف این فضا و همه اتاق‌های آن",
   "@deleteSpaceDescription": {
     "description": "Subtitle for the delete space action."
   },
-  "deleteSpaceConfirm": "Are you sure you want to permanently delete \"{spaceName}\" and all its child rooms? This action cannot be undone.",
+  "deleteSpaceConfirm": "آیا از حذف دائمی \"{spaceName}\" و همه اتاق‌های زیرمجموعه آن مطمئن هستید؟ این عمل قابل بازگشت نیست.",
   "@deleteSpaceConfirm": {
     "description": "Confirmation dialog for deleting a space.",
     "placeholders": {
-      "spaceName": { "type": "String" }
+      "spaceName": {
+        "type": "String"
+      }
     }
   },
-  "deleteSpaceSuccess": "Space and channels deleted",
+  "deleteSpaceSuccess": "فضا و کانال‌ها حذف شدند",
   "@deleteSpaceSuccess": {
     "description": "Confirmation shown after deleting a space."
   },
-  "deleteSpaceFailed": "Failed to delete space: {error}",
+  "deleteSpaceFailed": "حذف فضا ناموفق: {error}",
   "@deleteSpaceFailed": {
     "description": "Error shown when space deletion fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "deleteSpaceNotEnoughPower": "You need admin permissions on the space and all its rooms to delete it",
+  "deleteSpaceNotEnoughPower": "برای حذف فضا به دسترسی ادمین روی فضا و همه اتاق‌های آن نیاز دارید",
   "@deleteSpaceNotEnoughPower": {
     "description": "Message shown when user lacks power to delete a space."
   },
-  "joinRuleLabel": "Join rules",
+  "joinRuleLabel": "قوانین پیوستن",
   "@joinRuleLabel": {
     "description": "Label for the join rules selector."
   },
-  "joinRulePublic": "Anyone can join",
+  "joinRulePublic": "همه می‌توانند بپیوندند",
   "@joinRulePublic": {
     "description": "Option for public join rule."
   },
-  "joinRuleInvite": "Invite only",
+  "joinRuleInvite": "فقط با دعوت",
   "@joinRuleInvite": {
     "description": "Option for invite-only join rule."
   },
-  "joinRuleKnock": "Requires approval (knock)",
+  "joinRuleKnock": "نیاز به تأیید (درخواست)",
   "@joinRuleKnock": {
     "description": "Option for knock join rule."
   },
-  "joinRuleRestricted": "Restricted",
+  "joinRuleRestricted": "محدود",
   "@joinRuleRestricted": {
     "description": "Option for restricted join rule."
   },
-  "joinRuleKnockRestricted": "Approval or restricted (knock + restricted)",
+  "joinRuleKnockRestricted": "تأیید یا محدود (درخواست + محدود)",
   "@joinRuleKnockRestricted": {
     "description": "Option for knock_restricted join rule."
   },
-  "deleteChildRoomFailed": "Failed to delete room \"{name}\": {error}",
+  "deleteChildRoomFailed": "حذف اتاق \"{name}\" ناموفق: {error}",
   "@deleteChildRoomFailed": {
     "description": "Error when deleting a child room of a space fails.",
     "placeholders": {
-      "name": { "type": "String" },
-      "error": { "type": "String" }
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "roomAlias": "Room address (optional)",
+  "roomAlias": "آدرس اتاق (اختیاری)",
   "@roomAlias": {
     "description": "Label for the room alias input."
   },
-  "roomAliasHint": "e.g. my-cool-room",
+  "roomAliasHint": "مثلاً my-cool-room",
   "@roomAliasHint": {
     "description": "Hint text for the room alias input."
   },
-  "inviteUsers": "Invite users (optional)",
+  "inviteUsers": "دعوت کاربران (اختیاری)",
   "@inviteUsers": {
     "description": "Label for the invite users input."
   },
-  "inviteUsersHint": "User IDs separated by commas",
+  "inviteUsersHint": "شناسه کاربران با کاما جدا شده",
   "@inviteUsersHint": {
     "description": "Hint text for the invite users input."
   },
-  "advancedOptions": "Advanced Options",
+  "advancedOptions": "گزینه‌های پیشرفته",
   "@advancedOptions": {
     "description": "Section header for advanced room creation options."
   },
-  "enableEncryption": "Enable end-to-end encryption",
+  "enableEncryption": "فعال‌سازی رمزنگاری سرتاسر",
   "@enableEncryption": {
     "description": "Toggle label for enabling encryption."
   },
-  "enableEncryptionDescription": "Encrypt messages end-to-end. This cannot be changed later.",
+  "enableEncryptionDescription": "رمزنگاری سرتاسر پیام‌ها. این بعداً قابل تغییر نیست.",
   "@enableEncryptionDescription": {
     "description": "Description for the encryption toggle."
   },
-  "roomVisibilitySection": "Visibility",
+  "roomVisibilitySection": "قابلیت مشاهده",
   "@roomVisibilitySection": {
     "description": "Section header for room visibility options."
   },
-  "publicChatDescription": "Anyone can find and join",
+  "publicChatDescription": "همه می‌توانند پیدا کنند و بپیوندند",
   "@publicChatDescription": {
     "description": "Description for public chat preset."
   },
-  "privateChatDescription": "Only invited people can join",
+  "privateChatDescription": "فقط افراد دعوت‌شده می‌توانند بپیوندند",
   "@privateChatDescription": {
     "description": "Description for private chat preset."
   },
-
-  "forgetRoomConfirm": "Are you sure you want to forget \"{roomName}\"? It will be removed from your account.",
+  "forgetRoomConfirm": "آیا از فراموش کردن \"{roomName}\" مطمئن هستید؟ از حساب شما حذف خواهد شد.",
   "@forgetRoomConfirm": {
     "description": "Confirmation dialog for forgetting a room.",
     "placeholders": {
-      "roomName": { "type": "String" }
+      "roomName": {
+        "type": "String"
+      }
     }
   },
-  "forgetRoomSuccess": "Room forgotten",
+  "forgetRoomSuccess": "اتاق فراموش شد",
   "@forgetRoomSuccess": {
     "description": "Confirmation shown after forgetting a room."
   },
-  "forgetRoomFailed": "Failed to forget room: {error}",
+  "forgetRoomFailed": "فراموش کردن اتاق ناموفق: {error}",
   "@forgetRoomFailed": {
     "description": "Error shown when forgetting a room fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-  "actionsDeleteSection": "Danger Zone",
+  "actionsDeleteSection": "منطقه خطرناک",
   "@actionsDeleteSection": {
     "description": "Section header for destructive room actions."
   },
-
-  "roomPreviewTitle": "Room Preview",
+  "roomPreviewTitle": "پیش‌نمایش اتاق",
   "@roomPreviewTitle": {
     "description": "Title for the room preview screen."
   },
-  "roomPreviewNotJoined": "You have not joined this room",
+  "roomPreviewNotJoined": "به این اتاق نپیوسته‌اید",
   "@roomPreviewNotJoined": {
     "description": "Label shown on room preview for unjoined rooms."
   },
-  "roomPreviewJoin": "Join Room",
+  "roomPreviewJoin": "پیوستن به اتاق",
   "@roomPreviewJoin": {
     "description": "Button to join a room from the preview screen."
   },
-  "roomPreviewLoading": "Loading room info…",
+  "roomPreviewLoading": "در حال بارگذاری اطلاعات اتاق…",
   "@roomPreviewLoading": {
     "description": "Loading state while fetching room summary."
   },
-  "roomPreviewFailed": "Could not load room information",
+  "roomPreviewFailed": "بارگذاری اطلاعات اتاق ممکن نشد",
   "@roomPreviewFailed": {
     "description": "Error when room summary fails to load."
   },
-  "roomPreviewLastMessages": "Recent messages",
+  "roomPreviewLastMessages": "پیام‌های اخیر",
   "@roomPreviewLastMessages": {
     "description": "Section header for recent messages in the room preview."
   },
-  "roomPreviewNoMessages": "No recent messages to display",
+  "roomPreviewNoMessages": "پیام اخیری برای نمایش وجود ندارد",
   "@roomPreviewNoMessages": {
     "description": "Empty state when there are no recent messages."
   },
-  "roomPreviewView": "Preview",
+  "roomPreviewView": "پیش‌نمایش",
   "@roomPreviewView": {
     "description": "Button label to preview an unjoined room."
   },
-  "roomPreviewSuggested": "Suggested room",
+  "roomPreviewSuggested": "اتاق پیشنهادی",
   "@roomPreviewSuggested": {
     "description": "Badge for suggested rooms in a space."
   },
-  "unjoinedRooms": "Unjoined rooms",
+  "unjoinedRooms": "اتاق‌های نپیوسته",
   "@unjoinedRooms": {
     "description": "Section header for unjoined rooms in a space."
   },
-
-  "backgroundAndTray": "Background & Tray",
+  "backgroundAndTray": "پس‌زمینه و سینی",
   "@backgroundAndTray": {
     "description": "Settings category for system tray and background behaviour."
   },
-  "backgroundAndTrayDescription": "Control how Moonrelay behaves in the system tray and when the window is closed.",
+  "backgroundAndTrayDescription": "کنترل رفتار Moonrelay در سینی سیستم و هنگام بسته شدن پنجره.",
   "@backgroundAndTrayDescription": {
     "description": "Subtitle for the Background & Tray settings page."
   },
-  "systemTray": "System Tray",
+  "systemTray": "سینی سیستم",
   "@systemTray": {
     "description": "Section header for system tray settings."
   },
-  "showTrayIcon": "Show tray icon",
+  "showTrayIcon": "نمایش آیکون سینی",
   "@showTrayIcon": {
     "description": "Toggle label for showing the system tray icon."
   },
-  "showTrayIconDescription": "Display Moonrelay in the system notification area",
+  "showTrayIconDescription": "نمایش Moonrelay در ناحیه اعلان سیستم",
   "@showTrayIconDescription": {
     "description": "Subtitle for the show tray icon toggle."
   },
-  "windowBehaviour": "Window Behaviour",
+  "windowBehaviour": "رفتار پنجره",
   "@windowBehaviour": {
     "description": "Section header for window close/minimize behaviour."
   },
-  "closeToTray": "Close to tray",
+  "closeToTray": "بستن به سینی",
   "@closeToTray": {
     "description": "Toggle label for closing the window to the system tray."
   },
-  "closeToTrayDescription": "Closing the window hides it to the system tray instead of quitting",
+  "closeToTrayDescription": "بستن پنجره آن را به جای خروج به سینی سیستم می‌برد",
   "@closeToTrayDescription": {
     "description": "Subtitle for the close to tray toggle."
   },
-  "minimizeToTray": "Minimize to tray",
+  "minimizeToTray": "کوچک کردن به سینی",
   "@minimizeToTray": {
     "description": "Toggle label for minimizing to the system tray."
   },
-  "minimizeToTrayDescription": "Minimizing hides to the system tray instead of the taskbar",
+  "minimizeToTrayDescription": "کوچک کردن به جای نوار وظیفه به سینی سیستم می‌برد",
   "@minimizeToTrayDescription": {
     "description": "Subtitle for the minimize to tray toggle."
   },
-  "startMinimized": "Start minimized",
+  "startMinimized": "شروع کوچک‌شده",
   "@startMinimized": {
     "description": "Toggle label for starting the app minimized to tray."
   },
-  "startMinimizedDescription": "Start Moonrelay in the system tray without showing the window",
+  "startMinimizedDescription": "Moonrelay را بدون نمایش پنجره در سینی سیستم شروع کن",
   "@startMinimizedDescription": {
     "description": "Subtitle for the start minimized toggle."
   },
-
-  "addAccount": "Add Account",
+  "addAccount": "افزودن حساب",
   "@addAccount": {
     "description": "Button to add another Matrix account."
   },
-  "addAccountDescription": "Sign in to another Matrix account",
+  "addAccountDescription": "ورود به حساب Matrix دیگر",
   "@addAccountDescription": {
     "description": "Subtitle for the add account button in the hub."
   },
-  "switchAccount": "Switch Account",
+  "switchAccount": "تغییر حساب",
   "@switchAccount": {
     "description": "Button to switch between accounts."
   },
-  "switchToAccount": "Switch to {userId}",
+  "switchToAccount": "تغییر به {userId}",
   "@switchToAccount": {
     "description": "Button label to switch to a specific account.",
     "placeholders": {
-      "userId": { "type": "String" }
+      "userId": {
+        "type": "String"
+      }
     }
   },
-  "savedAccounts": "Saved Accounts",
+  "savedAccounts": "حساب‌های ذخیره‌شده",
   "@savedAccounts": {
     "description": "Section header for the list of saved accounts on the welcome screen."
   },
-  "tapToSwitch": "Tap to switch",
+  "tapToSwitch": "برای تغییر ضربه بزنید",
   "@tapToSwitch": {
     "description": "Hint text shown on account cards on the welcome screen."
   },
-  "signInAsDifferentUser": "Sign in with a different account",
+  "signInAsDifferentUser": "ورود با حساب دیگر",
   "@signInAsDifferentUser": {
     "description": "Button label to sign in with a new account on the welcome screen."
   },
-  "noAccountsSaved": "No accounts saved",
+  "noAccountsSaved": "حسابی ذخیره نشده است",
   "@noAccountsSaved": {
     "description": "Empty state when no accounts are saved."
   },
-  "accountSwitched": "Switched to {userId}",
+  "accountSwitched": "به {userId} تغییر یافت",
   "@accountSwitched": {
     "description": "Snackbar message after switching accounts.",
     "placeholders": {
-      "userId": { "type": "String" }
+      "userId": {
+        "type": "String"
+      }
     }
   },
-  "activeAccount": "Active account",
+  "activeAccount": "حساب فعال",
   "@activeAccount": {
     "description": "Label shown next to the currently active account."
   },
-  "loggedInAccounts": "Logged in",
+  "loggedInAccounts": "وارد شده",
   "@loggedInAccounts": {
     "description": "Section label for currently logged-in accounts."
   },
-  "areYouSureRemoveAccount": "Are you sure you want to remove the account {userId}?",
+  "areYouSureRemoveAccount": "آیا از حذف حساب {userId} مطمئن هستید؟",
   "@areYouSureRemoveAccount": {
     "description": "Confirmation dialog for removing an account.",
     "placeholders": {
-      "userId": { "type": "String" }
+      "userId": {
+        "type": "String"
+      }
     }
   },
-  "removeAccount": "Remove account",
+  "removeAccount": "حذف حساب",
   "@removeAccount": {
     "description": "Button to remove a saved account."
   },
-
-  "notifications": "Notifications",
+  "notifications": "اعلان‌ها",
   "@notifications": {
     "description": "Title for the notification settings page."
   },
-  "notificationsDescription": "Control desktop notifications for incoming messages.",
+  "notificationsDescription": "کنترل اعلان‌های میزکار برای پیام‌های دریافتی.",
   "@notificationsDescription": {
     "description": "Subtitle for the notification settings page."
   },
-  "enableNotifications": "Enable notifications",
+  "enableNotifications": "فعال‌سازی اعلان‌ها",
   "@enableNotifications": {
     "description": "Toggle label for enabling or disabling all notifications."
   },
-  "enableNotificationsDescription": "Show desktop notifications for new messages",
+  "enableNotificationsDescription": "نمایش اعلان‌های میزکار برای پیام‌های جدید",
   "@enableNotificationsDescription": {
     "description": "Subtitle for the global notification toggle."
   },
-  "notificationSettings": "Notification Settings",
+  "notificationSettings": "تنظیمات اعلان",
   "@notificationSettings": {
     "description": "Section header for per-room notification settings."
   },
-  "muteRoom": "Mute this room",
+  "muteRoom": "بی‌صدا کردن این اتاق",
   "@muteRoom": {
     "description": "Toggle to mute notifications for a specific room."
   },
-  "muteRoomDescription": "Suppress desktop notifications from this room",
+  "muteRoomDescription": "قطع اعلان‌های میزکار از این اتاق",
   "@muteRoomDescription": {
     "description": "Subtitle for the room mute toggle."
   },
-  "roomMuted": "Room notifications muted",
+  "roomMuted": "اعلان‌های اتاق بی‌صدا شد",
   "@roomMuted": {
     "description": "Snackbar confirmation when muting a room."
   },
-  "roomUnmuted": "Room notifications unmuted",
+  "roomUnmuted": "اعلان‌های اتاق فعال شد",
   "@roomUnmuted": {
     "description": "Snackbar confirmation when unmuting a room."
   },
-
-  "thread": "Thread",
+  "thread": "رشته",
   "@thread": {
     "description": "Label for a single thread."
   },
-  "threads": "Threads",
+  "threads": "رشته‌ها",
   "@threads": {
     "description": "Label for threads."
   },
-  "openThread": "Open thread",
+  "openThread": "باز کردن رشته",
   "@openThread": {
     "description": "Tooltip for the button to open a thread view."
   },
-  "threadReplies": "{count} replies",
+  "threadReplies": "{count} پاسخ",
   "@threadReplies": {
     "description": "Label showing the number of replies in a thread.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "noRepliesYet": "No replies yet",
+  "noRepliesYet": "هنوز پاسخی نیست",
   "@noRepliesYet": {
     "description": "Shown when a thread has no replies yet."
   },
-  "noThreadsYet": "No threads yet",
+  "noThreadsYet": "هنوز رشته‌ای نیست",
   "@noThreadsYet": {
     "description": "Shown when a room has no threads yet."
   },
-  "showAllThreads": "Show all threads ({count})",
+  "showAllThreads": "نمایش همه رشته‌ها ({count})",
   "@showAllThreads": {
     "description": "Button to show all threads in the room.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "searchThreadsHint": "Search threads…",
+  "searchThreadsHint": "جست‌وجوی رشته‌ها…",
   "@searchThreadsHint": {
     "description": "Hint text for the thread search field."
   },
-
-  "globalSearch": "Search rooms, spaces, and messages…",
+  "globalSearch": "جست‌وجوی اتاق‌ها، فضاها و پیام‌ها…",
   "@globalSearch": {
     "description": "Placeholder text for the global search field."
   },
-  "searchMessages": "Messages",
+  "searchMessages": "پیام‌ها",
   "@searchMessages": {
     "description": "Section header for message search results."
   },
-  "searchUsersResults": "Users",
+  "searchUsersResults": "کاربران",
   "@searchUsersResults": {
     "description": "Section header for user directory search results."
   },
-  "searchRooms": "Rooms",
+  "searchRooms": "اتاق‌ها",
   "@searchRooms": {
     "description": "Section header for room search results."
   },
-  "searchSpaces": "Spaces",
+  "searchSpaces": "فضاها",
   "@searchSpaces": {
     "description": "Section header for space search results."
   },
-  "searchHomeserver": "Search homeserver…",
+  "searchHomeserver": "جست‌وجوی سرور اصلی…",
   "@searchHomeserver": {
     "description": "Placeholder text for the homeserver-wide search field."
   },
-  "activeAgo": "Active {time} ago",
+  "activeAgo": "فعال {time} پیش",
   "@activeAgo": {
     "description": "Shown when a user was active a certain time ago.",
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
-  "lastSeenAgo": "Last seen {time} ago",
+  "lastSeenAgo": "آخرین بازدید {time} پیش",
   "@lastSeenAgo": {
     "description": "Shown when a user was last seen a certain time ago.",
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
-  "timeJustNow": "just now",
+  "timeJustNow": "همین حالا",
   "@timeJustNow": {
     "description": "Relative time label for less than a minute ago."
   },
@@ -1686,99 +1752,106 @@
   "@timeMinutes": {
     "description": "Short relative time in minutes.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "timeHours": "{count}h",
   "@timeHours": {
     "description": "Short relative time in hours.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "timeDays": "{count}d",
   "@timeDays": {
     "description": "Short relative time in days.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "timeWeeks": "{count}w",
   "@timeWeeks": {
     "description": "Short relative time in weeks.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-
-  "searchNoResults": "No results found",
+  "searchNoResults": "نتیجه‌ای یافت نشد",
   "@searchNoResults": {
     "description": "Message shown when search returns no results."
   },
-  "searchInRoom": "Search in room",
+  "searchInRoom": "جست‌وجو در اتاق",
   "@searchInRoom": {
     "description": "Tooltip for the in-room search button."
   },
-  "inRoomSearch": "Search this room",
+  "inRoomSearch": "جست‌وجوی این اتاق",
   "@inRoomSearch": {
     "description": "Title for the in-room search panel."
   },
-  "inRoomSearchHint": "Search messages in this room…",
+  "inRoomSearchHint": "جست‌وجوی پیام‌ها در این اتاق…",
   "@inRoomSearchHint": {
     "description": "Placeholder text for the in-room search field."
   },
-  "inRoomSearchAll": "All",
+  "inRoomSearchAll": "همه",
   "@inRoomSearchAll": {
     "description": "Filter chip label to search all message types."
   },
-  "inRoomSearchText": "Text",
+  "inRoomSearchText": "متن",
   "@inRoomSearchText": {
     "description": "Filter chip label to search only text messages."
   },
-  "inRoomSearchImages": "Images",
+  "inRoomSearchImages": "تصاویر",
   "@inRoomSearchImages": {
     "description": "Filter chip label to search only image messages."
   },
-  "inRoomSearchFiles": "Files",
+  "inRoomSearchFiles": "فایل‌ها",
   "@inRoomSearchFiles": {
     "description": "Filter chip label to search only file messages."
   },
-  "inRoomSearchAudio": "Audio",
+  "inRoomSearchAudio": "صدا",
   "@inRoomSearchAudio": {
     "description": "Filter chip label to search only audio messages."
   },
-  "inRoomSearchVideo": "Video",
+  "inRoomSearchVideo": "ویدیو",
   "@inRoomSearchVideo": {
     "description": "Filter chip label to search only video messages."
   },
-  "inRoomSearchByUser": "Filter by sender…",
+  "inRoomSearchByUser": "فیلتر بر اساس فرستنده…",
   "@inRoomSearchByUser": {
     "description": "Placeholder for the sender filter field in in-room search."
   },
-  "inRoomSearchNoResults": "No messages match your search",
+  "inRoomSearchNoResults": "پیامی با جست‌وجوی شما مطابقت ندارد",
   "@inRoomSearchNoResults": {
     "description": "Message shown when in-room search returns no results."
   },
-  "inRoomSearchResults": "{count} results",
-  "searchMatchCount": "{count} match",
-  "searchMatchCountMany": "{count} matches",
+  "inRoomSearchResults": "{count} نتیجه",
+  "searchMatchCount": "{count} مورد",
+  "searchMatchCountMany": "{count} مورد",
   "@inRoomSearchResults": {
     "description": "Label showing number of search results.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "searchingMessages": "Searching messages…",
+  "searchingMessages": "در حال جست‌وجوی پیام‌ها…",
   "@searchingMessages": {
     "description": "Message shown while searching messages."
   },
-
-  "loadMore": "Load more",
+  "loadMore": "بارگذاری بیشتر",
   "@loadMore": {
     "description": "Button to load more search results."
   },
-
-  "about": "About",
+  "about": "درباره",
   "@about": {
     "description": "Hub navigation item for the About page."
   },
@@ -1791,122 +1864,131 @@
       }
     }
   },
-  "aboutRepository": "Repository",
+  "aboutRepository": "مخزن",
   "@aboutRepository": {
     "description": "Title for the repository card on the About page."
   },
-  "aboutRepositoryDescription": "The complete source code is available for inspection, audit, and contribution at the project repository:",
+  "aboutRepositoryDescription": "کد منبع کامل برای بازرسی، ممیزی و مشارکت در مخزن پروژه در دسترس است:",
   "@aboutRepositoryDescription": {
     "description": "Description for the repository card on the About page."
   },
-  "aboutSupport": "Moonrelay Support",
+  "aboutSupport": "پشتیبانی Moonrelay",
   "@aboutSupport": {
     "description": "Title for the support card on the About page."
   },
-  "aboutSupportDescription": "Get help, report issues, and discuss the project with the community in our Matrix space.",
+  "aboutSupportDescription": "در فضای Matrix ما کمک بگیرید، مشکلات را گزارش دهید و درباره پروژه گفت‌وگو کنید.",
   "@aboutSupportDescription": {
     "description": "Description for the support card on the About page."
   },
-  "aboutJoinSupportSpace": "Join Support Space",
+  "aboutJoinSupportSpace": "پیوستن به فضای پشتیبانی",
   "@aboutJoinSupportSpace": {
     "description": "Button to navigate to the Moonrelay support Matrix space home."
   },
-  "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
+  "aboutJoinedSupportSpace": "به فضای پشتیبانی Moonrelay پیوستید!",
   "@aboutJoinedSupportSpace": {
     "description": "Snackbar confirmation after joining the support space."
   },
-
-  "actionBlockUser": "Block User",
+  "actionBlockUser": "مسدود کردن کاربر",
   "@actionBlockUser": {
     "description": "Button to block/ignore a user."
   },
-  "actionUnblockUser": "Unblock User",
+  "actionUnblockUser": "رفع مسدودیت کاربر",
   "@actionUnblockUser": {
     "description": "Button to unblock a previously blocked user."
   },
-  "blockUserConfirm": "Are you sure you want to block {displayName}? You will no longer receive messages from them.",
+  "blockUserConfirm": "آیا از مسدود کردن {displayName} مطمئن هستید؟ دیگر پیامی از آنها دریافت نخواهید کرد.",
   "@blockUserConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "userBlocked": "Blocked {displayName}.",
+  "userBlocked": "{displayName} مسدود شد.",
   "@userBlocked": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "userUnblocked": "Unblocked {displayName}.",
+  "userUnblocked": "مسدودیت {displayName} رفع شد.",
   "@userUnblocked": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "actionRemoveContact": "Remove from Contacts",
+  "actionRemoveContact": "حذف از مخاطبان",
   "@actionRemoveContact": {
     "description": "Button to remove a user from the contact list (m.direct)."
   },
-  "removeContactConfirm": "Remove {displayName} from your contacts? This will leave the direct message room.",
+  "removeContactConfirm": "{displayName} از مخاطبان شما حذف شود؟ این کار اتاق پیام مستقیم را ترک می‌کند.",
   "@removeContactConfirm": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "contactRemoved": "Removed {displayName} from contacts.",
+  "contactRemoved": "{displayName} از مخاطبان حذف شد.",
   "@contactRemoved": {
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-  "blockedUsers": "Blocked Users",
+  "blockedUsers": "کاربران مسدودشده",
   "@blockedUsers": {
     "description": "Title for the blocked users list page."
   },
-  "blockedUsersDescription": "Users you have blocked will not be able to send you messages.",
+  "blockedUsersDescription": "کاربرانی که مسدود کرده‌اید نمی‌توانند برای شما پیام ارسال کنند.",
   "@blockedUsersDescription": {
     "description": "Description for the blocked users list page."
   },
-  "blockedUsersEmpty": "You haven't blocked anyone yet.",
+  "blockedUsersEmpty": "هنوز کسی را مسدود نکرده‌اید.",
   "@blockedUsersEmpty": {
     "description": "Empty state shown when the blocked users list is empty."
   },
-  "blockedUsersLoadError": "Failed to load blocked users list.",
+  "blockedUsersLoadError": "بارگذاری فهرست کاربران مسدودشده ناموفق.",
   "@blockedUsersLoadError": {
     "description": "Error shown when the blocked users list fails to load."
   },
-
-  "pinnedMessages": "Pinned Messages",
+  "pinnedMessages": "پیام‌های سنجاق‌شده",
   "@pinnedMessages": {
     "description": "Section header for pinned messages."
   },
-  "pinnedMessagesCount": "{count} pinned",
+  "pinnedMessagesCount": "{count} سنجاق‌شده",
   "@pinnedMessagesCount": {
     "description": "Label showing the number of pinned messages.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "noPinnedMessages": "No pinned messages",
+  "noPinnedMessages": "پیام سنجاق‌شده‌ای وجود ندارد",
   "@noPinnedMessages": {
     "description": "Label shown when there are no pinned messages."
   },
-  "pinMessage": "Pin message",
+  "pinMessage": "سنجاق کردن پیام",
   "@pinMessage": {
     "description": "Tooltip for the pin message action."
   },
-  "unpinMessage": "Unpin message",
+  "unpinMessage": "برداشتن سنجاق پیام",
   "@unpinMessage": {
     "description": "Tooltip for the unpin message action."
   },
-  "showPinnedOnly": "Viewing pinned messages only  tap to show all",
+  "showPinnedOnly": "فقط پیام‌های سنجاق‌شده نمایش داده می‌شود - برای نمایش همه ضربه بزنید",
   "@showPinnedOnly": {
     "description": "Tooltip for the pinned filter toggle when active."
   },
-  "showAllMessages": "Show all messages",
+  "showAllMessages": "نمایش همه پیام‌ها",
   "@showAllMessages": {
     "description": "Tooltip for the pinned filter toggle when inactive."
   },
-
   "editTooltip": "ویرایش",
   "@editTooltip": {
     "description": "Tooltip for the edit message action."
@@ -1916,8 +1998,8 @@
     "description": "Title of the message edit dialog."
   },
   "editedIndicator": "(ویرایش‌شده)",
-  "replyShowMore": "Show more",
-  "replyShowLess": "Show less",
+  "replyShowMore": "نمایش بیشتر",
+  "replyShowLess": "نمایش کمتر",
   "@editedIndicator": {
     "description": "Inline marker shown next to an edited message body."
   },
@@ -1937,8 +2019,12 @@
   "@editedBy": {
     "description": "Subtitle in the edit history dialog describing the most recent edit.",
     "placeholders": {
-      "when": { "type": "String" },
-      "name": { "type": "String" }
+      "when": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
     }
   },
   "editSave": "ذخیره",
@@ -1949,10 +2035,11 @@
   "@editFailed": {
     "description": "Snackbar when sending an edit fails.",
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "recordVoiceNote": "ضبط پیام صوتی",
   "@recordVoiceNote": {
     "description": "Tooltip on the chat-box voice record button."
@@ -1985,7 +2072,9 @@
   "@voiceRecorderDuration": {
     "description": "Live duration shown in the voice recorder.",
     "placeholders": {
-      "duration": { "type": "String" }
+      "duration": {
+        "type": "String"
+      }
     }
   },
   "voiceRecorderDiscard": "دور انداختن",
@@ -1996,7 +2085,6 @@
   "@voiceRecorderSend": {
     "description": "Send action in the voice recorder dialog."
   },
-
   "playAudio": "پخش",
   "@playAudio": {
     "description": "Tooltip for the audio message play button."
@@ -2005,7 +2093,6 @@
   "@pauseAudio": {
     "description": "Tooltip for the audio message pause button."
   },
-
   "playVideo": "پخش",
   "@playVideo": {
     "description": "Tooltip for the video message play button."
@@ -2020,7 +2107,6 @@
   },
   "videoLoadFailed": "بارگذاری ویدیو ممکن نشد",
   "tapToRetry": "برای تلاش دوباره بزنید",
-
   "shareLocation": "ارسال موقعیت مکانی",
   "@shareLocation": {
     "description": "Tooltip on the chat-box location-share button."
@@ -2045,10 +2131,11 @@
   "@locationAccuracyMeters": {
     "description": "Accuracy indicator for a shared location.",
     "placeholders": {
-      "m": { "type": "int" }
+      "m": {
+        "type": "int"
+      }
     }
   },
-
   "createPoll": "ایجاد نظرسنجی",
   "@createPoll": {
     "description": "Tooltip on the chat-box poll-creation button."
@@ -2093,66 +2180,82 @@
   "@pollResults": {
     "description": "Label showing the number of votes on a poll option.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "pollTotalVotes": "در مجموع {count} رای",
   "@pollTotalVotes": {
     "description": "Summary of total votes for a poll.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "pollInvalid": "به یک سوال و حداقل دو گزینه‌ی غیر خالی نیاز است.",
   "@pollInvalid": {
     "description": "Validation error message for invalid poll input."
   },
-
   "typingIndicatorOne": "{name} در حال نوشتن…",
   "@typingIndicatorOne": {
     "description": "Shown in the timeline footer when exactly one user is typing.",
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "typingIndicatorTwo": "{a} و {b} در حال نوشتن…",
   "@typingIndicatorTwo": {
     "description": "Shown in the timeline footer when two users are typing.",
     "placeholders": {
-      "a": { "type": "String" },
-      "b": { "type": "String" }
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      }
     }
   },
   "typingIndicatorMany": "{a}، {b} و {count} نفر دیگر در حال نوشتن…",
   "@typingIndicatorMany": {
     "description": "Shown in the timeline footer when many users are typing.",
     "placeholders": {
-      "a": { "type": "String" },
-      "b": { "type": "String" },
-      "count": { "type": "int" }
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "seenBy": "دیده‌شده توسط {count} نفر",
   "@seenBy": {
     "description": "Tooltip for the read-receipt avatar stack on a message.",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "newMessagesBelow": "پیام‌های جدید",
   "@newMessagesBelow": {
     "description": "Label shown above the read marker / new-messages divider in the timeline."
   },
-
   "unreadCount": "{count}",
   "@unreadCount": {
     "description": "Compact unread message count badge (e.g. 3, 12, 99+).",
     "placeholders": {
-      "count": { "type": "String" }
+      "count": {
+        "type": "String"
+      }
     }
   },
-
   "upgradeRoom": "ارتقا نسخه اتاق",
   "@upgradeRoom": {
     "description": "Button in room settings to upgrade the room version."
@@ -2165,8 +2268,12 @@
   "@upgradeRoomConfirm": {
     "description": "Confirmation prompt when upgrading a room.",
     "placeholders": {
-      "roomName": { "type": "String" },
-      "version": { "type": "String" }
+      "roomName": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
     }
   },
   "roomVersion": "نسخه اتاق",
@@ -2177,14 +2284,15 @@
   "@roomUpgraded": {
     "description": "Snackbar after upgrading the room.",
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "openUpgradedRoom": "باز کردن اتاق جدید",
   "@openUpgradedRoom": {
     "description": "Snackbar action after upgrading the room."
   },
-
   "pendingKnocks": "درخواست‌های در انتظار",
   "@pendingKnocks": {
     "description": "Section header for pending knock requests on a room."
@@ -2198,9 +2306,9 @@
     "description": "Action to approve a pending knock request."
   },
   "denyKnock": "رد",
-  "knockApproveConfirmTitle": "Approve knock request?",
-  "knockApproveConfirmBody": "The user will be invited to the room. They will not see this room's history unless explicitly shared with them.",
-  "approve": "Approve",
+  "knockApproveConfirmTitle": "درخواست تأیید شود؟",
+  "knockApproveConfirmBody": "کاربر به اتاق دعوت خواهد شد. آنها تاریخچه این اتاق را نمی‌بینند مگر اینکه به طور صریح با آنها به اشتراک گذاشته شود.",
+  "approve": "تأیید",
   "@denyKnock": {
     "description": "Action to deny a pending knock request."
   },
@@ -2208,17 +2316,20 @@
   "@knockApproved": {
     "description": "Snackbar shown after approving a knock.",
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
   "knockDenied": "{displayName} رد شد.",
   "@knockDenied": {
     "description": "Snackbar shown after denying a knock.",
     "placeholders": {
-      "displayName": { "type": "String" }
+      "displayName": {
+        "type": "String"
+      }
     }
   },
-
   "joinRulesSection": "چه کسی می‌تواند بپیوندد",
   "@joinRulesSection": {
     "description": "Section header in room settings for join rule editing."
@@ -2247,7 +2358,6 @@
   "@powerLevelsSection": {
     "description": "Section header for the power-level editor."
   },
-
   "historyVisibilityWorldReadable": "همه (تاریخچه برای عموم قابل خواندن)",
   "@historyVisibilityWorldReadable": {
     "description": "Option for world_readable history visibility."
@@ -2344,14 +2454,15 @@
   "@powerLevelUserOverride": {
     "description": "Per-user power-level override row.",
     "placeholders": {
-      "userId": { "type": "String" }
+      "userId": {
+        "type": "String"
+      }
     }
   },
   "powerLevelAddOverride": "افزودن استثنای کاربر…",
   "@powerLevelAddOverride": {
     "description": "Button to add a per-user power level override."
   },
-
   "editOwnProfile": "ویرایش پروفایل",
   "@editOwnProfile": {
     "description": "Button to open the own-profile editor in the hub."
@@ -2416,7 +2527,6 @@
   "@sharePresenceDescription": {
     "description": "Description for the share-presence toggle."
   },
-
   "expandReplies": "نمایش متن گفتگو",
   "@expandReplies": {
     "description": "Hover/click action to expand a collapsed reply chain."
@@ -2429,7 +2539,6 @@
   "@showMore": {
     "description": "Generic show-more button."
   },
-
   "dateFilter": "فیلتر تاریخ",
   "@dateFilter": {
     "description": "Section header for the date-range filter in in-room search."
@@ -2446,7 +2555,6 @@
   "@clearDateFilter": {
     "description": "Button to clear the date-range filter."
   },
-
   "reportRoom": "گزارش اتاق",
   "@reportRoom": {
     "description": "Action to report a room for moderation."
@@ -2459,12 +2567,13 @@
   "@roomReported": {
     "description": "Snackbar after reporting a room."
   },
-
   "unsupportedSlashCommand": "دستور ناشناخته: {command}",
   "@unsupportedSlashCommand": {
     "description": "Snackbar shown when a slash command is not recognised.",
     "placeholders": {
-      "command": { "type": "String" }
+      "command": {
+        "type": "String"
+      }
     }
   },
   "slashCommandMe": "ارسال به‌صورت ایموجی (/me)",
@@ -2475,17 +2584,14 @@
   "@sendAsEmote": {
     "description": "Indicator that the message will be sent as an emote (m.emote)."
   },
-
   "membersListSearchByUser": "جست‌وجوی اعضا",
   "@membersListSearchByUser": {
     "description": "Search field hint for the members list."
   },
-
   "ensureDMPermission": "ارسال پیام مستقیم",
   "@ensureDMPermission": {
     "description": "Action label for the DM shortcut on a profile."
   },
-
   "deliverySending": "در حال ارسال…",
   "@deliverySending": {
     "description": "Tooltip on the delivery indicator while a message is in flight."
@@ -2498,7 +2604,6 @@
   "@deliveryFailed": {
     "description": "Tooltip on the delivery indicator when a message failed to send."
   },
-
   "commandPaletteHint": "یک فرمان بنویسید یا جست‌وجو کنید…",
   "@commandPaletteHint": {
     "description": "Hint shown inside the command palette search field."
@@ -2531,12 +2636,10 @@
   "@commandPaletteToggleSidebar": {
     "description": "Command palette action that toggles the dashboard left sidebar."
   },
-
   "encryptionBadgeTooltip": "رمزگذاری سرتاسر",
   "@encryptionBadgeTooltip": {
     "description": "Tooltip on the encrypted-room badge in the rooms list."
   },
-
   "shortcutOpenCommandPalette": "باز کردن پالت فرمان",
   "@shortcutOpenCommandPalette": {
     "description": "Description of the Ctrl+K shortcut in the keyboard shortcuts overlay."
@@ -2597,7 +2700,6 @@
   "@shortcutsHint": {
     "description": "Hint shown at the bottom of the keyboard shortcuts overlay."
   },
-
   "notifyOnMentionsOnly": "اعلان فقط در صورت نام‌بردن",
   "@notifyOnMentionsOnly": {
     "description": "Toggle to only notify when the user is mentioned in a room."
@@ -2606,7 +2708,6 @@
   "@notifyOnMentionsOnlyDescription": {
     "description": "Subtitle for the mentions-only notification toggle."
   },
-
   "commandPaletteModeSearch": "جست‌وجو: اتاق‌ها، پیام‌ها، کاربران و سرور",
   "@commandPaletteModeSearch": {
     "description": "Inline hint shown in the command palette when search mode (?) is active."
@@ -2699,7 +2800,6 @@
   "@commandPaletteLogsDesc": {
     "description": "Short description shown next to the Logs settings entry."
   },
-
   "accessibilityAnimations": "پویانمایی‌ها",
   "@accessibilityAnimations": {
     "description": "Section title in accessibility settings for motion controls."
@@ -2711,5 +2811,649 @@
   "enableAnimationsDescription": "گذرها، محو شدن‌ها و نبض‌های اسکلتی نرم",
   "@enableAnimationsDescription": {
     "description": "Subtitle for the animations toggle."
+  },
+  "language": "زبان",
+  "@language": {
+    "description": "Section title for the language selector."
+  },
+  "languageDescription": "زبان برنامه را انتخاب کنید",
+  "@languageDescription": {
+    "description": "Subtitle for the language selector."
+  },
+  "languageEnglish": "انگلیسی",
+  "@languageEnglish": {
+    "description": "Option label for English language."
+  },
+  "languagePersian": "فارسی",
+  "@languagePersian": {
+    "description": "Option label for Persian (Farsi) language."
+  },
+  "languageSystem": "پیش‌فرض سیستم",
+  "@languageSystem": {
+    "description": "Option label to follow the system locale."
+  },
+  "privacy": "حریم خصوصی",
+  "@privacy": {
+    "description": "Title of the privacy settings sub-page in the hub."
+  },
+  "privacyDescription": "رفتار لینک‌های عمیق، مدیریت پایگاه داده، قفل خودکار و نگهداری گزارش‌ها.",
+  "@privacyDescription": {
+    "description": "Subtitle for the privacy settings page."
+  },
+  "deepLinks": "لینک‌های عمیق",
+  "@deepLinks": {
+    "description": "Section title for the matrix:// deep-link behaviour settings."
+  },
+  "deepLinkAutoJoin": "پیوستن خودکار از طریق لینک‌های عمیق",
+  "@deepLinkAutoJoin": {
+    "description": "Toggle that controls whether matrix.to / matrix: links auto-join rooms."
+  },
+  "deepLinkAutoJoinDescription": "روشن: باز کردن لینک matrix باعث پیوستن به اتاق می‌شود. خاموش: اتاق‌های ناشناخته به صورت پیش‌نمایش باز می‌شوند.",
+  "@deepLinkAutoJoinDescription": {
+    "description": "Subtitle for the deep-link auto-join toggle."
+  },
+  "database": "پایگاه داده",
+  "@database": {
+    "description": "Section title for database-related privacy settings."
+  },
+  "dbWipeRequiresPrompt": "تأیید قبل از پاک کردن پایگاه داده",
+  "@dbWipeRequiresPrompt": {
+    "description": "Toggle that asks the user to confirm before wiping the local database on schema mismatch."
+  },
+  "dbWipeRequiresPromptDescription": "نمایش تأییدیه قبل از پاک شدن پایگاه داده در هنگام تغییر نسخه.",
+  "@dbWipeRequiresPromptDescription": {
+    "description": "Subtitle for the database-wipe prompt toggle."
+  },
+  "dbBackupKeepCount": "تعداد پشتیبان‌های پایگاه داده",
+  "@dbBackupKeepCount": {
+    "description": "How many .bak files to keep when the database is wiped."
+  },
+  "avatarCacheTtlDays": "نگهداری نهان‌گاه آواتار (روز)",
+  "@avatarCacheTtlDays": {
+    "description": "How many days to keep downloaded avatar thumbnails cached before re-downloading."
+  },
+  "autoLockEnabled": "قفل خودکار هنگام عدم فعالیت",
+  "@autoLockEnabled": {
+    "description": "Toggle for auto-locking the app after a period of inactivity."
+  },
+  "autoLockEnabledDescription": "علامت زدن حساب کاربری به عنوان آفلاین پس از مدتی بدون فعالیت صفحه‌کلید یا ماوس.",
+  "@autoLockEnabledDescription": {
+    "description": "Subtitle for the auto-lock toggle."
+  },
+  "autoLockMinutes": "دقایق عدم فعالیت قبل از قفل خودکار",
+  "@autoLockMinutes": {
+    "description": "Number of minutes of inactivity before the auto-lock kicks in."
+  },
+  "wipeLogsOnLogout": "پاک کردن گزارش‌ها هنگام خروج",
+  "@wipeLogsOnLogout": {
+    "description": "Toggle that controls whether log files are deleted when the user logs out."
+  },
+  "wipeLogsOnLogoutDescription": "حذف همه فایل‌های گزارش از دیسک هنگام خروج از حساب فعال.",
+  "@wipeLogsOnLogoutDescription": {
+    "description": "Subtitle for the wipe-logs-on-logout toggle."
+  },
+  "storage": "فضای ذخیره‌سازی",
+  "@storage": {
+    "description": "Title of the storage / media settings sub-page in the hub."
+  },
+  "storageDescription": "دانلود خودکار، آستانه‌های پیوست و نگهداری پیش‌نویس.",
+  "@storageDescription": {
+    "description": "Subtitle for the storage settings page."
+  },
+  "autoDownloadImages": "دانلود خودکار تصاویر",
+  "@autoDownloadImages": {
+    "description": "Policy for automatically downloading image attachments."
+  },
+  "autoDownloadFiles": "دانلود خودکار فایل‌ها",
+  "@autoDownloadFiles": {
+    "description": "Policy for automatically downloading generic file attachments."
+  },
+  "autoDownloadVideos": "دانلود خودکار ویدیوها",
+  "@autoDownloadVideos": {
+    "description": "Policy for automatically downloading video attachments."
+  },
+  "autoDownloadAlways": "همیشه",
+  "@autoDownloadAlways": {
+    "description": "AutoDownloadPolicy value: always download regardless of network."
+  },
+  "autoDownloadWifi": "فقط در وای‌فای",
+  "@autoDownloadWifi": {
+    "description": "AutoDownloadPolicy value: only download while connected to Wi-Fi."
+  },
+  "autoDownloadNever": "هرگز",
+  "@autoDownloadNever": {
+    "description": "AutoDownloadPolicy value: never auto-download, require explicit click."
+  },
+  "attachmentClickThreshold": "آستانه دانلود با کلیک",
+  "@attachmentClickThreshold": {
+    "description": "Section title for the click-to-download attachment threshold."
+  },
+  "attachmentClickThresholdMb": "آستانه دانلود با کلیک (مگابایت)",
+  "@attachmentClickThresholdMb": {
+    "description": "Attachments larger than this many MB require an explicit click to download."
+  },
+  "drafts": "پیش‌نویس‌ها",
+  "@drafts": {
+    "description": "Section title for composer draft settings."
+  },
+  "draftsEnabled": "ذخیره پیش‌نویس پیام‌ها",
+  "@draftsEnabled": {
+    "description": "Toggle for whether composer drafts are saved between sessions."
+  },
+  "draftsEnabledDescription": "ذخیره متن در حال نوشتن هنگام بسته شدن برنامه یا تغییر اتاق.",
+  "@draftsEnabledDescription": {
+    "description": "Subtitle for the drafts-enabled toggle."
+  },
+  "draftRetentionDays": "نگهداری پیش‌نویس (روز)",
+  "@draftRetentionDays": {
+    "description": "How many days to keep saved drafts before they expire."
+  },
+  "advanced": "پیشرفته",
+  "@advanced": {
+    "description": "Title of the advanced settings sub-page in the hub."
+  },
+  "advancedDescription": "زمان‌بندی تأخیر، وقفه همگام‌سازی و چرخش گزارش.",
+  "@advancedDescription": {
+    "description": "Subtitle for the advanced settings page."
+  },
+  "debounceTimings": "زمان‌بندی تأخیر",
+  "@debounceTimings": {
+    "description": "Section title for the various debounce intervals."
+  },
+  "syncDebounceMs": "تأخیر همگام‌سازی",
+  "@syncDebounceMs": {
+    "description": "Milliseconds to wait between sync updates before rebuilding the rooms list."
+  },
+  "searchDebounceMs": "تأخیر جست‌وجو",
+  "@searchDebounceMs": {
+    "description": "Milliseconds to wait after the user stops typing before running a search."
+  },
+  "draftAutosaveMs": "تأخیر ذخیره خودکار پیش‌نویس",
+  "@draftAutosaveMs": {
+    "description": "Milliseconds to wait after the user stops typing before persisting the draft."
+  },
+  "notificationPersistMs": "تأخیر ماندگاری اعلان",
+  "@notificationPersistMs": {
+    "description": "Milliseconds to wait before persisting the notification dedupe state."
+  },
+  "deepLinkDedupMs": "پنجره حذف تکراری لینک عمیق",
+  "@deepLinkDedupMs": {
+    "description": "Milliseconds during which identical incoming deep-link URIs are collapsed."
+  },
+  "encryptionRefreshDebounceMs": "تأخیر بازنشانی رمزنگاری",
+  "@encryptionRefreshDebounceMs": {
+    "description": "Milliseconds to wait after sync before refreshing encryption state."
+  },
+  "timeoutsAndLimits": "وقفه‌ها و محدودیت‌ها",
+  "@timeoutsAndLimits": {
+    "description": "Section title for first-sync timeouts and search/notification batch sizes."
+  },
+  "firstSyncTimeoutS": "وقفه همگام‌سازی اول",
+  "@firstSyncTimeoutS": {
+    "description": "Seconds to wait for the first sync before continuing the boot sequence."
+  },
+  "searchPageSize": "اندازه صفحه جست‌وجوی درون‌اتاقی",
+  "@searchPageSize": {
+    "description": "How many events to fetch per page when searching within a room."
+  },
+  "notificationDedupeCacheSize": "اندازه نهان‌گاه حذف تکراری اعلان",
+  "@notificationDedupeCacheSize": {
+    "description": "Maximum number of recently seen event IDs to keep in memory for dedupe."
+  },
+  "logLevel": "حداقل سطح گزارش",
+  "@logLevel": {
+    "description": "Minimum severity persisted to log files."
+  },
+  "logMaxFileSizeMb": "حداکثر اندازه فایل گزارش",
+  "@logMaxFileSizeMb": {
+    "description": "Maximum size of a single log file in megabytes before rotation."
+  },
+  "logMaxFiles": "تعداد فایل‌های گزارش برای نگهداری",
+  "@logMaxFiles": {
+    "description": "Maximum number of rotated log files to retain on disk."
+  },
+  "logFlushDelayS": "تأخیر تخلیه گزارش",
+  "@logFlushDelayS": {
+    "description": "Seconds between batched log flushes."
+  },
+  "logVerboseRelease": "گزارش‌گیری جزئی در نسخه نهایی",
+  "@logVerboseRelease": {
+    "description": "When on, all log levels are persisted even in release builds."
+  },
+  "logVerboseReleaseDescription": "ذخیره گزارش‌های اشکال‌زدایی و ردیابی در نسخه‌های نهایی (پیش‌فرض: خاموش).",
+  "@logVerboseReleaseDescription": {
+    "description": "Subtitle for the verbose-logging-in-release toggle."
+  },
+  "logLevelAll": "همه",
+  "@logLevelAll": {
+    "description": "LogLevel value: every severity."
+  },
+  "logLevelTrace": "ردیابی",
+  "@logLevelTrace": {
+    "description": "LogLevel value: trace-level events."
+  },
+  "logLevelDebug": "اشکال‌زدایی",
+  "@logLevelDebug": {
+    "description": "LogLevel value: debug-level events."
+  },
+  "logLevelInfo": "اطلاعات",
+  "@logLevelInfo": {
+    "description": "LogLevel value: informational events."
+  },
+  "logLevelWarning": "هشدار",
+  "@logLevelWarning": {
+    "description": "LogLevel value: warnings."
+  },
+  "logLevelError": "خطا",
+  "@logLevelError": {
+    "description": "LogLevel value: errors."
+  },
+  "logLevelFatal": "بحرانی",
+  "@logLevelFatal": {
+    "description": "LogLevel value: fatal / panic-level events."
+  },
+  "layoutDensity": "چگالی چیدمان",
+  "@layoutDensity": {
+    "description": "Section title for the comfortable/compact list-row density."
+  },
+  "densityComfortable": "راحت",
+  "@densityComfortable": {
+    "description": "LayoutDensity value: roomy list rows."
+  },
+  "densityCompact": "فشرده",
+  "@densityCompact": {
+    "description": "LayoutDensity value: tighter list rows for higher information density."
+  },
+  "bubbleRadius": "شعاع گوشه حباب",
+  "@bubbleRadius": {
+    "description": "Corner radius (in px) applied to chat message bubbles."
+  },
+  "window": "پنجره",
+  "@window": {
+    "description": "Section title for desktop window-related settings."
+  },
+  "windowMinWidth": "حداقل عرض پنجره",
+  "@windowMinWidth": {
+    "description": "Lower bound on the desktop window width in pixels."
+  },
+  "windowMinHeight": "حداقل ارتفاع پنجره",
+  "@windowMinHeight": {
+    "description": "Lower bound on the desktop window height in pixels."
+  },
+  "fonts": "قلم‌ها",
+  "@fonts": {
+    "description": "Section title for primary and monospace font family settings."
+  },
+  "fontFamily": "قلم برنامه",
+  "@fontFamily": {
+    "description": "Font family used throughout the app."
+  },
+  "monoFontFamily": "قلم ثابت‌عرض",
+  "@monoFontFamily": {
+    "description": "Font family used for code blocks and inline code."
+  },
+  "sendReadReceipts": "ارسال رسید مطالعه",
+  "@sendReadReceipts": {
+    "description": "Toggle that controls whether the app sends m.read receipt events."
+  },
+  "sendReadReceiptsDescription": "به سایر کلاینت‌ها بگویید چه زمانی پیام‌هایشان را خوانده‌اید.",
+  "@sendReadReceiptsDescription": {
+    "description": "Subtitle for the send-read-receipts toggle."
+  },
+  "showReadReceipts": "نمایش رسید مطالعه",
+  "@showReadReceipts": {
+    "description": "Toggle that controls whether others' read receipts are rendered under messages."
+  },
+  "showReadReceiptsDescription": "نمایش پشته آواتار کاربرانی که هر پیام را خوانده‌اند.",
+  "@showReadReceiptsDescription": {
+    "description": "Subtitle for the show-read-receipts toggle."
+  },
+  "linkPreviewsEnabled": "نمایش پیش‌نمایش لینک",
+  "@linkPreviewsEnabled": {
+    "description": "Toggle that controls whether matrix:// and matrix.to URLs in messages render preview banners."
+  },
+  "linkPreviewsEnabledDescription": "افزودن بنر قابل کلیک به URLهای matrix.to / matrix: شناسایی شده در متن پیام.",
+  "@linkPreviewsEnabledDescription": {
+    "description": "Subtitle for the link-previews toggle."
+  },
+  "replyPreviewThreshold": "طول جمع‌شدگی پیش‌نمایش پاسخ",
+  "@replyPreviewThreshold": {
+    "description": "Reply previews longer than this many characters get an expand toggle."
+  },
+  "sendTypingNotifications": "ارسال اعلان تایپ",
+  "@sendTypingNotifications": {
+    "description": "Toggle that controls whether typing in the composer emits m.typing events."
+  },
+  "sendTypingNotificationsDescription": "به اتاق اطلاع دهید که در حال تایپ هستید.",
+  "@sendTypingNotificationsDescription": {
+    "description": "Subtitle for the send-typing-notifications toggle."
+  },
+  "showTypingIndicator": "نمایش نشانگر تایپ",
+  "@showTypingIndicator": {
+    "description": "Toggle that controls whether the \"X is typing…\" footer renders."
+  },
+  "showTypingIndicatorDescription": "نمایش پانوشت فهرست کاربرانی که در حال تایپ در اتاق هستند.",
+  "@showTypingIndicatorDescription": {
+    "description": "Subtitle for the show-typing-indicator toggle."
+  },
+  "typing": "تایپ",
+  "@typing": {
+    "description": "Section title for typing-indicator settings."
+  },
+  "composer": "نویسنده",
+  "@composer": {
+    "description": "Section title for chat-box / composer settings."
+  },
+  "sendShortcut": "میان‌بر ارسال",
+  "@sendShortcut": {
+    "description": "Section title for the keyboard shortcut that sends a message."
+  },
+  "sendShortcutEnter": "Enter",
+  "@sendShortcutEnter": {
+    "description": "SendShortcut value: pressing Enter alone sends the message."
+  },
+  "sendShortcutCmdEnter": "Cmd/Ctrl+Enter",
+  "@sendShortcutCmdEnter": {
+    "description": "SendShortcut value: pressing Cmd/Ctrl+Enter sends the message."
+  },
+  "sendShortcutBoth": "هر دو",
+  "@sendShortcutBoth": {
+    "description": "SendShortcut value: both Enter and Cmd/Ctrl+Enter send the message."
+  },
+  "mediaSizes": "اندازه حباب رسانه",
+  "@mediaSizes": {
+    "description": "Section title for the per-media-type bubble dimension sliders."
+  },
+  "imageThumbnailMaxPx": "حداکثر اندازه تصویر بندانگشتی",
+  "@imageThumbnailMaxPx": {
+    "description": "Maximum dimension (in px) for image thumbnails in the chat."
+  },
+  "stickerMaxPx": "حداکثر اندازه استیکر",
+  "@stickerMaxPx": {
+    "description": "Maximum size (in px) for stickers in the chat."
+  },
+  "videoMaxPx": "حداکثر اندازه پیش‌نمایش ویدیو",
+  "@videoMaxPx": {
+    "description": "Maximum size (in px) for video previews."
+  },
+  "audioMaxPx": "حداکثر اندازه پیام صوتی",
+  "@audioMaxPx": {
+    "description": "Maximum size (in px) for audio message bubbles."
+  },
+  "fileMaxPx": "حداکثر اندازه حباب فایل",
+  "@fileMaxPx": {
+    "description": "Maximum size (in px) for generic file attachment bubbles."
+  },
+  "locationMaxPx": "حداکثر اندازه حباب موقعیت",
+  "@locationMaxPx": {
+    "description": "Maximum size (in px) for location message bubbles."
+  },
+  "testNotification": "اعلان آزمایشی",
+  "@testNotification": {
+    "description": "Action label that fires a test notification."
+  },
+  "testNotificationDescription": "ارسال اعلان آزمایشی برای بررسی تحویل",
+  "@testNotificationDescription": {
+    "description": "Subtitle for the test notification action."
+  },
+  "testNotificationFired": "اعلان آزمایشی ارسال شد - گزارش‌ها را بررسی کنید",
+  "@testNotificationFired": {
+    "description": "Snackbar after firing a test notification."
+  },
+  "notificationFailed": "اعلان ناموفق: {error}",
+  "@notificationFailed": {
+    "description": "Snackbar shown when a test notification fails.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notifyDmsOnly": "فقط برای پیام‌های مستقیم اعلان بده",
+  "@notifyDmsOnly": {
+    "description": "Toggle that limits notifications to direct-message rooms."
+  },
+  "notifyDmsOnlyDescription": "خاموش کردن اعلان‌های اتاق‌های غیر DM.",
+  "@notifyDmsOnlyDescription": {
+    "description": "Subtitle for the notify-DMs-only toggle."
+  },
+  "notifyWhenFocused": "اعلان هنگام فوکوس پنجره",
+  "@notifyWhenFocused": {
+    "description": "Toggle that controls whether notifications fire while the window has focus."
+  },
+  "notifyWhenFocusedDescription": "روشن: اعلان‌ها در حالی که پنجره اصلی فوکوس دارد خاموش می‌شوند.",
+  "@notifyWhenFocusedDescription": {
+    "description": "Subtitle for the notify-when-focused toggle."
+  },
+  "notificationSoundEnabled": "پخش صدای اعلان",
+  "@notificationSoundEnabled": {
+    "description": "Toggle that controls whether notifications play the default sound."
+  },
+  "notificationSoundEnabledDescription": "پخش صدای پیش‌فرض همراه با هر اعلان.",
+  "@notificationSoundEnabledDescription": {
+    "description": "Subtitle for the notification-sound toggle."
+  },
+  "trayLeftClick": "عمل کلیک چپ سینی",
+  "@trayLeftClick": {
+    "description": "Section title for what happens when the user clicks the tray icon."
+  },
+  "trayClickToggle": "تغییر وضعیت پنجره",
+  "@trayClickToggle": {
+    "description": "TrayClickAction value: show/hide the main window."
+  },
+  "trayClickShow": "نمایش پنجره",
+  "@trayClickShow": {
+    "description": "TrayClickAction value: always show the main window."
+  },
+  "trayClickOpenUnread": "باز کردن نخوانده",
+  "@trayClickOpenUnread": {
+    "description": "TrayClickAction value: jump to the first unread room."
+  },
+  "save": "ذخیره",
+  "@save": {
+    "description": "Generic save action button label."
+  },
+  "security": "امنیت",
+  "@security": {
+    "description": "Section title for security-related settings."
+  },
+  "updates": "به‌روزرسانی‌ها",
+  "@updates": {
+    "description": "Hub navigation item for the Updates settings page."
+  },
+  "updatesDescription": "بررسی نسخه‌های جدید Moonrelay و تنظیمات به‌روزرسانی.",
+  "@updatesDescription": {
+    "description": "Subtitle for the Updates settings page."
+  },
+  "checkForUpdates": "بررسی به‌روزرسانی‌ها",
+  "@checkForUpdates": {
+    "description": "Button label to manually check for application updates."
+  },
+  "checkForUpdatesOnStartup": "بررسی به‌روزرسانی هنگام شروع",
+  "@checkForUpdatesOnStartup": {
+    "description": "Toggle label for checking for updates when the app starts."
+  },
+  "checkForUpdatesOnStartupDescription": "بررسی خودکار نسخه‌های جدید هنگام راه‌اندازی Moonrelay",
+  "@checkForUpdatesOnStartupDescription": {
+    "description": "Subtitle for the check-on-startup toggle."
+  },
+  "updateAvailable": "به‌روزرسانی موجود است",
+  "@updateAvailable": {
+    "description": "Title for the update-available dialog."
+  },
+  "updateAvailableBody": "Moonrelay {version} اکنون در دسترس است. شما نسخه {current} را اجرا می‌کنید. مایل به دانلود هستید؟",
+  "@updateAvailableBody": {
+    "description": "Body of the update-available dialog.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "updateDownload": "دانلود",
+  "@updateDownload": {
+    "description": "Button to download the new version from GitHub."
+  },
+  "updateLater": "بعداً",
+  "@updateLater": {
+    "description": "Button to dismiss the update notification."
+  },
+  "updateChecking": "در حال بررسی به‌روزرسانی‌ها…",
+  "@updateChecking": {
+    "description": "Status shown while checking for updates."
+  },
+  "updateUpToDate": "Moonrelay به‌روز است ({version}).",
+  "@updateUpToDate": {
+    "description": "Message shown when the app is already the latest version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckFailed": "بررسی به‌روزرسانی ممکن نشد. بعداً دوباره تلاش کنید.",
+  "@updateCheckFailed": {
+    "description": "Message shown when the update check fails."
+  },
+  "updateCheckResult": "آخرین نسخه: {version}",
+  "@updateCheckResult": {
+    "description": "Result showing the latest version found during update check.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "openSenderProfile": "باز کردن پروفایل فرستنده",
+  "@openSenderProfile": {
+    "description": "Context-menu item that opens the sender's profile page."
+  },
+  "copyMessage": "کپی پیام",
+  "@copyMessage": {
+    "description": "Context-menu item that copies the message body to the clipboard."
+  },
+  "copyEventId": "کپی شناسه رویداد",
+  "@copyEventId": {
+    "description": "Context-menu item that copies the message's Matrix event ID."
+  },
+  "copyMessageLink": "کپی لینک پیام",
+  "@copyMessageLink": {
+    "description": "Context-menu item that copies a matrix.to permalink to the message."
+  },
+  "copyRawJson": "کپی JSON خام",
+  "@copyRawJson": {
+    "description": "Context-menu item that copies the event content as pretty-printed JSON."
+  },
+  "messageDetails": "جزئیات پیام",
+  "@messageDetails": {
+    "description": "Context-menu item that opens the message details page."
+  },
+  "messageEventIdCopied": "شناسه رویداد در کلیپ‌بورد کپی شد",
+  "@messageEventIdCopied": {
+    "description": "Snackbar after copying a message event ID."
+  },
+  "messageLinkCopied": "لینک پیام در کلیپ‌بورد کپی شد",
+  "@messageLinkCopied": {
+    "description": "Snackbar after copying a matrix.to message permalink."
+  },
+  "messageRawJsonCopied": "JSON خام رویداد در کلیپ‌بورد کپی شد",
+  "@messageRawJsonCopied": {
+    "description": "Snackbar after copying a message's raw JSON."
+  },
+  "reportReasonHint": "دلیل",
+  "@reportReasonHint": {
+    "description": "Placeholder text in the report-user dialog text field."
+  },
+  "replyShowMore": "نمایش بیشتر",
+  "@replyShowMore": {
+    "description": "Toggle under a long reply preview to expand the quoted body."
+  },
+  "replyShowLess": "نمایش کمتر",
+  "@replyShowLess": {
+    "description": "Toggle shown when a reply preview is expanded."
+  },
+  "videoLoadFailed": "بارگذاری ویدیو ممکن نشد",
+  "@videoLoadFailed": {
+    "description": "Message shown in the player area when the video attachment can't be initialized."
+  },
+  "tapToRetry": "برای تلاش دوباره بزنید",
+  "@tapToRetry": {
+    "description": "Hint shown beneath a retry-able error indicator."
+  },
+  "unreadPillDismissTooltip": "رد کردن",
+  "@unreadPillDismissTooltip": {
+    "description": "Tooltip on the small × button next to the jump-to-first-unread pill. Tapping it hides the pill without changing the user's read state."
+  },
+  "jumpToUnreadLoading": "در حال بارگذاری پیام‌ها…",
+  "@jumpToUnreadLoading": {
+    "description": "Inline label shown on the jump-to-unread pill while the timeline is being paginated to surface the first unread event."
+  },
+  "timeline": "زمان‌خط",
+  "@timeline": {
+    "description": "Section title for chat timeline behaviour settings (read receipts, state events, etc.)."
+  },
+  "encryptionCrossSigningFingerprint": "اثرانگشت کلید اصلی",
+  "@encryptionCrossSigningFingerprint": {
+    "description": "Label for the user's master key fingerprint shown in the encryption overview."
+  },
+  "encryptionSetupChecklist": "چرا رمزنگاری را تنظیم کنیم؟",
+  "@encryptionSetupChecklist": {
+    "description": "Why set up encryption?"
+  },
+  "encryptionSetupChecklistCrossSigning": "تأیید امن سایر کاربران و دستگاه‌ها، بدون نیاز به اسکن QR یا مقایسه ایموجی در هر بار.",
+  "@encryptionSetupChecklistCrossSigning": {
+    "description": "Verify other users and devices securely."
+  },
+  "encryptionSetupChecklistBackup": "بازیابی تاریخچه پیام‌های خود در صورت گم کردن یا تعویض دستگاه.",
+  "@encryptionSetupChecklistBackup": {
+    "description": "Recover your message history if you lose or replace a device."
+  },
+  "encryptionSetupChecklistDevice": "پیام‌های رمزنگاری‌شده‌ای که از این دستگاه ارسال می‌کنید به درستی امضا می‌شوند تا دستگاه‌های دیگر بدانند از طرف شماست.",
+  "@encryptionSetupChecklistDevice": {
+    "description": "Encrypted messages you send are signed."
+  },
+  "encryptionStatusOk": "آماده",
+  "@encryptionStatusOk": {
+    "description": "Short status label: all encryption features are configured."
+  },
+  "encryptionStatusActionRequired": "نیاز به اقدام",
+  "@encryptionStatusActionRequired": {
+    "description": "Short status label: at least one encryption feature needs the user's attention."
+  },
+  "encryptionRefresh": "بروزرسانی اکنون",
+  "@encryptionRefresh": {
+    "description": "Button label to manually refresh encryption state from the homeserver."
+  },
+  "encryptionRefreshed": "وضعیت رمزنگاری به‌روزرسانی شد",
+  "@encryptionRefreshed": {
+    "description": "Snackbar shown after a successful encryption refresh."
+  },
+  "encryptionDeviceLastSeen": "آخرین بازدید {time}",
+  "@encryptionDeviceLastSeen": {
+    "description": "Shown when a device was last seen.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "encryptionDeviceLastSeenNever": "هرگز",
+  "@encryptionDeviceLastSeenNever": {
+    "description": "Shown when a device has never signed in to the homeserver."
+  },
+  "encryptionRebootstrapKeyBackup": "تنظیم مجدد پشتیبان‌گیری کلید",
+  "@encryptionRebootstrapKeyBackup": {
+    "description": "Button label to re-launch the bootstrap wizard specifically to recreate key backup."
+  },
+  "encryptionBackupAlgorithm": "الگوریتم",
+  "@encryptionBackupAlgorithm": {
+    "description": "Label for the backup-algorithm detail line in the encryption overview."
+  },
+  "encryptionBackupRecoveryKeyHint": "اگر در هنگام تنظیم عبارت عبور یا کلید بازیابی تنظیم نکرده‌اید، تنظیمات را دوباره اجرا کنید. بدون آن نمی‌توانید تاریخچه رمزنگاری‌شده را در دستگاه جدید بازیابی کنید.",
+  "@encryptionBackupRecoveryKeyHint": {
+    "description": "Hint for recovery key setup."
   }
 }
