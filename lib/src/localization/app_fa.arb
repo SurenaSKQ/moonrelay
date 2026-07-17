@@ -191,6 +191,8 @@
   "sendFailed": "ارسال پیام ناموفق.",
   "sendTimedOut": "درخواست زمانش را تمام کرد.",
   "uploadTimedOut": "آپلود زمانش را تمام کرد.",
+  "sendRetried": "تلاش مجدد برای ارسال...",
+  "sendCancelled": "ارسال لغو شد.",
   "reactTooltip": "واکنش",
   "replyTooltip": "پاسخ",
   "forwardTooltip": "ارسال مجدد",

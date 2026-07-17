@@ -357,6 +357,66 @@ class MessageActionRunner {
     }
   }
 
+  /// Retries sending a failed event by calling [Event.sendAgain].
+  ///
+  /// Shows a success/failure snackbar so the user gets feedback even when
+  /// the retry is triggered from a context menu or hotkey (not just the
+  /// inline delivery indicator).
+  static Future<void> retrySend(
+    BuildContext context,
+    Event event,
+    Room room,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final log = context.read<Logger>();
+    try {
+      await event.sendAgain();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.sendRetried),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      log.w('Failed to retry send', error: e);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.actionFailed('$e'))),
+      );
+    }
+  }
+
+  /// Removes a failed (unsent) event from the local timeline.
+  ///
+  /// Uses [Event.cancelSend] which works only for events whose status is
+  /// `sending` or `error`.  When the event was never delivered to the
+  /// server this cleanly removes it without leaving a ghost in the
+  /// timeline.
+  static Future<void> cancelFailedSend(
+    BuildContext context,
+    Event event,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final log = context.read<Logger>();
+    try {
+      await event.cancelSend();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.sendCancelled),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      log.w('Failed to cancel send', error: e);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.actionFailed('$e'))),
+      );
+    }
+  }
+
   /// Builds a `https://matrix.to/#/roomId/eventId` permalink for the event.
   static String _permalinkFor(Event event, Room room) {
     return 'https://matrix.to/#/${room.id}/${event.eventId}';

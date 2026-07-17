@@ -220,6 +220,8 @@
   "sendFailed": "Failed to send message.",
   "sendTimedOut": "The request timed out.",
   "uploadTimedOut": "Upload timed out.",
+  "sendRetried": "Retrying message…",
+  "sendCancelled": "Send cancelled.",
 
   "reactTooltip": "React",
   "replyTooltip": "Reply",
