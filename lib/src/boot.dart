@@ -33,6 +33,7 @@ import 'helpers/platform.dart';
 import 'helpers/service_registry.dart';
 import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/auto_update_service.dart';
 import 'services/notification_service.dart';
 import 'services/tray_service.dart';
 import 'settings/settings_controller.dart';
@@ -58,6 +59,7 @@ class BootContext {
     this.notificationService,
     required this.deepLinkService,
     required this.registry,
+    required this.autoUpdateService,
   });
 
   final Logger log;
@@ -72,6 +74,7 @@ class BootContext {
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
   final ServiceRegistry registry;
+  final AutoUpdateService autoUpdateService;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,6 +319,10 @@ Future<BootContext> runBootPipeline({
     return null;
   };
 
+  // ── 12. Auto-update service ────────────────────────────────────
+  log.t('Boot: AutoUpdateService');
+  final autoUpdateService = AutoUpdateService(log: log);
+
   log.i('Initialization complete');
 
   // ── Wait for first sync ─────────────────────────────────────
@@ -353,5 +360,6 @@ Future<BootContext> runBootPipeline({
     notificationService: notificationService,
     deepLinkService: deepLinkService,
     registry: registry,
+    autoUpdateService: autoUpdateService,
   );
 }

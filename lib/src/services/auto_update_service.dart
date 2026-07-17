@@ -58,7 +58,7 @@ class AutoUpdateService {
 
   /// GitHub slug for the Moonrelay repository.  Configurable so unit
   /// tests can inject a fixture endpoint.
-  String repoSlug = 'SKarimpour/Moonrelay';
+  String repoSlug = 'SurenaSKQ/moonrelay';
 
   /// Performs a one-shot check for a newer version.  Returns an
   /// [UpdateCheckResult] describing the current and latest versions.
