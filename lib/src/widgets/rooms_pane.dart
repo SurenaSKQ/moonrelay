@@ -184,7 +184,15 @@ class _RoomsPaneState extends State<RoomsPane> {
     // notification (every sync tick, every key verification event,
     // every room addition, etc.) to rebuild the entire pane even when
     // the filtered rooms list hasn't changed.
-    final client = Provider.of<Client>(context, listen: false);
+    final Client client;
+    try {
+      client = Provider.of<Client>(context, listen: false);
+    } catch (_) {
+      // Client may be absent during the logout transition before the
+      // route changes away from the dashboard.  Return a no-op widget
+      // for that one frame instead of crashing.
+      return const SizedBox.shrink();
+    }
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
