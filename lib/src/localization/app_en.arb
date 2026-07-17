@@ -2781,7 +2781,7 @@
   },
   "shortcutShowShortcuts": "Show this shortcuts list",
   "@shortcutShowShortcuts": {
-    "description": "Description of the ? shortcut in the keyboard shortcuts overlay."
+    "description": "Description of the Ctrl+Shift+? shortcut in the keyboard shortcuts overlay."
   },
   "shortcutsTitle": "Keyboard Shortcuts",
   "@shortcutsTitle": {
@@ -2791,7 +2791,7 @@
   "@shortcutsSubtitle": {
     "description": "Subtitle under the keyboard shortcuts overlay title."
   },
-  "shortcutsHint": "Press ? anywhere to reopen this list.",
+  "shortcutsHint": "Press Ctrl+Shift+? anywhere to reopen this list.",
   "@shortcutsHint": {
     "description": "Hint shown at the bottom of the keyboard shortcuts overlay."
   },
@@ -3242,6 +3242,19 @@
   "sendShortcutBoth": "Both",
   "@sendShortcutBoth": {
     "description": "SendShortcut value: both Enter and Cmd/Ctrl+Enter send the message."
+  },
+  "sendShortcutDescription": "Choose which key or combination sends your message. Shift+Enter always inserts a newline.",
+  "@sendShortcutDescription": {
+    "description": "Description for the send shortcut keybind setting."
+  },
+
+  "keybinds": "Keybinds",
+  "@keybinds": {
+    "description": "Page label for the keybinds settings page."
+  },
+  "keybindsDescription": "Customise and review keyboard shortcuts.",
+  "@keybindsDescription": {
+    "description": "Subtitle for the keybinds settings page."
   },
   "mediaSizes": "Media bubble sizes",
   "@mediaSizes": {
