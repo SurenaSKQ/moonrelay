@@ -37,7 +37,7 @@ void main() {
   /// Configures the mock HTTP client with the minimal set of handlers
   /// needed for the login flow: well-known, login flows, login POST, sync.
   void configureLoginHandlers() {
-    // ── Well-known discovery (return 404 so SDK uses direct URL) ──
+    // -- Well-known discovery (return 404 so SDK uses direct URL) --
     mockHttp.on(
       RegExp(r'\.well-known/matrix/client'),
       handler: (_) {
@@ -45,7 +45,7 @@ void main() {
       },
     );
 
-    // ── Login flows (password supported) ──
+    // -- Login flows (password supported) --
     mockHttp.on(
       RegExp(r'_matrix/client/v3/login\$'),
       handler: (req) {
@@ -75,7 +75,7 @@ void main() {
       },
     );
 
-    // ── Sync (returns rooms after login) ──
+    // -- Sync (returns rooms after login) --
     mockHttp.on(
       RegExp(r'_matrix/client/v3/sync'),
       handler: (_) {
@@ -120,9 +120,9 @@ void main() {
     );
   });
 
-  // ─────────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------
   // Login flow
-  // ─────────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------
 
   group('Login flow', () {
     testWidgets('renders welcome screen when not logged in', (tester) async {
@@ -148,7 +148,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Tap Sign In button on startup screen ──
+      // -- Tap Sign In button on startup screen --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -166,12 +166,12 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Step 1: Navigate to login page ──
+      // -- Step 1: Navigate to login page --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
 
-      // ── Step 2: Fill login form ──
+      // -- Step 2: Fill login form --
       // TextFields: [homeserver(matrix.org), username, password]
       final fields = find.byType(TextField);
       // Username (2nd field)
@@ -181,7 +181,7 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      // ── Step 3: Tap Sign In button on login form ──
+      // -- Step 3: Tap Sign In button on login form --
       await tester.tap(find.text('Sign in'));
       // Flush the async login chain: checkHomeserver → login POST →
       // client.init → sync request → sync response → navigate
@@ -191,7 +191,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Step 4: Check room list / dashboard ──
+      // -- Step 4: Check room list / dashboard --
       // The room name should appear somewhere after successful login
       // (in the sidebar room list or as the current room header)
       expect(find.text(testRoomName), findsWidgets);

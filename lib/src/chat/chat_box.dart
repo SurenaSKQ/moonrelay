@@ -287,7 +287,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     final html = await MarkdownToHtml.convertAsync(text);
     final hasHtml = html.isNotEmpty && html != text;
 
-    // ── Slash commands ──────────────────────────────────────────────────
+    // -- Slash commands --------------------------------------------------
     // The chat composer accepts a tiny set of builtin commands:
     //   /me <text>       sends as m.emote (third-person action).
     //   /shrug <text>    prepends the ¯\_(ツ)_/¯ shrug glyph and sends
@@ -674,44 +674,44 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                 // Text field
                 Expanded(
                   child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: _isExpanded ? 200 : 48,
+                    constraints: BoxConstraints(
+                      maxHeight: _isExpanded ? 200 : 48,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            colorScheme.outlineVariant.withValues(alpha: 0.6),
                       ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color:
-                              colorScheme.outlineVariant.withValues(alpha: 0.6),
-                        ),
+                    ),
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      maxLines: _isExpanded ? null : 1,
+                      minLines: _isExpanded ? 3 : 1,
+                      textInputAction: _shouldEnterSend()
+                          ? TextInputAction.send
+                          : TextInputAction.newline,
+                      onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: colorScheme.onSurface,
                       ),
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        maxLines: _isExpanded ? null : 1,
-                        minLines: _isExpanded ? 3 : 1,
-                        textInputAction: _shouldEnterSend()
-                            ? TextInputAction.send
-                            : TextInputAction.newline,
-                        onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
-                        style: TextStyle(
+                      decoration: InputDecoration(
+                        hintText: l10n.chatBoxSendMessage,
+                        hintStyle: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface,
+                          color: colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
-                        decoration: InputDecoration(
-                          hintText: l10n.chatBoxSendMessage,
-                          hintStyle: TextStyle(
-                            fontSize: 15,
-                            color: colorScheme.onSurface.withValues(alpha: 0.4),
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          isDense: true,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
                         ),
+                        isDense: true,
+                      ),
                     ),
                   ),
                 ),

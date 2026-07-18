@@ -86,7 +86,7 @@ class HistoryPager {
   /// `null` in tests that don't wire a provider.
   final Logger? logger;
 
-  // ── Constants ────────────────────────────────────────────────
+  // -- Constants ------------------------------------------------
 
   /// Pixel distance from the top of the (reverse) list that triggers a
   /// history fetch.
@@ -108,7 +108,7 @@ class HistoryPager {
   /// room is "all state events at the top".  See [_shouldDrainStateEvents].
   static const int _stateDrainWindow = 20;
 
-  // ── Mutable state ────────────────────────────────────────────
+  // -- Mutable state --------------------------------------------
 
   HistoryFillState _state = HistoryFillState.idle;
 
@@ -137,7 +137,7 @@ class HistoryPager {
       _state == HistoryFillState.loadingMore ||
       _state == HistoryFillState.drainingStateEvents;
 
-  // ── Scroll-driven entry ─────────────────────────────────────
+  // -- Scroll-driven entry -------------------------------------
 
   /// Called from the parent's scroll listener.  Decides whether the
   /// user is at the top of the loaded history (and a fetch should fire)
@@ -165,7 +165,7 @@ class HistoryPager {
     }
   }
 
-  // ── Auto-fill ────────────────────────────────────────────────
+  // -- Auto-fill ------------------------------------------------
 
   /// Called from `build` / after a sync / after a room switch.  If the
   /// viewport isn't scrollable, repeatedly requests more history until
@@ -225,7 +225,7 @@ class HistoryPager {
     }
   }
 
-  // ── Internals ────────────────────────────────────────────────
+  // -- Internals ------------------------------------------------
 
   Future<void> _requestMoreHistory() async {
     final timeline = getTimeline();

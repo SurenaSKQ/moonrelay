@@ -122,12 +122,12 @@ Redirect guards: `loggedInRedirect` and `loggedOutRedirect` read `Provider.of<Cl
 
 ```
 AppFrame (custom titlebar + window controls)
-└── DashboardLayout (multi-pane desktop layout)
-    ├── NavigationPane (leftmost bar  Home, All, Spaces)
-    ├── Left Sidebar (rooms/spaces/friends list, collapsible)
-    ├── Main content (route child  RoomPage, HubScreen, etc.)
-    ├── Right Sidebar (room info/members, collapsible, hides <1100px)
-    └── StatusBar (sync status)
+└-- DashboardLayout (multi-pane desktop layout)
+    ├-- NavigationPane (leftmost bar  Home, All, Spaces)
+    ├-- Left Sidebar (rooms/spaces/friends list, collapsible)
+    ├-- Main content (route child  RoomPage, HubScreen, etc.)
+    ├-- Right Sidebar (room info/members, collapsible, hides <1100px)
+    └-- StatusBar (sync status)
 ```
 
 ### State management
@@ -145,7 +145,7 @@ Pattern: `Consumer2<A, B>` or `ListenableBuilder` for rebuild scoping. `context.
 ### Code style
 - AGPL-3.0+ license header on EVERY file
 - `// Part of Moonrelay, a matrix protocol client.` first line
-- Formatted section separators: `// ── Section name ──`
+- Formatted section separators: `// -- Section name --`
 - Named constructors with `super.key`
 - Private types prefixed with `_` (e.g. `_AppState`, `_DashboardView`)
 - `const` constructors where possible
@@ -172,7 +172,7 @@ final result = await withRetry(() => someOperation(), log: log, label: 'op');
 
 ### Comment style
 - Doc comments (`///`) on public APIs, classes, and non-trivial fields
-- Inline `// ──` separators for section headers
+- Inline `// --` separators for section headers
 - `// TODO` for known gaps, `// FIXME` for bugs, `// REVIEW` for design questions
 - Comments explain *why*, not *what* (code is self-documenting)
 

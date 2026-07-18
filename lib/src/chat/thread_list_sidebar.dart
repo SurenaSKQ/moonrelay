@@ -116,8 +116,7 @@ class _SidebarThreadListState extends State<SidebarThreadList> {
                       },
                       child: ListView.separated(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount:
-                            threads.length + (_provider.hasMore ? 1 : 0),
+                        itemCount: threads.length + (_provider.hasMore ? 1 : 0),
                         separatorBuilder: (_, __) =>
                             const Divider(height: 1, indent: 12, endIndent: 12),
                         itemBuilder: (context, index) {
@@ -152,7 +151,7 @@ class _SidebarThreadListState extends State<SidebarThreadList> {
   }
 }
 
-// ─── Thread list tile ──────────────────────────────────────────────────────────
+// --- Thread list tile ----------------------------------------------------------
 
 /// A single tile in the thread list showing the thread root preview.
 class _ThreadListTile extends StatelessWidget {

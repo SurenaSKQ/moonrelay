@@ -94,13 +94,13 @@ class _StartscreenFrameState extends State<StartscreenFrame>
           color: theme.colorScheme.surface,
           child: Row(
             children: <Widget>[
-              // ── Leading slot ──────────────────────────────────
+              // -- Leading slot ----------------------------------
               if (reversed && showButtons)
                 const WindowButtons()
               else
                 const SizedBox(width: 4),
 
-              // ── Draggable title area ──────────────────────────
+              // -- Draggable title area --------------------------
               Expanded(
                 child: DragToMoveArea(
                   child: SizedBox(
@@ -112,7 +112,7 @@ class _StartscreenFrameState extends State<StartscreenFrame>
                 ),
               ),
 
-              // ── Trailing slot ─────────────────────────────────
+              // -- Trailing slot ---------------------------------
               if (reversed)
                 const SizedBox(width: 4)
               else if (showButtons)

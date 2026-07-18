@@ -22,9 +22,9 @@ import 'package:moonrelay/src/services/tray_service.dart';
 
 import 'log_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // MoonShutdown, globally-registered orderly shutdown
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Provides a single shutdown entry point that all close paths (window
 /// close button, tray "Quit", system close) use through a globally
@@ -60,9 +60,9 @@ class MoonShutdown {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // performShutdown  the actual teardown sequence
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Runs an orderly teardown of every live service before the
 /// application terminates.
@@ -84,12 +84,12 @@ Future<void> performShutdown({
 }) async {
   log.i('Shutting down…');
 
-  // ── 1. Tear down all registry services in reverse order ──────
+  // -- 1. Tear down all registry services in reverse order ------
   // This handles EncryptionService, NotificationService,
   // DeepLinkService, and any other service that registered during boot.
   await registry.shutdownAll(log);
 
-  // ── 2. Kill the Matrix client ─────────────────────────────────
+  // -- 2. Kill the Matrix client ---------------------------------
   // This shuts down the sync loop, closes the database, and  most
   // importantly  tears down the NativeImplementationsIsolate which
   // joins the native OS threads inside vodozemac.dll.
@@ -99,7 +99,7 @@ Future<void> performShutdown({
     log.w('Client dispose failed', error: e);
   }
 
-  // ── 3. Tray icon cleanup ──────────────────────────────────────
+  // -- 3. Tray icon cleanup --------------------------------------
   if (trayService != null) {
     try {
       await trayService.destroyTray();
@@ -108,7 +108,7 @@ Future<void> performShutdown({
     }
   }
 
-  // ── 4. Wipe log files ─────────────────────────────────────────
+  // -- 4. Wipe log files -----------------------------------------
   try {
     await logService.wipeLogs();
   } catch (e) {

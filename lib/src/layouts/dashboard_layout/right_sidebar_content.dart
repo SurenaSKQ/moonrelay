@@ -28,7 +28,7 @@ import 'package:moonrelay/src/widgets/sidebar_pinned_messages.dart';
 
 import 'sidebar_room_info.dart';
 
-// ─── Right sidebar: content with view switcher ─────────────────────────────
+// --- Right sidebar: content with view switcher -----------------------------
 
 /// Manages the right sidebar content with a built-in dropdown to switch
 /// between room-info and members views.
@@ -80,13 +80,13 @@ class RightSidebarWithSwitcher extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── View switcher header ──────────────────────────────────
+        // -- View switcher header ----------------------------------
         RightSidebarHeader(
           currentChoice: choice,
           onChanged: (c) => settings.setRightPaneChoice(c),
         ),
         const Divider(height: 1),
-        // ── Content ───────────────────────────────────────────────
+        // -- Content -----------------------------------------------
         Expanded(
           child: switch (choice) {
             RightPaneChoice.none => const SizedBox.shrink(),

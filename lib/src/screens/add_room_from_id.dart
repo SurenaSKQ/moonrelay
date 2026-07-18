@@ -110,7 +110,7 @@ class _AddRoomPageState extends State<AddRoomPage>
   }
 }
 
-// ── Tab 1: Directory search ──────────────────────────────────────────────────
+// -- Tab 1: Directory search --------------------------------------------------
 
 /// Embeds [RoomDirectorySearch] inside the tab so we get the same
 /// search + join UX but without the outer scaffold (already provided
@@ -124,7 +124,7 @@ class _DirectorySearchTab extends StatelessWidget {
   }
 }
 
-// ── Tab 2: Join by room ID / alias ───────────────────────────────────────────
+// -- Tab 2: Join by room ID / alias -------------------------------------------
 
 /// A form that lets the user join a room by its ID or alias, optionally
 /// specifying a server to join through.
@@ -426,7 +426,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
   }
 }
 
-// ── Tab 3: Create room / space ────────────────────────────────────────────────
+// -- Tab 3: Create room / space ------------------------------------------------
 
 /// A thin wrapper that embeds the reusable [CreateRoomWidget] inside the
 /// tab layout so the creation form is available from the \"Add Room\" page.
@@ -439,7 +439,7 @@ class _CreateRoomTab extends StatelessWidget {
   }
 }
 
-// ── Tab 4: User search & direct chat ──────────────────────────────────────────
+// -- Tab 4: User search & direct chat ------------------------------------------
 
 /// Embeds [UserSearchWidget] inside the tab so users can search the user
 /// directory and start direct chats from the "Add Room" page.

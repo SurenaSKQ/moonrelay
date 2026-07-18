@@ -78,13 +78,10 @@ class _PollMessageTypeState extends State<PollMessageType> {
     final answers = (poll['answers'] is List)
         ? (poll['answers'] as List).whereType<Map>().toList()
         : <Map<dynamic, dynamic>>[];
-    final answersCast = answers
-        .map((m) => m.cast<String, dynamic>())
-        .toList();
-    final ended = (poll['end_time'] is int) ||
-        (widget.event.content['end_time'] is int);
-    final maxSelections =
-        (poll['max_selections'] as int?) ?? 1;
+    final answersCast = answers.map((m) => m.cast<String, dynamic>()).toList();
+    final ended =
+        (poll['end_time'] is int) || (widget.event.content['end_time'] is int);
+    final maxSelections = (poll['max_selections'] as int?) ?? 1;
 
     return _PollState(
       question: question,
@@ -156,7 +153,8 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Widget _buildCard(_PollState state, ColorScheme cs, AppLocalizations l10n) {
-    final maxCount = state.voteCounts.values.fold<int>(0, (m, v) => v > m ? v : m);
+    final maxCount =
+        state.voteCounts.values.fold<int>(0, (m, v) => v > m ? v : m);
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 400),
@@ -172,7 +170,7 @@ class _PollMessageTypeState extends State<PollMessageType> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header ─────────────────────────────────────────────────
+          // -- Header -------------------------------------------------
           Row(
             children: [
               Icon(LucideIcons.listChecks, size: 18, color: cs.primary),
@@ -210,15 +208,14 @@ class _PollMessageTypeState extends State<PollMessageType> {
           ),
           const SizedBox(height: 12),
 
-          // ── Options ───────────────────────────────────────────────
+          // -- Options -----------------------------------------------
           ...state.answers.map((a) {
             final id = a['id']?.toString() ?? '';
             final text = a['body']?.toString() ?? '';
             final count = state.voteCounts[id] ?? 0;
             final voted = state.userVoteIds.contains(id);
-            final percent = maxCount == 0
-                ? 0.0
-                : (count / maxCount).clamp(0.0, 1.0);
+            final percent =
+                maxCount == 0 ? 0.0 : (count / maxCount).clamp(0.0, 1.0);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -313,7 +310,7 @@ class _PollOptionTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: Stack(
         children: [
-          // ── Fill bar ─────────────────────────────────────────────
+          // -- Fill bar ---------------------------------------------
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -328,15 +325,14 @@ class _PollOptionTile extends StatelessWidget {
               widthFactor: percent.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: voted
-                      ? cs.primary
-                      : cs.primary.withValues(alpha: 0.25),
+                  color:
+                      voted ? cs.primary : cs.primary.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
           ),
-          // ── Content ──────────────────────────────────────────────
+          // -- Content ----------------------------------------------
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,

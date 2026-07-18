@@ -47,9 +47,9 @@ import 'package:moonrelay/src/screens/hub_screen/settings/update_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/keybind_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // The main Hub screen  tab-based UI
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A category selection that may be deep-linked into the [HubScreen].
 ///
@@ -132,7 +132,7 @@ class _HubScreenState extends State<HubScreen> {
   int _selectedCategoryIndex = 0;
   int _selectedSubItemIndex = -1;
 
-  // ── Category definitions ─────────────────────────────────────────────────
+  // -- Category definitions -------------------------------------------------
 
   List<HubCategory> _categories = [];
 
@@ -596,7 +596,7 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
-  // ── Content routing ─────────────────────────────────────────────────────
+  // -- Content routing -----------------------------------------------------
 
   /// Renders a settings sub-item page keyed by the item's stable
   /// identifier.  Adding a new sub-item is a one-line case and never
@@ -680,7 +680,7 @@ class _HubScreenState extends State<HubScreen> {
   }
 }
 
-// ── Hub overlay ────────────────────────────────────────────────────────────
+// -- Hub overlay ------------------------------------------------------------
 
 /// Opens the hub screen as a centered modal overlay on top of the current
 /// navigation stack (like the command palette), preserving the dashboard

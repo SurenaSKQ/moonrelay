@@ -296,7 +296,7 @@ class MarkdownToHtml {
     int i = 0;
 
     while (i < text.length) {
-      // ── 1. Inline code: backticks win over * and **. ───────────
+      // -- 1. Inline code: backticks win over * and **. -----------
       if (text[i] == '`' && i + 1 < text.length && text[i + 1] != '`') {
         final close = text.indexOf('`', i + 1);
         if (close != -1) {
@@ -307,7 +307,7 @@ class MarkdownToHtml {
         }
       }
 
-      // ── 2. Bold `**text**` ─────────────────────────────────────
+      // -- 2. Bold `**text**` -------------------------------------
       if (i + 1 < text.length && text[i] == '*' && text[i + 1] == '*') {
         // Reject empty `****` and `**` followed immediately by another
         // asterisk (which would be three+ in a row  ambiguous, just
@@ -327,7 +327,7 @@ class MarkdownToHtml {
         }
       }
 
-      // ── 3. Italic `*text*` ─────────────────────────────────────
+      // -- 3. Italic `*text*` -------------------------------------
       // We only open italic when the surrounding bytes aren't also
       // asterisks: this prevents `*a**b*c*` from being scanned as a
       // single italic span that swallows the inner `**` pair.
@@ -336,7 +336,8 @@ class MarkdownToHtml {
           (i + 1 >= text.length || text[i + 1] != '*')) {
         final closeIdx = _findItalicClose(text, i + 1);
         if (closeIdx != null) {
-          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          result.write(
+              '<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
           i = closeIdx + 1;
           continue;
         }
@@ -379,7 +380,8 @@ class MarkdownToHtml {
           (i + 1 >= text.length || text[i + 1] != '*')) {
         final closeIdx = _findItalicClose(text, i + 1);
         if (closeIdx != null) {
-          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          result.write(
+              '<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
           i = closeIdx + 1;
           continue;
         }

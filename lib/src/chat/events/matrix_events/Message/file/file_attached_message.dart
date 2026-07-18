@@ -36,6 +36,7 @@ class FileAttachedMessage extends StatefulWidget {
 
 class _FileAttachedMessageState extends State<FileAttachedMessage> {
   Future<MatrixFile>? _downloadFuture;
+
   /// Last error surfaced by the save flow.  When non-null, the bubble's
   /// styling switches to error tones and the save icon flips to a retry
   /// glyph instead of letting the user repeatedly trigger the same
@@ -197,7 +198,8 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
         final matrixFile = snapshot.data;
 
         return Container(
-          constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
+          constraints:
+              BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
           decoration: BoxDecoration(
             color: _lastError != null
                 ? cs.errorContainer.withValues(alpha: 0.4)
@@ -213,7 +215,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                // ── File type icon ──────────────────────────────────────
+                // -- File type icon --------------------------------------
                 Container(
                   width: 44,
                   height: 44,
@@ -233,7 +235,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                 ),
                 const SizedBox(width: 14),
 
-                // ── File info ───────────────────────────────────────────
+                // -- File info -------------------------------------------
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,11 +298,10 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                 ),
                 const SizedBox(width: 8),
 
-                // ── Download button ─────────────────────────────────────
+                // -- Download button -------------------------------------
                 Semantics(
-                  label: _lastError != null
-                      ? l10n.tapToRetry
-                      : l10n.downloadAudio,
+                  label:
+                      _lastError != null ? l10n.tapToRetry : l10n.downloadAudio,
                   button: true,
                   child: Container(
                     decoration: BoxDecoration(
@@ -326,15 +327,16 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                               size: 20,
                             ),
                       color: _lastError != null ? cs.error : cs.primary,
-                      onPressed: snapshot.connectionState == ConnectionState.waiting
-                          ? null
-                          : () async {
-                              if (isReady && matrixFile != null) {
-                                await _downloadFile(matrixFile);
-                              } else {
-                                await _downloadOnDemand();
-                              }
-                            },
+                      onPressed:
+                          snapshot.connectionState == ConnectionState.waiting
+                              ? null
+                              : () async {
+                                  if (isReady && matrixFile != null) {
+                                    await _downloadFile(matrixFile);
+                                  } else {
+                                    await _downloadOnDemand();
+                                  }
+                                },
                     ),
                   ),
                 ),

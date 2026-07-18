@@ -1,6 +1,6 @@
 <div align="center">
 
-<!-- ── Logo ────────────────────────────────────────────────────── -->
+<!-- -- Logo ------------------------------------------------------ -->
 <img src="https://raw.githubusercontent.com/SurenaSKQ/moonrelay/develop/assets/images/logo.png"
      alt="Moonrelay logo"
      width="120" height="120" />
@@ -252,18 +252,18 @@ Contributions are very welcome both code and non-code.
 
 ```
 Flutter 3.24+ (Dart >=3.2.6 <4.0)
-├── matrix (Dart Matrix SDK)
-├── flutter_vodozemac (native E2EE)
-├── provider (state management)
-├── go_router (declarative routing)
-├── shared_preferences (settings persistence)
-├── sqflite + sqflite_common_ffi (local database)
-├── window_manager + flutter_acrylic (desktop chrome)
-├── just_audio / video_player / record (media)
-├── flutter_local_notifications (desktop notifications)
-├── tray_manager (system tray)
-├── lucide_icons_flutter (icon set)
-└── intl + flutter_localizations (i18n)
+├-- matrix (Dart Matrix SDK)
+├-- flutter_vodozemac (native E2EE)
+├-- provider (state management)
+├-- go_router (declarative routing)
+├-- shared_preferences (settings persistence)
+├-- sqflite + sqflite_common_ffi (local database)
+├-- window_manager + flutter_acrylic (desktop chrome)
+├-- just_audio / video_player / record (media)
+├-- flutter_local_notifications (desktop notifications)
+├-- tray_manager (system tray)
+├-- lucide_icons_flutter (icon set)
+└-- intl + flutter_localizations (i18n)
 ```
 
 Built with **[Provider](https://pub.dev/packages/provider)** for

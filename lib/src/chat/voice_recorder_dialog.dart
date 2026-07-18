@@ -84,8 +84,8 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
       setState(() => _permissionDenied = true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!
-              .voiceRecorderPermissionDenied),
+          content:
+              Text(AppLocalizations.of(context)!.voiceRecorderPermissionDenied),
         ),
       );
     } else {
@@ -99,8 +99,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
       if (_permissionDenied) return;
 
       final dir = Directory.systemTemp;
-      final filename =
-          'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       final path = '${dir.path}/$filename';
 
       await _recorder.start(
@@ -162,8 +161,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text(AppLocalizations.of(context)!.voiceRecorderCancelled),
+        content: Text(AppLocalizations.of(context)!.voiceRecorderCancelled),
       ),
     );
   }
@@ -243,7 +241,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
               const SizedBox(height: 12),
               Text(l10n.voiceRecorderSending),
             ] else if (_isRecording) ...[
-              // ── Recording state ───────────────────────────────────────
+              // -- Recording state ---------------------------------------
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -299,7 +297,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                 onPressed: _stopRecording,
               ),
             ] else if (_filePath != null) ...[
-              // ── Preview state ─────────────────────────────────────────
+              // -- Preview state -----------------------------------------
               Row(
                 children: [
                   Icon(LucideIcons.checkCircle, color: cs.primary, size: 22),
@@ -321,7 +319,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                 style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
               ),
             ] else ...[
-              // ── Idle state ────────────────────────────────────────────
+              // -- Idle state --------------------------------------------
               Text(
                 l10n.voiceRecorderHint,
                 textAlign: TextAlign.center,

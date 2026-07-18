@@ -129,8 +129,8 @@ class MessageActions extends StatelessWidget {
     final isPinned = _isPinned(room, event.eventId);
     final canEdit = _canEditText(context);
     final t = timeline;
-    final showEditHistory = t != null &&
-        event.hasAggregatedEvents(t, RelationshipTypes.edit);
+    final showEditHistory =
+        t != null && event.hasAggregatedEvents(t, RelationshipTypes.edit);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -190,12 +190,12 @@ class MessageActions extends StatelessWidget {
         if (showEditHistory) ...[
           const SizedBox(width: 4),
           if (showEditHistory)
-          _ActionIcon(
-            icon: Icons.history_rounded,
-            tooltip: l10n.viewEditHistory,
-            color: cs.onSurfaceVariant,
-            onTap: () => _showEditHistory(context),
-          ),
+            _ActionIcon(
+              icon: Icons.history_rounded,
+              tooltip: l10n.viewEditHistory,
+              color: cs.onSurfaceVariant,
+              onTap: () => _showEditHistory(context),
+            ),
         ],
         if (canPin) ...[
           const SizedBox(width: 4),
@@ -215,7 +215,7 @@ class MessageActions extends StatelessWidget {
             onTap: () => _confirmDelete(context),
           ),
         ],
-        // ── Moderation actions ───────────────────────────────────────────
+        // -- Moderation actions -------------------------------------------
         if (!isOwnMessage && (canModerate || canBanUser)) ...[
           const SizedBox(width: 4),
           _ModerationMenu(
@@ -373,7 +373,8 @@ class _ModerationMenu extends StatelessWidget {
             value: 'kick',
             child: Row(
               children: [
-                Icon(Icons.person_remove_outlined, size: 18, color: cs.tertiary),
+                Icon(Icons.person_remove_outlined,
+                    size: 18, color: cs.tertiary),
                 const SizedBox(width: 8),
                 Text(l10n.actionKick),
               ],

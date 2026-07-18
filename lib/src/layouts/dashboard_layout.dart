@@ -96,7 +96,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // ── Shell decision with hysteresis ──────────────────────────────
+        // -- Shell decision with hysteresis ------------------------------
         //
         // The shell decision reads the *outer* viewport width (via
         // [MediaQuery.sizeOf]) instead of the inner [LayoutBuilder]

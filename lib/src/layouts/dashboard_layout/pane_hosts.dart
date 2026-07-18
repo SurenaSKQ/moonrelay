@@ -28,7 +28,7 @@ import 'package:moonrelay/src/widgets/spaces_pane.dart';
 
 import 'right_sidebar_content.dart';
 
-// ─── Resize handle ─────────────────────────────────────────────────────────
+// --- Resize handle ---------------------------------------------------------
 
 /// A draggable resize handle between panes.
 class ResizeHandle extends StatelessWidget {
@@ -66,7 +66,7 @@ class ResizeHandle extends StatelessWidget {
   }
 }
 
-// ─── Sidebar pane ──────────────────────────────────────────────────────────
+// --- Sidebar pane ----------------------------------------------------------
 
 /// A sidebar pane with a header, scrollable body, and optional bottom bar.
 class SidebarPane extends StatelessWidget {
@@ -121,7 +121,7 @@ class SidebarPane extends StatelessWidget {
   }
 }
 
-// ─── Left pane content factory ─────────────────────────────────────────────
+// --- Left pane content factory ---------------------------------------------
 
 /// Builds the body of the left pane based on the user's [LeftPaneChoice] and
 /// the current [NavigationState].
@@ -162,7 +162,7 @@ Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
   }
 }
 
-// ─── Left pane host ────────────────────────────────────────────────────────
+// --- Left pane host --------------------------------------------------------
 
 /// Hosts the left side pane (navigation rail + room list) when the layout has
 /// room for a pinned sidebar.
@@ -214,7 +214,7 @@ class LeftPaneHost extends StatelessWidget {
   }
 }
 
-// ─── Right pane host ───────────────────────────────────────────────────────
+// --- Right pane host -------------------------------------------------------
 
 /// Hosts the right side pane (room info, members, threads, pinned).
 class RightPaneHost extends StatelessWidget {

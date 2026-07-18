@@ -227,7 +227,7 @@ class DeviceListScreen extends StatelessWidget {
     AppLocalizations loc,
     EncryptionService enc,
   ) async {
-    // ── Confirmation dialog ────────────────────────────────────
+    // -- Confirmation dialog ------------------------------------
     final deviceName = device.displayName ?? device.deviceId;
     final confirm = await showDialog<bool>(
       context: context,

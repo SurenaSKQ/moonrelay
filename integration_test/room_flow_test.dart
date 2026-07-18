@@ -27,7 +27,7 @@ import 'helpers/test_app_boot.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // ── Shared test data ──────────────────────────────────────────────
+  // -- Shared test data ----------------------------------------------
   const String testRoomId = '!devteam:matrix.org';
   const String testRoomName = 'Dev Team';
   const String testRoomTopic = 'Development discussion';
@@ -113,9 +113,9 @@ void main() {
     );
   });
 
-  // ─────────────────────────────────────────────────────────────────
+  // -----------------------------------------------------------------
   // Tests
-  // ─────────────────────────────────────────────────────────────────
+  // -----------------------------------------------------------------
 
   group('Room interaction flow', () {
     testWidgets('shows room list after login', (tester) async {
@@ -125,7 +125,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Login ──
+      // -- Login --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -143,7 +143,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Verify room is visible ──
+      // -- Verify room is visible --
       expect(find.text(testRoomName), findsWidgets);
       // The topic might also be visible in the sidebar or header
       expect(find.text(testRoomTopic), findsWidgets);
@@ -156,7 +156,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Login ──
+      // -- Login --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -174,13 +174,13 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Tap on the room in the sidebar ──
+      // -- Tap on the room in the sidebar --
       await tester.tap(find.text(testRoomName).last);
       await tester.pump();
       await tester.pump();
       await tester.pump();
 
-      // ── Check that timeline messages appear ──
+      // -- Check that timeline messages appear --
       // The messages pre-populated in sync should be visible
       expect(find.text('Hey team, check the new PR'), findsWidgets);
       expect(find.text('On it!'), findsWidgets);
