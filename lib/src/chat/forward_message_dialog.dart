@@ -104,7 +104,7 @@ class _ForwardDialogState extends State<_ForwardDialog> {
         height: 480,
         child: Column(
           children: [
-            // ── Search field ─────────────────────────────────────────
+            // -- Search field -----------------------------------------
             TextField(
               controller: _searchController,
               autofocus: true,
@@ -127,11 +127,11 @@ class _ForwardDialogState extends State<_ForwardDialog> {
             ),
             const SizedBox(height: 12),
 
-            // ── Preview of the message being forwarded ──────────────
+            // -- Preview of the message being forwarded --------------
             _buildMessagePreview(cs, l10n),
             const SizedBox(height: 12),
 
-            // ── Room list ───────────────────────────────────────────
+            // -- Room list -------------------------------------------
             Expanded(
               child: filtered.isEmpty
                   ? Center(

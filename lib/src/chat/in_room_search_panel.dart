@@ -317,22 +317,22 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       ),
       child: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────
+          // -- Header ----------------------------------------------
           _buildHeader(scheme, l10n),
 
-          // ── Keyword chips ───────────────────────────────────────
+          // -- Keyword chips ---------------------------------------
           if (_keywords.isNotEmpty) _buildKeywordChips(scheme),
 
-          // ── Type filter chips ───────────────────────────────────
+          // -- Type filter chips -----------------------------------
           _buildTypeFilters(scheme, l10n),
 
-          // ── Sender filter ───────────────────────────────────────
+          // -- Sender filter ---------------------------------------
           _buildSenderFilter(scheme, l10n),
 
-          // ── Results ─────────────────────────────────────────────
+          // -- Results ---------------------------------------------
           Expanded(child: _buildResults(scheme, l10n)),
 
-          // ── Load more ───────────────────────────────────────────
+          // -- Load more -------------------------------------------
           if (_nextBatch != null) _buildLoadMore(scheme, l10n),
         ],
       ),
@@ -603,7 +603,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
   }
 }
 
-// ─── Internal models ──────────────────────────────────────────────────────────
+// --- Internal models ----------------------------------------------------------
 
 class _TypeFilter {
   final String type; // empty = all
@@ -611,7 +611,7 @@ class _TypeFilter {
   const _TypeFilter(this.type, this.icon);
 }
 
-// ─── Result tile ──────────────────────────────────────────────────────────────
+// --- Result tile --------------------------------------------------------------
 
 class _InRoomResultTile extends StatelessWidget {
   final Event event;

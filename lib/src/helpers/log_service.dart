@@ -45,8 +45,7 @@ const List<_RedactionPattern> redactionPatterns = <_RedactionPattern>[
   // 16+ chars on the value side rejects natural-language words after
   // "Bearer" (e.g. "Bearer of this message").
   _RedactionPattern(
-      pattern:
-          r'((?:Authorization:\s*)?Bearer\s+)([A-Za-z0-9._~+/=-]{16,})',
+      pattern: r'((?:Authorization:\s*)?Bearer\s+)([A-Za-z0-9._~+/=-]{16,})',
       replacement: r'$1[REDACTED]',
       caseSensitive: false),
   // Raw Matrix login tokens (long base64-like strings in URL query params)
@@ -60,12 +59,10 @@ const List<_RedactionPattern> redactionPatterns = <_RedactionPattern>[
   // the value-side chars are alphanumeric only, the rule would otherwise
   // happily munch an adjacent identifier).
   _RedactionPattern(
-      pattern:
-          r'\bdevice_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
+      pattern: r'\bdevice_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
       replacement: 'device_id=[REDACTED]'),
   _RedactionPattern(
-      pattern:
-          r'\bsession_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
+      pattern: r'\bsession_id["\s]*[=:]\s*"?([A-Za-z0-9]{10,})"?',
       replacement: 'session_id=[REDACTED]'),
   // Passwords: matches `password=foo`, `password: foo`,
   // `"password": "foo"`, `"password":"foo"`, and trailing key=value in
@@ -75,7 +72,8 @@ const List<_RedactionPattern> redactionPatterns = <_RedactionPattern>[
   // rule (which would otherwise chew square brackets off the end of
   // previous redactions and degrade the log to garbage over time).
   _RedactionPattern(
-      pattern: r'''(?:["']?password["']?\s*[=:]\s*["']?)([^\s,&}"'\]\[]+)["']?''',
+      pattern:
+          r'''(?:["']?password["']?\s*[=:]\s*["']?)([^\s,&}"'\]\[]+)["']?''',
       replacement: 'password=[REDACTED]'),
 ];
 
@@ -161,7 +159,7 @@ class LogService {
     Logger.level = verbose ? Level.all : Level.warning;
   }
 
-  // ── Factory ──────────────────────────────────────────────────────────
+  // -- Factory ----------------------------------------------------------
 
   /// Creates a [LogService] whose log files live in the application
   /// support directory.
@@ -171,7 +169,7 @@ class LogService {
     Level releaseLevel = Level.warning,
     Level debugLevel = Level.all,
   }) async {
-    // ── Determine log directory ────────────────────────────────────────
+    // -- Determine log directory ----------------------------------------
     Directory appSupport;
     try {
       appSupport = await getApplicationSupportDirectory();
@@ -182,7 +180,7 @@ class LogService {
       p.join(appSupport.path, folderName),
     ).create(recursive: true);
 
-    // ── Build the redacting output ────────────────────────────────────
+    // -- Build the redacting output ------------------------------------
     final fileOutput = AdvancedFileOutput(
       path: logs.path,
       encoding: utf8,
@@ -204,7 +202,7 @@ class LogService {
       level: logLevel,
     );
 
-    // ── Wipe function ─────────────────────────────────────────────────
+    // -- Wipe function -------------------------------------------------
     Future<void> wipe() async {
       // Flush any buffered output before deleting.
       await fileOutput.destroy();
@@ -230,9 +228,9 @@ class LogService {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Redacting log output
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A single regex-based redaction rule.
 ///

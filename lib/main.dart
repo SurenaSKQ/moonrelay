@@ -57,9 +57,9 @@ import 'src/splash_screen.dart';
 /// subtle migration bugs.
 const int kDbSchemaVersion = 2;
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Init state  populated by the boot pipeline, consumed by the app on success
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class _AppState {
   const _AppState({
@@ -91,9 +91,9 @@ class _AppState {
   final AutoUpdateService autoUpdateService;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Init pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Runs the full boot pipeline via [runBootPipeline] in [boot.dart].
 Future<_AppState> _initialize({
@@ -133,9 +133,9 @@ Future<_AppState> _initialize({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Root widget  swaps between splash and the real app via setState
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class MoonrelayBootstrap extends StatefulWidget {
   const MoonrelayBootstrap({super.key});
@@ -163,7 +163,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   }
 
   Future<void> _boot() async {
-    // ── Step 0: Log service (lightweight, run it first) ──────
+    // -- Step 0: Log service (lightweight, run it first) ------
     LogService logService;
     Logger log;
     try {
@@ -179,12 +179,12 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       return;
     }
 
-    // ── Step 0b: App version (platform channel; fire-and-forget) ──
+    // -- Step 0b: App version (platform channel; fire-and-forget) --
     // Cheap and parallel to the rest of boot; the UI shows a fallback
     // version until this completes.
     await AppVersion.init();
 
-    // ── Steps 1-7: heavy init with status callbacks ───────────
+    // -- Steps 1-7: heavy init with status callbacks -----------
     try {
       final state = await _initialize(
         onStatus: (msg) {
@@ -219,7 +219,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
             trayService: TrayService.instance,
           ));
 
-      // ── Startup update check ──────────────────────────────────
+      // -- Startup update check ----------------------------------
       if (state.settingsController.checkForUpdates) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _performStartupUpdateCheck(state);
@@ -301,7 +301,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    // ── Error state ───────────────────────────────────────────
+    // -- Error state -------------------------------------------
     if (_errorTitle != null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -353,7 +353,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // ── Success state  the real app ──────────────────────────
+    // -- Success state  the real app --------------------------
     if (_appState != null) {
       return MultiProvider(
         providers: [
@@ -384,7 +384,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // ── Loading state  the splash screen ─────────────────────
+    // -- Loading state  the splash screen ---------------------
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -399,9 +399,9 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Entry point
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

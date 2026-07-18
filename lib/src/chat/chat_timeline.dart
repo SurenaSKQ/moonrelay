@@ -115,14 +115,13 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   JumpCoordinator? _jumpCoordinator;
   ReadMarkerTracker? _readMarkerTracker;
 
-  // ── Test accessors ────────────────────────────────────────────
+  // -- Test accessors --------------------------------------------
 
   @visibleForTesting
   int get timelineVersionForTest => _timelineVersion;
 
   @visibleForTesting
-  bool get isLoadingHistoryForTest =>
-      _historyPager?.isLoading ?? false;
+  bool get isLoadingHistoryForTest => _historyPager?.isLoading ?? false;
 
   @visibleForTesting
   Future<bool> paginateUntilMarkerForTest(String markerId) async {
@@ -143,7 +142,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _historyPager?.ensureFilled();
   }
 
-  // ── Lifecycle ─────────────────────────────────────────────────
+  // -- Lifecycle -------------------------------------------------
 
   @override
   void initState() {
@@ -173,8 +172,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
-    } else if (widget.filterEvents == null &&
-        oldWidget.filterEvents != null) {
+    } else if (widget.filterEvents == null && oldWidget.filterEvents != null) {
       if (_fetchedFilteredEvents != null) {
         setState(() => _fetchedFilteredEvents = null);
       }
@@ -193,7 +191,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     super.dispose();
   }
 
-  // ── Init ──────────────────────────────────────────────────────
+  // -- Init ------------------------------------------------------
 
   void _initCollaborators() {
     _historyPager = HistoryPager(
@@ -297,7 +295,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     }
   }
 
-  // ── Scroll listener ──────────────────────────────────────────
+  // -- Scroll listener ------------------------------------------
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
@@ -329,7 +327,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     setState(() => _timelineVersion++);
   }
 
-  // ── Helpers ──────────────────────────────────────────────────
+  // -- Helpers --------------------------------------------------
 
   Future<bool> _paginateUntilMarkerViaCoordinator(
     JumpCoordinator coordinator,
@@ -430,7 +428,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     }
   }
 
-  // ── Provider lookups (tolerant when missing) ─────────────────
+  // -- Provider lookups (tolerant when missing) -----------------
 
   Logger? _tryReadLogger() {
     if (!mounted) return null;
@@ -458,7 +456,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     }
   }
 
-  // ── Build ────────────────────────────────────────────────────
+  // -- Build ----------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -495,8 +493,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
             ValueListenableBuilder<bool>(
               valueListenable: _isScrolledUpNotifier,
               builder: (context, isScrolledUp, _) {
-                final isJumping =
-                    _jumpCoordinator?.isJumping ?? false;
+                final isJumping = _jumpCoordinator?.isJumping ?? false;
                 // Only show floating actions when the user has scrolled
                 // away from the bottom (actively reading older messages)
                 // or while a jump-to-unread pagination is in flight.
@@ -655,7 +652,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     );
   }
 
-  // ── Public API for callers outside the widget ─────────────────
+  // -- Public API for callers outside the widget -----------------
 
   /// Public accessor for the scroll controller, exposed so callers
   /// outside this widget (e.g. the in-room search panel) can request
@@ -667,8 +664,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   /// Scrolls the timeline to a specific event id, if present in the
   /// cached timeline.
-  void jumpToEvent(String? eventId) =>
-      _jumpCoordinator?.jumpToEvent(eventId);
+  void jumpToEvent(String? eventId) => _jumpCoordinator?.jumpToEvent(eventId);
 }
 
 class _ServiceNotificationMirror implements NotificationMirror {

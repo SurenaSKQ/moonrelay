@@ -25,9 +25,9 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // StoredAccount  immutable serialisable metadata for a single Matrix session
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Lightweight account descriptor persisted in [SharedPreferences].
 ///
@@ -75,9 +75,9 @@ class StoredAccount {
   String toString() => 'StoredAccount($userId @ $homeserver)';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // AccountManager  ChangeNotifier that owns the multi-account lifecycle
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Top-level controller for multi-account support.
 ///
@@ -98,13 +98,13 @@ class AccountManager extends ChangeNotifier {
 
   AccountManager({required this.log});
 
-  // ── Account list ───────────────────────────────────────────────────
+  // -- Account list ---------------------------------------------------
 
   List<StoredAccount> _accounts = [];
   List<StoredAccount> get accounts => List.unmodifiable(_accounts);
   bool get hasAccounts => _accounts.isNotEmpty;
 
-  // ── Active account selection ───────────────────────────────────────
+  // -- Active account selection ---------------------------------------
 
   StoredAccount? _activeAccount;
   StoredAccount? get activeAccount => _activeAccount;
@@ -116,7 +116,7 @@ class AccountManager extends ChangeNotifier {
   /// Whether the active client has a valid session.
   bool get isLoggedIn => _activeClient?.isLogged() ?? false;
 
-  // ── Factories (set once by the boot process) ───────────────────────
+  // -- Factories (set once by the boot process) -----------------------
 
   /// Used by [switchToAccount] to obtain a fresh [Client] for a given account.
   Future<Client> Function(StoredAccount account)? clientFactory;
@@ -129,7 +129,7 @@ class AccountManager extends ChangeNotifier {
   /// allowed and means "no encryption service required".
   Future<EncryptionService?> Function(Client client)? onClientReady;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────
+  // -- Lifecycle ------------------------------------------------------
 
   /// Load persisted accounts from [SharedPreferences].
   ///
@@ -177,7 +177,7 @@ class AccountManager extends ChangeNotifier {
     await prefs.setString(_activeKey, _activeAccount?.userId ?? '');
   }
 
-  // ── Account operations ─────────────────────────────────────────────
+  // -- Account operations ---------------------------------------------
 
   /// Record a new account or update an existing one, and set it as the
   /// active account with the given [client] and optional [encryptionService].
@@ -306,7 +306,7 @@ class AccountManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Logout ─────────────────────────────────────────────────────────
+  // -- Logout ---------------------------------------------------------
 
   /// Log out from the server and remove the current account.
   Future<void> logout() async {
@@ -328,12 +328,12 @@ class AccountManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Encryption service ─────────────────────────────────────────────
+  // -- Encryption service ---------------------------------------------
 
   EncryptionService? _encryptionService;
   EncryptionService? get encryptionService => _encryptionService;
 
-  // ── Internal helpers ───────────────────────────────────────────────
+  // -- Internal helpers -----------------------------------------------
 
   Future<void> _disposeActiveClient() async {
     try {

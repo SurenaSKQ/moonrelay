@@ -22,9 +22,9 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Accounts Page
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubAccountsPage extends StatelessWidget {
   const HubAccountsPage({
@@ -88,7 +88,7 @@ class HubAccountsPage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // ── Account card ─────────────────────────────────────────
+              // -- Account card -----------------------------------------
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -154,7 +154,7 @@ class HubAccountsPage extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // ── Sign-out section ─────────────────────────────────────
+              // -- Sign-out section -------------------------------------
               Text(
                 l10n.sessions,
                 style: TextStyle(
@@ -220,7 +220,7 @@ class HubAccountsPage extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // ── Add account section ─────────────────────────────────
+              // -- Add account section ---------------------------------
               Text(
                 l10n.appSettings,
                 style: TextStyle(

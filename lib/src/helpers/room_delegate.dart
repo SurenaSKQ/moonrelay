@@ -114,19 +114,19 @@ class _RoomDelegateState extends State<RoomDelegate> {
   Widget build(BuildContext context) {
     final Client client = Provider.of<Client>(context, listen: false);
 
-    // ── Null / empty check ──────────────────────────────────────
+    // -- Null / empty check --------------------------------------
     if (widget.roomID == null || widget.roomID!.isEmpty) {
       _log(context, 'RoomDelegate: roomID is null or empty');
       return const EmptySpace();
     }
 
-    // ── Look up the room via the SDK ────────────────────────────
+    // -- Look up the room via the SDK ----------------------------
     final Room? room = client.getRoomById(widget.roomID!);
     if (room != null) {
       return RoomPage(room: room, threadRootEventId: widget.threadRootEventId);
     }
 
-    // ── Room not found yet ───────────────────────────────────────
+    // -- Room not found yet ---------------------------------------
     if (client.rooms.isEmpty) {
       return _buildWaitingUi(context);
     }
@@ -150,7 +150,8 @@ class _RoomDelegateState extends State<RoomDelegate> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.cloud_off, size: 48,
+              Icon(Icons.cloud_off,
+                  size: 48,
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 16),
               Text(

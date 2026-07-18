@@ -207,8 +207,7 @@ class EncryptionService extends ChangeNotifier {
       // device restores notification / theme / sidebar choices.
       'preferences': {
         for (final entry in prefs.getKeys())
-          if (!_isSensitivePref(entry))
-            entry: prefs.get(entry),
+          if (!_isSensitivePref(entry)) entry: prefs.get(entry),
       },
     };
 
@@ -239,7 +238,7 @@ class EncryptionService extends ChangeNotifier {
     if (_isInitialized) return;
     _log.i('EncryptionService: initializing');
 
-    // ── Wait for the SDK to finish setting up encryption ────────────
+    // -- Wait for the SDK to finish setting up encryption ------------
     // The Matrix SDK creates and initialises the Encryption object
     // during the login flow.  If it hasn't finished yet, give it a
     // brief window before we start querying its state.
@@ -255,8 +254,8 @@ class EncryptionService extends ChangeNotifier {
       // encryption becomes available later.
     }
 
-    // ── Attach sync listener BEFORE the first refresh so we don't ──
-    // ── miss a sync event that fires concurrently.                ──
+    // -- Attach sync listener BEFORE the first refresh so we don't --
+    // -- miss a sync event that fires concurrently.                --
     _syncSubscription = _client.onSync.stream.listen(_onSync);
 
     try {

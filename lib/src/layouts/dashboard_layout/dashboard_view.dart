@@ -26,7 +26,7 @@ import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
 import 'pane_hosts.dart';
 
-// ─── Stateless view ─────────────────────────────────────────────────────────
+// --- Stateless view ---------------------------------------------------------
 
 /// Pure presentation widget for the dashboard layout.
 ///
@@ -81,7 +81,7 @@ class DashboardView extends StatelessWidget {
       return CompactDashboard(width: width, child: child);
     }
 
-    // ── Wide shells  full multi-pane layout ───────────────────────
+    // -- Wide shells  full multi-pane layout -----------------------
     // The compact shell handles everything 600-1279 wide.  Above
     // 1280px the full multi-pane layout (right sidebar visible) is
     // shown; otherwise we fall back to the compact shell again so
@@ -145,7 +145,7 @@ class DashboardView extends StatelessWidget {
   }
 }
 
-// ─── Compact layout shell ──────────────────────────────────────────────────
+// --- Compact layout shell --------------------------------------------------
 
 /// Layout used when the window is too narrow to keep both side panes pinned,
 /// or when the user has explicitly opted into compact mode.

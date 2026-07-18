@@ -40,9 +40,9 @@ import 'settings/settings_controller.dart';
 import 'settings/settings_service.dart';
 import 'settings/space_preferences.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // BootContext  result of the boot pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// All initialized services produced by the boot pipeline.
 class BootContext {
@@ -77,9 +77,9 @@ class BootContext {
   final AutoUpdateService autoUpdateService;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // BootStep  single unit of the boot pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A single initialisation step in the boot pipeline.
 ///
@@ -96,9 +96,9 @@ abstract class BootStep<T> {
   Future<T> run();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Pipeline runner
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Runs the full boot pipeline, calling [onStatus] before each step.
 ///
@@ -120,7 +120,7 @@ Future<BootContext> runBootPipeline({
 }) async {
   final registry = ServiceRegistry();
 
-  // ── 1. Vodozemac (native crypto) ────────────────────────────
+  // -- 1. Vodozemac (native crypto) ----------------------------
   onStatus('Initializing encryption engine…');
   log.t('Boot: Vodozemac');
   try {
@@ -130,7 +130,7 @@ Future<BootContext> runBootPipeline({
     rethrow;
   }
 
-  // ── 2. SQLite FFI ───────────────────────────────────────────
+  // -- 2. SQLite FFI -------------------------------------------
   onStatus('Initializing database…');
   log.t('Boot: SQLite FFI');
   try {
@@ -141,15 +141,15 @@ Future<BootContext> runBootPipeline({
   }
   databaseFactory = databaseFactoryFfi;
 
-  // ── 3. Open database ────────────────────────────────────────
+  // -- 3. Open database ----------------------------------------
   onStatus('Opening database…');
   log.t('Boot: Database');
   final dbService = DatabaseService(schemaVersion: schemaVersion, log: log);
-  final String dbName = accountManager.activeAccount?.databaseName ??
-      'moonrelay.db';
+  final String dbName =
+      accountManager.activeAccount?.databaseName ?? 'moonrelay.db';
   final dbobj = await dbService.openDatabaseFor(dbName);
 
-  // ── 4. Create Matrix Client ─────────────────────────────────
+  // -- 4. Create Matrix Client ---------------------------------
   onStatus('Starting network client…');
   log.t('Boot: Matrix Client');
   final sdk = Client(
@@ -171,7 +171,7 @@ Future<BootContext> runBootPipeline({
     rethrow;
   }
 
-  // ── 5. Theme & Settings ─────────────────────────────────────
+  // -- 5. Theme & Settings -------------------------------------
   onStatus('Loading preferences…');
   log.t('Boot: Settings');
   if (!kIsWeb &&
@@ -190,7 +190,7 @@ Future<BootContext> runBootPipeline({
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();
 
-  // ── 6. Window Manager ───────────────────────────────────────
+  // -- 6. Window Manager ---------------------------------------
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
@@ -199,7 +199,8 @@ Future<BootContext> runBootPipeline({
       windowButtonVisibility: false,
     );
     await windowManager.setMinimumSize(
-      Size(settingsController.windowMinWidth, settingsController.windowMinHeight),
+      Size(settingsController.windowMinWidth,
+          settingsController.windowMinHeight),
     );
     if (!settingsController.startMinimized) {
       await windowManager.show();
@@ -208,19 +209,20 @@ Future<BootContext> runBootPipeline({
     await windowManager.setSkipTaskbar(false);
   }
 
-  // ── 7. Encryption service ───────────────────────────────────
+  // -- 7. Encryption service -----------------------------------
   onStatus('Preparing encryption…');
   log.t('Boot: Encryption');
   final encryptionService = EncryptionService(client: sdk, logger: log);
   if (sdk.isLogged()) {
     await encryptionService.init();
   }
-  registry.register(encryptionService, disposer: () => encryptionService.dispose());
+  registry.register(encryptionService,
+      disposer: () => encryptionService.dispose());
 
-  // ── 8. CurrentRoom ──────────────────────────────────────────
+  // -- 8. CurrentRoom ------------------------------------------
   final currentRoom = CurrentRoom();
 
-  // ── 9. Notification service ─────────────────────────────────
+  // -- 9. Notification service ---------------------------------
   // DeepLinkService is created before NotificationService so that
   // tapping a notification can navigate to the corresponding room
   // through it. The previous build ignored `NotificationResponse.payload`
@@ -261,7 +263,7 @@ Future<BootContext> runBootPipeline({
     }
   }
 
-  // ── 10. Tray service ────────────────────────────────────────
+  // -- 10. Tray service ----------------------------------------
   if (isDesktop && settingsController.showTrayIcon) {
     onStatus('Setting up system tray…');
     log.t('Boot: Tray');
@@ -272,7 +274,7 @@ Future<BootContext> runBootPipeline({
     }
   }
 
-  // ── 11. Wire up AccountManager ──────────────────────────────
+  // -- 11. Wire up AccountManager ------------------------------
   // Initialise the persisted active-account → live client association
   // so widgets bound to `Provider<Client>` see the same pair after a
   // hot-restart. The early-init branch in 9 handles the logged-out
@@ -319,13 +321,13 @@ Future<BootContext> runBootPipeline({
     return null;
   };
 
-  // ── 12. Auto-update service ────────────────────────────────────
+  // -- 12. Auto-update service ------------------------------------
   log.t('Boot: AutoUpdateService');
   final autoUpdateService = AutoUpdateService(log: log);
 
   log.i('Initialization complete');
 
-  // ── Wait for first sync ─────────────────────────────────────
+  // -- Wait for first sync -------------------------------------
   // If the SDK is logged in, hold the splash visible until either
   // the first `/sync` response arrives or a short timeout elapses.
   // Without this the splash swaps to the main app, which renders an

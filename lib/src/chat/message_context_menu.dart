@@ -23,9 +23,9 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 //  Enum
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// Stable identifier for every action exposed by [MessageContextMenu].
 ///
@@ -54,9 +54,9 @@ enum MessageContextAction {
   openProfile,
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 //  Menu builder & dispatcher
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A rich, keyboard- and pointer-friendly context menu for chat messages.
 ///
@@ -163,7 +163,7 @@ class MessageContextMenu {
     final isFailed = event.status.isError;
 
     return <PopupMenuEntry<MessageContextAction>>[
-      // ─── Failed-send group (only for events stuck in error state) ───
+      // --- Failed-send group (only for events stuck in error state) ---
       if (isFailed) ...[
         _menuItem(
           value: MessageContextAction.retry,
@@ -179,7 +179,7 @@ class MessageContextMenu {
         ),
         const PopupMenuDivider(),
       ],
-      // ─── Compose group ──────────────────────────────────────────────
+      // --- Compose group ----------------------------------------------
       _menuItem(
         value: MessageContextAction.react,
         icon: Icons.add_reaction_rounded,
@@ -242,7 +242,7 @@ class MessageContextMenu {
           color: cs.error,
         ),
       ],
-      // ─── Sender group ───────────────────────────────────────────────
+      // --- Sender group -----------------------------------------------
       const PopupMenuDivider(),
       _menuItem(
         value: MessageContextAction.openProfile,
@@ -272,7 +272,7 @@ class MessageContextMenu {
           color: cs.error,
         ),
       ],
-      // ─── Details group ──────────────────────────────────────────────
+      // --- Details group ----------------------------------------------
       const PopupMenuDivider(),
       _menuItem(
         value: MessageContextAction.details,
@@ -346,7 +346,7 @@ class MessageContextMenu {
     }
   }
 
-  // ─── Build a single PopupMenuItem ───────────────────────────────────────
+  // --- Build a single PopupMenuItem ---------------------------------------
 
   static PopupMenuItem<MessageContextAction> _menuItem({
     required MessageContextAction value,
@@ -366,7 +366,7 @@ class MessageContextMenu {
     );
   }
 
-  // ─── Show menu overlay ─────────────────────────────────────────────────
+  // --- Show menu overlay -------------------------------------------------
 
   /// Shows the context menu anchored at [position] (in global coordinates).
   ///
@@ -594,9 +594,9 @@ class MessageContextMenu {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 //  Overlay popup
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// The actual popup widget rendered inside the overlay.
 ///
@@ -852,10 +852,10 @@ class _MenuCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ─── Quick actions row ────────────────────────────────────
+            // --- Quick actions row ------------------------------------
             quickActions,
             const Divider(height: 1, thickness: 1),
-            // ─── Scrollable menu list ─────────────────────────────────
+            // --- Scrollable menu list ---------------------------------
             Flexible(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(

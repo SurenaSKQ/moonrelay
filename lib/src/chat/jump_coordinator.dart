@@ -218,9 +218,10 @@ class JumpCoordinator {
     final position = scrollController.position;
     final range = position.maxScrollExtent - position.minScrollExtent;
     final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
-    final paddedOffset =
-        (position.minScrollExtent + range * fraction - position.viewportDimension * 0.33)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
+    final paddedOffset = (position.minScrollExtent +
+            range * fraction -
+            position.viewportDimension * 0.33)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
     scrollController.animateTo(
       paddedOffset,
       duration: const Duration(milliseconds: 300),
@@ -244,7 +245,7 @@ class JumpCoordinator {
     _highlightTimer = null;
   }
 
-  // ── Internals ────────────────────────────────────────────────
+  // -- Internals ------------------------------------------------
 
   /// Calls into [JumpToUnreadPager] with a narrow callback surface
   /// pulled from the parent's state.  Returns `true` if the marker
@@ -259,8 +260,8 @@ class JumpCoordinator {
         onHistoryAttemptEnd: () {},
         onHistoryError: (e) =>
             logger?.w('jumpToLastRead: history request failed', error: e),
-        onFutureError: (e) =>
-            logger?.w('jumpToLastRead: future-history request failed', error: e),
+        onFutureError: (e) => logger
+            ?.w('jumpToLastRead: future-history request failed', error: e),
       ),
     ).paginateUntilMarker(markerId);
   }
@@ -309,9 +310,10 @@ class JumpCoordinator {
     final position = scrollController.position;
     final range = position.maxScrollExtent - position.minScrollExtent;
     final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
-    final paddedOffset =
-        (position.minScrollExtent + range * fraction - position.viewportDimension * 0.33)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
+    final paddedOffset = (position.minScrollExtent +
+            range * fraction -
+            position.viewportDimension * 0.33)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
     scrollController.animateTo(
       paddedOffset,
       duration: const Duration(milliseconds: 300),

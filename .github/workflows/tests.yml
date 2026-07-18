@@ -33,7 +33,7 @@ env:
   RUST_TOOLCHAIN_PROFILE: minimal
 
 jobs:
-  # ── Static analysis (fast, runs on every push) ────────────────────
+  # -- Static analysis (fast, runs on every push) --------------------
   analyze:
     name: analyze-${{ matrix.os }}
     strategy:
@@ -77,7 +77,7 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
 
-  # ── Unit + widget tests ───────────────────────────────────────────
+  # -- Unit + widget tests -------------------------------------------
   unit:
     name: unit-${{ matrix.os }}
     needs: analyze
@@ -128,7 +128,7 @@ jobs:
       - run: flutter gen-l10n
       - run: flutter test test/unit/ test/widget/ --reporter=expanded
 
-  # ── Integration (E2E with mock Matrix client) ─────────────────────
+  # -- Integration (E2E with mock Matrix client) ---------------------
   integration:
     name: integration-${{ matrix.os }}
     needs: analyze
@@ -192,7 +192,7 @@ jobs:
         # On Windows runners the debug VM service can't attach reliably,
         # so integration tests are run manually by contributors — see CONTRIBUTING.md.
 
-  # ── Build smoke tests (release bundles) ───────────────────────────
+  # -- Build smoke tests (release bundles) ---------------------------
   build-linux:
     name: build-linux
     needs: [unit, integration]

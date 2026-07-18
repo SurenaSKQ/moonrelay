@@ -24,7 +24,7 @@ import 'package:http/http.dart' as http;
 /// Routes requests by method + path pattern.  Holds mutable state for sync
 /// tokens and room data so successive sync calls behave realistically.
 class MockMatrixHttpClient extends http.BaseClient {
-  // ── Route table ──────────────────────────────────────────────────
+  // -- Route table --------------------------------------------------
   final Map<Pattern, http.Response Function(http.Request)> _handlers = {};
 
   /// Register a handler for requests whose [pathRegExp] matches the URL path.
@@ -35,7 +35,7 @@ class MockMatrixHttpClient extends http.BaseClient {
     _handlers[pathRegExp] = handler;
   }
 
-  // ── Sync state ───────────────────────────────────────────────────
+  // -- Sync state ---------------------------------------------------
   int _nextBatchCounter = 0;
   String _baseBatchToken = 's0';
 
@@ -68,7 +68,7 @@ class MockMatrixHttpClient extends http.BaseClient {
     _rooms[roomId]?.timelineEvents.add(event);
   }
 
-  // ── Request dispatch ─────────────────────────────────────────────
+  // -- Request dispatch ---------------------------------------------
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -127,7 +127,7 @@ class MockMatrixHttpClient extends http.BaseClient {
     return req;
   }
 
-  // ── Pre-built sync response ──────────────────────────────────────
+  // -- Pre-built sync response --------------------------------------
 
   /// Build a Matrix sync response JSON map from the current room state.
   Map<String, dynamic> buildSyncResponse() {
@@ -216,7 +216,7 @@ class MockMatrixHttpClient extends http.BaseClient {
     return '${r.nextInt(99999999)}${DateTime.now().microsecondsSinceEpoch}';
   }
 
-  // ── Encryption fixtures ───────────────────────────────────────────
+  // -- Encryption fixtures -------------------------------------------
   //
   // Tests exercising the encryption flow (post-login bootstrap, the
   // devices screen, key backup, …) need a stable set of stubs for

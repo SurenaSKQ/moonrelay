@@ -49,7 +49,7 @@ Future<Widget> buildTestApp({
 }) async {
   SharedPreferences.setMockInitialValues({});
 
-  // ── 1. Native init (works on desktop test runner) ──────────
+  // -- 1. Native init (works on desktop test runner) ----------
   // Vodozemac (native crypto)  needed by Client.init()
   try {
     await vdz.init();
@@ -62,7 +62,7 @@ Future<Widget> buildTestApp({
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  // ── 2. Database (temp file, cleaned up on next run) ────────
+  // -- 2. Database (temp file, cleaned up on next run) --------
   final dbDir = await getTemporaryDirectory();
   final dbPath = '${dbDir.path}/moonrelay_e2e_test.db';
   final dbFile = File(dbPath);
@@ -77,7 +77,7 @@ Future<Widget> buildTestApp({
   );
   await sdkDb.open();
 
-  // ── 3. Matrix Client with mocked HTTP ─────────────────────
+  // -- 3. Matrix Client with mocked HTTP ---------------------
   final client = Client(
     'Moonrelay (E2E Test)',
     httpClient: mockHttp,
@@ -89,7 +89,7 @@ Future<Widget> buildTestApp({
   );
   await client.init();
 
-  // ── 4. Services ───────────────────────────────────────────
+  // -- 4. Services -------------------------------------------
   final log = Logger();
   final settingsController = SettingsController(SettingsService());
   await settingsController.loadSettings();
@@ -126,7 +126,7 @@ Future<Widget> buildTestApp({
     return newClient;
   };
 
-  // ── 5. Build provider tree (matches main.dart exactly) ────
+  // -- 5. Build provider tree (matches main.dart exactly) ----
   return MultiProvider(
     providers: [
       Provider<Client>.value(value: client),

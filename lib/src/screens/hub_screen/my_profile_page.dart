@@ -28,9 +28,9 @@ import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // My Profile Page
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubMyProfilePage extends StatefulWidget {
   const HubMyProfilePage({super.key, required this.client});
@@ -292,8 +292,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     // Read the debounced sync pulse so we run a silent refresh on every
     // coalesced tick instead of every raw sync event. The hub is always
     // mounted inside the account-aware router so the pulse is in scope.
-    final pulseVersion =
-        context.select<SyncPulse, int>((p) => p.version);
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
       if (!_loading) _silentRefresh();
@@ -316,7 +315,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Avatar + name header ────────────────────────────────
+          // -- Avatar + name header --------------------------------
           Row(
             children: [
               GestureDetector(
@@ -445,7 +444,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
           const Divider(),
           const SizedBox(height: 24),
 
-          // ── Display Name ────────────────────────────────────────
+          // -- Display Name ----------------------------------------
           Text(
             l10n.displayName,
             style: const TextStyle(
@@ -476,7 +475,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
 
           const SizedBox(height: 24),
 
-          // ── User ID (read-only) ────────────────────────────────
+          // -- User ID (read-only) --------------------------------
           Text(
             l10n.userIDLabel,
             style: const TextStyle(
@@ -506,7 +505,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
           const Divider(),
           const SizedBox(height: 24),
 
-          // ── Presence ───────────────────────────────────────────
+          // -- Presence -------------------------------------------
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

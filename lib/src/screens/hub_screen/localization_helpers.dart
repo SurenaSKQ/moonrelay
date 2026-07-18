@@ -19,7 +19,7 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 
-// ── Localization helpers ────────────────────────────────────────────────────
+// -- Localization helpers ----------------------------------------------------
 
 String localizedThemeOption(
     MoonrelayThemeOption option, AppLocalizations l10n) {
@@ -54,8 +54,7 @@ String localizedLeftPaneChoice(LeftPaneChoice choice, AppLocalizations l10n) {
   }
 }
 
-String localizedRightPaneChoice(
-    RightPaneChoice choice, AppLocalizations l10n) {
+String localizedRightPaneChoice(RightPaneChoice choice, AppLocalizations l10n) {
   switch (choice) {
     case RightPaneChoice.none:
       return l10n.paneNone;
@@ -70,8 +69,7 @@ String localizedRightPaneChoice(
   }
 }
 
-String localizedLayoutDensity(
-    LayoutDensity density, AppLocalizations l10n) {
+String localizedLayoutDensity(LayoutDensity density, AppLocalizations l10n) {
   switch (density) {
     case LayoutDensity.comfortable:
       return l10n.densityComfortable;
@@ -92,8 +90,7 @@ String localizedAutoDownloadPolicy(
   }
 }
 
-String localizedSendShortcut(
-    SendShortcut shortcut, AppLocalizations l10n) {
+String localizedSendShortcut(SendShortcut shortcut, AppLocalizations l10n) {
   switch (shortcut) {
     case SendShortcut.enter:
       return l10n.sendShortcutEnter;
@@ -104,8 +101,7 @@ String localizedSendShortcut(
   }
 }
 
-String localizedTrayClickAction(
-    TrayClickAction action, AppLocalizations l10n) {
+String localizedTrayClickAction(TrayClickAction action, AppLocalizations l10n) {
   switch (action) {
     case TrayClickAction.toggle:
       return l10n.trayClickToggle;

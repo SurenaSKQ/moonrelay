@@ -161,7 +161,7 @@ jobs:
           echo "VERSION=$VERSION" > "$STAGE/.version"
           echo "STAGE=$STAGE" >> "$GITHUB_ENV"
 
-      # ── Build .deb on ubuntu-jammy container ───────────────────────
+      # -- Build .deb on ubuntu-jammy container -----------------------
       - name: Build .deb (Ubuntu)
         if: matrix.toolchain == 'ubuntu-jammy'
         run: |
@@ -202,7 +202,7 @@ jobs:
           dpkg-deb --info "$DEB"
           dpkg-deb --contents "$DEB" | head -n40
 
-      # ── Build .rpm on fedora container ────────────────────────────
+      # -- Build .rpm on fedora container ----------------------------
       - name: Install rpm-build (Fedora)
         if: matrix.toolchain == 'fedora-39'
         run: |

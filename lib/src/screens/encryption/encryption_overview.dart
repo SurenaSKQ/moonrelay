@@ -98,7 +98,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
     final body = ListView(
       padding: const EdgeInsets.all(16),
       children: [
-          // ── Recovery key reminder ───────────────────────────────────
+          // -- Recovery key reminder -----------------------------------
           // Shown when cross-signing is bootstrapped but the user has
           // not yet confirmed they have saved the recovery key. The
           // banner is dismissable so it can be hidden for the rest
@@ -110,7 +110,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               loc: loc,
               scheme: scheme,
             ),
-          // ── Cross-signing section ──────────────────────────────────────
+          // -- Cross-signing section --------------------------------------
           _SectionHeader(
             icon: LucideIcons.shield,
             title: loc.encryptionCrossSigning,
@@ -196,7 +196,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── Setup benefits checklist (shown when not yet bootstrapped) ──
+          // -- Setup benefits checklist (shown when not yet bootstrapped) --
           if (!enc.crossSigningBootstrapped) ...[
             _SectionHeader(
               icon: LucideIcons.lightbulb,
@@ -233,7 +233,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
             const SizedBox(height: 16),
           ],
 
-          // ── Devices section ──────────────────────────────────────────
+          // -- Devices section ------------------------------------------
           _SectionHeader(
             icon: LucideIcons.smartphone,
             title: loc.encryptionDevices,
@@ -261,7 +261,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── Key backup section ────────────────────────────────────────
+          // -- Key backup section ----------------------------------------
           _SectionHeader(
             icon: LucideIcons.cloud,
             title: loc.encryptionKeyBackup,
@@ -346,7 +346,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── Verify other users section ────────────────────────────────
+          // -- Verify other users section --------------------------------
           _SectionHeader(
             icon: LucideIcons.users,
             title: loc.encryptionVerifiedUsers,
@@ -354,7 +354,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           _buildUnverifiedCount(context, enc, scheme, loc),
           const SizedBox(height: 16),
 
-          // ── Local data section ─────────────────────────────────────
+          // -- Local data section -------------------------------------
           // Sensitive: the export contains the pickled olm account
           // and must be triggered explicitly.  The button copy makes
           // this clear and the action writes to a user-chosen file

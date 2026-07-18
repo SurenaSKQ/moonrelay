@@ -26,9 +26,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/app_version.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // About Page
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A page in the hub showing app information, version, and support links.
 class HubAboutPage extends StatelessWidget {
@@ -46,7 +46,7 @@ class HubAboutPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── App identity card ─────────────────────────────────────
+          // -- App identity card -------------------------------------
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -95,7 +95,7 @@ class HubAboutPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── Repository ───────────────────────────────────────────
+          // -- Repository -------------------------------------------
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -158,7 +158,7 @@ class HubAboutPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── Moonrelay Support ────────────────────────────────────
+          // -- Moonrelay Support ------------------------------------
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(

@@ -44,19 +44,19 @@ class ProfileDelegate extends StatelessWidget {
     final Logger log = Provider.of<Logger>(context, listen: false);
     final l10n = AppLocalizations.of(context)!;
 
-    // ── Null / empty check ──────────────────────────────────────
+    // -- Null / empty check --------------------------------------
     if (userid == null || userid!.isEmpty) {
       _showError(context, log, l10n.profileIdNullError);
       return const SizedBox.shrink();
     }
 
-    // ── Format validation ────────────────────────────────────────
+    // -- Format validation ----------------------------------------
     if (!_userIdPattern.hasMatch(userid!)) {
       _showError(context, log, l10n.profileIdInvalid('$userid'));
       return const SizedBox.shrink();
     }
 
-    // ── Look up the user to verify they exist ────────────────────
+    // -- Look up the user to verify they exist --------------------
     // `getUserFromMemory` returns null if the user has never been seen
     // in any joined room, but a valid Matrix ID may still exist on the
     // server.  We use the cached profile as a best-effort existence check.

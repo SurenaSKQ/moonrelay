@@ -119,7 +119,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
               color: theme.colorScheme.surface,
               child: Row(
                 children: <Widget>[
-                  // ── Leading slot ───────────────────────────────
+                  // -- Leading slot -------------------------------
                   if (!isCompact) const _HeaderProfile(),
                   IconButton(
                     icon: Icon(LucideIcons.command, size: iconSize),
@@ -139,7 +139,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
                       child: sidebarToggle,
                     ),
 
-                  // ── Draggable title area ────────────────────────
+                  // -- Draggable title area ------------------------
                   Expanded(
                     child: DragToMoveArea(
                       child: SizedBox(
@@ -154,7 +154,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
                     ),
                   ),
 
-                  // ── Trailing slot ──────────────────────────────
+                  // -- Trailing slot ------------------------------
                   if (reversed)
                     Padding(
                       padding: const EdgeInsetsDirectional.only(end: 4),

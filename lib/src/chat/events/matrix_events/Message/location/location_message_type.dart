@@ -71,7 +71,7 @@ class LocationMessageType extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header ───────────────────────────────────────────────────
+          // -- Header ---------------------------------------------------
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
             child: Row(
@@ -119,7 +119,7 @@ class LocationMessageType extends StatelessWidget {
             ),
           ),
 
-          // ── Body / metadata ──────────────────────────────────────────
+          // -- Body / metadata ------------------------------------------
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             child: Row(

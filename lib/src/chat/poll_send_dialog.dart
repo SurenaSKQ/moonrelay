@@ -76,8 +76,10 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
   Future<void> _send() async {
     final l10n = AppLocalizations.of(context)!;
     final question = _questionController.text.trim();
-    final options =
-        _optionControllers.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+    final options = _optionControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
     if (question.isEmpty || options.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +149,7 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Question ──────────────────────────────────────────────
+              // -- Question ----------------------------------------------
               TextField(
                 controller: _questionController,
                 autofocus: true,
@@ -159,7 +161,7 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ── Options ───────────────────────────────────────────────
+              // -- Options -----------------------------------------------
               Text(
                 l10n.pollOptions,
                 style: TextStyle(

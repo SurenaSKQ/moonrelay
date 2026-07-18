@@ -42,11 +42,11 @@ The MSIX four-quad handling is documented in `package-windows.yml`
 ## 2. Branches and tags
 
 ```
-main (stable; PRs land here)         ── protected, requires CI green
-└── feature/...                       ── short-lived
-develop (integration)                 ── default branch in the repo today
-└── feature/...
-tag vX.Y.Z                            ── immutable, triggers release.yml
+main (stable; PRs land here)         -- protected, requires CI green
+└-- feature/...                       -- short-lived
+develop (integration)                 -- default branch in the repo today
+└-- feature/...
+tag vX.Y.Z                            -- immutable, triggers release.yml
 ```
 
 When `develop` is promoted to `main`, we make sure the merged commit

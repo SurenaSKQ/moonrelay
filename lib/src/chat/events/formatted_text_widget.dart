@@ -130,16 +130,19 @@ class FormattedTextWidget extends StatelessWidget {
         (other) => m.start < other.end && m.end > other.start,
       );
       if (overlaps) continue;
-      matches.add(_PlainMatch(m.start, m.end, _PlainTokenKind.url, m.group(0)!));
+      matches
+          .add(_PlainMatch(m.start, m.end, _PlainTokenKind.url, m.group(0)!));
     }
     matches.sort((a, b) => a.start.compareTo(b.start));
 
     int cursor = 0;
     for (final m in matches) {
       if (m.start > cursor) {
-        tokens.add(_PlainToken(_PlainTokenKind.plain, text.substring(cursor, m.start)));
+        tokens.add(_PlainToken(
+            _PlainTokenKind.plain, text.substring(cursor, m.start)));
       }
-      tokens.add(_PlainToken(m.kind, text.substring(m.start, m.end), payload: m.payload));
+      tokens.add(_PlainToken(m.kind, text.substring(m.start, m.end),
+          payload: m.payload));
       cursor = m.end;
     }
     if (cursor < text.length) {
@@ -800,8 +803,7 @@ class _HtmlTagParser {
     final items = <List<InlineSpan>>[];
     var cur = <InlineSpan>[];
     for (final s in spans) {
-      final isNewline =
-          s is TextSpan && (s.text == '\n' || s.text == null);
+      final isNewline = s is TextSpan && (s.text == '\n' || s.text == null);
       if (isNewline && cur.isNotEmpty) {
         items.add(cur);
         cur = [];
@@ -916,7 +918,7 @@ class _HtmlTagParser {
   }
 }
 
-// ── Plain-text linkification helpers ─────────────────────────────────────
+// -- Plain-text linkification helpers -------------------------------------
 
 enum _PlainTokenKind { plain, url, mention }
 

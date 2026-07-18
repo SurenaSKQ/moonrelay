@@ -170,7 +170,7 @@ class ReadMarkerTracker {
     _lastSeenDebouncer.cancel();
   }
 
-  // ── Internals ────────────────────────────────────────────────
+  // -- Internals ------------------------------------------------
 
   Future<void> _sendReadMarker(String latestId) async {
     try {

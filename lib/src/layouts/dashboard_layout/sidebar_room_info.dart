@@ -30,7 +30,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/common/status_card.dart';
 
-// ─── Room Info sidebar content ─────────────────────────────────────────────
+// --- Room Info sidebar content ---------------------------------------------
 
 /// Shows a concise room-information panel in the right sidebar.
 ///
@@ -53,7 +53,7 @@ class SidebarRoomInfo extends StatefulWidget {
 }
 
 class SidebarRoomInfoState extends State<SidebarRoomInfo> {
-  // ── Cached derived state ─────────────────────────────────────────
+  // -- Cached derived state -----------------------------------------
   // Each field is paired with a `_last*` value so the state-event
   // listener can do a no-op setState when nothing visible actually
   // changed (the room can emit many state events per minute; we only
@@ -266,7 +266,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
 
           const SizedBox(height: 24),
 
-          // ── Pinned messages section ─────────────────────────────────
+          // -- Pinned messages section ---------------------------------
           PinnedSection(room: widget.room),
         ],
       ),
@@ -313,7 +313,7 @@ class InfoRow extends StatelessWidget {
   }
 }
 
-// ─── Pinned messages section (embedded in room info) ───────────────────────
+// --- Pinned messages section (embedded in room info) -----------------------
 
 /// A compact pinned-messages section rendered inside the room-info sidebar.
 ///
@@ -415,7 +415,7 @@ class PinnedSectionState extends State<PinnedSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Section header ─────────────────────────────────────────
+        // -- Section header -----------------------------------------
         InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () {

@@ -1,4 +1,4 @@
-# ── Moonrelay ──────────────────────────────────────────────────────────
+# -- Moonrelay ----------------------------------------------------------
 # Force Unix line endings for tooling so dpkg-deb/rpmbuild/MakeAppx
 # steps see LF inside shell scripts, then default to LF elsewhere
 # (Markdown/YAML) but native for Windows runner binaries.
