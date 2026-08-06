@@ -114,6 +114,17 @@ void main() {
     );
   });
 
+  /// Waits (with a bound) until [text] is present in the tree.
+  ///
+  /// Post-login processing (device keys, first sync) takes longer under
+  /// matrix 9.0.0, so rooms can take a few seconds to populate.
+  Future<void> waitForText(WidgetTester tester, String text) async {
+    final finder = find.text(text);
+    for (var i = 0; i < 50 && finder.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
   // -----------------------------------------------------------------
   // Tests
   // -----------------------------------------------------------------
@@ -137,7 +148,7 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
@@ -145,6 +156,7 @@ void main() {
       await tester.pump();
 
       // -- Verify room is visible --
+      await waitForText(tester, testRoomName);
       expect(find.text(testRoomName), findsWidgets);
       // The topic might also be visible in the sidebar or header
       expect(find.text(testRoomTopic), findsWidgets);
@@ -168,7 +180,7 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
@@ -176,6 +188,7 @@ void main() {
       await tester.pump();
 
       // -- Tap on the room in the sidebar --
+      await waitForText(tester, testRoomName);
       await tester.tap(find.text(testRoomName).last);
       await tester.pump();
       await tester.pump();
@@ -205,7 +218,7 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
@@ -213,6 +226,7 @@ void main() {
       await tester.pump();
 
       // -- Tap on the room in the sidebar --
+      await waitForText(tester, testRoomName);
       await tester.tap(find.text(testRoomName).last);
       await tester.pump();
       await tester.pump();

@@ -127,7 +127,7 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
@@ -135,7 +135,14 @@ void main() {
       await tester.pump();
 
       // Verify we landed on the dashboard with our room visible.
-      expect(find.text(testRoomName), findsWidgets);
+      // Post-login processing (device keys, first sync) takes longer
+      // under matrix 9.0.0, so wait for the room to populate instead
+      // of asserting on the first frames.
+      final roomFinder = find.text(testRoomName);
+      for (var i = 0; i < 50 && roomFinder.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(roomFinder, findsWidgets);
 
       // -- Tap the profile header to open the hub overlay --
       // The header falls back to the Matrix ID when profile fetch 404s.
