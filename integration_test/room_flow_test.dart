@@ -70,6 +70,7 @@ void main() {
 
   setUp(() {
     mockHttp = MockMatrixHttpClient();
+    mockHttp.configureSendHandlers();
 
     // One room with a few messages in the timeline
     mockHttp.addRoom(
@@ -184,6 +185,65 @@ void main() {
       // The messages pre-populated in sync should be visible
       expect(find.text('Hey team, check the new PR'), findsWidgets);
       expect(find.text('On it!'), findsWidgets);
+    });
+
+    testWidgets('sending a message shows it in the timeline', (tester) async {
+      configureLoginHandlers();
+      await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- Login --
+      await tester.tap(find.text('Sign In'));
+      await tester.pump();
+      await tester.pump();
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'testuser');
+      await tester.pump();
+      await tester.enterText(fields.at(2), 'password123');
+      await tester.pump();
+
+      await tester.tap(find.text('Sign in'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- Tap on the room in the sidebar --
+      await tester.tap(find.text(testRoomName).last);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- ChatBox should now be visible with a send button --
+      final sendButton = find.bySemanticsLabel('Send');
+      expect(sendButton, findsOneWidget);
+
+      // -- Type a message into the ChatBox text field --
+      const message = 'Hello from the integration test!';
+      final chatField = find.byType(TextField).last;
+      await tester.enterText(chatField, message);
+      await tester.pump();
+
+      // -- Tap the send button --
+      await tester.tap(sendButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+
+      // -- Verify the sent message appears in the timeline (local echo) --
+      expect(find.text(message), findsWidgets);
+
+      // -- Verify the mock HTTP client captured the request --
+      expect(mockHttp.sentMessages.length, greaterThan(0));
+      expect(
+        mockHttp.sentMessages.first['body'],
+        message,
+      );
     });
   });
 }
