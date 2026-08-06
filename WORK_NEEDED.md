@@ -212,3 +212,126 @@ Extremely long-term; listed here to keep the design flexible.
 
 
 See WORK_DONE.md for the closed-work ledger.
+
+
+6. Feature catalogue (aka wishlist of what we need)
+
+6.1 VoIP / WebRTC calls
+(Need to investigate how matrix-dart sdk and Fluffychat handle any of these)
+What we are missing:
+- Voice calls (1:1): no m.call invite/hangup/answer anywhere. Entirely missing.
+- Video calls (1:1): same gap. No camera track support for calls.
+- Group calls: no MSC3401 or native group VoIP.
+- Screen sharing: no desktop-capture integration.
+- Call history: no m.call event renderer in the timeline.
+
+6.2 Location & maps
+
+- Embedded map display: location_message_type.dart renders lat/lon as
+  monospace text + an "Open in Maps" button. There is no map tile
+  renderer (OSM / MapLibre / google_maps_flutter). See
+  lib/src/chat/events/matrix_events/Message/location/location_message_type.dart.
+- Map picker in composer: share_location_dialog.dart reads current GPS
+  position only. No interactive map to pick a point or search a POI.
+  See lib/src/chat/share_location_dialog.dart.
+
+6.3 Composer & messaging
+
+- Slash commands: only /me and /shrug exist. Missing /join, /leave,
+  /nick, /topic, /flip, /tableflip, /html, etc. See
+  lib/src/chat/chat_box.dart.
+- Emoji auto-complete: no :smile: -> smiley conversion while typing.
+- Rich text / WYSIWYG editor: composer inserts Markdown syntax only.
+  No live preview or rich-text editing mode.
+- Link previews: URL messages render as plain text. No inline preview
+  card (Open Graph / oEmbed) for links shared in chat.
+- Scheduled / send-later messages: no future-delivery affordance.
+- Message effects: no birthday, fireworks, or confetti overlays.
+- Message translations: no "Translate" action on messages.
+- Message bookmarks: no local bookmark/star collection for messages.
+- Voice message playback: received audio from other users shows the
+  generic audio player (scrub + play). No dedicated voice-message UI
+  with speed control or waveform. See
+  lib/src/chat/events/matrix_events/Message/audio/audio_message_type.dart.
+- Custom emoji / sticker packs: sticker picker exists but no
+  upload/import/management UI for custom sets. See
+  lib/src/chat/chat_box_sticker_picker.dart.
+
+6.4 Rooms & spaces
+
+- Invite-to-room dialog: no dedicated invite dialog in the room header.
+  Invite is only accessible from the user profile page
+  (lib/src/screens/user_profile.dart:830) and room settings
+  (lib/src/screens/room_settings_page.dart:1729). Create a standalone
+  InviteDialog with user search + multi-select + reason field.
+- Space creation wizard: no guided flow for creating spaces with name,
+  avatar, purpose, and initial child rooms. See
+  lib/src/screens/space_settings_page.dart.
+- Space membership management: no UI to browse/manage space members,
+  approve/deny space membership requests.
+- Space drag-reorder in navigation pane: no drag-to-reorder spaces.
+  Persisted locally. See lib/src/widgets/spaces_pane.dart.
+- Room tagging / labels: no custom tag system. Rooms are organised by
+  space membership only.
+- Room directory favourites: no local star/bookmark for public rooms.
+- Room upgrade flow: m.room.tombstone creation and guided re-join are
+  not wired in the UI. See
+  lib/src/screens/room_settings_page.dart.
+- Power level matrix editor: per-user power levels are set via
+  individual dialogs. No grid view of all users x permission levels.
+  See lib/src/screens/room_settings_page.dart.
+
+6.5 Platform & integration
+
+- Matrix widget support: no embedded widget URLs (Etherpad, Jitsi,
+  etc.). The SDK can fire widget-open events but there is no renderer.
+- Bridge management UI: no UI for viewing or managing Matrix bridges
+  (Telegram, WhatsApp, Slack, IRC).
+- Drag-and-drop file upload: desktop client has no drag-to-attach on
+  the chat area.
+- Auto-start on boot: no "Launch at system startup" preference.
+- App lock / passcode: no local unlock on app resume.
+- Spell check in composer: no OS spell-checker integration.
+- Offline / low-connectivity mode: no graceful degradation when the
+  network is down. Sends throw errors instead of queueing.
+- Export chat history: no export-to-file (JSON / HTML / plain text).
+- Accessibility pass: no systematic screen-reader, contrast, or
+  keyboard-navigation audit.
+
+6.6 Encryption & security
+
+- Self-verification badge: no per-device trust indicator in the user's
+  own device list that explains whether this session is verified.
+- Verified identity badge: no verified checkmark next to user display
+  names in timeline messages (only available in the sidebar / profile).
+- Message-level encryption info: no per-message "encrypted with..."
+  info popup showing algorithm, session ID, and sender device.
+- Security audit log: no log of verification events, device additions,
+  or key backup state changes.
+
+6.7 Internationalization
+
+- Language coverage: only English (app_en.arb) and Persian/Farsi
+  (app_fa.arb). No DE, FR, ES, JA, ZH, RU, PT, IT, KO, AR, NL, PL,
+  SV, TR, VI, or TH. See lib/src/localization/.
+
+6.8 Testing
+
+- Settings page widget tests: 14 settings UI pages in
+  lib/src/screens/hub_screen/settings/ have zero widget test coverage.
+  Only unit tests exist for the settings model layer.
+- Integration tests for room operations: invite, kick, ban, room
+  creation, space creation are not covered by integration_test/.
+- L10n smoke tests: no automated check that every .arb key renders
+  without crash in both languages across all screens.
+- Performance benchmark suite: no regression benchmarks for timeline
+  scroll, startup time, sync processing, or memory pressure.
+
+6.9 Refactor candidates (from audit)
+
+- VoIP wiring surface: pubspec.yaml needs dart_webrtc, flutter_webrtc,
+  and a Matrix call transport package before any call feature can ship.
+- Location map surface: pubspec.yaml needs a map rendering package
+  (map_launcher already exists for "Open in Maps").
+- Composer expansion surface: slash-command registry and emoji-complete
+  engine would share a common autocomplete widget.
