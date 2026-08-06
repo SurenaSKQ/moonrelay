@@ -163,7 +163,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
 
     final result = await withRetry(
       () => client.joinRoom(roomidOrAlias,
-          serverName: server != null && server.isNotEmpty ? [server] : null),
+          via: server != null && server.isNotEmpty ? [server] : null),
       maxRetries: 1,
       timeout: kDefaultTimeout,
       log: log,
