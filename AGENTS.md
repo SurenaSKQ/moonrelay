@@ -182,6 +182,42 @@ final result = await withRetry(() => someOperation(), log: log, label: 'op');
 - Access via `AppLocalizations.of(context)!` (stored as `l10n` local var)
 - Every user-facing string should be in the .arb file
 
+## Documentation & Commit Hygiene
+
+### Keep the auxiliary files current
+
+Every change that ships a fix, feature, or notable refactor MUST also
+update the work ledgers, or the commit is not done:
+
+- **WORK_DONE.md**: add a new numbered section describing what shipped.
+  Follow the existing format: a section title, a short paragraph on the
+  problem and why it happened, bullet points anchored to specific files
+  (`lib/src/...`, `integration_test/...`), and a "Tests at head:" line
+  with the current `flutter test` / `flutter analyze` state. Update the
+  intro paragraph and "Known-fail tests" count when they change.
+- **WORK_NEEDED.md**: add an item (anchored to a `file:line` or file
+  path) whenever you discover open work, known gaps, or test
+  breakage you are not fixing in the same change.
+
+Write the ledgers in the same style as existing entries: prose-first,
+explaining the *why*, never a bare list of file names.
+
+### Commit style
+
+Match the repository's established commit style (see `git log`):
+
+- Subject line in **imperative mood, capitalized, no conventional
+  prefixes** (no `fix:`, `feat:`, `chore:`). Examples from history:
+  "Add feature catalogue to WORK_NEEDED", "Rework layout shell into a
+  shared sticky state machine", "Fix integration test boot helper:
+  provide DeepLinkService".
+- Subject line under 72 characters, describing the outcome for a
+  reader, not the internal details ("Add integration test for logging
+  out from the dashboard", not "Add logout_test.dart").
+- Body is optional; use it when the subject cannot carry the *why*.
+  Multi-part changes get short bullets. Wrap body lines at ~72 columns.
+- Never use '—' (the project rule above applies to commits too).
+
 ## Testing
 
 ### Organization

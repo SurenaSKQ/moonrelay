@@ -322,6 +322,13 @@ What we are missing:
   Only unit tests exist for the settings model layer.
 - Integration tests for room operations: invite, kick, ban, room
   creation, space creation are not covered by integration_test/.
+- Integration test mock gaps: room_flow_test and logout_test still
+  404 on unmocked endpoints after login (`/devices`, room
+  `/messages` pagination, `/read_markers`), and the second test in a
+  file can hit "attempt to write a readonly database" on the shared
+  temp DB during teardown of the previous test's client. See
+  integration_test/room_flow_test.dart and
+  integration_test/helpers/test_app_boot.dart.
 - L10n smoke tests: no automated check that every .arb key renders
   without crash in both languages across all screens.
 - Performance benchmark suite: no regression benchmarks for timeline

@@ -22,7 +22,8 @@ have shipped or been fixed. The current entries cover the July 2026 audit
 pass, the August 2026 performance/memory follow-up, the media widget polish
 pass, the recent UX fix-up pass, the chat-timeline scroll-performance
 pass, the chat-timeline scroll-velocity second pass, the
-hoverbar rearchitecture, and the responsive-layout shell rework.
+hoverbar rearchitecture, the responsive-layout shell rework, and the
+shell-flip navigation leak fix.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1620,3 +1621,66 @@ login and are unrelated to this change.
 
 
 
+17. Shell-flip navigation leak fix (the "hang after a while" bug)
+
+The app could appear to hang after a few window resizes or layout-mode
+switches. The root cause was in the shell-flip re-navigation added by
+the layout shell rework: when the mobile/dashboard shell flipped,
+_AdaptiveMainLayout called _navigateToActiveRoom, which refreshed the
+route by pushing the current URL and popping it in a whenComplete
+callback. But GoRouter.push()'s future only completes when the pushed
+page is popped, and the only pop lived inside that whenComplete, so it
+never ran. Every flip pushed a full duplicate page (a second live
+/room page with its own ChatTimeline, room subscriptions, scroll
+listeners, and read-marker pipeline) onto the route stack, never
+disposed. After enough flips the app had several live timelines all
+rebuilding on every room update, progressively wedging the UI with no
+exception thrown.
+
+- The refresh no longer navigates at all. _roomsListPageBuilder wraps
+  its child in a ListenableBuilder on the shared LayoutShellController,
+  so the mobile/dashboard page child rebuilds reactively the same frame
+  the shell commits. The stale-child problem the push/pop hack was
+  papering over is gone by construction. See lib/src/router.dart.
+
+- _navigateToActiveRoom is now a plain GoRouter.go(target); the
+  never-pop push()/whenComplete() machinery was deleted. See
+  lib/src/router.dart.
+
+- MoonrelayApp.moonrouter was a static GoRouter shared by every app
+  instance. In the E2E suite that leaked route state (and the mounted
+  pages with their open database connections) from one test into the
+  next, which is what produced the "2 widgets with text Sign In"
+  ambiguity and the readonly-database cascade on the shared temp DB.
+  The router is now an instance field created per State and disposed
+  with it. See lib/src/app.dart.
+
+- Regression test: integration_test/hang_repro_test.dart drives 200
+  sustained sync ticks (each delivering a new event) plus 20 forced
+  resizes across all three layout boundaries, then asserts the frame
+  pipeline stays live and the room page is not duplicated on the
+  navigator stack. With the old code the room page was duplicated 5+
+  times after the flips; with the fix it stays at 2-3 (sidebar +
+  header). See integration_test/hang_repro_test.dart.
+
+matrix 9.0.0 broke the E2E login flow, which surfaced while wiring the
+reproduction: Client.checkHomeserver now fails non-retryably when
+/_matrix/client/versions 404s, OlmManager.init throws "Upload key
+failed" unless the /keys/upload response echoes the number of signed
+one-time keys inside one_time_key_counts.signed_curve25519, and every
+sync tick fails inside Client.updateUserDeviceKeys when /keys/query
+404s (which re-arms the background sync loop immediately, burning
+CPU). The MockMatrixHttpClient now registers these as defaults
+(versions, sync filter, keys upload with a correct count echo, keys
+query, keys claim) so tests no longer need to repeat them. Pre-existing
+test-file bugs were also fixed: case-mismatched/ambiguous "Sign In"
+finders and missing post-login wait loops for the room to populate.
+See integration_test/helpers/mock_matrix_http_client.dart,
+integration_test/room_flow_test.dart, integration_test/logout_test.dart.
+
+Tests at head: flutter test 506 green (unit + widget), flutter analyze
+0 issues. integration_test/hang_repro_test.dart green (the leak
+regression test). The room-flow and logout E2E files still fail on
+remaining mock gaps that predate this work (unmocked /devices,
+/messages pagination, and /read_markers endpoints, plus a teardown
+race on the shared temp database); they are unrelated to the hang fix.
