@@ -32,6 +32,7 @@ import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
@@ -145,6 +146,7 @@ Future<Widget> buildTestApp({
       ChangeNotifierProvider<EncryptionService>.value(value: encryptionService),
       ChangeNotifierProvider<SpacePreferences>.value(value: spacePreferences),
       ChangeNotifierProvider<CurrentRoom>.value(value: currentRoom),
+      Provider<DeepLinkService>.value(value: DeepLinkService(log: log)),
     ],
     child: const MoonrelayApp(),
   );
