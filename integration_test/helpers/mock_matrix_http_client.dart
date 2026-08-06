@@ -24,8 +24,69 @@ import 'package:http/http.dart' as http;
 /// Routes requests by method + path pattern.  Holds mutable state for sync
 /// tokens and room data so successive sync calls behave realistically.
 class MockMatrixHttpClient extends http.BaseClient {
+  MockMatrixHttpClient() {
+    // matrix 9.0.0 made these endpoints hard requirements of the login
+    // flow: `Client.checkHomeserver` fails non-retryably when
+    // `/_matrix/client/versions` 404s, and the background sync refuses
+    // to start until the sync filter is defined.  Register sane defaults
+    // so tests don't have to repeat them; individual tests can still
+    // override via [on].
+    on(
+      RegExp(r'_matrix/client/versions'),
+      handler: (_) => _jsonResponse(200, {
+            'versions': ['v1.1', 'v1.2', 'v1.3', 'v1.4', 'v1.5', 'v1.6', 'v1.7'],
+          }),
+    );
+    on(
+      RegExp(r'_matrix/client/v3/user/[^/]+/filter'),
+      handler: (_) => _jsonResponse(200, {'filter_id': 'moonrelay_e2e_filter'}),
+    );
+    configureDeviceKeyHandlers();
+  }
+
   // -- Route table --------------------------------------------------
   final Map<Pattern, http.Response Function(http.Request)> _handlers = {};
+
+  /// Registers the device-key endpoints the SDK calls during login and
+  /// after every sync.  In matrix 9.0.0 these are load-bearing:
+  /// `OlmManager.init` throws "Upload key failed" when the keys upload
+  /// response does not echo the number of signed one-time keys, and
+  /// every sync tick fails inside `Client.updateUserDeviceKeys` (which
+  /// re-arms the background sync loop immediately, burning CPU) when
+  /// `/keys/query` 404s.
+  void configureDeviceKeyHandlers() {
+    final keysUploadRe = RegExp(r'_matrix/client/v3/keys/upload');
+    registerRoute(keysUploadRe, (req) {
+      int signedOtkCount = 0;
+      try {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        final oneTimeKeys = body['one_time_keys'];
+        if (oneTimeKeys is Map) {
+          signedOtkCount = oneTimeKeys.keys
+              .where((k) => k.toString().startsWith('signed_curve25519:'))
+              .length;
+        }
+      } catch (_) {
+        // Non-JSON body; a zero count makes the SDK treat the upload as
+        // successful (it compares the echo against the keys it sent).
+      }
+      return _jsonResponse(200, {
+        // uploadKeys() returns `one_time_key_counts` to the caller, and
+        // OlmManager compares its `signed_curve25519` entry against the
+        // number of keys it sent.
+        'one_time_key_counts': {'signed_curve25519': signedOtkCount},
+      });
+    });
+
+    registerRoute(
+      RegExp(r'_matrix/client/v3/keys/query'),
+      (req) => _jsonResponse(200, {'device_keys': {}, 'failures': {}}),
+    );
+    registerRoute(
+      RegExp(r'_matrix/client/v3/keys/claim'),
+      (req) => _jsonResponse(200, {'one_time_keys': {}, 'failures': {}}),
+    );
+  }
 
   /// Register a handler for requests whose [pathRegExp] matches the URL path.
   void on(
@@ -247,11 +308,6 @@ class MockMatrixHttpClient extends http.BaseClient {
             'url': null,
           }
         ];
-
-    // Upload device keys (initial sync handshake).
-    final keysUploadRe = RegExp(r'_matrix/client/v3/keys/upload');
-    registerRoute(
-        keysUploadRe, (req) => _jsonResponse(200, {'one_time_key_counts': {}}));
 
     // Cross-signing keys upload  accept whatever the SDK sends.
     final signingKeysRe = RegExp(
