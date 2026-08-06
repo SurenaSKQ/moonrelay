@@ -266,6 +266,54 @@ class MockMatrixHttpClient extends http.BaseClient {
     );
   }
 
+  // -- Message send / redact / typing fixtures -----------------------
+  //
+  // Handlers for the chat composer so integration tests can send and
+  // redact messages through the real ChatBox widget.  Sent messages
+  // are captured in [sentMessages] for test assertions.
+
+  /// Installs handlers for sending messages and typing indicators.
+  ///
+  /// Call this from `setUp` or `configureLoginHandlers` so the ChatBox
+  /// can actually send text (and the SDK does not get 404 errors on
+  /// the typing PUT).
+  void configureSendHandlers() {
+    // Send: PUT /rooms/{roomId}/send/{eventType}/{txnId}
+    registerRoute(
+      RegExp(r'_matrix/client/v3/rooms/[^/]+/send/'),
+      (req) {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        final eventId = '\$sent_${_randomId()}';
+        _sentMessages.add(body);
+        return _jsonResponse(200, <String, dynamic>{'event_id': eventId});
+      },
+    );
+
+    // Typing: PUT /rooms/{roomId}/typing/{userId}
+    registerRoute(
+      RegExp(r'_matrix/client/v3/rooms/[^/]+/typing/'),
+      (_) => _jsonResponse(200, <String, dynamic>{}),
+    );
+
+    // Redact: PUT /rooms/{roomId}/redact/{eventId}/{txnId}
+    registerRoute(
+      RegExp(r'_matrix/client/v3/rooms/[^/]+/redact/'),
+      (_) => _jsonResponse(200, <String, dynamic>{'event_id': r'$redacted'}),
+    );
+
+    // Logout: POST /_matrix/client/v3/logout
+    registerRoute(
+      RegExp(r'_matrix/client/v3/logout$'),
+      (_) => _jsonResponse(200, <String, dynamic>{}),
+    );
+  }
+
+  /// Messages sent through the mock send handler, captured for test
+  /// verification.  Reset between tests by creating a fresh mock.
+  List<Map<String, dynamic>> get sentMessages =>
+      List<Map<String, dynamic>>.unmodifiable(_sentMessages);
+  final List<Map<String, dynamic>> _sentMessages = <Map<String, dynamic>>[];
+
   /// Public field  tests can rename this to a deterministic
   /// `device_id` so login + sync responses stay referentially stable
   /// across runs.
