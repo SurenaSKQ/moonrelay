@@ -21,6 +21,7 @@ import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/layouts/mobile_layout.dart';
 import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
@@ -461,18 +462,19 @@ class MoonRouter {
   /// and back-button logic continue to work without modification.
   ///
   /// The mobile branch fires when the user has explicitly opted in to
-  /// mobile mode *or* the window is too narrow for the compact shell.
-  /// The latter is what lets the shell switch from dashboard to mobile
-  /// smoothly as the user resizes the window down past
-  /// [LayoutBreakpoints.mobileMax].
+  /// mobile mode *or* the shared [LayoutShellController] committed the
+  /// mobile shell because the window is too narrow.  The decision is
+  /// read from the controller (never recomputed here) so this page
+  /// builder and the surrounding shell always agree in the same frame.
   static Page _roomsListPageBuilder(
     BuildContext context,
     GoRouterState state,
   ) {
     final settings = Provider.of<SettingsController>(context, listen: false);
+    final shell = Provider.of<LayoutShellController>(context, listen: false);
     final width = MediaQuery.sizeOf(context).width;
-    final isMobile = settings.layoutMode == LayoutMode.mobile ||
-        LayoutBreakpoints.shouldUseMobile(width);
+    shell.update(rawWidth: width, layoutMode: settings.layoutMode);
+    final isMobile = shell.isMobile;
     final child = isMobile
         ? const MobileRoomsListPage()
         : RoomDelegate(
@@ -492,14 +494,17 @@ class MoonRouter {
 /// widget but does not change the route stack, so the chat the user
 /// was looking at stays open.
 ///
-/// The mobile layout is used when:
-/// 1. The user explicitly opted in via [LayoutMode.mobile], OR
-/// 2. The current viewport is too narrow for even the unified
-///    compact sidebar (below [LayoutBreakpoints.mobileMax]).
+/// The mobile layout is used when the shared [LayoutShellController]
+/// commits the mobile shell: when the user explicitly opted in via
+/// [LayoutMode.mobile], or when the current viewport is too narrow for
+/// even the unified compact sidebar (below
+/// [LayoutBreakpoints.mobileMax]).
 ///
-/// The second rule is what handles window resizes  a user who
-/// gradually shrinks the window sees the shell transition
-/// full → compact → mobile as horizontal space runs out.
+/// The shell decision is never made here.  [LayoutShellController]
+/// owns the width-to-shell mapping (with a sticky dead band) and is
+/// read by every layout consumer, so the frame and the route pages
+/// cannot disagree.  This widget merely renders the committed shell
+/// and nudges navigation when the shell flips.
 class _AdaptiveMainLayout extends StatefulWidget {
   const _AdaptiveMainLayout({required this.child});
 
@@ -518,22 +523,15 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// showing up in the right sidebar).
   bool? _lastUseMobile;
 
-  /// Cached viewport width so the layout-transition check doesn't
-  /// rebuild on every other SettingsController change.  We only watch
-  /// [MediaQuery] (the shell decision reads window width) and the
-  /// [SettingsController.layoutMode] field (the user-forced override).
-  double? _lastWidth;
-  LayoutMode? _lastLayoutMode;
-
-  /// Resolves whether the active shell should be the mobile layout
-  /// for the current [LayoutMode] + viewport width.
-  ///
-  /// Extracted so the layout-transition check and the render branch
-  /// stay in sync  both call the same helper and the threshold logic
-  /// lives in exactly one place.
-  bool _resolveUseMobile(LayoutMode layoutMode, double width) {
-    return layoutMode == LayoutMode.mobile ||
-        LayoutBreakpoints.shouldUseMobile(width);
+  @override
+  void initState() {
+    super.initState();
+    // Re-evaluate the shell from scratch whenever the main chat surface
+    // mounts (e.g. after a fresh login): the window may have been
+    // resized while the dashboard was unmounted, so the committed shell
+    // should be re-derived from the current width instead of inheriting
+    // a stale one from the previous session.
+    context.read<LayoutShellController>().reset();
   }
 
   /// Re-navigates to the active room (or to the rooms list when no
@@ -601,33 +599,15 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
       (s) => s.layoutMode,
     );
     final width = MediaQuery.sizeOf(context).width;
+    final shell = context.watch<LayoutShellController>();
 
-    // Hysteresis mirror: we use the same dead-band the
-    // [LayoutShellController] applies so this widget doesn't flip
-    // back and forth faster than the dashboard can settle.  Without
-    // it, dragging across the 600 px boundary would oscillate the
-    // shell selection each frame the cursor straddles the line.
-    const hysteresisPx = 60.0;
-    final last = _lastUseMobile;
-    final lastWidth = _lastWidth;
-    final lastLayout = _lastLayoutMode;
-    bool useMobile;
-    if (last != null &&
-        lastWidth != null &&
-        lastLayout != null &&
-        lastLayout == layoutMode) {
-      // Stable config  only commit a transition once the new width
-      // has crossed past the hysteresis band.
-      if (last) {
-        useMobile = width < LayoutBreakpoints.mobileMax + hysteresisPx;
-      } else {
-        useMobile = width < LayoutBreakpoints.mobileMax - hysteresisPx;
-      }
-    } else {
-      useMobile = _resolveUseMobile(layoutMode, width);
-    }
+    // The controller applies the sticky dead band around each
+    // breakpoint, so the committed shell only changes when the width
+    // has clearly crossed over  no separate hysteresis is needed here.
+    shell.update(rawWidth: width, layoutMode: layoutMode);
+    final useMobile = shell.isMobile;
 
-    if (last != null && last != useMobile) {
+    if (_lastUseMobile != null && _lastUseMobile != useMobile) {
       // Shell transitioned.  Defer the navigation to a post-frame
       // callback so we never call [GoRouter.go] from inside a build
       // pass (which trips an assertion in newer Flutter versions).
@@ -637,8 +617,6 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
       });
     }
     _lastUseMobile = useMobile;
-    _lastWidth = width;
-    _lastLayoutMode = layoutMode;
 
     if (useMobile) {
       return MobileLayout(child: widget.child);
