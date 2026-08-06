@@ -21,8 +21,8 @@ Closed-work ledger for Moonrelay. This file is a running log of things that
 have shipped or been fixed. The current entries cover the July 2026 audit
 pass, the August 2026 performance/memory follow-up, the media widget polish
 pass, the recent UX fix-up pass, the chat-timeline scroll-performance
-pass, the chat-timeline scroll-velocity second pass, and the
-hoverbar rearchitecture.
+pass, the chat-timeline scroll-velocity second pass, the
+hoverbar rearchitecture, and the responsive-layout shell rework.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1538,6 +1538,85 @@ pre-existing `_ItemAppearance({super.key, ...})` unused
 `key` warning in `lib/src/chat/timeline_view.dart` and
 the two `lib/src/layouts/dashboard_layout.dart` lines
 remain, all unrelated to this change.
+
+
+16. Responsive layout shell rework (sticky layout state)
+
+The shell-selection logic (full vs compact vs mobile dashboard) was
+rebuilt as a single sticky state machine. Previously the decision was
+split across two independent hysteresis systems: the dashboard's
+LayoutShellController (a 60 px dead band plus a 400 ms settle timer at
+the 1100 px boundary) and a second, separate hysteresis pass in the
+router's _AdaptiveMainLayout at the 600 px boundary. The dashboard
+also owned its controller instance, so every mobile/dashboard flip
+created a fresh controller that started in the expanded state and
+re-settled over hundreds of milliseconds. The two systems could
+disagree mid-drag, and the timer plus pending-commit machinery could
+leave the app visibly switching between the full and compact layouts
+(the reported "in-between" state).
+
+- LayoutShellController is now a sticky state machine with no timers
+  and no pending state. It commits one of three shells (LayoutShell
+  mobile / compact / expanded) and keeps it until the window width
+  crosses a breakpoint by the full 60 px dead band anchored to the
+  currently committed shell, so a boundary crossing commits exactly
+  once and cannot flap. The 400 ms settle timer and the pending
+  candidate state are gone. See lib/src/layouts/layout_shell_controller.dart.
+
+- The controller now owns both boundaries. LayoutShell.mobile covers
+  the 600 px boundary (previously decided by the router) while compact
+  vs expanded covers the 1100 px boundary, so the mobile, compact, and
+  full shells all resolve through the same committed state.
+
+- The first width evaluation commits immediately, so a freshly opened
+  window never flashes the wrong shell while waiting for a settle
+  timer. A user-forced LayoutMode (compact / mobile) overrides the
+  width logic and sticks until the user returns to auto. reset() is
+  called when the main chat surface mounts (fresh login) so a window
+  resized while logged out re-derives its shell instead of inheriting
+  a stale committed one.
+
+- The controller moved from _DashboardLayoutState to the app level: it
+  is now a ChangeNotifierProvider in main.dart (and in the integration
+  test boot helper). This is what kills the in-between state: the
+  shell decision survives mobile/dashboard flips instead of being
+  recreated and re-settling. See lib/main.dart and
+  integration_test/helpers/test_app_boot.dart.
+
+- All layout consumers read the same committed state. The router's
+  _roomsListPageBuilder and _AdaptiveMainLayout and the dashboard's
+  LayoutBuilder all call the shared controller's update() with the
+  window width and the user's layout mode, so the frame and the route
+  pages agree in the same frame by construction. See
+  lib/src/router.dart and lib/src/layouts/dashboard_layout.dart.
+
+- _AdaptiveMainLayout lost its mirrored hysteresis pass (the 60 px
+  dead band, cached width, and cached layout mode) and now just
+  renders the committed shell, keeping the existing re-navigation on
+  shell flip. DashboardLayout no longer creates or disposes a
+  controller; it reads the shared one via shell.isCompact. See
+  lib/src/router.dart and lib/src/layouts/dashboard_layout.dart.
+
+- The integration test boot helper was missing the DeepLinkService
+  provider, so every E2E test crashed on the welcome screen with a
+  ProviderNotFoundException before reaching any layout code. The
+  harness now provides DeepLinkService (plus the new
+  LayoutShellController) to match main.dart. See
+  integration_test/helpers/test_app_boot.dart.
+
+- New unit suite test/unit/layout_shell_controller_test.dart (11
+  tests): the first evaluation commits the width-appropriate shell,
+  both dead bands (600 and 1100 px) hold the committed shell, an
+  oscillation around a boundary never flaps the shell, user-forced
+  modes override width and stick, returning to auto re-resolves, and
+  repeated updates with the same width are stable.
+
+Tests at head: flutter test 506 green (unit + widget). flutter
+analyze 0 issues. The login and room-flow integration tests still
+carry pre-existing finder mismatches in the test files themselves
+(ambiguous "Sign In" targets, a case-mismatched "Sign in", and a
+missing "Moonrelay" welcome-text expectation); they fail before
+login and are unrelated to this change.
 
 
 
