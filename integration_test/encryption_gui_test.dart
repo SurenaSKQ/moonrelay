@@ -1,16 +1,16 @@
 // Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -28,14 +28,8 @@ import 'helpers/test_app_boot.dart';
 ///
 /// These tests drive the real app through:
 ///   - a logged-in dashboard
-///   - the hub settings area
-///   - the encryption overview page
-///   - the device list screen
-/// and verify that the GUI surfaces all the state the encryption
-/// service exposes.  They don't actually exercise cross-signing
-/// protocol messages (that would require a real homeserver); they
-/// pin the layout of the encryption screens and confirm the wiring
-/// from the boot pipeline through to the GUI.
+///   - the encryption service init pipeline
+/// and verify that the SDK bootstrapped encryption state correctly.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -44,7 +38,7 @@ void main() {
 
   late MockMatrixHttpClient mockHttp;
 
-  /// Log in + sync handlers that get the user to the room list.
+  /// Login + sync handlers that get the user to the room list.
   void configureBaseHandlers() {
     mockHttp.on(
       RegExp(r'\.well-known/matrix/client'),
@@ -79,6 +73,8 @@ void main() {
 
   setUp(() {
     mockHttp = MockMatrixHttpClient();
+    mockHttp.configureSendHandlers();
+
     mockHttp.addRoom(
       id: testRoomId,
       name: testRoomName,
@@ -96,6 +92,16 @@ void main() {
       ],
       stateEvents: [
         {
+          'type': 'm.room.encryption',
+          'state_key': '',
+          'content': {
+            'algorithm': 'm.megolm.v1.aes-sha2',
+          },
+          'sender': '@alice:matrix.org',
+          'event_id': r'$enc_state',
+          'origin_server_ts': 1,
+        },
+        {
           'type': 'm.room.member',
           'state_key': '@testuser:matrix.org',
           'content': {'membership': 'join'},
@@ -108,14 +114,12 @@ void main() {
   });
 
   group('Encryption GUI', () {
-    testWidgets('login + navigate to Hub + open encryption overview',
+    testWidgets('login + encryption init does not crash the app',
         (tester) async {
       configureBaseHandlers();
       mockHttp.configureEncryptionHandlers();
-      await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
-      await tester.pump();
 
-      // Drive the splash → login → hub redirect chain.
+      await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
       await tester.pump();
       await tester.pump();
       await tester.pump();
@@ -130,31 +134,31 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
       await tester.tap(find.text('Sign in'));
+
+      // Flush the async login + encryption init chain.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       await tester.pump();
 
-      // After login we should be on the dashboard.  We don't navigate
-      // all the way to the encryption overview screen because the
-      // navigation route is dependent on the AppBar layout of
-      // DashboardLayout.  Instead we verify that login completed
-      // and the room we set up is visible.
+      // The room we set up should be visible on the dashboard.
       expect(find.text(testRoomName), findsWidgets);
     });
 
-    testWidgets('encryption handlers can be configured and survive sync',
+    testWidgets('encryption device GET handler fires after login',
         (tester) async {
       configureBaseHandlers();
       mockHttp.configureEncryptionHandlers();
 
-      // Customise the device list response so we can prove the
-      // handlers actually fired.
-      final capturedDevices = <Map<String, dynamic>>[];
+      // Override the /devices handler to capture the request.
+      final captured = <Map<String, dynamic>>[];
       mockHttp.on(
         RegExp(r'_matrix/client/v3/devices$'),
         handler: (req) {
-          capturedDevices.add({'request': 'seen'});
+          captured.add({'method': req.method, 'path': req.url.path});
           return _jsonResponse(200, {
             'devices': mockHttp.whenDevicesRequested(),
           });
@@ -165,6 +169,8 @@ void main() {
       await tester.pump();
       await tester.pump();
       await tester.pump();
+
+      // Sign in.
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -174,20 +180,67 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
       await tester.tap(find.text('Sign in'));
-      // Allow the login → init → encryption init chain to run.
+
+      // Flush login + encryption init chain.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
       await tester.pump();
 
-      // If EncryptionService.init() reaches the getDevices() call, our
-      // mock saw it.  If it didn't, that's a real regression in the
-      // boot pipeline that we'd want to know about.
-      // (We allow the test to pass even if the SDK never called
-      // /devices  the goal is to surface unexpected 404s, not to
-      // assert a specific sync cadence.)
-      expect(capturedDevices, isA<List<dynamic>>());
+      // The encryption service's _refreshMyDevices() should have caused
+      // a GET /devices call.
+      expect(captured.length, greaterThan(0));
+      expect(captured.first['method'], 'GET');
+    });
+
+    testWidgets('encrypted room can be opened and shows messages',
+        (tester) async {
+      configureBaseHandlers();
+      mockHttp.configureEncryptionHandlers();
+
+      await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // Sign in.
+      await tester.tap(find.text('Sign In'));
+      await tester.pump();
+      await tester.pump();
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'testuser');
+      await tester.pump();
+      await tester.enterText(fields.at(2), 'password123');
+      await tester.pump();
+      await tester.tap(find.text('Sign in'));
+
+      // Flush login + sync.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+
+      // Room should be visible in the list.
+      expect(find.text(testRoomName), findsWidgets);
+
+      // Tap the room.
+      await tester.tap(find.text(testRoomName).last);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // Message from Alice should be visible.
+      expect(find.text('hello'), findsWidgets);
+
+      // ChatBox send button should be present.
+      final sendButton = find.bySemanticsLabel('Send');
+      expect(sendButton, findsOneWidget);
     });
   });
 }
