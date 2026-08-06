@@ -33,13 +33,18 @@ final _appTheme = MoonrelayAppTheme();
 class MoonrelayApp extends StatefulWidget {
   const MoonrelayApp({super.key});
 
-  static final GoRouter moonrouter = GoRouter(routes: MoonRouter.routes);
-
   @override
   State<MoonrelayApp> createState() => _MoonrelayAppState();
 }
 
 class _MoonrelayAppState extends State<MoonrelayApp> {
+  /// The app's router.  Created per [State] (not static) so that every
+  /// app instance owns a fresh navigation stack; a static router would
+  /// carry route state and the mounted pages (with their open database
+  /// connections and live timelines) across test instances, which made
+  /// the E2E suite leak pages and hit "readonly database" errors once
+  /// the second test in a file booted.
+  final GoRouter _router = GoRouter(routes: MoonRouter.routes);
   /// Process-wide sync pulse, owned by this widget so its lifetime
   /// matches the running app. Re-bound to the active client every time
   /// the account manager swaps in a new [Client].
@@ -53,6 +58,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
 
   @override
   void dispose() {
+    _router.dispose();
     _syncPulse.dispose();
     _roomStateBus.dispose();
     super.dispose();
@@ -91,7 +97,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
           listenable: settingsController,
           builder: (BuildContext context, Widget? child) {
             return MaterialApp.router(
-              routerConfig: MoonrelayApp.moonrouter,
+              routerConfig: _router,
               debugShowCheckedModeBanner: false,
               restorationScopeId: "approot",
               localizationsDelegates:

@@ -474,13 +474,27 @@ class MoonRouter {
     final shell = Provider.of<LayoutShellController>(context, listen: false);
     final width = MediaQuery.sizeOf(context).width;
     shell.update(rawWidth: width, layoutMode: settings.layoutMode);
-    final isMobile = shell.isMobile;
-    final child = isMobile
-        ? const MobileRoomsListPage()
-        : RoomDelegate(
-            roomID: state.pathParameters['roomid'],
-            threadRootEventId: state.uri.queryParameters['threadRoot'],
-          );
+
+    // The page child depends on the committed shell (mobile vs
+    // dashboard).  It must rebuild when the shell flips, so we subscribe
+    // to the controller here rather than reading it once: GoRouter only
+    // re-runs this builder when the route actually changes, so a shell
+    // flip would otherwise leave the previous shell's page (e.g. a
+    // MobileRoomsListPage) rendered inside the wrong layout.  Wrapping
+    // the child in a [ListenableBuilder] makes the flip rebuild the
+    // child on the same frame the shell commits, with no navigation.
+    final child = ListenableBuilder(
+      listenable: shell,
+      builder: (context, _) {
+        if (shell.isMobile) {
+          return const MobileRoomsListPage();
+        }
+        return RoomDelegate(
+          roomID: state.pathParameters['roomid'],
+          threadRootEventId: state.uri.queryParameters['threadRoot'],
+        );
+      },
+    );
     return genericPageBuilder(context, state, child);
   }
 }
@@ -537,55 +551,21 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// Re-navigates to the active room (or to the rooms list when no
   /// room is open) so the new shell renders a clean default state.
   ///
-  /// Why this is needed: when the shell switches from mobile to
-  /// dashboard (or vice versa), the route's `child` widget  built
-  /// by [MoonRouter._roomsListPageBuilder]  may be stale for one
-  /// frame.  The dashboard's right sidebar in particular happily
-  /// accepts any widget and renders it, so the previous shell's
-  /// `MobileRoomsListPage` can end up displayed in the right pane
-  /// for a frame, looking like a content glitch.  Forcing a
-  /// navigation rebuilds the route child with the new shell's
-  /// default and clears the stale state.
-  ///
-  /// The target URL is derived from [CurrentRoom] so the user keeps
-  /// the room they were looking at  the navigation just rebuilds
-  /// the page from a clean slate instead of leaving the previous
-  /// shell's widget in place.
+  /// The page child itself rebuilds reactively through the
+  /// [ListenableBuilder] in [_roomsListPageBuilder], so this only has
+  /// to fix the *URL*: when the shell flipped the user may have been
+  /// sitting on a room or the bare rooms list, and the new shell's
+  /// default page should be re-derived from [CurrentRoom].  A plain
+  /// [GoRouter.go] is enough; the old push/pop "refresh" hack leaked a
+  /// page onto the route stack on every shell flip because the pushed
+  /// page's future only completes when something pops it, which never
+  /// happened, so every mobile/dashboard switch mounted a second live
+  /// chat surface that was never disposed.
   void _navigateToActiveRoom() {
     final room = context.read<CurrentRoom>().room;
     final target = room == null ? '/main/rooms' : '/main/rooms/${room.id}';
-    // `context.go` is a no-op when the URL is unchanged, so when
-    // the user is already sitting on the target URL (the common
-    // case after a layout-mode change) we need a different
-    // mechanism to force the page child to rebuild.  Pushing the
-    // target and immediately popping is GoRouter's documented way
-    // to refresh the current route's child widget  the push
-    // creates a new page entry, the pop drops it, and the resulting
-    // rebuild produces a fresh [child] for the new shell.
     final router = GoRouter.of(context);
-    final currentPath = router.routeInformationProvider.value.uri.path;
-    if (_pathsEqual(currentPath, target)) {
-      router.push(target).whenComplete(() {
-        if (!mounted) return;
-        if (router.canPop()) router.pop();
-      });
-    } else {
-      router.go(target);
-    }
-  }
-
-  /// True when two GoRouter paths are equal (segment-wise, ignoring
-  /// a trailing slash).  Used to decide whether the user is
-  /// already on the target URL before we trigger the push/pop
-  /// "refresh" trick.
-  bool _pathsEqual(String a, String b) {
-    final aSegs = a.split('/').where((s) => s.isNotEmpty).toList();
-    final bSegs = b.split('/').where((s) => s.isNotEmpty).toList();
-    if (aSegs.length != bSegs.length) return false;
-    for (var i = 0; i < aSegs.length; i++) {
-      if (aSegs[i] != bSegs[i]) return false;
-    }
-    return true;
+    router.go(target);
   }
 
   @override
