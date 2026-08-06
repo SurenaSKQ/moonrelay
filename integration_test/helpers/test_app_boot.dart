@@ -31,6 +31,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
@@ -136,6 +137,9 @@ Future<Widget> buildTestApp({
       ),
       ChangeNotifierProvider<NavigationState>(
         create: (_) => NavigationState(),
+      ),
+      ChangeNotifierProvider<LayoutShellController>(
+        create: (_) => LayoutShellController(),
       ),
       ChangeNotifierProvider<AccountManager>.value(value: accountManager),
       ChangeNotifierProvider<EncryptionService>.value(value: encryptionService),

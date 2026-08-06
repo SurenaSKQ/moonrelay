@@ -37,6 +37,7 @@ import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
 import 'src/helpers/service_registry.dart';
 import 'src/init_logger.dart';
+import 'src/layouts/layout_shell_controller.dart';
 import 'src/localization/app_localizations.dart';
 import 'src/services/deep_link_service.dart';
 import 'src/services/auto_update_service.dart';
@@ -364,6 +365,9 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
               value: _appState!.settingsController),
           ChangeNotifierProvider<NavigationState>(
             create: (_) => NavigationState(),
+          ),
+          ChangeNotifierProvider<LayoutShellController>(
+            create: (_) => LayoutShellController(),
           ),
           ChangeNotifierProvider<AccountManager>.value(
               value: _appState!.accountManager),

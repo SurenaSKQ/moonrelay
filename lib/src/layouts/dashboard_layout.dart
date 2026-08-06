@@ -26,9 +26,11 @@ import 'dashboard_layout/dashboard_view.dart';
 /// Controller widget for the multi-pane dashboard layout.
 ///
 /// Owns transient resize state via [ValueNotifier]s (so drag updates don't
-/// trigger full-tree rebuilds) and delegates the shell-decision logic to
-/// [LayoutShellController] so a shell swap only re-renders the shell
-/// widget, not the entire tree.
+/// trigger full-tree rebuilds). The shell decision (compact vs full) is
+/// delegated to the shared, app-level [LayoutShellController] so the
+/// dashboard, the router, and the route page builders all agree on the
+/// same layout and a shell swap only re-renders the shell widget, not
+/// the entire tree.
 /// The actual UI is delegated to the stateless [DashboardView] so that
 /// the right sidebar receives room changes as direct props with no
 /// indirection.
@@ -49,16 +51,8 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   final ValueNotifier<double?> _leftWidth = ValueNotifier(null);
   final ValueNotifier<double?> _rightWidth = ValueNotifier(null);
 
-  /// Owns the compact / wide / mobile shell decision. The actual
-  /// shell widget rebuilds via `ListenableBuilder` against this
-  /// controller, so a shell flip only invalidates the shell subtree
-  /// (NavigationPane / RoomsPane / right sidebar) rather than the
-  /// whole dashboard tree.
-  final LayoutShellController _shell = LayoutShellController();
-
   @override
   void dispose() {
-    _shell.dispose();
     _leftWidth.dispose();
     _rightWidth.dispose();
     super.dispose();
@@ -96,52 +90,38 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // -- Shell decision with hysteresis ------------------------------
+        // -- Shell decision -----------------------------------------------
         //
         // The shell decision reads the *outer* viewport width (via
         // [MediaQuery.sizeOf]) instead of the inner [LayoutBuilder]
         // constraints.  The inner constraints shrink and grow when the
-        // sidebars mount or unmount  the previous implementation used
+        // sidebars mount or unmount; the previous implementation used
         // them as the breakpoint signal and ended up in a feedback
         // loop where toggling the right sidebar could nudge the
-        // available width across the 1100 px threshold and flip the
-        // shell back to compact on its own.  Anchoring to the window
-        // width makes the shell decision independent of which
-        // sidebars are currently mounted.
+        // available width across the threshold and flip the shell on
+        // its own.  Anchoring to the window width makes the shell
+        // decision independent of which sidebars are currently mounted.
         //
-        // Importantly, this builder is pure: it reads precomputed
-        // state, calls a controller [update] that *may* schedule a
-        // timer / fire [notifyListeners] only asynchronously, and
-        // never mutates fields on this state.  Earlier revisions
-        // assigned `_layoutSize` and ran `_shell.update()` synchronously
-        // here, which under bursty resizes spawned
-        // `_RenderLayoutBuilder was mutated in performLayout` because
-        // a deferred [notifyListeners] could re-enter the tree mid-
-        // layout.  Keeping the body pure eliminates that race.
+        // This builder only calls [LayoutShellController.update] and
+        // reads the committed shell; it never mutates fields on this
+        // state.  The controller defers its [notifyListeners] to the
+        // end of the frame so no rebuild is scheduled mid-layout.
         final width = MediaQuery.sizeOf(context).width;
         final layoutSize = LayoutBreakpoints.sizeForWidth(width);
 
         final layoutMode = context.select<SettingsController, LayoutMode>(
           (s) => s.layoutMode,
         );
+        final shell = context.watch<LayoutShellController>();
 
-        // Delegate the hysteresis/settle decision to the
-        // [LayoutShellController]. The controller exposes its
-        // committed size via a [ValueListenable] (the controller
-        // itself is a [ChangeNotifier]) so the shell subtree
-        // re-renders only when the size actually flips, not on every
-        // resize tick.  Note: [_shell.update] starts / cancels timers
-        // and may call [notifyListeners] but only from the Timer's
-        // callback (i.e. asynchronously), never synchronously from
-        // here.
-        final committedSize = _shell.update(
+        shell.update(
           rawWidth: width,
           layoutMode: layoutMode,
         );
         // The dashboard always renders a compact-or-wider shell
         // here; the dedicated mobile shell is mounted at a higher
         // level by the router when needed.
-        final shouldUseCompact = committedSize == LayoutSize.compact;
+        final shouldUseCompact = shell.isCompact;
 
         return DashboardView(
           size: layoutSize,
