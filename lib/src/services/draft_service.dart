@@ -28,9 +28,9 @@
 // One [DraftService] instance is created per account and shared across
 // every ChatBox in the app via [DraftService.instanceFor]. The instance
 // is reference-counted: each caller invokes [release] in a `finally`
-// block; the last release cancels the underlying [_saveTimer] so a
-// hot-swap of ChatBox instances (e.g. user switches rooms) doesn't
-// leak a pending disk write.
+// block; the last release flushes any queued drafts and drops the
+// service, so a hot-swap of ChatBox instances (e.g. user switches
+// rooms) never leaks a pending disk write or loses a draft.
 
 import 'dart:async';
 import 'dart:convert';
@@ -50,6 +50,14 @@ class DraftService {
 
   final String _accountId;
   Timer? _saveTimer;
+
+  /// Drafts awaiting a debounced flush, keyed by room id.  Keeping the
+  /// pending body here (rather than only capturing the last room in the
+  /// timer closure) means typing in room B no longer cancels room A's
+  /// pending save: one timer flushes every room that was edited within
+  /// the debounce window.
+  final Map<String, ({String body, String? replyToEventId})>
+      _pendingSaves = <String, ({String body, String? replyToEventId})>{};
 
   /// Active services per account, used so that [instanceFor] returns
   /// the same instance instead of allocating a new one every time the
@@ -82,15 +90,17 @@ class DraftService {
   }
 
   /// Decrements the reference count. When the count returns to zero
-  /// the pending debounce timer is cancelled and the service is
-  /// dropped from the shared map so the next login allocates a fresh
-  /// service.
+  /// the pending drafts are flushed, the timer is cancelled, and the
+  /// service is dropped from the shared map so the next login allocates
+  /// a fresh service.  Flushing (instead of dropping) means closing the
+  /// last composer within the debounce window still persists the draft.
   void release() {
     final count = (_liveInstances[_accountId] ?? 1) - 1;
     if (count <= 0) {
       _liveInstances.remove(_accountId);
       _saveTimer?.cancel();
       _saveTimer = null;
+      _flushPendingSaves();
       if (identical(_services[_accountId], this)) {
         _services.remove(_accountId);
       }
@@ -124,15 +134,39 @@ class DraftService {
 
   /// Schedules a debounced save. Subsequent calls within [_debounce]
   /// reset the timer so we only hit disk once per pause-typing window.
+  ///
+  /// Pending bodies are tracked per room, so typing in a different room
+  /// before the timer fires does not cancel another room's pending
+  /// draft; the flush persists every room that changed.
   void scheduleSave(
     String roomId,
     String body, {
     String? replyToEventId,
   }) {
+    _pendingSaves[roomId] = (
+      body: body,
+      replyToEventId: replyToEventId,
+    );
     _saveTimer?.cancel();
-    _saveTimer = Timer(_debounce, () {
-      _persist(roomId, body, replyToEventId: replyToEventId);
-    });
+    _saveTimer = Timer(_debounce, _flushPendingSaves);
+  }
+
+  void _flushPendingSaves() {
+    _saveTimer = null;
+    if (_pendingSaves.isEmpty) return;
+    final pending = Map<
+        String,
+        ({String body, String? replyToEventId})>.from(_pendingSaves);
+    _pendingSaves.clear();
+    for (final entry in pending.entries) {
+      unawaited(
+        _persist(
+          entry.key,
+          entry.value.body,
+          replyToEventId: entry.value.replyToEventId,
+        ),
+      );
+    }
   }
 
   /// Synchronous-flush persist. Use on composer teardown or when the
@@ -143,6 +177,7 @@ class DraftService {
     String? replyToEventId,
   }) async {
     _saveTimer?.cancel();
+    _pendingSaves.remove(roomId);
     await _persist(roomId, body, replyToEventId: replyToEventId);
   }
 
@@ -177,6 +212,7 @@ class DraftService {
   /// Clears the draft for [roomId]. Use after a successful send.
   Future<void> clear(String roomId) async {
     _saveTimer?.cancel();
+    _pendingSaves.remove(roomId);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyFor(roomId));
@@ -185,11 +221,13 @@ class DraftService {
     }
   }
 
-  /// Cancels any pending debounced write. The reference count is not
-  /// decremented; use [release] for that.
+  /// Cancels any pending debounced write and forgets the queued
+  /// drafts. The reference count is not decremented; use [release] for
+  /// that.
   void cancelPending() {
     _saveTimer?.cancel();
     _saveTimer = null;
+    _pendingSaves.clear();
   }
 
   /// Returns the underlying `SharedPreferences` key for [roomId]. Account
