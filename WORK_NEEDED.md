@@ -7,7 +7,7 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test passes. flutter analyze has no errors.
+Tests at head: flutter test 538 green (unit + widget). flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
@@ -33,20 +33,21 @@ flight) is already in place and does not need further work.
 
 1.2 Future-aware surface comments
 
-TimelineView count notifier: _UndecryptableBanner reads from a
-ValueNotifier<int> via a static late reference
-(lib/src/chat/timeline_view.dart:118). Add a comment near the notifier
-saying that any future restructuring needs to keep it on the same State.
+(See also 26.3 in WORK_DONE.md: _UndecryptableBanner now reads its count via ValueListenableBuilder instead of a setState callback; the comment at lib/src/chat/timeline_view.dart:135 documents the notifier's lifecycle.)
 
 In-room search jump accuracy: ChatTimeline.jumpToEvent
-(lib/src/chat/chat_timeline.dart:1134) estimates scroll from a fraction.
-Add a comment that users may need to scroll a few items up or down after
-a jump.
+(lib/src/chat/chat_timeline.dart:1134) now uses Scrollable.ensureVisible
+The fallback path (when the key is not in the current viewport, e.g.
+during rapid pagination) still estimates from a fraction; the existing
+comment noting that users may need to scroll up/down after a fallback
+jump is still in place at lib/src/chat/jump_coordinator.dart:211.
 
 1.3 Refactor candidates
 
-- HTML rendering: MarkdownToHtml and _HtmlTagParser each implement their
-  own tag allow-list. Extract a single SanitizedHtml helper.
+- HTML tag allow-list: MarkdownToHtml and HtmlTagParser each implement
+  their own tag allow-list. Extract a single SanitizedHtml helper.
+  (HtmlTagParser was extracted to html_tag_parser.dart in the cleanup
+  pass, but the shared allow-list is still outstanding.)
 
 - Color palette: MoonrelayColorPalette mixes raw swatches with
   StringColor wrappers. Either pull in or delete the unused side.

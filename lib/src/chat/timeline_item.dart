@@ -18,7 +18,6 @@ import 'dart:async';
 
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
-import 'package:moonrelay/src/chat/hover_highlight.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
 import 'package:moonrelay/src/chat/irc_row.dart';
 import 'package:moonrelay/src/chat/message_context_menu.dart';
@@ -144,6 +143,21 @@ class TimelineItem extends StatefulWidget {
 }
 
 class _TimelineItemState extends State<TimelineItem> {
+  /// Tracks whether the mouse is currently over this item.
+  ///
+  /// Using a [ValueNotifier] instead of [setState] means only the
+  /// hover-sensitive parts (the actions overlay) rebuild on enter/exit,
+  /// not the entire message subtree.  This is the single biggest win for
+  /// scroll performance: without it, every mouse move over the chat
+  /// area triggered a full [TimelineItem] rebuild.
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
   /// Convenience getters that call [widget.onAction] with the right action tag.
   VoidCallback? get _onReply => widget.onAction == null
       ? null
@@ -255,9 +269,9 @@ class _TimelineItemState extends State<TimelineItem> {
     unawaited(widget.event.sendAgain());
   }
 
-  /// Builds the inline hoverbar widget shown inside [HoverHighlight] when
-  /// the cursor is over this message.  Returns `null` when no actions are
-  /// available (e.g. IRC display mode or missing onAction callback).
+  /// Builds the inline hoverbar widget shown when the cursor is over
+  /// this message.  Returns `null` when no actions are available
+  /// (e.g. IRC display mode or missing onAction callback).
   Widget? _buildActions(BuildContext context) {
     if (widget.onAction == null) return null;
     final cs = Theme.of(context).colorScheme;
@@ -325,7 +339,7 @@ class _TimelineItemState extends State<TimelineItem> {
     );
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     if (_isRedacted) {
       return RedactedEvent(
@@ -349,23 +363,13 @@ class _TimelineItemState extends State<TimelineItem> {
     // during fast scrolling.
     final cached = _cachedSubtree;
     if (cached != null) {
-      // [HoverHighlight] needs to react to the highlight toggle, which
-      // is captured in [_renderKey.highlight].  We re-wrap the cached
-      // subtree so the highlight state stays in sync with the latest
-      // widget input.
-      //
-      // The context menu must also wrap the replayed subtree: on the
-      // first build [_cachedSubtree] is populated *before* the menu
-      // wrapper is applied, so replaying the cache verbatim would drop
-      // the right-click / long-press gesture detector on every rebuild
-      // after the first.
-      return _wrapWithContextMenu(
-        context,
-        HoverHighlight(
-          isHighlighted: isHighlighted,
-          actions: hoverActions,
-          child: cached,
-        ),
+      // The highlight flag is re-applied each time since it's not part of
+      // the cached subtree (the cached content is the raw message body).
+      return _wrapWithHover(
+        context: context,
+        isHighlighted: isHighlighted,
+        actions: hoverActions,
+        child: _wrapWithContextMenu(context, cached),
       );
     }
 
@@ -379,23 +383,65 @@ class _TimelineItemState extends State<TimelineItem> {
         content = _buildIrc(context);
     }
 
-    // Cache the rendering subtree (before [HoverHighlight] wrapping so
-    // the highlight state isn't snapshotted).  The next build will
+    // Cache the rendering subtree (before hover wrapping so the
+    // highlight state isn't snapshotted).  The next build will
     // replay this subtree without re-running any descendants.
     _cachedSubtree = content;
 
-    content = HoverHighlight(
+    return _wrapWithHover(
+      context: context,
       isHighlighted: isHighlighted,
       actions: hoverActions,
-      child: content,
+      child: _wrapWithContextMenu(context, content),
     );
+  }
 
-    // Wrapping the full highlight region with the context menu so that
-    // right-click / long-press activates anywhere in the highlight area
-    // (including the avatar column), not just on the message body.
-    content = _wrapWithContextMenu(context, content);
+  /// Wraps [child] in a [MouseRegion] that tracks hover state via
+  /// [_isHovered] (a [ValueNotifier]), applying the highlight background
+  /// and optionally the inline hoverbar.
+  ///
+  /// Only the hover-sensitive parts rebuild on enter/exit -- the
+  /// [child] subtree is unaffected because it is not inside the
+  /// [ValueListenableBuilder].
+  Widget _wrapWithHover({
+    required BuildContext context,
+    required Widget child,
+    required bool isHighlighted,
+    required Widget? actions,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final bgColor = isHighlighted
+        ? cs.primary.withValues(alpha: 0.15)
+        : Colors.transparent;
 
-    return content;
+    return MouseRegion(
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: bgColor,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child,
+            if (actions != null)
+              ValueListenableBuilder<bool>(
+                valueListenable: _isHovered,
+                builder: (context, isHovered, _) {
+                  if (!isHovered) return const SizedBox.shrink();
+                  return Positioned(
+                    top: 4,
+                    right: 8,
+                    child: actions,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Message body + reactions bar (shared between all display modes).

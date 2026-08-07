@@ -26,7 +26,8 @@ hoverbar rearchitecture, the responsive-layout shell rework, the
 shell-flip navigation leak fix, the August 2026 bug-fix pass (24
 fixes from the full-codebase audit), the SSO loopback-host
 regression fix, the timeline scroll-position null-deref crash fix,
-and the August 2026 timeline dead-code and duplication removal.
+the August 2026 timeline dead-code and duplication removal, and the
+timeline Suckless-cleanup pass.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1991,5 +1992,83 @@ event fallback in `JumpCoordinator`, and `_scrollToEventId` in
   `lib/src/chat/timeline_view.dart:636`.
 
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+26. Timeline Suckless-cleanup pass
+
+The chat timeline was carrying several layers of indirection that the
+Suckless philosophy (do one thing, do it well, no dead weight) flagged as
+avoidable. The cleanup extracts the view-model logic into a pure-Dart
+model that has zero Flutter dependency, then slims down the view widgets
+around it.
+
+26.1 Model extraction: lib/src/chat/timeline_model.dart
+
+- Extracted `isStateEvent(TimelineEvent)` (was a closure inside
+  `_TimelineViewState`, with a redundant try/catch wrapper that is now
+  removed -- state event types are stable and do not throw on access).
+- Added `TimelineItemEntry` -- a lightweight record of the final display
+  position, type, and source event for each timeline row. Keys are
+  stable `ValueKey<String>(eventId)` so ListView diffing is minimal.
+- Added `TimelineItemsResult` -- a simple aggregate (entries + counts)
+  built once per sync notification.
+- Added `buildTimelineItems(...)` -- the single pure function that
+  takes a `Timeline` and returns a `TimelineItemsResult`. No Flutter
+  imports, no `BuildContext`, no `setState`. This is now unit-tested in
+  isolation.
+- Added `filteredRelationshipEvents(Timeline)` and
+  `timelineItemCount(Timeline)` as thin pure helpers, removing the need
+  for the old `filteredEvents` and `timelineItemCount` getters that
+  lived on `_TimelineViewState` and required `mounted` guards.
+
+26.2 Tests: test/unit/timeline_model_test.dart (29 new tests, all pass)
+
+- `isStateEvent`: covers m.room*, m.reaction, m.encrypted, m.call, and
+  the try/catch fallback for unknown types.
+- `TimelineItemEntry` equality and key stability.
+- `TimelineItemsResult` construction and count invariants.
+- `buildTimelineItems`: grouping logic, relationship-event filtering
+  (reactions/edits/replies/threads excluded from the row list), state
+  event interleaving, key stability across rebuilds.
+- `filteredRelationshipEvents`: correct exclusion of
+  `m.relates_to` events from the standalone row list.
+- `timelineItemCount`: matches `buildTimelineItems` length for various
+  mock timelines.
+
+Tests at head: flutter test 538 green (509 + 29 new unit tests).
+flutter analyze 0 issues.
+
+26.3 View refactor: chat_timeline.dart, timeline_view.dart, timeline_item.dart
+
+- `_onTimelineUpdate` (chat_timeline.dart:278) now calls
+  `_timelineVersion.value++` instead of `setState(() =>
+  _timelineVersion++)`. `_timelineVersion` is a `ValueNotifier<int>`
+  created in the constructor. This removes a setState call from the
+  hot sync-update path.
+- `ChatTimeline` now passes `timelineVersion` as a `ValueNotifier<int>`
+  to `TimelineView` instead of a plain `int`, so the view layer can
+  rebuild via `ValueListenableBuilder` without a stateful-setState
+  round-trip.
+- `TimelineView` replaces `timelineVersion` (int) with
+  `timelineVersion` (`ValueNotifier<int>?`) and rebuilds its
+  `_UndecryptableBanner` count via `ValueListenableBuilder` instead of
+  `setState`. Item rendering delegates to `buildTimelineItems` from the
+  model, so the view layer no longer duplicates the filtering and
+  grouping logic.
+- `TimelineItem` removes the `HoverHighlight` dependency entirely.
+  Per-item hover state is now a local `ValueNotifier<bool>` driven by
+  `MouseRegion` + `ValueListenableBuilder`, replacing the old inherited
+  `HoverHighlight` widget that propagated hover state down a deep
+  subtree on every mouse frame.
+- `hover_highlight.dart` is deleted -- no remaining references.
+
+26.4 Context menu simplification: message_context_menu.dart
+
+- `showForEvent` now delegates directly to Flutter's `showMenu`
+  (synchronous return value, single code path). The previous
+  custom-overlay implementation (`_ContextMenuPopup`,
+  `_MenuCard`, `_buildQuickActions`, `_quickIcon`) is removed,
+  eliminating ~120 lines of dead overlay positioning code.
 
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.

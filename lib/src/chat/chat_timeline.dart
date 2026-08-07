@@ -75,7 +75,12 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   /// Bumped on every SDK `onChange`/`onInsert`/`onRemove`/`onUpdate`
   /// so [TimelineView] knows to invalidate its item-list cache.
-  int _timelineVersion = 0;
+  /// Exposed as a [ValueNotifier] so the parent [build] of
+  /// [ChatTimeline] is not forced through rebuild on every sync tick
+  /// -- the previous `setState(() => _timelineVersion++)` rebuilt the
+  /// entire subtree, including [ChatTimelineFloatingActions] and
+  /// [ChatTimelineFloatingActions]'s parent [Stack].
+  final ValueNotifier<int> _timelineVersion = ValueNotifier<int>(0);
 
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
@@ -117,8 +122,8 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   // -- Test accessors --------------------------------------------
 
-  @visibleForTesting
-  int get timelineVersionForTest => _timelineVersion;
+   @visibleForTesting
+  int get timelineVersionForTest => _timelineVersion.value;
 
   @visibleForTesting
   bool get isLoadingHistoryForTest => _historyPager?.isLoading ?? false;
@@ -188,6 +193,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
     _isScrolledUpNotifier.dispose();
+    _timelineVersion.dispose();
     super.dispose();
   }
 
@@ -324,7 +330,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   void _onTimelineUpdate() {
     if (!mounted) return;
     _historyPager?.onTimelineUpdated();
-    setState(() => _timelineVersion++);
+    _timelineVersion.value++;
   }
 
   // -- Helpers --------------------------------------------------
