@@ -53,7 +53,10 @@ void main() {
       final redirect = await server.start();
       expect(server.port, greaterThan(0));
       expect(redirect.scheme, 'http');
-      expect(redirect.host, 'localhost');
+      // The redirect must use the loopback address the server is bound
+      // to; "localhost" can resolve to IPv6 (::1) first and the server
+      // only listens on 127.0.0.1.
+      expect(redirect.host, '127.0.0.1');
       expect(redirect.path, '/callback');
       expect(redirect.queryParameters['state'], isNotNull);
       expect(redirect.queryParameters['state']!.length, greaterThan(20));
