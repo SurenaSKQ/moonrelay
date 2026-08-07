@@ -40,32 +40,33 @@ class ReadMarkerService {
   /// that even concurrent async invocations get distinct sequence numbers.
   int _nextSeq = 0;
 
-  /// Persists [eventId] as the last-seen marker for [roomId].
+  /// Persists [eventId] as the last-seen marker for [roomId], or clears
+  /// the marker when [eventId] is null/empty.
   ///
   /// Only writes when the internal sequence number has advanced past the
-  /// stored value, preventing a stale async write from clobbering a more
-  /// recent marker.
+  /// stored value, preventing a stale async write (or a stale clear)
+  /// from clobbering a more recent marker.
   Future<void> setLastSeen(String roomId, String? eventId) async {
     final prefs = await SharedPreferences.getInstance();
-    if (eventId == null || eventId.isEmpty) {
-      await prefs.remove(_keyFor(roomId));
-      return;
-    }
-
     final seq = ++_nextSeq;
     final raw = prefs.getString(_keyFor(roomId));
 
     // Compare-and-swap: skip write if the stored seq is >= ours.
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map && decoded['seq'] is int) {
-          final storedSeq = decoded['seq'] as int;
-          if (storedSeq >= seq) return; // stale write, discard
-        }
-      } catch (_) {
-        // Corrupt entry — overwrite it.
-      }
+    if (_storedSeq(raw) >= seq) return; // stale write or clear, discard
+
+    if (eventId == null || eventId.isEmpty) {
+      // Persist a tombstone rather than removing the key outright.  A
+      // concurrent stale write carrying an older seq would otherwise
+      // resurrect a marker the user just cleared.
+      await prefs.setString(
+        _keyFor(roomId),
+        jsonEncode({
+          'eventId': null,
+          'seq': seq,
+          'ts': DateTime.now().millisecondsSinceEpoch,
+        }),
+      );
+      return;
     }
 
     await prefs.setString(
@@ -76,6 +77,21 @@ class ReadMarkerService {
         'ts': DateTime.now().millisecondsSinceEpoch,
       }),
     );
+  }
+
+  /// Extracts the sequence number stored in [raw], or `-1` when absent
+  /// or corrupt (so an unset or broken marker is always writable).
+  static int _storedSeq(String? raw) {
+    if (raw == null || raw.isEmpty) return -1;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map && decoded['seq'] is int) {
+        return decoded['seq'] as int;
+      }
+    } catch (_) {
+      // Corrupt entry — treat as unset.
+    }
+    return -1;
   }
 
   /// Returns the last-seen event ID for [roomId], or `null` if no
