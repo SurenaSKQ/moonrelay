@@ -80,10 +80,14 @@ class MoonRouter {
     return Provider.of<Client>(context, listen: false).getRoomById(spaceId);
   }
 
-  /// Resolves a room from the route's :roomid parameter.
-  static Room _roomFromState(BuildContext context, GoRouterState state) {
-    final roomId = state.pathParameters['roomid']!;
-    return Provider.of<Client>(context, listen: false).getRoomById(roomId)!;
+  /// Resolves a room from the route's :roomid parameter, or null when
+  /// the room is not in the sync cache yet (e.g. a cold deep link to a
+  /// room that hasn't been synced).  Callers render a not-found page
+  /// instead of throwing on a null bang.
+  static Room? _roomFromState(BuildContext context, GoRouterState state) {
+    final roomId = state.pathParameters['roomid'];
+    if (roomId == null) return null;
+    return Provider.of<Client>(context, listen: false).getRoomById(roomId);
   }
 
   /// Builds a "not found" fallback page for missing rooms/spaces.
@@ -223,6 +227,10 @@ class MoonRouter {
                           path: 'roomDetails',
                           pageBuilder: (context, state) {
                             final room = _roomFromState(context, state);
+                            if (room == null) {
+                              return _notFoundPage(
+                                  context, state, 'Room not found');
+                            }
                             return genericPageBuilder(
                               context,
                               state,
@@ -267,6 +275,10 @@ class MoonRouter {
                       path: 'thread/:threadRootId',
                       pageBuilder: (context, state) {
                         final room = _roomFromState(context, state);
+                        if (room == null) {
+                          return _notFoundPage(
+                              context, state, 'Room not found');
+                        }
                         final threadRootId =
                             state.pathParameters['threadRootId']!;
                         return genericPageBuilder(
@@ -283,6 +295,10 @@ class MoonRouter {
                       path: 'settings',
                       pageBuilder: (context, state) {
                         final room = _roomFromState(context, state);
+                        if (room == null) {
+                          return _notFoundPage(
+                              context, state, 'Room not found');
+                        }
                         return genericPageBuilder(
                           context,
                           state,
