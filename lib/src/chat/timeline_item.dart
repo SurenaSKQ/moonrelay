@@ -353,10 +353,19 @@ class _TimelineItemState extends State<TimelineItem> {
       // is captured in [_renderKey.highlight].  We re-wrap the cached
       // subtree so the highlight state stays in sync with the latest
       // widget input.
-      return HoverHighlight(
-        isHighlighted: isHighlighted,
-        actions: hoverActions,
-        child: cached,
+      //
+      // The context menu must also wrap the replayed subtree: on the
+      // first build [_cachedSubtree] is populated *before* the menu
+      // wrapper is applied, so replaying the cache verbatim would drop
+      // the right-click / long-press gesture detector on every rebuild
+      // after the first.
+      return _wrapWithContextMenu(
+        context,
+        HoverHighlight(
+          isHighlighted: isHighlighted,
+          actions: hoverActions,
+          child: cached,
+        ),
       );
     }
 
