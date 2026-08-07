@@ -144,6 +144,7 @@ class HistoryPager {
   /// and updates [HistoryFillState] accordingly.
   void onScroll() {
     if (!scrollController.hasClients) return;
+    if (!scrollController.position.haveDimensions) return;
     if (_isLoading) return;
     if (_postLoadDebounceTimer.isPending) return;
 
@@ -177,6 +178,12 @@ class HistoryPager {
     if (!scrollController.hasClients) {
       // The scroll controller hasn't laid out yet; defer to the next
       // frame so we have a real [maxScrollExtent] to read.
+      WidgetsBinding.instance.addPostFrameCallback((_) => ensureFilled());
+      return;
+    }
+    if (!scrollController.position.haveDimensions) {
+      // The scroll controller has a client but the viewport hasn't
+      // computed content dimensions yet; defer to the next frame.
       WidgetsBinding.instance.addPostFrameCallback((_) => ensureFilled());
       return;
     }
