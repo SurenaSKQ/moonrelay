@@ -196,15 +196,21 @@ class MarkdownToHtml {
     return output.toString().trim();
   }
 
+  /// Writes a completed unordered list and clears [items] so a later
+  /// flush does not re-emit the same entries.
   static void _flushUl(StringBuffer buf, List<String> items) {
     if (items.isNotEmpty) {
       buf.writeln('<ul>${items.join()}</ul>');
+      items.clear();
     }
   }
 
+  /// Writes a completed ordered list and clears [items] so a later
+  /// flush does not re-emit the same entries.
   static void _flushOl(StringBuffer buf, List<String> items) {
     if (items.isNotEmpty) {
       buf.writeln('<ol>${items.join()}</ol>');
+      items.clear();
     }
   }
 
