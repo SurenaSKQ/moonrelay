@@ -85,8 +85,13 @@ class RoomMediaCache {
         })
         // Clear the in-flight entry on failure too; otherwise a single
         // failed download poisons the cache until the app restarts and
-        // every retry replays the same error.
-        .whenComplete(() => _inflight.remove(key));
+        // every retry replays the same error.  The callback must return
+        // void: `_inflight.remove` returns the in-flight future itself,
+        // and whenComplete would wait on that return value, deadlocking
+        // the very future it is finishing.
+        .whenComplete(() {
+          _inflight.remove(key);
+        });
     _inflight[key] = future;
     return future;
   }
