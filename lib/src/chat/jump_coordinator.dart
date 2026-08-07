@@ -24,8 +24,6 @@ import 'package:moonrelay/src/chat/history_pager.dart';
 import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/chat/timeline_scroll_target.dart';
-// Hides the duplicate `countUnreadInWindow` from jump_to_unread_pager
-// in favour of the canonical implementation in chat_unread_utils.
 import 'package:moonrelay/src/chat/chat_unread_utils.dart' as unread;
 
 /// Orchestrates the "jump to first unread" affordance.
