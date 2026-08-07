@@ -180,12 +180,14 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
     setState(() => _joiningRoomId = null);
 
     switch (result) {
-      case RetrySuccess():
+      case RetrySuccess(:final value):
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.addRoom)),
         );
-        context.push('/main/rooms/$alias');
+        // Navigate with the returned room ID, not the alias, so the
+        // room route resolves (getRoomById only matches room IDs).
+        context.push('/main/rooms/$value');
       case RetryFailed(:final error):
         setState(() {
           _joinError = error is TimeoutException
@@ -208,12 +210,15 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
 
     final l10n = AppLocalizations.of(context)!;
     try {
-      await client.knockRoom(alias);
+      final roomId = await client.knockRoom(alias);
       if (!mounted) return;
       setState(() => _knockingRoomId = null);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.knockSent(alias))),
       );
+      // knockRoom returns the room ID even for an alias; navigate with
+      // it so the room route resolves.
+      context.push('/main/rooms/$roomId');
     } catch (e) {
       if (!mounted) return;
       setState(() => _knockingRoomId = null);

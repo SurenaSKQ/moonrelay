@@ -195,9 +195,12 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     if (!mounted) return;
 
     switch (result) {
-      case RetrySuccess():
+      case RetrySuccess(:final value):
+        // joinRoom returns the canonical room ID even when the user
+        // joined via an alias; navigate with the ID so the room route
+        // resolves (getRoomById only matches room IDs).
         context.pushReplacement(
-          '/main/rooms/${Uri.encodeComponent(roomIdOrAlias)}',
+          '/main/rooms/${Uri.encodeComponent(value)}',
         );
       case RetryFailed(:final error):
         setState(() {

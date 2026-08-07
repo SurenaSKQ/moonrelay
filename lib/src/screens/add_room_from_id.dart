@@ -175,8 +175,11 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
     final l10n = AppLocalizations.of(context)!;
 
     switch (result) {
-      case RetrySuccess():
-        context.push('/main/rooms/$roomidOrAlias');
+      case RetrySuccess(:final value):
+        // Navigate with the returned room ID, not the alias the user
+        // typed: joinRoom resolves the alias to a room ID and the room
+        // route only resolves room IDs.
+        context.push('/main/rooms/$value');
       case RetryFailed(:final error):
         // Try to detect if the room requires knocking.
         final joinRule = await _detectJoinRule(client, roomidOrAlias, log);
@@ -225,7 +228,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
     });
 
     try {
-      await client.knockRoom(
+      final roomId = await client.knockRoom(
         roomIdOrAlias,
         via: server != null && server.isNotEmpty ? [server] : null,
       );
@@ -235,7 +238,8 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.knockSent(roomIdOrAlias))),
       );
-      context.push('/main/rooms/$roomIdOrAlias');
+      // Navigate with the returned room ID so the room route resolves.
+      context.push('/main/rooms/$roomId');
     } catch (e) {
       if (!mounted) return;
       setState(() => _knockingRoomId = null);
