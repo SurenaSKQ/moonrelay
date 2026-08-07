@@ -462,6 +462,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   Widget build(BuildContext context) {
     // Reset retry / drain counters once the viewport is scrollable.
     if (_scrollController.hasClients &&
+        _scrollController.position.haveDimensions &&
         _scrollController.position.maxScrollExtent > 50.0) {
       _historyPager?.resetCounters();
     }

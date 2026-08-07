@@ -204,6 +204,7 @@ class JumpCoordinator {
     final timeline = getTimeline();
     if (timeline == null || eventId == null) return;
     if (!scrollController.hasClients) return;
+    if (!scrollController.position.haveDimensions) return;
     if (timeline.events.isEmpty) return;
     if (!timeline.events.any((e) => e.eventId == eventId)) return;
 

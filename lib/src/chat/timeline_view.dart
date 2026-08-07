@@ -633,6 +633,7 @@ class TimelineViewState extends State<TimelineView> {
   void _scrollToEventId(String eventId) {
     final controller = widget.scrollController;
     if (!controller.hasClients) return;
+    if (!controller.position.haveDimensions) return;
 
     final map = _cachedEventIdToItemIndex;
     final itemCount = map?.length ?? 0;
