@@ -27,6 +27,15 @@ class DateSeparator extends StatelessWidget {
 
   final DateTime dateTime;
 
+  /// True when [dateTime] is the calendar day before [now].  Compares
+  /// day-of-epoch so the check survives month and year boundaries
+  /// (e.g. Jan 1 sees Dec 31 of the previous year as "yesterday").
+  static bool _isYesterday(DateTime now, DateTime dateTime) {
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    return today.difference(day).inDays == 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -36,9 +45,7 @@ class DateSeparator extends StatelessWidget {
     String label;
     if (isSameYear && now.month == dateTime.month && now.day == dateTime.day) {
       label = AppLocalizations.of(context)!.today;
-    } else if (isSameYear &&
-        now.month == dateTime.month &&
-        now.day == dateTime.day + 1) {
+    } else if (isSameYear && _isYesterday(now, dateTime)) {
       label = AppLocalizations.of(context)!.yesterday;
     } else if (isSameYear) {
       label = DateFormat.MMMMd().format(dateTime);
@@ -47,9 +54,7 @@ class DateSeparator extends StatelessWidget {
     }
 
     final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.15);
-    final textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
-
-    return Padding(
+    final textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);    return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [

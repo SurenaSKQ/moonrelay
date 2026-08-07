@@ -65,7 +65,7 @@ extension DateTimeExtension on DateTime {
       return DateFormat.EEEE(Localizations.localeOf(context).languageCode)
           .format(this);
     } else if (sameYear) {
-      return ("${month.toString().padLeft(2, '0')}- ${day.toString().padLeft(2, '0')}");
+      return ("${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}");
     }
     return ("${year.toString()}-${month.toString().padLeft(2, '0')} ${day.toString().padLeft(2, '0')}");
   }
