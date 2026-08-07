@@ -379,6 +379,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       _controller.clear();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
+      // The composer may have been disposed while the send was in
+      // flight; guard before touching state (the error path below is
+      // already guarded).
+      if (!mounted) return;
       // Success  clear the draft.
       _draftValue = null;
       _draftService?.cancelPending();
