@@ -628,7 +628,11 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
 
     await withRetry(
-      () => client.httpClient.post(Uri.parse(url), body: '{}'),
+      () => client.httpClient.post(
+        Uri.parse(url),
+        body: '{}',
+        headers: {'authorization': 'Bearer ${client.accessToken}'},
+      ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
       log: log,
@@ -721,7 +725,11 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
 
       await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        () => client.httpClient.post(
+          Uri.parse(url),
+          body: '{}',
+          headers: {'authorization': 'Bearer ${client.accessToken}'},
+        ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
         log: log,
@@ -1043,7 +1051,11 @@ class _DeleteSpaceProgressDialogState
             : '$serverUrl/_synapse/admin/v2/rooms/${child.id}/delete';
 
         await withRetry(
-          () => client.httpClient.post(Uri.parse(url), body: '{}'),
+          () => client.httpClient.post(
+            Uri.parse(url),
+            body: '{}',
+            headers: {'authorization': 'Bearer ${client.accessToken}'},
+          ),
           maxRetries: 1,
           timeout: kDefaultTimeout,
           log: log,
@@ -1070,7 +1082,11 @@ class _DeleteSpaceProgressDialogState
           : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
 
       await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        () => client.httpClient.post(
+          Uri.parse(url),
+          body: '{}',
+          headers: {'authorization': 'Bearer ${client.accessToken}'},
+        ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
         log: log,

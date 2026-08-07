@@ -337,7 +337,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           : '$serverUrl/_synapse/admin/v2/rooms/${room.id}/delete';
 
       await withRetry(
-        () => client.httpClient.post(Uri.parse(url), body: '{}'),
+        () => client.httpClient.post(
+          Uri.parse(url),
+          body: '{}',
+          headers: {'authorization': 'Bearer ${client.accessToken}'},
+        ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
         log: log,
