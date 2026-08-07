@@ -105,11 +105,13 @@ class AutoUpdateService {
   /// `true` when [remote] is strictly newer than [local].
   ///
   /// Falls back to lexicographic comparison if either side cannot be
-  /// parsed as three numeric components.
+  /// parsed as three numeric components.  A `+build` suffix is stripped
+  /// before parsing so `1.2.3+12` compares equal to `1.2.3` on the
+  /// version triplet (a build number is never "newer" on its own).
   static bool _isNewer(String remote, String local) {
     if (remote.isEmpty) return false;
-    final remoteParts = remote.split('.').take(3).map(int.tryParse).toList();
-    final localParts = local.split('.').take(3).map(int.tryParse).toList();
+    final remoteParts = _semverParts(remote);
+    final localParts = _semverParts(local);
     if (remoteParts.length == 3 &&
         localParts.length == 3 &&
         remoteParts.every((p) => p != null) &&
@@ -123,6 +125,13 @@ class AutoUpdateService {
       return false;
     }
     return remote.compareTo(local) > 0;
+  }
+
+  /// Splits a version string like `1.2.3+build.7` into its numeric
+  /// components, dropping the build suffix.
+  static List<int?> _semverParts(String version) {
+    final noBuild = version.split('+').first;
+    return noBuild.split('.').take(3).map(int.tryParse).toList();
   }
 
   void dispose() {
