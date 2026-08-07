@@ -38,14 +38,17 @@ class MediaSizePrefs {
   });
 
   /// Default values that match the pre-settings hard-coded constants.
-  /// Used when no [SettingsController] is available.
+  /// Used when no [SettingsController] is available.  Keep in sync with
+  /// the [SettingsController] defaults (audio 340, file 360,
+  /// location 340) so isolated widget tests see the same sizes as the
+  /// real app.
   static const MediaSizePrefs _fallback = MediaSizePrefs._(
     imageThumbnailMax: 360,
     stickerMax: 180,
     videoMax: 360,
-    audioMax: 360,
-    fileMax: 340,
-    locationMax: 360,
+    audioMax: 340,
+    fileMax: 360,
+    locationMax: 340,
   );
 
   /// Maximum display dimension for image thumbnails.
