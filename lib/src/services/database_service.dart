@@ -78,7 +78,6 @@ class DatabaseService {
           );
         }
       }
-      await prefs.setInt(schemaVersionKey, schemaVersion);
     }
 
     final database = await sql.openDatabase(dbPath);
@@ -88,6 +87,14 @@ class DatabaseService {
       sqfliteFactory: databaseFactoryFfi,
     );
     await dbobj.open();
+
+    // Persist the schema version only after the open succeeded.  Storing
+    // it up front would hide a failed open on the next boot (the stale
+    // file would no longer be wiped), which is exactly what the version
+    // check exists to protect against.
+    if (storedVersion == null || storedVersion != schemaVersion) {
+      await prefs.setInt(schemaVersionKey, schemaVersion);
+    }
     return dbobj;
   }
 }
