@@ -235,7 +235,10 @@ class AccountManager extends ChangeNotifier {
       log.w('switchToAccount: account not found $userId');
       return false;
     }
-    if (_activeAccount?.userId == userId) return false; // already active
+    // Switching to the already-active account is a no-op success; report
+    // it as such so callers do not treat it as a failed switch and, say,
+    // bounce the user to the login page.
+    if (_activeAccount?.userId == userId) return _activeClient?.isLogged() ?? false;
 
     final target = _accounts[idx];
 
