@@ -467,6 +467,64 @@ class MessageActionRunner {
     }
   }
 
+  /// Whether the current user can moderate (kick) the sender of [event]
+  /// in [room].  Returns `false` if the sender is the current user.
+  static bool canModerate(Room room, Event event) {
+    final client = room.client;
+    if (event.senderId == client.userID) return false;
+    try {
+      return room
+          .unsafeGetUserFromMemoryOrFallback(event.senderId)
+          .canKick;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Whether the current user can ban the sender of [event] in [room].
+  /// Returns `false` if the sender is the current user.
+  static bool canBan(Room room, Event event) {
+    final client = room.client;
+    if (event.senderId == client.userID) return false;
+    try {
+      return room
+          .unsafeGetUserFromMemoryOrFallback(event.senderId)
+          .canBan;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Whether [event] is editable by the current user: text-shaped, sent
+  /// by us, and not redacted.
+  static bool canEditText(Event event, Room room) {
+    final client = room.client;
+    final isMine = event.senderId == client.userID;
+    if (!isMine) return false;
+    if (event.redacted) return false;
+    if (event.relationshipEventId != null) return false;
+    final mt = event.messageType;
+    if (mt != MessageTypes.Text &&
+        mt != MessageTypes.Emote &&
+        mt != MessageTypes.Notice) {
+      return false;
+    }
+    try {
+      return event.canRedact;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Whether [eventId] is currently pinned in [room].
+  static bool isPinned(Room room, String eventId) {
+    final state = room.getState('m.room.pinned_events');
+    if (state == null) return false;
+    final pinned = state.content['pinned'];
+    if (pinned is! List) return false;
+    return pinned.contains(eventId);
+  }
+
   /// Builds a `https://matrix.to/#/roomId/eventId` permalink for the event.
   static String _permalinkFor(Event event, Room room) {
     return 'https://matrix.to/#/${room.id}/${event.eventId}';

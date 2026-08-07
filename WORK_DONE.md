@@ -25,9 +25,88 @@ pass, the chat-timeline scroll-velocity second pass, the
 hoverbar rearchitecture, the responsive-layout shell rework, the
 shell-flip navigation leak fix, the August 2026 bug-fix pass (24
 fixes from the full-codebase audit), the SSO loopback-host
-regression fix, and the timeline scroll-position null-deref crash fix.
+regression fix, the timeline scroll-position null-deref crash fix,
+and the August 2026 timeline dead-code and duplication removal.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
+
+20. Timeline dead-code and duplication removal
+
+Dead duplicate files deleted:
+
+- `lib/src/chat/history_pagination.dart` was never imported or referenced
+  anywhere in the codebase. It was a near-verbatim duplicate of the
+  active `lib/src/chat/history_pager.dart` (same `_shouldDrainStateEvents`,
+  same constants). Deleted. The WORK_NEEDED audit had already flagged
+  this as a refactor candidate.
+
+- `lib/src/chat/read_marker_coordinator.dart` was never imported or
+  referenced. The WORK_DONE.md entry for section 18 explicitly called it
+  out as "the dead duplicate path in
+  `lib/src/chat/read_marker_coordinator.dart`". Deleted. The active
+  implementation is `lib/src/chat/read_marker_tracker.dart`
+  (with `ReadMarkerService` in
+  `lib/src/services/read_marker_service.dart` for the CAS-protected
+  server writes).
+
+Dead inline duplicates removed from `lib/src/chat/timeline_view.dart`:
+
+- `_AnimatedHistorySkeleton` (was lines 737-823) was a private copy of
+  the public `AnimatedHistorySkeleton` in
+  `lib/src/chat/animated_history_skeleton.dart`. The public version was
+  already imported and used at the call site (line 575); the private
+  class was never referenced. Deleted.
+
+- `_ItemAppearance` (was lines 831-899) was a private copy of the public
+  `ItemAppearance` in `lib/src/chat/item_appearance.dart`. The public
+  version was already imported and used at the call site (line 587).
+  The unused-key lint warning on the private version had been carried
+  through four prior WORK_DONE entries as "pre-existing and unrelated
+  to this change". Now resolved. Deleted.
+
+- `_HistorySkeletonTile` (was lines 910-1032) was a private copy of the
+  public `HistorySkeletonTile` in `lib/src/chat/history_skeleton_tile.dart`.
+  The public version was already imported and used at the call site
+  (line 606). Deleted.
+
+- The `motion.dart` import was removed from `timeline_view.dart` since
+  `Motion` was only referenced by the three deleted inline classes.
+
+HTML parser extracted from `formatted_text_widget.dart`:
+
+- `_HtmlParseCache`, `_HtmlTagParser`, and the plain-text linkification
+  helpers (`_PlainTokenKind`, `_PlainMatch`, `_PlainToken`) were moved
+  to a new public `lib/src/chat/events/html_tag_parser.dart` file.
+  `formatted_text_widget.dart` is reduced from 938 lines to ~200 lines,
+  keeping only the `FormattedTextWidget` class and its linkify logic.
+  The parser classes are now public (`HtmlParseCache`, `HtmlTagParser`,
+  `PlainTokenKind`, `PlainMatch`, `PlainToken`) and unit-testable.
+
+Permission check consolidation:
+
+- `_canModerate`, `_canBan`, `_canEditText`, and `_isPinned` were
+  duplicated verbatim (modulo parameter plumbing) in both
+  `lib/src/chat/message_actions.dart` (the hoverbar) and
+  `lib/src/chat/message_context_menu.dart` (the right-click menu).
+  All four are now static methods on `MessageActionRunner`
+  (`canModerate`, `canBan`, `canEditText`, `isPinned`), and both files
+  delegate to them. `message_actions.dart` shed 38 lines;
+  `message_context_menu.dart` shed 45 lines (plus the unused
+  `MessageTypes` import is gone).
+
+Scroll-targeting deduplication:
+
+- The fraction-based scroll-to-index heuristic was triplicated: in
+  `TimelineView._scrollToEventId` (timeline_view.dart:632),
+  `JumpCoordinator.jumpToEvent` (jump_coordinator.dart:203), and
+  `JumpCoordinator._scrollToEvent` (jump_coordinator.dart:284). Each had
+  slightly different parameter handling and a slightly different skip-if-close
+  guard. All three now share `TimelineScrollTarget.scrollToFraction` in
+  the new `lib/src/chat/timeline_scroll_target.dart`. `JumpCoordinator`
+  lost ~22 lines; `TimelineView` lost ~14 lines.
+
+Tests at head: flutter test 509 green. flutter analyze 0 errors, 0 warnings.
+
 
 
 1. Desktop-service hardening
