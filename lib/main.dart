@@ -56,7 +56,7 @@ import 'src/splash_screen.dart';
 ///
 /// During heavy development this is bumped on every release to avoid
 /// subtle migration bugs.
-const int kDbSchemaVersion = 2;
+const int kDbSchemaVersion = 3;
 
 // -----------------------------------------------------------------------------
 // Init state  populated by the boot pipeline, consumed by the app on success
