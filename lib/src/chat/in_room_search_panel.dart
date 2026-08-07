@@ -70,6 +70,10 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
   bool _isLoadingMore = false;
   String? _nextBatch;
 
+  /// Bumped on every new (reset) search.  Responses carry the token of
+  /// their originating request so stale results are dropped.
+  int _searchToken = 0;
+
   // Message type filter options
   static const List<_TypeFilter> _typeFilters = [
     _TypeFilter('', LucideIcons.fileText), // All
@@ -247,6 +251,12 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     if (_keywords.isEmpty) return;
     if (_isLoadingMore) return;
 
+    // Stamp this request with the current query generation.  A stale
+    // in-flight response (from an older keyword) must never overwrite
+    // results for a newer one, so it is discarded on arrival.
+    final int token = ++_searchToken;
+    if (reset) _nextBatch = null;
+
     setState(() => _isLoadingMore = true);
 
     try {
@@ -260,7 +270,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
         limit: 100,
       );
 
-      if (!mounted) return;
+      if (!mounted || token != _searchToken) return;
 
       final matches = result.events.where(_matchesFilter).toList();
 
@@ -275,7 +285,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
         _isLoadingMore = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || token != _searchToken) return;
       setState(() {
         _isSearching = false;
         _isLoadingMore = false;
