@@ -23,8 +23,9 @@ pass, the August 2026 performance/memory follow-up, the media widget polish
 pass, the recent UX fix-up pass, the chat-timeline scroll-performance
 pass, the chat-timeline scroll-velocity second pass, the
 hoverbar rearchitecture, the responsive-layout shell rework, the
-shell-flip navigation leak fix, and the August 2026 bug-fix pass (24
-fixes from the full-codebase audit).
+shell-flip navigation leak fix, the August 2026 bug-fix pass (24
+fixes from the full-codebase audit), and the SSO loopback-host
+regression fix.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1841,3 +1842,30 @@ Tests at head: flutter test 508 green (unit + widget). flutter analyze
 0 issues. The room-flow and logout E2E files still fail on the
 pre-existing mock gaps described in the previous section; they were not
 touched by this pass.
+
+
+
+19. SSO loopback-host regression fix
+
+The SSO fix in section 18 (redirecting the browser to the literal
+loopback address) broke the callback handler it was meant to protect.
+The server still validated the incoming Host header against
+`localhost:$port` only, but the browser now navigated to
+`http://127.0.0.1:$port/callback`, so every callback carried
+`Host: 127.0.0.1:$port` and was rejected with "bad host header". SSO
+login therefore never completed through the automatic flow.
+
+- The Host-header check now accepts both `localhost:$port` and
+  `127.0.0.1:$port` while still pinning the exact port, so no foreign
+  origin can reach the callback. The doc comment was updated to match.
+  See lib/src/services/sso_server.dart.
+
+- Regression test: drives a real GET whose Host matches the redirect
+  host (127.0.0.1) and asserts the token future resolves. Asserting on
+  the future instead of the HTTP response body sidesteps the socket
+  race that made broader E2E coverage flaky. See
+  test/unit/sso_callback_server_test.dart.
+
+Tests at head: flutter test 509 green (unit + widget). flutter analyze
+0 issues. E2E room-flow and logout still fail on the pre-existing mock
+gaps described in section 18.
