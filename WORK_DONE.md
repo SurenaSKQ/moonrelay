@@ -22,8 +22,9 @@ have shipped or been fixed. The current entries cover the July 2026 audit
 pass, the August 2026 performance/memory follow-up, the media widget polish
 pass, the recent UX fix-up pass, the chat-timeline scroll-performance
 pass, the chat-timeline scroll-velocity second pass, the
-hoverbar rearchitecture, the responsive-layout shell rework, and the
-shell-flip navigation leak fix.
+hoverbar rearchitecture, the responsive-layout shell rework, the
+shell-flip navigation leak fix, and the August 2026 bug-fix pass (24
+fixes from the full-codebase audit).
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1684,3 +1685,159 @@ regression test). The room-flow and logout E2E files still fail on
 remaining mock gaps that predate this work (unmocked /devices,
 /messages pagination, and /read_markers endpoints, plus a teardown
 race on the shared temp database); they are unrelated to the hang fix.
+
+
+
+18. Bug-fix pass (24 fixes from the full-codebase audit)
+
+A dedicated bug-fix pass over the whole codebase, one commit per fix.
+Every fix landed with a "Fix ..." / "Stop ..." style commit and the
+full unit + widget suite went from 3 known failures to fully green.
+The pass also caught two fixes the audit itself missed: a future
+self-deadlock in the media cache cleanup, and a latent bug in the
+space-delete progress dialog that deleted the space itself instead of
+its children.
+
+- The read-marker dedupe trim iterated a Set while removing from it,
+  which throws ConcurrentModificationError the moment the cache grows
+  past its cap. The trim now snapshots the keys before removing. See
+  lib/src/chat/read_marker_tracker.dart (and the dead duplicate path
+  in lib/src/chat/read_marker_coordinator.dart). Verified with a
+  standalone runtime probe before fixing.
+
+- Poll sending built a malformed event: the content map carried its
+  own nested "type"/"content" keys instead of sending m.poll.start
+  with an m.poll content object. See lib/src/chat/poll_send_dialog.dart.
+
+- Joining a room from an alias (preview, add-by-id, directory search)
+  then navigated to the alias instead of the canonical room ID the
+  join returns, so the room page rendered a blank "unknown room"
+  state. Navigation now uses the returned room ID. See
+  lib/src/screens/rooms/room_preview_screen.dart,
+  lib/src/screens/rooms/add_room_from_id.dart,
+  lib/src/screens/rooms/room_directory_search.dart.
+
+- Cached timeline items skipped the right-click context menu and the
+  hover highlight because the cache-hit branch returned the raw
+  subtree. It now re-wraps the cached subtree with the menu and hover
+  wrapper. See lib/src/chat/timeline_item.dart.
+
+- The chat box could call setState after dispose when the send future
+  completed after the widget was torn down. A mounted guard now sits
+  on the success path. See lib/src/chat/chat_box.dart.
+
+- Failed media downloads left their in-flight future in the cache, so
+  every later retry replayed the same error until restart. The inflight
+  entry is now cleared on completion either way. The first version of
+  this fix deadlocked: the cleanup callback returned the in-flight
+  future itself (Map.remove returns the removed value) and whenComplete
+  waits on its callback's result, so the future waited on itself. The
+  callback now returns void. See lib/src/helpers/room_media_cache.dart.
+
+- Uri.decodeComponent throws FormatException on malformed percent
+  sequences, so a single bad matrix:// URI could crash the URL
+  banner detection. The public parser now catches the format error and
+  returns null. See lib/src/helpers/matrix_uri_parser.dart. Verified
+  with a standalone probe before fixing.
+
+- The sync listener crashed when a message event carried a non-string
+  body (e.g. a numeric-only content), taking down the notification
+  pipeline on every tick. The body read is now a type-safe tryGet
+  with an empty-string fallback. See lib/src/services/notification_service.dart.
+
+- Drafts were stored in a single map keyed only by body, so switching
+  rooms with an unsent draft silently dropped it. Drafts now persist
+  per room and a single debounce timer flushes every changed room;
+  release() flushes instead of discarding. See lib/src/services/draft_service.dart.
+
+- The room router dereferenced a nullable room lookup on deep links
+  for rooms the client has not synced yet (null-bang crash). The
+  resolver now returns a nullable room and every consumer (details,
+  thread, settings) renders a not-found page instead of crashing. See
+  lib/src/router.dart.
+
+- The startup update dialog was shown with a context above
+  MaterialApp.router, so it silently threw on missing Localizations
+  and never appeared. The app now owns a navigator key handed to the
+  router, and the dialog is shown through that in-tree context. See
+  lib/main.dart and lib/src/app.dart.
+
+- MediaSizePrefs fallback defaults contradicted the controller (audio
+  360 vs 340, file 340 vs 360, location 360 vs 340), so isolated
+  widgets rendered different sizes than the real app. The fallback now
+  matches the controller. See lib/src/settings/media_size_prefs.dart.
+
+- The compact date formatter produced "07- 06" (stray space), and the
+  "Yesterday" check used now.day == day+1, which breaks on the first
+  of a month and on New Year's. The check now compares day-of-epoch.
+  See lib/src/helpers/date_time_extension.dart and
+  lib/src/chat/events/date_separator.dart.
+
+- Markdown list flushes never cleared their item buffers, so a list
+  that was flushed mid-conversion (e.g. on a list-type switch or at
+  EOF) re-emitted its items a second time. Flushes now clear. See
+  lib/src/helpers/markdown_to_html.dart.
+
+- Update comparison parsed "1.2.3+12" as three components, failed the
+  numeric parse on the "+12" component, and fell back to a
+  lexicographic compare that misordered versions like 0.10 vs 0.9.
+  The build suffix is now stripped before parsing. See
+  lib/src/services/auto_update_service.dart.
+
+- The notification short-circuit only tracked the room with the newest
+  last-event timestamp, so a message in any other room (with an older
+  timestamp) never triggered a notification. It now signs every room's
+  last event ID. See lib/src/services/notification_service.dart.
+
+- The schema version was persisted before the database opened, so a
+  failed open hid the stale file on the next boot. The version is now
+  written only after the open succeeds. See lib/src/services/database_service.dart.
+
+- An in-flight in-room server search could land after a newer query
+  and overwrite its results. Responses are now stamped with a query
+  token and stale ones are discarded. See lib/src/chat/in_room_search_panel.dart.
+
+- Clearing a read marker used a bare prefs.remove, bypassing the
+  compare-and-swap sequence check, so a concurrent stale write could
+  resurrect a cleared marker (and a stale clear could drop a newer
+  one). Clears now write a tombstone through the same sequence check.
+  See lib/src/services/read_marker_service.dart.
+
+- The SSO callback server bound to 127.0.0.1 but redirected the
+  browser to "localhost", which can resolve to ::1 first and fail to
+  connect. The redirect now uses the loopback address the server is
+  bound to. See lib/src/services/sso_server.dart.
+
+- Changing the avatar uploaded the bytes twice (an explicit
+  uploadContent call whose result was discarded, plus the internal
+  upload inside setAvatar). The redundant upload is gone. See
+  lib/src/screens/hub_screen/my_profile_page.dart.
+
+- The Synapse admin delete requests went out without an Authorization
+  header (the raw http client attaches no token), so room and space
+  deletion always failed with 401. All five call sites now send
+  "Bearer <access token>". During this fix a latent bug surfaced in
+  the space-delete progress dialog, whose child-room loop posted to
+  the space's own delete URL instead of the child's; that is fixed
+  too. See lib/src/screens/room_settings_page.dart and
+  lib/src/screens/space_settings_page.dart.
+
+- switchToAccount returned false for the already-active account, which
+  the caller treated as a failed switch and bounced the user to login.
+  It now reports the no-op as success. See lib/src/helpers/account_manager.dart.
+
+- Paginated-history fade targeted the newest indices (index <= 4) even
+  though the timeline is newest-first, so the newest messages faded in
+  on scroll instead of the freshly-fetched history. It now targets the
+  tail of the list. See lib/src/chat/timeline_view.dart.
+
+- Two tests asserted the old buggy behavior and are updated to the
+  corrected values: MediaSizePrefs defaults (audio 340, file 360,
+  location 340) and the SSO redirect host (127.0.0.1). See
+  test/unit/settings_extended_test.dart and
+  test/unit/sso_callback_server_test.dart.
+
+Tests at head: flutter test 508 green (unit + widget). flutter analyze
+0 issues. The room-flow and logout E2E files still fail on the
+pre-existing mock gaps described in the previous section; they were not
+touched by this pass.
