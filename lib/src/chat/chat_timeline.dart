@@ -497,17 +497,19 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
         return Stack(
           children: [
             child,
-            ValueListenableBuilder<bool>(
-              valueListenable: _isScrolledUpNotifier,
-              builder: (context, isScrolledUp, _) {
+            ListenableBuilder(
+              listenable: Listenable.merge([_isScrolledUpNotifier, _timelineVersion]),
+              builder: (context, _) {
+                final isScrolledUp = _isScrolledUpNotifier.value;
                 final isJumping = _jumpCoordinator?.isJumping ?? false;
-                // Only show floating actions when the user has scrolled
-                // away from the bottom (actively reading older messages)
-                // or while a jump-to-unread pagination is in flight.
-                // When the user is at the bottom of the timeline they
-                // can already see the newest messages, so the unread
-                // pill would be redundant.
-                final showColumn = isScrolledUp || isJumping;
+                // The jump-to-unread pill stays visible regardless of scroll
+                // position once it has appeared -- it only disappears when
+                // explicitly dismissed or when the room is marked read (which
+                // zeros the unread count).  The scroll-to-bottom pill, by
+                // contrast, only appears when the user has scrolled away from
+                // the newest messages.
+                final unreadVisible = _showUnreadPill || isJumping;
+                final showColumn = isScrolledUp || unreadVisible;
                 if (!showColumn) {
                   return const SizedBox.shrink();
                 }
@@ -521,8 +523,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
                       child: ChatTimelineFloatingActions(
                         unreadCount: _unreadInWindow,
                         isScrolledUp: isScrolledUp,
-                        unreadVisible:
-                            (_showUnreadPill && isScrolledUp) || isJumping,
+                        unreadVisible: unreadVisible,
                         isJumping: isJumping,
                         onJumpToUnread: () async {
                           _jumpLoadingDone = false;
