@@ -110,10 +110,11 @@ class ReadMarkerCoordinator {
       // Bound the cache so it doesn't grow without limit on busy rooms.
       if (_markReadSent.length > 64) {
         // Drop the oldest quarter; Set preserves insertion order.
+        // Snapshot before removing so we don't mutate while iterating.
         final drop = _markReadSent.length ~/ 4;
-        final it = _markReadSent.iterator;
-        for (var i = 0; i < drop && it.moveNext(); i++) {
-          _markReadSent.remove(it.current);
+        final ids = _markReadSent.toList(growable: false);
+        for (var i = 0; i < drop; i++) {
+          _markReadSent.remove(ids[i]);
         }
       }
       // Mirror the new marker into the notification service's local

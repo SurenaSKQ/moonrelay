@@ -182,10 +182,14 @@ class ReadMarkerTracker {
 
   void _trimDedupeCache() {
     if (_markReadSent.length <= _maxDedupeEntries) return;
+    // Snapshot the set before removing so we never mutate it while
+    // iterating (Set.iterator throws ConcurrentModificationError).
+    // Insertion order is preserved, so the first `drop` entries are the
+    // oldest marks.
     final drop = _markReadSent.length ~/ 4;
-    final it = _markReadSent.iterator;
-    for (var i = 0; i < drop && it.moveNext(); i++) {
-      _markReadSent.remove(it.current);
+    final ids = _markReadSent.toList(growable: false);
+    for (var i = 0; i < drop; i++) {
+      _markReadSent.remove(ids[i]);
     }
   }
 }
