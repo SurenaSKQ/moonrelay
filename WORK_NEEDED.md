@@ -58,13 +58,36 @@ a jump.
 - Scattered widgets: 60+ _buildXxx private classes. Move them into
   lib/src/widgets/ for reuse.
 
-- Encryption cache invalidation: EncryptionService._cachedUnverified
-  (lib/src/encryption/encryption_service.dart:738) is only cleared on
-  onLogout; it is never invalidated on sync. EncryptionService
-  ._userVerifiedCache and ._deviceVerifiedCache (lines 79 and 82) are
-  declared but never read or invalidated - dead state. Extract a
-  markDirty() API and have _onSync call it for both _cachedUnverified
-  and the verified caches.
+- Encryption cache invalidation: SHIPPED. EncryptionService._onSync now
+  clears _cachedUnverified alongside the per-user/device verification
+  caches (lib/src/encryption/encryption_service.dart), so the unverified
+  device count in the encryption overview no longer goes stale after a
+  sync. The own-device list refresh is also throttled to once per 30s
+  from the sync path (still immediate at init, after bootstrap, and
+  after device deletion) so the per-sync HTTP/notify churn no longer
+  stacks on the SDK's device-keys bookkeeping.
+
+1.4 SDK device-keys churn (open, upstream)
+
+The UI freezes during sync ticks on homeservers that constantly churn
+device lists. The matrix SDK runs Client.updateUserDeviceKeys() after
+every sync tick; when a user's device key list is marked outdated (the
+server's device_lists.changed), the SDK re-queries /keys/query and
+re-writes EVERY cached device key of the affected users to the database
+in one transaction on the main isolate. Measured with
+tool/device_keys_bench.dart: 24,000 device keys cost ~720ms per sync
+(~560ms of it in the DB transaction alone, the rest in key parsing and
+JSON encoding on the main isolate). On the user's homeserver the log
+shows 24k-48k device keys rewritten on almost every sync.
+
+The app cannot stop this from the outside; the fix belongs upstream
+(batch the device-key writes, skip the re-store when the key hash is
+unchanged, or move updateUserDeviceKeys off the sync path). Local
+mitigations shipped: throttled own-device refresh and cache-first
+devicesForUser (lib/src/encryption/encryption_service.dart). The
+"Already seen Device ID has been added again" / "Invalid device"
+warnings are server-data artifacts (device ID reuse / malformed keys),
+not app misuse.
 
 
 2. Open features

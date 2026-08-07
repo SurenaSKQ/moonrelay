@@ -264,7 +264,7 @@ class EncryptionService extends ChangeNotifier {
 
       // The first refresh is awaited so callers can trust the
       // observable state immediately after init() returns.
-      await _runRefresh();
+      await _runRefresh(forceDevices: true);
 
       _isInitialized = true;
       _initialRefreshComplete = true;
@@ -285,6 +285,9 @@ class EncryptionService extends ChangeNotifier {
     // new device keys, completed a SAS verification, or imported a
     // trusted key. The next lookup will recompute on demand.
     _bumpDeviceKeys();
+    // The unverified-device aggregate is derived from the same device-keys
+    // snapshot, so it must be recomputed on the next access too.
+    _cachedUnverified = null;
 
     // Refresh state in the background.
     _refreshDebounce?.cancel();
@@ -293,13 +296,18 @@ class EncryptionService extends ChangeNotifier {
 
   /// Runs the three refresh tasks in parallel, deduplicating concurrent
   /// calls so a slow network doesn't pile up multiple in-flight refreshes.
-  Future<void> _runRefresh() {
+  ///
+  /// The own-device list is the only network call of the three, and it is
+  /// throttled inside [_refreshMyDevices]; pass [forceDevices] to bypass
+  /// the throttle (used at init, after a bootstrap, and after deleting a
+  /// device, where a fresh list is required).
+  Future<void> _runRefresh({bool forceDevices = false}) {
     final ongoing = _ongoingRefresh;
     if (ongoing != null) return ongoing;
     final future = Future.wait([
       _refreshCrossSigningStatus(),
       _refreshBackupState(),
-      _refreshMyDevices(),
+      _refreshMyDevices(force: forceDevices),
     ]).catchError((e, s) {
       _log.w('encryption refresh failed', error: e, stackTrace: s);
       return <void>[];
@@ -315,7 +323,7 @@ class EncryptionService extends ChangeNotifier {
   ///
   /// Useful for the post-login checker and any UI action that needs a
   /// fresh view (e.g. immediately after a bootstrap completes).
-  Future<void> refresh() => _runRefresh();
+  Future<void> refresh() => _runRefresh(forceDevices: true);
 
   /// Dispose of resources. Call when the service is no longer needed.
   @override
@@ -588,13 +596,31 @@ class EncryptionService extends ChangeNotifier {
   // Device management
   // -----------------------------------------------------------------------
 
-  Future<void> _refreshMyDevices() async {
+  /// Minimum time between own-device list refreshes issued from the
+  /// sync path.  The device list only changes when this account gains
+  /// or loses a device (login elsewhere, logout, rename); re-fetching it
+  /// on every sync tick is wasted HTTP on top of the SDK's own per-sync
+  /// device-keys bookkeeping, which already saturates the main isolate
+  /// on large homeservers.
+  static const Duration _deviceRefreshMinInterval = Duration(seconds: 30);
+
+  /// When the own-device list was last fetched from the server.
+  DateTime? _lastDeviceRefresh;
+
+  Future<void> _refreshMyDevices({bool force = false}) async {
     try {
       if (!_client.isLogged()) return;
+      if (!force &&
+          _lastDeviceRefresh != null &&
+          DateTime.now().difference(_lastDeviceRefresh!) <
+              _deviceRefreshMinInterval) {
+        return;
+      }
       final devices = await withTimeout(
         () => _client.getDevices(),
         timeout: kDefaultTimeout,
       );
+      _lastDeviceRefresh = DateTime.now();
       _myDevices = devices ?? [];
       notifyListeners();
     } catch (e, s) {
@@ -603,14 +629,25 @@ class EncryptionService extends ChangeNotifier {
   }
 
   /// Fetch devices for [userId] (cached from the crypto store).
+  ///
+  /// Reads the SDK's in-memory device-keys snapshot first and only falls
+  /// back to [Client.updateUserDeviceKeys] when the user has no cached
+  /// list at all or their list is marked outdated.  Passing a user as an
+  /// `additionalUser` unconditionally (as this method used to) forces the
+  /// SDK to re-query the server AND re-write every cached device key of
+  /// that user to the database on every call, which is a main-isolate
+  /// hotspot on homeservers with large device key sets.
   Future<List<DeviceKeys>> devicesForUser(String userId) async {
     try {
       final enc = _enc;
       if (enc == null) return [];
-      await withTimeout(
-        () => _client.updateUserDeviceKeys(additionalUsers: {userId}),
-        timeout: kDefaultTimeout,
-      );
+      final list = _client.userDeviceKeys[userId];
+      if (list == null || list.outdated) {
+        await withTimeout(
+          () => _client.updateUserDeviceKeys(additionalUsers: {userId}),
+          timeout: kDefaultTimeout,
+        );
+      }
       final keys = _client.userDeviceKeys[userId]?.deviceKeys.values ?? [];
       return keys.toList();
     } catch (e, s) {
@@ -627,7 +664,7 @@ class EncryptionService extends ChangeNotifier {
         () => _client.deleteDevices([deviceId]),
         timeout: kDefaultTimeout,
       );
-      await _refreshMyDevices();
+      await _refreshMyDevices(force: true);
     } catch (e, s) {
       _log.e('failed to delete device $deviceId', error: e, stackTrace: s);
       rethrow;
