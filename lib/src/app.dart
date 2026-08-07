@@ -31,7 +31,13 @@ import 'encryption/encryption_service.dart';
 final _appTheme = MoonrelayAppTheme();
 
 class MoonrelayApp extends StatefulWidget {
-  const MoonrelayApp({super.key});
+  const MoonrelayApp({super.key, this.navigatorKey});
+
+  /// Optional navigator key handed to the router.  Lets code above the
+  /// [MaterialApp.router] (e.g. the boot pipeline's startup update
+  /// check) look up a context that lives inside the app so dialogs
+  /// resolve [Localizations] and the [Navigator].
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   State<MoonrelayApp> createState() => _MoonrelayAppState();
@@ -44,7 +50,10 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
   /// connections and live timelines) across test instances, which made
   /// the E2E suite leak pages and hit "readonly database" errors once
   /// the second test in a file booted.
-  final GoRouter _router = GoRouter(routes: MoonRouter.routes);
+  late final GoRouter _router = GoRouter(
+    navigatorKey: widget.navigatorKey,
+    routes: MoonRouter.routes,
+  );
   /// Process-wide sync pulse, owned by this widget so its lifetime
   /// matches the running app. Re-bound to the active client every time
   /// the account manager swaps in a new [Client].

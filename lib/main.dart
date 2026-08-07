@@ -157,6 +157,12 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   final GlobalKey<SplashScreenState> _splashKey =
       GlobalKey<SplashScreenState>();
 
+  /// Navigator key handed to the router inside [MoonrelayApp].  The boot
+  /// pipeline sits above [MaterialApp.router], so its context has no
+  /// [Localizations] or [Navigator] ancestors; dialogs must be shown
+  /// through a context obtained from this key instead.
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
@@ -244,17 +250,22 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
     state.autoUpdateService.check().then((result) {
       if (!mounted || !result.available) return;
       // Use a post-frame callback since we may be called during
-      // initial render.
+      // initial render.  The dialog runs on the navigator context so
+      // Localizations and showDialog resolve inside the MaterialApp.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _showUpdateDialog(context, result);
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+        _showUpdateDialog(navContext, result);
       });
     }).catchError((e) {
       log.w('Startup update check failed', error: e);
     });
   }
 
-  /// Shows the update-available dialog using the current context.
+  /// Shows the update-available dialog using [dialogContext], which
+  /// must live inside the [MaterialApp.router] subtree (the navigator
+  /// key context) so both [AppLocalizations] and [showDialog] work.
   void _showUpdateDialog(BuildContext dialogContext, UpdateCheckResult result) {
     final l10n = AppLocalizations.of(dialogContext)!;
     showDialog<bool>(
@@ -384,7 +395,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           Provider<AutoUpdateService>.value(
               value: _appState!.autoUpdateService),
         ],
-        child: const MoonrelayApp(),
+        child: MoonrelayApp(navigatorKey: _navigatorKey),
       );
     }
 
