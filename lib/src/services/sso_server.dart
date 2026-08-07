@@ -69,9 +69,13 @@ class SsoCallbackServer {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
 
+    // Use the literal loopback address rather than "localhost" in the
+    // redirect.  Browsers may resolve "localhost" to ::1 (IPv6) first,
+    // and the server only listens on 127.0.0.1, which made the callback
+    // fail on systems that prefer IPv6.
     final Uri redirectUri = Uri(
       scheme: 'http',
-      host: 'localhost',
+      host: InternetAddress.loopbackIPv4.address,
       port: _port,
       path: '/callback',
       queryParameters: {'state': _expectedState},
