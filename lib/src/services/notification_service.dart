@@ -568,7 +568,11 @@ class NotificationService {
     // left guessing whether a notification was suppressed.
     final isEncrypted = event.type == EventTypes.Encrypted ||
         (event.messageType.isEmpty && event.content['m.ciphertext'] != null);
-    final rawBody = event.content.tryGet('body') as String? ?? '';
+    // Use the generic [Map.tryGet] so a non-string body from a
+    // malformed or foreign event returns null instead of throwing a
+    // TypeError inside the sync listener (which would abort the rest
+    // of the room scan).
+    final rawBody = event.content.tryGet<String>('body') ?? '';
     final isUndecryptedPlaceholder = isEncrypted && rawBody.isEmpty;
     final body = isUndecryptedPlaceholder ? 'Encrypted message' : rawBody;
     if (body.isEmpty) return;
