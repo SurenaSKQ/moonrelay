@@ -124,12 +124,9 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     setState(() => _uploadingAvatar = true);
 
     try {
-      await widget.client.uploadContent(
-        bytes,
-        filename: file.name,
-        contentType:
-            file.extension != null ? 'image/${file.extension}' : 'image/png',
-      );
+      // setAvatar uploads the bytes itself, so a separate uploadContent
+      // call would send the file to the server twice.  Skip the
+      // redundant upload and let setAvatar own the lifecycle.
       await widget.client.setAvatar(MatrixFile(
         bytes: bytes,
         name: file.name,
