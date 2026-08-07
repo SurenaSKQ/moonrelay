@@ -134,4 +134,3 @@ lib/generated_plugin_registrant.dart
 lib/src/localization/app_localizations.dart
 lib/src/localization/app_localizations_en.dart
 lib/src/localization/app_localizations_fa.dart
-.crush.json
