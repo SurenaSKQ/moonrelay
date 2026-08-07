@@ -25,13 +25,14 @@ import 'package:logger/logger.dart';
 /// callback from the browser.
 ///
 /// After the user authenticates in their browser, the homeserver redirects
-/// to `http://localhost:{port}/callback?loginToken={token}&state={nonce}`.
+/// to `http://127.0.0.1:{port}/callback?loginToken={token}&state={nonce}`.
 /// This server validates the `state` parameter against the nonce generated
 /// at [start] time, then captures the token and makes it available via
 /// [token].
 ///
-/// Only GET requests from localhost are accepted; any other request method
-/// or origin is rejected with a 403 response.
+/// Only GET requests carrying a loopback Host header (127.0.0.1 or
+/// localhost) on the server's own port are accepted; any other request
+/// method or origin is rejected with a 403 response.
 class SsoCallbackServer {
   HttpServer? _server;
   Completer<String>? _completer;
@@ -133,8 +134,13 @@ class SsoCallbackServer {
     }
 
     // ── Validate the Host header ────────────────────────────
+    // The browser navigates to whatever the redirect URI host was.
+    // Accept both loopback spellings (the redirect uses 127.0.0.1, but
+    // a homeserver or proxy may echo `localhost` instead) while still
+    // pinning the exact port so no other origin can reach the callback.
     final host = request.headers.value('host');
-    if (host == null || host != 'localhost:$_port') {
+    final expectedHosts = {'localhost:$_port', '127.0.0.1:$_port'};
+    if (host == null || !expectedHosts.contains(host)) {
       _log.w('SSO: rejected request with Host header "$host"');
       _respondWithError(
         request,

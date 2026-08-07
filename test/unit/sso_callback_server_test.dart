@@ -26,12 +26,15 @@
 //   - restart swaps the state
 //   - stop clears the port and is idempotent
 //
-// End-to-end "fire a GET and read the token future" tests are flaky in
-// a single Dart VM because the server calls `stop()` *during* request
-// processing, which closes the underlying socket before the client's
-// HTTP parser has finished reading the response headers  see
-// `lib/src/services/sso_server.dart` `_handleRequest` line ~185.
-// The real flow is exercised end-to-end in `integration_test/`.
+// One end-to-end callback test is included: it drives a real GET whose
+// Host header matches the redirect host (127.0.0.1) and asserts the
+// token future resolves. Asserting on the future, not the HTTP response
+// body, sidesteps the socket race that made broader E2E coverage flaky
+// (the server calls `stop()` during request processing, closing the
+// listening socket before the client's parser finishes reading the
+// response). The real flow is also exercised in `integration_test/`.
+
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
@@ -81,5 +84,28 @@ void main() {
       expect(server.port, 0);
       await server.stop(); // second call must not throw
     }, timeout: const Timeout(Duration(seconds: 5)));
+
+    test('accepts a callback whose Host is the loopback redirect host',
+        () async {
+      // Regression: the redirect URI uses 127.0.0.1 (never "localhost",
+      // which can resolve to ::1 first) but the Host-header check used to
+      // only accept "localhost:$port", so every real callback was
+      // rejected with "bad host header" and SSO never completed.
+      final redirect = await server.start();
+      final state = redirect.queryParameters['state']!;
+      expect(redirect.host, '127.0.0.1');
+
+      final tokenFuture = server.token;
+      final socket = await Socket.connect('127.0.0.1', server.port);
+      socket.write(
+        'GET /callback?state=$state&loginToken=abc123 HTTP/1.1\r\n'
+        'Host: ${redirect.host}:${server.port}\r\n'
+        'Connection: close\r\n\r\n',
+      );
+      await socket.flush();
+      await socket.close();
+
+      expect(await tokenFuture.timeout(const Duration(seconds: 5)), 'abc123');
+    }, timeout: const Timeout(Duration(seconds: 15)));
   });
 }
