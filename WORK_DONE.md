@@ -26,8 +26,8 @@ hoverbar rearchitecture, the responsive-layout shell rework, the
 shell-flip navigation leak fix, the August 2026 bug-fix pass (24
 fixes from the full-codebase audit), the SSO loopback-host
 regression fix, the timeline scroll-position null-deref crash fix,
-the August 2026 timeline dead-code and duplication removal, and the
-timeline Suckless-cleanup pass.
+the August 2026 timeline dead-code and duplication removal, the
+timeline Suckless-cleanup pass, and the jump-to-unread FAB survival.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -2072,3 +2072,33 @@ flutter analyze 0 issues.
   eliminating ~120 lines of dead overlay positioning code.
 
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+27. Jump-to-unread FAB survives scroll motion
+
+The jump-to-unread pill was coupled to the scroll position: it only
+appeared when the user was scrolled up, so scrolling back down to the
+bottom made it disappear. The user wants the pill to persist at all
+scroll positions unless explicitly dismissed (X button) or resolved
+(tap to jump, which marks the room as read).
+
+- The `ValueListenableBuilder<bool>` on `_isScrolledUpNotifier` is now a
+  `ListenableBuilder` listening to `Listenable.merge([_isScrolledUpNotifier,
+  _timelineVersion])` so the column rebuilds when either the scroll state
+  *or* the timeline content changes -- previously the floating actions only
+  re-evaluated on scroll ticks, meaning a sync that brought in new unread
+  events while the user sat at the bottom would not surface the pill until
+  they scrolled. See `lib/src/chat/chat_timeline.dart:500`.
+- `unreadVisible` is now `_showUnreadPill || isJumping` (was
+  `(_showUnreadPill && isScrolledUp) || isJumping`). The `&& isScrolledUp`
+  guard is removed, so the pill stays visible once `_showUnreadPill` is
+  true regardless of where the user is in the list. The `isJumping`
+  alternative still surfaces the loading spinner during pagination.
+- `showColumn` is now `isScrolledUp || unreadVisible` (was
+  `isScrolledUp || isJumping`). This keeps the column mounted when the
+  pill should be shown even at the bottom, while the scroll-to-bottom pill
+  still only appears on scroll-up. See `lib/src/chat/chat_timeline.dart:510`.
+
+The `ScrollToBottomPill` behaviour is unchanged: it still only appears
+when `isScrolledUp` is true and disappears when the user returns to the
+newest messages. Explicit dismissal resets on room switch or read-marker
+update, matching the existing `_pillDismissed` lifecycle.
