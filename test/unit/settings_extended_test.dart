@@ -72,9 +72,9 @@ void main() {
       expect(MediaSizePrefs.defaults.imageThumbnailMax, 360);
       expect(MediaSizePrefs.defaults.stickerMax, 180);
       expect(MediaSizePrefs.defaults.videoMax, 360);
-      expect(MediaSizePrefs.defaults.audioMax, 360);
-      expect(MediaSizePrefs.defaults.fileMax, 340);
-      expect(MediaSizePrefs.defaults.locationMax, 360);
+      expect(MediaSizePrefs.defaults.audioMax, 340);
+      expect(MediaSizePrefs.defaults.fileMax, 360);
+      expect(MediaSizePrefs.defaults.locationMax, 340);
     });
   });
 
