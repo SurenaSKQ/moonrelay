@@ -577,9 +577,12 @@ class TimelineViewState extends State<TimelineView> {
           children: extra,
         );
       }
-      // Animate items that just got paginated in: the oldest end of
-      // the timeline (top of the viewport when `reverse: true`).
-      final isNewestHistory = hasMore && index <= 4;
+      // Animate items that just got paginated in.  The item list is
+      // newest-first, so freshly-fetched history lands at the *tail*
+      // (highest indices, top of the viewport under `reverse: true`).
+      // Indexing the head would animate the newest messages instead,
+      // which never change on pagination.
+      final isNewestHistory = hasMore && index >= items.length - 4;
       if (isNewestHistory) {
         return ItemAppearance(
           key: ValueKey('${items.length}_$index'),
