@@ -190,15 +190,38 @@ class MockMatrixHttpClient extends http.BaseClient {
 
   // -- Pre-built sync response --------------------------------------
 
+  /// How many timeline events per room had been delivered at each batch
+  /// token.  Used to make [buildSyncResponse] incremental (a real server
+  /// only returns events newer than the client's `since` token), instead
+  /// of re-sending the whole growing timeline on every tick, which made
+  /// the sync loop O(n²) and progressively starved the frame pipeline in
+  /// the sustained-sync regression test.
+  final Map<String, Map<String, int>> _deliveredCounts = {};
+
   /// Build a Matrix sync response JSON map from the current room state.
-  Map<String, dynamic> buildSyncResponse() {
+  ///
+  /// Pass [since] (the `since` query parameter the SDK sends) to deliver
+  /// only events newer than that batch token, like a real homeserver.
+  /// A null [since] (initial sync) delivers the full timeline.
+  Map<String, dynamic> buildSyncResponse({String? since}) {
     _nextBatchCounter++;
     _baseBatchToken = 's$_nextBatchCounter';
 
+    // Events already delivered by the batch the client is syncing from.
+    final deliveredBefore = since == null
+        ? <String, int>{}
+        : (_deliveredCounts[since] ?? <String, int>{});
+
     final joinRooms = <String, dynamic>{};
+    final newCounts = <String, int>{};
     for (final entry in _rooms.entries) {
       final room = entry.value;
-      final timeline = room.timelineEvents.map((e) {
+      final timelineEvents = room.timelineEvents;
+      final start = (deliveredBefore[entry.key] ?? 0).clamp(0, timelineEvents.length);
+      final newEvents = timelineEvents.sublist(start);
+      newCounts[entry.key] = timelineEvents.length;
+
+      final timeline = newEvents.map((e) {
         // Ensure required fields
         return {
           'type': 'm.room.message',
@@ -255,6 +278,8 @@ class MockMatrixHttpClient extends http.BaseClient {
         'unread_thread_notifications': {},
       };
     }
+
+    _deliveredCounts[_baseBatchToken] = newCounts;
 
     return {
       'next_batch': _baseBatchToken,
