@@ -75,14 +75,18 @@ class RoomMediaCache {
     }
     final inflight = _inflight[key];
     if (inflight != null) return inflight;
-    final future = download().then((m) {
-      _completed[key] = _Entry(matrixFile: m, bytes: m.bytes);
-      _lruOrder.add(key);
-      _bytes += m.bytes.length;
-      _evictIfNeeded();
-      _inflight.remove(key);
-      return m;
-    });
+    final future = download()
+        .then((m) {
+          _completed[key] = _Entry(matrixFile: m, bytes: m.bytes);
+          _lruOrder.add(key);
+          _bytes += m.bytes.length;
+          _evictIfNeeded();
+          return m;
+        })
+        // Clear the in-flight entry on failure too; otherwise a single
+        // failed download poisons the cache until the app restarts and
+        // every retry replays the same error.
+        .whenComplete(() => _inflight.remove(key));
     _inflight[key] = future;
     return future;
   }
