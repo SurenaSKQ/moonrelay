@@ -24,8 +24,8 @@ pass, the recent UX fix-up pass, the chat-timeline scroll-performance
 pass, the chat-timeline scroll-velocity second pass, the
 hoverbar rearchitecture, the responsive-layout shell rework, the
 shell-flip navigation leak fix, the August 2026 bug-fix pass (24
-fixes from the full-codebase audit), and the SSO loopback-host
-regression fix.
+fixes from the full-codebase audit), the SSO loopback-host
+regression fix, and the timeline scroll-position null-deref crash fix.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -1864,8 +1864,39 @@ login therefore never completed through the automatic flow.
   host (127.0.0.1) and asserts the token future resolves. Asserting on
   the future instead of the HTTP response body sidesteps the socket
   race that made broader E2E coverage flaky. See
-  test/unit/sso_callback_server_test.dart.
+   test/unit/sso_callback_server_test.dart.
 
 Tests at head: flutter test 509 green (unit + widget). flutter analyze
 0 issues. E2E room-flow and logout still fail on the pre-existing mock
 gaps described in section 18.
+
+
+25. Scroll-position null-deref crash on timeline first paint
+
+`ScrollPosition.maxScrollExtent` is backed by a nullable `double?` in
+Flutter's framework (the `!` assertion only fires when content dimensions
+have been applied via `applyContentDimensions`). The chat timeline reads
+`maxScrollExtent` right after a `hasClients` check, but `hasClients` being
+true does not guarantee that the scrollable has laid out. During the
+first paint -- especially from the post-frame callback in `_initTimeline`
+that kicks off `HistoryPager.ensureFilled` -- the scroll controller has a
+client attached but `_maxScrollExtent` is still null, so the `!` throws
+`_TypeError: Null check operator used on a null value`. The same
+unguarded access existed in the `build` method, `onScroll`, the jump-to-
+event fallback in `JumpCoordinator`, and `_scrollToEventId` in
+`TimelineView`.
+
+- All five sites now guard with `scrollController.position.haveDimensions`
+  (or `_scrollController.position.haveDimensions`) before reading
+  `maxScrollExtent`. When dimensions aren't ready yet, `ensureFilled`
+  defers itself to the next frame via `addPostFrameCallback`, mirroring
+  the existing `hasClients` deferral. The other sites simply return early,
+  since they are invoked from scroll listeners or user actions that will
+  fire on a subsequent frame when layout is valid.
+  See `lib/src/chat/history_pager.dart:152`, `lib/src/chat/history_pager.dart:191`,
+  `lib/src/chat/chat_timeline.dart:466`, `lib/src/chat/jump_coordinator.dart:207`,
+  `lib/src/chat/timeline_view.dart:636`.
+
+Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
