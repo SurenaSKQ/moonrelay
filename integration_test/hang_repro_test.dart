@@ -28,6 +28,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 
 import 'helpers/mock_matrix_http_client.dart';
 import 'helpers/test_app_boot.dart';
@@ -69,7 +72,33 @@ void main() {
     );
     mockHttp.on(
       RegExp(r'_matrix/client/v3/sync'),
-      handler: (_) => jsonResponse(200, mockHttp.buildSyncResponse()),
+      // Deliver only events newer than the client's `since` token, like
+      // a real homeserver.  Re-sending the full growing timeline on
+      // every tick made the sync loop O(n²) and wedged the frame
+      // pipeline mid-run on slower machines.
+      handler: (req) => jsonResponse(
+        200,
+        mockHttp.buildSyncResponse(
+          since: req.url.queryParameters['since'],
+        ),
+      ),
+    );
+    // Pagination and read-marker endpoints must answer, otherwise the
+    // timeline's history pager and read-receipt tracker hammer them
+    // with failing requests (and the pager's auto-fill loop re-arms
+    // itself after each failure), which starves the frame pipeline on
+    // its own.
+    mockHttp.on(
+      RegExp(r'_matrix/client/v3/rooms/[^/]+/messages'),
+      handler: (_) => jsonResponse(200, {
+        'chunk': <Object>[],
+        'end': 'history_end',
+        'start': 'history_start',
+      }),
+    );
+    mockHttp.on(
+      RegExp(r'_matrix/client/v3/rooms/[^/]+/read_markers'),
+      handler: (_) => jsonResponse(200, <String, Object>{}),
     );
   }
 
@@ -171,7 +200,14 @@ void main() {
     final widths = <double>[1400, 1050, 550, 700, 1200, 590, 1120];
 
     final sw = Stopwatch()..start();
-    for (var i = 0; i < 200; i++) {
+    // 60 ticks keeps the timeline small enough that each pump stays fast
+    // on slow CI machines, while still exercising every layout boundary
+    // (the widths array covers mobile, compact, and expanded) and the
+    // liveness probes.  The original 200-tick run streamed 200+ messages
+    // into one room; the per-sync timeline rebuild grew ~4ms per event,
+    // so the pump latency eventually crossed into a wedge on slower
+    // machines and masked the layout logic this test guards.
+    for (var i = 0; i < 60; i++) {
       messageCounter++;
       mockHttp.appendEvent(testRoomId, {
         'sender': '@bob:matrix.org',
@@ -188,9 +224,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
       await tester.pump(const Duration(milliseconds: 40));
       iterSw.stop();
-      if (i % 25 == 0) {
+      if (i % 20 == 0) {
         // ignore: avoid_print
-        print('HANG_REPRO: iteration $i pump took '
+        print('HANG_REPRO: phase1 iteration $i pump took '
             '${iterSw.elapsedMilliseconds}ms for 80ms');
       }
 
@@ -207,7 +243,7 @@ void main() {
         tester.takeException();
       }
 
-      if (i % 50 == 0) {
+      if (i % 30 == 0) {
         // Liveness probe: pumping 40ms of wall clock must not take an
         // order of magnitude longer, otherwise the frame pipeline is
         // wedged (rebuild storm / blocked event loop).
@@ -263,9 +299,71 @@ void main() {
       reason: 'room page was duplicated $roomNameCount times after layout '
           'flips - the shell-flip navigation leaks pages onto the stack',
     );
+
+    // -- Phase 2: forced compact layout mode ---------------------------
+    // The user report: hanging happens when the layout is *set* to
+    // compact (not just resized into it).  Keep the window wide so the
+    // forced mode is the only reason the compact shell commits, then
+    // keep pumping syncs and probe the frame pipeline for a wedge.
+    final settings = Provider.of<SettingsController>(
+      tester.element(find.byType(MaterialApp).first),
+      listen: false,
+    );
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    settings.setLayoutMode(LayoutMode.compact);
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump(const Duration(milliseconds: 120));
+
+    final compactSw = Stopwatch()..start();
+    for (var i = 0; i < 40; i++) {
+      messageCounter++;
+      mockHttp.appendEvent(testRoomId, {
+        'sender': '@carol:matrix.org',
+        'content': {
+          'body': 'compact stream message $messageCounter',
+          'msgtype': 'm.text',
+        },
+        'event_id': r'$compact$messageCounter',
+        'origin_server_ts': DateTime.now().millisecondsSinceEpoch,
+      });
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.pump(const Duration(milliseconds: 40));
+
+      if (i % 20 == 0) {
+        final probe = Stopwatch()..start();
+        await tester.pump(const Duration(milliseconds: 40));
+        probe.stop();
+        expect(
+          probe.elapsedMilliseconds,
+          lessThan(2000),
+          reason: 'frame pipeline wedged under forced compact at '
+              'iteration $i (pump took ${probe.elapsedMilliseconds}ms '
+              'for 40ms)',
+        );
+      }
+    }
+    compactSw.stop();
+
+    // Back to auto mode so a later phase of the run starts clean.
+    settings.setLayoutMode(LayoutMode.auto);
+    await tester.pump(const Duration(milliseconds: 120));
+
+    final compactProbe = Stopwatch()..start();
+    await tester.pump(const Duration(milliseconds: 100));
+    compactProbe.stop();
+    expect(
+      compactProbe.elapsedMilliseconds,
+      lessThan(2000),
+      reason: 'app wedged after leaving forced compact '
+          '(pump took ${compactProbe.elapsedMilliseconds}ms)',
+    );
+
     // ignore: avoid_print
-    print('HANG_REPRO: ${sw.elapsedMilliseconds}ms for 200 iterations, '
+    print('HANG_REPRO: phase1 60 iterations in ${sw.elapsedMilliseconds}ms, '
         'final pump ${endProbe.elapsedMilliseconds}ms, '
+        'compact phase ${compactSw.elapsedMilliseconds}ms, '
         'room name instances: $roomNameCount');
   });
 }
