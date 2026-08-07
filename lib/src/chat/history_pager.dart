@@ -237,11 +237,13 @@ class HistoryPager {
       // "post-load" timer we deliberately set to suppress scroll events.
     });
 
+    var succeeded = false;
     try {
       await withTimeout(
         () => timeline.requestHistory(),
         timeout: kDefaultTimeout,
       );
+      succeeded = true;
     } catch (e) {
       logger?.w('History request failed for ${room.id}', error: e);
       if (_state != HistoryFillState.idle) {
@@ -256,8 +258,16 @@ class HistoryPager {
         _transition(HistoryFillState.idle);
       }
     });
-    // Re-check auto-fill after this load finishes.
-    WidgetsBinding.instance.addPostFrameCallback((_) => ensureFilled());
+
+    // Re-check auto-fill only after a *successful* load.  Re-arming after
+    // a failure makes the fill loop retry immediately in a tight spin
+    // (the retry budget can be reset by concurrent rebuilds, keeping the
+    // spin alive), hammering the network and starving the frame pipeline
+    // when pagination keeps failing.  The next sync tick or a manual
+    // scroll is the right moment to try again.
+    if (succeeded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => ensureFilled());
+    }
   }
 
   /// True when the trailing [stateDrainWindow] events are all state
