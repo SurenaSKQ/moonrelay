@@ -414,29 +414,31 @@ class NotificationService {
   }
 
   /// Calls [_processRooms] only when something has actually changed
-  /// since the last tick.  Cheap O(rooms) check via the
-  /// [lastEventIdByRoom] map; if the cache is empty the first tick
-  /// still runs so we never get stuck.
-  String? _lastProcessTickRoomId;
-  int _lastProcessTickLastEvent = -1;
+  /// since the last tick.  Cheap O(rooms) signature check over each
+  /// room's last event; if the cache is empty the first tick still
+  /// runs so we never get stuck.
+  ///
+  /// The signature covers every room's last event ID, not just the room
+  /// with the newest timestamp.  Tracking a single max-timestamp room
+  /// would drop notifications for rooms whose new message has an older
+  /// timestamp than the current global maximum.
+  String? _lastProcessSignature;
   void _processRoomsIfChanged() {
     final all = _client.rooms;
-    String? lastRoomId;
-    int lastEvent = -1;
+    final buf = StringBuffer();
+    var count = 0;
     for (final room in all) {
       final e = room.lastEvent;
       if (e == null) continue;
-      if (lastEvent < 0 || e.originServerTs.millisecondsSinceEpoch > lastEvent) {
-        lastEvent = e.originServerTs.millisecondsSinceEpoch;
-        lastRoomId = room.id;
-      }
+      buf.write(room.id);
+      buf.write('#');
+      buf.write(e.eventId);
+      buf.write(';');
+      count++;
     }
-    if (lastRoomId == _lastProcessTickRoomId &&
-        lastEvent == _lastProcessTickLastEvent) {
-      return;
-    }
-    _lastProcessTickRoomId = lastRoomId;
-    _lastProcessTickLastEvent = lastEvent;
+    final signature = '$count:$buf';
+    if (signature == _lastProcessSignature) return;
+    _lastProcessSignature = signature;
     _processRooms();
   }
 
