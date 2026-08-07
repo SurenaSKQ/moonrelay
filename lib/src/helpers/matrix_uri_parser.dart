@@ -124,7 +124,20 @@ class MatrixUriParser {
 
   /// Tries to parse a single matrix URI string.  Returns `null` if the
   /// string is not a recognised matrix URI format.
+  ///
+  /// Malformed input (e.g. a broken percent-escape in a `matrix.to`
+  /// permalink sent by another user) is treated as "no match" rather
+  /// than throwing, so message rendering and deep-link handling never
+  /// crash on hostile or corrupt server data.
   static MatrixUriResult? parse(String uri) {
+    try {
+      return _parse(uri);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static MatrixUriResult? _parse(String uri) {
     final lower = uri.toLowerCase();
     if (lower.startsWith('matrix:')) {
       return _parseMatrixScheme(uri);
