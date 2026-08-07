@@ -108,6 +108,20 @@ Scroll-targeting deduplication:
 Tests at head: flutter test 509 green. flutter analyze 0 errors, 0 warnings.
 
 
+Dead-count and message-like helper consolidation
+
+- `lib/src/chat/jump_to_unread_pager.dart` contained a second copy of
+  `countUnreadInWindow` and a private `_isMessageLike` that shadowed the
+  canonical versions in `lib/src/chat/chat_unread_utils.dart`. The
+  duplicate was never called (jump_coordinator.dart already imported the
+  canonical version via an `as unread` prefix to hide it). Removed the
+  dead 27-line function and the 3-line `_isMessageLike` helper, and
+  replaced the two call sites of `_isMessageLikeEvent` with the public
+  `isMessageLikeEvent` from chat_unread_utils (which is the same function).
+  The `EventTypes` import in jump_to_unread_pager.dart is still needed
+  for the `_isMessageLikeEvent` callsites within `JumpToUnreadPager` that
+  were also replaced. Lost 40 lines.
+
 
 1. Desktop-service hardening
 
