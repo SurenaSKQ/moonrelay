@@ -32,14 +32,38 @@ the jump-to-unread target-selection and scroll-execution fixes, and the
 status-pill honesty fix plus the dead appearance-settings wiring, and the
 blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
-a unified navigation sidebar).
+a unified navigation sidebar), and the collapsible sidebar sections
+follow-up.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 575 green (9 new tests across this pass:
-4 navigation-sidebar / collapse-gutter widget tests, 5 settings tests).
-flutter analyze 0 issues. (Suite baseline prior to these passes was 566;
-the AGENTS.md "538" count is stale.)
+Tests at head: flutter test 583 green (8 new tests across this pass:
+3 sidebar section-collapse widget tests, 5 settings tests).
+flutter analyze 0 issues. (Suite baseline prior to these passes was 575.)
+
+24. Collapsible sidebar sections
+
+The navigation sidebar's spaces and rooms regions could not be hidden;
+users with a short space list or a single active room had no way to
+reclaim that vertical space. Both section headers are now tappable and
+show a chevron that flips with the text direction (chevron-down when
+expanded, pointing at the screen edge when collapsed in RTL).
+
+- lib/src/settings: new `collapsedSidebarSections` set (ids like
+  `spaces` / `rooms`), persisted as a JSON array via the existing
+  comma-set reader. The controller replaces the set with a copy on
+  toggle so `context.select` consumers rebuild only when the contents
+  actually change.
+- lib/src/widgets/navigation_sidebar.dart: the section headers take
+  collapsed state and a toggle callback; the spaces region (hidden
+  entirely when there are no spaces) and the rooms region mount and
+  unmount their lists underneath the headers.
+- test/widget/navigation_sidebar_test.dart (3 new) — tapping the rooms
+  or spaces header collapses the section, and a persisted collapsed
+  section survives a rebuild.
+- test/unit/settings_controller_test.dart (5 new) — collapse round-trip,
+  set-instance replacement for scoped rebuilds, notify-on-change, and
+  persistence across controller reloads.
 
 23. Dashboard UI refresh: OS decorations and the unified navigation sidebar
 

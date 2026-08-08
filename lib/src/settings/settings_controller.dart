@@ -42,6 +42,12 @@ class SettingsController with ChangeNotifier, WindowListener {
   double _rightSidebarWidth = 280.0;
   RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
 
+  /// Ids of the navigation sidebar sections the user has collapsed
+  /// (e.g. `spaces`, `rooms`).  Replaced (never mutated) so the same
+  /// instance is returned until it actually changes, which keeps
+  /// `context.select` rebuilds scoped to the sections state.
+  Set<String> _collapsedSidebarSections = {};
+
   /// When true the OS provides the window title bar and caption buttons;
   /// when false Moonrelay renders its own slim header bar instead.
   bool _useOsTitleBar = true;
@@ -139,6 +145,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
   RightPaneChoice get rightPaneChoice => _rightPaneChoice;
+  Set<String> get collapsedSidebarSections => _collapsedSidebarSections;
   bool get useOsTitleBar => _useOsTitleBar;
   bool get showStateEvents => _showStateEvents;
   bool get showStatusBar => _showStatusBar;
@@ -234,6 +241,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
     _rightPaneChoice = snapshot.rightPaneChoice;
+    _collapsedSidebarSections = snapshot.collapsedSidebarSections;
     _useOsTitleBar = snapshot.useOsTitleBar;
     _showStateEvents = snapshot.showStateEvents;
     _showStatusBar = snapshot.showStatusBar;
@@ -399,6 +407,20 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   Future<void> toggleRightSidebar() async {
     await setRightSidebarVisible(!_rightSidebarVisible);
+  }
+
+  /// Collapses or expands the navigation sidebar section [id].
+  ///
+  /// The set is replaced with a copy so its identity changes only when
+  /// the contents do; `context.select` consumers therefore rebuild only
+  /// on real section changes, not on unrelated settings notifications.
+  Future<void> setSidebarSectionCollapsed(String id, bool collapsed) async {
+    final next = Set<String>.of(_collapsedSidebarSections);
+    final changed = collapsed ? next.add(id) : next.remove(id);
+    if (!changed) return;
+    _collapsedSidebarSections = next;
+    notifyListeners();
+    await _settingsService.updateCollapsedSidebarSections(next);
   }
 
   Future<void> updateUseOsTitleBar(bool value) async {

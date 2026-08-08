@@ -21,6 +21,8 @@ import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:matrix/src/utils/cached_stream_controller.dart'
     show CachedStreamController;
+import 'package:matrix/src/utils/space_child.dart'
+    show SpaceChild, SpaceParent;
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
@@ -30,6 +32,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar.dart';
+import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
 import 'package:provider/provider.dart';
@@ -47,12 +50,32 @@ MockClient _clientWithNoRooms() {
   return client;
 }
 
+/// A mock [Client] that knows one space, so the sidebar renders the
+/// spaces section.
+MockClient _clientWithSpace() {
+  final client = MockClient();
+  final space = MockRoom();
+  when(() => space.id).thenReturn('!space:matrix.org');
+  when(() => space.isSpace).thenReturn(true);
+  when(() => space.getLocalizedDisplayname()).thenReturn('Test Space');
+  when(() => space.avatar).thenReturn(null);
+  when(() => space.spaceParents).thenReturn(<SpaceParent>[]);
+  when(() => space.spaceChildren).thenReturn(<SpaceChild>[]);
+  when(() => client.rooms).thenReturn(<Room>[space]);
+  return client;
+}
+
 /// Wraps [child] with the providers the navigation sidebar needs: a mock
-/// [Client], [NavigationState], [SpacePreferences] and [SyncPulse].
-Widget _wrapSidebar(Widget child, {SettingsController? settings}) {
+/// [Client], [NavigationState], [SpacePreferences], [SyncPulse] and a
+/// [SettingsController].
+Widget _wrapSidebar(
+  Widget child, {
+  MockClient? client,
+  SettingsController? settings,
+}) {
   return MultiProvider(
     providers: [
-      Provider<Client>.value(value: _clientWithNoRooms()),
+      Provider<Client>.value(value: client ?? _clientWithNoRooms()),
       ChangeNotifierProvider<NavigationState>.value(
         value: NavigationState(),
       ),
@@ -60,8 +83,9 @@ Widget _wrapSidebar(Widget child, {SettingsController? settings}) {
         value: SpacePreferences(SettingsService()),
       ),
       ChangeNotifierProvider<SyncPulse>.value(value: SyncPulse()),
-      if (settings != null)
-        ChangeNotifierProvider<SettingsController>.value(value: settings),
+      ChangeNotifierProvider<SettingsController>.value(
+        value: settings ?? createTestSettingsController(),
+      ),
     ],
     child: MaterialApp(
       localizationsDelegates: const [
@@ -109,6 +133,61 @@ void main() {
       // The palette is a transparent overlay route; its search field
       // appears once the route is mounted.
       expect(find.byType(TextField), findsWidgets);
+    });
+
+    testWidgets('tapping the rooms header collapses the rooms section',
+        (tester) async {
+      final settings = createTestSettingsController();
+      await tester.pumpWidget(
+        _wrapSidebar(const NavigationSidebar(), settings: settings),
+      );
+      await tester.pump();
+
+      // RoomsPane renders the loading spinner before the first sync.
+      expect(find.byType(RoomsPane), findsOneWidget);
+
+      await tester.tap(find.text('Rooms'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(RoomsPane), findsNothing);
+      expect(settings.collapsedSidebarSections, contains('rooms'));
+      // The header itself stays visible.
+      expect(find.text('Rooms'), findsOneWidget);
+    });
+
+    testWidgets('tapping the spaces header collapses the spaces section',
+        (tester) async {
+      final settings = createTestSettingsController();
+      await tester.pumpWidget(_wrapSidebar(
+        const NavigationSidebar(),
+        client: _clientWithSpace(),
+        settings: settings,
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Test Space'), findsOneWidget);
+
+      await tester.tap(find.text('Spaces'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Test Space'), findsNothing);
+      expect(settings.collapsedSidebarSections, contains('spaces'));
+    });
+
+    testWidgets('a persisted collapsed section stays collapsed',
+        (tester) async {
+      final settings = createTestSettingsController();
+      await settings.setSidebarSectionCollapsed('rooms', true);
+      await tester.pumpWidget(
+        _wrapSidebar(const NavigationSidebar(), settings: settings),
+      );
+      await tester.pump();
+
+      expect(find.byType(RoomsPane), findsNothing);
+      expect(find.text('Rooms'), findsOneWidget);
     });
   });
 
