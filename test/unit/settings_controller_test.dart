@@ -153,5 +153,49 @@ void main() {
       await reloaded.loadSettings();
       expect(reloaded.layoutMode, LayoutMode.mobile);
     });
+
+    test('useOsTitleBar defaults to true', () {
+      expect(controller.useOsTitleBar, isTrue);
+    });
+
+    test('updateUseOsTitleBar changes the value and persists', () async {
+      await controller.updateUseOsTitleBar(false);
+      expect(controller.useOsTitleBar, isFalse);
+      expect(await service.useOsTitleBar(), isFalse);
+
+      await controller.updateUseOsTitleBar(true);
+      expect(controller.useOsTitleBar, isTrue);
+      expect(await service.useOsTitleBar(), isTrue);
+    });
+
+    test('updateUseOsTitleBar notifies listeners only on change', () async {
+      int notificationCount = 0;
+      controller.addListener(() => notificationCount++);
+
+      await controller.updateUseOsTitleBar(false);
+      expect(notificationCount, 1);
+
+      await controller.updateUseOsTitleBar(false);
+      expect(notificationCount, 1);
+    });
+
+    test('persisted useOsTitleBar loads on a fresh controller', () async {
+      await controller.updateUseOsTitleBar(false);
+
+      final reloaded = SettingsController(service);
+      await reloaded.loadSettings();
+      expect(reloaded.useOsTitleBar, isFalse);
+    });
+
+    test('left sidebar visibility toggles and persists', () async {
+      expect(controller.leftSidebarVisible, isTrue);
+
+      await controller.toggleLeftSidebar();
+      expect(controller.leftSidebarVisible, isFalse);
+      expect(await service.leftSidebarVisible(), isFalse);
+
+      await controller.toggleLeftSidebar();
+      expect(controller.leftSidebarVisible, isTrue);
+    });
   });
 }
