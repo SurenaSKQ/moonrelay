@@ -36,9 +36,9 @@ import 'package:moonrelay/src/widgets/rooms_pane.dart';
 /// [ShellRoute] tree works, only the surrounding frame changes.
 ///
 /// The mobile shell intentionally renders no left sidebar at all: the
-/// far-left rail that [DashboardLayout] shows would consume too much
-/// horizontal real estate on a phone-sized viewport and would crowd the
-/// chat composer.
+/// navigation sidebar that [DashboardLayout] shows would consume too
+/// much horizontal real estate on a phone-sized viewport and would
+/// crowd the chat composer.
 class MobileLayout extends StatelessWidget {
   /// The route's content widget.
   final Widget child;

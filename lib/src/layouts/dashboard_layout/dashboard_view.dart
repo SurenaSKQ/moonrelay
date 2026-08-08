@@ -240,11 +240,8 @@ class SidebarExpandGutter extends StatelessWidget {
 /// Layout used when the window is too narrow to keep both side panes pinned,
 /// or when the user has explicitly opted into compact mode.
 ///
-/// Replaces the old "navigation rail + main content" layout, which left
-/// the user staring at a spaces/rooms picker with no room list.  The new
-/// [CompactSidebar] combines the navigation rail, the left pane, and a
-/// segmented filter so the user can pick a destination and immediately
-/// see something useful.
+/// Shows the unified [CompactSidebar] next to the main content so the
+/// user can pick a destination and immediately see something useful.
 class CompactDashboard extends StatelessWidget {
   const CompactDashboard({
     super.key,
