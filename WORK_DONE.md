@@ -32,8 +32,9 @@ the jump-to-unread target-selection and scroll-execution fixes, and the
 status-pill honesty fix plus the dead appearance-settings wiring, and the
 blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
-a unified navigation sidebar), and the collapsible sidebar sections
-follow-up, and the space-selection fix, and the skins refactor.
+ a unified navigation sidebar), and the collapsible sidebar sections
+ follow-up, and the space-selection fix, and the skins refactor, and the
+ ArchVista GTK theme skin.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -2368,13 +2369,13 @@ active skin is the single source of truth for the app's appearance;
 font/density overrides so those settings finally take effect app-wide.
 Selecting a skin resets the independent appearance controls (density, app
 font family, mono font family, chat bubble radius) to that skin's defaults so
-the new look applies in one action. Nine skins ship, including two with a
-genuinely different feel (sharp-cornered High Contrast and Compact Modern).
+ the new look applies in one action. Ten skins ship, including two with a
+ genuinely different feel (sharp-cornered High Contrast and Compact Modern).
 Existing installs keep their colour choice via a one-time migration from the
 legacy `theme_option` index to the new `selected_skin` id.
 
 - lib/src/settings/skins.dart (new): `MoonrelaySkin` + `MoonrelaySkins`
-  registry (9 skins, `byId`/`fromId`, `defaultSkin`).
+  registry (10 skins, `byId`/`fromId`, `defaultSkin`).
 - lib/src/settings/theme.dart: removed `MoonrelayThemeOption`;
   `MoonrelayTheme.light/dark` now take a `MoonrelaySkin` plus optional
   density/font overrides and derive colorScheme, fonts, card/dialog
@@ -2402,4 +2403,27 @@ legacy `theme_option` index to the new `selected_skin` id.
 - test/widget/appearance_settings_test.dart: refactored onto the skin API and
   added a card-radius propagation assertion.
 
-Tests at head: flutter test 596 green (584 prior + 12 new). flutter analyze 0 issues.
+ Tests at head: flutter test 597 green (584 prior + 13 new). flutter analyze 0 issues.
+
+26. ArchVista GTK skin
+
+The bundled skins are all colour variants of the same Material look; none
+captured a genuinely different desktop theme's chrome. Added a skin based on
+`tmp/ArchVista` (a darkened Windows Vista GTK theme). The palette was read
+straight out of `gtk-4.0/gtk.css`: the dominant filled accent is `#5C8AA6`
+(Air Force Blue, used for active buttons, calendar selection, hover/active
+states — 16 occurrences), which is the colour worth a Material 3 seed;
+Windows' `#3399FF` is only used for window-button highlights (3 occurrences).
+Vista's signature fonts (Segoe UI / Consolas) and near-square corners are
+encoded as the skin's defaults. Because the skin system adds a skin to the
+`MoonrelaySkins.all` list and it auto-appears in the picker, no UI wiring was
+needed — `archVista` shows up next to Compact Modern immediately.
+
+- lib/src/settings/skins.dart: appended the `archVista` skin to `all` and
+  declared it (seed `#5C8AA6`, Sego UI / Consolas, 4px corners, comfortable
+  density, 10px bubbles).
+- test/unit/skins_test.dart: new test pins the seed color, fonts, density and
+  corner-radius to their GTK-faithful values.
+
+Tests at head: flutter test 597 green (596 prior + 1 new palette test).
+flutter analyze 0 issues.

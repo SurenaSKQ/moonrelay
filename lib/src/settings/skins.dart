@@ -101,6 +101,7 @@ class MoonrelaySkins {
     sky,
     highContrast,
     compact,
+    archVista,
   ];
 
   static const MoonrelaySkin indigo = MoonrelaySkin(
@@ -170,6 +171,23 @@ class MoonrelaySkins {
     seedColor: MoonrelayColorPalette.ordinaryBlue,
     cornerRadius: 6.0,
     defaultDensity: LayoutDensity.compact,
+  );
+
+  /// "Darkened Windows Vista UI" — dark surfaces with Vista's signature
+  /// air-force-blue accent (#5C8AA6, the theme's dominant filled button/active
+  /// colour; the Windows blue #3399FF appears only on window-button highlights).
+  /// Faithful defaults: Sego UI / Consolas fonts, square-ish 4px corners,
+  /// and a comfortable (roomy) density echoing Vista's airy chrome.
+  static const MoonrelaySkin archVista = MoonrelaySkin(
+    id: 'archVista',
+    label: 'ArchVista',
+    description: 'Darkened Windows Vista UI.',
+    seedColor: Color(0xFF5C8AA6),
+    defaultFontFamily: 'Segoe UI',
+    defaultMonoFontFamily: 'Consolas',
+    cornerRadius: 4.0,
+    defaultDensity: LayoutDensity.comfortable,
+    defaultBubbleRadius: 10.0,
   );
 
   // ── Defaults ────────────────────────────────────────────────────────
