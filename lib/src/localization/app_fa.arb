@@ -566,6 +566,8 @@
   "light": "روشن",
   "dark": "تاریک",
   "colourTheme": "تم رنگی",
+  "skin": "تم",
+  "skinDescription": "ظاهر برنامه در سراسر برنامه اعمال می‌شود",
   "enable": "فعال",
   "chatDisplayType": "نوع نمایش گفت‌وگو",
   "leftSidebar": "نوار کناری چپ",

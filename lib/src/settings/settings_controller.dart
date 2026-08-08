@@ -17,7 +17,7 @@
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/settings/skins.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -31,7 +31,7 @@ import 'settings_service.dart';
 class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   ThemeMode _themeMode = ThemeMode.system;
-  MoonrelayThemeOption _themeOption = MoonrelayThemeOption.indigo;
+  String _selectedSkinId = MoonrelaySkins.defaultSkinId;
   DisplayType _displayType = DisplayType.modern;
 
   // Layout state
@@ -135,7 +135,14 @@ class SettingsController with ChangeNotifier, WindowListener {
   SettingsController(this._settingsService);
 
   ThemeMode get themeMode => _themeMode;
-  MoonrelayThemeOption get themeOption => _themeOption;
+
+  /// The id of the currently active skin. Use [selectedSkin] to resolve it
+  /// back to a [MoonrelaySkin].
+  String get selectedSkinId => _selectedSkinId;
+
+  /// The active skin, resolved through the [MoonrelaySkins] registry (never
+  /// null: an unknown id falls back to the default skin).
+  MoonrelaySkin get selectedSkin => MoonrelaySkins.fromId(_selectedSkinId);
   DisplayType get displayType => _displayType;
 
   // Layout getters
@@ -231,7 +238,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   Future<void> loadSettings() async {
     final snapshot = await _settingsService.loadAll();
     _themeMode = snapshot.themeMode;
-    _themeOption = snapshot.themeOption;
+    _selectedSkinId = snapshot.selectedSkinId;
     _displayType = snapshot.displayType;
 
     // Layout settings
@@ -326,12 +333,28 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  Future<void> updateThemeOption(MoonrelayThemeOption option) async {
-    if (option != _themeOption) {
-      _themeOption = option;
-      notifyListeners();
-      await _settingsService.updateThemeOption(option);
-    }
+  /// Switches the active skin to the one with [skinId].
+  ///
+  /// Selecting a skin resets the independent appearance controls (layout
+  /// density, app font family, mono font family and chat bubble radius) to
+  /// that skin's defaults, so the change redefines the entire look and feel.
+  /// The resets are announced with a single [notifyListeners] call so the UI
+  /// rebuilds once, and each reset value is persisted alongside the skin id.
+  Future<void> updateSelectedSkin(String skinId) async {
+    final skin = MoonrelaySkins.fromId(skinId);
+    _selectedSkinId = skin.id;
+    _density = skin.defaultDensity;
+    _fontFamily = skin.defaultFontFamily;
+    _monoFontFamily = skin.defaultMonoFontFamily;
+    _bubbleRadius = skin.defaultBubbleRadius;
+    notifyListeners();
+    await Future.wait(<Future<void>>[
+      _settingsService.updateSelectedSkin(skin.id),
+      _settingsService.updateDensity(_density),
+      _settingsService.updateFontFamily(_fontFamily),
+      _settingsService.updateMonoFontFamily(_monoFontFamily),
+      _settingsService.updateBubbleRadius(_bubbleRadius),
+    ]);
   }
 
   Future<void> updateDisplayType(DisplayType newDisplayType) async {

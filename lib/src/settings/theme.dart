@@ -1,22 +1,22 @@
 // Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/material.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/skins.dart';
+import 'package:flutter/material.dart';
 
 /// Central store for text-direction state.
 ///
@@ -44,103 +44,56 @@ class MoonrelayAppTheme extends ChangeNotifier {
   }
 }
 
-/// Preconfigured theme option a user can select in settings.
-///
-/// Each option maps to a different seed color and produces a distinct
-/// light/dark colour palette via [MoonrelayTheme].
-enum MoonrelayThemeOption {
-  indigo(
-    label: 'Default (Indigo)',
-    seedColor: Colors.indigo,
-  ),
-  oceanBlue(
-    label: 'Ocean Blue',
-    seedColor: MoonrelayColorPalette.ordinaryBlue,
-  ),
-  midnightSlate(
-    label: 'British Racing Green',
-    seedColor: MoonrelayColorPalette.britishRacingGreen,
-  ),
-  crimson(
-    label: 'Bright Maroon',
-    seedColor: MoonrelayColorPalette.brightMaroon,
-  ),
-  amber(
-    label: 'Amber',
-    seedColor: MoonrelayColorPalette.ordinaryOrange,
-  ),
-  steel(
-    label: 'Lime Green',
-    seedColor: MoonrelayColorPalette.ordinaryLimeGreen,
-  ),
-  sky(
-    label: 'Sky',
-    seedColor: MoonrelayColorPalette.accentColor,
-  );
-
-  /// Human-readable name shown in the settings UI.
-  final String label;
-
-  /// Seed colour passed to [ColorScheme.fromSeed].
-  final Color seedColor;
-
-  const MoonrelayThemeOption({
-    required this.label,
-    required this.seedColor,
-  });
-}
-
 /// Moonrelay's complete theme definition.
 ///
-/// Provides [light] and [dark] [ThemeData] factories that configure
-/// Material 3 color schemes, typography, and component styles.
-/// All visual tokens are centralized here so that changing the seed color,
-/// font family, or component defaults propagates everywhere.
+/// Provides [light] and [dark] [ThemeData] factories that configure Material 3
+/// color schemes, typography, and component styles. All visual tokens are
+/// sourced from a [MoonrelaySkin], so swapping the skin (see
+/// [MoonrelaySkins]) changes the entire look and feel. The independent
+/// [LayoutDensity], font-family overrides layered on top of the skin's
+/// defaults.
 class MoonrelayTheme {
   MoonrelayTheme._();
 
-  /// Default UI font family used throughout the application.
-  static const String defaultFontFamily = 'Rubik';
+  /// Monospace font fallback used when a skin does not specify one.
+  static const String monoFontFamilyFallback = 'FiraCode';
 
-  /// Monospace font family used in code blocks, the event viewer, etc.
-  static const String monoFontFamily = 'FiraCode';
+  // ── ThemeData factories ─────────────────────────────────────────────
 
-  // ── ThemeData factories ────────────────────────────────
-
-  /// Creates the light [ThemeData] for the given [option].
+  /// Builds the light [ThemeData] for [skin].
   ///
-  /// Defaults to [MoonrelayThemeOption.indigo] when omitted.
-  ///
-  /// [density] selects the [VisualDensity] applied to the theme; it defaults
-  /// to [LayoutDensity.comfortable] so existing call sites keep their look.
+  /// [density], [fontFamily] and [monoFontFamily] are the user's persisted
+  /// overrides; when null the skin's defaults win.
   static ThemeData light(
-    MoonrelayThemeOption option, [
-    LayoutDensity density = LayoutDensity.comfortable,
-  ]) =>
+    MoonrelaySkin skin, {
+    LayoutDensity? density,
+    String? fontFamily,
+    String? monoFontFamily,
+  }) =>
       _buildThemeData(
-        ColorScheme.fromSeed(
-          seedColor: option.seedColor,
-          brightness: Brightness.light,
-        ),
-        density,
+        skin,
+        Brightness.light,
+        density: density ?? skin.defaultDensity,
+        fontFamily: fontFamily ?? skin.defaultFontFamily,
+        monoFontFamily: monoFontFamily ?? skin.defaultMonoFontFamily,
       );
 
-  /// Creates the dark [ThemeData] for the given [option].
-  ///
-  /// Defaults to [MoonrelayThemeOption.indigo] when omitted.
+  /// Builds the dark [ThemeData] for [skin].
   static ThemeData dark(
-    MoonrelayThemeOption option, [
-    LayoutDensity density = LayoutDensity.comfortable,
-  ]) =>
+    MoonrelaySkin skin, {
+    LayoutDensity? density,
+    String? fontFamily,
+    String? monoFontFamily,
+  }) =>
       _buildThemeData(
-        ColorScheme.fromSeed(
-          seedColor: option.seedColor,
-          brightness: Brightness.dark,
-        ),
-        density,
+        skin,
+        Brightness.dark,
+        density: density ?? skin.defaultDensity,
+        fontFamily: fontFamily ?? skin.defaultFontFamily,
+        monoFontFamily: monoFontFamily ?? skin.defaultMonoFontFamily,
       );
 
-  // ── Internal builder ────────────────────────────────────────────────────
+  // ── Internal builder ────────────────────────────────────────────────
 
   /// Maps a [LayoutDensity] choice to a [VisualDensity] for the theme.
   static VisualDensity _visualDensity(LayoutDensity density) {
@@ -150,22 +103,35 @@ class MoonrelayTheme {
     };
   }
 
-  static ThemeData _buildThemeData(ColorScheme colorScheme, LayoutDensity density) {
+  static ThemeData _buildThemeData(
+    MoonrelaySkin skin,
+    Brightness brightness, {
+    required LayoutDensity density,
+    required String fontFamily,
+    required String monoFontFamily,
+  }) {
+    final ColorScheme colorScheme = ColorScheme.fromSeed(
+      seedColor: skin.seedColor,
+      brightness: brightness,
+    );
+    final double radius = skin.cornerRadius;
+    final double elevation = skin.surfaceElevation;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
 
       // Density controls the tightness of Material components based on the
-      // user's LayoutDensity setting (previously persisted but unwired).
+      // user's LayoutDensity setting.
       visualDensity: _visualDensity(density),
 
-
-      // Font defaults  all Text widgets that don't explicitly set a
-      // fontFamily will inherit this value.
-      fontFamily: defaultFontFamily,
+      // Font defaults: any Text widget that does not explicitly set a
+      // fontFamily inherits this value, so the font-family setting now
+      // applies app-wide instead of being hard-coded.
+      fontFamily: fontFamily,
 
       // Typography
-      textTheme: _textTheme(),
+      textTheme: _textTheme(fontFamily),
 
       // Component themes
       appBarTheme: AppBarTheme(
@@ -174,7 +140,7 @@ class MoonrelayTheme {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         titleTextStyle: TextStyle(
-          fontFamily: defaultFontFamily,
+          fontFamily: fontFamily,
           fontWeight: FontWeight.w600,
           fontSize: 16,
           color: colorScheme.onSurface,
@@ -182,9 +148,9 @@ class MoonrelayTheme {
       ),
 
       cardTheme: CardThemeData(
-        elevation: 0,
+        elevation: elevation,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radius),
         ),
       ),
 
@@ -193,89 +159,95 @@ class MoonrelayTheme {
         thickness: 1,
       ),
 
-      // Custom design tokens exposed via ThemeExtension
-      extensions: const <ThemeExtension<dynamic>>[
-        MoonrelayThemeExtension(
-          monoFontFamily: monoFontFamily,
+      // Dialog / bottom-sheet corners follow the skin radius too, so the
+      // surface language stays consistent across the app.
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
         ),
+      ),
+
+      // Custom design tokens exposed via ThemeExtension
+      extensions: <ThemeExtension<dynamic>>[
+        MoonrelayThemeExtension(monoFontFamily: monoFontFamily),
       ],
     );
   }
 
-  static TextTheme _textTheme() {
-    return const TextTheme(
+  static TextTheme _textTheme(String fontFamily) {
+    return TextTheme(
       displayLarge: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 57,
       ),
       displayMedium: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 45,
       ),
       displaySmall: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 36,
       ),
       headlineLarge: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 32,
       ),
       headlineMedium: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 28,
       ),
       headlineSmall: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 24,
       ),
       titleLarge: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 22,
       ),
       titleMedium: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 16,
       ),
       titleSmall: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 14,
       ),
       bodyLarge: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontSize: 16,
         height: 1.5,
       ),
       bodyMedium: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontSize: 14,
         height: 1.4,
       ),
       bodySmall: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontSize: 12,
         height: 1.3,
       ),
       labelLarge: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 14,
       ),
       labelMedium: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 12,
       ),
       labelSmall: TextStyle(
-        fontFamily: defaultFontFamily,
+        fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 11,
       ),
@@ -283,9 +255,9 @@ class MoonrelayTheme {
   }
 }
 
-// ── ThemeExtension for app-specific design tokens ──────────────────────────
+// ── ThemeExtension for app-specific design tokens ────────────────────────────
 
-/// Custom design tokens that fall outside Material 3's [ColorScheme].
+/// Custom design tokens that fall outside Material 3's [ColorScheme].
 ///
 /// Access via `Theme.of(context).extension<MoonrelayThemeExtension>()`.
 @immutable

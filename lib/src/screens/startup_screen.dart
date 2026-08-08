@@ -25,7 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/settings/skins.dart';
 
 /// Welcome screen shown before authentication.
 ///
@@ -295,8 +295,10 @@ class StartupScreen extends StatelessWidget {
               ...accountManager.accounts.map(
                 (account) => _AccountCard(
                   account: account,
-                  isActive: account.userId == accountManager.activeAccount?.userId,
-                  onTap: () => _switchToAccount(context, accountManager, account),
+                  isActive:
+                      account.userId == accountManager.activeAccount?.userId,
+                  onTap: () =>
+                      _switchToAccount(context, accountManager, account),
                 ),
               ),
             ],
@@ -592,10 +594,14 @@ class _AccountCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor:
-                    isActive ? colors.primaryContainer : colors.surfaceContainerHighest,
+                backgroundColor: isActive
+                    ? colors.primaryContainer
+                    : colors.surfaceContainerHighest,
                 child: Text(
-                  account.userId.replaceAll(RegExp(r'@'), '').substring(0, 1).toUpperCase(),
+                  account.userId
+                      .replaceAll(RegExp(r'@'), '')
+                      .substring(0, 1)
+                      .toUpperCase(),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -862,7 +868,7 @@ class _CreditsSection extends StatelessWidget {
 ///
 /// Exposes a subset of theming options:
 /// - Theme mode (System / Light / Dark)
-/// - Colour theme (MoonrelayThemeOption)
+/// - Skin (MoonrelaySkin)
 class _WelcomeSettingsScreen extends StatelessWidget {
   const _WelcomeSettingsScreen();
 
@@ -931,35 +937,35 @@ class _WelcomeSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Colour theme
+              // Skin (look and feel)
               _SettingsSection(
-                title: l10n.colourTheme,
+                title: l10n.skin,
                 children: [
-                  RadioGroup<MoonrelayThemeOption>(
-                    groupValue: controller.themeOption,
+                  RadioGroup<String>(
+                    groupValue: controller.selectedSkinId,
                     onChanged: (v) {
-                      if (v != null) controller.updateThemeOption(v);
+                      if (v != null) controller.updateSelectedSkin(v);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final option in MoonrelayThemeOption.values)
-                          RadioListTile<MoonrelayThemeOption>(
+                        for (final skin in MoonrelaySkins.all)
+                          RadioListTile<String>(
                             title: Row(
                               children: [
                                 Container(
                                   width: 20,
                                   height: 20,
                                   decoration: BoxDecoration(
-                                    color: option.seedColor,
+                                    color: skin.seedColor,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(_localizedThemeOption(option, l10n)),
+                                Text(skin.label),
                               ],
                             ),
-                            value: option,
+                            value: skin.id,
                             dense: true,
                           ),
                       ],
@@ -1042,26 +1048,5 @@ class _SettingsSection extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Localized label for a [MoonrelayThemeOption].
-String _localizedThemeOption(
-    MoonrelayThemeOption option, AppLocalizations l10n) {
-  switch (option) {
-    case MoonrelayThemeOption.indigo:
-      return l10n.themeDefault;
-    case MoonrelayThemeOption.oceanBlue:
-      return l10n.themeOceanBlue;
-    case MoonrelayThemeOption.midnightSlate:
-      return l10n.themeMidnightSlate;
-    case MoonrelayThemeOption.crimson:
-      return l10n.themeCrimson;
-    case MoonrelayThemeOption.amber:
-      return l10n.themeAmber;
-    case MoonrelayThemeOption.steel:
-      return l10n.themeSteel;
-    case MoonrelayThemeOption.sky:
-      return l10n.themeSky;
   }
 }

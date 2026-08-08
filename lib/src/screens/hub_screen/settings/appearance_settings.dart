@@ -17,14 +17,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
-
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/settings/skins.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Appearance Settings
@@ -38,6 +37,7 @@ class HubAppearanceSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final theme = Theme.of(context);
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -90,36 +90,47 @@ class HubAppearanceSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Colour theme
+              // Skin (look and feel)
               HubSettingsSection(
-                title: l10n.colourTheme,
+                title: l10n.skin,
                 children: [
-                  RadioGroup<MoonrelayThemeOption>(
-                    groupValue: controller.themeOption,
+                  RadioGroup<String>(
+                    groupValue: controller.selectedSkinId,
                     onChanged: (v) {
-                      if (v != null) controller.updateThemeOption(v);
+                      if (v != null) controller.updateSelectedSkin(v);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final option in MoonrelayThemeOption.values)
-                          RadioListTile<MoonrelayThemeOption>(
+                        for (final skin in MoonrelaySkins.all)
+                          RadioListTile<String>(
+                            value: skin.id,
+                            dense: true,
                             title: Row(
                               children: [
                                 Container(
                                   width: 20,
                                   height: 20,
                                   decoration: BoxDecoration(
-                                    color: option.seedColor,
-                                    borderRadius: BorderRadius.circular(6),
+                                    color: skin.seedColor,
+                                    borderRadius: BorderRadius.circular(
+                                      skin.cornerRadius == 0
+                                          ? 4
+                                          : skin.cornerRadius,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(localizedThemeOption(option, l10n)),
+                                Text(skin.label),
                               ],
                             ),
-                            value: option,
-                            dense: true,
+                            subtitle: Text(
+                              skin.description,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
                       ],
                     ),

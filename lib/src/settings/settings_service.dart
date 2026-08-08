@@ -19,15 +19,14 @@ import 'dart:convert';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// All persisted settings loaded in one batch.  Individual getters remain
 /// available for granular reads after the initial load.
 class SettingsSnapshot {
-  final MoonrelayThemeOption themeOption;
   final ThemeMode themeMode;
+  final String selectedSkinId;
   final DisplayType displayType;
   final LayoutMode layoutMode;
   final bool leftSidebarVisible;
@@ -112,8 +111,8 @@ class SettingsSnapshot {
 
   const SettingsSnapshot({
     this.locale,
-    this.themeOption = MoonrelayThemeOption.indigo,
     this.themeMode = ThemeMode.system,
+    this.selectedSkinId = 'indigo',
     this.displayType = DisplayType.modern,
     this.layoutMode = LayoutMode.auto,
     this.leftSidebarVisible = true,
@@ -195,6 +194,7 @@ class SettingsSnapshot {
 class SettingsService {
   static const _themeModeKey = 'theme_mode';
   static const _themeOptionKey = 'theme_option';
+  static const _selectedSkinKey = 'selected_skin';
   static const _displayTypeKey = 'display_type';
   static const _layoutModeKey = 'layout_mode';
 
@@ -293,17 +293,32 @@ class SettingsService {
   // Locale
   static const _localeKey = 'locale';
 
-  Future<MoonrelayThemeOption> themeOption() async {
+  /// Maps the legacy `theme_option` integer index (persisted by older
+  /// versions under `_themeOptionKey`) to the matching skin id, so existing
+  /// installs keep their colour choice after the skin refactor. The seven
+  /// entries correspond, in order, to the original colour theme enum:
+  /// indigo, oceanBlue, midnightSlate, crimson, amber, steel, sky.
+  static const List<String> _legacyOptionToSkin = <String>[
+    'indigo',
+    'ocean',
+    'midnight',
+    'crimson',
+    'amber',
+    'steel',
+    'sky',
+  ];
+
+  /// Loads the persisted skin id (without migration logic; used for
+  /// granular reads). Defaults to [MoonrelaySkins.defaultSkinId].
+  Future<String> selectedSkinId() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? index = prefs.getInt(_themeOptionKey);
-    return index != null
-        ? MoonrelayThemeOption.values[index]
-        : MoonrelayThemeOption.indigo;
+    return _readSelectedSkinId(prefs);
   }
 
-  Future<void> updateThemeOption(MoonrelayThemeOption option) async {
+  /// Persists the active skin id under `selected_skin`.
+  Future<void> updateSelectedSkin(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_themeOptionKey, option.index);
+    await prefs.setString(_selectedSkinKey, id);
   }
 
   Future<ThemeMode> themeMode() async {
@@ -349,7 +364,7 @@ class SettingsService {
   Future<SettingsSnapshot> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     return SettingsSnapshot(
-      themeOption: _readThemeOption(prefs),
+      selectedSkinId: _readSelectedSkinId(prefs),
       themeMode: _readThemeMode(prefs),
       displayType: _readDisplayType(prefs),
       layoutMode: _readLayoutMode(prefs),
@@ -465,17 +480,22 @@ class SettingsService {
         TrayClickAction.values,
         TrayClickAction.toggle,
       ),
-      checkForUpdates:
-          prefs.getBool(_checkForUpdatesKey) ?? true,
+      checkForUpdates: prefs.getBool(_checkForUpdatesKey) ?? true,
       locale: prefs.getString(_localeKey),
     );
   }
 
-  static MoonrelayThemeOption _readThemeOption(SharedPreferences prefs) {
+  /// Resolves the persisted skin id, migrating from the legacy
+  /// `theme_option` integer index when an upgrade is in progress.
+  static String _readSelectedSkinId(SharedPreferences prefs) {
+    final id = prefs.getString(_selectedSkinKey);
+    if (id != null && id.isNotEmpty) return id;
+
     final index = prefs.getInt(_themeOptionKey);
-    return index != null
-        ? MoonrelayThemeOption.values[index]
-        : MoonrelayThemeOption.indigo;
+    if (index != null && index >= 0 && index < _legacyOptionToSkin.length) {
+      return _legacyOptionToSkin[index];
+    }
+    return 'indigo';
   }
 
   static ThemeMode _readThemeMode(SharedPreferences prefs) {
@@ -758,7 +778,8 @@ class SettingsService {
   /// Persists the collapsed navigation sidebar section ids as a JSON array.
   Future<void> updateCollapsedSidebarSections(Set<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_collapsedSidebarSectionsKey, jsonEncode(ids.toList()));
+    await prefs.setString(
+        _collapsedSidebarSectionsKey, jsonEncode(ids.toList()));
   }
 
   // ── Space groups (Map<String, List<String>>) ─────────────────────────
