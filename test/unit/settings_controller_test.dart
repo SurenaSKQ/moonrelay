@@ -197,5 +197,47 @@ void main() {
       await controller.toggleLeftSidebar();
       expect(controller.leftSidebarVisible, isTrue);
     });
+
+    test('sidebar sections start expanded', () {
+      expect(controller.collapsedSidebarSections, isEmpty);
+    });
+
+    test('setSidebarSectionCollapsed collapses and persists', () async {
+      await controller.setSidebarSectionCollapsed('rooms', true);
+      expect(controller.collapsedSidebarSections, contains('rooms'));
+      expect(await service.collapsedSidebarSections(), contains('rooms'));
+
+      await controller.setSidebarSectionCollapsed('rooms', false);
+      expect(controller.collapsedSidebarSections, isNot(contains('rooms')));
+      expect(
+          await service.collapsedSidebarSections(), isNot(contains('rooms')));
+    });
+
+    test('setSidebarSectionCollapsed replaces the set instance',
+        () async {
+      final before = controller.collapsedSidebarSections;
+      await controller.setSidebarSectionCollapsed('spaces', true);
+      expect(identical(controller.collapsedSidebarSections, before), isFalse);
+    });
+
+    test('setSidebarSectionCollapsed notifies only on change', () async {
+      int notificationCount = 0;
+      controller.addListener(() => notificationCount++);
+
+      await controller.setSidebarSectionCollapsed('rooms', true);
+      expect(notificationCount, 1);
+
+      await controller.setSidebarSectionCollapsed('rooms', true);
+      expect(notificationCount, 1);
+    });
+
+    test('persisted collapsed sections load on a fresh controller',
+        () async {
+      await controller.setSidebarSectionCollapsed('spaces', true);
+
+      final reloaded = SettingsController(service);
+      await reloaded.loadSettings();
+      expect(reloaded.collapsedSidebarSections, contains('spaces'));
+    });
   });
 }

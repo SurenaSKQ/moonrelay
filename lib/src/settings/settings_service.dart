@@ -49,6 +49,10 @@ class SettingsSnapshot {
   final List<String> spaceOrder;
   final Set<String> collapsedGroups;
   final Map<String, List<String>> spaceGroups;
+
+  /// Ids of the navigation sidebar sections the user has collapsed
+  /// (e.g. `spaces`, `rooms`).
+  final Set<String> collapsedSidebarSections;
   final double fontSize;
   final double uiScale;
   final bool notificationsEnabled;
@@ -128,6 +132,7 @@ class SettingsSnapshot {
     this.spaceOrder = const [],
     this.collapsedGroups = const {},
     this.spaceGroups = const {},
+    this.collapsedSidebarSections = const {},
     this.fontSize = 16.0,
     this.uiScale = 1.0,
     this.notificationsEnabled = true,
@@ -207,6 +212,7 @@ class SettingsService {
   static const _minimizeToTrayKey = 'minimize_to_tray';
   static const _startMinimizedKey = 'start_minimized';
   static const _pinnedSpacesKey = 'pinned_spaces';
+  static const _collapsedSidebarSectionsKey = 'collapsed_sidebar_sections';
   static const _spaceOrderKey = 'space_order';
   static const _collapsedGroupsKey = 'collapsed_groups';
   static const _spaceGroupsKey = 'space_groups';
@@ -363,6 +369,8 @@ class SettingsService {
       spaceOrder: _readCommaList(prefs, _spaceOrderKey),
       collapsedGroups: _readCommaSet(prefs, _collapsedGroupsKey),
       spaceGroups: _readSpaceGroups(prefs),
+      collapsedSidebarSections:
+          _readCommaSet(prefs, _collapsedSidebarSectionsKey),
       fontSize: prefs.getDouble(_fontSizeKey) ?? 16.0,
       uiScale: prefs.getDouble(_uiScaleKey) ?? 1.0,
       notificationsEnabled: prefs.getBool(_notificationsEnabledKey) ?? true,
@@ -737,6 +745,20 @@ class SettingsService {
   Future<void> updateCollapsedGroups(Set<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_collapsedGroupsKey, jsonEncode(ids.toList()));
+  }
+
+  // ── Collapsed sidebar sections ───────────────────────────────────────
+
+  /// Loads the ids of the navigation sidebar sections the user collapsed.
+  Future<Set<String>> collapsedSidebarSections() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _readCommaSet(prefs, _collapsedSidebarSectionsKey);
+  }
+
+  /// Persists the collapsed navigation sidebar section ids as a JSON array.
+  Future<void> updateCollapsedSidebarSections(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_collapsedSidebarSectionsKey, jsonEncode(ids.toList()));
   }
 
   // ── Space groups (Map<String, List<String>>) ─────────────────────────
