@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 
 /// Central store for text-direction state.
 ///
@@ -109,33 +110,55 @@ class MoonrelayTheme {
   /// Creates the light [ThemeData] for the given [option].
   ///
   /// Defaults to [MoonrelayThemeOption.indigo] when omitted.
+  ///
+  /// [density] selects the [VisualDensity] applied to the theme; it defaults
+  /// to [LayoutDensity.comfortable] so existing call sites keep their look.
   static ThemeData light(
-          [MoonrelayThemeOption option = MoonrelayThemeOption.indigo]) =>
+    MoonrelayThemeOption option, [
+    LayoutDensity density = LayoutDensity.comfortable,
+  ]) =>
       _buildThemeData(
         ColorScheme.fromSeed(
           seedColor: option.seedColor,
           brightness: Brightness.light,
         ),
+        density,
       );
 
   /// Creates the dark [ThemeData] for the given [option].
   ///
   /// Defaults to [MoonrelayThemeOption.indigo] when omitted.
   static ThemeData dark(
-          [MoonrelayThemeOption option = MoonrelayThemeOption.indigo]) =>
+    MoonrelayThemeOption option, [
+    LayoutDensity density = LayoutDensity.comfortable,
+  ]) =>
       _buildThemeData(
         ColorScheme.fromSeed(
           seedColor: option.seedColor,
           brightness: Brightness.dark,
         ),
+        density,
       );
 
   // ── Internal builder ────────────────────────────────────────────────────
 
-  static ThemeData _buildThemeData(ColorScheme colorScheme) {
+  /// Maps a [LayoutDensity] choice to a [VisualDensity] for the theme.
+  static VisualDensity _visualDensity(LayoutDensity density) {
+    return switch (density) {
+      LayoutDensity.comfortable => VisualDensity.standard,
+      LayoutDensity.compact => VisualDensity.compact,
+    };
+  }
+
+  static ThemeData _buildThemeData(ColorScheme colorScheme, LayoutDensity density) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+
+      // Density controls the tightness of Material components based on the
+      // user's LayoutDensity setting (previously persisted but unwired).
+      visualDensity: _visualDensity(density),
+
 
       // Font defaults  all Text widgets that don't explicitly set a
       // fontFamily will inherit this value.

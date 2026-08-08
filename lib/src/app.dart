@@ -117,12 +117,27 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
                   : null,
               onGenerateTitle: (context) =>
                   AppLocalizations.of(context)!.appTitle,
-              theme: MoonrelayTheme.light(settingsController.themeOption),
-              darkTheme: MoonrelayTheme.dark(settingsController.themeOption),
+              theme: MoonrelayTheme.light(
+                settingsController.themeOption,
+                settingsController.density,
+              ),
+              darkTheme: MoonrelayTheme.dark(
+                settingsController.themeOption,
+                settingsController.density,
+              ),
               themeMode: settingsController.themeMode,
-              builder: (context, child) => Directionality(
-                textDirection: _appTheme.textDirection,
-                child: child!,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  // The user-facing "Interface scale" slider
+                  // (SettingsController.uiScale) only notified listeners but
+                  // was never applied; route it through the root MediaQuery so
+                  // every Text widget in the tree scales with it.
+                  textScaler: TextScaler.linear(settingsController.uiScale),
+                ),
+                child: Directionality(
+                  textDirection: _appTheme.textDirection,
+                  child: child!,
+                ),
               ),
             );
           },
