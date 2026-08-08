@@ -29,14 +29,43 @@ regression fix, the timeline scroll-position null-deref crash fix,
 the August 2026 timeline dead-code and duplication removal, the
 timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
 the jump-to-unread target-selection and scroll-execution fixes, and the
-status-pill honesty fix plus the dead appearance-settings wiring.
+status-pill honesty fix plus the dead appearance-settings wiring, and the
+blank-content error guidance pass.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 559 green (12 new tests added in this pass:
-7 sync-status pill tests, 5 appearance-settings tests). flutter analyze
-0 issues. (The suite baseline prior to this pass was 547; the AGENTS.md
-"538" count is stale.)
+Tests at head: flutter test 566 green (19 new tests across this pass:
+7 sync-status pill, 5 appearance-settings, 7 empty-state tests).
+flutter analyze 0 issues. (Suite baseline prior to these passes was 547;
+the AGENTS.md "538" count is stale.)
+
+22. Blank-content error guidance
+
+Three content panes used to render blank surfaces when something was
+missing, leaving the user with no recourse:
+
+- `lib/src/helpers/profile_delegate.dart` returned `SizedBox.shrink()`
+  (only a transient snackbar as feedback) for a null/malformed user ID.
+  It now renders [EmptyState] with an icon, the existing error message
+  (`profileIdNullError`/`profileIdInvalid`), and a "Back" button that pops.
+- `lib/src/helpers/room_delegate.dart` returned a bare `EmptySpace()` for
+  a null/empty room ID and for a room ID that isn't joined. The null/empty
+  case now renders [EmptyState] ("Error" / "Room not found" / "Back").
+  The not-joined case now hands off to the existing [RoomPreviewScreen]
+  (route `/main/room_preview/:roomid`) instead of a blank splash, so a
+  deep link to an unjoined room resolves its identity and offers a Join.
+- `lib/src/widgets/empty_state.dart` (new) — a small reusable centred
+  empty/error state (icon + title + message + optional action button),
+  matching the visual density of rooms_pane's empty/loading states.
+
+The pre-existing 8-second-first-sync fallback in room_delegate (`Still
+waiting for the server…` / `Retry`) was intentionally left as-is; its
+hardcoded English text is tracked under 1.5.
+
+Tests added:
+- test/widget/empty_states_test.dart (7) — EmptyState rendering with/without
+  an action, ProfileDelegate null/malformed/valid id paths, RoomDelegate
+  null id and not-joined-to-preview-screen handoff.
 
 21. Status pillar honesty and dead appearance settings
 

@@ -111,7 +111,26 @@ status-pill/density pass:
   section/titles are literals; the rest of the page is localized).
 - lib/src/screens/create_room_form.dart:316,321,479-480,741-742  (Room/Space
   segment labels, the type subtitle interpolation, and _typeLabel returning
-  raw 'room'/'space').
+   raw 'room'/'space').
+
+
+1.6 Silent failure surfaces with no retry affordance (quality, deferred)
+
+Two spots swallow server errors silently and leave the user with no
+recovery path (logged here so the empty-state pass doesn't claim them):
+
+- lib/src/widgets/sidebar_members_list.dart:222-224  The server
+  member backfill (`_fetchMissingBatch`) catches and swallows errors
+  with no UI. The local member set is shown, but there's no "couldn't
+  load remote members, tap to retry" row, so a transient server blip
+  looks identical to "these are all the members". Add a fetch-error
+  flag + inline retry row to the members list footer.
+- lib/src/helpers/threads_provider.dart:115-117  `ThreadsProvider`
+  swallows thread-roots fetch failures. Expose a `hasError`/`error`
+  state and let the consumers (`FullRoomThreadsList` in
+  lib/src/screens/room_threads_view.dart and
+  lib/src/widgets/thread_list_sidebar.dart`) render a retry row instead
+  of silently showing an ever-shrinking list.
 
 
 2. Open features
