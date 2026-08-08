@@ -1101,6 +1101,19 @@
       }
     }
   },
+
+  "statusOnline": "آنلاین",
+  "@statusOnline": {
+    "description": "Presence label shown in the header status pill when the client is connected and synced."
+  },
+  "statusAway": "دور",
+  "@statusAway": {
+    "description": "Presence label shown in the header status pill when the client is connected but a sync is in flight."
+  },
+  "statusOffline": "آفلاین",
+  "@statusOffline": {
+    "description": "Presence label shown in the header status pill when the connection to the homeserver has errored or been lost."
+  },
   "logs": "گزارش‌ها",
   "@logs": {
     "description": "Title for the Logs page."
