@@ -25,6 +25,7 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
@@ -53,6 +54,11 @@ class NavigationSidebar extends StatefulWidget {
 }
 
 class _NavigationSidebarState extends State<NavigationSidebar> {
+  /// Section ids used to persist the collapsed state of the spaces and
+  /// rooms regions via [SettingsController.collapsedSidebarSections].
+  static const String _spacesSectionId = 'spaces';
+  static const String _roomsSectionId = 'rooms';
+
   /// Space ids observed so far; used to detect newly-joined spaces for
   /// the auto-grouping pass.  Ported unchanged from the navigation rail.
   Set<String> _knownIds = {};
@@ -144,6 +150,18 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
             spaceGroups: spacePrefs.spaceGroups,
             order: spacePrefs.spaceOrder);
 
+        // Watch only the collapsed-sections set so unrelated settings
+        // changes (theme, font size, ...) do not rebuild the sidebar.
+        final collapsedSections = context
+            .select<SettingsController, Set<String>>(
+                (s) => s.collapsedSidebarSections);
+        final settings = context.read<SettingsController>();
+        final spacesCollapsed = collapsedSections.contains(_spacesSectionId);
+        final roomsCollapsed = collapsedSections.contains(_roomsSectionId);
+
+        final (roomsTitle, roomsBody) =
+            _buildRoomsBody(context, nav, l10n);
+
         return Material(
           color: scheme.surface,
           child: Column(
@@ -152,17 +170,28 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
               _buildHeader(scheme),
               const Divider(height: 1),
               _buildNavRows(l10n, nav, scheme),
-              const Divider(height: 1),
               if (items.isNotEmpty) ...[
-                Expanded(
-                  child: _buildSpacesList(
-                      context, items, nav, theme, spacePrefs, l10n),
-                ),
                 const Divider(height: 1),
+                _SectionHeader(
+                  label: l10n.spaces,
+                  collapsed: spacesCollapsed,
+                  onTap: () => settings.setSidebarSectionCollapsed(
+                      _spacesSectionId, !spacesCollapsed),
+                ),
+                if (!spacesCollapsed)
+                  Expanded(
+                    child: _buildSpacesList(
+                        context, items, nav, theme, spacePrefs, l10n),
+                  ),
               ],
-              Expanded(
-                child: _buildRoomsSection(context, nav, scheme, l10n),
+              const Divider(height: 1),
+              _SectionHeader(
+                label: roomsTitle,
+                collapsed: roomsCollapsed,
+                onTap: () => settings.setSidebarSectionCollapsed(
+                    _roomsSectionId, !roomsCollapsed),
               ),
+              if (!roomsCollapsed) Expanded(child: roomsBody),
             ],
           ),
         );
@@ -232,29 +261,21 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     SpacePreferences spacePrefs,
     AppLocalizations l10n,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SectionHeader(label: l10n.spaces),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            children: items
-                .map((item) => switch (item) {
-                      NavSpaceLeaf(:final space) => _buildLeaf(
-                          ctx, space, nav, theme, spacePrefs, l10n),
-                      NavSpaceGroup(
-                        :final groupId,
-                        :final children,
-                        :final isExpanded
-                      ) =>
-                        _buildGroup(ctx, groupId, children, isExpanded, nav,
-                            theme, spacePrefs, l10n),
-                    })
-                .toList(),
-          ),
-        ),
-      ],
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      children: items
+          .map((item) => switch (item) {
+                NavSpaceLeaf(:final space) =>
+                  _buildLeaf(ctx, space, nav, theme, spacePrefs, l10n),
+                NavSpaceGroup(
+                  :final groupId,
+                  :final children,
+                  :final isExpanded
+                ) =>
+                  _buildGroup(ctx, groupId, children, isExpanded, nav, theme,
+                      spacePrefs, l10n),
+              })
+          .toList(),
     );
   }
 
@@ -405,44 +426,41 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
 
   // -- Rooms region -------------------------------------------------------
 
-  Widget _buildRoomsSection(
+  /// Computes the rooms region title and body for the active navigation
+  /// destination.  The title drives the section header; the body is
+  /// [SpaceRoomsPane] for a selected space and a filtered [RoomsPane]
+  /// otherwise.
+  (String, Widget) _buildRoomsBody(
     BuildContext context,
     NavigationState nav,
-    ColorScheme scheme,
     AppLocalizations l10n,
   ) {
     final Client client;
     try {
       client = Provider.of<Client>(context, listen: false);
     } catch (_) {
-      return const SizedBox.shrink();
+      // Client may be absent during logout transition; keep the header
+      // up and render nothing below it.
+      return (l10n.rooms, const SizedBox.shrink());
     }
 
-    final String title;
-    Widget body;
     if (nav.isSpace) {
       final Room? space = client.getRoomById(nav.selectedId);
       if (space == null) {
-        title = l10n.spaces;
-        body = const SizedBox.shrink();
-      } else {
-        title = space.getLocalizedDisplayname();
-        body = SpaceRoomsPane(space: space, client: client);
+        return (l10n.spaces, const SizedBox.shrink());
       }
-    } else {
-      title = nav.isHome ? l10n.friends : l10n.rooms;
-      body = RoomsPane(roomFilter: (Room room) {
-        if (nav.isHome) return room.isDirectChat;
-        return !room.isSpace;
-      });
+      return (
+        space.getLocalizedDisplayname(),
+        SpaceRoomsPane(space: space, client: client),
+      );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SectionHeader(label: title),
-        Expanded(child: body),
-      ],
+    return (
+      nav.isHome ? l10n.friends : l10n.rooms,
+      RoomsPane(roomFilter: (Room room) {
+        if (nav.isHome) return room.isDirectChat;
+        return !room.isSpace;
+      }),
     );
   }
 }
@@ -451,28 +469,55 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
 // Row widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Small uppercase-style section header used above the spaces and rooms
-/// regions.
+/// Section header used above the spaces and rooms regions.
+///
+/// Tapping the header collapses or expands its region; the chevron
+/// shows the current state and flips with the text direction so it
+/// points at the edge of the screen in RTL layouts.
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label});
+  const _SectionHeader({
+    required this.label,
+    required this.collapsed,
+    required this.onTap,
+  });
 
   final String label;
+  final bool collapsed;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      color: theme.colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-          color: theme.colorScheme.onSurfaceVariant,
+    final scheme = theme.colorScheme;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: scheme.surfaceContainerHighest,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(
+              collapsed
+                  ? (isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronsRight)
+                  : LucideIcons.chevronDown,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+          ],
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
