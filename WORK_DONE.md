@@ -28,9 +28,66 @@ fixes from the full-codebase audit), the SSO loopback-host
 regression fix, the timeline scroll-position null-deref crash fix,
 the August 2026 timeline dead-code and duplication removal, the
 timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
-the jump-to-unread target-selection and scroll-execution fixes.
+the jump-to-unread target-selection and scroll-execution fixes, and the
+status-pill honesty fix plus the dead appearance-settings wiring.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
+
+Tests at head: flutter test 559 green (12 new tests added in this pass:
+7 sync-status pill tests, 5 appearance-settings tests). flutter analyze
+0 issues. (The suite baseline prior to this pass was 547; the AGENTS.md
+"538" count is stale.)
+
+21. Status pillar honesty and dead appearance settings
+
+Two UX gaps where the UI either lied or ignored the user's controls.
+
+The header status pill used to render a hardcoded green dot with the
+English text "Online" no matter the connection state, while the real
+sync state lived only in the status bar. A disconnected user still read
+"Online". Replaced it:
+
+- lib/src/widgets/sync_status_pill.dart (new) — stateful [SyncStatusPill]
+  that subscribes to [Client.onSyncStatus] (the same stream
+  lib/src/widgets/status_bar.dart already uses) and a pure
+  [syncStatusToPresence] helper mapping [SyncStatus.finished] -> online,
+  waitingForResponse/processing/cleaningUp -> away, error -> offline.
+  The dot colour follows: green / amber / red. Dot colour for the
+  offline state is taken from colorScheme.onErrorContainer so it stays
+  legible in both light and dark themes, unlike the previous magic
+  green. Accepts an optional injected stream/initialStatus so the widget
+  is unit-testable without the SDK's private CachedStreamController.
+- lib/src/layouts/app_frame.dart — drop the now-dead [StatusPill] class
+  and render [SyncStatusPill] in the header (was app_frame.dart:406).
+- lib/src/localization/app_en.arb, lib/src/localization/app_fa.arb — add
+  statusOnline/statusAway/statusOffline (+ Persian: آنلاین/دور/آفلاین);
+  run flutter gen-l10n. The generated .dart l10n files are gitignored.
+
+Previously the UI-scale slider and the density chips only updated and
+persisted [SettingsController] values that nothing read — classic
+"control that looks wired but isn't". Wired them:
+
+- lib/src/app.dart — the MaterialApp.router builder now wraps the child
+  in a MediaQuery whose textScaler is TextScaler.linear(uiScale), so
+  the "Interface scale" slider actually scales every Text in the tree.
+- lib/src/settings/theme.dart — [MoonrelayTheme.light]/[dark] now take
+  an optional LayoutDensity and call ThemeData.visualDensity accordingly
+  (comfortable -> VisualDensity.standard, compact -> VisualDensity.compact);
+  default stays comfortable so existing call sites are unaffected.
+- lib/src/widgets/status_bar.dart left untouched; it already reported
+  sync state, the pill now matches it.
+
+Note: the per-message "Message font size" slider (SettingsController.fontSize,
+already wired to the chat timeline) is intentionally left alone — that is
+the intended escape hatch for chat density independent of the global UI
+zoom.
+
+Tests added:
+- test/widget/sync_status_pill_test.dart (7) — presence mapping + pill
+  rendering for finished/error/waiting + a live stream emission flip.
+- test/widget/appearance_settings_test.dart (5) — density->visualDensity
+  for light/dark/default, uiScale textScaler scaling, and updateUiScale
+  persistence + clamping.
 
 20. Timeline dead-code and duplication removal
 

@@ -88,7 +88,30 @@ mitigations shipped: throttled own-device refresh and cache-first
 devicesForUser (lib/src/encryption/encryption_service.dart). The
 "Already seen Device ID has been added again" / "Invalid device"
 warnings are server-data artifacts (device ID reuse / malformed keys),
-not app misuse.
+ not app misuse.
+
+
+1.5 Hardcoded English strings in UX surfaces (quality/polish, deferred)
+
+Several user-facing strings are still hardcoded English instead of living
+in app_en.arb/app_fa.arb and routing through l10n. Not touched in the
+status-pill/density pass:
+
+- lib/src/helpers/room_delegate.dart:158,165  ("Still waiting for the
+  server…", "Retry" in the sync-waiting fallback).
+- lib/src/screens/encryption/bootstrap_screen.dart:94-101  (wipe-SSSS
+  confirmation dialog).
+- lib/src/services/deep_link_service.dart:240  ("Invalid Matrix user id: …"
+  is surfaced from a service without a BuildContext, so it cannot trivially
+  use AppLocalizations; either resolve the string at the UI layer that
+  dispatches the deep link, or pass a context through the method-channel
+  callback).
+- lib/src/screens/hub_screen/settings/appearance_settings.dart:162,166,
+  184,188  ("Font size", "Message font size", "UI scale", "Interface scale"
+  section/titles are literals; the rest of the page is localized).
+- lib/src/screens/create_room_form.dart:316,321,479-480,741-742  (Room/Space
+  segment labels, the type subtitle interpolation, and _typeLabel returning
+  raw 'room'/'space').
 
 
 2. Open features
