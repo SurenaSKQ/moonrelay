@@ -33,13 +33,35 @@ status-pill honesty fix plus the dead appearance-settings wiring, and the
 blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
 a unified navigation sidebar), and the collapsible sidebar sections
-follow-up.
+follow-up, and the space-selection fix.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 583 green (8 new tests across this pass:
-3 sidebar section-collapse widget tests, 5 settings tests).
-flutter analyze 0 issues. (Suite baseline prior to these passes was 575.)
+Tests at head: flutter test 584 green (1 new test across this pass:
+the space-selection widget test).
+flutter analyze 0 issues. (Suite baseline prior to these passes was 583.)
+
+25. Space selection fix: highlight and navigate
+
+Tapping a space row in the navigation sidebar did nothing. The row
+shell's InkWell registered an empty tap handler, and because InkWell
+sits deeper in the tree than the context-menu GestureDetector, its
+recognizer won the gesture arena and swallowed the tap before it could
+reach the selection logic.
+
+- lib/src/widgets/navigation_sidebar.dart: _RowShell now takes a
+  nullable onTap and only registers the recognizer when a real handler
+  exists; the space row owns the tap (select in NavigationState plus
+  push to /main/space/:spaceid), giving the row ripple feedback and
+  restoring both highlight and navigation. The context-menu wrapper no
+  longer registers a competing tap.
+- lib/src/widgets/compact_sidebar.dart: space rows also mark the space
+  in NavigationState before navigating, so the full sidebar highlights
+  the same space after a layout switch.
+- test/widget/navigation_sidebar_test.dart: new test taps a space and
+  asserts NavigationState selects it and the space home page route
+  renders (the wrapper gained a minimal GoRouter with a space-home
+  stand-in route).
 
 24. Collapsible sidebar sections
 

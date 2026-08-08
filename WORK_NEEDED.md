@@ -7,7 +7,7 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test 583 green (unit + widget). flutter analyze 0 issues.
+Tests at head: flutter test 584 green (unit + widget). flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
