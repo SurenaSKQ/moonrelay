@@ -613,6 +613,8 @@
   "light": "Light",
   "dark": "Dark",
   "colourTheme": "Colour theme",
+  "skin": "Skin",
+  "skinDescription": "Choose the look and feel applied across the app",
   "enable": "Enable",
   "chatDisplayType": "Chat display type",
 
