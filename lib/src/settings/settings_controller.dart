@@ -38,7 +38,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   LayoutMode _layoutMode = LayoutMode.auto;
   bool _leftSidebarVisible = true;
   double _leftSidebarWidth = 320.0;
-  LeftPaneChoice _leftPaneChoice = LeftPaneChoice.rooms;
   bool _rightSidebarVisible = true;
   double _rightSidebarWidth = 280.0;
   RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
@@ -137,7 +136,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   LayoutMode get layoutMode => _layoutMode;
   bool get leftSidebarVisible => _leftSidebarVisible;
   double get leftSidebarWidth => _leftSidebarWidth;
-  LeftPaneChoice get leftPaneChoice => _leftPaneChoice;
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
   RightPaneChoice get rightPaneChoice => _rightPaneChoice;
@@ -233,7 +231,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _layoutMode = snapshot.layoutMode;
     _leftSidebarVisible = snapshot.leftSidebarVisible;
     _leftSidebarWidth = snapshot.leftSidebarWidth;
-    _leftPaneChoice = snapshot.leftPaneChoice;
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
     _rightPaneChoice = snapshot.rightPaneChoice;
@@ -361,25 +358,6 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       await _settingsService.updateLeftSidebarWidth(width);
     }
-  }
-
-  Future<void> setLeftPaneChoice(LeftPaneChoice choice) async {
-    if (choice == _leftPaneChoice) return;
-
-    _leftPaneChoice = choice;
-    if (choice != LeftPaneChoice.none && !_leftSidebarVisible) {
-      _leftSidebarVisible = true;
-      await _settingsService.updateLeftSidebarVisible(true);
-    }
-    if (choice == LeftPaneChoice.none && _leftSidebarVisible) {
-      _leftSidebarVisible = false;
-      await _settingsService.updateLeftSidebarVisible(false);
-    }
-    // Single notification: cascading the sidebar visibility used to notify
-    // twice (once for visibility, once for pane choice), causing listeners
-    // like the dashboard layout to rebuild twice per user action.
-    notifyListeners();
-    await _settingsService.updateLeftPaneChoice(choice);
   }
 
   Future<void> toggleLeftSidebar() async {

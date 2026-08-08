@@ -21,6 +21,8 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/sidebar_actions.dart';
+import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
 import 'package:provider/provider.dart';
 
 /// Filter buckets available in the unified compact sidebar.
@@ -104,6 +106,22 @@ class _CompactSidebarState extends State<CompactSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Header block: profile pill + command palette, matching the
+            // navigation sidebar so the compact shell keeps every action
+            // that used to live in the window header.
+            Container(
+              color: scheme.surfaceContainerLow,
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SidebarProfilePill(),
+                  SizedBox(height: 6),
+                  SidebarCommandPaletteButton(),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             _buildNavigationRow(scheme, l10n),
             Divider(height: 1, color: scheme.outlineVariant),
             _buildFilterRow(scheme, l10n),

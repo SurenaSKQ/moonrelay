@@ -41,19 +41,6 @@ String localizedThemeOption(
   }
 }
 
-String localizedLeftPaneChoice(LeftPaneChoice choice, AppLocalizations l10n) {
-  switch (choice) {
-    case LeftPaneChoice.rooms:
-      return l10n.paneRooms;
-    case LeftPaneChoice.spaces:
-      return l10n.paneSpaces;
-    case LeftPaneChoice.friends:
-      return l10n.paneFriends;
-    case LeftPaneChoice.none:
-      return l10n.paneHidden;
-  }
-}
-
 String localizedRightPaneChoice(RightPaneChoice choice, AppLocalizations l10n) {
   switch (choice) {
     case RightPaneChoice.none:

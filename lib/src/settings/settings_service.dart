@@ -32,7 +32,6 @@ class SettingsSnapshot {
   final LayoutMode layoutMode;
   final bool leftSidebarVisible;
   final double leftSidebarWidth;
-  final LeftPaneChoice leftPaneChoice;
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
   final RightPaneChoice rightPaneChoice;
@@ -115,7 +114,6 @@ class SettingsSnapshot {
     this.layoutMode = LayoutMode.auto,
     this.leftSidebarVisible = true,
     this.leftSidebarWidth = 320.0,
-    this.leftPaneChoice = LeftPaneChoice.rooms,
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
     this.rightPaneChoice = RightPaneChoice.roomInfo,
@@ -198,7 +196,6 @@ class SettingsService {
   // Layout keys
   static const _leftSidebarVisibleKey = 'left_sidebar_visible';
   static const _leftSidebarWidthKey = 'left_sidebar_width';
-  static const _leftPaneChoiceKey = 'left_pane_choice';
   static const _rightSidebarVisibleKey = 'right_sidebar_visible';
   static const _rightSidebarWidthKey = 'right_sidebar_width';
   static const _rightPaneChoiceKey = 'right_pane_choice';
@@ -352,7 +349,6 @@ class SettingsService {
       layoutMode: _readLayoutMode(prefs),
       leftSidebarVisible: prefs.getBool(_leftSidebarVisibleKey) ?? true,
       leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ?? 320.0,
-      leftPaneChoice: _readLeftPaneChoice(prefs),
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
       rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
       rightPaneChoice: _readRightPaneChoice(prefs),
@@ -489,11 +485,6 @@ class SettingsService {
     return index != null ? LayoutMode.values[index] : LayoutMode.auto;
   }
 
-  static LeftPaneChoice _readLeftPaneChoice(SharedPreferences prefs) {
-    final index = prefs.getInt(_leftPaneChoiceKey);
-    return index != null ? LeftPaneChoice.values[index] : LeftPaneChoice.rooms;
-  }
-
   static RightPaneChoice _readRightPaneChoice(SharedPreferences prefs) {
     final index = prefs.getInt(_rightPaneChoiceKey);
     return index != null
@@ -590,17 +581,6 @@ class SettingsService {
   Future<void> updateLeftSidebarWidth(double width) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_leftSidebarWidthKey, width);
-  }
-
-  Future<LeftPaneChoice> leftPaneChoice() async {
-    final prefs = await SharedPreferences.getInstance();
-    final int? index = prefs.getInt(_leftPaneChoiceKey);
-    return index != null ? LeftPaneChoice.values[index] : LeftPaneChoice.rooms;
-  }
-
-  Future<void> updateLeftPaneChoice(LeftPaneChoice choice) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_leftPaneChoiceKey, choice.index);
   }
 
   Future<bool> rightSidebarVisible() async {
