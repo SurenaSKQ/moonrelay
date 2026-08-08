@@ -147,9 +147,9 @@ class DashboardView extends StatelessWidget {
 
 /// Thin strip between the navigation sidebar and the main content.
 ///
-/// On hover it reveals a button that collapses the sidebar.  The strip
-/// stays interactive so users who have hidden the sidebar can find the
-/// expand affordance at the same spot.
+/// On hover it reveals a button that collapses the sidebar; the strip
+/// is a row child so it stays on the same side as the sidebar in RTL
+/// windows.
 class SidebarCollapseGutter extends StatefulWidget {
   const SidebarCollapseGutter({super.key, required this.onCollapse});
 
