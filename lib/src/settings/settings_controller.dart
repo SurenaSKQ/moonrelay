@@ -42,7 +42,10 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool _rightSidebarVisible = true;
   double _rightSidebarWidth = 280.0;
   RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
-  bool _headerReversed = false;
+
+  /// When true the OS provides the window title bar and caption buttons;
+  /// when false Moonrelay renders its own slim header bar instead.
+  bool _useOsTitleBar = true;
   bool _showStateEvents = true;
   bool _showStatusBar = true;
   bool _showTrayIcon = true;
@@ -138,7 +141,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
   RightPaneChoice get rightPaneChoice => _rightPaneChoice;
-  bool get headerReversed => _headerReversed;
+  bool get useOsTitleBar => _useOsTitleBar;
   bool get showStateEvents => _showStateEvents;
   bool get showStatusBar => _showStatusBar;
   bool get showTrayIcon => _showTrayIcon;
@@ -234,7 +237,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
     _rightPaneChoice = snapshot.rightPaneChoice;
-    _headerReversed = snapshot.headerReversed;
+    _useOsTitleBar = snapshot.useOsTitleBar;
     _showStateEvents = snapshot.showStateEvents;
     _showStatusBar = snapshot.showStatusBar;
     _showTrayIcon = snapshot.showTrayIcon;
@@ -420,11 +423,11 @@ class SettingsController with ChangeNotifier, WindowListener {
     await setRightSidebarVisible(!_rightSidebarVisible);
   }
 
-  Future<void> updateHeaderReversed(bool reversed) async {
-    if (reversed != _headerReversed) {
-      _headerReversed = reversed;
+  Future<void> updateUseOsTitleBar(bool value) async {
+    if (value != _useOsTitleBar) {
+      _useOsTitleBar = value;
       notifyListeners();
-      await _settingsService.updateHeaderReversed(reversed);
+      await _settingsService.updateUseOsTitleBar(value);
     }
   }
 

@@ -36,7 +36,10 @@ class SettingsSnapshot {
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
   final RightPaneChoice rightPaneChoice;
-  final bool headerReversed;
+
+  /// Whether the OS draws the window title bar (true) or Moonrelay draws
+  /// its own slim header (false).
+  final bool useOsTitleBar;
   final bool showStateEvents;
   final bool showStatusBar;
   final bool showTrayIcon;
@@ -116,7 +119,7 @@ class SettingsSnapshot {
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
     this.rightPaneChoice = RightPaneChoice.roomInfo,
-    this.headerReversed = false,
+    this.useOsTitleBar = true,
     this.showStateEvents = true,
     this.showStatusBar = true,
     this.showTrayIcon = true,
@@ -199,7 +202,7 @@ class SettingsService {
   static const _rightSidebarVisibleKey = 'right_sidebar_visible';
   static const _rightSidebarWidthKey = 'right_sidebar_width';
   static const _rightPaneChoiceKey = 'right_pane_choice';
-  static const _headerReversedKey = 'header_reversed';
+  static const _useOsTitleBarKey = 'use_os_title_bar';
   static const _showStateEventsKey = 'show_state_events';
   static const _showStatusBarKey = 'show_status_bar';
   static const _showTrayIconKey = 'show_tray_icon';
@@ -353,7 +356,7 @@ class SettingsService {
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
       rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
       rightPaneChoice: _readRightPaneChoice(prefs),
-      headerReversed: prefs.getBool(_headerReversedKey) ?? false,
+      useOsTitleBar: prefs.getBool(_useOsTitleBarKey) ?? true,
       showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
       showStatusBar: prefs.getBool(_showStatusBarKey) ?? true,
       showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
@@ -623,14 +626,14 @@ class SettingsService {
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
   }
 
-  Future<bool> headerReversed() async {
+  Future<bool> useOsTitleBar() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_headerReversedKey) ?? false;
+    return prefs.getBool(_useOsTitleBarKey) ?? true;
   }
 
-  Future<void> updateHeaderReversed(bool reversed) async {
+  Future<void> updateUseOsTitleBar(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_headerReversedKey, reversed);
+    await prefs.setBool(_useOsTitleBarKey, value);
   }
 
   Future<bool> showStateEvents() async {
