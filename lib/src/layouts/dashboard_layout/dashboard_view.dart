@@ -15,11 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+
 import 'package:moonrelay/src/helpers/responsive.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/status_bar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
@@ -41,10 +45,7 @@ class DashboardView extends StatelessWidget {
     required this.size,
     required this.width,
     required this.shouldUseCompact,
-    required this.leftWidthNotifier,
     required this.rightWidthNotifier,
-    required this.onLeftResize,
-    required this.onLeftResizeEnd,
     required this.onRightResize,
     required this.onRightResizeEnd,
   });
@@ -61,10 +62,7 @@ class DashboardView extends StatelessWidget {
   /// hysteresis around the 1280 px boundary so this flag only flips when
   /// the resize has settled.
   final bool shouldUseCompact;
-  final ValueNotifier<double?> leftWidthNotifier;
   final ValueNotifier<double?> rightWidthNotifier;
-  final void Function(double) onLeftResize;
-  final VoidCallback onLeftResizeEnd;
   final void Function(double) onRightResize;
   final VoidCallback onRightResizeEnd;
 
@@ -81,28 +79,28 @@ class DashboardView extends StatelessWidget {
       return CompactDashboard(width: width, child: child);
     }
 
-    // -- Wide shells  full multi-pane layout -----------------------
-    // The compact shell handles everything 600-1279 wide.  Above
-    // 1280px the full multi-pane layout (right sidebar visible) is
-    // shown; otherwise we fall back to the compact shell again so
-    // there is no "medium" gap where the sidebar disappears.
-    //
-    // The right sidebar's mount state is anchored to [shouldUseCompact]
-    // (passed in from the controller) rather than recomputed against
-    // [MediaQuery.sizeOf]. The controller applies hysteresis around the
-    // 1280 px boundary so we never tear down the right sidebar mid-drag.
+    // -- Wide shell  full multi-pane layout -----------------------
     final showLeft = settings.leftSidebarVisible;
     final showRight = settings.rightSidebarVisible && !shouldUseCompact;
+    final sidebarWidth =
+        settings.leftSidebarWidth.clamp(200.0, 360.0).toDouble();
 
     // In RTL mode the sidebar order must be reversed so that the
-    // "left" sidebar appears on the right side of the window.
+    // "left" sidebar appears on the right side of the window.  The
+    // collapse/expand gutters are row children too, so they land on
+    // the same side as the sidebar they belong to.
     final paneChildren = <Widget>[
-      if (showLeft && !shouldUseCompact)
-        LeftPaneHost(
-          widthNotifier: leftWidthNotifier,
-          onResize: onLeftResize,
-          onResizeEnd: onLeftResizeEnd,
-          theme: theme,
+      if (showLeft) ...[
+        SizedBox(
+          width: sidebarWidth,
+          child: NavigationSidebar(),
+        ),
+        SidebarCollapseGutter(
+          onCollapse: () => settings.setLeftSidebarVisible(false),
+        ),
+      ] else
+        SidebarExpandGutter(
+          onExpand: () => settings.setLeftSidebarVisible(true),
         ),
       Expanded(
         child: GlobalShortcutListener(
@@ -145,6 +143,98 @@ class DashboardView extends StatelessWidget {
   }
 }
 
+// --- Sidebar collapse / expand gutters --------------------------------------
+
+/// Thin strip between the navigation sidebar and the main content.
+///
+/// On hover it reveals a button that collapses the sidebar.  The strip
+/// stays interactive so users who have hidden the sidebar can find the
+/// expand affordance at the same spot.
+class SidebarCollapseGutter extends StatefulWidget {
+  const SidebarCollapseGutter({super.key, required this.onCollapse});
+
+  final VoidCallback onCollapse;
+
+  @override
+  State<SidebarCollapseGutter> createState() => _SidebarCollapseGutterState();
+}
+
+class _SidebarCollapseGutterState extends State<SidebarCollapseGutter> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
+      child: Container(
+        width: 18,
+        color: Colors.transparent,
+        alignment: Alignment.center,
+        child: AnimatedOpacity(
+          opacity: _hover ? 1.0 : 0.3,
+          duration: const Duration(milliseconds: 120),
+          child: IconButton(
+            icon: Icon(
+              isRtl ? LucideIcons.chevronsRight : LucideIcons.chevronsLeft,
+              size: 14,
+            ),
+            tooltip: l10n.collapseSidebar,
+            onPressed: widget.onCollapse,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(
+              width: 22,
+              height: 22,
+            ),
+            style: IconButton.styleFrom(
+              backgroundColor: scheme.surfaceContainerHighest,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Thin strip shown at the side of the screen while the navigation
+/// sidebar is collapsed, offering the expand button.
+class SidebarExpandGutter extends StatelessWidget {
+  const SidebarExpandGutter({super.key, required this.onExpand});
+
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+
+    return Container(
+      width: 18,
+      color: Colors.transparent,
+      alignment: Alignment.center,
+      child: IconButton(
+        icon: Icon(
+          isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronsRight,
+          size: 14,
+        ),
+        tooltip: l10n.expandSidebar,
+        onPressed: onExpand,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 22, height: 22),
+        style: IconButton.styleFrom(
+          backgroundColor: scheme.surfaceContainerHighest,
+        ),
+      ),
+    );
+  }
+}
+
 // --- Compact layout shell --------------------------------------------------
 
 /// Layout used when the window is too narrow to keep both side panes pinned,
@@ -180,12 +270,18 @@ class CompactDashboard extends StatelessWidget {
     final sidebarWidth =
         settings.leftSidebarWidth.clamp(220.0, 360.0).toDouble();
 
-    // In RTL mode the sidebar order must be reversed.
+    // In RTL mode the sidebar order must be reversed.  When the sidebar
+    // is hidden the expand gutter keeps the restore affordance on the
+    // same side of the screen as the sidebar itself.
     final compactChildren = <Widget>[
       if (settings.leftSidebarVisible)
         SizedBox(
           width: sidebarWidth,
           child: CompactSidebar(width: sidebarWidth),
+        )
+      else
+        SidebarExpandGutter(
+          onExpand: () => settings.setLeftSidebarVisible(true),
         ),
       Expanded(
         child: GlobalShortcutListener(
