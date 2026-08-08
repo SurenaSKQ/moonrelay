@@ -7,7 +7,7 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test 584 green (unit + widget). flutter analyze 0 issues.
+Tests at head: flutter test 596 green (unit + widget). flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
@@ -43,6 +43,18 @@ comment noting that users may need to scroll up/down after a fallback
 jump is still in place at lib/src/chat/jump_coordinator.dart:211.
 
 1.3 Refactor candidates
+
+- Skins i18n: skin `label`/`description` are baked English constants
+  (lib/src/settings/skins.dart), matching the existing convention for
+  preset enums like LayoutDensity/DisplayType. The legacy colour-theme
+  labels were translated in app_*.arb; if full localisation of skin names
+  is wanted, move label/description behind the l10n helper and add
+  `skin_<id>` / `skin_<id>_desc` keys per locale.
+- Legacy `theme_option` prefs key is read once for migration in
+  lib/src/settings/settings_service.dart:_readSelectedSkinId but never
+  cleared, so the legacy branch is re-evaluated on every load. Harmless,
+  but a one-time write-back on first post-upgrade loadAll would drop the
+  dead branch entirely.
 
 - HTML tag allow-list: MarkdownToHtml and HtmlTagParser each implement
   their own tag allow-list. Extract a single SanitizedHtml helper.

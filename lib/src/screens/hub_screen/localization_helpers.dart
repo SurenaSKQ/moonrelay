@@ -17,29 +17,8 @@
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/theme.dart';
 
 // -- Localization helpers ----------------------------------------------------
-
-String localizedThemeOption(
-    MoonrelayThemeOption option, AppLocalizations l10n) {
-  switch (option) {
-    case MoonrelayThemeOption.indigo:
-      return l10n.themeDefault;
-    case MoonrelayThemeOption.oceanBlue:
-      return l10n.themeOceanBlue;
-    case MoonrelayThemeOption.midnightSlate:
-      return l10n.themeMidnightSlate;
-    case MoonrelayThemeOption.crimson:
-      return l10n.themeCrimson;
-    case MoonrelayThemeOption.amber:
-      return l10n.themeAmber;
-    case MoonrelayThemeOption.steel:
-      return l10n.themeSteel;
-    case MoonrelayThemeOption.sky:
-      return l10n.themeSky;
-  }
-}
 
 String localizedRightPaneChoice(RightPaneChoice choice, AppLocalizations l10n) {
   switch (choice) {

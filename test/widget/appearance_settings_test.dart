@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:moonrelay/src/settings/skins.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,23 +34,35 @@ void main() {
   group('LayoutDensity -> VisualDensity', () {
     test('comfortable maps to standard', () {
       final theme = MoonrelayTheme.light(
-        MoonrelayThemeOption.indigo,
-        LayoutDensity.comfortable,
+        MoonrelaySkins.defaultSkin,
+        density: LayoutDensity.comfortable,
       );
       expect(theme.visualDensity, VisualDensity.standard);
     });
 
     test('compact maps to compact', () {
       final theme = MoonrelayTheme.dark(
-        MoonrelayThemeOption.indigo,
-        LayoutDensity.compact,
+        MoonrelaySkins.defaultSkin,
+        density: LayoutDensity.compact,
       );
       expect(theme.visualDensity, VisualDensity.compact);
     });
 
     test('defaults to comfortable when omitted', () {
-      final theme = MoonrelayTheme.light(MoonrelayThemeOption.indigo);
+      final theme = MoonrelayTheme.light(MoonrelaySkins.defaultSkin);
       expect(theme.visualDensity, VisualDensity.standard);
+    });
+
+    test('skin corner radius flows into cardTheme', () {
+      final sharp = MoonrelaySkins.highContrast;
+      expect(
+        MoonrelayTheme.light(sharp).cardTheme.shape,
+        isA<RoundedRectangleBorder>().having(
+          (s) => s.borderRadius,
+          'radius',
+          BorderRadius.circular(sharp.cornerRadius),
+        ),
+      );
     });
   });
 
@@ -64,12 +77,14 @@ void main() {
       );
     }
 
-    testWidgets('uiScale scales text via MediaQuery textScaler', (tester) async {
+    testWidgets('uiScale scales text via MediaQuery textScaler',
+        (tester) async {
       final controller = SettingsController(SettingsService());
       await controller.updateUiScale(2.0);
 
       double scaleOf(double font) {
-        return MediaQuery.of(tester.element(find.byType(Text))).textScaler
+        return MediaQuery.of(tester.element(find.byType(Text)))
+            .textScaler
             .scale(font);
       }
 

@@ -54,6 +54,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
     navigatorKey: widget.navigatorKey,
     routes: MoonRouter.routes,
   );
+
   /// Process-wide sync pulse, owned by this widget so its lifetime
   /// matches the running app. Re-bound to the active client every time
   /// the account manager swaps in a new [Client].
@@ -109,8 +110,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
               routerConfig: _router,
               debugShowCheckedModeBanner: false,
               restorationScopeId: "approot",
-              localizationsDelegates:
-                  AppLocalizations.localizationsDelegates,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               locale: settingsController.locale != null
                   ? Locale(settingsController.locale!)
@@ -118,12 +118,16 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
               onGenerateTitle: (context) =>
                   AppLocalizations.of(context)!.appTitle,
               theme: MoonrelayTheme.light(
-                settingsController.themeOption,
-                settingsController.density,
+                settingsController.selectedSkin,
+                density: settingsController.density,
+                fontFamily: settingsController.fontFamily,
+                monoFontFamily: settingsController.monoFontFamily,
               ),
               darkTheme: MoonrelayTheme.dark(
-                settingsController.themeOption,
-                settingsController.density,
+                settingsController.selectedSkin,
+                density: settingsController.density,
+                fontFamily: settingsController.fontFamily,
+                monoFontFamily: settingsController.monoFontFamily,
               ),
               themeMode: settingsController.themeMode,
               builder: (context, child) => MediaQuery(

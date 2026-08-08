@@ -33,13 +33,14 @@ status-pill honesty fix plus the dead appearance-settings wiring, and the
 blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
 a unified navigation sidebar), and the collapsible sidebar sections
-follow-up, and the space-selection fix.
+follow-up, and the space-selection fix, and the skins refactor.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 584 green (1 new test across this pass:
-the space-selection widget test).
-flutter analyze 0 issues. (Suite baseline prior to these passes was 583.)
+Tests at head: flutter test 596 green (584 prior + 12 new: skins registry
+and theme-option migration unit tests, a skin-picker widget test, and the
+appearance density/radius tests refactored onto the skin API). flutter
+analyze 0 issues.
 
 25. Space selection fix: highlight and navigate
 
@@ -2351,5 +2352,54 @@ one using the default.
   `skipIfClose: false` scrolls to a target the default would suppress, and
   the default suppresses a close target.
 
-Tests at head: flutter test 547 green (538 prior + 6 unit tests for 27.1
-+ 3 widget tests for 27.2). flutter analyze 0 issues.
+25. Centralized theming via skins
+
+Theming was fragmented: the colour theme was a colour-only enum, the
+font-family and mono-font-family settings were persisted but never passed to
+the ThemeData (the builder hard-coded 'Rubik'/'FiraCode'), surface corner
+radius was hard-coded to 12, and card/dialog radii were not centralised.
+Selecting a look required editing several independent settings.
+
+Introduced a `MoonrelaySkin` — a single, self-contained look-and-feel recipe
+(seed colour, default fonts, default density, corner radius, surface
+elevation, default bubble radius) — and a `MoonrelaySkins` registry. The
+active skin is the single source of truth for the app's appearance;
+`MoonrelayTheme` now builds ThemeData from it, wiring in the user's
+font/density overrides so those settings finally take effect app-wide.
+Selecting a skin resets the independent appearance controls (density, app
+font family, mono font family, chat bubble radius) to that skin's defaults so
+the new look applies in one action. Nine skins ship, including two with a
+genuinely different feel (sharp-cornered High Contrast and Compact Modern).
+Existing installs keep their colour choice via a one-time migration from the
+legacy `theme_option` index to the new `selected_skin` id.
+
+- lib/src/settings/skins.dart (new): `MoonrelaySkin` + `MoonrelaySkins`
+  registry (9 skins, `byId`/`fromId`, `defaultSkin`).
+- lib/src/settings/theme.dart: removed `MoonrelayThemeOption`;
+  `MoonrelayTheme.light/dark` now take a `MoonrelaySkin` plus optional
+  density/font overrides and derive colorScheme, fonts, card/dialog
+  borderRadius and surface elevation from it.
+- lib/src/settings/settings_service.dart: new `selected_skin` key;
+  `SettingsSnapshot.selectedSkinId`; `_readSelectedSkinId` migrates the
+  legacy `theme_option` index via a 7-entry table and lets `selected_skin`
+  take precedence.
+- lib/src/settings/settings_controller.dart: `themeOption` replaced by
+  `selectedSkin`/`selectedSkinId` + `updateSelectedSkin`, which resets the
+  density/font/bubble-radius controls to the skin defaults before persisting.
+- lib/src/app.dart: MaterialApp now builds light/dark themes from
+  `settingsController.selectedSkin` plus the persisted font/density overrides.
+- lib/src/screens/hub_screen/settings/appearance_settings.dart and
+  lib/src/screens/startup_screen.dart: the colour-theme radio lists are now
+  skin pickers (label, seed swatch, description).
+- lib/src/screens/hub_screen/localization_helpers.dart: dropped the obsolete
+  `localizedThemeOption`.
+- lib/src/localization/app_*.arb + gen-l10n: added `skin` / `skinDescription`
+  keys.
+- test/unit/skins_test.dart (new): registry invariants, byId/fromId, and the
+  legacy-index migration in SettingsService.
+- test/widget/skin_picker_test.dart (new): selecting a skin in the appearance
+  page updates selectedSkinId and resets density to the skin default.
+- test/widget/appearance_settings_test.dart: refactored onto the skin API and
+  added a card-radius propagation assertion.
+
+Tests at head: flutter test 596 green (584 prior + 12 new). flutter analyze 0 issues.
