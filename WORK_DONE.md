@@ -30,14 +30,69 @@ the August 2026 timeline dead-code and duplication removal, the
 timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
 the jump-to-unread target-selection and scroll-execution fixes, and the
 status-pill honesty fix plus the dead appearance-settings wiring, and the
-blank-content error guidance pass.
+blank-content error guidance pass, and the dashboard UI refresh pass
+(OS-window-decorations default with an optional slim in-app header, and
+a unified navigation sidebar).
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 566 green (19 new tests across this pass:
-7 sync-status pill, 5 appearance-settings, 7 empty-state tests).
-flutter analyze 0 issues. (Suite baseline prior to these passes was 547;
+Tests at head: flutter test 575 green (9 new tests across this pass:
+4 navigation-sidebar / collapse-gutter widget tests, 5 settings tests).
+flutter analyze 0 issues. (Suite baseline prior to these passes was 566;
 the AGENTS.md "538" count is stale.)
+
+23. Dashboard UI refresh: OS decorations and the unified navigation sidebar
+
+The window header and the left side of the dashboard were rebuilt so the
+app stops fighting the desktop window manager and the rooms/spaces
+pickup stops being split across three separate columns.
+
+The header is now optional and off by default: a new `useOsTitleBar`
+setting (default true) restores the native title bar, and the old
+reversible header with the profile pill, command palette button, and
+sidebar toggle is gone.  When the in-app header is enabled it is slim:
+a draggable title area, platform window buttons, and the right-click
+system menu only.
+
+- `lib/src/settings` persists `useOsTitleBar` (controller, service,
+  snapshot).
+- `lib/src/helpers/window_chrome.dart` (new) applies the title bar style
+  at boot and re-applies it live when the setting flips; both frames
+  (`lib/src/layouts/app_frame.dart`, `startscreen_frame.dart`) listen.
+- `lib/src/screens/hub_screen/settings/layout_settings.dart` swaps the
+  reversed-header toggle for the OS-decorations toggle and drops the
+  left-sidebar width slider (the sidebar is no longer resizable).
+
+The wide dashboard's three left columns (nav rail, resizable rooms
+pane, header chrome) collapse into one navigation sidebar:
+
+- `lib/src/widgets/navigation_sidebar.dart` (new): the profile pill,
+  the command palette row, the Home/All/Add-Room destination rows, and
+  the spaces list sit above the destination-filtered rooms region.  The
+  spaces ordering, grouping, context menus, auto-grouping, and
+  drag-and-drop logic are ported unchanged from the deleted navigation
+  rail; the rooms region reuses RoomsPane / SpaceRoomsPane untouched.
+- `lib/src/widgets/sidebar_profile_pill.dart` and
+  `sidebar_actions.dart` (new): shared by the full and compact
+  sidebars so the compact shell keeps every action that used to live
+  in the header.
+- `lib/src/widgets/compact_sidebar.dart` gains the same header block.
+- `lib/src/layouts/dashboard_layout/dashboard_view.dart`: the left
+  sidebar is no longer resize-draggable; a hover gutter collapses it,
+  and an edge strip with the same affordance lets the user expand it
+  again.  Both are row children, so RTL windows keep them on the same
+  side as the sidebar.  The right sidebar keeps its resize handle.
+- Dead code removed: NavigationPane, SpacesPane, LeftPaneChoice,
+  buildLeftPaneContent, the left-resize notifiers, and the
+  navigationPaneWidth constant.
+
+Tests added:
+- test/widget/navigation_sidebar_test.dart (4) — sidebar renders its
+  chrome, the command palette row opens the palette, the expanded shell
+  shows the collapse gutter, and toggling visibility swaps in the
+  expand gutter.
+- test/unit/settings_controller_test.dart (+5) — useOsTitleBar
+  default/round-trip/notify and the left-sidebar visibility toggle.
 
 22. Blank-content error guidance
 

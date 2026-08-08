@@ -183,7 +183,7 @@ class MoonRouter {
             //
             // When the user opts into [LayoutMode.mobile] the shell
             // renders the dedicated single-pane [MobileLayout] instead.
-            // Mobile mode does not need the far-left rail, the
+            // Mobile mode does not need the navigation sidebar, the
             // multi-pane sidebars, or the resize handles, so it lives
             // outside the dashboard code path entirely.
             _AdaptiveMainLayout(child: child),

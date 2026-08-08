@@ -43,10 +43,10 @@ enum _CompactSidebarFilter {
 /// This is the sidebar used when the dashboard has been shrunk to a
 /// compact size either because the user picked [LayoutMode.compact]
 /// or because [DashboardLayout] decided the window is too narrow for
-/// the full multi-pane layout.  Unlike the wide layout, which shows a
-/// separate far-left rail, a wide left pane, and an optional right
-/// pane, the compact sidebar gives up the rail entirely and folds
-/// navigation into a small icon row at the top of the same column.
+/// the full multi-pane layout.  Unlike the wide layout, which shows
+/// the navigation sidebar and an optional right pane, the compact
+/// sidebar folds destination navigation into a segmented filter row
+/// below the shared profile pill and command palette header.
 class CompactSidebar extends StatefulWidget {
   /// The fixed width the sidebar should request.  Defaults to
   /// [LayoutBreakpoints.defaultLeftSidebarWidth] but is clamped at

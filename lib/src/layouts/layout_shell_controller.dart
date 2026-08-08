@@ -29,8 +29,8 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 ///     mode.
 ///   * [compact]  dashboard with the unified [CompactSidebar] and no
 ///     right pane, used below [LayoutBreakpoints.compactMax].
-///   * [expanded]  full multi-pane dashboard (navigation rail, left and
-///     right sidebars), used when the window has room for everything.
+///   * [expanded]  full multi-pane dashboard (navigation sidebar, right
+///     context sidebar), used when the window has room for everything.
 enum LayoutShell {
   mobile,
   compact,

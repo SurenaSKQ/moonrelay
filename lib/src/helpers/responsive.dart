@@ -144,7 +144,7 @@ class LayoutBreakpoints {
 
   /// Clamps a sidebar's requested [requestedWidth] against the given [viewportWidth],
 /// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
-/// by sibling panes (e.g. the navigation rail on the far left).
+/// by sibling panes (e.g. the right sidebar on the far right).
 ///
 /// The result is always between [minSidebarWidth] and [maxSidebarWidth].
 /// When the viewport cannot accommodate everything, the function returns

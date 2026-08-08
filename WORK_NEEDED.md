@@ -7,7 +7,7 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test 538 green (unit + widget). flutter analyze 0 issues.
+Tests at head: flutter test 575 green (unit + widget). flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
@@ -112,6 +112,33 @@ status-pill/density pass:
 - lib/src/screens/create_room_form.dart:316,321,479-480,741-742  (Room/Space
   segment labels, the type subtitle interpolation, and _typeLabel returning
    raw 'room'/'space').
+- lib/src/widgets/navigation_sidebar.dart  (the space context-menu items
+  "Move Up"/"Move Down"/"Move Group Up"/"Move Group Down"/"Remove from
+  group"/"Ungroup all"/"Sort into groups"/"Reset space layout" and the
+  group label "Group" were ported verbatim from the deleted navigation
+  rail; they should move into app_en.arb/app_fa.arb).
+
+
+1.7 Integration tests are currently broken (quality, known-fail)
+
+The E2E suite under integration_test/ does not pass in the current
+environment, independent of the dashboard refresh.  Until it is
+repaired, changes are not validated against it.  Note that
+login_test.dart asserts the in-app header title ("Moonrelay" via
+find.text); the E2E boot helper
+(integration_test/helpers/test_app_boot.dart) now forces
+useOsTitleBar=false so the header chrome the tests drive is rendered
+inside the Flutter tree.  Any repair pass should keep that opt-in in
+place.
+
+1.8 Vestigial left-sidebar width setting (refactor, deferred)
+
+The left sidebar is no longer resizable (the drag handle and the hub
+slider were removed in the dashboard refresh), so `leftSidebarWidth`
+(SettingsController, SettingsService key `left_sidebar_width`) is now
+only ever read at its persisted default.  Keep it for a future width
+picker, or remove it and the `setLeftSidebarWidth` plumbing in one
+clean pass.
 
 
 1.6 Silent failure surfaces with no retry affordance (quality, deferred)

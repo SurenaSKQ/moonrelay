@@ -95,6 +95,10 @@ Future<Widget> buildTestApp({
   final log = Logger();
   final settingsController = SettingsController(SettingsService());
   await settingsController.loadSettings();
+  // Opt into the in-app header: the E2E assertions drive the header
+  // chrome (window title, buttons), which the OS decorations path
+  // renders outside the Flutter tree and cannot be found by finders.
+  await settingsController.updateUseOsTitleBar(false);
 
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();

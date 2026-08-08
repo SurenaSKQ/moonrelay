@@ -29,7 +29,7 @@ import 'package:provider/provider.dart';
 /// The main landing page for a space, showing its avatar, name, topic,
 /// member count, child rooms, and child subspaces.
 ///
-/// When the user clicks a space in the [NavigationPane] they are taken
+/// When the user clicks a space in the navigation sidebar they are taken
 /// here.  Tapping a child room opens it, and tapping a child subspace
 /// navigates to that subspace's own home page.
 class SpaceHomePage extends StatefulWidget {
