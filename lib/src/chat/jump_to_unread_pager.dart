@@ -134,14 +134,15 @@ class JumpToUnreadPager {
 
   /// Returns the index of the first message-like event at or below
   /// [startIdx] in a newest-first [events] list, walking back from
-  /// [startIdx] toward older events.  Returns `-1` when the entire
-  /// tail newer than [startIdx] consists of state events.
+  /// [startIdx] toward newer events.  Returns `-1` when the entire
+  /// tail newer than [startIdx] consists of state events or
+  /// non-addressable relationship events (edits, thread replies).
   static int findFirstUnreadMessageIndex(
     List<Event> events,
     int startIdx,
   ) {
     for (var i = startIdx; i >= 0; i--) {
-      if (isMessageLikeEvent(events[i])) return i;
+      if (isAddressableUnreadEvent(events[i])) return i;
     }
     return -1;
   }
@@ -151,7 +152,7 @@ class JumpToUnreadPager {
   /// window so we need the newest message-like event in the cache.
   static int findFirstUnreadMessageIndexFromEnd(List<Event> events) {
     for (var i = events.length - 1; i >= 0; i--) {
-      if (isMessageLikeEvent(events[i])) return i;
+      if (isAddressableUnreadEvent(events[i])) return i;
     }
     return -1;
   }

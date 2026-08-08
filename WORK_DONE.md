@@ -27,7 +27,8 @@ shell-flip navigation leak fix, the August 2026 bug-fix pass (24
 fixes from the full-codebase audit), the SSO loopback-host
 regression fix, the timeline scroll-position null-deref crash fix,
 the August 2026 timeline dead-code and duplication removal, the
-timeline Suckless-cleanup pass, and the jump-to-unread FAB survival.
+timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
+the jump-to-unread target-selection and scroll-execution fixes.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -2102,3 +2103,66 @@ The `ScrollToBottomPill` behaviour is unchanged: it still only appears
 when `isScrolledUp` is true and disappears when the user returns to the
 newest messages. Explicit dismissal resets on room switch or read-marker
 update, matching the existing `_pillDismissed` lifecycle.
+
+27.1 Unread count and jump targets skip inline-rendered relationship events
+
+The unread pill and the jump-to-unread target used `isMessageLikeEvent`
+everywhere, so edits and thread replies (message-typed events carrying a
+`relationshipEventId`) counted toward the unread total. `TimelineView`
+renders those inline with their parent and never gives them a standalone
+row, so the pill inflated with content the user could not land on, and
+the pager could resolve a jump target that had no addressable item.
+
+- `lib/src/chat/chat_unread_utils.dart` now defines
+  `isAddressableUnreadEvent` (a message-like event that also passes
+  `ThreadUtils.isVisibleInMainTimeline`). `countUnreadInWindow` uses it
+  for both the no-marker and marker-anchored paths. Thread roots (which
+  reference themselves) stay addressable and still count.
+- `lib/src/chat/jump_to_unread_pager.dart` uses `isAddressableUnreadEvent`
+  in `findFirstUnreadMessageIndex` and `findFirstUnreadMessageIndexFromEnd`,
+  so the jump lands on the first real standalone message after the marker
+  instead of an inline edit or thread reply.
+- Tests in `test/unit/chat_timeline_test.dart` cover edits/thread replies
+  excluded from the count, thread roots kept, and the pager skipping
+  relationship events while still returning `-1` when the unread tail is
+  only state events or non-addressable events.
+
+27.2 Jump-to-unread now actually scrolls to the first unread message
+
+The FAB surfaced and resolved its target, dismissed the pill, and marked
+the room read, but the timeline did not move. Root cause: the jump routes
+through `TimelineView._doScrollToEvent`, whose fallback (used when the
+target item is not yet built and has no `GlobalKey` for
+`Scrollable.ensureVisible`) called `TimelineScrollTarget.scrollToFraction`
+with the default `skipIfClose: true`. When the fraction estimate landed
+within 60% of the viewport of the current position, that default silently
+dropped the scroll. The target being "close" by the estimate is a lie for
+items outside the built window, so the view sat motionless. Every other
+user-invoked jump site (`JumpCoordinator.jumpToEvent`,
+`JumpCoordinator._scrollToEvent`, and `TimelineScrollTarget.scrollToEvent`)
+already passed `skipIfClose: false`; the jump-to-unread path was the only
+one using the default.
+
+- `_doScrollToEvent` (`lib/src/chat/timeline_view.dart`) now passes
+  `skipIfClose: false`, matching the other jump sites, so a user-invoked
+  jump always moves the view.
+- The same fallback previously used the model's `eventIdToItemIndex`, which
+  is built before the undecryptable banner is prepended to the item list
+  (indices off by one) and counts only message events (so the fraction
+  denominator omitted the banner, date separators, and state batches).
+  `_doScrollToEvent` now re-derives the rendered item index by matching
+  the per-event `GlobalKey` in `_cachedItems` and uses `_cachedItems.length`
+  as the count, so the fallback lands accurately once the item is built.
+- `test/widget/timeline_view_jump_scroll_test.dart` reproduces the
+  suppression: it mounts `TimelineView` with mock messages, scrolls into
+  history so the newest message sits just past the built window (its
+  fraction estimate is within 60% of the viewport), calls
+  `scrollToEventId`, and asserts the controller actually moves. This failed
+  on the old code (the offset never changed) and passes now (the view
+  scrolls to the target).
+- `test/widget/timeline_scroll_target_test.dart` pins the helper contract:
+  `skipIfClose: false` scrolls to a target the default would suppress, and
+  the default suppresses a close target.
+
+Tests at head: flutter test 547 green (538 prior + 6 unit tests for 27.1
++ 3 widget tests for 27.2). flutter analyze 0 issues.
