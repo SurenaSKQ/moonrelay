@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -281,7 +282,15 @@ class _CompactRoomTile extends StatelessWidget {
         room.isSpace ? '/main/space/${room.id}' : '/main/rooms/${room.id}';
 
     return InkWell(
-      onTap: () => context.push(target),
+      onTap: () {
+        // Selecting a space should also mark it in the navigation state
+        // so the full sidebar highlights the same space after a layout
+        // switch.
+        if (room.isSpace) {
+          context.read<NavigationState>().selectSpace(room.id);
+        }
+        context.push(target);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
