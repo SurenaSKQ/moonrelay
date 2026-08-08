@@ -95,9 +95,6 @@ class LayoutBreakpoints {
   /// Maximum width allowed for any pinned pane.
   static const double maxSidebarWidth = 600;
 
-  /// Width of the fixed navigation column on the far left.
-  static const double navigationPaneWidth = 80;
-
   /// Width of the in-room search panel overlay.
   static const double searchPanelWidth = 320;
 

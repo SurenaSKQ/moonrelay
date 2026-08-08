@@ -15,16 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:moonrelay/src/helpers/navigation_state.dart';
+
 import 'package:moonrelay/src/helpers/responsive.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/navigation_pane.dart';
-import 'package:moonrelay/src/widgets/rooms_pane.dart';
-import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
-import 'package:moonrelay/src/widgets/spaces_pane.dart';
 
 import 'right_sidebar_content.dart';
 
@@ -94,7 +88,7 @@ class SidebarPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Simple header bar  collapse toggle lives in AppFrame now.
+          // Simple header bar.
           Container(
             color: theme.colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -117,99 +111,6 @@ class SidebarPane extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-// --- Left pane content factory ---------------------------------------------
-
-/// Builds the body of the left pane based on the user's [LeftPaneChoice] and
-/// the current [NavigationState].
-Widget buildLeftPaneContent(BuildContext context, LeftPaneChoice choice) {
-  switch (choice) {
-    case LeftPaneChoice.rooms:
-      return Consumer<NavigationState>(
-        builder: (context, nav, _) {
-          final Client? client;
-          try {
-            client = Provider.of<Client>(context, listen: false);
-          } catch (_) {
-            // Client may be absent during logout transition; show
-            // nothing until the route changes away from the dashboard.
-            return const SizedBox.shrink();
-          }
-          if (nav.isSpace) {
-            final Room? space = client.getRoomById(nav.selectedId);
-            if (space != null) {
-              return SpaceRoomsPane(space: space, client: client);
-            }
-          }
-
-          return RoomsPane(roomFilter: (Room room) {
-            if (nav.isAll) return !room.isSpace;
-            if (nav.isHome) return room.isDirectChat;
-            return true;
-          });
-        },
-      );
-    case LeftPaneChoice.spaces:
-      return const SpacesPane();
-    case LeftPaneChoice.friends:
-      // DMs only  the same list shown on the Home navigation destination.
-      return RoomsPane(roomFilter: (Room room) => room.isDirectChat);
-    case LeftPaneChoice.none:
-      return const SizedBox.shrink();
-  }
-}
-
-// --- Left pane host --------------------------------------------------------
-
-/// Hosts the left side pane (navigation rail + room list) when the layout has
-/// room for a pinned sidebar.
-///
-/// The drag width is observed via [ListenableBuilder] so resize updates don't
-/// rebuild the entire dashboard tree.
-class LeftPaneHost extends StatelessWidget {
-  const LeftPaneHost({
-    super.key,
-    required this.widthNotifier,
-    required this.onResize,
-    required this.onResizeEnd,
-    required this.theme,
-  });
-
-  final ValueNotifier<double?> widthNotifier;
-  final void Function(double) onResize;
-  final VoidCallback onResizeEnd;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    return Row(
-      textDirection: TextDirection.ltr,
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const NavigationPane(),
-        ResizeHandle(
-          onDrag: onResize,
-          onDragEnd: onResizeEnd,
-        ),
-        ListenableBuilder(
-          listenable: widthNotifier,
-          builder: (context, _) {
-            return SidebarPane(
-              width: widthNotifier.value ?? settings.leftSidebarWidth,
-              minWidth: LayoutBreakpoints.minSidebarWidth,
-              title: settings.leftPaneChoice.label,
-              body: buildLeftPaneContent(context, settings.leftPaneChoice),
-              bottomBar: null,
-              theme: theme,
-            );
-          },
-        ),
-      ],
     );
   }
 }

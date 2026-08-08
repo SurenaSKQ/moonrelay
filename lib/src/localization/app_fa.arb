@@ -2620,6 +2620,7 @@
   "@deliveryFailed": {
     "description": "Tooltip on the delivery indicator when a message failed to send."
   },
+  "commandPalette": "پالت فرمان",
   "commandPaletteHint": "یک فرمان بنویسید یا جست‌وجو کنید…",
   "@commandPaletteHint": {
     "description": "Hint shown inside the command palette search field."

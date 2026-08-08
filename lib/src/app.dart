@@ -155,7 +155,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
 
         // SyncPulse and RoomStateBus are always provided — they are owned
         // by this widget and survive logout so that downstream widgets
-        // (RoomsPane, NavigationPane, SpacesPane) can safely reference
+        // (RoomsPane, NavigationSidebar) can safely reference
         // them during the logout transition before the route changes.
         // Client and EncryptionService are only provided when active.
         if (client != null) {

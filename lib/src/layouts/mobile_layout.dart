@@ -133,9 +133,10 @@ class _MobileTopBar extends StatelessWidget {
 /// A stand-alone, single-pane list of rooms used as the landing page
 /// of the mobile layout.
 ///
-/// Mirrors what [_LeftPaneHost] would normally render inside the
-/// dashboard, but without any sibling panes.  Tapping a row pushes the
-/// chat route so the navigator stack reflects the user's location.
+/// Mirrors what the navigation sidebar's rooms region would normally
+/// render inside the dashboard, but without any sibling panes.  Tapping
+/// a row pushes the chat route so the navigator stack reflects the
+/// user's location.
 class MobileRoomsListPage extends StatelessWidget {
   const MobileRoomsListPage({super.key});
 

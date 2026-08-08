@@ -2714,6 +2714,7 @@
     "description": "Tooltip on the delivery indicator when a message failed to send."
   },
 
+  "commandPalette": "Command palette",
   "commandPaletteHint": "Type a command or search…",
   "@commandPaletteHint": {
     "description": "Hint shown inside the command palette search field."

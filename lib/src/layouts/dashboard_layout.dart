@@ -45,31 +45,16 @@ class DashboardLayout extends StatefulWidget {
 }
 
 class _DashboardLayoutState extends State<DashboardLayout> {
-  // Live drag state; exposed as ValueNotifiers so the layout shell can
-  // observe them with [ListenableBuilder] without rebuilding the entire tree
-  // on every drag delta.
-  final ValueNotifier<double?> _leftWidth = ValueNotifier(null);
+  // Live drag state for the right sidebar; exposed as a ValueNotifier so
+  // the layout shell can observe it with [ListenableBuilder] without
+  // rebuilding the entire tree on every drag delta.  The left sidebar is
+  // no longer resizable: it collapses/expands via the gutter buttons.
   final ValueNotifier<double?> _rightWidth = ValueNotifier(null);
 
   @override
   void dispose() {
-    _leftWidth.dispose();
     _rightWidth.dispose();
     super.dispose();
-  }
-
-  void _onLeftResize(double delta) {
-    final settings = context.read<SettingsController>();
-    final current = _leftWidth.value ?? settings.leftSidebarWidth;
-    _leftWidth.value = current + delta;
-  }
-
-  void _onLeftResizeEnd() {
-    final w = _leftWidth.value;
-    if (w != null) {
-      context.read<SettingsController>().setLeftSidebarWidth(w);
-      _leftWidth.value = null;
-    }
   }
 
   void _onRightResize(double delta) {
@@ -127,10 +112,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
           size: layoutSize,
           width: width,
           shouldUseCompact: shouldUseCompact,
-          leftWidthNotifier: _leftWidth,
           rightWidthNotifier: _rightWidth,
-          onLeftResize: _onLeftResize,
-          onLeftResizeEnd: _onLeftResizeEnd,
           onRightResize: _onRightResize,
           onRightResizeEnd: _onRightResizeEnd,
           child: widget.child,
