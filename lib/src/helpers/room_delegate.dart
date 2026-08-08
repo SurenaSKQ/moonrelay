@@ -20,8 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
-import 'package:moonrelay/src/layouts/empty_space.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_page.dart';
+import 'package:moonrelay/src/screens/room_preview_screen.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -113,11 +115,20 @@ class _RoomDelegateState extends State<RoomDelegate> {
   @override
   Widget build(BuildContext context) {
     final Client client = Provider.of<Client>(context, listen: false);
+    final Logger log = Provider.of<Logger>(context, listen: false);
 
     // -- Null / empty check --------------------------------------
     if (widget.roomID == null || widget.roomID!.isEmpty) {
-      _log(context, 'RoomDelegate: roomID is null or empty');
-      return const EmptySpace();
+      final l10n = AppLocalizations.of(context);
+      log.e('RoomDelegate: roomID is null or empty',
+          stackTrace: StackTrace.current, time: DateTime.now());
+      return EmptyState(
+        icon: Icons.error_outline,
+        title: l10n?.error ?? 'Error',
+        message: l10n?.roomNotFound ?? 'Room not found',
+        actionLabel: l10n?.back ?? 'Back',
+        onAction: () => GoRouter.of(context).pop(),
+      );
     }
 
     // -- Look up the room via the SDK ----------------------------
@@ -131,15 +142,10 @@ class _RoomDelegateState extends State<RoomDelegate> {
       return _buildWaitingUi(context);
     }
 
-    // Room is genuinely not in our joined-list.  This can happen
-    // when the URL references a room the user never joined, or when
-    // a stale room ID is bookmarked after the user left.  Log it
-    // and show an empty space.
-    _log(
-        context,
-        'RoomDelegate: room "${widget.roomID}" not found among '
-        '${client.rooms.length} joined rooms');
-    return const EmptySpace();
+    // The ID references a room the user has not joined (or has left).
+    // Rather than a blank splash, hand off to the existing preview screen
+    // which can resolve the room identity and offer a Join button.
+    return RoomPreviewScreen(roomId: widget.roomID!);
   }
 
   Widget _buildWaitingUi(BuildContext context) {
@@ -177,11 +183,6 @@ class _RoomDelegateState extends State<RoomDelegate> {
     }
 
     return const Center(child: CircularProgressIndicator());
-  }
-
-  void _log(BuildContext context, String message) {
-    final Logger log = Provider.of<Logger>(context, listen: false);
-    log.t(message);
   }
 }
 

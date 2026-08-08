@@ -23,8 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/history_pager.dart';
 import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
-// Hides the duplicate `countUnreadInWindow` from jump_to_unread_pager
-// in favour of the canonical implementation in chat_unread_utils.
+import 'package:moonrelay/src/chat/timeline_scroll_target.dart';
 import 'package:moonrelay/src/chat/chat_unread_utils.dart' as unread;
 
 /// Orchestrates the "jump to first unread" affordance.
@@ -216,18 +215,8 @@ class JumpCoordinator {
 
     final events = timeline.events;
     final idx = events.indexWhere((e) => e.eventId == eventId);
-    final position = scrollController.position;
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
-    final paddedOffset = (position.minScrollExtent +
-            range * fraction -
-            position.viewportDimension * 0.33)
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
-    scrollController.animateTo(
-      paddedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    TimelineScrollTarget.scrollToFraction(scrollController, idx, events.length,
+        skipIfClose: false);
   }
 
   /// Resets in-flight state.  Called when the room id changes so the
@@ -295,31 +284,15 @@ class JumpCoordinator {
     if (events.isEmpty) return;
     if (!events.any((e) => e.eventId == eventId)) return;
 
-    // Try the precise path first -- if the TimelineView has the
-    // event rendered, [Scrollable.ensureVisible] lands the target
-    // exactly one third from the top of the viewport regardless of
-    // variable-height items above it.
     final view = timelineViewKey.currentState;
     if (view != null && view is TimelineViewState) {
       view.scrollToEventId(eventId);
       return;
     }
 
-    // Fallback fraction path -- used only until the TimelineView has
-    // been built and keyed.
     final idx = events.indexWhere((e) => e.eventId == eventId);
-    final position = scrollController.position;
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final fraction = idx / (events.length > 1 ? events.length - 1 : 1);
-    final paddedOffset = (position.minScrollExtent +
-            range * fraction -
-            position.viewportDimension * 0.33)
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
-    scrollController.animateTo(
-      paddedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    TimelineScrollTarget.scrollToFraction(scrollController, idx, events.length,
+        skipIfClose: false);
   }
 
   void _flashHighlight(String eventId) {
