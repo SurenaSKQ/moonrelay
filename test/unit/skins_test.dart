@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
@@ -54,6 +55,18 @@ void main() {
       expect(MoonrelaySkins.compact.defaultDensity, LayoutDensity.compact);
       expect(MoonrelaySkins.compact.cornerRadius,
           lessThan(MoonrelaySkins.defaultSkin.cornerRadius));
+    });
+
+    test('the archVista skin captures the GTK theme palette', () {
+      const skin = MoonrelaySkins.archVista;
+      // Dominant filled accent in ArchVista/gtk.css (button/active/selected).
+      expect(skin.seedColor, const Color(0xFF5C8AA6));
+      expect(skin.id, 'archVista');
+      expect(skin.defaultFontFamily, 'Segoe UI');
+      expect(skin.defaultMonoFontFamily, 'Consolas');
+      expect(skin.defaultDensity, LayoutDensity.comfortable);
+      // Vista chrome was nearly square; the skin's corners stay tight.
+      expect(skin.cornerRadius, lessThanOrEqualTo(4.0));
     });
   });
 
