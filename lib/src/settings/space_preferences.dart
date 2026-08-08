@@ -38,8 +38,7 @@ class SpacePreferences extends ChangeNotifier {
   Set<String> get pinnedSpaces => Set.unmodifiable(_pinnedSpaces);
   List<String> get spaceOrder => List.unmodifiable(_spaceOrder);
   Set<String> get collapsedGroups => Set.unmodifiable(_collapsedGroups);
-  Map<String, List<String>> get spaceGroups =>
-      Map.unmodifiable(_spaceGroups);
+  Map<String, List<String>> get spaceGroups => Map.unmodifiable(_spaceGroups);
 
   /// Pending microtask used to coalesce a tight run of mutations
   /// (e.g. several drag-reorder steps in one frame) into a single
@@ -255,7 +254,5 @@ class SpacePreferences extends ChangeNotifier {
     await _settingsService.updateCollapsedGroups(_collapsedGroups);
   }
 
-  bool isGroupCollapsed(String spaceId) =>
-      _collapsedGroups.contains(spaceId);
+  bool isGroupCollapsed(String spaceId) => _collapsedGroups.contains(spaceId);
 }
-

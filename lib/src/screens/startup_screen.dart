@@ -25,7 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/settings/skins.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 
 /// Welcome screen shown before authentication.
 ///
@@ -868,7 +868,8 @@ class _CreditsSection extends StatelessWidget {
 ///
 /// Exposes a subset of theming options:
 /// - Theme mode (System / Light / Dark)
-/// - Skin (MoonrelaySkin)
+/// - Look & feel (MoonrelayThemeSpec)
+/// - Accent colour (MoonrelayAccent)
 class _WelcomeSettingsScreen extends StatelessWidget {
   const _WelcomeSettingsScreen();
 
@@ -937,19 +938,19 @@ class _WelcomeSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Skin (look and feel)
+              // Theme (look and feel)
               _SettingsSection(
-                title: l10n.skin,
+                title: l10n.lookAndFeel,
                 children: [
                   RadioGroup<String>(
-                    groupValue: controller.selectedSkinId,
+                    groupValue: controller.selectedThemeId,
                     onChanged: (v) {
-                      if (v != null) controller.updateSelectedSkin(v);
+                      if (v != null) controller.updateSelectedTheme(v);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final skin in MoonrelaySkins.all)
+                        for (final look in MoonrelayThemes.all)
                           RadioListTile<String>(
                             title: Row(
                               children: [
@@ -957,15 +958,53 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                                   width: 20,
                                   height: 20,
                                   decoration: BoxDecoration(
-                                    color: skin.seedColor,
+                                    color: controller.selectedAccent.seedColor,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(skin.label),
+                                Text(look.label),
                               ],
                             ),
-                            value: skin.id,
+                            value: look.id,
+                            dense: true,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Accent colour
+              _SettingsSection(
+                title: l10n.accentColor,
+                children: [
+                  RadioGroup<String>(
+                    groupValue: controller.selectedAccentId,
+                    onChanged: (v) {
+                      if (v != null) controller.updateSelectedAccent(v);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final accent in MoonrelayAccents.all)
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: accent.seedColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(accent.label),
+                              ],
+                            ),
+                            value: accent.id,
                             dense: true,
                           ),
                       ],

@@ -17,7 +17,7 @@
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/skins.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -31,7 +31,8 @@ import 'settings_service.dart';
 class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   ThemeMode _themeMode = ThemeMode.system;
-  String _selectedSkinId = MoonrelaySkins.defaultSkinId;
+  String _selectedThemeId = MoonrelayThemes.defaultThemeId;
+  String _selectedAccentId = MoonrelayAccents.defaultAccentId;
   DisplayType _displayType = DisplayType.modern;
 
   // Layout state
@@ -136,13 +137,23 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   ThemeMode get themeMode => _themeMode;
 
-  /// The id of the currently active skin. Use [selectedSkin] to resolve it
-  /// back to a [MoonrelaySkin].
-  String get selectedSkinId => _selectedSkinId;
+  /// The id of the active look theme. Use [selectedTheme] to resolve it back
+  /// to a [MoonrelayThemeSpec].
+  String get selectedThemeId => _selectedThemeId;
 
-  /// The active skin, resolved through the [MoonrelaySkins] registry (never
-  /// null: an unknown id falls back to the default skin).
-  MoonrelaySkin get selectedSkin => MoonrelaySkins.fromId(_selectedSkinId);
+  /// The active look theme, resolved through the [MoonrelayThemes] registry
+  /// (never null: an unknown id falls back to the default theme).
+  MoonrelayThemeSpec get selectedTheme =>
+      MoonrelayThemes.fromId(_selectedThemeId);
+
+  /// The id of the active accent colour. Use [selectedAccent] to resolve it
+  /// back to a [MoonrelayAccent].
+  String get selectedAccentId => _selectedAccentId;
+
+  /// The active accent, resolved through the [MoonrelayAccents] registry
+  /// (never null: an unknown id falls back to the default accent).
+  MoonrelayAccent get selectedAccent =>
+      MoonrelayAccents.fromId(_selectedAccentId);
   DisplayType get displayType => _displayType;
 
   // Layout getters
@@ -238,7 +249,8 @@ class SettingsController with ChangeNotifier, WindowListener {
   Future<void> loadSettings() async {
     final snapshot = await _settingsService.loadAll();
     _themeMode = snapshot.themeMode;
-    _selectedSkinId = snapshot.selectedSkinId;
+    _selectedThemeId = snapshot.selectedThemeId;
+    _selectedAccentId = snapshot.selectedAccentId;
     _displayType = snapshot.displayType;
 
     // Layout settings
@@ -333,28 +345,42 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  /// Switches the active skin to the one with [skinId].
+  /// Switches the active look theme to the one with [themeId].
   ///
-  /// Selecting a skin resets the independent appearance controls (layout
-  /// density, app font family, mono font family and chat bubble radius) to
-  /// that skin's defaults, so the change redefines the entire look and feel.
+  /// Selecting a theme resets the independent appearance controls that define
+  /// the look (layout density, app font family, mono font family and chat
+  /// bubble radius) to that theme's defaults, so the change redefines the
+  /// entire look and feel rather than just its hue. The accent colour is left
+  /// untouched: it continues to recolour the new theme's widgets.
+  ///
   /// The resets are announced with a single [notifyListeners] call so the UI
-  /// rebuilds once, and each reset value is persisted alongside the skin id.
-  Future<void> updateSelectedSkin(String skinId) async {
-    final skin = MoonrelaySkins.fromId(skinId);
-    _selectedSkinId = skin.id;
-    _density = skin.defaultDensity;
-    _fontFamily = skin.defaultFontFamily;
-    _monoFontFamily = skin.defaultMonoFontFamily;
-    _bubbleRadius = skin.defaultBubbleRadius;
+  /// rebuilds once, and each reset value is persisted alongside the theme id.
+  Future<void> updateSelectedTheme(String themeId) async {
+    final theme = MoonrelayThemes.fromId(themeId);
+    _selectedThemeId = theme.id;
+    _density = theme.defaultDensity;
+    _fontFamily = theme.defaultFontFamily;
+    _monoFontFamily = theme.defaultMonoFontFamily;
+    _bubbleRadius = theme.defaultBubbleRadius;
     notifyListeners();
     await Future.wait(<Future<void>>[
-      _settingsService.updateSelectedSkin(skin.id),
+      _settingsService.updateSelectedTheme(theme.id),
       _settingsService.updateDensity(_density),
       _settingsService.updateFontFamily(_fontFamily),
       _settingsService.updateMonoFontFamily(_monoFontFamily),
       _settingsService.updateBubbleRadius(_bubbleRadius),
     ]);
+  }
+
+  /// Switches the active accent colour to the one with [accentId].
+  ///
+  /// Accents only recolo(u)r the current theme's widgets; they do not touch
+  /// the look (fonts, density, corners), so no appearance controls are reset.
+  Future<void> updateSelectedAccent(String accentId) async {
+    final accent = MoonrelayAccents.fromId(accentId);
+    _selectedAccentId = accent.id;
+    notifyListeners();
+    await _settingsService.updateSelectedAccent(accent.id);
   }
 
   Future<void> updateDisplayType(DisplayType newDisplayType) async {
