@@ -31,6 +31,7 @@ import 'helpers/current_room.dart';
 import 'helpers/log_service.dart';
 import 'helpers/platform.dart';
 import 'helpers/service_registry.dart';
+import 'helpers/window_chrome.dart';
 import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/auto_update_service.dart';
@@ -194,10 +195,7 @@ Future<BootContext> runBootPipeline({
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
-    await windowManager.setTitleBarStyle(
-      TitleBarStyle.hidden,
-      windowButtonVisibility: false,
-    );
+    await applyWindowChrome(settingsController);
     await windowManager.setMinimumSize(
       Size(settingsController.windowMinWidth,
           settingsController.windowMinHeight),

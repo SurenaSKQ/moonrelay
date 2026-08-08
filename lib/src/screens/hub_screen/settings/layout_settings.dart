@@ -112,26 +112,6 @@ class HubLayoutSettings extends StatelessWidget {
                     onChanged: (v) => controller.setLeftSidebarVisible(v),
                     secondary: const Icon(LucideIcons.panelLeft),
                   ),
-                  if (controller.leftSidebarVisible) ...[
-                    ListTile(
-                      title: Text(l10n.widthLabel),
-                      subtitle: Text(
-                        '${controller.leftSidebarWidth.round()} px',
-                      ),
-                      leading: const Icon(LucideIcons.moveHorizontal),
-                      trailing: SizedBox(
-                        width: 160,
-                        child: Slider(
-                          value: controller.leftSidebarWidth,
-                          min: 200,
-                          max: 600,
-                          divisions: 16,
-                          label: '${controller.leftSidebarWidth.round()}',
-                          onChanged: (v) => controller.setLeftSidebarWidth(v),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
               const SizedBox(height: 16),
@@ -198,18 +178,18 @@ class HubLayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Header
+              // Window header
               HubSettingsSection(
-                title: 'Header',
+                title: l10n.windowHeader,
                 children: [
                   SwitchListTile(
-                    title: const Text('Reversed header'),
-                    subtitle: const Text(
-                      'Window buttons on the left, title on the right',
+                    title: Text(l10n.useOsTitleBar),
+                    subtitle: Text(
+                      l10n.useOsTitleBarDescription,
                     ),
-                    value: controller.headerReversed,
-                    onChanged: (v) => controller.updateHeaderReversed(v),
-                    secondary: const Icon(LucideIcons.arrowLeftRight),
+                    value: controller.useOsTitleBar,
+                    onChanged: (v) => controller.updateUseOsTitleBar(v),
+                    secondary: const Icon(LucideIcons.monitor),
                   ),
                 ],
               ),
