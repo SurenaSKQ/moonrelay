@@ -219,7 +219,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       onStateChanged: () {
         if (mounted) setState(() {});
       },
-      onAfterJump: _dismissUnreadPill,
+      onAfterJump: () {},
       scrollToBottom: _scrollToBottom,
       markRoomReadForce: () => _markRoomRead(force: true),
       logger: _tryReadLogger(),
@@ -228,12 +228,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       room: widget.room,
       sendReceipts: _readSendReceipts(),
       notificationService: _tryReadNotificationMirror(),
-      onLastSeenChanged: (_) {
-        if (mounted) {
-          _pillDismissed = false;
-          setState(() {});
-        }
-      },
+      onLastSeenChanged: (_) {},
       logger: _tryReadLogger(),
     );
   }
@@ -258,7 +253,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       onStateChanged: () {
         if (mounted) setState(() {});
       },
-      onAfterJump: _dismissUnreadPill,
+      onAfterJump: () {},
       scrollToBottom: _scrollToBottom,
       markRoomReadForce: () => _markRoomRead(force: true),
       logger: _tryReadLogger(),
