@@ -329,7 +329,17 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
           spacePrefs: spacePrefs,
           l10n: l10n,
           nav: nav,
-          child: _SpaceRow(space: space, selected: sel, theme: theme),
+          child: _SpaceRow(
+            space: space,
+            selected: sel,
+            theme: theme,
+            onTap: () {
+              // Selecting a space both highlights it in this list
+              // (via NavigationState) and opens its home page.
+              nav.selectSpace(space.id);
+              ctx.push('/main/space/${space.id}');
+            },
+          ),
         ),
       ),
     );
@@ -574,22 +584,30 @@ class _NavRow extends StatelessWidget {
 }
 
 /// A space row in the spaces region: avatar, name, and a selected tint.
+///
+/// The row owns the tap: registering a real handler here (instead of
+/// relying on an ancestor [GestureDetector]) gives the InkWell ripple
+/// feedback and, crucially, prevents an empty tap handler from winning
+/// the gesture arena and swallowing the selection.
 class _SpaceRow extends StatelessWidget {
   const _SpaceRow({
     required this.space,
     required this.selected,
     required this.theme,
+    this.onTap,
   });
 
   final Room space;
   final bool selected;
   final ThemeData theme;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = theme.colorScheme;
     return _RowShell(
       selected: selected,
+      onTap: onTap,
       child: Row(
         children: [
           _SpaceAvatar(space: space, theme: theme),
@@ -683,20 +701,26 @@ class _GroupRow extends StatelessWidget {
 }
 
 /// Shared row shell: selected tint and rounded highlight.
+///
+/// [onTap] is nullable on purpose: a row without a handler must not
+/// register an empty tap recognizer, or it would win the gesture arena
+/// over sibling/ancestor tap handlers and swallow them.
 class _RowShell extends StatelessWidget {
   const _RowShell({
     required this.selected,
     required this.child,
+    this.onTap,
   });
 
   final bool selected;
   final Widget child;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
@@ -886,7 +910,8 @@ class _DFeedback extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Context menu  tap navigates, long-press / right-click opens menu
+// Context menu  long-press / right-click opens the menu; the row itself
+// owns the plain tap (see [_SpaceRow]).
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _SCMenu extends StatefulWidget {
@@ -919,12 +944,6 @@ class _SCMenuState extends State<_SCMenu> {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: () {
-          if (widget.space != null) {
-            widget.nav.selectSpace(widget.space!.id);
-            widget.ctx.push('/main/space/${widget.space!.id}');
-          }
-        },
         onLongPressStart: (details) {
           _tapPosition = details.globalPosition;
           _show(context);

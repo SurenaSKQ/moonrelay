@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:matrix/src/utils/cached_stream_controller.dart'
@@ -67,17 +68,29 @@ MockClient _clientWithSpace() {
 
 /// Wraps [child] with the providers the navigation sidebar needs: a mock
 /// [Client], [NavigationState], [SpacePreferences], [SyncPulse] and a
-/// [SettingsController].
+/// [SettingsController], plus a router whose space-home route renders a
+/// marker text so tests can assert navigation.
 Widget _wrapSidebar(
   Widget child, {
   MockClient? client,
   SettingsController? settings,
+  NavigationState? navigationState,
 }) {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(path: '/', builder: (_, __) => child),
+      GoRoute(
+        path: '/main/space/:spaceid',
+        builder: (_, __) => const Text('SPACE_HOME'),
+      ),
+    ],
+  );
   return MultiProvider(
     providers: [
       Provider<Client>.value(value: client ?? _clientWithNoRooms()),
       ChangeNotifierProvider<NavigationState>.value(
-        value: NavigationState(),
+        value: navigationState ?? NavigationState(),
       ),
       ChangeNotifierProvider<SpacePreferences>.value(
         value: SpacePreferences(SettingsService()),
@@ -87,7 +100,8 @@ Widget _wrapSidebar(
         value: settings ?? createTestSettingsController(),
       ),
     ],
-    child: MaterialApp(
+    child: MaterialApp.router(
+      routerConfig: router,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -95,7 +109,6 @@ Widget _wrapSidebar(
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
     ),
   );
 }
@@ -188,6 +201,28 @@ void main() {
 
       expect(find.byType(RoomsPane), findsNothing);
       expect(find.text('Rooms'), findsOneWidget);
+    });
+
+    testWidgets('tapping a space highlights it and opens its home page',
+        (tester) async {
+      final nav = NavigationState();
+      await tester.pumpWidget(_wrapSidebar(
+        const NavigationSidebar(),
+        client: _clientWithSpace(),
+        navigationState: nav,
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('Test Space'));
+      await tester.pump();
+      await tester.pump();
+
+      // A) the space is highlighted: the navigation state selects it.
+      expect(nav.isSpace, isTrue);
+      expect(nav.selectedId, '!space:matrix.org');
+      // B) the space home page is shown.
+      expect(find.text('SPACE_HOME'), findsOneWidget);
     });
   });
 
