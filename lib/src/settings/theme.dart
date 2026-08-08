@@ -125,7 +125,7 @@ class MoonrelayTheme {
     final double radius = spec.cornerRadius;
     final double elevation = spec.surfaceElevation;
 
-    return ThemeData(
+    ThemeData data = ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
 
@@ -180,6 +180,14 @@ class MoonrelayTheme {
         MoonrelayThemeExtension(monoFontFamily: monoFontFamily),
       ],
     );
+
+    // A theme's widget style restyles the geometry (borders, button shape,
+    // scrollbar, ...) on top of the shared tokens. Colours stay the accent's
+    // job, so this only touches component themes, never the color scheme.
+    if (spec.widgetStyle != null) {
+      data = spec.widgetStyle!.mergeInto(data, colorScheme);
+    }
+    return data;
   }
 
   static TextTheme _textTheme(String fontFamily) {
