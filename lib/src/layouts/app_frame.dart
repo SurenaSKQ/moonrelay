@@ -18,29 +18,24 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/app_shutdown.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
+import 'package:moonrelay/src/helpers/window_chrome.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/command_palette.dart';
-import 'package:moonrelay/src/widgets/sync_status_pill.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Main application frame shown after authentication.
 ///
-/// Provides a custom header bar with:
-/// - Platform-style window management buttons (minimize, maximize, close)
-/// - A draggable title area for moving the window
-/// - Right-click context menu with window actions and a "System menu" entry
-/// - Left sidebar toggle button
-/// - Reversible layout (buttons left / title right) via [SettingsController]
+/// The header is optional: when the user opts into OS window decorations
+/// (the default) the frame renders no header at all and the OS title bar
+/// takes over.  When the user opts into the in-app header, a slim bar
+/// with a draggable title area, platform-style window buttons, and a
+/// right-click system menu is rendered instead.  All other chrome
+/// (profile pill, command palette) lives in the navigation sidebar.
 class AppFrame extends StatefulWidget {
   const AppFrame({
     super.key,
@@ -53,121 +48,91 @@ class AppFrame extends StatefulWidget {
 }
 
 class _AppFrameState extends State<AppFrame> with WindowListener {
+  SettingsController? _settings;
+
   @override
   void initState() {
     windowManager.addListener(this);
+    // React to the OS-decorations toggle at runtime so the native title
+    // bar appears/disappears immediately when the user flips the switch.
+    _settings = context.read<SettingsController>();
+    _settings!.addListener(_applyChrome);
+    _applyChrome();
     super.initState();
+  }
+
+  void _applyChrome() {
+    final settings = _settings;
+    if (settings != null) applyWindowChrome(settings);
   }
 
   @override
   void dispose() {
+    _settings?.removeListener(_applyChrome);
     windowManager.removeListener(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsController>();
+    final showHeader = !settings.useOsTitleBar;
 
     return Scaffold(
-      appBar: _buildAppBar(context, l10n),
+      appBar: showHeader ? _buildAppBar(context) : null,
       body: widget.child,
     );
   }
 
-  /// Build the custom header bar.
-  PreferredSizeWidget _buildAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    final SettingsController settings =
-        Provider.of<SettingsController>(context, listen: true);
+  /// Build the slim custom header bar.
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
-    final bool reversed = settings.headerReversed;
     final bool showButtons = isDesktop;
-
-    final Widget sidebarToggle = IconButton(
-      icon: Icon(
-        settings.leftSidebarVisible
-            ? LucideIcons.panelLeftClose
-            : LucideIcons.panelLeftOpen,
-      ),
-      onPressed: () => settings.toggleLeftSidebar(),
-      tooltip: settings.leftSidebarVisible
-          ? l10n.collapseSidebar
-          : l10n.expandSidebar,
-    );
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Compact windows drop the leading profile button and shrink
-          // icons so the toolbar stays usable.
-          final isCompact = constraints.maxWidth < 480;
-          final iconSize = isCompact ? 16.0 : 20.0;
-
-          return Listener(
-            behavior: HitTestBehavior.translucent,
-            onPointerDown: (event) {
-              if (event.kind == PointerDeviceKind.mouse &&
-                  (event.buttons & 0x02) != 0) {
-                _showContextMenu(context, event.position);
-              }
-            },
-            child: Container(
-              height: kToolbarHeight,
-              color: theme.colorScheme.surface,
-              child: Row(
-                children: <Widget>[
-                  // -- Leading slot -------------------------------
-                  if (!isCompact) const _HeaderProfile(),
-                  IconButton(
-                    icon: Icon(LucideIcons.command, size: iconSize),
-                    onPressed: () => showCommandPalette(context),
-                    tooltip:
-                        AppLocalizations.of(context)!.shortcutOpenCommandPalette,
-                    visualDensity: isCompact
-                        ? const VisualDensity(
-                            horizontal: -2, vertical: -2)
-                        : VisualDensity.compact,
-                  ),
-                  if (reversed && showButtons)
-                    const WindowButtons()
-                  else
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 4),
-                      child: sidebarToggle,
-                    ),
-
-                  // -- Draggable title area ------------------------
-                  Expanded(
-                    child: DragToMoveArea(
-                      child: SizedBox(
-                        height: double.infinity,
-                        child: Center(
-                          child: _HeaderTitle(
-                            l10n: l10n,
-                            compact: isCompact,
-                          ),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (event) {
+          if (event.kind == PointerDeviceKind.mouse &&
+              (event.buttons & 0x02) != 0) {
+            _showContextMenu(context, event.position);
+          }
+        },
+        child: Container(
+          height: kToolbarHeight,
+          color: theme.colorScheme.surface,
+          child: Row(
+            children: <Widget>[
+              // -- Draggable title area --------------------------
+              Expanded(
+                child: DragToMoveArea(
+                  child: SizedBox(
+                    height: double.infinity,
+                    child: Center(
+                      child: Text(
+                        l10n.appTitle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
-
-                  // -- Trailing slot ------------------------------
-                  if (reversed)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 4),
-                      child: sidebarToggle,
-                    )
-                  else if (showButtons)
-                    const WindowButtons(),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+
+              // -- Trailing slot: window controls ----------------
+              if (showButtons)
+                const WindowButtons()
+              else
+                const SizedBox(width: 4),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -303,187 +268,6 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
         },
       );
     }
-  }
-}
-
-/// Title text used in the custom header.
-class _HeaderTitle extends StatelessWidget {
-  const _HeaderTitle({required this.l10n, this.compact = false});
-
-  final AppLocalizations l10n;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      l10n.appTitle,
-      style: TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: compact ? 14 : 16,
-      ),
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-}
-
-/// Compact user profile button for the header bar.
-///
-/// Shows the user's avatar, display name, and a [StatusPill] inside a
-/// highlighted container. Tapping navigates to the Hub/profile screen.
-class _HeaderProfile extends StatefulWidget {
-  const _HeaderProfile();
-
-  @override
-  State<_HeaderProfile> createState() => _HeaderProfileState();
-}
-
-class _HeaderProfileState extends State<_HeaderProfile> {
-  Profile? _profile;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetch();
-  }
-
-  Future<void> _fetch() async {
-    try {
-      final client = Provider.of<Client>(context, listen: false);
-      final profile = await client.getProfileFromUserId(client.userID!);
-      if (mounted) {
-        setState(() {
-          _profile = profile;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final displayName = _profile?.displayName ??
-        Provider.of<Client>(context, listen: false).userID ??
-        '';
-
-    return GestureDetector(
-      onTap: () => showHubOverlay(
-        context,
-        selection: const HubCategorySelection(categoryKey: 'profile'),
-      ),
-      child: Container(
-        margin: const EdgeInsetsDirectional.only(start: 8, end: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildAvatar(scheme),
-            if (!_loading) ...[const SizedBox(width: 8) as Widget],
-            if (!_loading)
-              Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    const SyncStatusPill(),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatar(ColorScheme scheme) {
-    if (_loading) {
-      return CircleAvatar(
-        radius: 14,
-        backgroundColor: scheme.surfaceContainerHighest,
-      );
-    }
-
-    final avatarUrl = _profile?.avatarUrl;
-    if (avatarUrl != null) {
-      final client = Provider.of<Client>(context, listen: false);
-      return FutureBuilder<Uri>(
-        future: withTimeoutOrFallback(
-          () => avatarUrl.getThumbnailUri(
-            client,
-            width: 28,
-            height: 28,
-          ),
-          timeout: kDefaultTimeout,
-          fallback: avatarUrl,
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return CircleAvatar(
-              radius: 14,
-              backgroundImage: NetworkImage(
-                snapshot.data.toString(),
-                headers: {
-                  'authorization': 'Bearer ${client.accessToken}',
-                },
-              ),
-              backgroundColor: scheme.surfaceContainerHighest,
-              onBackgroundImageError: (_, __) {},
-            );
-          }
-          return CircleAvatar(
-            radius: 14,
-            backgroundColor: scheme.surfaceContainerHighest,
-          );
-        },
-      );
-    }
-
-    final initials = _initials(
-      _profile?.displayName ??
-          Provider.of<Client>(context, listen: false).userID ??
-          '?',
-    );
-    return CircleAvatar(
-      radius: 14,
-      backgroundColor: scheme.primary,
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: scheme.onPrimary,
-        ),
-      ),
-    );
-  }
-
-  static String _initials(String name) {
-    return name
-        .toUpperCase()
-        .split(RegExp(r'\s+'))
-        .where((s) => s.isNotEmpty)
-        .map((s) => s[0])
-        .take(2)
-        .join();
   }
 }
 

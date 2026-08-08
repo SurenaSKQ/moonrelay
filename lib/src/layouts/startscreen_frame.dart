@@ -22,16 +22,17 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/app_shutdown.dart';
 import 'package:moonrelay/src/helpers/platform.dart';
+import 'package:moonrelay/src/helpers/window_chrome.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Start screen frame shown before authentication.
 ///
-/// Provides a custom header bar with:
-/// - Platform-native window management buttons (minimize, maximize, close)
-/// - Right-click context menu with window actions and a "System menu" entry
-/// - Reversible layout (buttons left / title right) via [SettingsController]
+/// Like [AppFrame], the header is optional: with OS window decorations
+/// enabled (the default) no header is rendered; otherwise a slim bar
+/// with a draggable title area, platform-style window buttons, and a
+/// right-click system menu is shown.
 class StartscreenFrame extends StatefulWidget {
   const StartscreenFrame({
     super.key,
@@ -45,37 +46,44 @@ class StartscreenFrame extends StatefulWidget {
 
 class _StartscreenFrameState extends State<StartscreenFrame>
     with WindowListener {
+  SettingsController? _settings;
+
   @override
   void initState() {
     windowManager.addListener(this);
+    _settings = context.read<SettingsController>();
+    _settings!.addListener(_applyChrome);
+    _applyChrome();
     super.initState();
+  }
+
+  void _applyChrome() {
+    final settings = _settings;
+    if (settings != null) applyWindowChrome(settings);
   }
 
   @override
   void dispose() {
+    _settings?.removeListener(_applyChrome);
     windowManager.removeListener(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsController>();
+    final showHeader = !settings.useOsTitleBar;
 
     return Scaffold(
-      appBar: _buildAppBar(context, l10n),
+      appBar: showHeader ? _buildAppBar(context) : null,
       body: widget.child,
     );
   }
 
-  /// Build the custom header bar.
-  PreferredSizeWidget _buildAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    final SettingsController settings =
-        Provider.of<SettingsController>(context, listen: true);
+  /// Build the slim custom header bar.
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
-    final bool reversed = settings.headerReversed;
     final bool showButtons = isDesktop;
 
     return PreferredSize(
@@ -84,7 +92,6 @@ class _StartscreenFrameState extends State<StartscreenFrame>
         behavior: HitTestBehavior.translucent,
         onPointerDown: (event) {
           if (event.kind == PointerDeviceKind.mouse &&
-              // kSecondaryMouseButton (2) = right mouse button
               (event.buttons & 0x02) != 0) {
             _showContextMenu(context, event.position);
           }
@@ -94,29 +101,31 @@ class _StartscreenFrameState extends State<StartscreenFrame>
           color: theme.colorScheme.surface,
           child: Row(
             children: <Widget>[
-              // -- Leading slot ----------------------------------
-              if (reversed && showButtons)
-                const WindowButtons()
-              else
-                const SizedBox(width: 4),
-
               // -- Draggable title area --------------------------
               Expanded(
                 child: DragToMoveArea(
                   child: SizedBox(
                     height: double.infinity,
                     child: Center(
-                      child: _HeaderTitle(l10n: l10n),
+                      child: Text(
+                        l10n.appTitle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // -- Trailing slot ---------------------------------
-              if (reversed)
-                const SizedBox(width: 4)
-              else if (showButtons)
-                const WindowButtons(),
+              // -- Trailing slot: window controls ----------------
+              if (showButtons)
+                const WindowButtons()
+              else
+                const SizedBox(width: 4),
             ],
           ),
         ),
@@ -241,24 +250,6 @@ class _StartscreenFrameState extends State<StartscreenFrame>
           // popUpWindowMenu may not be available on all platforms.
         }
     }
-  }
-}
-
-/// Title text used in the custom header.
-class _HeaderTitle extends StatelessWidget {
-  const _HeaderTitle({required this.l10n});
-
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      l10n.appTitle,
-      style: const TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: 16,
-      ),
-    );
   }
 }
 
