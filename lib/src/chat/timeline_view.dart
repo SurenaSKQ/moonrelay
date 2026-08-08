@@ -419,10 +419,61 @@ class TimelineViewState extends State<TimelineView> {
     if (!controller.hasClients) return;
     if (!controller.position.haveDimensions) return;
 
-    final map = _cachedEventIdToItemIndex;
-    final itemCount = map?.length ?? 0;
-    final targetIdx = map?[eventId];
+    final cached = _cachedEventIdToItemIndex;
+    final targetIdx = cached?[eventId];
+    if (targetIdx == null && _targetInLiveTimeline(eventId)) {
+      // The item cache predates a pagination that just surfaced the
+      // target: the jump-to-unread coordinator scrolls in the same
+      // microtask turn that `requestHistory` lands, one frame before
+      // `_timelineVersion` triggers this view's rebuild.  Force the
+      // cache to rebuild now and resume the scroll on the next frame,
+      // so both the index map and the scroll extents are fresh.
+      _refreshJumpCacheAndScroll(eventId);
+      return;
+    }
     if (targetIdx == null) return;
+
+    _doScrollToEvent(eventId, controller, targetIdx);
+  }
+
+  /// True when [eventId] is present in the live timeline even though
+  /// the item cache may not have caught up yet.
+  bool _targetInLiveTimeline(String eventId) =>
+      widget.timeline.events.any((e) => e.eventId == eventId);
+
+  /// True while a stale-cache scroll refresh is in flight.  Guards the
+  /// post-frame retry so a target that legitimately isn't rendered
+  /// (e.g. a relationship event in a filtered view) doesn't loop.
+  bool _refreshingJumpCache = false;
+
+  void _refreshJumpCacheAndScroll(String eventId) {
+    if (_refreshingJumpCache) return;
+    _refreshingJumpCache = true;
+    setState(() => _invalidateCache());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshingJumpCache = false;
+      if (mounted) _scrollToEventId(eventId);
+    });
+  }
+
+  void _doScrollToEvent(
+    String eventId,
+    ScrollController controller,
+    int targetIdx,
+  ) {
+    // The model's index map is built before the undecryptable banner is
+    // prepended and counts only message events, so its indices can be off
+    // by one and it omits date separators and state batches.  Re-derive
+    // the rendered item index and total item count so the fallback
+    // fraction below lands accurately.
+    var idx = targetIdx;
+    final items = _cachedItems;
+    final key = _eventKeys[eventId];
+    if (items != null && items.isNotEmpty && key != null) {
+      final renderedIdx = items.indexWhere((w) => w.key == key);
+      if (renderedIdx >= 0) idx = renderedIdx;
+    }
+    final itemCount = items?.length ?? (idx + 1);
 
     setState(() => _highlightedEventId = eventId);
     Future.delayed(const Duration(seconds: 2), () {
@@ -447,7 +498,17 @@ class TimelineViewState extends State<TimelineView> {
       return;
     }
 
-    TimelineScrollTarget.scrollToFraction(controller, targetIdx, itemCount);
+    // A user-invoked jump must always move the view.  The fraction
+    // estimate is only a rough guide when the target item isn't built
+    // yet, so `skipIfClose` (which silently drops the scroll when the
+    // estimate lands within 60% of the viewport) left the view
+    // motionless while the pill dismissed and the room was marked read.
+    TimelineScrollTarget.scrollToFraction(
+      controller,
+      idx,
+      itemCount,
+      skipIfClose: false,
+    );
   }
 
   /// Single dispatch for every [TimelineItemAction].  Centralises the
