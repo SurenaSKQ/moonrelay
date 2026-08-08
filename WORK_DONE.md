@@ -34,13 +34,14 @@ blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
  a unified navigation sidebar), and the collapsible sidebar sections
  follow-up, and the space-selection fix, and the skins refactor, and the
- ArchVista GTK theme skin.
+ ArchVista GTK theme skin, and the accent-color/theme decoupling with the
+ Vista widget-style emulation.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
-Tests at head: flutter test 596 green (584 prior + 12 new: skins registry
-and theme-option migration unit tests, a skin-picker widget test, and the
-appearance density/radius tests refactored onto the skin API). flutter
+Tests at head: flutter test 608 green (584 baseline + 24 new: 12 from the
+skins/theme refactor, 8 from the accent-color decoupling, 3 from the Vista
+widget-style, plus the space-selection and timeline-scroll tests). flutter
 analyze 0 issues.
 
 25. Space selection fix: highlight and navigate
@@ -2427,3 +2428,71 @@ needed — `archVista` shows up next to Compact Modern immediately.
 
 Tests at head: flutter test 597 green (596 prior + 1 new palette test).
 flutter analyze 0 issues.
+
+27. Decouple accent colors from themes
+
+The single-skin model conflated two independent axes of appearance: a "colour"
+skin also re-applied its geometry defaults, and a look-only skin (highContrast,
+compact) could only carry one fixed colour, so users could not, say, keep the
+sharp High Contrast geometry and switch to an indigo accent. Per the request,
+appearance is now two swappable dimensions.
+
+- lib/src/settings/theme_spec.dart (new; replaces skins.dart): `MoonrelayThemeSpec`
+  owns geometry only (fonts, density, corner radius, elevation, bubble radius),
+  `MoonrelayAccent` owns only a seed colour. Registries
+  `MoonrelayThemes` {material, highContrast, compact, archVista} and
+  `MoonrelayAccents` {indigo, ocean, midnight, crimson, amber, steel, sky,
+  charcoal, vistaBlue} with byId/fromId + defaults.
+- lib/src/settings/theme.dart (`MoonrelayTheme` builder): `light`/`dark` now
+  take a (`MoonrelayThemeSpec`, `MoonrelayAccent`); the spec drives geometry and
+  the accent's `seedColor` seeds the color scheme. The color is therefore fully
+  independent of the look.
+- lib/src/settings/settings_service.dart: new `selected_theme` +
+  `selected_accent` keys; `_readSelectedThemeAndAccent` migrates the legacy
+  `selected_skin` hybrid id and the even older `theme_option` int to a
+  (theme, accent) pair, resolving each field independently so a partially
+  migrated store still reads sensibly.
+- lib/src/settings/settings_controller.dart: `selectedTheme`/`selectedThemeId`
+  and `selectedAccent`/`selectedAccentId`. `updateSelectedTheme` resets the
+  look controls (density/fonts/bubbles) to the new theme's defaults;
+  `updateSelectedAccent` only changes the color and leaves the look untouched.
+- lib/src/app.dart: builds light/dark themes from the active theme+accent.
+- lib/src/screens/hub_screen/settings/appearance_settings.dart and
+  lib/src/screens/startup_screen.dart: two radio pickers — "Look & feel"
+  (themes) and "Accent colour" (accents). Each theme preview is tinted with
+  the current accent; each accent preview is a circle so it can't be confused
+  with a geometry theme.
+- lib/src/screens/hub_screen/settings/settings_section.dart: optional
+  `subtitle` added so the two pickers can describe their effect.
+- lib/src/localization/app_*.arb + gen-l10n: `lookAndFeel` / `lookAndFeelDesc`
+  / `accentColor` / `accentColorDesc`.
+- test/unit/theme_spec_test.dart (renamed from skins_test.dart): registry
+  invariants for both registries, the independent per-field migration, and the
+  top-precedence of the split keys.
+- test/widget/appearance_picker_test.dart (renamed from skin_picker_test.dart):
+  selecting a theme resets density; selecting an accent keeps the look.
+
+Tests at head: flutter test 605 green (597 prior + 8 new). flutter analyze 0 issues.
+
+28. Emulate Vista widget style in the ArchVista theme
+
+The ArchVista theme previously differed from Material only in color, font and
+corner radius — the buttons, checkboxes, scrollbars and dividers still used
+stock Material geometry. This adds the actual Vista chrome so the look is
+recognizably "a desktop theme", while keeping every color a pure accent swap.
+
+- lib/src/settings/theme_spec.dart: new `MoonrelayWidgetStyle` value class
+  (geometry-only chrome tokens) with a `vista` constant and a `mergeInto` that
+  rebuilds the relevant component themes. `MoonrelayThemeSpec` gains an optional
+  `widgetStyle`; the archVista spec sets `widgetStyle: MoonrelayWidgetStyle.vista`.
+  The style touches only shapes/borders/dimensions (flat transparent buttons
+  with a 1px outline, square 4px corners, thin `#181818`-ish dividers via
+  scaled `outlineVariant`, a narrow rounded scrollbar, square checkboxes,
+  thin-track sliders); every interactive color is taken from the running
+  [ColorScheme], so `vistaBlue`/`indigo`/any accent recolors the Vista widgets
+  identically in hue terms.
+- lib/src/settings/theme.dart: `_buildThemeData` layers
+  `spec.widgetStyle.mergeInto(data, colorScheme)` on top of the shared tokens
+  when a spec carries one.
+
+Tests at head: flutter test 608 green (605 prior + 3 new). flutter analyze 0 issues.

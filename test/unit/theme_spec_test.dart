@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,8 +28,7 @@ void main() {
     test('is non-empty and ships the default theme first', () {
       expect(MoonrelayThemes.all, isNotEmpty);
       expect(MoonrelayThemes.all.first, same(MoonrelayThemes.defaultTheme));
-      expect(MoonrelayThemes.defaultThemeId,
-          MoonrelayThemes.defaultTheme.id);
+      expect(MoonrelayThemes.defaultThemeId, MoonrelayThemes.defaultTheme.id);
     });
 
     test('every theme has a unique id, a label and a seed-free geometry', () {
@@ -50,7 +50,8 @@ void main() {
     });
 
     test('fromId falls back to the default theme for unknown ids', () {
-      expect(MoonrelayThemes.fromId('nope'), same(MoonrelayThemes.defaultTheme));
+      expect(
+          MoonrelayThemes.fromId('nope'), same(MoonrelayThemes.defaultTheme));
       expect(MoonrelayThemes.fromId(null), same(MoonrelayThemes.defaultTheme));
     });
 
@@ -82,15 +83,14 @@ void main() {
     });
 
     test('byId/fromId resolve and fall back like the themes registry', () {
-      expect(MoonrelayAccents.byId('vistaBlue'),
-          same(MoonrelayAccents.vistaBlue));
+      expect(
+          MoonrelayAccents.byId('vistaBlue'), same(MoonrelayAccents.vistaBlue));
       expect(MoonrelayAccents.fromId('nope'),
           same(MoonrelayAccents.defaultAccent));
     });
 
     test('vistaBlue captures ArchVista GTK accent (#5C8AA6)', () {
-      expect(MoonrelayAccents.vistaBlue.seedColor,
-          const Color(0xFF5C8AA6));
+      expect(MoonrelayAccents.vistaBlue.seedColor, const Color(0xFF5C8AA6));
     });
 
     test('charcoal is the high-contrast neutral', () {
@@ -127,7 +127,8 @@ void main() {
       expect(snapshot.selectedAccentId, MoonrelayAccents.defaultAccentId);
     });
 
-    test('selected_skin takes precedence over the legacy theme_option', () async {
+    test('selected_skin takes precedence over the legacy theme_option',
+        () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'theme_option': 5,
         'selected_skin': 'compact',
@@ -159,6 +160,57 @@ void main() {
       final service = SettingsService();
       await service.updateSelectedTheme('compact');
       expect(await service.selectedThemeId(), 'compact');
+    });
+  });
+
+  group('ArchVista widget look', () {
+    // Resolves the ElevatedButton shape border so tests stay free of
+    // null-aware chain warnings while still asserting on the geometry.
+    ShapeBorder? buttonShape(ThemeData theme) {
+      final style = theme.elevatedButtonTheme.style;
+      final shape = style?.shape;
+      return shape?.resolve({});
+    }
+
+    test('archVista ships a widget style; material does not', () {
+      expect(MoonrelayThemes.archVista.widgetStyle, isNotNull);
+      expect(MoonrelayThemes.material.widgetStyle, isNull);
+    });
+
+    test('buttons gain a border under the Vista look', () {
+      final mat = MoonrelayTheme.light(
+        MoonrelayThemes.material,
+        MoonrelayAccents.indigo,
+      );
+      final vista = MoonrelayTheme.light(
+        MoonrelayThemes.archVista,
+        MoonrelayAccents.vistaBlue,
+      );
+
+      // Material buttons carry no explicit shape (no border).
+      expect(buttonShape(mat), isNull);
+      // Vista buttons ship a bordered, square-cornered shape.
+      final shape = buttonShape(vista);
+      expect(shape, isA<RoundedRectangleBorder>());
+      expect((shape as RoundedRectangleBorder).side.width, greaterThan(0));
+    });
+
+    test('Vista geometry is independent of the accent', () {
+      final blue = MoonrelayTheme.light(
+        MoonrelayThemes.archVista,
+        MoonrelayAccents.vistaBlue,
+      );
+      final indigo = MoonrelayTheme.light(
+        MoonrelayThemes.archVista,
+        MoonrelayAccents.indigo,
+      );
+
+      final a = (buttonShape(blue) as RoundedRectangleBorder?)?.side.width;
+      final b = (buttonShape(indigo) as RoundedRectangleBorder?)?.side.width;
+      // Same look => same button geometry ...
+      expect(a, equals(b));
+      // ... but different accent color drives the scheme.
+      expect(blue.colorScheme.primary, isNot(indigo.colorScheme.primary));
     });
   });
 }

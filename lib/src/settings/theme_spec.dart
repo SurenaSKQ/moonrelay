@@ -71,7 +71,14 @@ class MoonrelayThemeSpec {
     this.cornerRadius = 12.0,
     this.surfaceElevation = 0.0,
     this.defaultBubbleRadius = 12.0,
+    this.widgetStyle,
   });
+
+  /// Optional per-theme widget geometry. When null the theme uses the default
+  /// Material 3 component styling; a non-null style redefines how the
+  /// widgets *feel* (borders, button shape, scrollbar, etc.) while every
+  /// colour stays the job of the active accent.
+  final MoonrelayWidgetStyle? widgetStyle;
 }
 
 /// Central registry of every theme Moonrelay ships with.
@@ -119,8 +126,10 @@ class MoonrelayThemes {
   );
 
   /// "Darkened Windows Vista UI" look: near-square corners, Sego UI font and a
-  /// comfortable density. The signature air-force-blue accent (#5C8AA6) is a
-  /// separate [MoonrelayAccents.vistaBlue] so it can be swapped independently.
+  /// comfortable density, plus a [MoonrelayWidgetStyle.vista] that re-styles
+  /// buttons, checkboxes, scrollbars and dividers with Vista's flat, bordered
+  /// chrome. The signature air-force-blue accent (#5C8AA6) is a separate
+  /// [MoonrelayAccents.vistaBlue] so it can be swapped independently.
   static const MoonrelayThemeSpec archVista = MoonrelayThemeSpec(
     id: 'archVista',
     label: 'ArchVista',
@@ -128,7 +137,9 @@ class MoonrelayThemes {
     defaultFontFamily: 'Segoe UI',
     defaultMonoFontFamily: 'Consolas',
     cornerRadius: 4.0,
+    defaultDensity: LayoutDensity.comfortable,
     defaultBubbleRadius: 10.0,
+    widgetStyle: MoonrelayWidgetStyle.vista,
   );
 
   // ── Defaults ────────────────────────────────────────────────────────
@@ -281,4 +292,172 @@ class MoonrelayAccents {
   /// Returns [byId] or [defaultAccent] when [id] is unknown, so callers always
   /// receive a valid accent.
   static MoonrelayAccent fromId(String? id) => byId(id) ?? defaultAccent;
+}
+
+/// A theme's widget geometry — the bits of "feel" that a color accent cannot
+/// express (button shape and borders, scrollbar thickness, checkbox style,
+/// divider weight, etc.).
+///
+/// A [MoonrelayWidgetStyle] only ever touches *geometry and the neutral
+/// chrome* (borders, outlines); it never sets an accent color directly. The
+/// accent color comes exclusively from the active [MoonrelayAccent], so
+/// recoloring stays a pure, single-axis change. The theme builder merges a
+/// spec's widget style on top of the base [ThemeData] (see
+/// `MoonrelayTheme._buildThemeData`).
+@immutable
+class MoonrelayWidgetStyle {
+  const MoonrelayWidgetStyle({
+    required this.cornerRadius,
+    required this.borderWidth,
+    required this.borderAlpha,
+    required this.buttonMinHeight,
+    required this.sliderThumbRadius,
+    required this.scrollbarThickness,
+  });
+
+  /// The Vista look: flat buttons with a thin outline, square-ish corners,
+  /// a narrow scrollbar and the thin divider line characteristic of the GTK
+  /// theme. Colours are derived from the running color scheme, so this same
+  /// style works with any accent.
+  static const MoonrelayWidgetStyle vista = MoonrelayWidgetStyle(
+    cornerRadius: 4.0,
+    borderWidth: 1.0,
+    borderAlpha: 0.5,
+    buttonMinHeight: 28.0,
+    sliderThumbRadius: 7.0,
+    scrollbarThickness: 8.0,
+  );
+
+  /// Corner radius applied to buttons, inputs and menu surfaces.
+  final double cornerRadius;
+
+  /// Stroke width for component outlines (buttons, checkboxes, dividers).
+  final double borderWidth;
+
+  /// Opacity of the `outlineVariant` color used for those outlines, so the
+  /// chrome tracks the light/dark theme.
+  final double borderAlpha;
+
+  /// Minimum height of a filled/button control.
+  final double buttonMinHeight;
+
+  /// Radius of the slider thumb overlay.
+  final double sliderThumbRadius;
+
+  /// Thickness of the scrollbar thumb.
+  final double scrollbarThickness;
+
+  /// Resolves the neutral border color used across Vista's chrome.
+  Color _borderColor(ColorScheme cs) =>
+      cs.outlineVariant.withValues(alpha: borderAlpha);
+
+  /// Returns [base] with Vista-style component themes layered on top.
+  ThemeData mergeInto(ThemeData base, ColorScheme cs) {
+    final border = _borderColor(cs);
+    final radius = BorderRadius.circular(cornerRadius);
+    final innerRadius = BorderRadius.circular(cornerRadius - 1);
+    final side = BorderSide(width: borderWidth, color: border);
+
+    return base.copyWith(
+      // Flat, bordered buttons (Vista had no filled primary button).
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+          overlayColor: cs.primary.withValues(alpha: 0.08),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+          overlayColor: cs.primary.withValues(alpha: 0.08),
+        ),
+      ),
+      // Square-ish checkboxes; Vista checks lived in a nearly square box.
+      checkboxTheme: CheckboxThemeData(
+        side: side,
+        shape: RoundedRectangleBorder(borderRadius: innerRadius),
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+        fillColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? cs.primary
+                : cs.onSurface.withValues(alpha: 0.0)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? cs.primary
+                : cs.onSurface.withValues(alpha: 0.54)),
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? cs.primary : cs.outline),
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+      ),
+      // Thin, filled track sliders.
+      sliderTheme: SliderThemeData(
+        activeTrackColor: cs.primary,
+        inactiveTrackColor: cs.outlineVariant,
+        thumbColor: cs.primary,
+        overlayColor: cs.primary.withValues(alpha: 0.24),
+        overlayShape: RoundSliderOverlayShape(overlayRadius: sliderThumbRadius),
+      ),
+      // Narrow, rounded scrollbar.
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(border),
+        thickness: WidgetStateProperty.all(scrollbarThickness),
+        radius: Radius.circular(cornerRadius - 1),
+        mainAxisMargin: 2,
+        crossAxisMargin: 2,
+      ),
+      // Bordered cards and dialogs keep the surface color.
+      cardTheme: CardThemeData(
+        elevation: base.cardTheme.elevation,
+        color: base.cardTheme.color,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: cs.surface,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+      // Outlined, flat-corner inputs.
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(borderRadius: radius, borderSide: side),
+        enabledBorder:
+            OutlineInputBorder(borderRadius: radius, borderSide: side),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(width: borderWidth, color: cs.primary),
+        ),
+      ),
+      // Thin, true-color dividers.
+      dividerTheme: DividerThemeData(color: border, thickness: borderWidth),
+      // Flat app bars with a bottom ridge (Vista title-bar border).
+      appBarTheme: AppBarTheme(
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: Border(bottom: BorderSide(color: border, width: borderWidth)),
+        titleTextStyle: base.appBarTheme.titleTextStyle,
+      ),
+    );
+  }
 }

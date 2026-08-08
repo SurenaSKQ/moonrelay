@@ -7,8 +7,8 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test 596 green (unit + widget), plus 1 new skins
-test + 1 new palette test. flutter analyze 0 issues.
+Tests at head: flutter test 608 green (unit + widget), plus 3 new Vista-look
+and 8 new theme/accent tests. flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
@@ -45,17 +45,23 @@ jump is still in place at lib/src/chat/jump_coordinator.dart:211.
 
 1.3 Refactor candidates
 
-- Skins i18n: skin `label`/`description` are baked English constants
-  (lib/src/settings/skins.dart), matching the existing convention for
-  preset enums like LayoutDensity/DisplayType. The legacy colour-theme
-  labels were translated in app_*.arb; if full localisation of skin names
-  is wanted, move label/description behind the l10n helper and add
-  `skin_<id>` / `skin_<id>_desc` keys per locale.
-- Legacy `theme_option` prefs key is read once for migration in
-  lib/src/settings/settings_service.dart:_readSelectedSkinId but never
-  cleared, so the legacy branch is re-evaluated on every load. Harmless,
-  but a one-time write-back on first post-upgrade loadAll would drop the
-  dead branch entirely.
+- Theme/accent i18n: theme spec and accent labels/descriptions are baked
+  English constants (lib/src/settings/theme_spec.dart), matching the existing
+  convention for preset enums like LayoutDensity/DisplayType. If full
+  localisation of theme/accent names is wanted, move label/description behind
+  the l10n helper and add `lookAndFeel_<id>` / `accentColor_<id>` keys per
+  locale.
+- Legacy migration keys are read-only: the theme/accent split
+  (lib/src/settings/settings_service.dart:_readSelectedThemeAndAccent) keeps
+  reading `selected_skin` and `theme_option` so upgraded installs keep their
+  look, but never clears them. A one-time write-back on first load after
+  migration (writing the resolved selected_theme/selected_accent and removing
+  the legacy keys) would let both dead branches be retired.
+- Ten accent colours but only four looks ship (lib/src/settings/theme_spec.dart):
+  material, highContrast, compact and archVista. The Vista widget style
+  (MoonrelayWidgetStyle.vista) is the only non-default look; highContrast is
+  still Material geometry apart from its 0px corners. Other desktop-theme
+  emulations are outstanding.
 
 - HTML tag allow-list: MarkdownToHtml and HtmlTagParser each implement
   their own tag allow-list. Extract a single SanitizedHtml helper.
