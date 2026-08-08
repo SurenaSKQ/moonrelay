@@ -88,22 +88,26 @@ class SidebarPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Simple header bar.
-          Container(
-            color: theme.colorScheme.surfaceContainerHighest,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
+          // Simple header bar; skipped when there is no title so panes
+          // that render their own header (e.g. the right sidebar's view
+          // switcher) do not show a redundant empty strip.
+          if (title.isNotEmpty) ...[
+            Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          const Divider(height: 1),
+            const Divider(height: 1),
+          ],
           Expanded(child: body),
           if (bottomBar != null) ...[
             const Divider(height: 1),
