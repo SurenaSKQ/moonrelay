@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/settings/chat_preferences.dart';
-import 'package:moonrelay/src/settings/skins.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:flutter/material.dart';
 
 /// Central store for text-direction state.
@@ -47,50 +47,57 @@ class MoonrelayAppTheme extends ChangeNotifier {
 /// Moonrelay's complete theme definition.
 ///
 /// Provides [light] and [dark] [ThemeData] factories that configure Material 3
-/// color schemes, typography, and component styles. All visual tokens are
-/// sourced from a [MoonrelaySkin], so swapping the skin (see
-/// [MoonrelaySkins]) changes the entire look and feel. The independent
-/// [LayoutDensity], font-family overrides layered on top of the skin's
+/// color schemes, typography, and component styles. The color scheme is seeded
+/// from the active [MoonrelayAccent] while every geometric token (fonts,
+/// density, corner radius, surface elevation, chat-bubble radius) is sourced
+/// from the active [MoonrelayThemeSpec], so swapping either one changes the
+/// whole look: a theme swap redefines the widget shape and layout, while an
+/// accent swap only recolors the existing widgets. The independent
+/// [LayoutDensity], font-family overrides layer on top of the spec's
 /// defaults.
 class MoonrelayTheme {
   MoonrelayTheme._();
 
-  /// Monospace font fallback used when a skin does not specify one.
+  /// Monospace font fallback used when a theme or override does not specify one.
   static const String monoFontFamilyFallback = 'FiraCode';
 
   // ── ThemeData factories ─────────────────────────────────────────────
 
-  /// Builds the light [ThemeData] for [skin].
+  /// Builds the light [ThemeData] for [spec] + [accent].
   ///
   /// [density], [fontFamily] and [monoFontFamily] are the user's persisted
-  /// overrides; when null the skin's defaults win.
+  /// overrides; when null the spec's defaults win.
   static ThemeData light(
-    MoonrelaySkin skin, {
+    MoonrelayThemeSpec spec,
+    MoonrelayAccent accent, {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
   }) =>
       _buildThemeData(
-        skin,
+        spec,
+        accent,
         Brightness.light,
-        density: density ?? skin.defaultDensity,
-        fontFamily: fontFamily ?? skin.defaultFontFamily,
-        monoFontFamily: monoFontFamily ?? skin.defaultMonoFontFamily,
+        density: density ?? spec.defaultDensity,
+        fontFamily: fontFamily ?? spec.defaultFontFamily,
+        monoFontFamily: monoFontFamily ?? spec.defaultMonoFontFamily,
       );
 
-  /// Builds the dark [ThemeData] for [skin].
+  /// Builds the dark [ThemeData] for [spec] + [accent].
   static ThemeData dark(
-    MoonrelaySkin skin, {
+    MoonrelayThemeSpec spec,
+    MoonrelayAccent accent, {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
   }) =>
       _buildThemeData(
-        skin,
+        spec,
+        accent,
         Brightness.dark,
-        density: density ?? skin.defaultDensity,
-        fontFamily: fontFamily ?? skin.defaultFontFamily,
-        monoFontFamily: monoFontFamily ?? skin.defaultMonoFontFamily,
+        density: density ?? spec.defaultDensity,
+        fontFamily: fontFamily ?? spec.defaultFontFamily,
+        monoFontFamily: monoFontFamily ?? spec.defaultMonoFontFamily,
       );
 
   // ── Internal builder ────────────────────────────────────────────────
@@ -104,18 +111,19 @@ class MoonrelayTheme {
   }
 
   static ThemeData _buildThemeData(
-    MoonrelaySkin skin,
+    MoonrelayThemeSpec spec,
+    MoonrelayAccent accent,
     Brightness brightness, {
     required LayoutDensity density,
     required String fontFamily,
     required String monoFontFamily,
   }) {
     final ColorScheme colorScheme = ColorScheme.fromSeed(
-      seedColor: skin.seedColor,
+      seedColor: accent.seedColor,
       brightness: brightness,
     );
-    final double radius = skin.cornerRadius;
-    final double elevation = skin.surfaceElevation;
+    final double radius = spec.cornerRadius;
+    final double elevation = spec.surfaceElevation;
 
     return ThemeData(
       useMaterial3: true,

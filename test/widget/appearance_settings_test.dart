@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
-import 'package:moonrelay/src/settings/skins.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,7 +34,8 @@ void main() {
   group('LayoutDensity -> VisualDensity', () {
     test('comfortable maps to standard', () {
       final theme = MoonrelayTheme.light(
-        MoonrelaySkins.defaultSkin,
+        MoonrelayThemes.defaultTheme,
+        MoonrelayAccents.defaultAccent,
         density: LayoutDensity.comfortable,
       );
       expect(theme.visualDensity, VisualDensity.standard);
@@ -42,27 +43,46 @@ void main() {
 
     test('compact maps to compact', () {
       final theme = MoonrelayTheme.dark(
-        MoonrelaySkins.defaultSkin,
+        MoonrelayThemes.defaultTheme,
+        MoonrelayAccents.defaultAccent,
         density: LayoutDensity.compact,
       );
       expect(theme.visualDensity, VisualDensity.compact);
     });
 
     test('defaults to comfortable when omitted', () {
-      final theme = MoonrelayTheme.light(MoonrelaySkins.defaultSkin);
+      final theme = MoonrelayTheme.light(
+        MoonrelayThemes.defaultTheme,
+        MoonrelayAccents.defaultAccent,
+      );
       expect(theme.visualDensity, VisualDensity.standard);
     });
 
-    test('skin corner radius flows into cardTheme', () {
-      final sharp = MoonrelaySkins.highContrast;
+    test('theme corner radius flows into cardTheme', () {
+      final sharp = MoonrelayThemes.highContrast;
       expect(
-        MoonrelayTheme.light(sharp).cardTheme.shape,
+        MoonrelayTheme.light(sharp, MoonrelayAccents.defaultAccent)
+            .cardTheme
+            .shape,
         isA<RoundedRectangleBorder>().having(
           (s) => s.borderRadius,
           'radius',
           BorderRadius.circular(sharp.cornerRadius),
         ),
       );
+    });
+
+    test('accent seed drives the color scheme', () {
+      final light = MoonrelayTheme.light(
+        MoonrelayThemes.material,
+        MoonrelayAccents.indigo,
+      );
+      final vista = MoonrelayTheme.light(
+        MoonrelayThemes.material,
+        MoonrelayAccents.vistaBlue,
+      );
+      // Same look, different accent recolors the scheme.
+      expect(vista.colorScheme.primary, isNot(light.colorScheme.primary));
     });
   });
 

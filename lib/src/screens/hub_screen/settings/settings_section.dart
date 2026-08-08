@@ -23,11 +23,13 @@ import 'package:flutter/material.dart';
 /// A reusable card-like section for grouping related settings controls.
 class HubSettingsSection extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final List<Widget> children;
 
   const HubSettingsSection({
     super.key,
     required this.title,
+    this.subtitle,
     required this.children,
   });
 
@@ -45,6 +47,17 @@ class HubSettingsSection extends StatelessWidget {
             color: theme.colorScheme.primary,
           ),
         ),
+        if (subtitle != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
         Card(
           elevation: 0,

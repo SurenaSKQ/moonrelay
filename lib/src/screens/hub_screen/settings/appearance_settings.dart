@@ -23,7 +23,7 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/skins.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Appearance Settings
@@ -90,46 +90,88 @@ class HubAppearanceSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Skin (look and feel)
+              // Theme (look and feel)
               HubSettingsSection(
-                title: l10n.skin,
+                title: l10n.lookAndFeel,
+                subtitle: l10n.lookAndFeelDesc,
                 children: [
                   RadioGroup<String>(
-                    groupValue: controller.selectedSkinId,
+                    groupValue: controller.selectedThemeId,
                     onChanged: (v) {
-                      if (v != null) controller.updateSelectedSkin(v);
+                      if (v != null) controller.updateSelectedTheme(v);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final skin in MoonrelaySkins.all)
+                        for (final look in MoonrelayThemes.all)
                           RadioListTile<String>(
-                            value: skin.id,
+                            value: look.id,
                             dense: true,
+                            selected: look.id == controller.selectedThemeId,
                             title: Row(
                               children: [
                                 Container(
                                   width: 20,
                                   height: 20,
                                   decoration: BoxDecoration(
-                                    color: skin.seedColor,
+                                    color: controller.selectedAccent.seedColor,
                                     borderRadius: BorderRadius.circular(
-                                      skin.cornerRadius == 0
+                                      look.cornerRadius == 0
                                           ? 4
-                                          : skin.cornerRadius,
+                                          : look.cornerRadius,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(skin.label),
+                                Text(look.label),
                               ],
                             ),
                             subtitle: Text(
-                              skin.description,
+                              look.description,
                               style: TextStyle(
                                 color: theme.colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Accent colour
+              HubSettingsSection(
+                title: l10n.accentColor,
+                subtitle: l10n.accentColorDesc,
+                children: [
+                  RadioGroup<String>(
+                    groupValue: controller.selectedAccentId,
+                    onChanged: (v) {
+                      if (v != null) controller.updateSelectedAccent(v);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final accent in MoonrelayAccents.all)
+                          RadioListTile<String>(
+                            value: accent.id,
+                            dense: true,
+                            selected: accent.id == controller.selectedAccentId,
+                            title: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: accent.seedColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(accent.label),
+                              ],
                             ),
                           ),
                       ],
