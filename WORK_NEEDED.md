@@ -7,7 +7,7 @@ WORK_NEEDED
 Open work ledger for Moonrelay. Each item is anchored to a file:line or
 file path.
 
-Tests at head: flutter test passes. flutter analyze has no errors.
+Tests at head: flutter test 538 green (unit + widget). flutter analyze 0 issues.
 
 The categories used below are:
 - correctness (things that are broken or unreliable)
@@ -33,20 +33,21 @@ flight) is already in place and does not need further work.
 
 1.2 Future-aware surface comments
 
-TimelineView count notifier: _UndecryptableBanner reads from a
-ValueNotifier<int> via a static late reference
-(lib/src/chat/timeline_view.dart:118). Add a comment near the notifier
-saying that any future restructuring needs to keep it on the same State.
+(See also 26.3 in WORK_DONE.md: _UndecryptableBanner now reads its count via ValueListenableBuilder instead of a setState callback; the comment at lib/src/chat/timeline_view.dart:135 documents the notifier's lifecycle.)
 
 In-room search jump accuracy: ChatTimeline.jumpToEvent
-(lib/src/chat/chat_timeline.dart:1134) estimates scroll from a fraction.
-Add a comment that users may need to scroll a few items up or down after
-a jump.
+(lib/src/chat/chat_timeline.dart:1134) now uses Scrollable.ensureVisible
+The fallback path (when the key is not in the current viewport, e.g.
+during rapid pagination) still estimates from a fraction; the existing
+comment noting that users may need to scroll up/down after a fallback
+jump is still in place at lib/src/chat/jump_coordinator.dart:211.
 
 1.3 Refactor candidates
 
-- HTML rendering: MarkdownToHtml and _HtmlTagParser each implement their
-  own tag allow-list. Extract a single SanitizedHtml helper.
+- HTML tag allow-list: MarkdownToHtml and HtmlTagParser each implement
+  their own tag allow-list. Extract a single SanitizedHtml helper.
+  (HtmlTagParser was extracted to html_tag_parser.dart in the cleanup
+  pass, but the shared allow-list is still outstanding.)
 
 - Color palette: MoonrelayColorPalette mixes raw swatches with
   StringColor wrappers. Either pull in or delete the unused side.
@@ -87,7 +88,49 @@ mitigations shipped: throttled own-device refresh and cache-first
 devicesForUser (lib/src/encryption/encryption_service.dart). The
 "Already seen Device ID has been added again" / "Invalid device"
 warnings are server-data artifacts (device ID reuse / malformed keys),
-not app misuse.
+ not app misuse.
+
+
+1.5 Hardcoded English strings in UX surfaces (quality/polish, deferred)
+
+Several user-facing strings are still hardcoded English instead of living
+in app_en.arb/app_fa.arb and routing through l10n. Not touched in the
+status-pill/density pass:
+
+- lib/src/helpers/room_delegate.dart:158,165  ("Still waiting for the
+  server…", "Retry" in the sync-waiting fallback).
+- lib/src/screens/encryption/bootstrap_screen.dart:94-101  (wipe-SSSS
+  confirmation dialog).
+- lib/src/services/deep_link_service.dart:240  ("Invalid Matrix user id: …"
+  is surfaced from a service without a BuildContext, so it cannot trivially
+  use AppLocalizations; either resolve the string at the UI layer that
+  dispatches the deep link, or pass a context through the method-channel
+  callback).
+- lib/src/screens/hub_screen/settings/appearance_settings.dart:162,166,
+  184,188  ("Font size", "Message font size", "UI scale", "Interface scale"
+  section/titles are literals; the rest of the page is localized).
+- lib/src/screens/create_room_form.dart:316,321,479-480,741-742  (Room/Space
+  segment labels, the type subtitle interpolation, and _typeLabel returning
+   raw 'room'/'space').
+
+
+1.6 Silent failure surfaces with no retry affordance (quality, deferred)
+
+Two spots swallow server errors silently and leave the user with no
+recovery path (logged here so the empty-state pass doesn't claim them):
+
+- lib/src/widgets/sidebar_members_list.dart:222-224  The server
+  member backfill (`_fetchMissingBatch`) catches and swallows errors
+  with no UI. The local member set is shown, but there's no "couldn't
+  load remote members, tap to retry" row, so a transient server blip
+  looks identical to "these are all the members". Add a fetch-error
+  flag + inline retry row to the members list footer.
+- lib/src/helpers/threads_provider.dart:115-117  `ThreadsProvider`
+  swallows thread-roots fetch failures. Expose a `hasError`/`error`
+  state and let the consumers (`FullRoomThreadsList` in
+  lib/src/screens/room_threads_view.dart and
+  lib/src/widgets/thread_list_sidebar.dart`) render a retry row instead
+  of silently showing an ever-shrinking list.
 
 
 2. Open features

@@ -63,58 +63,7 @@ class MessageActions extends StatelessWidget {
 
   /// When non-null, the action toolbar offers an "Edit history" affordance
   /// that scans the timeline for `m.replace` events related to this one.
-  final Timeline? timeline;
-
-  /// Whether the current user can moderate the sender of this event.
-  bool _canModerate(Client client) {
-    if (event.senderId == client.userID) return false;
-    try {
-      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
-      return sender.canKick;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Whether the given [eventId] is in the room's pinned-events list.
-  bool _isPinned(Room room, String eventId) {
-    final state = room.getState('m.room.pinned_events');
-    if (state == null) return false;
-    final pinned = state.content['pinned'];
-    if (pinned is! List) return false;
-    return pinned.contains(eventId);
-  }
-
-  /// Whether the current user can ban the sender of this event.
-  bool _canBan(Client client) {
-    if (event.senderId == client.userID) return false;
-    try {
-      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
-      return sender.canBan;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Whether [event] is editable: text-shaped, sent by us, and not redacted.
-  bool _canEditText(BuildContext context) {
-    final client = room.client;
-    final isMine = event.senderId == client.userID;
-    if (!isMine) return false;
-    if (event.redacted) return false;
-    if (event.relationshipEventId != null) return false;
-    final mt = event.messageType;
-    if (mt != MessageTypes.Text &&
-        mt != MessageTypes.Emote &&
-        mt != MessageTypes.Notice) {
-      return false;
-    }
-    try {
-      return event.canRedact;
-    } catch (_) {
-      return true;
-    }
-  }
+   final Timeline? timeline;
 
   @override
   Widget build(BuildContext context) {
@@ -122,12 +71,12 @@ class MessageActions extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final client = room.client;
     final canDelete = event.canRedact;
-    final canModerate = _canModerate(client);
-    final canBanUser = _canBan(client);
+    final canModerate = MessageActionRunner.canModerate(room, event);
+    final canBanUser = MessageActionRunner.canBan(room, event);
     final isOwnMessage = event.senderId == client.userID;
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
-    final isPinned = _isPinned(room, event.eventId);
-    final canEdit = _canEditText(context);
+    final isPinned = MessageActionRunner.isPinned(room, event.eventId);
+    final canEdit = MessageActionRunner.canEditText(event, room);
     final t = timeline;
     final showEditHistory =
         t != null && event.hasAggregatedEvents(t, RelationshipTypes.edit);

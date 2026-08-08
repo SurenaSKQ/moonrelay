@@ -17,6 +17,7 @@
 import 'dart:async';
 
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/chat_unread_utils.dart';
 
 /// Pagination for the jump-to-unread affordance.  Extracted from
 /// [ChatTimeline] so the orchestration logic can live next to its
@@ -133,14 +134,15 @@ class JumpToUnreadPager {
 
   /// Returns the index of the first message-like event at or below
   /// [startIdx] in a newest-first [events] list, walking back from
-  /// [startIdx] toward older events.  Returns `-1` when the entire
-  /// tail newer than [startIdx] consists of state events.
+  /// [startIdx] toward newer events.  Returns `-1` when the entire
+  /// tail newer than [startIdx] consists of state events or
+  /// non-addressable relationship events (edits, thread replies).
   static int findFirstUnreadMessageIndex(
     List<Event> events,
     int startIdx,
   ) {
     for (var i = startIdx; i >= 0; i--) {
-      if (_isMessageLikeEvent(events[i])) return i;
+      if (isAddressableUnreadEvent(events[i])) return i;
     }
     return -1;
   }
@@ -150,7 +152,7 @@ class JumpToUnreadPager {
   /// window so we need the newest message-like event in the cache.
   static int findFirstUnreadMessageIndexFromEnd(List<Event> events) {
     for (var i = events.length - 1; i >= 0; i--) {
-      if (_isMessageLikeEvent(events[i])) return i;
+      if (isAddressableUnreadEvent(events[i])) return i;
     }
     return -1;
   }
@@ -164,42 +166,6 @@ class JumpToUnreadPager {
     }
     return -1;
   }
-
-  /// True when [event] should count toward the unread total: regular
-  /// chat messages, stickers, and any future message-type event.
-  /// State events are intentionally excluded.
-  static bool _isMessageLikeEvent(Event event) {
-    return event.type == EventTypes.Message ||
-        event.type == EventTypes.Sticker;
-  }
-}
-
-/// Counts unread events in a newest-first timeline window, skipping
-/// state events so they don't nudge the "jump to first unread" pill.
-///
-/// When the user's [Room.fullyRead] marker is non-empty, counts events
-/// *newer* than the marker (those the user hasn't yet read).  When no
-/// marker has been set (e.g. a brand-new room), counts the entire window
-/// but still skips state events.
-int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
-  if (events == null || events.isEmpty) return 0;
-  var count = 0;
-  if (fullyReadEventId.isEmpty) {
-    for (final ev in events) {
-      if (_isMessageLike(ev)) count++;
-    }
-    return count;
-  }
-  for (final ev in events) {
-    if (ev.eventId == fullyReadEventId) break;
-    if (_isMessageLike(ev)) count++;
-  }
-  return count;
-}
-
-bool _isMessageLike(Event event) {
-  return event.type == EventTypes.Message ||
-      event.type == EventTypes.Sticker;
 }
 
 /// Narrow context the [JumpToUnreadPager] uses to read state from the

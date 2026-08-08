@@ -16,6 +16,8 @@
 
 import 'package:matrix/matrix.dart';
 
+import 'package:moonrelay/src/helpers/thread_utils.dart';
+
 /// True when [event] should count toward the unread total: regular
 /// chat messages, stickers, and any future message-type event.  State
 /// events (member changes, topic edits, encryption, etc.) return
@@ -24,6 +26,20 @@ import 'package:matrix/matrix.dart';
 bool isMessageLikeEvent(Event event) {
   return event.type == EventTypes.Message ||
       event.type == EventTypes.Sticker;
+}
+
+/// True when [event] both counts as unread *and* can be scrolled to
+/// directly: a message-like event that renders as a standalone row in
+/// the main timeline.
+///
+/// Edits and thread replies are message-typed but carry a
+/// [Event.relationshipEventId], so [TimelineView] renders them inline
+/// with their parent and never gives them an addressable item.  Counting
+/// or jumping to them would either inflate the unread pill with content
+/// the user can't land on, or make the jump silently no-op.
+bool isAddressableUnreadEvent(Event event) {
+  return isMessageLikeEvent(event) &&
+      ThreadUtils.isVisibleInMainTimeline(event);
 }
 
 /// Counts the number of unread events in [events], skipping state
@@ -36,13 +52,14 @@ bool isMessageLikeEvent(Event event) {
 /// nothing to anchor the count against) the entire visible window
 /// counts as unread.
 ///
-/// State events (member joins, room renames, topic changes, etc.) are
-/// intentionally excluded -- they are not messages the user needs to
-/// "catch up on" in the same way as regular messages, and including
-/// them caused the FAB to surface in rooms where there is genuinely no
-/// unread chat content.  The jump target inherits the same rule: when
-/// the user invokes it, the destination is the first real message after
-/// the marker, not the first state event.
+/// State events (member joins, room renames, topic changes, etc.) and
+/// relationship events that render inline with their parent (edits,
+/// thread replies) are intentionally excluded -- they are not messages
+/// the user needs to "catch up on" in the same way as regular messages,
+/// and including them caused the FAB to surface in rooms where there is
+/// genuinely no unread chat content.  The jump target inherits the same
+/// rule: when the user invokes it, the destination is the first real
+/// message after the marker, not the first state event.
 int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
   if (events == null || events.isEmpty) return 0;
   var count = 0;
@@ -51,13 +68,13 @@ int countUnreadInWindow(List<Event>? events, String fullyReadEventId) {
   // membership churn) does not pretend to have unread messages.
   if (fullyReadEventId.isEmpty) {
     for (final ev in events) {
-      if (isMessageLikeEvent(ev)) count++;
+      if (isAddressableUnreadEvent(ev)) count++;
     }
     return count;
   }
   for (final ev in events) {
     if (ev.eventId == fullyReadEventId) break;
-    if (isMessageLikeEvent(ev)) count++;
+    if (isAddressableUnreadEvent(ev)) count++;
   }
   return count;
 }

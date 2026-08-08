@@ -15,11 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
+import 'package:provider/provider.dart';
 
 /// Routing delegate that resolves a user ID to a [ProfilePage].
 ///
@@ -46,14 +48,26 @@ class ProfileDelegate extends StatelessWidget {
 
     // -- Null / empty check --------------------------------------
     if (userid == null || userid!.isEmpty) {
-      _showError(context, log, l10n.profileIdNullError);
-      return const SizedBox.shrink();
+      log.e('ProfileDelegate: ${l10n.profileIdNullError}', stackTrace: StackTrace.current, time: DateTime.now());
+      return EmptyState(
+        icon: Icons.account_circle_outlined,
+        title: l10n.error,
+        message: l10n.profileIdNullError,
+        actionLabel: l10n.back,
+        onAction: () => GoRouter.of(context).pop(),
+      );
     }
 
     // -- Format validation ----------------------------------------
     if (!_userIdPattern.hasMatch(userid!)) {
-      _showError(context, log, l10n.profileIdInvalid('$userid'));
-      return const SizedBox.shrink();
+      log.e('ProfileDelegate: invalid id', stackTrace: StackTrace.current, time: DateTime.now());
+      return EmptyState(
+        icon: Icons.account_circle_outlined,
+        title: l10n.error,
+        message: l10n.profileIdInvalid('$userid'),
+        actionLabel: l10n.back,
+        onAction: () => GoRouter.of(context).pop(),
+      );
     }
 
     // -- Look up the user to verify they exist --------------------
@@ -61,27 +75,5 @@ class ProfileDelegate extends StatelessWidget {
     // in any joined room, but a valid Matrix ID may still exist on the
     // server.  We use the cached profile as a best-effort existence check.
     return ProfilePage(client: client, userID: userid!);
-  }
-
-  void _showError(BuildContext context, Logger log, String message) {
-    log.e(
-      'ProfileDelegate: $message',
-      stackTrace: StackTrace.current,
-      time: DateTime.now(),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(AppLocalizations.of(context)!.error),
-              Text(message),
-            ],
-          ),
-        ),
-      );
-    });
   }
 }

@@ -30,6 +30,7 @@ import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/command_palette.dart';
+import 'package:moonrelay/src/widgets/sync_status_pill.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Main application frame shown after authentication.
@@ -403,7 +404,7 @@ class _HeaderProfileState extends State<_HeaderProfile> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    const StatusPill(),
+                    const SyncStatusPill(),
                   ],
                 ),
               ),
@@ -483,48 +484,6 @@ class _HeaderProfileState extends State<_HeaderProfile> {
         .map((s) => s[0])
         .take(2)
         .join();
-  }
-}
-
-/// A small pill showing the user's current presence status.
-///
-/// Displays a green dot and "Online" text by default. Proper presence
-/// integration will be added later.
-class StatusPill extends StatelessWidget {
-  const StatusPill({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: Color(0xFF4CAF50),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 3),
-          Text(
-            'Online',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: scheme.primary,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

@@ -75,7 +75,12 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   /// Bumped on every SDK `onChange`/`onInsert`/`onRemove`/`onUpdate`
   /// so [TimelineView] knows to invalidate its item-list cache.
-  int _timelineVersion = 0;
+  /// Exposed as a [ValueNotifier] so the parent [build] of
+  /// [ChatTimeline] is not forced through rebuild on every sync tick
+  /// -- the previous `setState(() => _timelineVersion++)` rebuilt the
+  /// entire subtree, including [ChatTimelineFloatingActions] and
+  /// [ChatTimelineFloatingActions]'s parent [Stack].
+  final ValueNotifier<int> _timelineVersion = ValueNotifier<int>(0);
 
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
@@ -117,8 +122,8 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   // -- Test accessors --------------------------------------------
 
-  @visibleForTesting
-  int get timelineVersionForTest => _timelineVersion;
+   @visibleForTesting
+  int get timelineVersionForTest => _timelineVersion.value;
 
   @visibleForTesting
   bool get isLoadingHistoryForTest => _historyPager?.isLoading ?? false;
@@ -188,6 +193,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _scrollController.dispose();
     _timeline?.cancelSubscriptions();
     _isScrolledUpNotifier.dispose();
+    _timelineVersion.dispose();
     super.dispose();
   }
 
@@ -324,7 +330,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   void _onTimelineUpdate() {
     if (!mounted) return;
     _historyPager?.onTimelineUpdated();
-    setState(() => _timelineVersion++);
+    _timelineVersion.value++;
   }
 
   // -- Helpers --------------------------------------------------
@@ -491,17 +497,19 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
         return Stack(
           children: [
             child,
-            ValueListenableBuilder<bool>(
-              valueListenable: _isScrolledUpNotifier,
-              builder: (context, isScrolledUp, _) {
+            ListenableBuilder(
+              listenable: Listenable.merge([_isScrolledUpNotifier, _timelineVersion]),
+              builder: (context, _) {
+                final isScrolledUp = _isScrolledUpNotifier.value;
                 final isJumping = _jumpCoordinator?.isJumping ?? false;
-                // Only show floating actions when the user has scrolled
-                // away from the bottom (actively reading older messages)
-                // or while a jump-to-unread pagination is in flight.
-                // When the user is at the bottom of the timeline they
-                // can already see the newest messages, so the unread
-                // pill would be redundant.
-                final showColumn = isScrolledUp || isJumping;
+                // The jump-to-unread pill stays visible regardless of scroll
+                // position once it has appeared -- it only disappears when
+                // explicitly dismissed or when the room is marked read (which
+                // zeros the unread count).  The scroll-to-bottom pill, by
+                // contrast, only appears when the user has scrolled away from
+                // the newest messages.
+                final unreadVisible = _showUnreadPill || isJumping;
+                final showColumn = isScrolledUp || unreadVisible;
                 if (!showColumn) {
                   return const SizedBox.shrink();
                 }
@@ -515,8 +523,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
                       child: ChatTimelineFloatingActions(
                         unreadCount: _unreadInWindow,
                         isScrolledUp: isScrolledUp,
-                        unreadVisible:
-                            (_showUnreadPill && isScrolledUp) || isJumping,
+                        unreadVisible: unreadVisible,
                         isJumping: isJumping,
                         onJumpToUnread: () async {
                           _jumpLoadingDone = false;

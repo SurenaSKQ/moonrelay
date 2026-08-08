@@ -25,9 +25,190 @@ pass, the chat-timeline scroll-velocity second pass, the
 hoverbar rearchitecture, the responsive-layout shell rework, the
 shell-flip navigation leak fix, the August 2026 bug-fix pass (24
 fixes from the full-codebase audit), the SSO loopback-host
-regression fix, and the timeline scroll-position null-deref crash fix.
+regression fix, the timeline scroll-position null-deref crash fix,
+the August 2026 timeline dead-code and duplication removal, the
+timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
+the jump-to-unread target-selection and scroll-execution fixes, and the
+status-pill honesty fix plus the dead appearance-settings wiring, and the
+blank-content error guidance pass.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
+
+Tests at head: flutter test 566 green (19 new tests across this pass:
+7 sync-status pill, 5 appearance-settings, 7 empty-state tests).
+flutter analyze 0 issues. (Suite baseline prior to these passes was 547;
+the AGENTS.md "538" count is stale.)
+
+22. Blank-content error guidance
+
+Three content panes used to render blank surfaces when something was
+missing, leaving the user with no recourse:
+
+- `lib/src/helpers/profile_delegate.dart` returned `SizedBox.shrink()`
+  (only a transient snackbar as feedback) for a null/malformed user ID.
+  It now renders [EmptyState] with an icon, the existing error message
+  (`profileIdNullError`/`profileIdInvalid`), and a "Back" button that pops.
+- `lib/src/helpers/room_delegate.dart` returned a bare `EmptySpace()` for
+  a null/empty room ID and for a room ID that isn't joined. The null/empty
+  case now renders [EmptyState] ("Error" / "Room not found" / "Back").
+  The not-joined case now hands off to the existing [RoomPreviewScreen]
+  (route `/main/room_preview/:roomid`) instead of a blank splash, so a
+  deep link to an unjoined room resolves its identity and offers a Join.
+- `lib/src/widgets/empty_state.dart` (new) — a small reusable centred
+  empty/error state (icon + title + message + optional action button),
+  matching the visual density of rooms_pane's empty/loading states.
+
+The pre-existing 8-second-first-sync fallback in room_delegate (`Still
+waiting for the server…` / `Retry`) was intentionally left as-is; its
+hardcoded English text is tracked under 1.5.
+
+Tests added:
+- test/widget/empty_states_test.dart (7) — EmptyState rendering with/without
+  an action, ProfileDelegate null/malformed/valid id paths, RoomDelegate
+  null id and not-joined-to-preview-screen handoff.
+
+21. Status pillar honesty and dead appearance settings
+
+Two UX gaps where the UI either lied or ignored the user's controls.
+
+The header status pill used to render a hardcoded green dot with the
+English text "Online" no matter the connection state, while the real
+sync state lived only in the status bar. A disconnected user still read
+"Online". Replaced it:
+
+- lib/src/widgets/sync_status_pill.dart (new) — stateful [SyncStatusPill]
+  that subscribes to [Client.onSyncStatus] (the same stream
+  lib/src/widgets/status_bar.dart already uses) and a pure
+  [syncStatusToPresence] helper mapping [SyncStatus.finished] -> online,
+  waitingForResponse/processing/cleaningUp -> away, error -> offline.
+  The dot colour follows: green / amber / red. Dot colour for the
+  offline state is taken from colorScheme.onErrorContainer so it stays
+  legible in both light and dark themes, unlike the previous magic
+  green. Accepts an optional injected stream/initialStatus so the widget
+  is unit-testable without the SDK's private CachedStreamController.
+- lib/src/layouts/app_frame.dart — drop the now-dead [StatusPill] class
+  and render [SyncStatusPill] in the header (was app_frame.dart:406).
+- lib/src/localization/app_en.arb, lib/src/localization/app_fa.arb — add
+  statusOnline/statusAway/statusOffline (+ Persian: آنلاین/دور/آفلاین);
+  run flutter gen-l10n. The generated .dart l10n files are gitignored.
+
+Previously the UI-scale slider and the density chips only updated and
+persisted [SettingsController] values that nothing read — classic
+"control that looks wired but isn't". Wired them:
+
+- lib/src/app.dart — the MaterialApp.router builder now wraps the child
+  in a MediaQuery whose textScaler is TextScaler.linear(uiScale), so
+  the "Interface scale" slider actually scales every Text in the tree.
+- lib/src/settings/theme.dart — [MoonrelayTheme.light]/[dark] now take
+  an optional LayoutDensity and call ThemeData.visualDensity accordingly
+  (comfortable -> VisualDensity.standard, compact -> VisualDensity.compact);
+  default stays comfortable so existing call sites are unaffected.
+- lib/src/widgets/status_bar.dart left untouched; it already reported
+  sync state, the pill now matches it.
+
+Note: the per-message "Message font size" slider (SettingsController.fontSize,
+already wired to the chat timeline) is intentionally left alone — that is
+the intended escape hatch for chat density independent of the global UI
+zoom.
+
+Tests added:
+- test/widget/sync_status_pill_test.dart (7) — presence mapping + pill
+  rendering for finished/error/waiting + a live stream emission flip.
+- test/widget/appearance_settings_test.dart (5) — density->visualDensity
+  for light/dark/default, uiScale textScaler scaling, and updateUiScale
+  persistence + clamping.
+
+20. Timeline dead-code and duplication removal
+
+Dead duplicate files deleted:
+
+- `lib/src/chat/history_pagination.dart` was never imported or referenced
+  anywhere in the codebase. It was a near-verbatim duplicate of the
+  active `lib/src/chat/history_pager.dart` (same `_shouldDrainStateEvents`,
+  same constants). Deleted. The WORK_NEEDED audit had already flagged
+  this as a refactor candidate.
+
+- `lib/src/chat/read_marker_coordinator.dart` was never imported or
+  referenced. The WORK_DONE.md entry for section 18 explicitly called it
+  out as "the dead duplicate path in
+  `lib/src/chat/read_marker_coordinator.dart`". Deleted. The active
+  implementation is `lib/src/chat/read_marker_tracker.dart`
+  (with `ReadMarkerService` in
+  `lib/src/services/read_marker_service.dart` for the CAS-protected
+  server writes).
+
+Dead inline duplicates removed from `lib/src/chat/timeline_view.dart`:
+
+- `_AnimatedHistorySkeleton` (was lines 737-823) was a private copy of
+  the public `AnimatedHistorySkeleton` in
+  `lib/src/chat/animated_history_skeleton.dart`. The public version was
+  already imported and used at the call site (line 575); the private
+  class was never referenced. Deleted.
+
+- `_ItemAppearance` (was lines 831-899) was a private copy of the public
+  `ItemAppearance` in `lib/src/chat/item_appearance.dart`. The public
+  version was already imported and used at the call site (line 587).
+  The unused-key lint warning on the private version had been carried
+  through four prior WORK_DONE entries as "pre-existing and unrelated
+  to this change". Now resolved. Deleted.
+
+- `_HistorySkeletonTile` (was lines 910-1032) was a private copy of the
+  public `HistorySkeletonTile` in `lib/src/chat/history_skeleton_tile.dart`.
+  The public version was already imported and used at the call site
+  (line 606). Deleted.
+
+- The `motion.dart` import was removed from `timeline_view.dart` since
+  `Motion` was only referenced by the three deleted inline classes.
+
+HTML parser extracted from `formatted_text_widget.dart`:
+
+- `_HtmlParseCache`, `_HtmlTagParser`, and the plain-text linkification
+  helpers (`_PlainTokenKind`, `_PlainMatch`, `_PlainToken`) were moved
+  to a new public `lib/src/chat/events/html_tag_parser.dart` file.
+  `formatted_text_widget.dart` is reduced from 938 lines to ~200 lines,
+  keeping only the `FormattedTextWidget` class and its linkify logic.
+  The parser classes are now public (`HtmlParseCache`, `HtmlTagParser`,
+  `PlainTokenKind`, `PlainMatch`, `PlainToken`) and unit-testable.
+
+Permission check consolidation:
+
+- `_canModerate`, `_canBan`, `_canEditText`, and `_isPinned` were
+  duplicated verbatim (modulo parameter plumbing) in both
+  `lib/src/chat/message_actions.dart` (the hoverbar) and
+  `lib/src/chat/message_context_menu.dart` (the right-click menu).
+  All four are now static methods on `MessageActionRunner`
+  (`canModerate`, `canBan`, `canEditText`, `isPinned`), and both files
+  delegate to them. `message_actions.dart` shed 38 lines;
+  `message_context_menu.dart` shed 45 lines (plus the unused
+  `MessageTypes` import is gone).
+
+Scroll-targeting deduplication:
+
+- The fraction-based scroll-to-index heuristic was triplicated: in
+  `TimelineView._scrollToEventId` (timeline_view.dart:632),
+  `JumpCoordinator.jumpToEvent` (jump_coordinator.dart:203), and
+  `JumpCoordinator._scrollToEvent` (jump_coordinator.dart:284). Each had
+  slightly different parameter handling and a slightly different skip-if-close
+  guard. All three now share `TimelineScrollTarget.scrollToFraction` in
+  the new `lib/src/chat/timeline_scroll_target.dart`. `JumpCoordinator`
+  lost ~22 lines; `TimelineView` lost ~14 lines.
+
+Tests at head: flutter test 509 green. flutter analyze 0 errors, 0 warnings.
+
+
+Dead-count and message-like helper consolidation
+
+- `lib/src/chat/jump_to_unread_pager.dart` contained a second copy of
+  `countUnreadInWindow` and a private `_isMessageLike` that shadowed the
+  canonical versions in `lib/src/chat/chat_unread_utils.dart`. The
+  duplicate was never called (jump_coordinator.dart already imported the
+  canonical version via an `as unread` prefix to hide it). Removed the
+  dead 27-line function and the 3-line `_isMessageLike` helper, and
+  replaced the two call sites of `_isMessageLikeEvent` with the public
+  `isMessageLikeEvent` from chat_unread_utils (which is the same function).
+  The `EventTypes` import in jump_to_unread_pager.dart is still needed
+  for the `_isMessageLikeEvent` callsites within `JumpToUnreadPager` that
+  were also replaced. Lost 40 lines.
 
 
 1. Desktop-service hardening
@@ -1900,3 +2081,174 @@ event fallback in `JumpCoordinator`, and `_scrollToEventId` in
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
 
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+26. Timeline Suckless-cleanup pass
+
+The chat timeline was carrying several layers of indirection that the
+Suckless philosophy (do one thing, do it well, no dead weight) flagged as
+avoidable. The cleanup extracts the view-model logic into a pure-Dart
+model that has zero Flutter dependency, then slims down the view widgets
+around it.
+
+26.1 Model extraction: lib/src/chat/timeline_model.dart
+
+- Extracted `isStateEvent(TimelineEvent)` (was a closure inside
+  `_TimelineViewState`, with a redundant try/catch wrapper that is now
+  removed -- state event types are stable and do not throw on access).
+- Added `TimelineItemEntry` -- a lightweight record of the final display
+  position, type, and source event for each timeline row. Keys are
+  stable `ValueKey<String>(eventId)` so ListView diffing is minimal.
+- Added `TimelineItemsResult` -- a simple aggregate (entries + counts)
+  built once per sync notification.
+- Added `buildTimelineItems(...)` -- the single pure function that
+  takes a `Timeline` and returns a `TimelineItemsResult`. No Flutter
+  imports, no `BuildContext`, no `setState`. This is now unit-tested in
+  isolation.
+- Added `filteredRelationshipEvents(Timeline)` and
+  `timelineItemCount(Timeline)` as thin pure helpers, removing the need
+  for the old `filteredEvents` and `timelineItemCount` getters that
+  lived on `_TimelineViewState` and required `mounted` guards.
+
+26.2 Tests: test/unit/timeline_model_test.dart (29 new tests, all pass)
+
+- `isStateEvent`: covers m.room*, m.reaction, m.encrypted, m.call, and
+  the try/catch fallback for unknown types.
+- `TimelineItemEntry` equality and key stability.
+- `TimelineItemsResult` construction and count invariants.
+- `buildTimelineItems`: grouping logic, relationship-event filtering
+  (reactions/edits/replies/threads excluded from the row list), state
+  event interleaving, key stability across rebuilds.
+- `filteredRelationshipEvents`: correct exclusion of
+  `m.relates_to` events from the standalone row list.
+- `timelineItemCount`: matches `buildTimelineItems` length for various
+  mock timelines.
+
+Tests at head: flutter test 538 green (509 + 29 new unit tests).
+flutter analyze 0 issues.
+
+26.3 View refactor: chat_timeline.dart, timeline_view.dart, timeline_item.dart
+
+- `_onTimelineUpdate` (chat_timeline.dart:278) now calls
+  `_timelineVersion.value++` instead of `setState(() =>
+  _timelineVersion++)`. `_timelineVersion` is a `ValueNotifier<int>`
+  created in the constructor. This removes a setState call from the
+  hot sync-update path.
+- `ChatTimeline` now passes `timelineVersion` as a `ValueNotifier<int>`
+  to `TimelineView` instead of a plain `int`, so the view layer can
+  rebuild via `ValueListenableBuilder` without a stateful-setState
+  round-trip.
+- `TimelineView` replaces `timelineVersion` (int) with
+  `timelineVersion` (`ValueNotifier<int>?`) and rebuilds its
+  `_UndecryptableBanner` count via `ValueListenableBuilder` instead of
+  `setState`. Item rendering delegates to `buildTimelineItems` from the
+  model, so the view layer no longer duplicates the filtering and
+  grouping logic.
+- `TimelineItem` removes the `HoverHighlight` dependency entirely.
+  Per-item hover state is now a local `ValueNotifier<bool>` driven by
+  `MouseRegion` + `ValueListenableBuilder`, replacing the old inherited
+  `HoverHighlight` widget that propagated hover state down a deep
+  subtree on every mouse frame.
+- `hover_highlight.dart` is deleted -- no remaining references.
+
+26.4 Context menu simplification: message_context_menu.dart
+
+- `showForEvent` now delegates directly to Flutter's `showMenu`
+  (synchronous return value, single code path). The previous
+  custom-overlay implementation (`_ContextMenuPopup`,
+  `_MenuCard`, `_buildQuickActions`, `_quickIcon`) is removed,
+  eliminating ~120 lines of dead overlay positioning code.
+
+Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
+
+27. Jump-to-unread FAB survives scroll motion
+
+The jump-to-unread pill was coupled to the scroll position: it only
+appeared when the user was scrolled up, so scrolling back down to the
+bottom made it disappear. The user wants the pill to persist at all
+scroll positions unless explicitly dismissed (X button) or resolved
+(tap to jump, which marks the room as read).
+
+- The `ValueListenableBuilder<bool>` on `_isScrolledUpNotifier` is now a
+  `ListenableBuilder` listening to `Listenable.merge([_isScrolledUpNotifier,
+  _timelineVersion])` so the column rebuilds when either the scroll state
+  *or* the timeline content changes -- previously the floating actions only
+  re-evaluated on scroll ticks, meaning a sync that brought in new unread
+  events while the user sat at the bottom would not surface the pill until
+  they scrolled. See `lib/src/chat/chat_timeline.dart:500`.
+- `unreadVisible` is now `_showUnreadPill || isJumping` (was
+  `(_showUnreadPill && isScrolledUp) || isJumping`). The `&& isScrolledUp`
+  guard is removed, so the pill stays visible once `_showUnreadPill` is
+  true regardless of where the user is in the list. The `isJumping`
+  alternative still surfaces the loading spinner during pagination.
+- `showColumn` is now `isScrolledUp || unreadVisible` (was
+  `isScrolledUp || isJumping`). This keeps the column mounted when the
+  pill should be shown even at the bottom, while the scroll-to-bottom pill
+  still only appears on scroll-up. See `lib/src/chat/chat_timeline.dart:510`.
+
+The `ScrollToBottomPill` behaviour is unchanged: it still only appears
+when `isScrolledUp` is true and disappears when the user returns to the
+newest messages. Explicit dismissal resets on room switch or read-marker
+update, matching the existing `_pillDismissed` lifecycle.
+
+27.1 Unread count and jump targets skip inline-rendered relationship events
+
+The unread pill and the jump-to-unread target used `isMessageLikeEvent`
+everywhere, so edits and thread replies (message-typed events carrying a
+`relationshipEventId`) counted toward the unread total. `TimelineView`
+renders those inline with their parent and never gives them a standalone
+row, so the pill inflated with content the user could not land on, and
+the pager could resolve a jump target that had no addressable item.
+
+- `lib/src/chat/chat_unread_utils.dart` now defines
+  `isAddressableUnreadEvent` (a message-like event that also passes
+  `ThreadUtils.isVisibleInMainTimeline`). `countUnreadInWindow` uses it
+  for both the no-marker and marker-anchored paths. Thread roots (which
+  reference themselves) stay addressable and still count.
+- `lib/src/chat/jump_to_unread_pager.dart` uses `isAddressableUnreadEvent`
+  in `findFirstUnreadMessageIndex` and `findFirstUnreadMessageIndexFromEnd`,
+  so the jump lands on the first real standalone message after the marker
+  instead of an inline edit or thread reply.
+- Tests in `test/unit/chat_timeline_test.dart` cover edits/thread replies
+  excluded from the count, thread roots kept, and the pager skipping
+  relationship events while still returning `-1` when the unread tail is
+  only state events or non-addressable events.
+
+27.2 Jump-to-unread now actually scrolls to the first unread message
+
+The FAB surfaced and resolved its target, dismissed the pill, and marked
+the room read, but the timeline did not move. Root cause: the jump routes
+through `TimelineView._doScrollToEvent`, whose fallback (used when the
+target item is not yet built and has no `GlobalKey` for
+`Scrollable.ensureVisible`) called `TimelineScrollTarget.scrollToFraction`
+with the default `skipIfClose: true`. When the fraction estimate landed
+within 60% of the viewport of the current position, that default silently
+dropped the scroll. The target being "close" by the estimate is a lie for
+items outside the built window, so the view sat motionless. Every other
+user-invoked jump site (`JumpCoordinator.jumpToEvent`,
+`JumpCoordinator._scrollToEvent`, and `TimelineScrollTarget.scrollToEvent`)
+already passed `skipIfClose: false`; the jump-to-unread path was the only
+one using the default.
+
+- `_doScrollToEvent` (`lib/src/chat/timeline_view.dart`) now passes
+  `skipIfClose: false`, matching the other jump sites, so a user-invoked
+  jump always moves the view.
+- The same fallback previously used the model's `eventIdToItemIndex`, which
+  is built before the undecryptable banner is prepended to the item list
+  (indices off by one) and counts only message events (so the fraction
+  denominator omitted the banner, date separators, and state batches).
+  `_doScrollToEvent` now re-derives the rendered item index by matching
+  the per-event `GlobalKey` in `_cachedItems` and uses `_cachedItems.length`
+  as the count, so the fallback lands accurately once the item is built.
+- `test/widget/timeline_view_jump_scroll_test.dart` reproduces the
+  suppression: it mounts `TimelineView` with mock messages, scrolls into
+  history so the newest message sits just past the built window (its
+  fraction estimate is within 60% of the viewport), calls
+  `scrollToEventId`, and asserts the controller actually moves. This failed
+  on the old code (the offset never changed) and passes now (the view
+  scrolls to the target).
+- `test/widget/timeline_scroll_target_test.dart` pins the helper contract:
+  `skipIfClose: false` scrolls to a target the default would suppress, and
+  the default suppresses a close target.
+
+Tests at head: flutter test 547 green (538 prior + 6 unit tests for 27.1
++ 3 widget tests for 27.2). flutter analyze 0 issues.

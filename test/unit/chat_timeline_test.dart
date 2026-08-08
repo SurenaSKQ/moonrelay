@@ -25,6 +25,7 @@ import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:moonrelay/src/chat/chat_unread_utils.dart';
+import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 
 import '../helpers/mocks.dart';
 
@@ -109,6 +110,135 @@ void main() {
       );
       expect(countUnreadInWindow(<Event>[stateA, stateB], ''), 0);
     });
+
+    test('skips edits and thread replies that render inline with a parent', () {
+      // An edit is a Message event carrying a relationship id; it is not
+      // a standalone row, so it must not count toward the unread total
+      // (nor become a jump target).
+      final edit = _MockEventFactory.build(
+        id: 'e1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+        relationshipEventId: 'orig',
+        relationshipType: RelationshipTypes.edit,
+      );
+      final threadReply = _MockEventFactory.build(
+        id: 'e2',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+        relationshipEventId: 'root',
+        relationshipType: RelationshipTypes.thread,
+      );
+      final real = _MockEventFactory.build(
+        id: 'e3',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      // Newest-first: the two relationship events are newer than the
+      // marker and the real message; only the real message should count.
+      expect(
+        countUnreadInWindow(<Event>[edit, threadReply, real], 'marker'),
+        1,
+      );
+    });
+
+    test('keeps a thread root addressable', () {
+      // A thread root references itself, so it renders as a standalone
+      // row and stays countable.
+      final root = _MockEventFactory.build(
+        id: 'r1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+        relationshipEventId: 'r1',
+        relationshipType: RelationshipTypes.thread,
+      );
+      expect(countUnreadInWindow(<Event>[root], 'marker'), 1);
+    });
+  });
+
+  group('findFirstUnreadMessageIndex', () {
+    test('returns the chronologically first unread message after the marker',
+        () {
+      // Newest-first; marker at index 3.  Unread messages are e2, e1, e0;
+      // the first the user would read is e2 (index 2).
+      final events = _mkEvents(['e0', 'e1', 'e2', 'e3', 'e4']);
+      expect(
+        JumpToUnreadPager.findFirstUnreadMessageIndex(events, 2),
+        2,
+      );
+    });
+
+    test('skips relationship events and lands on the next visible message',
+        () {
+      // Newest-first; marker at index 3.  Index 2 is a thread reply that
+      // renders inline, index 1 is a real message.
+      final threadReply = _MockEventFactory.build(
+        id: 't1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+        relationshipEventId: 'root',
+        relationshipType: RelationshipTypes.thread,
+      );
+      final real = _MockEventFactory.build(
+        id: 'm1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      final marker = _MockEventFactory.build(
+        id: 'marker',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      expect(
+        JumpToUnreadPager.findFirstUnreadMessageIndex(
+          <Event>[threadReply, real, marker],
+          1,
+        ),
+        1,
+      );
+    });
+
+    test('returns -1 when every unread event is a relationship event', () {
+      final threadReply = _MockEventFactory.build(
+        id: 't1',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+        relationshipEventId: 'root',
+        relationshipType: RelationshipTypes.thread,
+      );
+      final marker = _MockEventFactory.build(
+        id: 'marker',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      expect(
+        JumpToUnreadPager.findFirstUnreadMessageIndex(
+          <Event>[threadReply, marker],
+          0,
+        ),
+        -1,
+      );
+    });
+
+    test('returns -1 when the tail is only state events', () {
+      final stateA = _MockEventFactory.build(
+        id: 's1',
+        status: EventStatus.synced,
+        type: EventTypes.RoomMember,
+      );
+      final marker = _MockEventFactory.build(
+        id: 'marker',
+        status: EventStatus.synced,
+        type: EventTypes.Message,
+      );
+      expect(
+        JumpToUnreadPager.findFirstUnreadMessageIndex(
+          <Event>[stateA, marker],
+          0,
+        ),
+        -1,
+      );
+    });
   });
 }
 
@@ -126,17 +256,25 @@ List<Event> _mkEvents(List<String> ids) {
 
 /// Local event factory: mocktail's standard `Mock` class doesn't
 /// accept constructor args, so we use a tiny subclass that overrides
-/// the two properties we read (eventId, status, type).
+/// the properties we read (eventId, status, type, relationship).
 class _MockEventFactory {
   static Event build({
     required String id,
     required EventStatus status,
     String type = EventTypes.Message,
+    String? relationshipEventId,
+    String? relationshipType,
   }) {
     final ev = MockEvent();
     when(() => ev.eventId).thenReturn(id);
     when(() => ev.status).thenReturn(status);
     when(() => ev.type).thenReturn(type);
+    if (relationshipEventId != null) {
+      when(() => ev.relationshipEventId).thenReturn(relationshipEventId);
+    }
+    if (relationshipType != null) {
+      when(() => ev.relationshipType).thenReturn(relationshipType);
+    }
     return ev;
   }
 }
