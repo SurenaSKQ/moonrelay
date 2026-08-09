@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A lightweight preview of a single message event.
@@ -219,6 +220,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final textTheme = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
 
@@ -227,20 +229,21 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
         title: Text(l10n.roomPreviewTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
           // ── Identity card ────────────────────────────────────────────
           _buildIdentityCard(cs, textTheme, l10n),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // ── Join button ──────────────────────────────────────────────
           _buildJoinSection(cs, l10n),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // ── Recent messages ──────────────────────────────────────────
           if (!_eventsLoading && _events != null && _events!.isNotEmpty) ...[
             _SectionHeader(title: l10n.roomPreviewLastMessages, scheme: cs),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             ..._events!.map((e) => _buildEventTile(cs, e)),
           ] else if (!_eventsLoading &&
               _events != null &&
@@ -625,17 +628,18 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(
