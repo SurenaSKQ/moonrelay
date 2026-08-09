@@ -271,6 +271,26 @@ class MoonrelayAccents {
   static MoonrelayAccent fromId(String? id) => byId(id) ?? defaultAccent;
 }
 
+/// Distinguishes the different widget-geometry looks a theme can apply.
+///
+/// A [MoonrelayWidgetStyle] only touches *geometry and neutral chrome*; the
+/// accent color always comes from the active [MoonrelayAccent]. Each value
+/// dispatches to a dedicated merge strategy inside
+/// [MoonrelayWidgetStyle.mergeInto].
+enum MoonrelayStyleType {
+  /// "Darkened Windows Vista UI" chrome: flat buttons with a thin outline.
+  vista,
+
+  /// Flat, borderless, no-elevation surfaces.
+  minimal,
+
+  /// Soft, generously rounded with subtle borders.
+  organic,
+
+  /// Moonrelay's signature look: distinctive app bar and signature shadows.
+  moonrelay,
+}
+
 /// A theme's widget geometry — the bits of "feel" that a color accent cannot
 /// express (button shape and borders, scrollbar thickness, checkbox style,
 /// divider weight, etc.).
@@ -284,6 +304,7 @@ class MoonrelayAccents {
 @immutable
 class MoonrelayWidgetStyle {
   const MoonrelayWidgetStyle({
+    required this.styleType,
     required this.cornerRadius,
     required this.borderWidth,
     required this.borderAlpha,
@@ -292,15 +313,54 @@ class MoonrelayWidgetStyle {
     required this.scrollbarThickness,
   });
 
+  /// The look profile that selects which merge strategy [mergeInto] applies.
+  final MoonrelayStyleType styleType;
+
   /// The Vista look: flat buttons with a thin outline, square-ish corners,
   /// a narrow scrollbar and the thin divider line characteristic of the GTK
   /// theme. Colours are derived from the running color scheme, so this same
   /// style works with any accent.
   static const MoonrelayWidgetStyle vista = MoonrelayWidgetStyle(
+    styleType: MoonrelayStyleType.vista,
     cornerRadius: 4.0,
     borderWidth: 1.0,
     borderAlpha: 0.5,
     buttonMinHeight: 28.0,
+    sliderThumbRadius: 7.0,
+    scrollbarThickness: 8.0,
+  );
+
+  /// Flat, borderless, no-elevation style. Removes all surface chrome for a
+  /// monochrome, utility-focused look.
+  static const MoonrelayWidgetStyle minimal = MoonrelayWidgetStyle(
+    styleType: MoonrelayStyleType.minimal,
+    cornerRadius: 0.0,
+    borderWidth: 0.0,
+    borderAlpha: 0.0,
+    buttonMinHeight: 32.0,
+    sliderThumbRadius: 6.0,
+    scrollbarThickness: 4.0,
+  );
+
+  /// Soft, generously rounded style with subtle borders and low elevation.
+  static const MoonrelayWidgetStyle organic = MoonrelayWidgetStyle(
+    styleType: MoonrelayStyleType.organic,
+    cornerRadius: 20.0,
+    borderWidth: 1.0,
+    borderAlpha: 0.2,
+    buttonMinHeight: 42.0,
+    sliderThumbRadius: 8.0,
+    scrollbarThickness: 6.0,
+  );
+
+  /// Moonrelay's signature look: a distinctive app bar with an accent-accented
+  /// bottom indicator, signature card shadows, and softly rounded buttons.
+  static const MoonrelayWidgetStyle moonrelay = MoonrelayWidgetStyle(
+    styleType: MoonrelayStyleType.moonrelay,
+    cornerRadius: 12.0,
+    borderWidth: 1.0,
+    borderAlpha: 0.4,
+    buttonMinHeight: 36.0,
     sliderThumbRadius: 7.0,
     scrollbarThickness: 8.0,
   );
@@ -334,6 +394,27 @@ class MoonrelayWidgetStyle {
   /// tokens for the active theme, allowing style overrides to reference
   /// semantic values instead of hardcoded numbers.
   ThemeData mergeInto(
+    ThemeData base,
+    ColorScheme cs,
+    MoonrelayDesignTokens tokens,
+    MoonrelayComponentTokens components,
+  ) {
+    switch (styleType) {
+      case MoonrelayStyleType.vista:
+        return _mergeVista(base, cs, tokens, components);
+      case MoonrelayStyleType.minimal:
+        return _mergeMinimal(base, cs, tokens, components);
+      case MoonrelayStyleType.organic:
+        return _mergeOrganic(base, cs, tokens, components);
+      case MoonrelayStyleType.moonrelay:
+        return _mergeMoonrelay(base, cs, tokens, components);
+    }
+  }
+
+  // ── Vista merge ───────────────────────────────────────────────────────
+
+  /// Vista look: flat, bordered buttons; bordered surfaces; narrow scrollbar.
+  ThemeData _mergeVista(
     ThemeData base,
     ColorScheme cs,
     MoonrelayDesignTokens tokens,
@@ -540,7 +621,705 @@ class MoonrelayWidgetStyle {
         largeSize: components.badge.size,
       ),
 
-      // ── Text selection ────────────────────────────────────────────
+       // ── Text selection ────────────────────────────────────────────
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: cs.primary,
+        selectionColor: cs.primary.withValues(alpha: 0.3),
+        selectionHandleColor: cs.primary,
+      ),
+    );
+  }
+
+  // ── Minimal merge ─────────────────────────────────────────────────────
+
+  /// Flat, borderless style: no elevation, no component borders, thin chrome.
+  ThemeData _mergeMinimal(
+    ThemeData base,
+    ColorScheme cs,
+    MoonrelayDesignTokens tokens,
+    MoonrelayComponentTokens components,
+  ) {
+    final radius = BorderRadius.circular(cornerRadius);
+    final thin = BorderSide(
+      width: tokens.borderWidthThin,
+      color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+    );
+
+    return base.copyWith(
+      // Flat surfaces — no elevation, no borders
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: base.cardTheme.color,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+      dialogTheme: DialogThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: cs.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // Borderless buttons with standard Material background
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          padding: EdgeInsets.all(tokens.spaceSm),
+        ),
+      ),
+
+      // Flat app bar
+      appBarTheme: AppBarTheme(
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleTextStyle: base.appBarTheme.titleTextStyle,
+      ),
+
+      // Thin monochrome dividers
+      dividerTheme: DividerThemeData(
+        color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+        thickness: tokens.borderWidthThin,
+      ),
+
+      // Thin scrollbar, square thumb
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(
+          cs.onSurfaceVariant.withValues(alpha: tokens.opacitySubtle),
+        ),
+        thickness: WidgetStateProperty.all(scrollbarThickness),
+        radius: Radius.zero,
+        mainAxisMargin: 0,
+        crossAxisMargin: 0,
+      ),
+
+      // Borderless inputs
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: thin,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: thin,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            width: tokens.borderWidthThin,
+            color: cs.primary,
+          ),
+        ),
+      ),
+
+      // Borderless chips
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.chip.cornerRadius),
+        ),
+        padding: components.chip.padding,
+      ),
+
+      // Borderless list tiles
+      listTileTheme: ListTileThemeData(
+        contentPadding: components.list.contentPadding,
+      ),
+
+      // Standard toggle controls
+      checkboxTheme: CheckboxThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+      radioTheme: RadioThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+      switchTheme: SwitchThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+
+      // Standard slider
+      sliderTheme: SliderThemeData(
+        activeTrackColor: cs.primary,
+        inactiveTrackColor: cs.outlineVariant,
+        thumbColor: cs.primary,
+        overlayColor: cs.primary.withValues(alpha: 0.24),
+        overlayShape: RoundSliderOverlayShape(
+          overlayRadius: sliderThumbRadius,
+        ),
+      ),
+
+      // Standard progress
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: cs.surfaceContainerHighest,
+        strokeWidth: components.progress.strokeWidth,
+      ),
+
+      // Standard badge
+      badgeTheme: BadgeThemeData(
+        backgroundColor: cs.error,
+        textColor: cs.onError,
+        smallSize: components.badge.size * 0.75,
+        largeSize: components.badge.size,
+      ),
+
+      // Standard navigation
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(components.navigation.indicatorRadius),
+        ),
+      ),
+
+      // Standard popup menu
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cornerRadius),
+        ),
+      ),
+
+      // Standard tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cs.inverseSurface,
+          borderRadius: BorderRadius.circular(components.tooltip.cornerRadius),
+        ),
+        padding: components.tooltip.padding,
+      ),
+
+      // Standard text selection
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: cs.primary,
+        selectionColor: cs.primary.withValues(alpha: 0.3),
+        selectionHandleColor: cs.primary,
+      ),
+    );
+  }
+
+  // ── Organic merge ─────────────────────────────────────────────────────
+
+  /// Soft, generously rounded style with subtle borders and low elevation.
+  ThemeData _mergeOrganic(
+    ThemeData base,
+    ColorScheme cs,
+    MoonrelayDesignTokens tokens,
+    MoonrelayComponentTokens components,
+  ) {
+    final radius = BorderRadius.circular(cornerRadius);
+    final subtle = BorderSide(
+      width: tokens.borderWidthThin,
+      color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+    );
+
+    return base.copyWith(
+      // Softly elevated surfaces with rounded corners
+      cardTheme: CardThemeData(
+        elevation: tokens.elevationLow,
+        color: base.cardTheme.color,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: subtle,
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        elevation: tokens.elevationLow,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: subtle),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: cs.surface,
+        elevation: tokens.elevationLow,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: subtle),
+      ),
+
+      // Rounded buttons with subtle borders
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(
+              width: tokens.borderWidthThin,
+              color: cs.primary.withValues(alpha: tokens.opacitySubtle),
+            ),
+          ),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(
+              width: tokens.borderWidthThin,
+              color: cs.outline,
+            ),
+          ),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          padding: EdgeInsets.all(tokens.spaceSm),
+        ),
+      ),
+
+      // Softly elevated app bar
+      appBarTheme: AppBarTheme(
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: tokens.elevationLow,
+        scrolledUnderElevation: tokens.elevationMedium,
+        titleTextStyle: base.appBarTheme.titleTextStyle,
+        shape: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+            width: tokens.borderWidthThin,
+          ),
+        ),
+      ),
+
+      // Subtle dividers
+      dividerTheme: DividerThemeData(
+        color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+        thickness: tokens.borderWidthThin,
+      ),
+
+      // Rounded scrollbar thumb
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(
+          cs.onSurfaceVariant.withValues(alpha: tokens.opacitySubtle),
+        ),
+        thickness: WidgetStateProperty.all(scrollbarThickness),
+        radius: Radius.circular(cornerRadius),
+        mainAxisMargin: 2,
+        crossAxisMargin: 2,
+      ),
+
+      // Rounded inputs with subtle border
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: subtle,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: subtle,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            width: tokens.borderWidthThin,
+            color: cs.primary,
+          ),
+        ),
+      ),
+
+      // Rounded chips with subtle border
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.chip.cornerRadius),
+          side: BorderSide(
+            width: components.chip.borderWidth,
+            color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+          ),
+        ),
+        padding: components.chip.padding,
+      ),
+
+      // Rounded list tiles with generous padding
+      listTileTheme: ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: tokens.spaceXl,
+          vertical: tokens.spaceSm,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // Rounded snack bar
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.snackBar.cornerRadius),
+        ),
+      ),
+
+      // Standard toggle controls with subtle overlay
+      checkboxTheme: CheckboxThemeData(
+        side: subtle,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cornerRadius - 1),
+        ),
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+      radioTheme: RadioThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+      switchTheme: SwitchThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: tokens.opacityHover)
+                : null),
+      ),
+
+      // Rounded slider
+      sliderTheme: SliderThemeData(
+        activeTrackColor: cs.primary,
+        inactiveTrackColor: cs.outlineVariant,
+        thumbColor: cs.primary,
+        overlayColor: cs.primary.withValues(alpha: 0.24),
+        overlayShape: RoundSliderOverlayShape(
+          overlayRadius: sliderThumbRadius,
+        ),
+      ),
+
+      // Standard progress
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: cs.surfaceContainerHighest,
+        strokeWidth: components.progress.strokeWidth,
+      ),
+
+      // Standard badge
+      badgeTheme: BadgeThemeData(
+        backgroundColor: cs.error,
+        textColor: cs.onError,
+        smallSize: components.badge.size * 0.75,
+        largeSize: components.badge.size,
+      ),
+
+      // Rounded navigation indicator
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(components.navigation.indicatorRadius),
+        ),
+      ),
+
+      // Rounded popup menu
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // Standard tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cs.inverseSurface,
+          borderRadius: BorderRadius.circular(components.tooltip.cornerRadius),
+        ),
+        padding: components.tooltip.padding,
+      ),
+
+      // Standard text selection
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: cs.primary,
+        selectionColor: cs.primary.withValues(alpha: 0.3),
+        selectionHandleColor: cs.primary,
+      ),
+    );
+  }
+
+  // ── Moonrelay signature merge ──────────────────────────────────────────
+
+  /// Moonrelay's signature look: distinctive app bar with an accent indicator
+  /// line, elevated cards with signature shadow, and softly rounded buttons.
+  ThemeData _mergeMoonrelay(
+    ThemeData base,
+    ColorScheme cs,
+    MoonrelayDesignTokens tokens,
+    MoonrelayComponentTokens components,
+  ) {
+    final radius = BorderRadius.circular(cornerRadius);
+    final border = _borderColor(cs);
+    final side = BorderSide(width: borderWidth, color: border);
+
+    return base.copyWith(
+      // Elevated cards with signature shadow and rounded corners
+      cardTheme: CardThemeData(
+        elevation: tokens.elevationMedium,
+        color: base.cardTheme.color,
+        shadowColor: cs.shadow,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+      dialogTheme: DialogThemeData(
+        elevation: tokens.elevationMedium,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: cs.surface,
+        elevation: tokens.elevationMedium,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      ),
+
+      // Standard buttons with signature hover shadow
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+          shadowColor: cs.shadow,
+          surfaceTintColor: Colors.transparent,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+          shadowColor: cs.shadow,
+          surfaceTintColor: Colors.transparent,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(
+              width: tokens.borderWidthThin,
+              color: cs.outline,
+            ),
+          ),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          padding: EdgeInsets.all(tokens.spaceSm),
+        ),
+      ),
+
+      // Distinctive app bar: low elevation with accent-accented bottom border
+      appBarTheme: AppBarTheme(
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: tokens.elevationLow,
+        scrolledUnderElevation: tokens.elevationLow,
+        toolbarHeight: tokens.minTapTarget,
+        titleTextStyle: base.appBarTheme.titleTextStyle ??
+            TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: cs.onSurface,
+            ),
+        shape: Border(
+          bottom: BorderSide(
+            color: cs.primary.withValues(alpha: tokens.opacityMuted),
+            width: tokens.borderWidthMedium,
+          ),
+        ),
+      ),
+
+      // Subtle dividers
+      dividerTheme: DividerThemeData(
+        color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+        thickness: tokens.borderWidthThin,
+      ),
+
+      // Rounded scrollbar
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(border),
+        thickness: WidgetStateProperty.all(scrollbarThickness),
+        radius: Radius.circular(cornerRadius),
+        mainAxisMargin: 2,
+        crossAxisMargin: 2,
+      ),
+
+      // Rounded inputs with accent focus
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            width: tokens.borderWidthThin,
+            color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            width: tokens.borderWidthThin,
+            color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            width: tokens.borderWidthMedium,
+            color: cs.primary,
+          ),
+        ),
+      ),
+
+      // Rounded chips with subtle border
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.chip.cornerRadius),
+          side: BorderSide(
+            width: components.chip.borderWidth,
+            color: cs.outlineVariant.withValues(alpha: tokens.opacitySubtle),
+          ),
+        ),
+        padding: components.chip.padding,
+      ),
+
+      // Standard list tiles
+      listTileTheme: ListTileThemeData(
+        contentPadding: components.list.contentPadding,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // Floating snackbar with signature shadow
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: tokens.elevationMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.snackBar.cornerRadius),
+        ),
+      ),
+
+      // Standard toggle controls
+      checkboxTheme: CheckboxThemeData(
+        side: side,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cornerRadius - 1),
+        ),
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+      ),
+      radioTheme: RadioThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+      ),
+      switchTheme: SwitchThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.hovered)
+                ? cs.primary.withValues(alpha: 0.24)
+                : null),
+      ),
+
+      // Standard slider
+      sliderTheme: SliderThemeData(
+        activeTrackColor: cs.primary,
+        inactiveTrackColor: cs.outlineVariant,
+        thumbColor: cs.primary,
+        overlayColor: cs.primary.withValues(alpha: 0.24),
+        overlayShape: RoundSliderOverlayShape(
+          overlayRadius: components.button.iconSize,
+        ),
+      ),
+
+      // Standard progress
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: cs.surfaceContainerHighest,
+        strokeWidth: components.progress.strokeWidth,
+      ),
+
+      // Standard badge
+      badgeTheme: BadgeThemeData(
+        backgroundColor: cs.error,
+        textColor: cs.onError,
+        smallSize: components.badge.size * 0.75,
+        largeSize: components.badge.size,
+      ),
+
+      // Rounded navigation indicator
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(components.navigation.indicatorRadius),
+        ),
+      ),
+
+      // Rounded popup menu
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // Standard tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cs.inverseSurface,
+          borderRadius: BorderRadius.circular(components.tooltip.cornerRadius),
+        ),
+        padding: components.tooltip.padding,
+      ),
+
+      // Standard text selection
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: cs.primary,
         selectionColor: cs.primary.withValues(alpha: 0.3),
