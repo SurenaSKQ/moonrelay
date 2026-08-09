@@ -21,6 +21,8 @@ import 'package:matrix/matrix.dart';
 
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 //  Enum
@@ -94,6 +96,7 @@ class MessageContextMenu {
   }) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final tokens = MoonrelayThemeExtension.of(context).tokens;
     final client = room.client;
     final canDelete = event.canRedact;
     final canModerate = MessageActionRunner.canModerate(room, event);
@@ -102,9 +105,9 @@ class MessageContextMenu {
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
     final isPinned = MessageActionRunner.isPinned(room, event.eventId);
     final canEdit = MessageActionRunner.canEditText(event, room);
-    final t = timeline;
-    final showEditHistory = t != null &&
-        event.hasAggregatedEvents(t, RelationshipTypes.edit);
+    final tl = timeline;
+    final showEditHistory =
+        tl != null && event.hasAggregatedEvents(tl, RelationshipTypes.edit);
 
     final isFailed = event.status.isError;
 
@@ -116,12 +119,14 @@ class MessageContextMenu {
           icon: Icons.refresh_rounded,
           label: l10n.retry,
           color: cs.tertiary,
+          tokens: tokens,
         ),
         _menuItem(
           value: MessageContextAction.cancelSend,
           icon: Icons.close_rounded,
           label: l10n.cancel,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
         const PopupMenuDivider(),
       ],
@@ -131,6 +136,7 @@ class MessageContextMenu {
         icon: Icons.add_reaction_rounded,
         label: l10n.reactTooltip,
         color: cs.onSurfaceVariant,
+        tokens: tokens,
       ),
       if (hasOnReply)
         _menuItem(
@@ -138,6 +144,7 @@ class MessageContextMenu {
           icon: Icons.reply_rounded,
           label: l10n.replyTooltip,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       if (hasOnForward)
         _menuItem(
@@ -145,6 +152,7 @@ class MessageContextMenu {
           icon: Icons.shortcut_rounded,
           label: l10n.forwardTooltip,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       if (hasOnThread)
         _menuItem(
@@ -152,6 +160,7 @@ class MessageContextMenu {
           icon: Icons.forum_rounded,
           label: l10n.openThread,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       if (canEdit) ...[
         const PopupMenuDivider(),
@@ -160,6 +169,7 @@ class MessageContextMenu {
           icon: Icons.edit_outlined,
           label: l10n.editTooltip,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       ],
       if (showEditHistory)
@@ -168,15 +178,16 @@ class MessageContextMenu {
           icon: Icons.history_rounded,
           label: l10n.viewEditHistory,
           color: cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       if (canPin) ...[
         _menuItem(
-          value: isPinned
-              ? MessageContextAction.unpin
-              : MessageContextAction.pin,
+          value:
+              isPinned ? MessageContextAction.unpin : MessageContextAction.pin,
           icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
           label: isPinned ? l10n.unpinMessage : l10n.pinMessage,
           color: isPinned ? cs.primary : cs.onSurfaceVariant,
+          tokens: tokens,
         ),
       ],
       if (canDelete) ...[
@@ -186,6 +197,7 @@ class MessageContextMenu {
           icon: Icons.delete_outline_rounded,
           label: l10n.deleteMessage,
           color: cs.error,
+          tokens: tokens,
         ),
       ],
       // --- Sender group -----------------------------------------------
@@ -195,6 +207,7 @@ class MessageContextMenu {
         icon: Icons.person_outline_rounded,
         label: l10n.openSenderProfile,
         color: cs.onSurfaceVariant,
+        tokens: tokens,
       ),
       if (!isOwnMessage && (canModerate || canBanUser)) ...[
         if (canModerate)
@@ -203,6 +216,7 @@ class MessageContextMenu {
             icon: Icons.person_remove_outlined,
             label: l10n.actionKick,
             color: cs.tertiary,
+            tokens: tokens,
           ),
         if (canBanUser)
           _menuItem(
@@ -210,12 +224,14 @@ class MessageContextMenu {
             icon: Icons.block_outlined,
             label: l10n.actionBan,
             color: cs.error,
+            tokens: tokens,
           ),
         _menuItem(
           value: MessageContextAction.report,
           icon: Icons.flag_outlined,
           label: l10n.actionReport,
           color: cs.error,
+          tokens: tokens,
         ),
       ],
       // --- Details group ----------------------------------------------
@@ -225,6 +241,7 @@ class MessageContextMenu {
         icon: Icons.info_outline_rounded,
         label: l10n.messageDetails,
         color: cs.onSurfaceVariant,
+        tokens: tokens,
       ),
     ];
   }
@@ -299,13 +316,14 @@ class MessageContextMenu {
     required IconData icon,
     required String label,
     required Color color,
+    required MoonrelayDesignTokens tokens,
   }) {
     return PopupMenuItem<MessageContextAction>(
       value: value,
       child: Row(
         children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 10),
+          Icon(icon, size: tokens.iconSizeSmall, color: color),
+          SizedBox(width: tokens.spaceMd),
           Text(label),
         ],
       ),
@@ -336,6 +354,7 @@ class MessageContextMenu {
   }) async {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final menuTokens = MoonrelayThemeExtension.of(context).tokens;
 
     final entries = buildEntries(
       context: context,
@@ -355,24 +374,28 @@ class MessageContextMenu {
         icon: Icons.copy_rounded,
         label: l10n.copyTooltip,
         color: cs.onSurfaceVariant,
+        tokens: menuTokens,
       ),
       _menuItem(
         value: MessageContextAction.copyEventId,
         icon: Icons.key_rounded,
         label: l10n.copyEventId,
         color: cs.onSurfaceVariant,
+        tokens: menuTokens,
       ),
       _menuItem(
         value: MessageContextAction.copyLink,
         icon: Icons.link_rounded,
         label: l10n.copyMessageLink,
         color: cs.onSurfaceVariant,
+        tokens: menuTokens,
       ),
       _menuItem(
         value: MessageContextAction.copyRawJson,
         icon: Icons.code_rounded,
         label: l10n.copyRawJson,
         color: cs.onSurfaceVariant,
+        tokens: menuTokens,
       ),
       const PopupMenuDivider(),
       ...entries,
@@ -392,12 +415,13 @@ class MessageContextMenu {
       items: allEntries,
       color: cs.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(menuTokens.radiusMd),
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
+          color:
+              cs.outlineVariant.withValues(alpha: menuTokens.opacityDisabled),
         ),
       ),
-      elevation: 8,
+      elevation: menuTokens.elevationOverlay,
     );
 
     if (selected == null) return;
