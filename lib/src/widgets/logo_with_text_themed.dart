@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A polished branding widget that displays a moon icon and the project name.
 ///
@@ -51,8 +52,9 @@ class LogoWithTextThemed extends StatelessWidget {
     ColorScheme cs,
     Brightness brightness,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final isDark = brightness == Brightness.dark;
-    final glowColor = cs.primary.withValues(alpha: isDark ? 0.15 : 0.08);
+    final glowColor = cs.primary.withValues(alpha: isDark ? t.opacityFocus : t.opacityHover);
     final accentColor = cs.primary;
 
     return Column(
@@ -75,7 +77,7 @@ class LogoWithTextThemed extends StatelessWidget {
                   color: glowColor,
                   boxShadow: [
                     BoxShadow(
-                      color: accentColor.withValues(alpha: isDark ? 0.3 : 0.15),
+                      color: accentColor.withValues(alpha: isDark ? 0.3 : t.opacityFocus),
                       blurRadius: 32,
                       spreadRadius: 4,
                     ),
@@ -118,7 +120,7 @@ class LogoWithTextThemed extends StatelessWidget {
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
 
         // Subtitle / alpha label
         Text(
@@ -131,7 +133,7 @@ class LogoWithTextThemed extends StatelessWidget {
             letterSpacing: 4,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.spaceSm),
 
         // Tagline
         Text(
@@ -152,6 +154,7 @@ class LogoWithTextThemed extends StatelessWidget {
     ColorScheme cs,
     Brightness brightness,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -160,7 +163,7 @@ class LogoWithTextThemed extends StatelessWidget {
           height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: cs.primaryContainer.withValues(alpha: 0.5),
+            color: cs.primaryContainer.withValues(alpha: t.opacitySubtle),
           ),
           child: Icon(
             LucideIcons.moon,
@@ -180,10 +183,13 @@ class LogoWithTextThemed extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXs,
+            vertical: 1,
+          ),
           decoration: BoxDecoration(
             color: cs.primaryContainer.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(t.radiusXs),
           ),
           child: Text(
             'Alpha',

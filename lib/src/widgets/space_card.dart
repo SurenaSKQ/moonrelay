@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A card widget for displaying a space's basic info in a grid or list.
 ///
@@ -49,18 +50,19 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(t.spaceLg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -74,11 +76,11 @@ class SpaceCard extends StatelessWidget {
                     ? null
                     : Icon(
                         LucideIcons.folder,
-                        size: 24,
+                        size: t.iconSizeLarge,
                         color: scheme.onPrimaryContainer,
                       ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: t.spaceSm),
               Text(
                 name,
                 maxLines: 2,
@@ -88,7 +90,7 @@ class SpaceCard extends StatelessWidget {
                     const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: t.spaceXs),
                 Text(
                   subtitle!,
                   maxLines: 1,

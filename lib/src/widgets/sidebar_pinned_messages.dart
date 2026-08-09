@@ -21,6 +21,7 @@ import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/json_utils.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Full sidebar pane that lists all pinned messages for a room.
 class SidebarPinnedMessages extends StatefulWidget {
@@ -75,6 +76,7 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final currentRoom = context.watch<CurrentRoom>();
 
@@ -83,16 +85,16 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
     if (pinnedIds.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.push_pin_outlined,
                 size: 40,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Text(
                 l10n.noPinnedMessages,
                 style: TextStyle(color: scheme.onSurfaceVariant),
@@ -110,14 +112,15 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: EdgeInsets.fromLTRB(
+              t.spaceMd, t.spaceSm, t.spaceMd, t.spaceXs),
           child: FilledButton.tonalIcon(
             onPressed: () => currentRoom.togglePinnedFilter(),
             icon: Icon(
               currentRoom.pinnedFilterActive
                   ? Icons.push_pin_outlined
                   : Icons.visibility_outlined,
-              size: 16,
+              size: t.iconSizeSmall,
             ),
             label: Text(
               currentRoom.pinnedFilterActive
@@ -135,10 +138,10 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
             itemCount: pinnedIds.length,
             itemBuilder: (context, index) {
               final eventId = pinnedIds[index];
@@ -177,6 +180,7 @@ class _PinnedTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final senderName =
         event?.senderFromMemoryOrFallback.calcDisplayname() ?? 'Unknown';
     final body = event?.body.isNotEmpty == true ? event!.body : '(no content)';
@@ -186,9 +190,9 @@ class _PinnedTile extends StatelessWidget {
       color: currentRoom.pinnedFilterActive &&
               currentRoom.pinnedEventIds.contains(eventId)
           ? scheme.primaryContainer.withValues(alpha: 0.3)
-          : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          : scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: () => currentRoom.togglePinnedFilter(),
         child: Padding(
           padding: const EdgeInsets.all(10),
@@ -200,7 +204,7 @@ class _PinnedTile extends StatelessWidget {
                 size: 14,
                 color: scheme.primary,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +219,7 @@ class _PinnedTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: t.spaceXxs),
                     Text(
                       body,
                       style: TextStyle(
