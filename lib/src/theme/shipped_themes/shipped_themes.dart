@@ -26,3 +26,4 @@ export 'compact_theme.dart';
 export 'arch_vista_theme.dart';
 export 'moonrelay_theme.dart';
 export 'minimal_theme.dart';
+export 'organic_theme.dart';
