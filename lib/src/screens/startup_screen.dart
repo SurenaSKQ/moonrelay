@@ -26,6 +26,7 @@ import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Welcome screen shown before authentication.
 ///
@@ -140,10 +141,11 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 16),
+        SizedBox(height: t.spaceLg),
         Text(
           l10n.projectName,
           style: TextStyle(
@@ -153,7 +155,7 @@ class StartupScreen extends StatelessWidget {
             color: colors.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.spaceSm),
         Text(
           l10n.startupTagline,
           textAlign: TextAlign.center,
@@ -162,7 +164,7 @@ class StartupScreen extends StatelessWidget {
             color: colors.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: t.spaceLg),
         Text(
           l10n.startupDescription,
           textAlign: TextAlign.center,
@@ -239,14 +241,15 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildSavedAccounts(context, colors, l10n),
         _buildActionCard(context, colors, l10n),
-        const SizedBox(height: 16),
+        SizedBox(height: t.spaceLg),
         _buildProjectNewsCard(context, colors, l10n),
-        const SizedBox(height: 16),
+        SizedBox(height: t.spaceLg),
         _buildDonatorsCard(context, colors, l10n),
       ],
     );
@@ -261,18 +264,19 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final accountManager = context.watch<AccountManager>();
     if (!accountManager.hasAccounts) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Card(
-        elevation: 2,
+        elevation: t.elevationMedium,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(t.radiusLg),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(t.spaceLg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -280,7 +284,7 @@ class StartupScreen extends StatelessWidget {
               Row(
                 children: [
                   Icon(LucideIcons.users, size: 18, color: colors.primary),
-                  const SizedBox(width: 8),
+                  SizedBox(width: t.spaceSm),
                   Text(
                     l10n.savedAccounts,
                     style: TextStyle(
@@ -291,7 +295,7 @@ class StartupScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               ...accountManager.accounts.map(
                 (account) => _AccountCard(
                   account: account,
@@ -355,10 +359,11 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 2,
+      elevation: t.elevationMedium,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -374,7 +379,7 @@ class StartupScreen extends StatelessWidget {
                 color: colors.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               l10n.signInDescription,
               style: TextStyle(
@@ -390,11 +395,11 @@ class StartupScreen extends StatelessWidget {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             OutlinedButton.icon(
               onPressed: () => context.push('/welcome/register'),
               icon: const Icon(LucideIcons.userPlus),
@@ -402,11 +407,11 @@ class StartupScreen extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             TextButton.icon(
               onPressed: () => context.push('/welcome/login', extra: 'sso'),
               icon: const Icon(LucideIcons.fingerprint, size: 18),
@@ -414,7 +419,7 @@ class StartupScreen extends StatelessWidget {
               style: TextButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
@@ -431,13 +436,14 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 2,
+      elevation: t.elevationMedium,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -446,10 +452,10 @@ class StartupScreen extends StatelessWidget {
               children: [
                 Icon(
                   LucideIcons.newspaper,
-                  size: 20,
+                  size: t.iconSizeMedium,
                   color: colors.primary,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 Text(
                   l10n.welcomeProjectNews,
                   style: TextStyle(
@@ -460,7 +466,7 @@ class StartupScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               l10n.welcomeProjectNewsContent,
               style: TextStyle(
@@ -482,13 +488,14 @@ class StartupScreen extends StatelessWidget {
     ColorScheme colors,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 2,
+      elevation: t.elevationMedium,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -497,10 +504,10 @@ class StartupScreen extends StatelessWidget {
               children: [
                 Icon(
                   LucideIcons.heart,
-                  size: 20,
+                  size: t.iconSizeMedium,
                   color: colors.primary,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 Text(
                   l10n.welcomeDonators,
                   style: TextStyle(
@@ -511,7 +518,7 @@ class StartupScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               l10n.welcomeDonatorsContent,
               style: TextStyle(
@@ -520,7 +527,7 @@ class StartupScreen extends StatelessWidget {
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text.rich(
               TextSpan(
                 style: TextStyle(
@@ -573,21 +580,23 @@ class _AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isActive
                 ? colors.primaryContainer.withValues(alpha: 0.3)
                 : colors.surfaceContainerHighest.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             border: isActive
-                ? Border.all(color: colors.primary.withValues(alpha: 0.4))
+                ? Border.all(
+                    color: colors.primary.withValues(alpha: t.opacityDisabled))
                 : null,
           ),
           child: Row(
@@ -611,7 +620,7 @@ class _AccountCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: t.spaceMd),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,6 +682,7 @@ class _CreditsScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       appBar: AppBar(
@@ -688,7 +698,7 @@ class _CreditsScreen extends StatelessWidget {
           // ── Project identity card ────────────────────────────────
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(t.spaceXl),
               child: Column(
                 children: [
                   Icon(
@@ -696,7 +706,7 @@ class _CreditsScreen extends StatelessWidget {
                     size: 48,
                     color: colors.primary,
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: t.spaceMd),
                   Text(
                     l10n.projectName,
                     style: TextStyle(
@@ -705,7 +715,7 @@ class _CreditsScreen extends StatelessWidget {
                       color: colors.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: t.spaceXs),
                   Text(
                     'Version 0.2.0+1',
                     style: TextStyle(
@@ -717,7 +727,7 @@ class _CreditsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Author ───────────────────────────────────────────────
           _CreditsSection(
@@ -734,7 +744,7 @@ class _CreditsScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── License ──────────────────────────────────────────────
           _CreditsSection(
@@ -748,7 +758,7 @@ class _CreditsScreen extends StatelessWidget {
               Text(l10n.appLicenseNotice),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Open Source Credits ──────────────────────────────────
           _CreditsSection(
@@ -767,7 +777,7 @@ class _CreditsScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Repository ───────────────────────────────────────────
           _CreditsSection(
@@ -779,7 +789,7 @@ class _CreditsScreen extends StatelessWidget {
                 'audit, and contribution at the project repository:',
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: t.spaceSm),
                 child: Text.rich(
                   TextSpan(
                     children: [
@@ -825,6 +835,7 @@ class _CreditsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -834,7 +845,7 @@ class _CreditsSection extends StatelessWidget {
             Row(
               children: [
                 Icon(icon, size: 22, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Text(
                   title,
                   style: TextStyle(
@@ -845,7 +856,7 @@ class _CreditsSection extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             DefaultTextStyle(
               style: TextStyle(
                 fontSize: 14,
@@ -877,6 +888,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       appBar: AppBar(
@@ -889,7 +901,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
       body: Consumer<SettingsController>(
         builder: (context, controller, _) {
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(t.spaceXl),
             children: [
               Text(
                 l10n.appearance,
@@ -899,7 +911,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.customizeExperience,
                 style: TextStyle(
@@ -907,7 +919,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: t.spaceXl),
 
               // Theme mode
               _SettingsSection(
@@ -936,7 +948,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Theme (look and feel)
               _SettingsSection(
@@ -962,7 +974,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: t.spaceMd),
                                 Text(look.label),
                               ],
                             ),
@@ -974,7 +986,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Accent colour
               _SettingsSection(
@@ -1000,7 +1012,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                                     shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: t.spaceMd),
                                 Text(accent.label),
                               ],
                             ),
@@ -1012,7 +1024,7 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Language
               _SettingsSection(
@@ -1062,6 +1074,7 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1073,11 +1086,11 @@ class _SettingsSection extends StatelessWidget {
             color: theme.colorScheme.primary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.spaceSm),
         Card(
-          elevation: 0,
+          elevation: t.elevationNone,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             side: BorderSide(color: theme.dividerColor),
           ),
           child: Column(

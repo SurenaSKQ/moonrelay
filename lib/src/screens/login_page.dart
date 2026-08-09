@@ -31,6 +31,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -121,6 +122,7 @@ class _LoginPageState extends State<LoginPage> {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     // ── Full-screen syncing state after successful login ──────────────
     if (_syncing) {
@@ -136,150 +138,150 @@ class _LoginPageState extends State<LoginPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
               child: Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Row(
+                elevation: t.elevationMedium,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(t.radiusLg),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.arrowLeft),
-                        onPressed: () => context.pop(),
-                        tooltip: l10n.cancel,
+                      // Header
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(LucideIcons.arrowLeft),
+                            onPressed: () => context.pop(),
+                            tooltip: l10n.cancel,
+                          ),
+                          SizedBox(width: t.spaceSm),
+                          Text(
+                            _ssoMode
+                                ? l10n.ssoTitle
+                                : _tokenMode
+                                    ? l10n.tokenLoginTitle
+                                    : l10n.signInTitle,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: colors.onSurface,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _ssoMode
-                            ? l10n.ssoTitle
-                            : _tokenMode
-                                ? l10n.tokenLoginTitle
-                                : l10n.signInTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: colors.onSurface,
+                      SizedBox(height: t.spaceXl),
+
+                      // Error banner
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Container(
+                            padding: EdgeInsets.all(t.spaceMd),
+                            decoration: BoxDecoration(
+                              color: colors.errorContainer,
+                              borderRadius: BorderRadius.circular(t.radiusSm),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(LucideIcons.alertCircle,
+                                    size: 18, color: colors.error),
+                                SizedBox(width: t.spaceSm),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      color: colors.onErrorContainer,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+
+                      // ── Homeserver field ──
+                      _buildLabel(colors, l10n.homeserverText),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _homeserverCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'matrix.org',
+                          prefixIcon: const Icon(LucideIcons.server, size: 18),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        enabled: !_loading,
                       ),
+                      const SizedBox(height: 20),
+
+                      // ── SSO mode ──
+                      if (_ssoMode) ..._buildSsoSection(colors, l10n),
+
+                      // ── Auto-SSO status (shown during automatic flow) ──
+                      if (_autoSsoActive) ..._buildAutoSsoStatus(colors, l10n),
+
+                      // ── Token mode ──
+                      if (_tokenMode) ..._buildTokenSection(colors, l10n),
+
+                      // ── Password mode ──
+                      if (!_ssoMode && !_tokenMode)
+                        ..._buildPasswordSection(colors, l10n),
+
+                      SizedBox(height: t.spaceXl),
+
+                      // ── Primary action button ──
+                      if (_autoSsoActive)
+                        _buildAutoSsoActionButton(colors, l10n)
+                      else if (_ssoMode)
+                        _buildSsoActionButton(colors, l10n)
+                      else if (_tokenMode)
+                        _buildTokenActionButton(colors, l10n)
+                      else
+                        _buildPasswordActionButton(colors, l10n),
+
+                      // ── Mode switcher ──
+                      if (!_loading && !_autoSsoActive) ...[
+                        SizedBox(height: t.spaceMd),
+                        if (!_ssoMode && !_tokenMode)
+                          _buildModeLink(
+                            l10n.useSsoInstead,
+                            () => setState(() {
+                              _ssoMode = true;
+                              _showManualTokenEntry = false;
+                            }),
+                          ),
+                        if (_ssoMode && !_tokenMode)
+                          _buildModeLink(
+                            l10n.usePasswordInstead,
+                            () => setState(() => _ssoMode = false),
+                          ),
+                        if (!_ssoMode && !_tokenMode)
+                          _buildModeLink(
+                            l10n.useTokenInstead,
+                            () => setState(() => _tokenMode = true),
+                          ),
+                        if (_tokenMode)
+                          _buildModeLink(
+                            l10n.backToPasswordLogin,
+                            () => setState(() => _tokenMode = false),
+                          ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Error banner
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: colors.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.alertCircle,
-                                size: 18, color: colors.error),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: TextStyle(
-                                  color: colors.onErrorContainer,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // ── Homeserver field ──
-                  _buildLabel(colors, l10n.homeserverText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _homeserverCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'matrix.org',
-                      prefixIcon: const Icon(LucideIcons.server, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── SSO mode ──
-                  if (_ssoMode) ..._buildSsoSection(colors, l10n),
-
-                  // ── Auto-SSO status (shown during automatic flow) ──
-                  if (_autoSsoActive) ..._buildAutoSsoStatus(colors, l10n),
-
-                  // ── Token mode ──
-                  if (_tokenMode) ..._buildTokenSection(colors, l10n),
-
-                  // ── Password mode ──
-                  if (!_ssoMode && !_tokenMode)
-                    ..._buildPasswordSection(colors, l10n),
-
-                  const SizedBox(height: 24),
-
-                  // ── Primary action button ──
-                  if (_autoSsoActive)
-                    _buildAutoSsoActionButton(colors, l10n)
-                  else if (_ssoMode)
-                    _buildSsoActionButton(colors, l10n)
-                  else if (_tokenMode)
-                    _buildTokenActionButton(colors, l10n)
-                  else
-                    _buildPasswordActionButton(colors, l10n),
-
-                  // ── Mode switcher ──
-                  if (!_loading && !_autoSsoActive) ...[
-                    const SizedBox(height: 12),
-                    if (!_ssoMode && !_tokenMode)
-                      _buildModeLink(
-                        l10n.useSsoInstead,
-                        () => setState(() {
-                          _ssoMode = true;
-                          _showManualTokenEntry = false;
-                        }),
-                      ),
-                    if (_ssoMode && !_tokenMode)
-                      _buildModeLink(
-                        l10n.usePasswordInstead,
-                        () => setState(() => _ssoMode = false),
-                      ),
-                    if (!_ssoMode && !_tokenMode)
-                      _buildModeLink(
-                        l10n.useTokenInstead,
-                        () => setState(() => _tokenMode = true),
-                      ),
-                    if (_tokenMode)
-                      _buildModeLink(
-                        l10n.backToPasswordLogin,
-                        () => setState(() => _tokenMode = false),
-                      ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      ),
       ),
     );
   }
@@ -796,7 +798,8 @@ class _LoginPageState extends State<LoginPage> {
           // which the homeserver can echo back the typed password in 4xx
           // responses. Log only the class and rethrow; the user-facing
           // message is a static copy that omits the offending field.
-          log.e('Login failed after $attempts attempt(s) (${error.runtimeType})');
+          log.e(
+              'Login failed after $attempts attempt(s) (${error.runtimeType})');
           setState(() => _error = error is TimeoutException
               ? l10n.loginTimedOut
               : l10n.loginFailed(_safeErrorMessage(error)));
