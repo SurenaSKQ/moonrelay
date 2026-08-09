@@ -17,6 +17,8 @@
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/theme/component_tokens.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 
 /// A complete "look and feel" recipe for Moonrelay.
 ///
@@ -351,33 +353,65 @@ class MoonrelayWidgetStyle {
   Color _borderColor(ColorScheme cs) =>
       cs.outlineVariant.withValues(alpha: borderAlpha);
 
-  /// Returns [base] with Vista-style component themes layered on top.
-  ThemeData mergeInto(ThemeData base, ColorScheme cs) {
+  /// Returns [base] with theme-specific component themes layered on top.
+  ///
+  /// [tokens] and [components] provide the atomic and per-component design
+  /// tokens for the active theme, allowing style overrides to reference
+  /// semantic values instead of hardcoded numbers.
+  ThemeData mergeInto(
+    ThemeData base,
+    ColorScheme cs,
+    MoonrelayDesignTokens tokens,
+    MoonrelayComponentTokens components,
+  ) {
     final border = _borderColor(cs);
     final radius = BorderRadius.circular(cornerRadius);
     final innerRadius = BorderRadius.circular(cornerRadius - 1);
     final side = BorderSide(width: borderWidth, color: border);
 
     return base.copyWith(
-      // Flat, bordered buttons (Vista had no filled primary button).
+      // ── Buttons ───────────────────────────────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: cs.primary,
           shape: RoundedRectangleBorder(borderRadius: radius, side: side),
-          overlayColor: cs.primary.withValues(alpha: 0.08),
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
           minimumSize: Size(0, buttonMinHeight),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: components.button.padding,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: cs.primary,
           shape: RoundedRectangleBorder(borderRadius: radius, side: side),
-          overlayColor: cs.primary.withValues(alpha: 0.08),
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
         ),
       ),
-      // Square-ish checkboxes; Vista checks lived in a nearly square box.
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.primary,
+          shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+          overlayColor: cs.primary.withValues(alpha: tokens.opacityHover),
+          minimumSize: Size(0, buttonMinHeight),
+          padding: components.button.padding,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          padding: EdgeInsets.all(tokens.spaceSm),
+        ),
+      ),
+
+      // ── Toggle controls ───────────────────────────────────────────
       checkboxTheme: CheckboxThemeData(
         side: side,
         shape: RoundedRectangleBorder(borderRadius: innerRadius),
@@ -408,15 +442,19 @@ class MoonrelayWidgetStyle {
                 ? cs.primary.withValues(alpha: 0.24)
                 : null),
       ),
-      // Thin, filled track sliders.
+
+      // ── Slider ────────────────────────────────────────────────────
       sliderTheme: SliderThemeData(
         activeTrackColor: cs.primary,
         inactiveTrackColor: cs.outlineVariant,
         thumbColor: cs.primary,
         overlayColor: cs.primary.withValues(alpha: 0.24),
-        overlayShape: RoundSliderOverlayShape(overlayRadius: sliderThumbRadius),
+        overlayShape: RoundSliderOverlayShape(
+          overlayRadius: components.button.iconSize,
+        ),
       ),
-      // Narrow, rounded scrollbar.
+
+      // ── Scrollbar ─────────────────────────────────────────────────
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(border),
         thickness: WidgetStateProperty.all(scrollbarThickness),
@@ -424,7 +462,8 @@ class MoonrelayWidgetStyle {
         mainAxisMargin: 2,
         crossAxisMargin: 2,
       ),
-      // Bordered cards and dialogs keep the surface color.
+
+      // ── Surfaces ──────────────────────────────────────────────────
       cardTheme: CardThemeData(
         elevation: base.cardTheme.elevation,
         color: base.cardTheme.color,
@@ -437,7 +476,8 @@ class MoonrelayWidgetStyle {
         backgroundColor: cs.surface,
         shape: RoundedRectangleBorder(borderRadius: radius, side: side),
       ),
-      // Outlined, flat-corner inputs.
+
+      // ── Inputs ────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: radius, borderSide: side),
         enabledBorder:
@@ -447,9 +487,11 @@ class MoonrelayWidgetStyle {
           borderSide: BorderSide(width: borderWidth, color: cs.primary),
         ),
       ),
-      // Thin, true-color dividers.
+
+      // ── Dividers ──────────────────────────────────────────────────
       dividerTheme: DividerThemeData(color: border, thickness: borderWidth),
-      // Flat app bars with a bottom ridge (Vista title-bar border).
+
+      // ── AppBar ────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
         backgroundColor: cs.surface,
         foregroundColor: cs.onSurface,
@@ -457,6 +499,77 @@ class MoonrelayWidgetStyle {
         scrolledUnderElevation: 0,
         shape: Border(bottom: BorderSide(color: border, width: borderWidth)),
         titleTextStyle: base.appBarTheme.titleTextStyle,
+      ),
+
+      // ── List tiles ────────────────────────────────────────────────
+      listTileTheme: ListTileThemeData(
+        contentPadding: components.list.contentPadding,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+      ),
+
+      // ── SnackBar ──────────────────────────────────────────────────
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.snackBar.cornerRadius),
+        ),
+      ),
+
+      // ── Progress indicators ───────────────────────────────────────
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: cs.surfaceContainerHighest,
+        strokeWidth: components.progress.strokeWidth,
+      ),
+
+      // ── Chips ─────────────────────────────────────────────────────
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(components.chip.cornerRadius),
+          side: BorderSide(
+            width: components.chip.borderWidth,
+            color: border,
+          ),
+        ),
+        padding: components.chip.padding,
+      ),
+
+      // ── Tooltips ──────────────────────────────────────────────────
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cs.inverseSurface,
+          borderRadius: BorderRadius.circular(components.tooltip.cornerRadius),
+        ),
+        padding: components.tooltip.padding,
+      ),
+
+      // ── Navigation ────────────────────────────────────────────────
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(components.navigation.indicatorRadius),
+        ),
+      ),
+
+      // ── Popup menu ────────────────────────────────────────────────
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cornerRadius),
+        ),
+      ),
+
+      // ── Badge ─────────────────────────────────────────────────────
+      badgeTheme: BadgeThemeData(
+        backgroundColor: cs.error,
+        textColor: cs.onError,
+        smallSize: components.badge.size * 0.75,
+        largeSize: components.badge.size,
+      ),
+
+      // ── Text selection ────────────────────────────────────────────
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: cs.primary,
+        selectionColor: cs.primary.withValues(alpha: 0.3),
+        selectionHandleColor: cs.primary,
       ),
     );
   }
