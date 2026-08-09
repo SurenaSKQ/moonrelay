@@ -16,6 +16,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings section helper
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ class HubSettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = theme.moonrelay.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,7 +52,7 @@ class HubSettingsSection extends StatelessWidget {
         ),
         if (subtitle != null)
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: EdgeInsets.only(top: t.spaceXxs),
             child: Text(
               subtitle!,
               style: TextStyle(
@@ -58,11 +61,11 @@ class HubSettingsSection extends StatelessWidget {
               ),
             ),
           ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.spaceSm),
         Card(
-          elevation: 0,
+          elevation: t.elevationNone,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             side: BorderSide(color: theme.dividerColor),
           ),
           child: Column(

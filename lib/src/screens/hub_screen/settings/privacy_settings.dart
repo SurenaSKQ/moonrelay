@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Privacy, deep-link, and data-management settings.
 class HubPrivacySettings extends StatelessWidget {
@@ -31,8 +32,9 @@ class HubPrivacySettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -44,7 +46,7 @@ class HubPrivacySettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.privacyDescription,
                 style: TextStyle(
@@ -52,8 +54,7 @@ class HubPrivacySettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
-
+              SizedBox(height: t.spaceXl),
               HubSettingsSection(
                 title: l10n.deepLinks,
                 children: [
@@ -66,8 +67,7 @@ class HubPrivacySettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: t.spaceLg),
               HubSettingsSection(
                 title: l10n.database,
                 children: [
@@ -114,8 +114,7 @@ class HubPrivacySettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: t.spaceLg),
               HubSettingsSection(
                 title: l10n.security,
                 children: [
@@ -147,8 +146,7 @@ class HubPrivacySettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: t.spaceLg),
               HubSettingsSection(
                 title: l10n.logs,
                 children: [

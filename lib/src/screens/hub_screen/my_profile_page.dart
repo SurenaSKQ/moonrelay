@@ -25,6 +25,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
@@ -306,9 +307,10 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     final presence = _presence;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final t = theme.moonrelay.tokens;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.spaceXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -351,10 +353,10 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                               color: Colors.black38,
                               borderRadius: BorderRadius.circular(40),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: SizedBox(
-                                width: 24,
-                                height: 24,
+                                width: t.spaceXl,
+                                height: t.spaceXl,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   color: Colors.white,
@@ -407,15 +409,18 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: t.spaceSm),
                         IconButton(
                           tooltip: l10n.editOwnProfile,
-                          icon: const Icon(LucideIcons.squarePen, size: 16),
+                          icon: Icon(
+                            LucideIcons.squarePen,
+                            size: t.iconSizeSmall,
+                          ),
                           onPressed: _editDisplayName,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: t.spaceXs),
                     Text(
                       profile?.userId ?? '',
                       style: TextStyle(
@@ -423,7 +428,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                         color: cs.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: t.spaceSm),
                     Text(
                       l10n.profilePageTitle,
                       style: TextStyle(
@@ -439,7 +444,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
 
           const SizedBox(height: 32),
           const Divider(),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // -- Display Name ----------------------------------------
           Text(
@@ -449,16 +454,17 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           InkWell(
             onTap: _editDisplayName,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(t.spaceMd),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
+                color: cs.surfaceContainerHighest
+                    .withValues(alpha: t.opacitySubtle),
+                borderRadius: BorderRadius.circular(t.radiusSm),
               ),
               child: Text(
                 profile?.displayName ?? l10n.notSet,
@@ -470,7 +476,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // -- User ID (read-only) --------------------------------
           Text(
@@ -480,13 +486,14 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(t.spaceMd),
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
+              color:
+                  cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+              borderRadius: BorderRadius.circular(t.radiusSm),
             ),
             child: SelectableText(
               profile?.userId ?? '',
@@ -498,9 +505,9 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
           const Divider(),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // -- Presence -------------------------------------------
           Column(
@@ -513,7 +520,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.presenceDescription,
                 style: TextStyle(
@@ -521,7 +528,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                   color: cs.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Wrap(
                 spacing: 8,
                 children: [
@@ -538,7 +545,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
               Text(
                 l10n.statusMessage,
                 style: const TextStyle(
@@ -546,16 +553,17 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               InkWell(
                 onTap: _editStatusMessage,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(t.radiusSm),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(t.spaceMd),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
+                    color: cs.surfaceContainerHighest
+                        .withValues(alpha: t.opacitySubtle),
+                    borderRadius: BorderRadius.circular(t.radiusSm),
                   ),
                   child: Text(
                     presence?.statusMsg?.isNotEmpty == true
@@ -574,7 +582,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
         ],
       ),
     );

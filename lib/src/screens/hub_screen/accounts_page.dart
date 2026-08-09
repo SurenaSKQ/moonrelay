@@ -20,6 +20,7 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // -----------------------------------------------------------------------------
@@ -41,6 +42,7 @@ class HubAccountsPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final client = Provider.of<Client>(context, listen: false);
     final theme = Theme.of(context);
+    final t = theme.moonrelay.tokens;
 
     // If the session has been torn down (userID is null) return an empty
     // placeholder — the overlay will be dismissed and the route will
@@ -66,7 +68,7 @@ class HubAccountsPage extends StatelessWidget {
             .join();
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -90,15 +92,15 @@ class HubAccountsPage extends StatelessWidget {
 
               // -- Account card -----------------------------------------
               Card(
-                elevation: 0,
+                elevation: t.elevationNone,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   side: BorderSide(
                     color: theme.dividerColor,
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(t.spaceLg),
                   child: Row(
                     children: [
                       profile?.avatarUrl == null
@@ -131,7 +133,7 @@ class HubAccountsPage extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            SizedBox(height: t.spaceXxs),
                             Text(
                               client.userID ?? '',
                               style: TextStyle(
@@ -152,7 +154,7 @@ class HubAccountsPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: t.spaceXl),
 
               // -- Sign-out section -------------------------------------
               Text(
@@ -163,27 +165,27 @@ class HubAccountsPage extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
 
               // An account row with a sign-out action (future-proofed
               // for multi-account  each account gets its own row).
               Card(
-                elevation: 0,
+                elevation: t.elevationNone,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   side: BorderSide(
                     color: theme.dividerColor,
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(t.spaceXs),
                   child: ListTile(
                     leading: CircleAvatar(
                       radius: 22,
                       backgroundColor: theme.colorScheme.errorContainer,
                       child: Icon(
                         LucideIcons.logOut,
-                        size: 20,
+                        size: t.iconSizeMedium,
                         color: theme.colorScheme.onErrorContainer,
                       ),
                     ),
@@ -207,7 +209,7 @@ class HubAccountsPage extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -218,7 +220,7 @@ class HubAccountsPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: t.spaceXl),
 
               // -- Add account section ---------------------------------
               Text(
@@ -229,11 +231,11 @@ class HubAccountsPage extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Card(
-                elevation: 0,
+                elevation: t.elevationNone,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   side: BorderSide(
                     color: theme.dividerColor,
                   ),
@@ -244,7 +246,7 @@ class HubAccountsPage extends StatelessWidget {
                     backgroundColor: theme.colorScheme.secondaryContainer,
                     child: Icon(
                       LucideIcons.userPlus,
-                      size: 20,
+                      size: t.iconSizeMedium,
                       color: theme.colorScheme.onSecondaryContainer,
                     ),
                   ),
@@ -267,7 +269,7 @@ class HubAccountsPage extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(t.radiusMd),
                   ),
                   onTap: onAddAccount,
                 ),
@@ -288,23 +290,24 @@ class HubAccountsPage extends StatelessWidget {
   /// clash with the rest of the hub's calm typography.
   Widget _buildLoading(ThemeData theme) {
     final scheme = theme.colorScheme;
+    final t = theme.moonrelay.tokens;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.spaceXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _shimmerLine(scheme, height: 22, width: 140),
           const SizedBox(height: 4),
           _shimmerLine(scheme, height: 13, width: 200),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               child: Row(
                 children: [
                   // Avatar placeholder
@@ -322,7 +325,7 @@ class HubAccountsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _shimmerLine(scheme, height: 16, width: 180),
-                        const SizedBox(height: 8),
+                        SizedBox(height: t.spaceSm),
                         _shimmerLine(scheme, height: 12, width: 240),
                       ],
                     ),

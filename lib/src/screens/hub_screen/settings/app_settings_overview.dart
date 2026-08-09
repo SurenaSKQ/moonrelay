@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Settings overview (when the category itself is selected)
@@ -38,8 +39,9 @@ class HubAppSettingsOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final t = theme.moonrelay.tokens;
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.spaceXl),
       children: [
         Text(
           l10n.appSettings,
@@ -61,20 +63,20 @@ class HubAppSettingsOverview extends StatelessWidget {
         ...List.generate(items.length, (index) {
           final item = items[index];
           return Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: ListTile(
-              leading: Icon(item.icon, size: 24),
+              leading: Icon(item.icon, size: t.iconSizeLarge),
               title: Text(
                 item.label,
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              trailing: const Icon(LucideIcons.chevronRight, size: 20),
+              trailing: Icon(LucideIcons.chevronRight, size: t.iconSizeMedium),
               onTap: () => onItemTap(index),
             ),
           );
