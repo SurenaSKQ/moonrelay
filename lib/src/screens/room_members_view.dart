@@ -25,6 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
@@ -251,6 +252,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final totalMembers = (widget.room.summary.mInvitedMemberCount ?? 0) +
         (widget.room.summary.mJoinedMemberCount ?? 0);
     final l10n = AppLocalizations.of(context)!;
@@ -268,7 +270,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             if (_isFetchingMore) ...[
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               SizedBox(
                 width: 16,
                 height: 16,
@@ -290,7 +292,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: l10n.searchMembers,
-                prefixIcon: const Icon(LucideIcons.search, size: 20),
+                prefixIcon: Icon(LucideIcons.search, size: t.iconSizeMedium),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(LucideIcons.x, size: 18),
@@ -300,10 +302,10 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
                       )
                     : null,
                 filled: true,
-                fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                fillColor: scheme.surfaceContainerHighest
+                    .withValues(alpha: t.opacitySubtle),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -315,7 +317,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
             ),
           ),
 
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
 
           // Member list or loading/error state
           Expanded(
@@ -501,6 +503,7 @@ class _FullMemberTileState extends State<_FullMemberTile> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final lastSeenText = _buildLastSeenText(context);
     final membershipLabel = switch (widget.member.membership) {
       Membership.ban => l10n.bannedBadge,
@@ -515,7 +518,7 @@ class _FullMemberTileState extends State<_FullMemberTile> {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(t.radiusMd),
           onTap: () => _showContextMenu(context),
           onSecondaryTap: () => _showContextMenu(context),
           child: Padding(
@@ -531,7 +534,7 @@ class _FullMemberTileState extends State<_FullMemberTile> {
                     avatarUri: widget.member.avatarUrl,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
 
                 // Name + ID
                 Expanded(
@@ -611,7 +614,8 @@ class _FullMemberTileState extends State<_FullMemberTile> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: widget.scheme.tertiaryContainer.withValues(alpha: 0.5),
+                      color: widget.scheme.tertiaryContainer
+                          .withValues(alpha: t.opacitySubtle),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(

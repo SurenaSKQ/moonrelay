@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// The main landing page for a space, showing its avatar, name, topic,
@@ -62,14 +63,14 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
   @override
   Widget build(BuildContext context) {
     // Coalesce rebuilds through the shared sync pulse.
-    final pulseVersion =
-        context.select<SyncPulse, int>((p) => p.version);
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
     }
 
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final space = widget.space;
 
@@ -130,12 +131,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
           // ── Parent-space breadcrumb ──────────────────────────────────
           if (parentSpaces.isNotEmpty) ...[
             _buildBreadcrumb(context, parentSpaces, scheme),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
           // ── Space identity card ────────────────────────────────────────
@@ -150,12 +152,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             textTheme,
             l10n,
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // ── Quick actions (for members with permission) ────────────────
           if (isJoined && canEdit) ...[
             _SectionHeader(title: l10n.actionsSection, scheme: scheme),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             _ActionTile(
               icon: LucideIcons.plus,
               label: l10n.addRoomToSpace,
@@ -163,13 +165,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               onTap: () => context.push('/main/space/${space.id}/settings'),
               scheme: scheme,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
           // ── Child subspaces ────────────────────────────────────────────
           if (subspaces.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             for (final child in subspaces)
               _buildChildTile(
                 context,
@@ -179,13 +181,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 scheme: scheme,
                 l10n: l10n,
               ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
           // ── Child rooms (joined) ───────────────────────────────────────
           if (joinedRooms.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             for (final child in joinedRooms)
               _buildChildTile(
                 context,
@@ -195,13 +197,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 scheme: scheme,
                 l10n: l10n,
               ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
           // ── Unjoined rooms ──────────────────────────────────────────────
           if (unjoined.isNotEmpty) ...[
             _SectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             for (final child in unjoined)
               _UnjoinedRoomTile(
                 child: child,
@@ -221,9 +223,10 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                     Icon(
                       LucideIcons.folderOpen,
                       size: 48,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      color: scheme.onSurfaceVariant
+                          .withValues(alpha: t.opacityDisabled),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: t.spaceMd),
                     Text(
                       l10n.spaceNoChildren,
                       style: TextStyle(color: scheme.onSurfaceVariant),
@@ -248,15 +251,17 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     TextTheme textTheme,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(t.radiusLg),
+        side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           children: [
             // Avatar
@@ -280,7 +285,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                     : null,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
 
             // Name
             Text(
@@ -292,12 +297,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
 
             // Topic
             if (topic.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: t.spaceSm),
                 child: Text(
                   topic,
                   style: textTheme.bodyMedium?.copyWith(
@@ -309,7 +314,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 ),
               ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
 
             // Badge row
             Wrap(
@@ -342,7 +347,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                     vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(t.radiusMd),
                   ),
                 ),
               ),
@@ -361,21 +366,23 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     required ColorScheme scheme,
     required AppLocalizations l10n,
   }) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final roomId = child.roomId as String?;
     final childRoom = roomId != null ? client.getRoomById(roomId) : null;
     final name = childRoom?.getLocalizedDisplayname() ?? roomId ?? '?';
     final avatar = childRoom?.avatar;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
         leading: CircleAvatar(
-          radius: 18,
+          radius: ext.components.avatar.sizeMedium / 2,
           backgroundColor: scheme.primaryContainer,
           backgroundImage:
               avatar != null ? NetworkImage(avatar.toString()) : null,
@@ -430,6 +437,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     List<Room> parents,
     ColorScheme scheme,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Wrap(
@@ -442,14 +450,17 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               Icon(
                 LucideIcons.chevronRight,
                 size: 14,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color:
+                    scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
               ),
             GestureDetector(
               onTap: () => context.push('/main/space/${parents[i].id}'),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceSm, vertical: t.spaceXs),
                 decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.4),
+                  color: scheme.primaryContainer
+                      .withValues(alpha: t.opacityDisabled),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -487,9 +498,8 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
     } catch (e) {
       if (!context.mounted) return;
       final l10n = AppLocalizations.of(context)!;
-      final message = e is TimeoutException
-          ? l10n.couldNotJoinRoomTimeout
-          : e.toString();
+      final message =
+          e is TimeoutException ? l10n.couldNotJoinRoomTimeout : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${l10n.error}: $message')),
       );
@@ -531,17 +541,18 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(
@@ -575,11 +586,12 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final effectiveColor = color ?? scheme.primary;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
@@ -657,6 +669,8 @@ class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final isSuggested = widget.child.suggested == true;
 
     final displayName = _loading
@@ -668,18 +682,18 @@ class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
     final avatarUri = _summary?.avatarUrl;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(
             color: widget.scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
         leading: CircleAvatar(
-          radius: 18,
+          radius: ext.components.avatar.sizeMedium / 2,
           backgroundColor:
-              widget.scheme.primaryContainer.withValues(alpha: 0.5),
+              widget.scheme.primaryContainer.withValues(alpha: t.opacitySubtle),
           backgroundImage:
               avatarUri != null ? NetworkImage(avatarUri.toString()) : null,
           onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
