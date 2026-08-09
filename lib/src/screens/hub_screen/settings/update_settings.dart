@@ -23,6 +23,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/services/auto_update_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Update settings page  manual check + startup preference
@@ -36,8 +37,9 @@ class HubUpdateSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -58,7 +60,6 @@ class HubUpdateSettings extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
               HubSettingsSection(
                 title: l10n.updates,
                 children: [
@@ -87,6 +88,7 @@ class HubUpdateSettings extends StatelessWidget {
 
   Future<void> _checkNow(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final service = context.read<AutoUpdateService>();
     final scaffold = ScaffoldMessenger.of(context);
 
@@ -100,7 +102,7 @@ class HubUpdateSettings extends StatelessWidget {
               height: 18,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: t.spaceMd),
             Text(l10n.updateChecking),
           ],
         ),
@@ -134,6 +136,7 @@ void _showUpdateDialog(
   UpdateCheckResult result,
 ) {
   final l10n = AppLocalizations.of(context)!;
+  final t = MoonrelayThemeExtension.of(context).tokens;
 
   showDialog<bool>(
     context: context,
@@ -144,7 +147,7 @@ void _showUpdateDialog(
           Icon(
             LucideIcons.download,
             color: Theme.of(ctx).colorScheme.primary,
-            size: 24,
+            size: t.iconSizeLarge,
           ),
           const SizedBox(width: 10),
           Text(l10n.updateAvailable),
@@ -163,7 +166,7 @@ void _showUpdateDialog(
             Navigator.pop(ctx);
             _openDownloadUrl(context, result.releaseUrl);
           },
-          icon: const Icon(LucideIcons.externalLink, size: 16),
+          icon: Icon(LucideIcons.externalLink, size: t.iconSizeSmall),
           label: Text(l10n.updateDownload),
         ),
       ],

@@ -24,6 +24,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Appearance Settings
@@ -38,8 +39,9 @@ class HubAppearanceSettings extends StatelessWidget {
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
         final theme = Theme.of(context);
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -51,7 +53,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.controlLookAndFeel,
                 style: TextStyle(
@@ -59,7 +61,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: t.spaceXl),
 
               // Theme mode
               HubSettingsSection(
@@ -88,7 +90,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Theme (look and feel)
               HubSettingsSection(
@@ -122,7 +124,7 @@ class HubAppearanceSettings extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: t.spaceMd),
                                 Text(look.label),
                               ],
                             ),
@@ -139,7 +141,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Accent colour
               HubSettingsSection(
@@ -169,7 +171,7 @@ class HubAppearanceSettings extends StatelessWidget {
                                     shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: t.spaceMd),
                                 Text(accent.label),
                               ],
                             ),
@@ -179,7 +181,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Chat display type
               HubSettingsSection(
@@ -208,7 +210,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Font size
               HubSettingsSection(
@@ -254,7 +256,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Animations toggle
               HubSettingsSection(
@@ -276,9 +278,9 @@ class HubAppearanceSettings extends StatelessWidget {
                 title: l10n.layoutDensity,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceSm,
                     ),
                     child: Wrap(
                       spacing: 8,
@@ -294,7 +296,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Bubble radius
               HubSettingsSection(
@@ -318,7 +320,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Window
               HubSettingsSection(
@@ -358,7 +360,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Fonts
               HubSettingsSection(
@@ -392,7 +394,7 @@ class HubAppearanceSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // Language
               HubSettingsSection(

@@ -23,6 +23,7 @@ import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Media / cache / auto-download storage settings.
 class HubStorageSettings extends StatelessWidget {
@@ -33,8 +34,9 @@ class HubStorageSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -46,7 +48,7 @@ class HubStorageSettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.storageDescription,
                 style: TextStyle(
@@ -54,8 +56,7 @@ class HubStorageSettings extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
-
+              SizedBox(height: t.spaceXl),
               HubSettingsSection(
                 title: l10n.autoDownloadImages,
                 children: [
@@ -76,15 +77,16 @@ class HubStorageSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: t.spaceLg),
               HubSettingsSection(
                 title: l10n.attachmentClickThreshold,
                 children: [
                   ListTile(
-                    leading: const Icon(LucideIcons.mousePointerClick, size: 22),
+                    leading:
+                        const Icon(LucideIcons.mousePointerClick, size: 22),
                     title: Text(l10n.attachmentClickThresholdMb),
-                    subtitle: Text('${controller.attachmentClickThresholdMb} MB'),
+                    subtitle:
+                        Text('${controller.attachmentClickThresholdMb} MB'),
                     trailing: SizedBox(
                       width: 200,
                       child: Slider(
@@ -93,15 +95,14 @@ class HubStorageSettings extends StatelessWidget {
                         max: 200,
                         divisions: 199,
                         label: '${controller.attachmentClickThresholdMb} MB',
-                        onChanged: (v) =>
-                            controller.updateAttachmentClickThresholdMb(v.round()),
+                        onChanged: (v) => controller
+                            .updateAttachmentClickThresholdMb(v.round()),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: t.spaceLg),
               HubSettingsSection(
                 title: l10n.drafts,
                 children: [
@@ -156,13 +157,17 @@ class _PolicyPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceLg,
+        vertical: t.spaceSm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           Wrap(
             spacing: 8,
             children: [

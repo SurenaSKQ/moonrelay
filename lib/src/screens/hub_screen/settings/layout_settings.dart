@@ -23,6 +23,7 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout Settings
@@ -36,8 +37,9 @@ class HubLayoutSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -74,8 +76,7 @@ class HubLayoutSettings extends StatelessWidget {
                         l10n.layoutModeDescription,
                         style: TextStyle(
                           fontSize: 12,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -148,8 +149,7 @@ class HubLayoutSettings extends StatelessWidget {
                             .map(
                               (c) => DropdownMenuItem(
                                 value: c,
-                                child:
-                                    Text(localizedRightPaneChoice(c, l10n)),
+                                child: Text(localizedRightPaneChoice(c, l10n)),
                               ),
                             )
                             .toList(),

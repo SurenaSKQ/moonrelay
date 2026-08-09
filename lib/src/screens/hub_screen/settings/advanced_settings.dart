@@ -23,6 +23,7 @@ import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Debounces, timeouts, and logging settings.
 class HubAdvancedSettings extends StatelessWidget {
@@ -33,8 +34,9 @@ class HubAdvancedSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -55,7 +57,6 @@ class HubAdvancedSettings extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
               HubSettingsSection(
                 title: l10n.debounceTimings,
                 children: [
@@ -116,7 +117,6 @@ class HubAdvancedSettings extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
               HubSettingsSection(
                 title: l10n.timeoutsAndLimits,
                 children: [
@@ -151,14 +151,14 @@ class HubAdvancedSettings extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
               HubSettingsSection(
                 title: l10n.logs,
                 children: [
                   ListTile(
                     leading: const Icon(LucideIcons.layers, size: 22),
                     title: Text(l10n.logLevel),
-                    subtitle: Text(localizedLogLevel(controller.logLevel, l10n)),
+                    subtitle:
+                        Text(localizedLogLevel(controller.logLevel, l10n)),
                     onTap: () => _pickLogLevel(context, controller, l10n),
                     trailing: const Icon(LucideIcons.chevronRight, size: 18),
                   ),

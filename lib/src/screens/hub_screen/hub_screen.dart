@@ -46,6 +46,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart'
 import 'package:moonrelay/src/screens/hub_screen/settings/update_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/keybind_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 // The main Hub screen  tab-based UI
@@ -191,20 +192,19 @@ class _HubScreenState extends State<HubScreen> {
     if (selection.subKey != null &&
         catIdx < _categories.length &&
         _categories[catIdx].items.isNotEmpty) {
-      subIdx = _categories[catIdx].items
+      subIdx = _categories[catIdx]
+          .items
           .indexWhere((s) => s.key == selection.subKey);
     }
 
-    if (catIdx == _selectedCategoryIndex &&
-        subIdx == _selectedSubItemIndex) {
+    if (catIdx == _selectedCategoryIndex && subIdx == _selectedSubItemIndex) {
       return;
     }
 
     if (duringBuild) {
       _selectedCategoryIndex = catIdx;
       _selectedSubItemIndex = subIdx;
-      _subTabsParentIndex =
-          subIdx >= 0 ? catIdx : -1;
+      _subTabsParentIndex = subIdx >= 0 ? catIdx : -1;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });
@@ -417,8 +417,7 @@ class _HubScreenState extends State<HubScreen> {
       final cat = _categories[tab.parentCategoryIndex];
       setState(() {
         _selectedCategoryIndex = tab.parentCategoryIndex;
-        _selectedSubItemIndex =
-            cat.items.indexWhere((s) => s.key == tab.key);
+        _selectedSubItemIndex = cat.items.indexWhere((s) => s.key == tab.key);
         _subTabsParentIndex = tab.parentCategoryIndex;
       });
       if (cat.key != null) _pushHubUrl(cat.key!, tab.key);
@@ -514,9 +513,10 @@ class _HubScreenState extends State<HubScreen> {
   /// rely on [TabController].
   Widget _buildBackToTopRow() {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       color: scheme.surfaceContainerLow,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceMd, vertical: t.spaceXs),
       alignment: Alignment.centerLeft,
       child: TextButton.icon(
         icon: const Icon(LucideIcons.chevronLeft, size: 14),
@@ -779,11 +779,12 @@ class _HubTabStrip extends StatelessWidget {
   }
 
   Widget _buildDropdown(BuildContext context, ColorScheme scheme) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final activeTab = activeIndex >= 0 && activeIndex < tabs.length
         ? tabs[activeIndex]
         : tabs.first;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
       child: Center(
         child: PopupMenuButton<int>(
           initialValue: activeIndex,
@@ -792,7 +793,7 @@ class _HubTabStrip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(activeTab.icon, size: 18, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Text(
                 activeTab.label,
                 style: TextStyle(
@@ -801,10 +802,10 @@ class _HubTabStrip extends StatelessWidget {
                   color: scheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Icon(
                 LucideIcons.chevronDown,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.onSurfaceVariant,
               ),
             ],
@@ -817,7 +818,7 @@ class _HubTabStrip extends StatelessWidget {
                   children: [
                     Icon(
                       tabs[i].icon,
-                      size: 16,
+                      size: t.iconSizeSmall,
                       color: i == activeIndex
                           ? scheme.primary
                           : scheme.onSurfaceVariant,
@@ -861,11 +862,13 @@ class _HubTabStripEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final fg = active ? scheme.primary : scheme.onSurfaceVariant;
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -908,6 +911,7 @@ class _HubOverlayPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Material(
       color: Colors.transparent,
       // Wrap the page body in a fullscreen outside-tap detector so
@@ -925,11 +929,11 @@ class _HubOverlayPage extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(t.spaceXl),
                 child: BarrierDismissBoundary(
                   child: Material(
                     elevation: 12,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(t.radiusLg),
                     clipBehavior: Clip.antiAlias,
                     color: Theme.of(context).colorScheme.surface,
                     child: HubScreen(client: client, selection: selection),

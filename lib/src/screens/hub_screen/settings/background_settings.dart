@@ -23,6 +23,7 @@ import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background & Tray Settings
@@ -37,8 +38,9 @@ class HubBackgroundSettings extends StatelessWidget {
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
         final scheme = Theme.of(context).colorScheme;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -110,9 +112,9 @@ class HubBackgroundSettings extends StatelessWidget {
                 title: l10n.trayLeftClick,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceSm,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +123,7 @@ class HubBackgroundSettings extends StatelessWidget {
                           l10n.trayLeftClick,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: t.spaceSm),
                         Wrap(
                           spacing: 8,
                           children: [
@@ -132,7 +134,8 @@ class HubBackgroundSettings extends StatelessWidget {
                                 ),
                                 selected: action == controller.trayLeftClick,
                                 onSelected: controller.showTrayIcon
-                                    ? (_) => controller.updateTrayLeftClick(action)
+                                    ? (_) =>
+                                        controller.updateTrayLeftClick(action)
                                     : null,
                               ),
                           ],
