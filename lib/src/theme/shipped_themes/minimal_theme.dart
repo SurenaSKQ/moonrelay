@@ -14,15 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Barrel export for every shipped theme definition.
-//
-// Individual theme specs live in their own files so each look-and-feel can
-// be understood in isolation. The MoonrelayThemes registry in
-// lib/src/settings/theme_spec.dart imports this barrel to assemble its
-// master list.
-export 'material_theme.dart';
-export 'high_contrast_theme.dart';
-export 'compact_theme.dart';
-export 'arch_vista_theme.dart';
-export 'moonrelay_theme.dart';
-export 'minimal_theme.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
+
+/// Flat, borderless, no-elevation variant for users who want pure content
+/// with no surface chrome.
+///
+/// Square corners, zero surface elevation, thin dividers and borderless buttons
+/// give the interface a utility-panel feel. Pairs best with the neutral
+/// [MoonrelayAccents.charcoal] accent for a truly monochrome look.
+const MoonrelayThemeSpec minimalTheme = MoonrelayThemeSpec(
+  id: 'minimal',
+  label: 'Minimal',
+  description: 'Flat surfaces with no elevation or borders.',
+  cornerRadius: 0.0,
+  surfaceElevation: 0.0,
+  defaultBubbleRadius: 0.0,
+  widgetStyle: MoonrelayWidgetStyle.minimal,
+);
