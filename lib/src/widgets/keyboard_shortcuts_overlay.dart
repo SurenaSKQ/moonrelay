@@ -24,6 +24,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Show the keyboard shortcuts overlay as a modal bottom sheet.
 Future<void> showKeyboardShortcutsOverlay(BuildContext context) {
@@ -42,6 +43,7 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final shortcuts = <_ShortcutEntry>[
       _ShortcutEntry(
@@ -100,20 +102,20 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
             Row(
               children: [
                 Icon(LucideIcons.keyboard, size: 22, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Text(
                   loc.shortcutsTitle,
                   style: theme.textTheme.headlineSmall,
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               loc.shortcutsSubtitle,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 480),
               child: SingleChildScrollView(
@@ -147,7 +149,7 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
@@ -176,8 +178,9 @@ class _KeyCap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: 3),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(6),

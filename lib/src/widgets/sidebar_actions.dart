@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/command_palette.dart';
 
 /// Full-width command palette launcher row used by both sidebar
@@ -28,16 +29,17 @@ class SidebarCommandPaletteButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     return InkWell(
       onTap: () => showCommandPalette(context),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(t.radiusSm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: t.spaceSm),
         child: Row(
           children: [
             Icon(LucideIcons.command,
-                size: 16, color: scheme.onSurfaceVariant),
+                size: t.iconSizeSmall, color: scheme.onSurfaceVariant),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -50,7 +52,7 @@ class SidebarCommandPaletteButton extends StatelessWidget {
             Icon(
               LucideIcons.search,
               size: 14,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
             ),
           ],
         ),

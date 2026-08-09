@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/common/feedback.dart';
 
@@ -284,10 +285,12 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding:
+              EdgeInsets.fromLTRB(t.spaceMd, t.spaceSm, t.spaceMd, t.spaceXs),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -295,14 +298,15 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
               prefixIcon: const Icon(LucideIcons.search, size: 18),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(LucideIcons.x, size: 16),
+                      icon: Icon(LucideIcons.x, size: t.iconSizeSmall),
                       onPressed: () => _searchController.clear(),
                     )
                   : null,
               filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              fillColor:
+                  scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -312,7 +316,7 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
             ),
           ),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: t.spaceXxs),
         Expanded(
           child: _isLoading
               ? _buildLoading(scheme)
@@ -449,6 +453,7 @@ class SidebarMemberTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final membershipLabel = switch (member.membership) {
       Membership.ban => l10n.bannedBadge,
       Membership.invite => l10n.invitedBadge,
@@ -458,7 +463,7 @@ class SidebarMemberTile extends StatelessWidget {
     };
 
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(t.radiusSm),
       onTap: () => _showContextMenu(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
@@ -491,7 +496,7 @@ class SidebarMemberTile extends StatelessWidget {
                         ),
                       ),
                       if (permissionLabel != null) ...[
-                        const SizedBox(width: 4),
+                        SizedBox(width: t.spaceXs),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 4,
@@ -500,7 +505,7 @@ class SidebarMemberTile extends StatelessWidget {
                           decoration: BoxDecoration(
                             color:
                                 scheme.primaryContainer.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(t.radiusXs),
                           ),
                           child: Text(
                             permissionLabel!,
@@ -524,8 +529,9 @@ class SidebarMemberTile extends StatelessWidget {
                   vertical: 1,
                 ),
                 decoration: BoxDecoration(
-                  color: scheme.tertiaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(4),
+                  color:
+                      scheme.tertiaryContainer.withValues(alpha: t.opacitySubtle),
+                  borderRadius: BorderRadius.circular(t.radiusXs),
                 ),
                 child: Text(
                   membershipLabel,

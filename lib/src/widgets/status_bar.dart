@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A thin status bar that sits below the main dashboard content and reports
@@ -59,6 +60,7 @@ class _ApplicationStatusBarState extends State<ApplicationStatusBar> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     String statusLabel;
@@ -82,7 +84,7 @@ class _ApplicationStatusBarState extends State<ApplicationStatusBar> {
         color: scheme.surfaceContainerLow,
         border: Border(
           top: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.5),
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle),
             width: 0.5,
           ),
         ),

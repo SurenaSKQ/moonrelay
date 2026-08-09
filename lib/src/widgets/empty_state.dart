@@ -15,6 +15,7 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A centred, self-contained empty/error state for a content pane.
 ///
@@ -55,6 +56,7 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -64,9 +66,9 @@ class EmptyState extends StatelessWidget {
             Icon(
               icon,
               size: 40,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -74,7 +76,7 @@ class EmptyState extends StatelessWidget {
                   ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -86,7 +88,7 @@ class EmptyState extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: onAction,
-                icon: const Icon(Icons.arrow_back, size: 16),
+                icon: Icon(Icons.arrow_back, size: t.iconSizeSmall),
                 label: Text(actionLabel!),
               ),
             ],

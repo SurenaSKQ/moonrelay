@@ -23,6 +23,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
@@ -160,17 +161,19 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final Widget body = Column(
       children: [
         // Search bar
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: EdgeInsets.fromLTRB(
+              t.spaceLg, t.spaceSm, t.spaceLg, t.spaceXs),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
               hintText: l10n.searchUsers,
-              prefixIcon: const Icon(LucideIcons.search, size: 20),
+              prefixIcon: Icon(LucideIcons.search, size: t.iconSizeMedium),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(LucideIcons.x, size: 18),
@@ -181,9 +184,9 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
               fillColor: Theme.of(context)
                   .colorScheme
                   .surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+                  .withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -200,7 +203,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
           ),
         ),
 
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
 
         // Results area
         Expanded(child: _buildContent()),
@@ -226,6 +229,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
 
   Widget _buildContent() {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     // Loading state
@@ -235,7 +239,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(color: scheme.primary),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(l10n.searching,
                 style: TextStyle(color: scheme.onSurfaceVariant)),
           ],
@@ -247,18 +251,18 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
     if (_error != null && _results.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(t.spaceXxl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
               Text(
                 l10n.couldNotLoadMessages,
                 style: TextStyle(color: scheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
               FilledButton.tonalIcon(
                 onPressed: _searchUsers,
                 icon: const Icon(LucideIcons.refreshCw, size: 18),
@@ -279,9 +283,9 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
             Icon(
               LucideIcons.searchX,
               size: 48,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               l10n.noUsersFound,
               style: TextStyle(color: scheme.onSurfaceVariant),
@@ -302,7 +306,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
               size: 48,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               l10n.searchUsersHint,
               style: TextStyle(color: scheme.onSurfaceVariant),
@@ -315,7 +319,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
     // Results list
     final client = context.read<Client>();
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceMd),
       itemCount: _results.length,
       itemBuilder: (context, index) {
         final user = _results[index];
@@ -323,15 +327,15 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
         final displayName = user.displayName ?? user.userId;
 
         return Card(
-          elevation: 0,
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          elevation: t.elevationNone,
+          margin: EdgeInsets.symmetric(vertical: t.spaceXs),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             side:
-                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                BorderSide(color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(t.spaceMd),
             child: Row(
               children: [
                 // User avatar
@@ -340,7 +344,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
                   avatarUri: user.avatarUrl,
                   radius: 24,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
 
                 // User info
                 Expanded(
@@ -357,7 +361,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: EdgeInsets.only(top: t.spaceXxs),
                         child: Text(
                           user.userId,
                           style: TextStyle(
@@ -374,7 +378,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
                 ),
 
                 // Start DM button
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 if (isStarting)
                   SizedBox(
                     width: 20,

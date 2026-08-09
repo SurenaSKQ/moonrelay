@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
@@ -356,6 +357,7 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     AppLocalizations l10n,
   ) {
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(ctx).tokens;
     final hover = _dragHoverId == gid;
     return _SDT(
       id: gid,
@@ -388,8 +390,8 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
         padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
         child: Container(
           decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(10),
+            color: scheme.primaryContainer.withValues(alpha: t.opacityFocus),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: 0.25)),
           ),
@@ -550,17 +552,19 @@ class _NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return InkWell(
       onTap: onTap,
       child: Container(
         color:
             selected ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+            horizontal: t.spaceMd, vertical: t.spaceSm),
         child: Row(
           children: [
             Icon(
               icon,
-              size: 16,
+              size: t.iconSizeSmall,
               color: selected ? scheme.primary : scheme.onSurfaceVariant,
             ),
             const SizedBox(width: 10),
@@ -651,10 +655,12 @@ class _GroupRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final row = InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+            horizontal: t.spaceMd, vertical: t.spaceSm),
         child: Row(
           children: [
             Icon(LucideIcons.folder, size: 18, color: scheme.primary),
@@ -671,8 +677,8 @@ class _GroupRow extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(8),
+                  color: scheme.outlineVariant.withValues(alpha: t.opacityDisabled),
+                  borderRadius: BorderRadius.circular(t.radiusSm),
                 ),
                 child: Text(
                   '$count',
@@ -719,14 +725,15 @@ class _RowShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(t.radiusSm),
       child: Container(
         decoration: BoxDecoration(
           color:
               selected ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: child,
@@ -755,12 +762,13 @@ class _SpaceAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = theme.colorScheme;
+    final t = theme.moonrelay.tokens;
     final uri = space.avatar;
     final label = space.getLocalizedDisplayname();
     if (uri == null) {
       return CircleAvatar(
         radius: 14,
-        backgroundColor: scheme.onSurfaceVariant.withValues(alpha: 0.1),
+        backgroundColor: scheme.onSurfaceVariant.withValues(alpha: t.opacityFocus),
         child: Text(
           _initials(label),
           style: TextStyle(
@@ -788,7 +796,7 @@ class _SpaceAvatar extends StatelessWidget {
             )
           : CircleAvatar(
               radius: 14,
-              backgroundColor: scheme.onSurfaceVariant.withValues(alpha: 0.1),
+              backgroundColor: scheme.onSurfaceVariant.withValues(alpha: t.opacityFocus),
               child: Text(
                 _initials(label),
                 style: TextStyle(
@@ -849,17 +857,18 @@ class _SDT extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return DragTarget<String>(
       onWillAcceptWithDetails: (d) => onEnter(d.data),
       onLeave: (_) => onLeave(),
       onAcceptWithDetails: (d) => onDrop(d.data),
       builder: (context, _, __) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: t.durationFast,
         decoration: hover
             ? BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 border: Border.all(color: scheme.primary, width: 2.5),
-                color: scheme.primary.withValues(alpha: 0.12),
+                color: scheme.primary.withValues(alpha: t.opacityFocus),
               )
             : null,
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
@@ -877,10 +886,12 @@ class _DFeedback extends StatelessWidget {
   final Uri? uri;
 
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    return Material(
         color: Colors.transparent,
         child: Card(
-          elevation: 4,
+          elevation: t.elevationHigh,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
@@ -900,13 +911,14 @@ class _DFeedback extends StatelessWidget {
                   )
                 else
                   const Icon(LucideIcons.folder, size: 22),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 Text(label),
               ],
             ),
           ),
         ),
       );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1045,6 +1057,9 @@ class _Row extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) =>
-      Row(children: [Icon(icon, size: 18), const SizedBox(width: 12), Text(label)]);
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    return Row(
+        children: [Icon(icon, size: 18), SizedBox(width: t.spaceMd), Text(label)]);
+  }
 }

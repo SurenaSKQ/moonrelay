@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 /// A logical category of search results.
@@ -370,6 +371,7 @@ class SearchRoomTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = room.getLocalizedDisplayname();
     final alias = room.canonicalAlias;
     return ListTile(
@@ -397,8 +399,8 @@ class SearchRoomTile extends StatelessWidget {
           : null,
       trailing: Icon(
         room.isSpace ? LucideIcons.layers : LucideIcons.hash,
-        size: 16,
-        color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+        size: t.iconSizeSmall,
+        color: scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
       ),
       dense: true,
       onTap: onTap,
@@ -456,6 +458,7 @@ class SearchHomeserverTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final name = room.name ?? room.canonicalAlias ?? room.roomId;
     final alias = room.canonicalAlias;
     final memberCount = room.numJoinedMembers;
@@ -469,7 +472,7 @@ class SearchHomeserverTile extends StatelessWidget {
         ),
         child: Icon(
           LucideIcons.globe,
-          size: 16,
+          size: t.iconSizeSmall,
           color: scheme.onSurfaceVariant,
         ),
       ),
@@ -493,14 +496,14 @@ class SearchHomeserverTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
           ],
           Icon(
             LucideIcons.users,
             size: 12,
             color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
-          const SizedBox(width: 2),
+          SizedBox(width: t.spaceXxs),
           Text(
             '$memberCount',
             style: TextStyle(
@@ -525,6 +528,7 @@ class SearchUserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = user.displayName ?? user.userId;
     return ListTile(
       leading: CircleAvatar(
@@ -536,7 +540,7 @@ class SearchUserTile extends StatelessWidget {
         child: user.avatarUrl == null
             ? Icon(
                 LucideIcons.user,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.onPrimaryContainer,
               )
             : null,
@@ -559,7 +563,7 @@ class SearchUserTile extends StatelessWidget {
       trailing: Icon(
         LucideIcons.externalLink,
         size: 14,
-        color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+        color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
       ),
       dense: true,
       onTap: onTap,
@@ -578,12 +582,13 @@ class SearchSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 8),
+          Icon(icon, size: t.iconSizeSmall, color: scheme.onSurfaceVariant),
+          SizedBox(width: t.spaceSm),
           Text(
             title,
             style: TextStyle(

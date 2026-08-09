@@ -20,6 +20,7 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/sync_status_pill.dart';
 
 /// User profile pill shown at the top of the navigation sidebar.
@@ -62,6 +63,7 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = _profile?.displayName ??
         Provider.of<Client>(context, listen: false).userID ??
         '';
@@ -72,10 +74,10 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
         selection: const HubCategorySelection(categoryKey: 'profile'),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: t.spaceSm),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
+          color: scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+          borderRadius: BorderRadius.circular(t.radiusMd),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -98,7 +100,7 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: t.spaceXxs),
                     const SyncStatusPill(),
                   ],
                 ),

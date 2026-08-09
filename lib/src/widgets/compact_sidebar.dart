@@ -21,6 +21,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
@@ -248,6 +249,7 @@ class _NavIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return IconButton(
       icon: Icon(
         icon,
@@ -259,7 +261,7 @@ class _NavIconButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       style: IconButton.styleFrom(
         backgroundColor:
-            selected ? scheme.primaryContainer.withValues(alpha: 0.5) : null,
+            selected ? scheme.primaryContainer.withValues(alpha: t.opacitySubtle) : null,
       ),
     );
   }
@@ -273,6 +275,7 @@ class _CompactRoomTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = room.getLocalizedDisplayname();
     final subtitle = room.lastEvent?.body;
     final unread = room.notificationCount;
@@ -303,7 +306,7 @@ class _CompactRoomTile extends StatelessWidget {
                 avatarUri: room.avatar,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,7 +342,7 @@ class _CompactRoomTile extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: scheme.error,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
                 child: Text(
                   unread.toString(),
