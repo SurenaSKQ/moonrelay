@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A small icon that indicates the encryption state of a room (encrypted or
 /// not, trust level redacted).
@@ -148,22 +149,23 @@ class DecryptionFailedWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(t.spaceMd),
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: scheme.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(t.radiusSm),
         border: Border.all(
           color: scheme.error.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.lock, color: scheme.error, size: 20),
-          const SizedBox(width: 12),
+          Icon(LucideIcons.lock, color: scheme.error, size: t.iconSizeMedium),
+          SizedBox(width: t.spaceMd),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +206,7 @@ class DecryptionFailedWidget extends StatelessWidget {
                 customBorder: const CircleBorder(),
                 onTap: () => _requestMissingKeys(context, event),
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(t.spaceSm),
                   child: Icon(LucideIcons.refreshCw, color: scheme.error),
                 ),
               ),
