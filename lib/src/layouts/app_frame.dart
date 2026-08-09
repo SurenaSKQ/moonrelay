@@ -26,6 +26,7 @@ import 'package:moonrelay/src/helpers/window_chrome.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// Main application frame shown after authentication.
@@ -88,6 +89,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final bool showButtons = isDesktop;
 
     return PreferredSize(
@@ -129,7 +131,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
               if (showButtons)
                 const WindowButtons()
               else
-                const SizedBox(width: 4),
+                SizedBox(width: t.spaceXs),
             ],
           ),
         ),
@@ -280,10 +282,11 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Row(
       children: <Widget>[
         Icon(icon, size: 18),
-        const SizedBox(width: 12),
+        SizedBox(width: t.spaceMd),
         Text(label),
       ],
     );

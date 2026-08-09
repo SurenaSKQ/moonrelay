@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -88,6 +89,7 @@ class _MobileTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final inRoom = MobileLayout.isRoomRoute(context);
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Container(
       height: kToolbarHeight,
@@ -95,7 +97,9 @@ class _MobileTopBar extends StatelessWidget {
         color: theme.colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: theme.colorScheme.outlineVariant.withValues(
+              alpha: t.opacityDisabled,
+            ),
           ),
         ),
       ),
@@ -114,7 +118,7 @@ class _MobileTopBar extends StatelessWidget {
               },
             )
           else
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
           Expanded(
             child: Text(
               inRoom ? '' : l10n.appTitle,
