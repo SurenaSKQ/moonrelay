@@ -27,6 +27,7 @@ import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -69,6 +70,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final l10n = AppLocalizations.of(context)!;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -79,237 +81,239 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
               child: Card(
-                elevation: 2,
+                elevation: t.elevationMedium,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Row(
+                  borderRadius: BorderRadius.circular(t.radiusLg),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.arrowLeft),
-                        onPressed: () => context.pop(),
-                        tooltip: l10n.back,
+                      // Header
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(LucideIcons.arrowLeft),
+                            onPressed: () => context.pop(),
+                            tooltip: l10n.back,
+                          ),
+                          SizedBox(width: t.spaceSm),
+                          Text(
+                            l10n.registerTitle,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: colors.onSurface,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.registerTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: colors.onSurface,
+                      SizedBox(height: t.spaceXl),
+
+                      // Error banner
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Container(
+                            padding: EdgeInsets.all(t.spaceMd),
+                            decoration: BoxDecoration(
+                              color: colors.errorContainer,
+                              borderRadius: BorderRadius.circular(t.radiusSm),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(LucideIcons.alertCircle,
+                                    size: 18, color: colors.error),
+                                SizedBox(width: t.spaceSm),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      color: colors.onErrorContainer,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // ── Homeserver field ──
+                      _buildLabel(colors, l10n.homeserverText),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _homeserverCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'matrix.org',
+                          prefixIcon: const Icon(LucideIcons.server, size: 18),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        enabled: !_loading,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── Username field ──
+                      _buildLabel(colors, l10n.usernameText),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _usernameCtrl,
+                        decoration: InputDecoration(
+                          hintText: l10n.usernameHint,
+                          prefixIcon: const Icon(LucideIcons.user, size: 18),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          errorText: _usernameError,
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        enabled: !_loading,
+                        onChanged: (_) {
+                          if (_usernameError != null) {
+                            setState(() => _usernameError = null);
+                          }
+                        },
+                      ),
+                      SizedBox(height: t.spaceLg),
+
+                      // ── Password field ──
+                      _buildLabel(colors, l10n.passwordText),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _passwordCtrl,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          prefixIcon: const Icon(LucideIcons.lock, size: 18),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? LucideIcons.eyeOff
+                                  : LucideIcons.eye,
+                              size: 18,
+                            ),
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        enabled: !_loading,
+                      ),
+                      SizedBox(height: t.spaceLg),
+
+                      // ── Confirm Password field ──
+                      _buildLabel(colors, l10n.confirmPasswordLabel),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _confirmPasswordCtrl,
+                        obscureText: _obscureConfirm,
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          prefixIcon: const Icon(LucideIcons.lock, size: 18),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirm
+                                  ? LucideIcons.eyeOff
+                                  : LucideIcons.eye,
+                              size: 18,
+                            ),
+                            onPressed: () => setState(
+                                () => _obscureConfirm = !_obscureConfirm),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        enabled: !_loading,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── Terms of service checkbox ──
+                      CheckboxListTile(
+                        value: _agreeToTerms,
+                        onChanged: !_loading
+                            ? (v) => setState(() => _agreeToTerms = v ?? false)
+                            : null,
+                        title: Text(
+                          l10n.agreeToTerms,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── Register button ──
+                      FilledButton.icon(
+                        onPressed: _loading ? null : _doRegister,
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(LucideIcons.userPlus, size: 18),
+                        label: Text(_loading
+                            ? l10n.creatingAccount
+                            : l10n.createAccount),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(t.radiusMd),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: t.spaceMd),
+                      Align(
+                        alignment: Alignment.center,
+                        child: TextButton(
+                          onPressed: _loading
+                              ? null
+                              : () => context.push('/welcome/login'),
+                          child: Text(
+                            l10n.alreadyHaveAccount,
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Error banner
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: colors.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.alertCircle,
-                                size: 18, color: colors.error),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: TextStyle(
-                                  color: colors.onErrorContainer,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // ── Homeserver field ──
-                  _buildLabel(colors, l10n.homeserverText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _homeserverCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'matrix.org',
-                      prefixIcon: const Icon(LucideIcons.server, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Username field ──
-                  _buildLabel(colors, l10n.usernameText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _usernameCtrl,
-                    decoration: InputDecoration(
-                      hintText: l10n.usernameHint,
-                      prefixIcon: const Icon(LucideIcons.user, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      errorText: _usernameError,
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                    onChanged: (_) {
-                      if (_usernameError != null) {
-                        setState(() => _usernameError = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Password field ──
-                  _buildLabel(colors, l10n.passwordText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? LucideIcons.eyeOff
-                              : LucideIcons.eye,
-                          size: 18,
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Confirm Password field ──
-                  _buildLabel(colors, l10n.confirmPasswordLabel),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _confirmPasswordCtrl,
-                    obscureText: _obscureConfirm,
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirm
-                              ? LucideIcons.eyeOff
-                              : LucideIcons.eye,
-                          size: 18,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Terms of service checkbox ──
-                  CheckboxListTile(
-                    value: _agreeToTerms,
-                    onChanged: !_loading
-                        ? (v) => setState(() => _agreeToTerms = v ?? false)
-                        : null,
-                    title: Text(
-                      l10n.agreeToTerms,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Register button ──
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _doRegister,
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(LucideIcons.userPlus, size: 18),
-                    label: Text(
-                        _loading ? l10n.creatingAccount : l10n.createAccount),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.center,
-                    child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => context.push('/welcome/login'),
-                      child: Text(
-                        l10n.alreadyHaveAccount,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      ),
       ),
     );
   }
