@@ -23,6 +23,7 @@ import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/sidebar_members_list.dart';
 import 'package:moonrelay/src/widgets/sidebar_pinned_messages.dart';
 
@@ -43,6 +44,7 @@ class RightSidebarContent extends StatelessWidget {
     final room = context.watch<CurrentRoom>().room;
     if (room == null) {
       final scheme = Theme.of(context).colorScheme;
+      final t = MoonrelayThemeExtension.of(context).tokens;
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -50,9 +52,11 @@ class RightSidebarContent extends StatelessWidget {
             Icon(
               LucideIcons.arrowRightFromLine,
               size: 40,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: scheme.onSurfaceVariant.withValues(
+                alpha: t.opacityDisabled,
+              ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               AppLocalizations.of(context)!.selectCategory,
               style: TextStyle(color: scheme.onSurfaceVariant),
@@ -120,10 +124,14 @@ class RightSidebarHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Container(
       color: scheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceSm,
+        vertical: t.spaceXs,
+      ),
       child: Row(
         children: [
           // Selected view icon
@@ -135,7 +143,7 @@ class RightSidebarHeader extends StatelessWidget {
               RightPaneChoice.pinned => Icons.push_pin_outlined,
               RightPaneChoice.none => LucideIcons.panelRight,
             },
-            size: 16,
+            size: t.iconSizeSmall,
             color: scheme.onSurfaceVariant,
           ),
           const SizedBox(width: 6),
