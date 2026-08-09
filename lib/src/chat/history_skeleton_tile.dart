@@ -16,6 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Single skeleton message tile used to fill the viewport while older
 /// history is being paginated in.
@@ -73,16 +75,18 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final base = scheme.surfaceContainerHighest;
     final width = MediaQuery.of(context).size.width;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+          horizontal: t.spaceSm, vertical: t.spaceXs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: EdgeInsets.only(top: t.spaceXs),
             child: _pulse(
                 child: Container(
               width: 48,
@@ -93,7 +97,7 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
               ),
             )),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,6 +107,7 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
                   width: width * 0.32,
                   height: 13,
                   color: base,
+                  t: t,
                 )),
                 const SizedBox(height: 6),
                 _pulse(
@@ -110,13 +115,15 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
                   width: double.infinity,
                   height: 12,
                   color: base,
+                  t: t,
                 )),
-                const SizedBox(height: 4),
+                SizedBox(height: t.spaceXs),
                 _pulse(
                     child: _skeletonBar(
                   width: width * widget.barFraction,
                   height: 12,
                   color: base,
+                  t: t,
                 )),
               ],
             ),
@@ -137,13 +144,14 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
     required double width,
     required double height,
     required Color color,
+    required MoonrelayDesignTokens t,
   }) {
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(t.radiusXs),
       ),
     );
   }
