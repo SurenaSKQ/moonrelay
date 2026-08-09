@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Common emojis shown in the quick-reaction popup.
 const List<String> kQuickReactionEmojis = [
@@ -66,6 +67,7 @@ class ReactionEmojiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return SizedBox(
       width: 200,
       child: Wrap(
@@ -73,13 +75,13 @@ class ReactionEmojiGrid extends StatelessWidget {
         runSpacing: 4,
         children: kQuickReactionEmojis.map((emoji) {
           return InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             onTap: () {
               onSelected(emoji);
               Navigator.of(context).pop();
             },
             child: Padding(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(t.spaceXs),
               child: Text(emoji, style: const TextStyle(fontSize: 22)),
             ),
           );
@@ -113,6 +115,7 @@ class ReactionsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final reactions =
         event.aggregatedEvents(timeline, RelationshipTypes.reaction);
 
@@ -130,7 +133,7 @@ class ReactionsBar extends StatelessWidget {
     final currentUserId = room.client.userID;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: t.spaceXs),
       child: Wrap(
         spacing: 4,
         runSpacing: 2,
@@ -227,16 +230,17 @@ class _ReactionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Material(
       color: isOwn
-          ? cs.primary.withValues(alpha: 0.15)
+          ? cs.primary.withValues(alpha: t.opacityFocus)
           : cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: t.spaceXxs),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -272,14 +276,15 @@ class _AddReactionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Material(
       color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: () => showReactionPicker(context, onSelected: onSelected),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: t.spaceXxs),
           child: Icon(
             Icons.add,
             size: 14,

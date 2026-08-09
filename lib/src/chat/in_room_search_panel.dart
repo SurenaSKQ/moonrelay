@@ -21,6 +21,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A panel for searching messages inside a single room.
 ///
@@ -303,6 +305,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     // Adapt to layout size: on compact screens the panel becomes a
     // full-width drawer instead of a fixed 320px column.
@@ -328,30 +331,35 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       child: Column(
         children: [
           // -- Header ----------------------------------------------
-          _buildHeader(scheme, l10n),
+          _buildHeader(scheme, l10n, t),
 
           // -- Keyword chips ---------------------------------------
-          if (_keywords.isNotEmpty) _buildKeywordChips(scheme),
+          if (_keywords.isNotEmpty) _buildKeywordChips(scheme, t),
 
           // -- Type filter chips -----------------------------------
-          _buildTypeFilters(scheme, l10n),
+          _buildTypeFilters(scheme, l10n, t),
 
           // -- Sender filter ---------------------------------------
-          _buildSenderFilter(scheme, l10n),
+          _buildSenderFilter(scheme, l10n, t),
 
           // -- Results ---------------------------------------------
-          Expanded(child: _buildResults(scheme, l10n)),
+          Expanded(child: _buildResults(scheme, l10n, t)),
 
           // -- Load more -------------------------------------------
-          if (_nextBatch != null) _buildLoadMore(scheme, l10n),
+          if (_nextBatch != null) _buildLoadMore(scheme, l10n, t),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildHeader(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+  ) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
+      padding: EdgeInsets.fromLTRB(
+          t.spaceMd, t.spaceSm, t.spaceXs, t.spaceXs),
       decoration: BoxDecoration(
         border: Border(
           bottom:
@@ -365,7 +373,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
             children: [
               Icon(LucideIcons.search,
                   size: 18, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Text(
                 l10n.inRoomSearch,
                 style: TextStyle(
@@ -383,13 +391,13 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           TextField(
             controller: _searchController,
             focusNode: _searchFocus,
             decoration: InputDecoration(
               hintText: l10n.inRoomSearchHint,
-              prefixIcon: Icon(LucideIcons.search, size: 16),
+              prefixIcon: Icon(LucideIcons.search, size: t.iconSizeSmall),
               suffixIcon: _keywords.isNotEmpty
                   ? IconButton(
                       icon: const Icon(LucideIcons.x, size: 14),
@@ -401,12 +409,12 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
               filled: true,
               fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: t.spaceMd,
+                vertical: t.spaceSm,
               ),
             ),
             textInputAction: TextInputAction.search,
@@ -423,18 +431,19 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
 
   /// Shows the individual parsed keywords as chips so the user can see
   /// how their query was split (AND logic, quoted phrases stay together).
-  Widget _buildKeywordChips(ColorScheme scheme) {
+  Widget _buildKeywordChips(ColorScheme scheme, MoonrelayDesignTokens t) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+      padding: EdgeInsets.fromLTRB(t.spaceMd, 6, t.spaceMd, t.spaceXxs),
       child: Wrap(
         spacing: 4,
         runSpacing: 2,
         children: _keywords.map((kw) {
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: EdgeInsets.symmetric(
+                horizontal: t.spaceSm, vertical: t.spaceXxs),
             decoration: BoxDecoration(
               color: scheme.primaryContainer.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusMd),
             ),
             child: Text(
               kw,
@@ -450,7 +459,11 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     );
   }
 
-  Widget _buildTypeFilters(ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildTypeFilters(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+  ) {
     final labels = [
       l10n.inRoomSearchAll,
       l10n.inRoomSearchText,
@@ -461,7 +474,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: EdgeInsets.fromLTRB(
+          t.spaceMd, t.spaceSm, t.spaceMd, t.spaceXs),
       child: Wrap(
         spacing: 6,
         runSpacing: 4,
@@ -489,14 +503,19 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     );
   }
 
-  Widget _buildSenderFilter(ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildSenderFilter(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+  ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      padding: EdgeInsets.fromLTRB(
+          t.spaceMd, t.spaceXs, t.spaceMd, t.spaceSm),
       child: TextField(
         controller: _senderController,
         decoration: InputDecoration(
           hintText: l10n.inRoomSearchByUser,
-          prefixIcon: Icon(LucideIcons.user, size: 16),
+          prefixIcon: Icon(LucideIcons.user, size: t.iconSizeSmall),
           suffixIcon: _senderFilter.isNotEmpty
               ? IconButton(
                   icon: const Icon(LucideIcons.x, size: 14),
@@ -508,12 +527,12 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
           filled: true,
           fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: t.spaceMd,
+            vertical: t.spaceSm,
           ),
         ),
         textInputAction: TextInputAction.search,
@@ -521,7 +540,11 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     );
   }
 
-  Widget _buildResults(ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildResults(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+  ) {
     if (_isSearching) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -534,9 +557,9 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
             Icon(
               LucideIcons.searchX,
               size: 40,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               _keywords.isEmpty && _senderFilter.isEmpty
                   ? l10n.inRoomSearchHint
@@ -556,7 +579,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.symmetric(
+              horizontal: t.spaceMd, vertical: t.spaceXs),
           child: Text(
             l10n.inRoomSearchResults(_results.length),
             style: TextStyle(
@@ -568,7 +592,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
             itemCount: _results.length,
             separatorBuilder: (_, __) => Divider(
                 height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
@@ -585,9 +609,13 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     );
   }
 
-  Widget _buildLoadMore(ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildLoadMore(
+    ColorScheme scheme,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(t.spaceSm),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
@@ -598,7 +626,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(LucideIcons.chevronDown, size: 16),
+              : Icon(LucideIcons.chevronDown, size: t.iconSizeSmall),
           label: Text(
             _isLoadingMore ? l10n.searching : l10n.loadMore,
             style: const TextStyle(fontSize: 12),
@@ -637,6 +665,7 @@ class _InRoomResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final sender = event.senderFromMemoryOrFallback;
     final senderName = sender.displayName ?? sender.id;
     final body = event.body;
@@ -653,21 +682,21 @@ class _InRoomResultTile extends StatelessWidget {
     return InkWell(
       onTap: () => onJumpToEvent?.call(event.eventId),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: t.spaceXs, vertical: 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Type icon
             Container(
-              margin: const EdgeInsets.only(top: 2),
-              padding: const EdgeInsets.all(4),
+              margin: EdgeInsets.only(top: t.spaceXxs),
+              padding: EdgeInsets.all(t.spaceXs),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(typeIcon, size: 14, color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
 
             // Content
             Expanded(
@@ -695,7 +724,7 @@ class _InRoomResultTile extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: t.spaceXxs),
                   // Message body with keyword highlights
                   _HighlightedText(
                     text: body.isNotEmpty ? body : '(no content)',
@@ -737,6 +766,7 @@ class _MatchCountChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final count = _countMatches();
     if (count == 0) return const SizedBox.shrink();
@@ -744,7 +774,7 @@ class _MatchCountChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Text(
         count == 1

@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Banner shown at the bottom of the timeline when one or more messages
 /// can't be decrypted (no session key, device not verified, etc.).
@@ -37,6 +38,7 @@ class UndecryptableBanner extends StatelessWidget {
     if (notifier == null) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     return ValueListenableBuilder<int>(
@@ -44,12 +46,13 @@ class UndecryptableBanner extends StatelessWidget {
       builder: (context, count, _) {
         if (count <= 0) return const SizedBox.shrink();
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: EdgeInsets.symmetric(
+              horizontal: t.spaceMd, vertical: t.spaceSm),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(t.spaceMd),
             decoration: BoxDecoration(
-              color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(10),
+              color: scheme.tertiaryContainer.withValues(alpha: t.opacityDisabled),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               border: Border.all(
                 color: scheme.tertiary.withValues(alpha: 0.3),
               ),
@@ -62,7 +65,7 @@ class UndecryptableBanner extends StatelessWidget {
                   color: scheme.tertiary,
                   size: 22,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +79,7 @@ class UndecryptableBanner extends StatelessWidget {
                           color: scheme.onTertiaryContainer,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: t.spaceXs),
                       Text(
                         count == 1
                             ? '$count ${l10n.encryptionUndecryptableMessage}'
