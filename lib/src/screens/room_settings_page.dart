@@ -29,6 +29,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/room_notification_sheet.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A room settings page that provides full administration: viewing technical
@@ -424,6 +425,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
 
@@ -462,7 +464,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
           // ── Room identity card ────────────────────────────────────────
           _RoomIdentityCard(
@@ -472,11 +475,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             scheme: scheme,
             textTheme: textTheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Technical details ──────────────────────────────────────────
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           _DetailRow(
             icon: LucideIcons.hash,
             label: l10n.roomIdLabel,
@@ -502,13 +505,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             scheme: scheme,
           ),
           _DetailRow(
-            icon: isEncrypted
-                ? LucideIcons.shieldCheck
-                : LucideIcons.shieldOff,
+            icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
-            value: isEncrypted
-                ? l10n.endToEndEncrypted
-                : l10n.notEncrypted,
+            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
           _DetailRow(
@@ -523,14 +522,14 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             value: '$totalMembers',
             scheme: scheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Room editing (permission-gated) ──────────────────────────
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
             _SectionHeader(title: l10n.actionsSection, scheme: scheme),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             if (_canChange('m.room.name'))
               _ActionTile(
                 icon: LucideIcons.pencil,
@@ -555,7 +554,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 onTap: _changeRoomAvatar,
                 scheme: scheme,
               ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
           ],
 
           // ── Room permissions & state (permission-gated) ──────────────
@@ -566,7 +565,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               _canChange('m.room.power_levels') ||
               _canChange('m.room.encryption')) ...[
             _SectionHeader(title: l10n.actionsSection, scheme: scheme),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             if (_canChange('m.room.join_rules'))
               _ActionTile(
                 icon: LucideIcons.logIn,
@@ -615,12 +614,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 onTap: () => _enableEncryption(context),
                 scheme: scheme,
               ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
           ],
 
           // ── Room list visibility ─────────────────────────────────────
-          _SectionHeader(title: l10n.directoryVisibilitySection, scheme: scheme),
-          const SizedBox(height: 4),
+          _SectionHeader(
+              title: l10n.directoryVisibilitySection, scheme: scheme),
+          SizedBox(height: t.spaceXs),
           _ActionTile(
             icon: LucideIcons.globe,
             label: l10n.directoryVisibilitySection,
@@ -630,11 +630,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             onTap: () => _editDirectoryVisibility(context),
             scheme: scheme,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // ── Room version + upgrade flow ──────────────────────────────
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           _DetailRow(
             icon: LucideIcons.server,
             label: l10n.roomVersion,
@@ -649,7 +649,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               onTap: () => _upgradeRoom(context),
               scheme: scheme,
             ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // ── Knock requests (only when joinRule allows knock) ─────────
           if (room.joinRules == JoinRules.knock ||
@@ -658,9 +658,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
           // ─── Notification settings ──────────────────────────────────
           _SectionHeader(title: l10n.notificationSettings, scheme: scheme),
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           _RoomNotificationTile(room: room),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // ── Danger zone ────────────────────────────────────────────────
           if (_isAdmin || room.membership == Membership.leave)
@@ -669,7 +669,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               scheme: scheme,
             ),
           if (room.membership == Membership.join) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             _ActionTile(
               icon: LucideIcons.logOut,
               label: l10n.leaveRoom,
@@ -680,7 +680,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ),
           ],
           if (_isAdmin) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             _ActionTile(
               icon: LucideIcons.trash2,
               label: l10n.deleteRoom,
@@ -691,7 +691,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ),
           ],
           if (room.membership == Membership.leave) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             _ActionTile(
               icon: LucideIcons.eyeOff,
               label: l10n.forgetRoom,
@@ -700,7 +700,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               scheme: scheme,
             ),
           ],
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
         ],
       ),
     );
@@ -712,7 +712,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   String _historyVisibilityLabel(BuildContext context, Room room) {
     final l10n = AppLocalizations.of(context)!;
-    final vis = room.getState('m.room.history_visibility')
+    final vis = room
+        .getState('m.room.history_visibility')
         ?.content['history_visibility'];
     switch (vis) {
       case 'world_readable':
@@ -745,11 +746,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final log = context.read<Logger>();
     try {
       await context.read<Client>().setRoomStateWithKey(
-            widget.room.id,
-            type,
-            stateKey,
-            <String, dynamic>{key: value},
-          );
+        widget.room.id,
+        type,
+        stateKey,
+        <String, dynamic>{key: value},
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.done)),
@@ -758,7 +759,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       log.w('Failed to update $type', error: e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
       );
     }
   }
@@ -822,7 +824,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       'invited': l10n.historyVisibilityInvited,
       'joined': l10n.historyVisibilityJoined,
     };
-    final current = widget.room.getState('m.room.history_visibility')
+    final current = widget.room
+            .getState('m.room.history_visibility')
             ?.content['history_visibility'] as String? ??
         'shared';
     final selected = await showDialog<String>(
@@ -860,8 +863,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     // Capture the client before any await so we can use it after the
     // gap without tripping the `use_build_context_synchronously` lint.
     final client = context.read<Client>();
-    final controller =
-        TextEditingController(text: widget.room.canonicalAlias);
+    final controller = TextEditingController(text: widget.room.canonicalAlias);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -877,8 +879,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             child: Text(l10n.cancel),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(controller.text.trim()),
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
             child: Text(l10n.ok),
           ),
         ],
@@ -887,13 +888,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     if (result == null || !mounted) return;
     try {
       await client.setRoomStateWithKey(
-            widget.room.id,
-            'm.room.canonical_alias',
-            '',
-            <String, dynamic>{
-              'alias': result.isEmpty ? null : result,
-            },
-          );
+        widget.room.id,
+        'm.room.canonical_alias',
+        '',
+        <String, dynamic>{
+          'alias': result.isEmpty ? null : result,
+        },
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -904,7 +905,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _editGuestAccess(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final current = widget.room.getState('m.room.guest_access')
+    final current = widget.room
+            .getState('m.room.guest_access')
             ?.content['guest_access'] as String? ??
         'forbidden';
     final selected = await showDialog<String>(
@@ -972,14 +974,16 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
-            Widget slider(String label, int current, void Function(int) onChanged) {
+            Widget slider(
+                String label, int current, void Function(int) onChanged) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Expanded(
-                        child: Text(label, style: const TextStyle(fontSize: 13)),
+                        child:
+                            Text(label, style: const TextStyle(fontSize: 13)),
                       ),
                       Text('$current',
                           style: const TextStyle(
@@ -1062,11 +1066,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
     try {
       await client.setRoomStateWithKey(
-            widget.room.id,
-            'm.room.power_levels',
-            '',
-            newState,
-          );
+        widget.room.id,
+        'm.room.power_levels',
+        '',
+        newState,
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1102,11 +1106,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     if (confirmed != true || !mounted) return;
     try {
       await client.setRoomStateWithKey(
-            widget.room.id,
-            'm.room.encryption',
-            '',
-            <String, dynamic>{'algorithm': 'm.megolm.v1.aes-sha2'},
-          );
+        widget.room.id,
+        'm.room.encryption',
+        '',
+        <String, dynamic>{'algorithm': 'm.megolm.v1.aes-sha2'},
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1119,7 +1123,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final l10n = AppLocalizations.of(context)!;
     final room = widget.room;
     final client = context.read<Client>();
-    // The matrix SDK doesn't expose the current visibility directly 
+    // The matrix SDK doesn't expose the current visibility directly
     // we read the `m.room.visibility` state, fall back to `private` for
     // joined rooms that the server hasn't yet published a state for.
     final current = room
@@ -1159,15 +1163,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       // The directory visibility lives on the API rather than as a state
       // event; we hit `_matrix/client/v3/directory/list/room/{id}` via the
       // generated MatrixApi.
-      final vis = selected == 'public'
-          ? 'public'
-          : 'private';
+      final vis = selected == 'public' ? 'public' : 'private';
       // Use the MatrixApi helper inherited by Client.
       await client.setRoomVisibilityOnDirectory(
         room.id,
-        visibility: vis == 'public'
-            ? Visibility.public
-            : Visibility.private,
+        visibility: vis == 'public' ? Visibility.public : Visibility.private,
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -1232,23 +1232,23 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       // would normally point at a freshly-created successor; we leave it
       // empty so the user can decide the follow-up.
       await client.setRoomStateWithKey(
-            widget.room.id,
-            'm.room.tombstone',
-            '',
-            <String, dynamic>{
-              'body': 'Room upgraded to version $newVersion',
-              'replacement_room': '',
-            },
-          );
+        widget.room.id,
+        'm.room.tombstone',
+        '',
+        <String, dynamic>{
+          'body': 'Room upgraded to version $newVersion',
+          'replacement_room': '',
+        },
+      );
       await client.setRoomStateWithKey(
-            widget.room.id,
-            'm.room.create',
-            '',
-            <String, dynamic>{
-              'room_version': newVersion,
-              'creator': client.userID,
-            },
-          );
+        widget.room.id,
+        'm.room.create',
+        '',
+        <String, dynamic>{
+          'room_version': newVersion,
+          'creator': client.userID,
+        },
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.roomUpgraded(newVersion))),
@@ -1285,16 +1285,18 @@ class _RoomIdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = room.getLocalizedDisplayname();
     final topic = room.topic;
     final hasTopic = topic.isNotEmpty;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(t.radiusLg),
+        side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1308,7 +1310,7 @@ class _RoomIdentityCard extends StatelessWidget {
                 avatarUri: room.avatar,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(
               displayName,
               style: textTheme.headlineSmall?.copyWith(
@@ -1319,7 +1321,7 @@ class _RoomIdentityCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             if (hasTopic) ...[
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 topic,
                 style: textTheme.bodyMedium?.copyWith(
@@ -1330,7 +1332,7 @@ class _RoomIdentityCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Wrap(
               spacing: 8,
               runSpacing: 6,
@@ -1373,17 +1375,18 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(
@@ -1436,11 +1439,12 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final effectiveColor = color ?? scheme.primary;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
@@ -1481,12 +1485,13 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
           SizedBox(
             width: 100,
             child: Text(
@@ -1568,6 +1573,7 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final client = context.read<Client>();
     // The full per-room notification sheet (mute + mentions-only)
@@ -1576,7 +1582,7 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
     // while still exposing the mentions-only setting without a
     // separate route.
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       child: Column(
         children: [
@@ -1601,8 +1607,8 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
               LucideIcons.chevronRight,
               color: scheme.onSurfaceVariant,
             ),
-            onTap: () =>
-                showRoomNotificationSheet(context, client: client, room: widget.room),
+            onTap: () => showRoomNotificationSheet(context,
+                client: client, room: widget.room),
           ),
         ],
       ),
@@ -1671,9 +1677,8 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
 
   Future<void> _approve(String userId) async {
     final l10n = AppLocalizations.of(context)!;
-    final name = widget.room
-        .unsafeGetUserFromMemoryOrFallback(userId)
-        .calcDisplayname();
+    final name =
+        widget.room.unsafeGetUserFromMemoryOrFallback(userId).calcDisplayname();
 
     // Confirmation dialog.  Showing display name + Matrix ID + a
     // "View profile" link gives the moderator enough context to be
@@ -1747,9 +1752,8 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
 
   Future<void> _deny(String userId) async {
     final l10n = AppLocalizations.of(context)!;
-    final name = widget.room
-        .unsafeGetUserFromMemoryOrFallback(userId)
-        .calcDisplayname();
+    final name =
+        widget.room.unsafeGetUserFromMemoryOrFallback(userId).calcDisplayname();
     try {
       await widget.room.kick(userId);
       if (mounted) {
@@ -1770,14 +1774,14 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     // Read the debounced sync pulse so we refresh the knock list on
     // every coalesced tick. The pulse provider is always in scope for
     // this screen (it's mounted inside the account-aware router), so a
     // missing pulse would indicate a wiring bug rather than a transient
     // state and we let the build continue without a refresh.
-    final pulseVersion =
-        context.select<SyncPulse, int>((p) => p.version);
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
       // Refresh asynchronously; the build phase must not await.
@@ -1800,10 +1804,10 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
         ),
         if (!_knocksLoaded)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: const SizedBox(
-              height: 24,
-              width: 24,
+            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
+            child: SizedBox(
+              height: t.spaceXl,
+              width: t.spaceXl,
               child: Center(
                 child: CircularProgressIndicator(strokeWidth: 2.5),
               ),
@@ -1811,7 +1815,7 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
           )
         else if (_knockingUsers.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
             child: Text(
               l10n.noPendingKnocks,
               style: TextStyle(
@@ -1823,11 +1827,11 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
         else
           ..._knockingUsers.map((user) {
             return Card(
-              elevation: 0,
+              elevation: t.elevationNone,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(t.radiusMd),
+                side:
+                    BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
               ),
               child: ListTile(
                 title: Text(user.calcDisplayname()),
@@ -1838,16 +1842,16 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton.icon(
-                      icon: const Icon(LucideIcons.x, size: 16),
+                      icon: Icon(LucideIcons.x, size: t.iconSizeSmall),
                       label: Text(l10n.denyKnock),
                       style: TextButton.styleFrom(
                         foregroundColor: cs.error,
                       ),
                       onPressed: () => _deny(user.id),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: t.spaceXs),
                     FilledButton.tonalIcon(
-                      icon: const Icon(LucideIcons.check, size: 16),
+                      icon: Icon(LucideIcons.check, size: t.iconSizeSmall),
                       label: Text(l10n.approveKnock),
                       onPressed: () => _approve(user.id),
                     ),

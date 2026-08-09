@@ -25,6 +25,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
@@ -76,13 +77,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     // coalesced tick rather than every raw sync event. The pulse
     // provider is in scope for this screen (mounted inside the
     // account-aware router).
-    final pulseVersion =
-        context.select<SyncPulse, int>((p) => p.version);
+    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
     }
 
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final textTheme = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
     final space = widget.space;
@@ -137,7 +138,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             scheme: scheme,
             textTheme: textTheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Technical details ────────────────────────────────────────────
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
@@ -162,13 +163,9 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             scheme: scheme,
           ),
           _DetailRow(
-            icon: isEncrypted
-                ? LucideIcons.shieldCheck
-                : LucideIcons.shieldOff,
+            icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
-            value: isEncrypted
-                ? l10n.endToEndEncrypted
-                : l10n.notEncrypted,
+            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
           _DetailRow(
@@ -183,7 +180,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             value: '$totalMembers',
             scheme: scheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Space editing (permission-gated) ────────────────────────────
           if (_canChange('m.room.name') ||
@@ -215,13 +212,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                 onTap: _changeSpaceAvatar,
                 scheme: scheme,
               ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
           ],
 
           // ── Child rooms / subspaces ────────────────────────────────────
           if (children.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             ...children.map((child) {
               final childRoomId = child.roomId;
               if (childRoomId == null) return const SizedBox.shrink();
@@ -230,10 +227,10 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
               final isSpace = childRoom?.isSpace ?? false;
 
               return Card(
-                elevation: 0,
+                elevation: t.elevationNone,
                 margin: const EdgeInsets.only(bottom: 4),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   side: BorderSide(
                     color: scheme.outlineVariant.withValues(alpha: 0.3),
                   ),
@@ -244,7 +241,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                     backgroundColor: scheme.primaryContainer,
                     child: Icon(
                       isSpace ? LucideIcons.folder : LucideIcons.hash,
-                      size: 16,
+                      size: t.iconSizeSmall,
                       color: scheme.onPrimaryContainer,
                     ),
                   ),
@@ -276,13 +273,13 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                 ),
               );
             }),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
           ],
 
           // ── Add room section ──────────────────────────────────────────
           if (canEdit) ...[
             _SectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             if (availableRooms.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -296,10 +293,10 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             else
               ...availableRooms.map((room) {
                 return Card(
-                  elevation: 0,
+                  elevation: t.elevationNone,
                   margin: const EdgeInsets.only(bottom: 4),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(t.radiusMd),
                     side: BorderSide(
                       color: scheme.outlineVariant.withValues(alpha: 0.3),
                     ),
@@ -310,7 +307,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                       backgroundColor: scheme.primaryContainer,
                       child: Icon(
                         LucideIcons.hash,
-                        size: 16,
+                        size: t.iconSizeSmall,
                         color: scheme.onPrimaryContainer,
                       ),
                     ),
@@ -331,7 +328,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                   ),
                 );
               }),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
           ],
 
           // ── Danger zone ────────────────────────────────────────────────
@@ -340,7 +337,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
               title: l10n.actionsDeleteSection,
               scheme: scheme,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
             _ActionTile(
               icon: LucideIcons.trash2,
               label: l10n.deleteSpace,
@@ -350,7 +347,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
               scheme: scheme,
             ),
           ],
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
         ],
       ),
     );
@@ -783,15 +780,17 @@ class _SpaceIdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(t.radiusLg),
+        side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           children: [
             SizedBox(
@@ -802,7 +801,7 @@ class _SpaceIdentityCard extends StatelessWidget {
                 avatarUri: space.avatar,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(
               displayName,
               style: textTheme.headlineSmall?.copyWith(
@@ -813,7 +812,7 @@ class _SpaceIdentityCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             if (topic.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 topic,
                 style: textTheme.bodyMedium?.copyWith(
@@ -824,7 +823,7 @@ class _SpaceIdentityCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Wrap(
               spacing: 8,
               runSpacing: 6,
@@ -862,11 +861,12 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -928,10 +928,11 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? scheme.primary;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: ListTile(
@@ -973,12 +974,13 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
           SizedBox(
             width: 100,
             child: Text(
@@ -1119,6 +1121,7 @@ class _DeleteSpaceProgressDialogState
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final total = widget.childRooms.length + 1;
 
     return AlertDialog(
@@ -1129,7 +1132,7 @@ class _DeleteSpaceProgressDialogState
           LinearProgressIndicator(
             value: _done ? 1.0 : _deleted / total,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
           Text(
             _done
                 ? widget.l10n.deleteSpaceSuccess

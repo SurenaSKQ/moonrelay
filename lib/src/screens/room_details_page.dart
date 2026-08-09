@@ -32,6 +32,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A full room information page built with Material 3 design tokens.
@@ -161,6 +162,7 @@ class _RoomInformationsState extends State<RoomInformations> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final room = widget.room;
     final isEncrypted = _isEncrypted(room);
     final roomType = _roomTypeLabel(room);
@@ -193,7 +195,8 @@ class _RoomInformationsState extends State<RoomInformations> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
           // ── Room identity card ────────────────────────────────────────
           _RoomIdentityCard(
@@ -203,11 +206,11 @@ class _RoomInformationsState extends State<RoomInformations> {
             scheme: scheme,
             textTheme: textTheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Room actions ─────────────────────────────────────────────
           _SectionHeader(title: l10n.actionsSection, scheme: scheme),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           _ActionTile(
             icon: LucideIcons.settings,
             label: l10n.roomSettings,
@@ -231,11 +234,11 @@ class _RoomInformationsState extends State<RoomInformations> {
               scheme: scheme,
             ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Room details ─────────────────────────────────────────────
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           _DetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
@@ -266,32 +269,32 @@ class _RoomInformationsState extends State<RoomInformations> {
             value: creationDate,
             scheme: scheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Security ─────────────────────────────────────────────────
           _SectionHeader(title: l10n.securitySection, scheme: scheme),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           _buildSecuritySection(context, scheme, room, isEncrypted),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Top members ──────────────────────────────────────────────
           _SectionHeader(title: l10n.membersSection, scheme: scheme),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           _TopMembersSection(
             room: room,
             totalMembers: totalMembers,
             scheme: scheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Threads ─────────────────────────────────────────────────
           _SectionHeader(title: l10n.threads, scheme: scheme),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           _TopThreadsSection(
             room: room,
             scheme: scheme,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
         ],
       ),
     );
@@ -400,16 +403,18 @@ class _RoomIdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = room.getLocalizedDisplayname();
     final topic = room.topic;
     final hasTopic = topic.isNotEmpty;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(t.radiusLg),
+        side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -424,7 +429,7 @@ class _RoomIdentityCard extends StatelessWidget {
                 avatarUri: room.avatar,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
 
             // Display name
             Text(
@@ -436,12 +441,12 @@ class _RoomIdentityCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: t.spaceXs),
 
             // Topic
             if (hasTopic)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: t.spaceSm),
                 child: Text(
                   topic,
                   style: textTheme.bodyMedium?.copyWith(
@@ -453,7 +458,7 @@ class _RoomIdentityCard extends StatelessWidget {
                 ),
               ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
 
             // Badge row
             Wrap(
@@ -504,17 +509,18 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(
@@ -568,9 +574,10 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final effectiveColor = color ?? scheme.primary;
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       margin: const EdgeInsets.only(bottom: 4),
       child: ListTile(
@@ -589,7 +596,7 @@ class _ActionTile extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right_rounded, size: 18),
         onTap: onTap,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(t.radiusMd),
         ),
       ),
     );
@@ -614,12 +621,13 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
           SizedBox(
             width: 100,
             child: Text(
@@ -691,6 +699,7 @@ class _TopMembersSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return StreamBuilder(
       stream: room.client.onRoomState.stream
           .where((event) => event.roomId == room.id),
@@ -716,7 +725,7 @@ class _TopMembersSection extends StatelessWidget {
                       foregroundColor: scheme.primary,
                       side: BorderSide(color: scheme.outline),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(t.radiusMd),
                       ),
                     ),
                   ),
@@ -788,6 +797,7 @@ class _TopThreadsSectionState extends State<_TopThreadsSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -818,7 +828,7 @@ class _TopThreadsSectionState extends State<_TopThreadsSection> {
                 foregroundColor: widget.scheme.primary,
                 side: BorderSide(color: widget.scheme.outline),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
@@ -863,17 +873,18 @@ class _ThreadRootTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return GestureDetector(
       onTap: () => _openThread(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         margin: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(t.radiusMd),
           color: Colors.transparent,
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(t.radiusMd),
           onTap: () => _openThread(context),
           child: Row(
             children: [
@@ -886,7 +897,7 @@ class _ThreadRootTile extends StatelessWidget {
                   avatarUri: sender.avatarUrl,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: t.spaceMd),
               // Preview
               Expanded(
                 child: Column(
@@ -901,7 +912,7 @@ class _ThreadRootTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: t.spaceXxs),
                     Text(
                       event.body.isNotEmpty ? event.body : '(image or file)',
                       style: TextStyle(
@@ -914,7 +925,7 @@ class _ThreadRootTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Text(
                 event.originServerTs.localizedTimeShort(context),
                 style: TextStyle(
@@ -987,6 +998,7 @@ class _MemberTileState extends State<_MemberTile> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final membershipLabel = switch (widget.member.membership) {
       Membership.ban => l10n.bannedBadge,
       Membership.invite => l10n.invitedBadge,
@@ -1005,11 +1017,11 @@ class _MemberTileState extends State<_MemberTile> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           margin: const EdgeInsets.only(bottom: 2),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             color: Colors.transparent,
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             onTap: () => _showContextMenu(context),
             onSecondaryTap: () => _showContextMenu(context),
             child: Row(
@@ -1023,7 +1035,7 @@ class _MemberTileState extends State<_MemberTile> {
                     avatarUri: widget.member.avatarUrl,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
 
                 // Name + ID + last seen
                 Expanded(
@@ -1103,7 +1115,7 @@ class _MemberTileState extends State<_MemberTile> {
                     ),
                     decoration: BoxDecoration(
                       color: widget.scheme.tertiaryContainer
-                          .withValues(alpha: 0.5),
+                          .withValues(alpha: t.opacitySubtle),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -1263,10 +1275,11 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final client = context.read<Client>();
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       color: scheme.surfaceContainerLow,
       child: Column(
         children: [
