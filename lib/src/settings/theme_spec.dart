@@ -19,6 +19,7 @@ import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/shipped_themes/shipped_themes.dart';
 
 /// A complete "look and feel" recipe for Moonrelay.
 ///
@@ -93,56 +94,30 @@ class MoonrelayThemes {
 
   // ── Shipped themes ───────────────────────────────────────────────────
 
-  /// The bundled themes, in their persisted/display order. The first entry is
-  /// [MoonrelayThemes.defaultTheme].
-  static const List<MoonrelayThemeSpec> all = <MoonrelayThemeSpec>[
-    material,
-    highContrast,
-    compact,
-    archVista,
-  ];
+   /// The bundled themes, in their persisted/display order. The first entry is
+   /// [MoonrelayThemes.defaultTheme].
+   static const List<MoonrelayThemeSpec> all = <MoonrelayThemeSpec>[
+     material,
+     highContrast,
+     compact,
+     archVista,
+   ];
 
-  /// The default Material 3 look shared by most accent colours.
-  static const MoonrelayThemeSpec material = MoonrelayThemeSpec(
-    id: 'material',
-    label: 'Material',
-    description: 'Smooth Material 3 surfaces.',
-  );
+   /// The default Material 3 look shared by most accent colours.
+   static const MoonrelayThemeSpec material = materialTheme;
 
-  /// Sharp-cornered, elevated variant for clarity on large screens.
-  static const MoonrelayThemeSpec highContrast = MoonrelayThemeSpec(
-    id: 'highContrast',
-    label: 'High Contrast',
-    description: 'Sharp corners and elevated surfaces.',
-    cornerRadius: 0.0,
-    surfaceElevation: 0.5,
-  );
+   /// Sharp-cornered, elevated variant for clarity on large screens.
+   static const MoonrelayThemeSpec highContrast = highContrastTheme;
 
-  /// Tighter, smaller-cornered variant for dense workspaces.
-  static const MoonrelayThemeSpec compact = MoonrelayThemeSpec(
-    id: 'compact',
-    label: 'Compact Modern',
-    description: 'Slim corners and a compact layout.',
-    cornerRadius: 6.0,
-    defaultDensity: LayoutDensity.compact,
-  );
+   /// Tighter, smaller-cornered variant for dense workspaces.
+   static const MoonrelayThemeSpec compact = compactTheme;
 
-  /// "Darkened Windows Vista UI" look: near-square corners, Sego UI font and a
-  /// comfortable density, plus a [MoonrelayWidgetStyle.vista] that re-styles
-  /// buttons, checkboxes, scrollbars and dividers with Vista's flat, bordered
-  /// chrome. The signature air-force-blue accent (#5C8AA6) is a separate
-  /// [MoonrelayAccents.vistaBlue] so it can be swapped independently.
-  static const MoonrelayThemeSpec archVista = MoonrelayThemeSpec(
-    id: 'archVista',
-    label: 'ArchVista',
-    description: 'Darkened Windows Vista UI.',
-    defaultFontFamily: 'Segoe UI',
-    defaultMonoFontFamily: 'Consolas',
-    cornerRadius: 4.0,
-    defaultDensity: LayoutDensity.comfortable,
-    defaultBubbleRadius: 10.0,
-    widgetStyle: MoonrelayWidgetStyle.vista,
-  );
+   /// "Darkened Windows Vista UI" look: near-square corners, Sego UI font and a
+   /// comfortable density, plus a [MoonrelayWidgetStyle.vista] that re-styles
+   /// buttons, checkboxes, scrollbars and dividers with Vista's flat, bordered
+   /// chrome. The signature air-force-blue accent (#5C8AA6) is a separate
+   /// [MoonrelayAccents.vistaBlue] so it can be swapped independently.
+   static const MoonrelayThemeSpec archVista = archVistaTheme;
 
   // ── Defaults ────────────────────────────────────────────────────────
 
