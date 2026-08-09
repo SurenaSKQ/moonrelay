@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Renders a Matrix state event as a centred timeline item.
 ///
@@ -49,7 +50,8 @@ class StateEvents extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final mutedColor = cs.onSurface.withValues(alpha: 0.5);
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final mutedColor = cs.onSurface.withValues(alpha: t.opacitySubtle);
 
     final (icon, color, description) = _decoratedDescription(context);
     final effectiveColor = color ?? mutedColor;
@@ -58,14 +60,14 @@ class StateEvents extends StatelessWidget {
         showTimestamp ? '  ${_effectiveTime.localizedTimeShort(context)}' : '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: EdgeInsets.symmetric(vertical: t.spaceSm, horizontal: t.spaceLg),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: effectiveColor),
-              const SizedBox(width: 6),
+              Icon(icon, size: t.spaceMd + 2, color: effectiveColor),
+              SizedBox(width: t.spaceXs + 2),
             ],
             Flexible(
               child: Text(
@@ -105,8 +107,11 @@ class StateEvents extends StatelessWidget {
         case 'm.room.encryption':
           return (Icons.lock_outlined, null, l10n.stateEncryptionEnabled);
         case 'm.room.pinned_events':
-          return (Icons.push_pin_outlined, null,
-              l10n.statePinnedMessagesChanged);
+          return (
+            Icons.push_pin_outlined,
+            null,
+            l10n.statePinnedMessagesChanged
+          );
         case 'm.room.canonical_alias':
           return (Icons.link_outlined, null, l10n.stateMainAddressChanged);
         case 'm.room.power_levels':
@@ -114,29 +119,40 @@ class StateEvents extends StatelessWidget {
         case 'm.room.tombstone':
           return (Icons.upgrade_outlined, null, l10n.stateRoomUpgraded);
         case EventTypes.Redaction:
-          final senderName =
-              event.senderFromMemoryOrFallback.calcDisplayname();
+          final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
           final reason = event.content['reason'] as String?;
           final desc = reason != null && reason.isNotEmpty
               ? l10n.stateMessageRedactedReason(senderName, reason)
               : l10n.stateMessageRedacted(senderName);
-          return (Icons.delete_outline_rounded,
-              Theme.of(context).colorScheme.error, desc);
+          return (
+            Icons.delete_outline_rounded,
+            Theme.of(context).colorScheme.error,
+            desc
+          );
         case 'm.key.verification.request':
           final reqSenderName =
               event.senderFromMemoryOrFallback.calcDisplayname();
-          return (Icons.verified_user_outlined, null,
-              l10n.stateVerificationRequest(reqSenderName));
+          return (
+            Icons.verified_user_outlined,
+            null,
+            l10n.stateVerificationRequest(reqSenderName)
+          );
         case 'm.key.verification.start':
-          return (Icons.verified_user_outlined, null,
-              l10n.stateVerificationStart);
+          return (
+            Icons.verified_user_outlined,
+            null,
+            l10n.stateVerificationStart
+          );
         case 'm.key.verification.done':
           return (Icons.verified_outlined, null, l10n.stateVerificationDone);
         case 'm.key.verification.cancel':
           return (Icons.cancel_outlined, null, l10n.stateVerificationCancel);
         case String t when t.startsWith('m.key.verification.'):
-          return (Icons.verified_user_outlined, null,
-              l10n.stateVerificationEvent);
+          return (
+            Icons.verified_user_outlined,
+            null,
+            l10n.stateVerificationEvent
+          );
         default:
           return (null, null, event.type);
       }
@@ -161,35 +177,50 @@ class StateEvents extends StatelessWidget {
         // the moderator sent the leave on behalf of the target.
         if (event.stateKey != null && event.stateKey != event.senderId) {
           final targetName = _targetDisplayName(context);
-          return (Icons.person_remove_outlined,
-              Theme.of(context).colorScheme.tertiary,
-              l10n.stateKicked(senderName, targetName));
+          return (
+            Icons.person_remove_outlined,
+            Theme.of(context).colorScheme.tertiary,
+            l10n.stateKicked(senderName, targetName)
+          );
         }
         return (Icons.logout_rounded, null, l10n.stateLeft(senderName));
 
       case 'ban':
         final targetDisplayName = _targetDisplayName(context);
         if (targetDisplayName != senderName) {
-          return (Icons.block_outlined,
-              Theme.of(context).colorScheme.error,
-              l10n.stateBanned(senderName, targetDisplayName));
-        }
-        return (Icons.block_outlined,
+          return (
+            Icons.block_outlined,
             Theme.of(context).colorScheme.error,
-            l10n.stateBannedSimple(senderName));
+            l10n.stateBanned(senderName, targetDisplayName)
+          );
+        }
+        return (
+          Icons.block_outlined,
+          Theme.of(context).colorScheme.error,
+          l10n.stateBannedSimple(senderName)
+        );
 
       case 'invite':
         final invited = event.content['displayname']?.toString() ?? 'a user';
-        return (Icons.person_add_outlined, null,
-            l10n.stateInvited(senderName, invited));
+        return (
+          Icons.person_add_outlined,
+          null,
+          l10n.stateInvited(senderName, invited)
+        );
 
       case 'knock':
-        return (Icons.door_front_door_outlined, null,
-            l10n.stateKnocked(senderName));
+        return (
+          Icons.door_front_door_outlined,
+          null,
+          l10n.stateKnocked(senderName)
+        );
 
       default:
-        return (null, null,
-            l10n.stateMembershipChanged(senderName, membership));
+        return (
+          null,
+          null,
+          l10n.stateMembershipChanged(senderName, membership)
+        );
     }
   }
 

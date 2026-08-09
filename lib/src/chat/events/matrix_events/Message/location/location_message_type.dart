@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Renders an m.location event. Shows the latitude, longitude and accuracy,
@@ -30,6 +31,7 @@ class LocationMessageType extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     final content = event.content;
@@ -46,7 +48,8 @@ class LocationMessageType extends StatelessWidget {
       // Fall back to geo_uri "geo:lat,lon"
       final geoUri = content['geo_uri'] as String?;
       if (geoUri != null) {
-        final match = RegExp(r'^geo:(-?\d+\.?\d*),(-?\d+\.?\d*)').firstMatch(geoUri);
+        final match =
+            RegExp(r'^geo:(-?\d+\.?\d*),(-?\d+\.?\d*)').firstMatch(geoUri);
         if (match != null) {
           lat = double.tryParse(match.group(1)!);
           lon = double.tryParse(match.group(2)!);
@@ -55,16 +58,17 @@ class LocationMessageType extends StatelessWidget {
     }
 
     if (lat == null || lon == null) {
-      return _buildUnavailable(cs);
+      return _buildUnavailable(context, cs);
     }
 
     return Container(
-      constraints: BoxConstraints(maxWidth: MediaSizePrefs.of(context).locationMax),
+      constraints:
+          BoxConstraints(maxWidth: MediaSizePrefs.of(context).locationMax),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
+        color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusMd + 2),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
+          color: cs.outlineVariant.withValues(alpha: t.opacityDisabled),
         ),
       ),
       child: Column(
@@ -73,23 +77,24 @@ class LocationMessageType extends StatelessWidget {
         children: [
           // -- Header ---------------------------------------------------
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            padding:
+                EdgeInsets.fromLTRB(t.spaceMd + 2, t.spaceMd, t.spaceMd + 2, 0),
             child: Row(
               children: [
                 Container(
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: cs.primary.withValues(alpha: t.opacityFocus),
+                    borderRadius: BorderRadius.circular(t.radiusMd - 2),
                   ),
                   child: Icon(
                     LucideIcons.mapPin,
-                    size: 20,
+                    size: t.iconSizeMedium,
                     color: cs.primary,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +108,7 @@ class LocationMessageType extends StatelessWidget {
                           fontFamily: 'JetBrainsMono',
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: t.spaceXxs),
                       Text(
                         'Lon: ${lon.toStringAsFixed(6)}',
                         style: TextStyle(
@@ -121,7 +126,8 @@ class LocationMessageType extends StatelessWidget {
 
           // -- Body / metadata ------------------------------------------
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            padding: EdgeInsets.fromLTRB(
+                t.spaceMd + 2, t.spaceMd - 2, t.spaceMd + 2, t.spaceMd - 2),
             child: Row(
               children: [
                 if (accuracy != null) ...[
@@ -130,7 +136,7 @@ class LocationMessageType extends StatelessWidget {
                     size: 14,
                     color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: t.spaceXs),
                   Text(
                     l10n.locationAccuracyMeters(accuracy.round()),
                     style: TextStyle(
@@ -142,12 +148,12 @@ class LocationMessageType extends StatelessWidget {
                 ] else
                   const Spacer(),
                 FilledButton.tonalIcon(
-                  icon: const Icon(LucideIcons.externalLink, size: 16),
+                  icon: Icon(LucideIcons.externalLink, size: t.iconSizeSmall),
                   label: Text(l10n.openInMaps),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceMd,
+                      vertical: t.spaceXs + 2,
                     ),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
@@ -172,13 +178,14 @@ class LocationMessageType extends StatelessWidget {
     await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
-  Widget _buildUnavailable(ColorScheme cs) {
+  Widget _buildUnavailable(BuildContext context, ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 120,
       height: 120,
       decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        color: cs.errorContainer.withValues(alpha: t.opacityDragged),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Icon(LucideIcons.map, size: 40, color: cs.error),
     );

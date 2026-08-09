@@ -22,6 +22,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Displays a file attachment with a polished card showing file type icon,
@@ -188,6 +189,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     return FutureBuilder<MatrixFile>(
@@ -202,13 +204,14 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
               BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
           decoration: BoxDecoration(
             color: _lastError != null
-                ? cs.errorContainer.withValues(alpha: 0.4)
-                : cs.surfaceContainerHighest.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(14),
+                ? cs.errorContainer.withValues(alpha: t.opacityDisabled)
+                : cs.surfaceContainerHighest
+                    .withValues(alpha: t.opacityDisabled),
+            borderRadius: BorderRadius.circular(t.radiusMd),
             border: Border.all(
               color: _lastError != null
-                  ? cs.error.withValues(alpha: 0.5)
-                  : cs.outlineVariant.withValues(alpha: 0.4),
+                  ? cs.error.withValues(alpha: t.opacitySubtle)
+                  : cs.outlineVariant.withValues(alpha: t.opacityDisabled),
             ),
           ),
           child: Padding(
@@ -221,9 +224,9 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                   height: 44,
                   decoration: BoxDecoration(
                     color: _lastError != null
-                        ? cs.error.withValues(alpha: 0.15)
-                        : cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                        ? cs.error.withValues(alpha: t.opacityFocus)
+                        : cs.primary.withValues(alpha: t.opacityFocus),
+                    borderRadius: BorderRadius.circular(t.radiusMd),
                   ),
                   child: Icon(
                     _lastError != null
@@ -261,9 +264,9 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color:
-                                    cs.tertiaryContainer.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(4),
+                                color: cs.tertiaryContainer
+                                    .withValues(alpha: t.opacitySubtle),
+                                borderRadius: BorderRadius.circular(t.radiusXs),
                               ),
                               child: Text(
                                 _extension!,
@@ -276,7 +279,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                               ),
                             ),
                           if (_fileSize != null) ...[
-                            if (_extension != null) const SizedBox(width: 8),
+                            if (_extension != null) SizedBox(width: t.spaceSm),
                             Icon(Icons.archive_outlined,
                                 size: 12,
                                 color:
@@ -296,7 +299,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
 
                 // -- Download button -------------------------------------
                 Semantics(
@@ -306,9 +309,9 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: _lastError != null
-                          ? cs.error.withValues(alpha: 0.15)
-                          : cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                          ? cs.error.withValues(alpha: t.opacityFocus)
+                          : cs.primary.withValues(alpha: t.opacityFocus),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                     ),
                     child: IconButton(
                       icon: snapshot.connectionState == ConnectionState.waiting
@@ -324,7 +327,7 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                               _lastError != null
                                   ? Icons.refresh_rounded
                                   : Icons.download_rounded,
-                              size: 20,
+                              size: t.iconSizeMedium,
                             ),
                       color: _lastError != null ? cs.error : cs.primary,
                       onPressed:

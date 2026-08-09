@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Renders a verification event (e.g. `m.key.verification.start`,
 /// `m.key.verification.done`, `m.key.verification.cancel`) in a compact
@@ -39,6 +40,7 @@ class VerificationNoticeEvent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     final description = _description(event.type, event.messageType, l10n);
@@ -48,15 +50,19 @@ class VerificationNoticeEvent extends StatelessWidget {
         : '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      padding:
+          EdgeInsets.symmetric(vertical: t.spaceXs + 2, horizontal: t.spaceMd),
       child: Card(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color:
+            scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: EdgeInsets.symmetric(
+              horizontal: t.spaceMd + 2, vertical: t.spaceMd - 2),
           child: Row(
             children: [
-              Icon(LucideIcons.shield, size: 20, color: scheme.primary),
-              const SizedBox(width: 10),
+              Icon(LucideIcons.shield,
+                  size: t.iconSizeMedium, color: scheme.primary),
+              SizedBox(width: t.spaceSm + 2),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,12 +77,13 @@ class VerificationNoticeEvent extends StatelessWidget {
                     ),
                     if (ts.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: EdgeInsets.only(top: t.spaceXxs),
                         child: Text(
                           ts,
                           style: TextStyle(
                             fontSize: 11,
-                            color: scheme.onSurface.withValues(alpha: 0.5),
+                            color: scheme.onSurface
+                                .withValues(alpha: t.opacitySubtle),
                           ),
                         ),
                       ),

@@ -21,6 +21,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Renders a `m.key.verification.request` event from the room timeline.
@@ -44,10 +45,10 @@ class VerificationRequestEvent extends StatelessWidget {
     final client = context.read<Client>();
     final enc = context.read<EncryptionService>();
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
-    final senderName =
-        event.senderFromMemoryOrFallback.calcDisplayname();
+    final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
     final isFromSelf = event.senderId == client.userID;
     final ts = showTimestamp
         ? '  ${event.originServerTs.localizedTimeShort(context)}'
@@ -58,16 +59,19 @@ class VerificationRequestEvent extends StatelessWidget {
     final kv = _lookupKeyVerification(client);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      padding:
+          EdgeInsets.symmetric(vertical: t.spaceXs + 2, horizontal: t.spaceMd),
       child: Card(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color:
+            scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: EdgeInsets.symmetric(
+              horizontal: t.spaceMd + 2, vertical: t.spaceMd - 2),
           child: Row(
             children: [
               Icon(LucideIcons.shieldQuestion,
-                  size: 20, color: scheme.primary),
-              const SizedBox(width: 10),
+                  size: t.iconSizeMedium, color: scheme.primary),
+              SizedBox(width: t.spaceSm + 2),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,22 +89,23 @@ class VerificationRequestEvent extends StatelessWidget {
                         ts,
                         style: TextStyle(
                           fontSize: 11,
-                          color: scheme.onSurface.withValues(alpha: 0.5),
+                          color: scheme.onSurface
+                              .withValues(alpha: t.opacitySubtle),
                         ),
                       ),
                   ],
                 ),
               ),
               if (!isFromSelf && kv != null) ...[
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 FilledButton.tonalIcon(
-                  icon: const Icon(LucideIcons.check, size: 16),
+                  icon: Icon(LucideIcons.check, size: t.iconSizeSmall),
                   label: Text(l10n.yesOrAffirmitive),
                   onPressed: () => _accept(context, kv, enc),
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: t.spaceXs),
                 OutlinedButton.icon(
-                  icon: const Icon(LucideIcons.x, size: 16),
+                  icon: Icon(LucideIcons.x, size: t.iconSizeSmall),
                   label: Text(l10n.noOrCancellation),
                   onPressed: () => _decline(context, kv),
                 ),

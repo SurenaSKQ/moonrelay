@@ -28,6 +28,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -336,6 +337,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final prefs = MediaSizePrefs.of(context);
     final playerSize = _playerSize(prefs.videoMax);
@@ -352,8 +354,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
         constraints: BoxConstraints(maxWidth: prefs.videoMax),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(14),
+          color:
+              cs.surfaceContainerHighest.withValues(alpha: t.opacityDisabled),
+          borderRadius: BorderRadius.circular(t.radiusMd),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,8 +377,8 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        color: cs.primary.withValues(alpha: t.opacityFocus),
+                        borderRadius: BorderRadius.circular(t.radiusMd),
                       ),
                       child: Icon(
                         LucideIcons.video,
@@ -383,7 +386,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                         color: cs.primary,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: t.spaceMd),
 
                     Expanded(
                       child: Column(
@@ -399,7 +402,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
-                          const SizedBox(height: 2),
+                          SizedBox(height: t.spaceXxs),
                           // The metadata row sits inside an [Expanded]
                           // above and is itself allowed to shrink; the
                           // duration/size widgets can otherwise request
@@ -417,8 +420,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: cs.tertiaryContainer
-                                        .withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(4),
+                                        .withValues(alpha: t.opacitySubtle),
+                                    borderRadius:
+                                        BorderRadius.circular(t.radiusXs),
                                   ),
                                   child: Text(
                                     _extension,
@@ -431,7 +435,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                   ),
                                 ),
                                 if (_duration != null) ...[
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: t.spaceSm),
                                   Icon(
                                     LucideIcons.clock,
                                     size: 12,
@@ -453,7 +457,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                   ),
                                 ],
                                 if (_fileSize != null) ...[
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: t.spaceSm),
                                   Flexible(
                                     child: Text(
                                       _formatSize(_fileSize!),
@@ -462,7 +466,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: cs.onSurfaceVariant
-                                            .withValues(alpha: 0.5),
+                                            .withValues(alpha: t.opacitySubtle),
                                       ),
                                     ),
                                   ),
@@ -494,8 +498,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                                 ConnectionState.waiting;
                             return Container(
                               decoration: BoxDecoration(
-                                color: cs.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
+                                color: cs.primary
+                                    .withValues(alpha: t.opacityFocus),
+                                borderRadius: BorderRadius.circular(t.radiusMd),
                               ),
                               child: IconButton(
                                 padding: EdgeInsets.zero,
@@ -631,6 +636,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final size = _playerSize(MediaSizePrefs.of(context).videoMax);
     final longSide = size.width >= size.height ? size.width : size.height;
@@ -654,7 +660,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                   begin: Alignment.bottomCenter,
                   end: Alignment.center,
                   colors: [
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: t.opacitySubtle),
                     Colors.transparent,
                   ],
                 ),
@@ -666,7 +672,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withValues(alpha: t.opacitySubtle),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.3),
@@ -698,7 +704,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
               label: AppLocalizations.of(context)!.fullscreenVideo,
               button: true,
               child: Material(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withValues(alpha: t.opacitySubtle),
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
@@ -763,6 +769,7 @@ class _InitializedPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -811,7 +818,7 @@ class _InitializedPlayer extends StatelessWidget {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
+                      color: Colors.black.withValues(alpha: t.opacitySubtle),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.3),
@@ -836,7 +843,7 @@ class _InitializedPlayer extends StatelessWidget {
                     label: l10n.fullscreenVideo,
                     button: true,
                     child: Material(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.black.withValues(alpha: t.opacitySubtle),
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
@@ -870,9 +877,9 @@ class _InitializedPlayer extends StatelessWidget {
                   child: VideoProgressIndicator(
                     controller,
                     allowScrubbing: true,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceSm,
+                      vertical: t.spaceXs,
                     ),
                   ),
                 ),
@@ -985,6 +992,7 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer>
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return AnimatedBuilder(
       animation: c,
       builder: (context, _) {
@@ -1015,7 +1023,8 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer>
                         width: 88,
                         height: 88,
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
+                          color:
+                              Colors.black.withValues(alpha: t.opacitySubtle),
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
@@ -1050,9 +1059,9 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer>
                     ),
                     child: SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: t.spaceSm,
+                          vertical: t.spaceXs,
                         ),
                         child: Row(
                           children: [
@@ -1065,13 +1074,14 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer>
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: t.spaceSm,
+                                vertical: t.spaceXs,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.black
+                                    .withValues(alpha: t.opacityDisabled),
+                                borderRadius: BorderRadius.circular(t.radiusSm),
                               ),
                               child: Text(
                                 '${_formatPos(c.value.position)} / '

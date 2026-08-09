@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Regex matching Matrix user IDs anywhere in text.  Restricts to ASCII
@@ -156,8 +157,7 @@ class _UserMentionPillState extends State<UserMentionPill> {
   void _showPreview() {
     if (_previewOpen) return;
     final overlay = Overlay.of(context, rootOverlay: true);
-    final renderBox =
-        _pillKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = _pillKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final size = renderBox.size;
     _overlayEntry = OverlayEntry(
@@ -209,13 +209,14 @@ class _UserMentionPillState extends State<UserMentionPill> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final text = widget.displayText ?? widget.userId;
     final pill = Container(
       key: _pillKey,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(4),
+        color: cs.primaryContainer.withValues(alpha: t.opacitySubtle),
+        borderRadius: BorderRadius.circular(t.radiusXs),
       ),
       child: Text(
         text,
@@ -281,15 +282,14 @@ class _UserHoverPreviewState extends State<UserHoverPreview> {
   Future<void> _load() async {
     try {
       final client = context.read<Client>();
-      final profile =
-          await client.getProfileFromUserId(widget.userId).timeout(
-                const Duration(seconds: 6),
-                onTimeout: () => Profile(
-                  userId: widget.userId,
-                  displayName: null,
-                  avatarUrl: null,
-                ),
-              );
+      final profile = await client.getProfileFromUserId(widget.userId).timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => Profile(
+              userId: widget.userId,
+              displayName: null,
+              avatarUrl: null,
+            ),
+          );
       if (!mounted) return;
       setState(() {
         _profile = profile;
@@ -321,12 +321,13 @@ class _UserHoverPreviewState extends State<UserHoverPreview> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(10),
+      elevation: t.elevationOverlay,
+      borderRadius: BorderRadius.circular(t.radiusMd),
       color: cs.surface,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(t.spaceMd),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,13 +383,13 @@ class _UserHoverPreviewState extends State<UserHoverPreview> {
               children: [
                 TextButton.icon(
                   onPressed: _startDirectChat,
-                  icon: const Icon(Icons.send_outlined, size: 16),
+                  icon: Icon(Icons.send_outlined, size: t.iconSizeSmall),
                   label: const Text('DM'),
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: t.spaceXs),
                 TextButton.icon(
                   onPressed: widget.onOpenProfile,
-                  icon: const Icon(Icons.open_in_new, size: 16),
+                  icon: Icon(Icons.open_in_new, size: t.iconSizeSmall),
                   label: const Text('Open'),
                 ),
               ],

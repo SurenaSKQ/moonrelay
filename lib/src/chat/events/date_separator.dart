@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A timeline separator that marks the boundary between two different days.
 ///
@@ -39,6 +40,7 @@ class DateSeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = theme.moonrelay.tokens;
     final now = DateTime.now();
     final isSameYear = now.year == dateTime.year;
 
@@ -53,19 +55,22 @@ class DateSeparator extends StatelessWidget {
       label = DateFormat.yMMMd().format(dateTime);
     }
 
-    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.15);
-    final textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+    final lineColor =
+        theme.colorScheme.onSurface.withValues(alpha: t.opacityMuted);
+    final textColor =
+        theme.colorScheme.onSurface.withValues(alpha: t.opacitySubtle);
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.spaceSm),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              height: 1,
+              height: t.borderWidthMedium,
               color: lineColor,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: t.spaceMd),
             child: Text(
               label,
               style: TextStyle(
@@ -77,7 +82,7 @@ class DateSeparator extends StatelessWidget {
           ),
           Expanded(
             child: Container(
-              height: 1,
+              height: t.borderWidthMedium,
               color: lineColor,
             ),
           ),

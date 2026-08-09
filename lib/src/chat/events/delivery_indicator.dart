@@ -26,6 +26,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Lifecycle stages a freshly-sent message can be in.
 enum DeliveryStatus { sending, sent, failed }
@@ -41,14 +42,15 @@ class DeliveryIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     switch (status) {
       case DeliveryStatus.sending:
         return Semantics(
           label: loc.deliverySending,
-          child: const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 1.6),
+          child: SizedBox(
+            width: t.spaceMd,
+            height: t.spaceMd,
+            child: const CircularProgressIndicator(strokeWidth: 1.6),
           ),
         );
       case DeliveryStatus.sent:
@@ -56,7 +58,7 @@ class DeliveryIndicator extends StatelessWidget {
           label: loc.deliverySent,
           child: Icon(
             LucideIcons.check,
-            size: 12,
+            size: t.spaceMd,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         );
@@ -66,10 +68,10 @@ class DeliveryIndicator extends StatelessWidget {
           button: true,
           child: InkWell(
             onTap: onRetry,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             child: Icon(
               LucideIcons.alertCircle,
-              size: 14,
+              size: t.spaceMd + 2,
               color: Theme.of(context).colorScheme.error,
             ),
           ),

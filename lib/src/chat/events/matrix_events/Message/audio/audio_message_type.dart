@@ -29,6 +29,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Displays an audio message with an in-app `just_audio` player.
@@ -51,6 +52,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   final ValueNotifier<Duration> _duration = ValueNotifier(Duration.zero);
   final ValueNotifier<bool> _isPlaying = ValueNotifier(false);
   final ValueNotifier<bool> _isReady = ValueNotifier(false);
+
   /// Set when the most recent load or playback attempt failed.  We
   /// swallow the underlying error so a transient network blip doesn't
   /// throw across the widget tree; instead we surface a retry chip.
@@ -270,6 +272,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     // Fast path: bytes are already in the shared cache, so we don't
@@ -310,22 +313,23 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                             : (displayPos / displayDur).clamp(0.0, 1.0);
                         return Container(
                           constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaSizePrefs.of(context).audioMax),
+                              maxWidth: MediaSizePrefs.of(context).audioMax),
                           decoration: BoxDecoration(
                             color: _lastError != null
-                                ? cs.errorContainer.withValues(alpha: 0.5)
+                                ? cs.errorContainer
+                                    .withValues(alpha: t.opacitySubtle)
                                 : cs.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(14),
+                                    .withValues(alpha: t.opacityDisabled),
+                            borderRadius: BorderRadius.circular(t.radiusMd),
                             border: Border.all(
                               color: _lastError != null
-                                  ? cs.error.withValues(alpha: 0.5)
-                                  : cs.outlineVariant.withValues(alpha: 0.4),
+                                  ? cs.error.withValues(alpha: t.opacitySubtle)
+                                  : cs.outlineVariant
+                                      .withValues(alpha: t.opacityDisabled),
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.all(t.spaceMd),
                             child: Row(
                               children: [
                                 Container(
@@ -333,9 +337,12 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                   height: 44,
                                   decoration: BoxDecoration(
                                     color: _lastError != null
-                                        ? cs.error.withValues(alpha: 0.15)
-                                        : cs.primary.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
+                                        ? cs.error
+                                            .withValues(alpha: t.opacityFocus)
+                                        : cs.primary
+                                            .withValues(alpha: t.opacityFocus),
+                                    borderRadius:
+                                        BorderRadius.circular(t.radiusMd),
                                   ),
                                   child: IconButton(
                                     icon: Icon(
@@ -356,7 +363,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                         : null,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: t.spaceMd),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -374,8 +381,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                       ),
                                       const SizedBox(height: 6),
                                       SliderTheme(
-                                        data: SliderTheme.of(context)
-                                            .copyWith(
+                                        data: SliderTheme.of(context).copyWith(
                                           trackHeight: 3,
                                           thumbShape:
                                               const RoundSliderThumbShape(
@@ -384,12 +390,11 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                         ),
                                         child: Slider(
                                           value: progress,
-                                          onChanged: downloaded
-                                              ? _seekTo
-                                              : null,
+                                          onChanged:
+                                              downloaded ? _seekTo : null,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      SizedBox(height: t.spaceXxs),
                                       Row(
                                         children: [
                                           Text(
@@ -400,7 +405,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                               fontFamily: 'JetBrainsMono',
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
+                                          SizedBox(width: t.spaceXs),
                                           Text(
                                             '/',
                                             style: TextStyle(
@@ -408,7 +413,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                               color: cs.onSurfaceVariant,
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
+                                          SizedBox(width: t.spaceXs),
                                           Text(
                                             _formatDuration(resolvedDuration),
                                             style: TextStyle(
@@ -419,24 +424,24 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                           ),
                                           const Spacer(),
                                           Container(
-                                            padding: const EdgeInsets
-                                                .symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                               horizontal: 6,
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
                                               color: cs.tertiaryContainer
-                                                  .withValues(alpha: 0.5),
+                                                  .withValues(
+                                                      alpha: t.opacitySubtle),
                                               borderRadius:
-                                                  BorderRadius.circular(4),
+                                                  BorderRadius.circular(
+                                                      t.radiusXs),
                                             ),
                                             child: Text(
                                               _extension,
                                               style: TextStyle(
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.w700,
-                                                color:
-                                                    cs.onTertiaryContainer,
+                                                color: cs.onTertiaryContainer,
                                                 letterSpacing: 0.5,
                                               ),
                                             ),
@@ -463,8 +468,10 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                   button: true,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: cs.primary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
+                                      color: cs.primary
+                                          .withValues(alpha: t.opacityFocus),
+                                      borderRadius:
+                                          BorderRadius.circular(t.radiusMd),
                                     ),
                                     child: IconButton(
                                       icon: downloaded
