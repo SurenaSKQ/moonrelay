@@ -24,3 +24,4 @@ export 'material_theme.dart';
 export 'high_contrast_theme.dart';
 export 'compact_theme.dart';
 export 'arch_vista_theme.dart';
+export 'moonrelay_theme.dart';
