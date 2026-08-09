@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/encryption.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Wizard that guides the user through setting up cross-signing + key backup.
@@ -128,6 +129,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -139,7 +141,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
         title: Text(loc.encryptionSetupTitle),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

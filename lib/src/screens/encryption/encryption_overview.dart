@@ -25,6 +25,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/bootstrap_screen.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -94,9 +95,10 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final body = ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(t.spaceLg),
       children: [
           // -- Recovery key reminder -----------------------------------
           // Shown when cross-signing is bootstrapped but the user has
@@ -123,7 +125,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -138,7 +140,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                         ? loc.encryptionCrossSigningActive
                         : loc.encryptionCrossSigningInactive,
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: t.spaceSm),
                   _StatusRow(
                     icon: enc.isThisDeviceVerified
                         ? LucideIcons.shieldCheck
@@ -151,14 +153,14 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                         : loc.encryptionDeviceNotVerified,
                   ),
                   if (enc.crossSigningBootstrapped) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: t.spaceMd),
                     _FingerprintRow(
                       scheme: scheme,
                       label: loc.encryptionCrossSigningFingerprint,
                       fingerprint: enc.masterKeyFingerprint,
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   if (!enc.crossSigningBootstrapped)
                     FilledButton.icon(
                       icon: const Icon(LucideIcons.shieldPlus),
@@ -170,7 +172,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                     // of the user's own (already-trusted) devices via SAS.
                     if (!enc.isThisDeviceVerified)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.only(bottom: t.spaceSm),
                         child: FilledButton.tonalIcon(
                           icon: const Icon(LucideIcons.verified, size: 18),
                           label: Text(loc.encryptionVerifyDevice),
@@ -187,14 +189,14 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                             onPressed: () => _startBootstrap(context, enc),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
+                ],
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Setup benefits checklist (shown when not yet bootstrapped) --
           if (!enc.crossSigningBootstrapped) ...[
@@ -204,8 +206,8 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
             ),
             Card(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceLg, vertical: t.spaceMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -230,7 +232,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
           // -- Devices section ------------------------------------------
@@ -259,7 +261,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Key backup section ----------------------------------------
           _SectionHeader(
@@ -274,7 +276,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -289,7 +291,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                         : loc.encryptionKeyBackupInactive,
                   ),
                   if (enc.keyBackupExists) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: t.spaceMd),
                     // Algorithm
                     if (enc.keyBackupAlgorithm != null)
                       _DetailLine(
@@ -310,7 +312,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                           : loc.encryptionBackupNoRecoveryKey,
                     ),
                     if (!enc.keyBackupCached) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: t.spaceSm),
                       Padding(
                         padding: const EdgeInsets.only(left: 26),
                         child: Text(
@@ -322,7 +324,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                       ),
                     ],
                   ],
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   if (!enc.crossSigningBootstrapped)
                     Text(
                       loc.encryptionSetupCrossSigningFirst,
@@ -344,7 +346,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Verify other users section --------------------------------
           _SectionHeader(
@@ -352,7 +354,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
             title: loc.encryptionVerifiedUsers,
           ),
           _buildUnverifiedCount(context, enc, scheme, loc),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Local data section -------------------------------------
           // Sensitive: the export contains the pickled olm account
@@ -375,7 +377,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               onTap: () => _exportKeys(context),
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: t.spaceXxl),
         ],
     );
 
@@ -636,12 +638,13 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: t.spaceSm),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
+          Icon(icon, size: t.iconSizeMedium, color: theme.colorScheme.primary),
+          SizedBox(width: t.spaceSm),
           Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
           if (trailing != null) trailing!,
         ],
@@ -661,20 +664,21 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final color = ok ? Colors.green : scheme.outline;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: t.opacityFocus),
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        border: Border.all(color: color.withValues(alpha: t.opacityDisabled)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(ok ? LucideIcons.checkCircle : LucideIcons.alertCircle,
               size: 12, color: color),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(
@@ -702,10 +706,11 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Row(
       children: [
         Icon(icon, size: 18, color: iconColor),
-        const SizedBox(width: 8),
+        SizedBox(width: t.spaceSm),
         Expanded(child: Text(label)),
       ],
     );
@@ -752,6 +757,7 @@ class _FingerprintRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     if (fingerprint == null || fingerprint!.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -767,7 +773,7 @@ class _FingerprintRow extends StatelessWidget {
               color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
@@ -850,15 +856,16 @@ class _RecoveryKeyReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Card(
-      elevation: 0,
-      color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+      elevation: t.elevationNone,
+      color: scheme.tertiaryContainer.withValues(alpha: t.opacityDisabled),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.tertiary.withValues(alpha: 0.3)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(t.spaceLg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -869,7 +876,7 @@ class _RecoveryKeyReminderCard extends StatelessWidget {
                   color: scheme.tertiary,
                   size: 22,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Expanded(
                   child: Text(
                     loc.encryptionRecoveryKeyReminderTitle,
@@ -881,7 +888,7 @@ class _RecoveryKeyReminderCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               loc.encryptionRecoveryKeyReminderBody,
               style: TextStyle(
@@ -889,11 +896,11 @@ class _RecoveryKeyReminderCard extends StatelessWidget {
                 fontSize: 13,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.tonalIcon(
-                icon: const Icon(LucideIcons.check, size: 16),
+                icon: Icon(LucideIcons.check, size: t.iconSizeSmall),
                 onPressed: () {
                   // ignore: discarded_futures
                   onDismiss();

@@ -20,6 +20,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Shows the devices of another user in a room, with trust status.
@@ -37,6 +38,7 @@ class UserDevicesScreen extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final client = context.read<Client>();
 
     // Use cached device keys from the SDK.
@@ -60,7 +62,7 @@ class UserDevicesScreen extends StatelessWidget {
       body: devices.isEmpty
           ? Center(child: Text(loc.encryptionNoDevices))
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               itemCount: devices.length + 1, // +1 for user-level header
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
@@ -175,6 +177,7 @@ class _TrustBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final label =
         verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
@@ -188,7 +191,7 @@ class _TrustBadge extends StatelessWidget {
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,
-        size: 20,
+        size: t.iconSizeMedium,
       ),
     );
   }
