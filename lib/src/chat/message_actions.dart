@@ -19,6 +19,7 @@ import 'package:matrix/matrix.dart';
 
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
 /// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
@@ -63,11 +64,12 @@ class MessageActions extends StatelessWidget {
 
   /// When non-null, the action toolbar offers an "Edit history" affordance
   /// that scans the timeline for `m.replace` events related to this one.
-   final Timeline? timeline;
+  final Timeline? timeline;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final client = room.client;
     final canDelete = event.canRedact;
@@ -77,9 +79,9 @@ class MessageActions extends StatelessWidget {
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
     final isPinned = MessageActionRunner.isPinned(room, event.eventId);
     final canEdit = MessageActionRunner.canEditText(event, room);
-    final t = timeline;
+    final tl = timeline;
     final showEditHistory =
-        t != null && event.hasAggregatedEvents(t, RelationshipTypes.edit);
+        tl != null && event.hasAggregatedEvents(tl, RelationshipTypes.edit);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -90,14 +92,14 @@ class MessageActions extends StatelessWidget {
           color: cs.onSurfaceVariant,
           onTap: () => _react(context),
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
           icon: Icons.reply_rounded,
           tooltip: l10n.replyTooltip,
           color: cs.onSurfaceVariant,
           onTap: onReply,
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         if (onForward != null)
           _ActionIcon(
             icon: Icons.shortcut_rounded,
@@ -105,7 +107,7 @@ class MessageActions extends StatelessWidget {
             color: cs.onSurfaceVariant,
             onTap: onForward!,
           ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         if (onThread != null)
           _ActionIcon(
             icon: Icons.forum_rounded,
@@ -113,14 +115,14 @@ class MessageActions extends StatelessWidget {
             color: cs.onSurfaceVariant,
             onTap: onThread!,
           ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
           icon: Icons.copy_rounded,
           tooltip: l10n.copyTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _copyMessage(context),
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
           icon: Icons.info_outline_rounded,
           tooltip: l10n.detailsTooltip,
@@ -128,7 +130,7 @@ class MessageActions extends StatelessWidget {
           onTap: () => _showDetails(context),
         ),
         if (canEdit) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
             icon: Icons.edit_outlined,
             tooltip: l10n.editTooltip,
@@ -137,7 +139,7 @@ class MessageActions extends StatelessWidget {
           ),
         ],
         if (showEditHistory) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           if (showEditHistory)
             _ActionIcon(
               icon: Icons.history_rounded,
@@ -147,7 +149,7 @@ class MessageActions extends StatelessWidget {
             ),
         ],
         if (canPin) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
             icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
             tooltip: isPinned ? l10n.unpinMessage : l10n.pinMessage,
@@ -156,7 +158,7 @@ class MessageActions extends StatelessWidget {
           ),
         ],
         if (canDelete) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
             icon: Icons.delete_outline_rounded,
             tooltip: l10n.deleteTooltip,
@@ -166,7 +168,7 @@ class MessageActions extends StatelessWidget {
         ],
         // -- Moderation actions -------------------------------------------
         if (!isOwnMessage && (canModerate || canBanUser)) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ModerationMenu(
             event: event,
             room: room,
@@ -245,30 +247,21 @@ class _ActionIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
-    // [Semantics] instead of [Tooltip]: these action buttons are
-    // rendered inside the dashboard's [LayoutBuilder] shell (the hover
-    // toolbar appears over the timeline, which is hosted by the layout
-    // shell). A Tooltip mounts an internal [OverlayPortal] that
-    // activates on mount and would mark a sibling
-    // [_RenderLayoutBuilder] as needing layout mid-performLayout,
-    // tripping the
-    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
-    // Semantics provides the same accessibility label without
-    // materialising an overlay entry.
     return Semantics(
       label: tooltip,
       button: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           onTap: onTap,
-          hoverColor: cs.onSurfaceVariant.withValues(alpha: 0.08),
-          splashColor: cs.onSurfaceVariant.withValues(alpha: 0.12),
+          hoverColor: cs.onSurfaceVariant.withValues(alpha: t.opacityHover),
+          splashColor: cs.onSurfaceVariant.withValues(alpha: t.opacityFocus),
           child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, size: 20, color: color),
+            padding: EdgeInsets.all(t.spaceXs + 2),
+            child: Icon(icon, size: t.iconSizeMedium, color: color),
           ),
         ),
       ),
@@ -301,10 +294,13 @@ class _ModerationMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return PopupMenuButton<String>(
       tooltip: l10n.moderationTooltip,
-      icon: Icon(Icons.more_vert_rounded, size: 20, color: cs.onSurfaceVariant),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      icon: Icon(Icons.more_vert_rounded,
+          size: t.iconSizeMedium, color: cs.onSurfaceVariant),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.radiusMd)),
       color: cs.surfaceContainerHighest,
       onSelected: (value) {
         switch (value) {
@@ -323,8 +319,8 @@ class _ModerationMenu extends StatelessWidget {
             child: Row(
               children: [
                 Icon(Icons.person_remove_outlined,
-                    size: 18, color: cs.tertiary),
-                const SizedBox(width: 8),
+                    size: t.iconSizeSmall, color: cs.tertiary),
+                SizedBox(width: t.spaceSm),
                 Text(l10n.actionKick),
               ],
             ),
@@ -334,8 +330,9 @@ class _ModerationMenu extends StatelessWidget {
             value: 'ban',
             child: Row(
               children: [
-                Icon(Icons.block_outlined, size: 18, color: cs.error),
-                const SizedBox(width: 8),
+                Icon(Icons.block_outlined,
+                    size: t.iconSizeSmall, color: cs.error),
+                SizedBox(width: t.spaceSm),
                 Text(l10n.actionBan),
               ],
             ),
@@ -344,8 +341,8 @@ class _ModerationMenu extends StatelessWidget {
           value: 'report',
           child: Row(
             children: [
-              Icon(Icons.flag_outlined, size: 18, color: cs.error),
-              const SizedBox(width: 8),
+              Icon(Icons.flag_outlined, size: t.iconSizeSmall, color: cs.error),
+              SizedBox(width: t.spaceSm),
               Text(l10n.actionReport),
             ],
           ),

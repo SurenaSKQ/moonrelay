@@ -33,6 +33,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/draft_service.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A modern chat composition widget with formatting tools,
@@ -588,6 +589,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = theme.moonrelay.tokens;
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
@@ -595,7 +597,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         color: colorScheme.surfaceContainerLow,
         border: Border(
           top: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color:
+                colorScheme.outlineVariant.withValues(alpha: t.opacitySubtle),
           ),
         ),
       ),
@@ -619,10 +622,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           // Main input row
           Padding(
             padding: EdgeInsets.only(
-              left: 8,
-              right: 6,
-              top: _isExpanded ? 6 : 10,
-              bottom: _isExpanded ? 6 : 10,
+              left: t.spaceSm,
+              right: t.spaceXs + 2,
+              top: _isExpanded ? t.spaceXs + 2 : t.spaceMd - 2,
+              bottom: _isExpanded ? t.spaceXs + 2 : t.spaceMd - 2,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -635,7 +638,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Sticker button
                 _IconButton(
@@ -645,7 +648,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Voice note recorder
                 _IconButton(
@@ -673,21 +676,21 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Text field
                 Expanded(
                   child: Container(
                     constraints: BoxConstraints(
-                      maxHeight: _isExpanded ? 200 : 48,
+                      maxHeight: _isExpanded ? 200 : t.minTapTarget,
                     ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+                          .withValues(alpha: t.opacitySubtle),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                       border: Border.all(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.6),
+                        color: colorScheme.outlineVariant
+                            .withValues(alpha: t.opacitySubtle),
                       ),
                     ),
                     child: TextField(
@@ -707,12 +710,13 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                         hintText: l10n.chatBoxSendMessage,
                         hintStyle: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface.withValues(alpha: 0.4),
+                          color: colorScheme.onSurface
+                              .withValues(alpha: t.opacityDisabled),
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: t.spaceLg - 2,
+                          vertical: t.spaceMd - 2,
                         ),
                         isDense: true,
                       ),
@@ -720,7 +724,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   ),
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Expand / Collapse button
                 _IconButton(
@@ -759,6 +763,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Widget _buildReplyPreview(ColorScheme colorScheme, AppLocalizations? l10n) {
     final replyTo = _replyEvent;
     if (replyTo == null) return const SizedBox.shrink();
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final senderName = replyTo.senderFromMemoryOrFallback.calcDisplayname();
     final preview = replyTo.body.length > 80
@@ -766,32 +771,34 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         : replyTo.body;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 8, 2),
+      padding:
+          EdgeInsets.fromLTRB(t.spaceMd, t.spaceXs + 2, t.spaceSm, t.spaceXxs),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        color: colorScheme.primaryContainer.withValues(alpha: t.opacityMuted),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color:
+                colorScheme.outlineVariant.withValues(alpha: t.opacityDisabled),
           ),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 3,
-            height: 32,
+            width: t.borderWidthThick,
+            height: t.spaceXxl,
             decoration: BoxDecoration(
               color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(t.spaceXxs),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Icon(
             Icons.reply_rounded,
-            size: 16,
+            size: t.iconSizeSmall,
             color: colorScheme.primary,
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: t.spaceXs + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,7 +816,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   preview,
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -817,34 +825,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
               ],
             ),
           ),
-          const SizedBox(width: 4),
-          // [Semantics] instead of [Tooltip]: the cancel-reply button
-          // is part of the always-mounted chat surface. A Tooltip
-          // would mount an internal [OverlayPortal] (via
-          // [RawTooltip]) that activates the moment the page mounts;
-          // the page is wrapped in a [FadeTransition] from
-          // [genericPageBuilder] which lives inside the dashboard's
-          // [LayoutBuilder] shell, so the portal activation marks a
-          // sibling [_RenderLayoutBuilder] as needing layout mid-
-          // performLayout and trips the
-          // `_RenderLayoutBuilder was mutated in performLayout`
-          // assertion (the chat-page layout race). A Semantics label
-          // gives screen readers the same affordance without ever
-          // materialising an overlay entry.
+          SizedBox(width: t.spaceXs),
           Semantics(
             label: l10n.chatBoxCancelReply,
             button: true,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(t.radiusSm),
                 onTap: _clearReply,
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(t.spaceXs),
                   child: Icon(
                     Icons.close_rounded,
-                    size: 18,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    size: t.iconSizeSmall,
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                 ),
               ),
@@ -864,38 +860,41 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Widget _buildEditBanner(ColorScheme colorScheme, AppLocalizations? l10n) {
     final editTarget = _editEvent;
     if (editTarget == null) return const SizedBox.shrink();
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final preview = editTarget.body.length > 80
         ? '${editTarget.body.substring(0, 80)}...'
         : editTarget.body;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 8, 2),
+      padding:
+          EdgeInsets.fromLTRB(t.spaceMd, t.spaceXs + 2, t.spaceSm, t.spaceXxs),
       decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        color: colorScheme.tertiaryContainer.withValues(alpha: t.opacityMuted),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color:
+                colorScheme.outlineVariant.withValues(alpha: t.opacityDisabled),
           ),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 3,
-            height: 32,
+            width: t.borderWidthThick,
+            height: t.spaceXxl,
             decoration: BoxDecoration(
               color: colorScheme.tertiary,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(t.spaceXxs),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Icon(
             Icons.edit_outlined,
-            size: 16,
+            size: t.iconSizeSmall,
             color: colorScheme.tertiary,
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: t.spaceXs + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,7 +912,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   preview,
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -921,21 +921,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
               ],
             ),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Semantics(
             label: l10n.chatBoxCancelEdit,
             button: true,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(t.radiusSm),
                 onTap: _clearEdit,
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(t.spaceXs),
                   child: Icon(
                     Icons.close_rounded,
-                    size: 18,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    size: t.iconSizeSmall,
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                 ),
               ),
@@ -952,11 +953,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
   Widget _buildFormattingToolbar(ColorScheme colorScheme) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: t.spaceXs),
       child: Wrap(
-        spacing: 2,
-        runSpacing: 2,
+        spacing: t.spaceXxs,
+        runSpacing: t.spaceXxs,
         children: [
           _formatButton(
             icon: LucideIcons.bold,
@@ -1017,12 +1019,16 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   }
 
   Widget _formatDivider() {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      padding:
+          EdgeInsets.symmetric(horizontal: t.spaceXxs, vertical: t.spaceXs),
       child: Container(
-        width: 1,
-        color:
-            Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+        width: t.borderWidthThin,
+        color: Theme.of(context)
+            .colorScheme
+            .outlineVariant
+            .withValues(alpha: t.opacityDisabled),
       ),
     );
   }
@@ -1033,30 +1039,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     required VoidCallback onTap,
   }) {
     final cs = Theme.of(context).colorScheme;
-    // [Semantics] instead of [Tooltip] for the same reason as the
-    // rest of the chat-box chrome: this widget lives inside a
-    // [SizeTransition] inside the always-mounted chat surface, and
-    // Tooltip's internal [OverlayPortal] would activate on mount
-    // while the dashboard's [LayoutBuilder] ancestor is mid-
-    // performLayout, tripping the
-    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
-    // Semantics carries the same accessibility label without ever
-    // materialising an overlay entry.
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: t.spaceXxl,
+      height: t.spaceXxl,
       child: Semantics(
         label: tooltip,
         button: true,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             onTap: onTap,
             child: Icon(
               icon,
-              size: 18,
-              color: cs.onSurface.withValues(alpha: 0.7),
+              size: t.iconSizeSmall,
+              color: cs.onSurface.withValues(alpha: t.opacitySubtle),
             ),
           ),
         ),
@@ -1090,17 +1088,7 @@ class _IconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canTap = enabled && onPressed != null;
-    // We intentionally wrap in [Semantics] rather than [Tooltip] here.
-    // [Tooltip] mounts an internal [OverlayPortal] (via [RawTooltip])
-    // that activates the moment the page mounts.  When the page is
-    // pushed through a custom page transition (the dashboard's
-    // [LayoutBuilder] shell) the overlay portal's activation marks a
-    // sibling [_RenderLayoutBuilder] as needing layout mid-performLayout,
-    // which trips the
-    // `_RenderLayoutBuilder was mutated in performLayout` assertion
-    // and the associated `traversalParentIdentifier must be unique`
-    // semantics error.  A `Semantics` label gives screen readers the
-    // same affordance without ever materialising the overlay entry.
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Semantics(
       label: tooltip,
       button: true,
@@ -1109,25 +1097,27 @@ class _IconButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           onTap: canTap ? onPressed : null,
           child: Container(
-            width: 36,
-            height: 36,
+            width: t.minTapTarget * 0.75,
+            height: t.minTapTarget * 0.75,
             decoration: isPrimary && canTap
                 ? BoxDecoration(
                     color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(t.radiusSm),
                   )
                 : null,
             child: Icon(
               icon,
-              size: 20,
+              size: t.iconSizeMedium,
               color: isPrimary
                   ? (canTap
                       ? colorScheme.onPrimary
-                      : colorScheme.onSurface.withValues(alpha: 0.3))
-                  : colorScheme.onSurface.withValues(alpha: canTap ? 0.7 : 0.3),
+                      : colorScheme.onSurface
+                          .withValues(alpha: t.opacityDisabled))
+                  : colorScheme.onSurface.withValues(
+                      alpha: canTap ? t.opacitySubtle : t.opacityDisabled),
             ),
           ),
         ),

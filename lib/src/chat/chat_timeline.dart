@@ -35,6 +35,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Orchestrates the chat timeline lifecycle.
 ///
@@ -122,7 +123,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   // -- Test accessors --------------------------------------------
 
-   @visibleForTesting
+  @visibleForTesting
   int get timelineVersionForTest => _timelineVersion.value;
 
   @visibleForTesting
@@ -371,9 +372,10 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     _scrollController.animateTo(
       0,
-      duration: const Duration(milliseconds: 200),
+      duration: t.durationFast,
       curve: Curves.easeOut,
     );
   }
@@ -482,6 +484,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       ),
       shouldRebuild: (a, b) => a != b,
       builder: (context, settings, _) {
+        final t = MoonrelayThemeExtension.of(context).tokens;
         if (_timeline == null) {
           if (_timelineLoadFailed) return _buildError(context);
           return const SizedBox.shrink();
@@ -493,7 +496,8 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
           children: [
             child,
             ListenableBuilder(
-              listenable: Listenable.merge([_isScrolledUpNotifier, _timelineVersion]),
+              listenable:
+                  Listenable.merge([_isScrolledUpNotifier, _timelineVersion]),
               builder: (context, _) {
                 final isScrolledUp = _isScrolledUpNotifier.value;
                 final isJumping = _jumpCoordinator?.isJumping ?? false;
@@ -511,7 +515,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
                 return Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 12,
+                  bottom: t.spaceMd,
                   child: SafeArea(
                     top: false,
                     child: Center(
@@ -546,6 +550,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     BuildContext context,
     _TimelineSettings settings,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     if (widget.filterEvents != null) {
       if (_fetchedFilteredEvents != null) {
         if (_fetchedFilteredEvents!.isEmpty) {
@@ -559,9 +564,9 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
                   color: Theme.of(context)
                       .colorScheme
                       .onSurfaceVariant
-                      .withValues(alpha: 0.4),
+                      .withValues(alpha: t.opacityMuted),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: t.spaceMd),
                 Text(
                   AppLocalizations.of(context)!.noPinnedMessages,
                   style: TextStyle(
@@ -614,34 +619,37 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   Widget _buildError(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
-            const SizedBox(height: 16),
+            Icon(LucideIcons.alertCircle,
+                size: t.minTapTarget, color: scheme.error),
+            SizedBox(height: t.spaceLg),
             Text(
               AppLocalizations.of(context)!.couldNotLoadMessages,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               AppLocalizations.of(context)!.serverMayBeUnreachable,
               style: TextStyle(
                 fontSize: 13,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color:
+                    scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Icon(
               LucideIcons.shield,
-              size: 24,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              size: t.iconSizeLarge,
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               AppLocalizations.of(context)!.encryptionVerifyDevice,
               style: TextStyle(
