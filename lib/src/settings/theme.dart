@@ -16,7 +16,13 @@
 
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/theme/component_tokens.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:flutter/material.dart';
+
+export 'package:moonrelay/src/theme/moonrelay_theme_extension.dart'
+    show MoonrelayThemeExtension;
 
 /// Central store for text-direction state.
 ///
@@ -118,66 +124,50 @@ class MoonrelayTheme {
     required String fontFamily,
     required String monoFontFamily,
   }) {
-    final ColorScheme colorScheme = ColorScheme.fromSeed(
+    final colorScheme = ColorScheme.fromSeed(
       seedColor: accent.seedColor,
       brightness: brightness,
     );
-    final double radius = spec.cornerRadius;
-    final double elevation = spec.surfaceElevation;
+    final tokens = MoonrelayDesignTokens.fromSpec(spec);
+    final components = MoonrelayComponentTokens.fromDesignTokens(tokens, spec);
 
     ThemeData data = ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-
-      // Density controls the tightness of Material components based on the
-      // user's LayoutDensity setting.
       visualDensity: _visualDensity(density),
-
-      // Font defaults: any Text widget that does not explicitly set a
-      // fontFamily inherits this value, so the font-family setting now
-      // applies app-wide instead of being hard-coded.
       fontFamily: fontFamily,
-
-      // Typography
       textTheme: _textTheme(fontFamily),
 
-      // Component themes
-      appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        titleTextStyle: TextStyle(
-          fontFamily: fontFamily,
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-          color: colorScheme.onSurface,
-        ),
-      ),
-
-      cardTheme: CardThemeData(
-        elevation: elevation,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius),
-        ),
-      ),
-
-      dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        thickness: 1,
-      ),
-
-      // Dialog / bottom-sheet corners follow the skin radius too, so the
-      // surface language stays consistent across the app.
-      dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius),
-        ),
-      ),
+      // Component themes derived from tokens
+      appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily),
+      cardTheme: _cardTheme(colorScheme, components.card),
+      dividerTheme: _dividerTheme(colorScheme, components.divider),
+      dialogTheme: _dialogTheme(colorScheme, components.dialog),
+      filledButtonTheme: _filledButtonTheme(colorScheme, components.button),
+      outlinedButtonTheme: _outlinedButtonTheme(colorScheme, components.button),
+      elevatedButtonTheme: _elevatedButtonTheme(colorScheme, components.button),
+      textButtonTheme: _textButtonTheme(colorScheme, components.button),
+      iconButtonTheme: _iconButtonTheme(colorScheme, tokens),
+      listTileTheme: _listTileTheme(colorScheme, components.list),
+      snackBarTheme: _snackBarTheme(colorScheme, components.snackBar),
+      inputDecorationTheme:
+          _inputDecorationTheme(colorScheme, components.input),
+      progressIndicatorTheme:
+          _progressIndicatorTheme(colorScheme, components.progress),
+      chipTheme: _chipTheme(colorScheme, components.chip),
+      badgeTheme: _badgeTheme(colorScheme, components.badge),
+      tooltipTheme: _tooltipTheme(colorScheme, components.tooltip),
+      navigationBarTheme:
+          _navigationBarTheme(colorScheme, components.navigation),
+      textSelectionTheme: _textSelectionTheme(colorScheme),
 
       // Custom design tokens exposed via ThemeExtension
       extensions: <ThemeExtension<dynamic>>[
-        MoonrelayThemeExtension(monoFontFamily: monoFontFamily),
+        MoonrelayThemeExtension(
+          monoFontFamily: monoFontFamily,
+          tokens: tokens,
+          components: components,
+        ),
       ],
     );
 
@@ -185,9 +175,236 @@ class MoonrelayTheme {
     // scrollbar, ...) on top of the shared tokens. Colours stay the accent's
     // job, so this only touches component themes, never the color scheme.
     if (spec.widgetStyle != null) {
-      data = spec.widgetStyle!.mergeInto(data, colorScheme);
+      data = spec.widgetStyle!.mergeInto(data, colorScheme, tokens, components);
     }
     return data;
+  }
+
+  // ── Component theme builders ──────────────────────────────────────
+
+  static AppBarTheme _appBarTheme(
+    ColorScheme cs,
+    MoonrelayAppBarTokens t,
+    String fontFamily,
+  ) {
+    return AppBarTheme(
+      backgroundColor: cs.surface,
+      foregroundColor: cs.onSurface,
+      elevation: t.elevation,
+      scrolledUnderElevation: t.scrolledElevation,
+      toolbarHeight: t.toolbarHeight,
+      titleTextStyle: t.titleStyle ??
+          TextStyle(
+            fontFamily: fontFamily,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: cs.onSurface,
+          ),
+    );
+  }
+
+  static CardThemeData _cardTheme(ColorScheme cs, MoonrelayCardTokens t) {
+    return CardThemeData(
+      elevation: t.elevation,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(t.cornerRadius),
+      ),
+    );
+  }
+
+  static DividerThemeData _dividerTheme(
+    ColorScheme cs,
+    MoonrelayDividerTokens t,
+  ) {
+    return DividerThemeData(
+      color: cs.outlineVariant.withValues(alpha: 0.5),
+      thickness: t.thickness,
+    );
+  }
+
+  static DialogThemeData _dialogTheme(
+    ColorScheme cs,
+    MoonrelayDialogTokens t,
+  ) {
+    return DialogThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(t.cornerRadius),
+      ),
+    );
+  }
+
+  static FilledButtonThemeData _filledButtonTheme(
+    ColorScheme cs,
+    MoonrelayButtonTokens t,
+  ) {
+    return FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.cornerRadius),
+        ),
+        minimumSize: Size(0, t.minHeight),
+        padding: t.padding,
+      ),
+    );
+  }
+
+  static OutlinedButtonThemeData _outlinedButtonTheme(
+    ColorScheme cs,
+    MoonrelayButtonTokens t,
+  ) {
+    return OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: cs.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.cornerRadius),
+          side: BorderSide(width: t.borderWidth, color: cs.outline),
+        ),
+        minimumSize: Size(0, t.minHeight),
+        padding: t.padding,
+      ),
+    );
+  }
+
+  static ElevatedButtonThemeData _elevatedButtonTheme(
+    ColorScheme cs,
+    MoonrelayButtonTokens t,
+  ) {
+    return ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        minimumSize: Size(0, t.minHeight),
+        padding: t.padding,
+      ),
+    );
+  }
+
+  static TextButtonThemeData _textButtonTheme(
+    ColorScheme cs,
+    MoonrelayButtonTokens t,
+  ) {
+    return TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: cs.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.cornerRadius),
+        ),
+        padding: t.padding,
+      ),
+    );
+  }
+
+  static IconButtonThemeData _iconButtonTheme(
+    ColorScheme cs,
+    MoonrelayDesignTokens t,
+  ) {
+    return IconButtonThemeData(
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.radiusMd),
+        ),
+        padding: EdgeInsets.all(t.spaceSm),
+      ),
+    );
+  }
+
+  static ListTileThemeData _listTileTheme(
+    ColorScheme cs,
+    MoonrelayListTokens t,
+  ) {
+    return ListTileThemeData(
+      contentPadding: t.contentPadding,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  static SnackBarThemeData _snackBarTheme(
+    ColorScheme cs,
+    MoonrelaySnackBarTokens t,
+  ) {
+    return SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(t.cornerRadius),
+      ),
+    );
+  }
+
+  static InputDecorationTheme _inputDecorationTheme(
+    ColorScheme cs,
+    MoonrelayInputTokens t,
+  ) {
+    final radius = BorderRadius.circular(t.cornerRadius);
+    final side = BorderSide(width: t.borderWidth, color: cs.outline);
+    return InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: radius, borderSide: side),
+      enabledBorder: OutlineInputBorder(borderRadius: radius, borderSide: side),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(width: t.borderWidth, color: cs.primary),
+      ),
+    );
+  }
+
+  static ProgressIndicatorThemeData _progressIndicatorTheme(
+    ColorScheme cs,
+    MoonrelayProgressTokens t,
+  ) {
+    return ProgressIndicatorThemeData(
+      linearTrackColor: cs.surfaceContainerHighest,
+      strokeWidth: t.strokeWidth,
+    );
+  }
+
+  static ChipThemeData _chipTheme(ColorScheme cs, MoonrelayChipTokens t) {
+    return ChipThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(t.cornerRadius),
+        side: BorderSide(width: t.borderWidth, color: cs.outline),
+      ),
+      padding: t.padding,
+    );
+  }
+
+  static BadgeThemeData _badgeTheme(ColorScheme cs, MoonrelayBadgeTokens t) {
+    return BadgeThemeData(
+      backgroundColor: cs.error,
+      textColor: cs.onError,
+      smallSize: t.size * 0.75,
+      largeSize: t.size,
+    );
+  }
+
+  static TooltipThemeData _tooltipTheme(
+    ColorScheme cs,
+    MoonrelayTooltipTokens t,
+  ) {
+    return TooltipThemeData(
+      decoration: BoxDecoration(
+        color: cs.inverseSurface,
+        borderRadius: BorderRadius.circular(t.cornerRadius),
+      ),
+      padding: t.padding,
+    );
+  }
+
+  static NavigationBarThemeData _navigationBarTheme(
+    ColorScheme cs,
+    MoonrelayNavigationTokens t,
+  ) {
+    return NavigationBarThemeData(
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(t.indicatorRadius),
+      ),
+    );
+  }
+
+  static TextSelectionThemeData _textSelectionTheme(ColorScheme cs) {
+    return TextSelectionThemeData(
+      cursorColor: cs.primary,
+      selectionColor: cs.primary.withValues(alpha: 0.3),
+      selectionHandleColor: cs.primary,
+    );
   }
 
   static TextTheme _textTheme(String fontFamily) {
@@ -267,41 +484,6 @@ class MoonrelayTheme {
         fontWeight: FontWeight.w500,
         fontSize: 11,
       ),
-    );
-  }
-}
-
-// ── ThemeExtension for app-specific design tokens ────────────────────────────
-
-/// Custom design tokens that fall outside Material 3's [ColorScheme].
-///
-/// Access via `Theme.of(context).extension<MoonrelayThemeExtension>()`.
-@immutable
-class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
-  /// Font family for monospace text (code blocks, etc.).
-  final String monoFontFamily;
-
-  const MoonrelayThemeExtension({
-    required this.monoFontFamily,
-  });
-
-  @override
-  MoonrelayThemeExtension copyWith({
-    String? monoFontFamily,
-  }) {
-    return MoonrelayThemeExtension(
-      monoFontFamily: monoFontFamily ?? this.monoFontFamily,
-    );
-  }
-
-  @override
-  MoonrelayThemeExtension lerp(
-    covariant MoonrelayThemeExtension? other,
-    double t,
-  ) {
-    if (other is! MoonrelayThemeExtension) return this;
-    return MoonrelayThemeExtension(
-      monoFontFamily: t < 0.5 ? monoFontFamily : other.monoFontFamily,
     );
   }
 }
