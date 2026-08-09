@@ -23,6 +23,7 @@ import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Renders an `m.sticker` event as a compact image card without the
@@ -157,7 +158,8 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     return SizedBox(
       width: 100,
       height: 100,
-      child: Icon(Icons.sticky_note_2_outlined, size: 36, color: cs.onSurfaceVariant),
+      child: Icon(Icons.sticky_note_2_outlined,
+          size: 36, color: cs.onSurfaceVariant),
     );
   }
 
@@ -184,6 +186,7 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
   }
 
   Widget _buildSticker(ColorScheme cs, Uint8List bytes, BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final prefs = MediaSizePrefs.of(context);
     // Cap decoded bitmap to display size × DPR. Stickers are typically
     // small but the raw attachment can still be a multi-megapixel PNG.
@@ -202,7 +205,7 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
         width: size.width,
         height: size.height,
         child: Container(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
           child: Icon(
             Icons.broken_image_outlined,
             size: 32,
