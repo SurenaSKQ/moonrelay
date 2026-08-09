@@ -26,9 +26,18 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:provider/provider.dart';
 
 import 'mocks.dart';
+
+/// The default Moonrelay [ThemeData] used by test wrappers so widgets that
+/// read [MoonrelayThemeExtension] resolve it exactly like in production.
+ThemeData testMoonrelayTheme() => MoonrelayTheme.light(
+      MoonrelayThemes.material,
+      MoonrelayAccents.indigo,
+    );
 
 /// Creates a [SettingsController] backed by an in-memory [SettingsService],
 /// with default values pre-populated so tests can use it immediately without
@@ -78,6 +87,7 @@ Widget wrapWithProviders({
       ),
     ],
     child: MaterialApp(
+      theme: testMoonrelayTheme(),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -94,6 +104,7 @@ Widget wrapWithProviders({
 /// any Matrix or Logger providers.
 Widget wrapWithMaterialApp({required Widget child}) {
   return MaterialApp(
+    theme: testMoonrelayTheme(),
     localizationsDelegates: const [
       GlobalMaterialLocalizations.delegate,
       GlobalWidgetsLocalizations.delegate,
