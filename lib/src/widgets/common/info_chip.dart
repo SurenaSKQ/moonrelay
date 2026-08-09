@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A small pill-shaped chip with an icon and label, used for room type,
 /// member count, and other inline status badges across settings pages.
@@ -33,17 +34,18 @@ class InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = scheme ?? Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceMd, vertical: t.spaceXs),
       decoration: BoxDecoration(
-        color: cs.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        color: cs.secondaryContainer.withValues(alpha: t.opacityMuted),
+        borderRadius: BorderRadius.circular(t.radiusFull),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: cs.onSecondaryContainer),
-          const SizedBox(width: 4),
+          Icon(icon, size: t.iconSizeSmall, color: cs.onSecondaryContainer),
+          SizedBox(width: t.spaceXs),
           Text(
             label,
             style: TextStyle(

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A small card that highlights a status (e.g. encryption state).
 class StatusCard extends StatelessWidget {
@@ -33,17 +34,18 @@ class StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(t.spaceMd),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: t.opacityMuted),
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        border: Border.all(color: color.withValues(alpha: t.opacityMuted)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 10),
+          Icon(icon, size: t.iconSizeMedium, color: color),
+          SizedBox(width: t.spaceMd),
           Text(
             label,
             style: TextStyle(
