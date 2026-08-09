@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/common/status_card.dart';
 
@@ -175,6 +176,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
     // layout-pass width changes scoped to this subtree.
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final width = LayoutScope.of(context).availableWidth;
     final compactPane = width < 240;
     final outerPadding = compactPane ? 12.0 : 16.0;
@@ -196,7 +198,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
                   avatarUri: widget.room.avatar,
                   radius: avatarRadius,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: t.spaceMd),
                 Text(
                   _displayName,
                   style: TextStyle(
@@ -219,7 +221,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             label: topicText,
             scheme: scheme,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // Room type
           InfoRow(
@@ -227,7 +229,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             label: _roomType,
             scheme: scheme,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // Room ID
           InfoRow(
@@ -236,7 +238,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             scheme: scheme,
             mono: true,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
 
           // Member count
           InfoRow(
@@ -245,7 +247,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             scheme: scheme,
           ),
           if (_canonicalAlias.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             InfoRow(
               icon: LucideIcons.atSign,
               label: _canonicalAlias,
@@ -254,7 +256,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             ),
           ],
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // Encryption status
           StatusCard(
@@ -264,7 +266,7 @@ class SidebarRoomInfoState extends State<SidebarRoomInfo> {
             scheme: scheme,
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
 
           // -- Pinned messages section ---------------------------------
           PinnedSection(room: widget.room),
@@ -291,11 +293,12 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 8),
+        Icon(icon, size: t.iconSizeSmall, color: scheme.onSurfaceVariant),
+        SizedBox(width: t.spaceSm),
         Expanded(
           child: Text(
             label,
@@ -393,6 +396,7 @@ class PinnedSectionState extends State<PinnedSection> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final currentRoom = context.watch<CurrentRoom>();
 
@@ -417,7 +421,7 @@ class PinnedSectionState extends State<PinnedSection> {
       children: [
         // -- Section header -----------------------------------------
         InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           onTap: () {
             if (count > 0) {
               final settings = context.read<SettingsController>();
@@ -430,12 +434,12 @@ class PinnedSectionState extends State<PinnedSection> {
               children: [
                 Icon(
                   Icons.push_pin_outlined,
-                  size: 16,
+                  size: t.iconSizeSmall,
                   color: currentRoom.pinnedFilterActive
                       ? scheme.primary
                       : scheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 Expanded(
                   child: Text(
                     l10n.pinnedMessages,
@@ -454,7 +458,7 @@ class PinnedSectionState extends State<PinnedSection> {
                     ),
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(t.radiusSm),
                     ),
                     child: Text(
                       '$count',
@@ -469,10 +473,10 @@ class PinnedSectionState extends State<PinnedSection> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
         if (count == 0)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
             child: Text(
               l10n.noPinnedMessages,
               style: TextStyle(
@@ -483,7 +487,7 @@ class PinnedSectionState extends State<PinnedSection> {
           )
         else if (_loading)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
             child: LinearProgressIndicator(
               color: scheme.primary,
               backgroundColor: scheme.surfaceContainerHighest,
@@ -500,7 +504,7 @@ class PinnedSectionState extends State<PinnedSection> {
             );
           }),
         if (count > previewCount) ...[
-          const SizedBox(height: 4),
+          SizedBox(height: t.spaceXs),
           TextButton(
             onPressed: () {
               final settings = context.read<SettingsController>();
