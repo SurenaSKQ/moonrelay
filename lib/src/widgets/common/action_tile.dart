@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A tappable action tile with icon, label, optional description, and a
 /// trailing chevron.  Used across settings pages for editing properties.
@@ -40,15 +41,17 @@ class ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = scheme ?? Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final effectiveColor = color ?? cs.primary;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        side: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: t.opacityMuted)),
       ),
       child: ListTile(
-        leading: Icon(icon, size: 22, color: effectiveColor),
+        leading: Icon(icon, size: t.iconSizeLarge, color: effectiveColor),
         title: Text(
           label,
           style: const TextStyle(fontWeight: FontWeight.w500),
@@ -61,7 +64,7 @@ class ActionTile extends StatelessWidget {
             : null,
         trailing: Icon(
           LucideIcons.chevronRight,
-          size: 18,
+          size: t.iconSizeSmall,
           color: cs.onSurfaceVariant,
         ),
         onTap: onTap,
