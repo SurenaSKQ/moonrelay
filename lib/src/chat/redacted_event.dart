@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Renders a compact placeholder for redacted (deleted) messages.
 ///
@@ -51,6 +52,7 @@ class RedactedEvent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     final senderName =
@@ -71,7 +73,7 @@ class RedactedEvent extends StatelessWidget {
             : '';
 
     Widget content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 72, vertical: t.spaceXs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -103,7 +105,7 @@ class RedactedEvent extends StatelessWidget {
                 ),
                 if (label.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: EdgeInsets.only(top: t.spaceXxs),
                     child: Text(
                       label,
                       style: TextStyle(

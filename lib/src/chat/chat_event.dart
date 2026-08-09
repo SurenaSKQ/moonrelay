@@ -33,6 +33,7 @@ import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:moonrelay/src/chat/poll_message_type.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type
@@ -198,6 +199,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
   /// The actual dispatch.  Pulled out of [build] so the cache-replay
   /// short-circuit stays one path.
   Widget _build(EncryptionService enc, double fs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final event = widget.event;
 
     // If the event is still encrypted (failed to decrypt), show a warning.
@@ -211,7 +213,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
           Row(
             children: [
               TrustIndicator(isVerified: isVerified, size: 14),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Expanded(child: _renderContent(fs)),
             ],
           ),
@@ -232,7 +234,8 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
             children: [
               if (event.originalSource?.type == EventTypes.Encrypted)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 4),
+                  padding: EdgeInsets.only(
+                      top: t.spaceXxs, right: t.spaceXs),
                   child: TrustIndicator(isVerified: isVerified, size: 12),
                 ),
               Expanded(child: _renderContent(fs)),
@@ -467,6 +470,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
   /// Builds the content for a reply event: a reply preview header followed
   /// by the actual message body (with the `<mx-reply>` wrapper stripped).
   Widget _buildReplyContent(String replyId, double fontSize) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final event = widget.event;
     final room = widget.room;
     final timeline = widget.timeline;
@@ -505,7 +509,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
           room: room,
           onJumpToEvent: widget.onJumpToEvent,
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
         FormattedTextWidget(
           event: displayEvent,
           formattedBodyOverride: strippedHtml,
@@ -634,6 +638,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
     int collapseThreshold,
   ) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final clean = body.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
     final display = clean.isNotEmpty ? clean : body.trim();
     final canExpand = display.length > collapseThreshold;
@@ -644,7 +649,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
         // Vertical bar indicator
         Container(
           width: 3,
-          margin: const EdgeInsets.only(right: 8),
+          margin: EdgeInsets.only(right: t.spaceSm),
           decoration: BoxDecoration(
             color: scheme.primary.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(2),
@@ -690,13 +695,13 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
           barAndText,
         if (canExpand)
           Padding(
-            padding: const EdgeInsets.only(left: 11, top: 2),
+            padding: EdgeInsets.only(left: 11, top: t.spaceXxs),
             child: InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(t.radiusXs),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spaceXs,
                   vertical: 1,
                 ),
                 child: Text(
@@ -731,9 +736,10 @@ class _EditedMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: EdgeInsets.only(top: t.spaceXxs),
       child: Text(
         l10n.editedIndicator,
         style: TextStyle(

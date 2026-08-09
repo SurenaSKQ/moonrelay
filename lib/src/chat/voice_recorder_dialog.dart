@@ -22,6 +22,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
@@ -211,6 +212,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return AlertDialog(
       title: Text(l10n.voiceRecorderTitle),
@@ -221,7 +223,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
           children: [
             if (_permissionDenied)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.only(bottom: t.spaceMd),
                 child: Text(
                   l10n.voiceRecorderPermissionDenied,
                   style: TextStyle(color: cs.error),
@@ -230,7 +232,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
               ),
             if (_error != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.only(bottom: t.spaceMd),
                 child: Text(
                   '${l10n.error}: $_error',
                   style: TextStyle(color: cs.error),
@@ -238,18 +240,18 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
               ),
             if (_sending) ...[
               const CircularProgressIndicator(strokeWidth: 2.5),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Text(l10n.voiceRecorderSending),
             ] else if (_isRecording) ...[
               // -- Recording state ---------------------------------------
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spaceLg,
+                  vertical: t.spaceSm,
                 ),
                 decoration: BoxDecoration(
                   color: cs.errorContainer.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(t.radiusSm),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -262,7 +264,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: t.spaceSm),
                     Text(
                       l10n.voiceRecorderDuration(
                         (_elapsed.inMilliseconds / 1000).toStringAsFixed(1),
@@ -275,7 +277,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
               Text(
                 _formatElapsed(),
                 style: TextStyle(
@@ -284,14 +286,14 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                   color: cs.onSurface,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               IconButton.filled(
                 icon: const Icon(LucideIcons.square),
                 iconSize: 32,
                 style: IconButton.styleFrom(
                   backgroundColor: cs.error,
                   foregroundColor: cs.onError,
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(t.spaceLg),
                 ),
                 tooltip: l10n.stopRecording,
                 onPressed: _stopRecording,
@@ -301,7 +303,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
               Row(
                 children: [
                   Icon(LucideIcons.checkCircle, color: cs.primary, size: 22),
-                  const SizedBox(width: 8),
+                  SizedBox(width: t.spaceSm),
                   Expanded(
                     child: Text(
                       _formatElapsed(),
@@ -313,7 +315,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: t.spaceSm),
               Text(
                 l10n.voiceRecorderTitle,
                 style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
@@ -325,7 +327,7 @@ class _VoiceRecorderDialogState extends State<_VoiceRecorderDialog> {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: cs.onSurfaceVariant),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
             ],
           ],
         ),

@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
@@ -112,6 +113,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return StreamBuilder<Object>(
       stream: widget.room.client.onRoomState.stream
@@ -136,7 +138,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         final showBadges = width >= 600;
         final avatarRadius = compactHeader ? 16.0 : 20.0;
         final nameFontSize = compactHeader ? 14.0 : 16.0;
-        final hPadding = compactHeader ? 8.0 : 12.0;
+        final hPadding = compactHeader ? t.spaceSm : t.spaceMd;
 
         return GestureDetector(
           onTap: _onTap,
@@ -147,7 +149,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
               color: scheme.surfaceContainer,
               border: Border(
                 bottom: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle),
                 ),
               ),
             ),
@@ -159,7 +161,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                   avatarUri: widget.room.avatar,
                   radius: avatarRadius,
                 ),
-                SizedBox(width: compactHeader ? 8 : 12),
+                SizedBox(width: compactHeader ? t.spaceSm : t.spaceMd),
 
                 // Name + Topic
                 Expanded(
@@ -178,7 +180,7 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (showTopic) ...[
-                        const SizedBox(height: 2),
+                        SizedBox(height: t.spaceXxs),
                         Text(
                           topic,
                           style: TextStyle(
@@ -192,20 +194,20 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                     ],
                   ),
                 ),
-                SizedBox(width: compactHeader ? 4 : 8),
+                SizedBox(width: compactHeader ? t.spaceXs : t.spaceSm),
 
                 if (showBadges) ...[
                   // Sync status indicator
                   _SyncIndicator(client: widget.room.client),
-                  const SizedBox(width: 4),
+                  SizedBox(width: t.spaceXs),
 
                   // Member count badge
                   _MemberCountBadge(count: _memberCount, scheme: scheme),
-                  const SizedBox(width: 4),
+                  SizedBox(width: t.spaceXs),
 
                   // Pinned messages toggle
                   _PinnedFilterButton(room: widget.room),
-                  const SizedBox(width: 4),
+                  SizedBox(width: t.spaceXs),
                 ],
 
                 // In-room search toggle
@@ -268,6 +270,7 @@ class _SyncIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     return StreamBuilder<SyncStatusUpdate>(
@@ -279,10 +282,10 @@ class _SyncIndicator extends StatelessWidget {
         if (!isSyncing) return const SizedBox.shrink();
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: 3),
           decoration: BoxDecoration(
             color: scheme.primaryContainer.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusMd),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -294,7 +297,7 @@ class _SyncIndicator extends StatelessWidget {
                   color: scheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Text(
                 l10n.statusSyncing,
                 style: TextStyle(
@@ -323,11 +326,12 @@ class _MemberCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: 3),
       decoration: BoxDecoration(
         color: scheme.secondaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -337,7 +341,7 @@ class _MemberCountBadge extends StatelessWidget {
             size: 14,
             color: scheme.onSecondaryContainer,
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             '$count',
             style: TextStyle(

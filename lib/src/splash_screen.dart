@@ -19,6 +19,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Full-screen splash shown while the application initialises.
 ///
@@ -118,24 +120,27 @@ class SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       backgroundColor: scheme.surface,
       body: Center(
-        child: _done == false ? _buildError(scheme) : _buildLoading(scheme),
+        child: _done == false
+            ? _buildError(scheme, t)
+            : _buildLoading(scheme, t),
       ),
     );
   }
 
-  Widget _buildLoading(ColorScheme scheme) {
+  Widget _buildLoading(ColorScheme scheme, MoonrelayDesignTokens t) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(LucideIcons.moon, size: 64, color: scheme.primary),
-        const SizedBox(height: 32),
+        SizedBox(height: t.spaceXxl),
         SizedBox(
-          width: 24,
-          height: 24,
+          width: t.spaceXl,
+          height: t.spaceXl,
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
             color: scheme.primary,
@@ -153,14 +158,14 @@ class SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _buildError(ColorScheme scheme) {
+  Widget _buildError(ColorScheme scheme, MoonrelayDesignTokens t) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceXxl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(LucideIcons.alertOctagon, size: 56, color: scheme.error),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
           Text(
             _errorTitle,
             style: TextStyle(
@@ -170,7 +175,7 @@ class SplashScreenState extends State<SplashScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.spaceMd),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: SelectableText(

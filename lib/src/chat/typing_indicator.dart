@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A small footer that shows "(name) is typing…" for the active room.
@@ -71,6 +72,7 @@ class _TypingIndicatorState extends State<TypingIndicator> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     // Honour the user-level "show typing indicator" toggle. The
@@ -105,11 +107,11 @@ class _TypingIndicatorState extends State<TypingIndicator> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: 6),
       child: Row(
         children: [
           _BouncingDots(color: cs.primary),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Text(
             label,
             style: TextStyle(
@@ -153,6 +155,7 @@ class _BouncingDotsState extends State<_BouncingDots>
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) {
@@ -162,7 +165,7 @@ class _BouncingDotsState extends State<_BouncingDots>
             final phase = (_controller.value + i / 3.0) % 1.0;
             final dy = (1 - (phase * 2 - 1).abs()) * -4.0;
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: EdgeInsets.symmetric(horizontal: t.spaceXxs),
               child: Transform.translate(
                 offset: Offset(0, dy),
                 child: Container(
