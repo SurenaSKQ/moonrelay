@@ -101,6 +101,9 @@ class MoonrelayThemes {
      highContrast,
      compact,
      archVista,
+     moonrelay,
+     minimal,
+     organic,
    ];
 
    /// The default Material 3 look shared by most accent colours.
@@ -118,6 +121,15 @@ class MoonrelayThemes {
    /// chrome. The signature air-force-blue accent (#5C8AA6) is a separate
    /// [MoonrelayAccents.vistaBlue] so it can be swapped independently.
    static const MoonrelayThemeSpec archVista = archVistaTheme;
+
+   /// Moonrelay's signature look: distinctive app bar, signature shadows.
+   static const MoonrelayThemeSpec moonrelay = moonrelayTheme;
+
+   /// Flat, borderless variant with no surface elevation.
+   static const MoonrelayThemeSpec minimal = minimalTheme;
+
+   /// Soft, generously rounded variant with low elevation.
+   static const MoonrelayThemeSpec organic = organicTheme;
 
   // ── Defaults ────────────────────────────────────────────────────────
 
