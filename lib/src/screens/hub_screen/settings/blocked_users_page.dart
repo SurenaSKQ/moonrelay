@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Settings page that lists all blocked (ignored) users and allows unblocking
 /// them.
@@ -83,6 +84,7 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final client = context.watch<Client>();
     final ignoredUsers = client.ignoredUsers;
 
@@ -97,7 +99,7 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
           children: [
             Icon(LucideIcons.alertCircle,
                 size: 48, color: Theme.of(context).colorScheme.error),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(l10n.blockedUsersLoadError),
           ],
         ),
@@ -105,7 +107,7 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.spaceXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -131,14 +133,14 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
               title: l10n.blockedUsers,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(t.spaceLg),
                   child: Row(
                     children: [
                       Icon(LucideIcons.eyeOff,
-                          size: 20,
+                          size: t.iconSizeMedium,
                           color:
                               Theme.of(context).colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 12),
+                      SizedBox(width: t.spaceMd),
                       Expanded(
                         child: Text(
                           l10n.blockedUsersEmpty,
@@ -182,6 +184,7 @@ class _BlockedUserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: scheme.errorContainer,
@@ -199,12 +202,12 @@ class _BlockedUserTile extends StatelessWidget {
       ),
       trailing: FilledButton.tonalIcon(
         onPressed: onUnblock,
-        icon: const Icon(LucideIcons.eyeOff, size: 16),
+        icon: Icon(LucideIcons.eyeOff, size: t.iconSizeSmall),
         label: Text(
           AppLocalizations.of(context)!.actionUnblockUser,
         ),
         style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: t.spaceMd),
         ),
       ),
     );

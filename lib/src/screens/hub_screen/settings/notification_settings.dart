@@ -22,6 +22,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Notification Settings
@@ -36,8 +37,9 @@ class HubNotificationSettings extends StatelessWidget {
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
         final scheme = Theme.of(context).colorScheme;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

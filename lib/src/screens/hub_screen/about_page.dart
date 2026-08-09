@@ -25,6 +25,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:moonrelay/src/helpers/app_version.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 // About Page
@@ -40,17 +41,18 @@ class HubAboutPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final t = theme.moonrelay.tokens;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.spaceXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // -- App identity card -------------------------------------
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: Padding(
@@ -62,7 +64,7 @@ class HubAboutPage extends StatelessWidget {
                     size: 64,
                     color: colors.primary,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   Text(
                     l10n.projectName,
                     style: TextStyle(
@@ -93,13 +95,13 @@ class HubAboutPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Repository -------------------------------------------
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: Padding(
@@ -110,7 +112,7 @@ class HubAboutPage extends StatelessWidget {
                   Row(
                     children: [
                       Icon(LucideIcons.gitBranch,
-                          size: 20, color: colors.primary),
+                          size: t.iconSizeMedium, color: colors.primary),
                       const SizedBox(width: 10),
                       Text(
                         l10n.aboutRepository,
@@ -156,13 +158,13 @@ class HubAboutPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // -- Moonrelay Support ------------------------------------
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: Padding(
@@ -173,7 +175,7 @@ class HubAboutPage extends StatelessWidget {
                   Row(
                     children: [
                       Icon(LucideIcons.lifeBuoy,
-                          size: 20, color: colors.primary),
+                          size: t.iconSizeMedium, color: colors.primary),
                       const SizedBox(width: 10),
                       Text(
                         l10n.aboutSupport,
@@ -204,7 +206,7 @@ class HubAboutPage extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(t.radiusMd),
                         ),
                       ),
                     ),

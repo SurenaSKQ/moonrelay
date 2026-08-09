@@ -22,6 +22,7 @@ import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Keybinds Settings
@@ -37,8 +38,9 @@ class HubKeybindSettings extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final theme = Theme.of(context);
         final cs = theme.colorScheme;
+        final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,7 +52,7 @@ class HubKeybindSettings extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: t.spaceXs),
               Text(
                 l10n.keybindsDescription,
                 style: TextStyle(
@@ -58,16 +60,16 @@ class HubKeybindSettings extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: t.spaceXl),
 
               // ── Send shortcut ─────────────────────────────────────────
               HubSettingsSection(
                 title: l10n.sendShortcut,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceSm,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +81,7 @@ class HubKeybindSettings extends StatelessWidget {
                                     color: cs.onSurfaceVariant,
                                   ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: t.spaceMd),
                         Wrap(
                           spacing: 8,
                           children: [
@@ -97,16 +99,16 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // ── Global shortcuts reference ────────────────────────────
               HubSettingsSection(
                 title: l10n.shortcutsTitle,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'Shift', 'P'],
@@ -116,9 +118,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'F'],
@@ -128,9 +130,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'Shift', 'M'],
@@ -140,9 +142,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'Shift', 'R'],
@@ -152,9 +154,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'Shift', '?'],
@@ -164,16 +166,16 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.spaceLg),
 
               // ── Composer shortcuts reference ──────────────────────────
               HubSettingsSection(
                 title: l10n.composer,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'B'],
@@ -183,9 +185,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'I'],
@@ -195,9 +197,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Ctrl', 'E'],
@@ -207,9 +209,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Enter'],
@@ -219,9 +221,9 @@ class HubKeybindSettings extends StatelessWidget {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.spaceLg,
+                      vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
                       keys: ['Shift', 'Enter'],
@@ -252,6 +254,7 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Row(
       children: [
         Expanded(
@@ -263,7 +266,7 @@ class _ShortcutRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: t.spaceLg),
         Wrap(
           spacing: 4,
           children: [
