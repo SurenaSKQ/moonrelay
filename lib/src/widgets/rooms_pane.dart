@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption_badge.dart';
 import 'package:provider/provider.dart';
 
@@ -195,6 +196,7 @@ class _RoomsPaneState extends State<RoomsPane> {
     }
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     // React to the debounced sync pulse without subscribing to the
@@ -213,19 +215,19 @@ class _RoomsPaneState extends State<RoomsPane> {
             (filtered.isEmpty && !_hasReceivedSync(client))) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(t.spaceXl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: t.spaceXl,
+                    height: t.spaceXl,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       color: scheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   Text(
                     l10n.loadingRooms,
                     style: TextStyle(
@@ -242,16 +244,18 @@ class _RoomsPaneState extends State<RoomsPane> {
         if (filtered.isEmpty) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(t.spaceXl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     LucideIcons.messageCircle,
                     size: 40,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: scheme.onSurfaceVariant.withValues(
+                      alpha: t.opacityDisabled,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: t.spaceMd),
                   Text(
                     l10n.noRoomsYet,
                     style: TextStyle(
@@ -555,14 +559,18 @@ class _RoomRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: t.spaceMd,
+          vertical: t.spaceSm,
+        ),
         child: Row(
           children: [
             _RoomAvatar(room: room, client: client, scheme: scheme),
-            const SizedBox(width: 12),
+            SizedBox(width: t.spaceMd),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,7 +592,7 @@ class _RoomRow extends StatelessWidget {
                       RoomEncryptionBadge(room: room),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: t.spaceXxs),
                   Text(
                     room.lastEvent?.body ?? l10n.noMessages,
                     maxLines: 1,
@@ -597,7 +605,7 @@ class _RoomRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
             _RoomUnreadBadges(
               notificationCount: room.notificationCount,
               highlightCount: room.highlightCount,

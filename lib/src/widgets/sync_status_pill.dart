@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// The coarse presence state surfaced by the header status pill.
@@ -176,6 +177,7 @@ class _SyncStatusPillState extends State<SyncStatusPill> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     final String label;
@@ -191,8 +193,8 @@ class _SyncStatusPillState extends State<SyncStatusPill> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: scheme.primary.withValues(alpha: t.opacityFocus),
+        borderRadius: BorderRadius.circular(t.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

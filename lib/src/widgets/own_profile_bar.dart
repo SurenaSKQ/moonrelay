@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 /// A compact bar showing the user's own profile  avatar, display name,
@@ -72,8 +73,9 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
 
   Widget _loadingIndicator(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: 14),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
@@ -85,7 +87,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
             radius: 20,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,7 +97,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                   height: 12,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(t.radiusXs),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -104,7 +106,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                   height: 10,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(t.radiusXs),
                   ),
                 ),
               ],
@@ -119,8 +121,9 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
 
   Widget _errorIndicator(BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: 14),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
@@ -137,7 +140,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
               color: theme.colorScheme.onErrorContainer,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
           Flexible(
             child: Text(
               widget.client.userID ?? 'Unknown',
@@ -158,12 +161,13 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
 
   Widget _profileBar(BuildContext context, Profile profile) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final initials = _extractInitials(
       profile.displayName ?? profile.userId,
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: 14),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
@@ -191,7 +195,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
                 ),
               ),
             ),
-          const SizedBox(width: 12),
+          SizedBox(width: t.spaceMd),
 
           // Display name and user ID
           Expanded(

@@ -45,6 +45,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/search_provider.dart';
 import 'package:provider/provider.dart';
@@ -653,6 +654,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   @override
   Widget build(BuildContext context) {
     _locCache = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Material(
       color: Colors.transparent,
       // Wrap the page body in a fullscreen outside-tap detector so
@@ -671,23 +673,23 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(t.spaceXl),
                 child: BarrierDismissBoundary(
                   child: Material(
-                    elevation: 8,
-                    borderRadius: BorderRadius.circular(16),
+                    elevation: t.elevationOverlay,
+                    borderRadius: BorderRadius.circular(t.radiusLg),
                     clipBehavior: Clip.antiAlias,
                     color: Theme.of(context).colorScheme.surface,
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(t.spaceLg),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildInput(_locCache),
-                          const SizedBox(height: 8),
+                          SizedBox(height: t.spaceSm),
                           _buildModeHint(_locCache),
-                          const SizedBox(height: 8),
+                          SizedBox(height: t.spaceSm),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxHeight: 420),
                             child: _buildList(_locCache),
@@ -945,6 +947,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   /// modes.  Showing it at the bottom of every list gives the user
   /// visual feedback that the palette is loading more items.
   Widget _loadingTail(AppLocalizations loc) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final paginating = _isInitialSearch ||
         _isInitialUsers ||
         _isPaginatingMessages ||
@@ -962,9 +965,9 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
             ? (_hasMoreRooms || _hasMoreSpaces)
             : _hasMoreUsers;
     if (paginating) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Center(
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: t.spaceMd),
+        child: const Center(
           child: SizedBox(
             height: 18,
             width: 18,
@@ -975,7 +978,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     }
     if (!hasMore && _query.isNotEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: t.spaceMd),
         child: Center(
           child: Text(
             loc.searchNoResults,
@@ -987,7 +990,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         ),
       );
     }
-    return const SizedBox(height: 4);
+    return SizedBox(height: t.spaceXs);
   }
 
   // ── Recents section helpers ────────────────────────────────────────

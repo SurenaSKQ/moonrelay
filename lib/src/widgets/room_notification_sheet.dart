@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// `SharedPreferences` key used by [NotificationService] to persist the
@@ -106,9 +107,10 @@ class _RoomNotificationSheetState extends State<_RoomNotificationSheet> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(t.spaceLg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,7 +119,7 @@ class _RoomNotificationSheetState extends State<_RoomNotificationSheet> {
               children: [
                 Icon(LucideIcons.bell,
                     color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
+                SizedBox(width: t.spaceSm),
                 Expanded(
                   child: Text(
                     widget.room.getLocalizedDisplayname(),
@@ -127,7 +129,7 @@ class _RoomNotificationSheetState extends State<_RoomNotificationSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             SwitchListTile(
               title: Text(loc.muteRoom),
               subtitle: Text(loc.muteRoomDescription),

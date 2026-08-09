@@ -25,6 +25,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A form that lets the user create a new room or space with a custom name,
@@ -246,6 +247,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final parentSpace = widget.parentSpace;
 
     // Show transient error in a SnackBar, then clear it.
@@ -260,23 +262,23 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(t.spaceLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Parent space info ──────────────────────────────────
           if (parentSpace != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(t.spaceMd),
               decoration: BoxDecoration(
-                color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(12),
+                color: scheme.tertiaryContainer.withValues(alpha: t.opacityDisabled),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
               child: Row(
                 children: [
                   Icon(
                     LucideIcons.folder,
-                    size: 20,
+                    size: t.iconSizeMedium,
                     color: scheme.onTertiaryContainer,
                   ),
                   const SizedBox(width: 10),
@@ -307,7 +309,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 color: scheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             SegmentedButton<bool>(
               segments: const [
                 ButtonSegment(
@@ -343,27 +345,28 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
               color: scheme.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           TextField(
             controller: _nameController,
             enabled: !_loading,
             decoration: InputDecoration(
               hintText: l10n.roomInfoTitle,
               filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              fillColor:
+                  scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: t.spaceLg,
+                vertical: t.spaceMd,
               ),
             ),
             textInputAction: TextInputAction.next,
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Room avatar ──────────────────────────────────────────
           GestureDetector(
@@ -373,7 +376,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 CircleAvatar(
                   radius: 32,
                   backgroundColor:
-                      scheme.primaryContainer.withValues(alpha: 0.5),
+                      scheme.primaryContainer.withValues(alpha: t.opacitySubtle),
                   backgroundImage:
                       _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                   child: _avatarBytes == null
@@ -384,7 +387,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                         )
                       : null,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -396,7 +399,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                         color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: t.spaceXxs),
                     Text(
                       _avatarBytes != null
                           ? _avatarName ?? ''
@@ -439,7 +442,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
               color: scheme.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.spaceSm),
           TextField(
             controller: _topicController,
             enabled: !_loading,
@@ -447,14 +450,15 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             decoration: InputDecoration(
               hintText: l10n.noTopicSet,
               filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              fillColor:
+                  scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: t.spaceLg,
+                vertical: t.spaceMd,
               ),
             ),
             textInputAction: TextInputAction.done,
@@ -464,9 +468,9 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
           // ── Visibility toggle ────────────────────────────────────
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               side: BorderSide(color: scheme.outlineVariant),
             ),
             child: SwitchListTile(
@@ -508,13 +512,13 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: t.spaceLg),
 
           // ── Advanced options toggle ──────────────────────────────
           Card(
-            elevation: 0,
+            elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               side: BorderSide(color: scheme.outlineVariant),
             ),
             child: SwitchListTile(
@@ -535,7 +539,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
           ),
 
           if (_showAdvanced) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
 
             // Room alias
             Text(
@@ -546,7 +550,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 color: scheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             TextField(
               controller: _aliasController,
               enabled: !_loading,
@@ -554,14 +558,14 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 hintText: l10n.roomAliasHint,
                 filled: true,
                 fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: t.spaceLg,
+                  vertical: t.spaceMd,
                 ),
               ),
               textInputAction: TextInputAction.next,
@@ -577,7 +581,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 color: scheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             TextField(
               controller: _inviteController,
               enabled: !_loading,
@@ -585,14 +589,14 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 hintText: l10n.inviteUsersHint,
                 filled: true,
                 fillColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: t.spaceLg,
+                  vertical: t.spaceMd,
                 ),
               ),
               textInputAction: TextInputAction.next,
@@ -602,9 +606,9 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             // Encryption toggle (only for non-space rooms)
             if (!_isSpace)
               Card(
-                elevation: 0,
+                elevation: t.elevationNone,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                   side: BorderSide(color: scheme.outlineVariant),
                 ),
                 child: SwitchListTile(
@@ -626,7 +630,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                       : (v) => setState(() => _enableEncryption = v),
                 ),
               ),
-            if (!_isSpace) const SizedBox(height: 16),
+            if (!_isSpace) SizedBox(height: t.spaceLg),
 
             // ── Join rules picker ────────────────────────────────
             Text(
@@ -637,11 +641,11 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 color: scheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Card(
-              elevation: 0,
+              elevation: t.elevationNone,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 side: BorderSide(color: scheme.outlineVariant),
               ),
               child: Column(
@@ -704,10 +708,10 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
           ],
 
-          const SizedBox(height: 32),
+          SizedBox(height: t.spaceXxl),
 
           // ── Create button ────────────────────────────────────────
           FilledButton.icon(
@@ -729,7 +733,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
             ),
           ),
@@ -763,15 +767,16 @@ class _JoinRuleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final selected = value == groupValue;
 
     return ListTile(
       leading: Icon(icon,
-          size: 20, color: selected ? cs.primary : cs.onSurfaceVariant),
+          size: t.iconSizeMedium, color: selected ? cs.primary : cs.onSurfaceVariant),
       title: Text(title, style: const TextStyle(fontSize: 14)),
       trailing: Icon(
         selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        size: 20,
+        size: t.iconSizeMedium,
         color: selected ? cs.primary : cs.onSurfaceVariant,
       ),
       onTap: enabled ? () => onChanged(value) : null,

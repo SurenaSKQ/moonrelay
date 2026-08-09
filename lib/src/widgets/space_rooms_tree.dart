@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum nesting depth before we stop rendering deeper subspaces
@@ -129,6 +130,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
     // the read below; any sync-driven change invalidates the cached
     // child list through the listener.
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final children = widget.space.spaceChildren;
 
@@ -147,16 +149,16 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
     if (items.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 LucideIcons.folderOpen,
                 size: 40,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Text(
                 l10n.spaceNoChildren,
                 style: TextStyle(color: scheme.onSurfaceVariant),
@@ -283,6 +285,7 @@ class _SubspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     // Gradually decrease the background tint intensity as depth increases.
     final bgAlpha = (20 - depth * 3).clamp(4, 20);
     final leftBorderColor = HSLColor.fromColor(scheme.primary)
@@ -306,21 +309,21 @@ class _SubspaceHeader extends StatelessWidget {
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(t.radiusXs),
           child: Row(
             children: [
               Icon(
                 isExpanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Icon(
                 LucideIcons.folder,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.primary,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Expanded(
                 child: Text(
                   displayName,
@@ -338,8 +341,9 @@ class _SubspaceHeader extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: scheme.outlineVariant.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
+                    color:
+                        scheme.outlineVariant.withValues(alpha: t.opacityDisabled),
+                    borderRadius: BorderRadius.circular(t.radiusSm),
                   ),
                   child: Text(
                     '$roomCount',
