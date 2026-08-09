@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// SAS (emoji/number) verification dialog.
 ///
@@ -80,6 +81,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -92,7 +94,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: _buildBody(scheme, loc, context),
         ),
       ),
@@ -102,6 +104,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget _buildBody(
       ColorScheme scheme, AppLocalizations loc, BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final req = widget.request;
 
     switch (req.state) {
@@ -119,17 +122,17 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.shieldQuestion, size: 56, color: scheme.primary),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationRequest,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(req.userId, style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => _accept(context),
               child: Text(loc.yesOrAffirmitive),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             OutlinedButton(
               onPressed: () => _cancel(context),
               child: Text(loc.noOrCancellation),
@@ -142,9 +145,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.handshake, size: 56, color: scheme.primary),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionChooseMethod, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             if (req.possibleMethods.contains(EventTypes.Sas))
               _methodButton(
                 icon: LucideIcons.smile,
@@ -172,13 +175,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
           children: [
             Text(loc.encryptionCompareEmojis,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               loc.encryptionCompareDescription,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             // Emoji display
             if (isEmoji)
               Wrap(
@@ -216,9 +219,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   );
                 }).toList(),
               ),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             Text(loc.encryptionDoTheyMatch, style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -227,7 +230,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   label: Text(loc.encryptionTheyMatch),
                   onPressed: () => _sasMatch(context),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 ElevatedButton.icon(
                   icon: const Icon(LucideIcons.x, color: Colors.red),
                   label: Text(loc.encryptionTheyDontMatch),
@@ -249,10 +252,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.shieldCheck, size: 72, color: Colors.green),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationDone,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(loc.done),
@@ -265,12 +268,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.alertOctagon, size: 56, color: scheme.error),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationFailed,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(req.canceledReason ?? loc.encryptionUnknownError),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(loc.close),

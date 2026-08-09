@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Lists all devices for the current user, showing trust status and providing
@@ -32,6 +33,7 @@ class DeviceListScreen extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final client = context.read<Client>();
 
     return Scaffold(
@@ -44,14 +46,14 @@ class DeviceListScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(LucideIcons.smartphone, size: 48, color: scheme.outline),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   Text(loc.encryptionNoDevices,
                       style: theme.textTheme.bodyLarge),
                 ],
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               itemCount: enc.myDevices.length,
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
@@ -279,6 +281,7 @@ class _TrustBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final label =
         verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
@@ -297,7 +300,7 @@ class _TrustBadge extends StatelessWidget {
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,
-        size: 20,
+        size: t.iconSizeMedium,
       ),
     );
   }
