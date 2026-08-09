@@ -32,10 +32,14 @@ the jump-to-unread target-selection and scroll-execution fixes, and the
 status-pill honesty fix plus the dead appearance-settings wiring, and the
 blank-content error guidance pass, and the dashboard UI refresh pass
 (OS-window-decorations default with an optional slim in-app header, and
- a unified navigation sidebar), and the collapsible sidebar sections
- follow-up, and the space-selection fix, and the skins refactor, and the
- ArchVista GTK theme skin, and the accent-color/theme decoupling with the
- Vista widget-style emulation.
+a unified navigation sidebar), and the collapsible sidebar sections
+follow-up, and the space-selection fix, and the skins refactor, and the
+ArchVista GTK theme skin, and the accent-color/theme decoupling with the
+Vista widget-style emulation, and the theming overhaul Phases 1-6
+(design tokens, component tokens, theme extension upgrade, widget-style
+expansion, _buildThemeData rewrite, and inline-styling refactor across
+all widget categories), and the theming overhaul Phase 7 (shipping three
+new themes: Moonrelay signature, Minimal flat, and Organic soft-rounded).
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -2496,3 +2500,38 @@ recognizably "a desktop theme", while keeping every color a pure accent swap.
   when a spec carries one.
 
 Tests at head: flutter test 608 green (605 prior + 3 new). flutter analyze 0 issues.
+
+29. Theming overhaul Phase 7: new shipped themes
+
+The theme registry now ships seven looks (up from four). Existing theme
+definitions have been moved from inline static constants in
+`MoonrelayThemes` into individual files under `lib/src/theme/shipped_themes/`
+for clarity, and three new themes have been added: a Moonrelay signature
+look, a flat Minimal look, and a soft Organic look. Each new theme carries
+its own `MoonrelayWidgetStyle` that layers theme-specific component overrides
+on top of the shared token system.
+
+- `lib/src/settings/theme_spec.dart`: new `MoonrelayStyleType` enum
+  (`vista`, `minimal`, `organic`, `moonrelay`) drives a strategy dispatch in
+  `MoonrelayWidgetStyle.mergeInto`, which now delegates to per-style merge
+  methods (`_mergeVista`, `_mergeMinimal`, `_mergeOrganic`,
+  `_mergeMoonrelay`). Three new static `MoonrelayWidgetStyle` instances
+  (`minimal`, `organic`, `moonrelay`) define geometry and neutral chrome for
+  each look. `MoonrelayThemes.all` now includes `moonrelay`, `minimal`, and
+  `organic`; the existing `material`, `highContrast`, `compact`, and
+  `archVista` entries now delegate to top-level const specs in the
+  shipped_themes directory.
+- `lib/src/theme/shipped_themes/moonrelay_theme.dart`: signature theme with
+  cornerRadius 12, surface elevation 2, elevated cards with signature
+  shadows, distinctive app bar with accent-accented bottom indicator, and
+  rounded buttons (24-commit group).
+- `lib/src/theme/shipped_themes/minimal_theme.dart`: flat theme with
+  cornerRadius 0, surface elevation 0, borderless buttons, no surface
+  chrome.
+- `lib/src/theme/shipped_themes/organic_theme.dart`: soft theme with
+  cornerRadius 20, low elevation, generous list-tile padding, subtle
+  borders, rounded scrollbars and chips.
+- `lib/src/theme/shipped_themes/shipped_themes.dart`: barrel export for all
+  seven theme specs.
+
+Tests at head: flutter test 608 green. flutter analyze 0 issues.

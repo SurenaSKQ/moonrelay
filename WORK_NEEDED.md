@@ -61,7 +61,11 @@ jump is still in place at lib/src/chat/jump_coordinator.dart:211.
   material, highContrast, compact and archVista. The Vista widget style
   (MoonrelayWidgetStyle.vista) is the only non-default look; highContrast is
   still Material geometry apart from its 0px corners. Other desktop-theme
-  emulations are outstanding.
+  emulations are outstanding. Phase 7 added three more looks (moonrelay,
+  minimal, organic) but no unit tests verify their visual properties (e.g.
+  that minimal cards have zero elevation, organic buttons have generous
+  minHeight, moonrelay app bar has a primary indicator border). See
+  test/unit/theme_spec_test.dart and test/unit/design_tokens_test.dart.
 
 - HTML tag allow-list: MarkdownToHtml and HtmlTagParser each implement
   their own tag allow-list. Extract a single SanitizedHtml helper.
