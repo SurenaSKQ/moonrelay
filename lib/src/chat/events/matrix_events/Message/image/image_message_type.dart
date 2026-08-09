@@ -26,6 +26,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Displays an image message with a polished thumbnail card and tap-to-open
@@ -195,8 +196,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     // previously downloaded the same attachment, or this is a
     // rebuild after the FutureBuilder resolved once). Avoid creating
     // another FutureBuilder — the underlying bytes never go stale.
-    final cached =
-        RoomMediaCache.instance.get(_roomId, widget.event.eventId);
+    final cached = RoomMediaCache.instance.get(_roomId, widget.event.eventId);
     if (cached != null && cached.isNotEmpty) {
       return _buildThumbnail(cs, cached);
     }
@@ -456,11 +456,12 @@ class _GifBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(t.radiusXs),
       ),
       child: const Text(
         'GIF',
@@ -500,6 +501,7 @@ class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return MouseRegion(
       onEnter: (_) => _isHovered.value = true,
       onExit: (_) => _isHovered.value = false,
@@ -507,7 +509,7 @@ class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
         valueListenable: _isHovered,
         builder: (context, hovered, _) {
           return AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
+            duration: t.durationFast,
             opacity: hovered ? 1.0 : 0.0,
             // [Semantics] instead of [Tooltip] so the affordance is
             // announced by screen readers but the widget never mounts
@@ -525,11 +527,11 @@ class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: widget.onPressed,
-                  child: const Padding(
-                    padding: EdgeInsets.all(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
                     child: Icon(
                       Icons.download_rounded,
-                      size: 16,
+                      size: t.iconSizeSmall,
                       color: Colors.white,
                     ),
                   ),
