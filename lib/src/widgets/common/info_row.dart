@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A reusable key-value info row used across settings and profile screens.
 class InfoRow extends StatelessWidget {
@@ -38,13 +39,14 @@ class InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = scheme ?? Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: t.spaceXs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: cs.onSurfaceVariant),
-          const SizedBox(width: 10),
+          Icon(icon, size: t.iconSizeSmall, color: cs.onSurfaceVariant),
+          SizedBox(width: t.spaceMd),
           SizedBox(
             width: labelWidth,
             child: Text(

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A shared section header used across settings pages and profile screens.
 ///
@@ -50,6 +51,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = scheme ?? Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final effectiveColor = _effectiveColor(cs);
 
     final text = Padding(
@@ -69,8 +71,8 @@ class SectionHeader extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(icon, size: 18, color: effectiveColor),
-        const SizedBox(width: 8),
+        Icon(icon, size: t.iconSizeSmall, color: effectiveColor),
+        SizedBox(width: t.spaceSm),
         text,
       ],
     );
