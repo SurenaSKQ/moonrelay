@@ -123,7 +123,7 @@ class _LogsPageState extends State<LogsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ─────────────────────────────────────────────────
+          // -- Header -------------------------------------------------
           Row(
             children: [
               Expanded(
@@ -159,7 +159,7 @@ class _LogsPageState extends State<LogsPage> {
           ),
           const SizedBox(height: 24),
 
-          // ── Open logs folder button ────────────────────────────────
+          // -- Open logs folder button --------------------------------
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -187,7 +187,7 @@ class _LogsPageState extends State<LogsPage> {
           ),
           const SizedBox(height: 16),
 
-          // ── Clear logs button ────────────────────────────────────────
+          // -- Clear logs button ----------------------------------------
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -218,7 +218,7 @@ class _LogsPageState extends State<LogsPage> {
           ),
           const SizedBox(height: 20),
 
-          // ── File picker row ────────────────────────────────────────
+          // -- File picker row ----------------------------------------
           if (_logFiles.length > 1) ...[
             Row(
               children: [
@@ -265,7 +265,7 @@ class _LogsPageState extends State<LogsPage> {
             const SizedBox(height: 16),
           ],
 
-          // ── Log content viewer ─────────────────────────────────────
+          // -- Log content viewer -------------------------------------
           if (_loading)
             const Center(
               child: Padding(

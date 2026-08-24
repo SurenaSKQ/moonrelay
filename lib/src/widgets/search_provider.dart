@@ -356,7 +356,7 @@ class MessageSearchResult {
   final double rank;
 }
 
-// ─── Tiles ────────────────────────────────────────────────────────────────────
+// --- Tiles --------------------------------------------------------------------
 
 /// Tile widgets for each search category.  Kept here so the palette
 /// and any future search surface render identical rows without
@@ -571,7 +571,7 @@ class SearchUserTile extends StatelessWidget {
   }
 }
 
-// ─── Section header ──────────────────────────────────────────────────────────
+// --- Section header ----------------------------------------------------------
 
 /// Reusable section header used by every search-aware UI surface.
 class SearchSectionHeader extends StatelessWidget {
@@ -603,7 +603,7 @@ class SearchSectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Navigation helpers ──────────────────────────────────────────────────────
+// --- Navigation helpers ------------------------------------------------------
 
 /// Navigates to a [Room] for search results.
 void navigateToRoom(BuildContext context, Room room) {
@@ -627,7 +627,7 @@ void navigateToUser(BuildContext context, Profile user) {
   context.push('/main/myprofile?user=${user.userId}');
 }
 
-// ─── Recent items persistence ────────────────────────────────────────────────
+// --- Recent items persistence ------------------------------------------------
 
 /// In-memory recent-rooms / recent-actions store.  The palette reads
 /// from this so the recents list stays in sync without re-mounting.

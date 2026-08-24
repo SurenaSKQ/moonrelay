@@ -113,7 +113,7 @@ class SsoCallbackServer {
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
-    // ── Reject anything that isn't the SSO callback path ──────────
+    // -- Reject anything that isn't the SSO callback path ----------
     // A misbehaving browser tab that hits `/` or any other path would
     // otherwise keep the connection open until the auto-shutdown fires.
     // Returning a 404 closes the request promptly and surfaces the
@@ -133,7 +133,7 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Validate the Host header ────────────────────────────
+    // -- Validate the Host header ----------------------------
     // The browser navigates to whatever the redirect URI host was.
     // Accept both loopback spellings (the redirect uses 127.0.0.1, but
     // a homeserver or proxy may echo `localhost` instead) while still
@@ -157,7 +157,7 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Only accept GET ───────────────────────────────────────────
+    // -- Only accept GET -------------------------------------------
     if (request.method.toUpperCase() != 'GET') {
       _respondWithError(
         request,
@@ -170,7 +170,7 @@ class SsoCallbackServer {
 
     final Uri uri = request.uri;
 
-    // ── Validate the CSRF state parameter ─────────────────────────
+    // -- Validate the CSRF state parameter -------------------------
     final String? receivedState = uri.queryParameters['state'];
     if (_expectedState == null ||
         receivedState == null ||
@@ -191,15 +191,15 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Invalidate state immediately + close server (single-use) ──
+    // -- Invalidate state immediately + close server (single-use) --
     _expectedState = null;
     stop();
 
-    // ── Try to extract the login token ────────────────────────────
+    // -- Try to extract the login token ----------------------------
     final String? loginToken = uri.queryParameters['loginToken'];
 
     if (loginToken != null && loginToken.isNotEmpty) {
-      // ── Success path ──
+      // -- Success path --
       _respondWithPage(
         request,
         200,
@@ -216,7 +216,7 @@ class SsoCallbackServer {
         _completer!.complete(loginToken);
       }
     } else {
-      // ── Fallback: show a page with the full URL so the user can
+      // -- Fallback: show a page with the full URL so the user can
       // manually copy the token if the automatic extraction failed.
       // The URL in the error page omits the token to avoid leaking it.
       _respondWithPage(

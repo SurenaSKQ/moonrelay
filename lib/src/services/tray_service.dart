@@ -298,7 +298,7 @@ class TrayService with tray.TrayListener {
     exit(0);
   }
 
-  // ── TrayListener callbacks ─────────────────────────────────────────────
+  // -- TrayListener callbacks ---------------------------------------------
 
   @override
   void onTrayIconMouseDown() {

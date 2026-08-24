@@ -151,7 +151,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Header (tappable) ──────────────────────────────
+                  // -- Header (tappable) ------------------------------
                   InkWell(
                     onTap: () {
                       setState(() {
@@ -212,7 +212,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
                     ),
                   ),
 
-                  // ── Packages & URL row (always visible) ────────────
+                  // -- Packages & URL row (always visible) ------------
                   if (!isOpen && entry.packages != null)
                     _MetadataRow(
                       icon: LucideIcons.package,
@@ -224,7 +224,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
                       text: entry.url!,
                     ),
 
-                  // ── Expanded full license text ─────────────────────
+                  // -- Expanded full license text ---------------------
                   if (isOpen) ...[
                     if (entry.hasAsset && entry.fullText == null)
                       const Padding(

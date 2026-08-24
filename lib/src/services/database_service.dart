@@ -51,7 +51,7 @@ class DatabaseService {
         'wiping $dbName',
       );
       if (await File(dbPath).exists()) {
-        // ── Backup before wipe ────────────────────────────
+        // -- Backup before wipe ----------------------------
         final backupPath = '$dbPath.bak';
         try {
           await File(dbPath).copy(backupPath);

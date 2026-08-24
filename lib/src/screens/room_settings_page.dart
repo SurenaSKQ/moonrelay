@@ -467,7 +467,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         padding:
             EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
-          // ── Room identity card ────────────────────────────────────────
+          // -- Room identity card ----------------------------------------
           _RoomIdentityCard(
             room: room,
             roomType: roomType,
@@ -477,7 +477,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Technical details ──────────────────────────────────────────
+          // -- Technical details ------------------------------------------
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
           _DetailRow(
@@ -524,7 +524,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Room editing (permission-gated) ──────────────────────────
+          // -- Room editing (permission-gated) --------------------------
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
@@ -557,7 +557,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             SizedBox(height: t.spaceSm),
           ],
 
-          // ── Room permissions & state (permission-gated) ──────────────
+          // -- Room permissions & state (permission-gated) --------------
           if (_canChange('m.room.join_rules') ||
               _canChange('m.room.history_visibility') ||
               _canChange('m.room.canonical_alias') ||
@@ -617,7 +617,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             SizedBox(height: t.spaceSm),
           ],
 
-          // ── Room list visibility ─────────────────────────────────────
+          // -- Room list visibility -------------------------------------
           _SectionHeader(
               title: l10n.directoryVisibilitySection, scheme: scheme),
           SizedBox(height: t.spaceXs),
@@ -632,7 +632,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ),
           SizedBox(height: t.spaceSm),
 
-          // ── Room version + upgrade flow ──────────────────────────────
+          // -- Room version + upgrade flow ------------------------------
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
           _DetailRow(
@@ -651,18 +651,18 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ),
           SizedBox(height: t.spaceSm),
 
-          // ── Knock requests (only when joinRule allows knock) ─────────
+          // -- Knock requests (only when joinRule allows knock) ---------
           if (room.joinRules == JoinRules.knock ||
               room.joinRules == JoinRules.knockRestricted)
             _KnockRequestsSection(room: room),
 
-          // ─── Notification settings ──────────────────────────────────
+          // --- Notification settings ----------------------------------
           _SectionHeader(title: l10n.notificationSettings, scheme: scheme),
           SizedBox(height: t.spaceXs),
           _RoomNotificationTile(room: room),
           SizedBox(height: t.spaceSm),
 
-          // ── Danger zone ────────────────────────────────────────────────
+          // -- Danger zone ------------------------------------------------
           if (_isAdmin || room.membership == Membership.leave)
             _SectionHeader(
               title: l10n.actionsDeleteSection,
@@ -1263,9 +1263,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Internal widgets (reused from room_details_page.dart)
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 class _RoomIdentityCard extends StatelessWidget {
   const _RoomIdentityCard({

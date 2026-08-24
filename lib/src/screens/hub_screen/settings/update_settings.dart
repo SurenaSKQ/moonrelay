@@ -25,9 +25,9 @@ import 'package:moonrelay/src/services/auto_update_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Update settings page: manual check + startup preference
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubUpdateSettings extends StatelessWidget {
   const HubUpdateSettings({super.key});
@@ -129,7 +129,7 @@ class HubUpdateSettings extends StatelessWidget {
   }
 }
 
-// ── Update-available dialog ─────────────────────────────────────────────────
+// -- Update-available dialog -------------------------------------------------
 
 void _showUpdateDialog(
   BuildContext context,

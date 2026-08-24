@@ -201,7 +201,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Subspace header ──────────────────────────────────────
+          // -- Subspace header --------------------------------------
           _SubspaceHeader(
             displayName: displayName,
             depth: depth,
@@ -212,7 +212,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
             onDoubleTap: () => context.push('/main/space/${room.id}'),
           ),
 
-          // ── Children (if expanded) ───────────────────────────────
+          // -- Children (if expanded) -------------------------------
           if (isExpanded)
             ...subspaceChildren.whereType<Room>().map(
                   (child) => _buildTreeItem(
@@ -227,7 +227,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
       );
     }
 
-    // ── Regular room tile ──────────────────────────────────────────
+    // -- Regular room tile ------------------------------------------
     return _RoomTile(
       room: room,
       depth: depth,
@@ -248,7 +248,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
   }
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// --- Data ---------------------------------------------------------------------
 
 /// An item in the tree: either a regular room or a subspace.
 class _TreeItem {
@@ -257,7 +257,7 @@ class _TreeItem {
   final bool isSuggested;
 }
 
-// ─── Subspace header ──────────────────────────────────────────────────────────
+// --- Subspace header ----------------------------------------------------------
 
 /// A tappable header row for a subspace in the tree.
 ///
@@ -361,7 +361,7 @@ class _SubspaceHeader extends StatelessWidget {
   }
 }
 
-// ─── Room tile ────────────────────────────────────────────────────────────────
+// --- Room tile ----------------------------------------------------------------
 
 /// A compact room list tile used inside the space tree.
 ///
@@ -397,7 +397,7 @@ class _RoomTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // ── Avatar with unread dot ─────────────────────────────
+            // -- Avatar with unread dot -----------------------------
             SizedBox(
               width: 32,
               height: 32,
@@ -426,7 +426,7 @@ class _RoomTile extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // ── Name and subtitle ──────────────────────────────────
+            // -- Name and subtitle ----------------------------------
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

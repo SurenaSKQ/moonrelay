@@ -198,7 +198,7 @@ class _RoomInformationsState extends State<RoomInformations> {
         padding:
             EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
-          // ── Room identity card ────────────────────────────────────────
+          // -- Room identity card ----------------------------------------
           _RoomIdentityCard(
             room: room,
             roomType: roomType,
@@ -208,7 +208,7 @@ class _RoomInformationsState extends State<RoomInformations> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Room actions ─────────────────────────────────────────────
+          // -- Room actions ---------------------------------------------
           _SectionHeader(title: l10n.actionsSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _ActionTile(
@@ -236,7 +236,7 @@ class _RoomInformationsState extends State<RoomInformations> {
 
           SizedBox(height: t.spaceLg),
 
-          // ── Room details ─────────────────────────────────────────────
+          // -- Room details ---------------------------------------------
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _DetailRow(
@@ -271,13 +271,13 @@ class _RoomInformationsState extends State<RoomInformations> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Security ─────────────────────────────────────────────────
+          // -- Security -------------------------------------------------
           _SectionHeader(title: l10n.securitySection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _buildSecuritySection(context, scheme, room, isEncrypted),
           SizedBox(height: t.spaceLg),
 
-          // ── Top members ──────────────────────────────────────────────
+          // -- Top members ----------------------------------------------
           _SectionHeader(title: l10n.membersSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _TopMembersSection(
@@ -287,7 +287,7 @@ class _RoomInformationsState extends State<RoomInformations> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Threads ─────────────────────────────────────────────────
+          // -- Threads -------------------------------------------------
           _SectionHeader(title: l10n.threads, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _TopThreadsSection(
@@ -344,7 +344,7 @@ class _RoomInformationsState extends State<RoomInformations> {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 class VerificationIconButton extends StatelessWidget {
   const VerificationIconButton({
@@ -381,9 +381,9 @@ class VerificationIconButton extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Internal widgets
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 class _RoomIdentityCard extends StatelessWidget {
   const _RoomIdentityCard({
@@ -655,9 +655,9 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Top members section
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 /// Displays the top members of a room (sorted by power level) and a button
 /// to navigate to the full member list.
@@ -746,9 +746,9 @@ class _TopMembersSection extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Top threads section
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 /// Displays recent thread roots in the room and a button to open the full
 /// thread list in the sidebar.
@@ -952,9 +952,9 @@ class _ThreadRootTile extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Member tile (reused in both top members and full list)
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 /// A single member tile with avatar, display name, matrix ID, permission badge,
 /// and a context menu handler.

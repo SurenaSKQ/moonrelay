@@ -134,13 +134,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         padding:
             EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
-          // ── Parent-space breadcrumb ──────────────────────────────────
+          // -- Parent-space breadcrumb ----------------------------------
           if (parentSpaces.isNotEmpty) ...[
             _buildBreadcrumb(context, parentSpaces, scheme),
             SizedBox(height: t.spaceLg),
           ],
 
-          // ── Space identity card ────────────────────────────────────────
+          // -- Space identity card ----------------------------------------
           _buildIdentityCard(
             context,
             space,
@@ -154,7 +154,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           ),
           SizedBox(height: t.spaceXl),
 
-          // ── Quick actions (for members with permission) ────────────────
+          // -- Quick actions (for members with permission) ----------------
           if (isJoined && canEdit) ...[
             _SectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceSm),
@@ -168,7 +168,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             SizedBox(height: t.spaceLg),
           ],
 
-          // ── Child subspaces ────────────────────────────────────────────
+          // -- Child subspaces --------------------------------------------
           if (subspaces.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
             SizedBox(height: t.spaceSm),
@@ -184,7 +184,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             SizedBox(height: t.spaceLg),
           ],
 
-          // ── Child rooms (joined) ───────────────────────────────────────
+          // -- Child rooms (joined) ---------------------------------------
           if (joinedRooms.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             SizedBox(height: t.spaceSm),
@@ -200,7 +200,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             SizedBox(height: t.spaceLg),
           ],
 
-          // ── Unjoined rooms ──────────────────────────────────────────────
+          // -- Unjoined rooms ----------------------------------------------
           if (unjoined.isNotEmpty) ...[
             _SectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
             SizedBox(height: t.spaceSm),
@@ -213,7 +213,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               ),
           ],
 
-          // ── Empty state ────────────────────────────────────────────────
+          // -- Empty state ------------------------------------------------
           if (space.spaceChildren.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 48),
@@ -507,7 +507,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
   }
 } // End of _SpaceHomePageState
 
-// ── Internal widgets ──────────────────────────────────────────────────────────
+// -- Internal widgets ----------------------------------------------------------
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.scheme});

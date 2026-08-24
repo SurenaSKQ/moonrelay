@@ -9,17 +9,17 @@ cd "$(dirname "$0")/.."
 MODE="${1:-all}"
 
 run_static() {
-  echo "─── flutter analyze ───"
+  echo "--- flutter analyze ---"
   flutter analyze
 }
 
 run_unit() {
-  echo "─── flutter test test/unit/ ───"
+  echo "--- flutter test test/unit/ ---"
   flutter test test/unit/ --reporter=expanded
 }
 
 run_widget() {
-  echo "─── flutter test test/widget/ ───"
+  echo "--- flutter test test/widget/ ---"
   flutter test test/widget/ --reporter=expanded
 }
 
@@ -29,7 +29,7 @@ run_integration() {
     if [[ "$OSTYPE" == "darwin"* ]]; then CI_PLATFORM="macos"; fi
     if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* ]]; then CI_PLATFORM="windows"; fi
   fi
-  echo "─── flutter test integration_test/ -d ${CI_PLATFORM} ───"
+  echo "--- flutter test integration_test/ -d ${CI_PLATFORM} ---"
   flutter test integration_test/ -d "${CI_PLATFORM}"
 }
 

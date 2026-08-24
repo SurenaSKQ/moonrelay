@@ -220,7 +220,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     return input.substring(1).trim();
   }
 
-  // ── Search dispatch ────────────────────────────────────────────────
+  // -- Search dispatch ------------------------------------------------
 
   /// Trigger the appropriate first-page fetch for the current mode.
   /// Resets pagination cursors so the user sees a clean slate when
@@ -526,7 +526,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     });
   }
 
-  // ── Scroll-driven pagination ─────────────────────────────────────
+  // -- Scroll-driven pagination -------------------------------------
 
   /// Detects when the user has scrolled near the bottom of the
   /// results list and kicks off the appropriate next-page fetch.
@@ -568,7 +568,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     }
   }
 
-  // ── Run helpers ────────────────────────────────────────────────────
+  // -- Run helpers ----------------------------------------------------
 
   void _runAction(CommandAction action) {
     // Pop first so the callback receives a context that lives in the
@@ -649,7 +649,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     context.go('/main/room_preview/${room.roomId}');
   }
 
-  // ── Build ──────────────────────────────────────────────────────────
+  // -- Build ----------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -778,7 +778,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _PaletteMode.users => loc.commandPaletteUsersHint,
       };
 
-  // ── Mode-specific list builders ───────────────────────────────────
+  // -- Mode-specific list builders -----------------------------------
 
   Widget _buildList(AppLocalizations loc) {
     switch (_mode) {
@@ -993,7 +993,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     return SizedBox(height: t.spaceXs);
   }
 
-  // ── Recents section helpers ────────────────────────────────────────
+  // -- Recents section helpers ----------------------------------------
 
   List<Widget> _buildRecentSection(AppLocalizations loc) {
     final actions = _buildActions(loc);
@@ -1094,7 +1094,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     }
   }
 
-  // ── Static data ───────────────────────────────────────────────────
+  // -- Static data ---------------------------------------------------
 
   List<CommandAction> _buildActions(AppLocalizations loc) {
     final settings = _settingsControllerOrNull(context);

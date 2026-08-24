@@ -70,10 +70,10 @@ class DeepLinkService {
   /// Initialises the service: listens for method channel calls from the
   /// native side and processes any command-line arguments.
   Future<void> init() async {
-    // ── Listen for incoming deep links from the native side ─────
+    // -- Listen for incoming deep links from the native side -----
     _channel.setMethodCallHandler(_handleMethodCall);
 
-    // ── Check command-line arguments for matrix: URIs ───────────
+    // -- Check command-line arguments for matrix: URIs -----------
     // On Windows, when the app is registered as a protocol handler,
     // the OS launches the executable with the URL as the first argument.
     _processCommandLineArgs();

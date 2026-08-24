@@ -210,7 +210,7 @@ class _RoomsPaneState extends State<RoomsPane> {
 
     return Material(
       child: Builder(builder: (context) {
-        // ── Loading state: waiting for initial sync ────────────────
+        // -- Loading state: waiting for initial sync ----------------
         if (filtered == null ||
             (filtered.isEmpty && !_hasReceivedSync(client))) {
           return Center(
@@ -240,7 +240,7 @@ class _RoomsPaneState extends State<RoomsPane> {
           );
         }
 
-        // ── Empty state: synced but no matching rooms ───────────────
+        // -- Empty state: synced but no matching rooms ---------------
         if (filtered.isEmpty) {
           return Center(
             child: Padding(

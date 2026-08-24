@@ -199,7 +199,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Dimmed background ───────────────────────────────────────
+          // -- Dimmed background ---------------------------------------
           // A simple translucent black panel replaces the previously
           // blurred image backdrop. The blur was both visually loud
           // and expensive to composite on every frame of the
@@ -209,7 +209,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
             child: ColoredBox(color: Color(0xCC000000)),
           ),
 
-          // ── Zoomable image ──────────────────────────────────────────
+          // -- Zoomable image ------------------------------------------
           // The image is laid out at full viewport size with [BoxFit.cover],
           // so at rest the photo extends edge-to-edge.  Pinch-to-zoom and
           // double-tap then expand the photo past the viewport edges
@@ -240,7 +240,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
             ),
           ),
 
-          // ── Tap-to-toggle chrome ───────────────────────────────────
+          // -- Tap-to-toggle chrome -----------------------------------
           // A translucent pointer listener layered above the photo
           // catches taps and pointer-moves anywhere not consumed by a
           // tool button.  Hits here re-show the toolbar so the user can
@@ -283,7 +283,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
             ),
           ),
 
-          // ── Top toolbar ────────────────────────────────────────────
+          // -- Top toolbar --------------------------------------------
           FadeTransition(
             opacity: _chromeOpacity,
             child: Stack(
@@ -366,7 +366,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
             ),
           ),
 
-          // ── Bottom caption + hint ──────────────────────────────────
+          // -- Bottom caption + hint ----------------------------------
           Positioned(
             bottom: 0,
             left: 0,
