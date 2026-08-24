@@ -36,7 +36,7 @@ import 'package:flutter/foundation.dart';
 class MarkdownToHtml {
   /// Converts [markdown] to a Matrix-compatible HTML string.
   ///
-  /// **Do not** call this from the UI thread for large messages  it
+  /// **Do not** call this from the UI thread for large messages; it
   /// runs the full parser on the calling isolate.  Use [convertAsync]
   /// instead, which dispatches to a background isolate via
   /// [compute].
@@ -259,8 +259,8 @@ class MarkdownToHtml {
   static bool _isSafeHref(String url) {
     for (final c in url.split('')) {
       // Letters, digits, common URL punctuation, and percent-encoded
-      // sequences are allowed.  Anything else  quotes, brackets,
-      // angle brackets, whitespace, control chars  is rejected.
+      // sequences are allowed.  Anything else (quotes, brackets,
+      // angle brackets, whitespace, control chars) is rejected.
       final code = c.codeUnitAt(0);
       final allowed = (code >= 0x30 && code <= 0x39) || // 0-9
           (code >= 0x41 && code <= 0x5A) || // A-Z
@@ -289,11 +289,11 @@ class MarkdownToHtml {
   /// The scanner walks the input character by character with the
   /// following precedence (highest first):
   ///
-  /// 1. `` `…` ``  inline code: everything between matching backticks.
-  /// 2. `**…**`  bold: greedy forward `**` close, rejecting empty
+  /// 1. `` `…` ``: inline code: everything between matching backticks.
+  /// 2. `**…**`: bold: greedy forward `**` close, rejecting empty
   ///    spans and anything that would land inside an already-started
   ///    bold.
-  /// 3. `*…*`  italic: rejected when adjacent to another `*`, so
+  /// 3. `*…*`: italic: rejected when adjacent to another `*`, so
   ///    `*a**b*c*` italicises only `a` and leaves the inner `**`
   ///    pair un-touched.
   /// 4. Plain character pass-through.
@@ -316,10 +316,10 @@ class MarkdownToHtml {
       // -- 2. Bold `**text**` -------------------------------------
       if (i + 1 < text.length && text[i] == '*' && text[i + 1] == '*') {
         // Reject empty `****` and `**` followed immediately by another
-        // asterisk (which would be three+ in a row  ambiguous, just
+        // asterisk (which would be three+ in a row; ambiguous, just
         // emit the leading `**` literally rather than mis-nesting).
         if (i + 2 < text.length && text[i + 2] == '*') {
-          // Three asterisks in a row  emit them as text; the next
+          // Three asterisks in a row: emit them as text; the next
           // pass may still find a valid italic if that's what the
           // user typed.
         } else {
@@ -427,10 +427,10 @@ class MarkdownToHtml {
         if (close != -1) {
           final tag = processed.substring(i, close + 1);
           if (_knownTag.hasMatch(tag)) {
-            // Legitimate converter-generated tag  pass through.
+            // Legitimate converter-generated tag: pass through.
             result.write(tag);
           } else {
-            // Raw user-input HTML  escape it.
+            // Raw user-input HTML: escape it.
             result.write('&lt;');
             result.write(_escapeHtmlRaw(processed.substring(i + 1, close)));
             result.write('&gt;');
