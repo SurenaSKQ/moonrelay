@@ -183,8 +183,8 @@ void main() {
 
       // -- Step 3: Tap Sign In button on login form --
       await tester.tap(find.text('Sign in'));
-      // Flush the async login chain: checkHomeserver → login POST →
-      // client.init → sync request → sync response → navigate
+      // Flush the async login chain: checkHomeserver -> login POST ->
+      // client.init -> sync request -> sync response -> navigate
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();

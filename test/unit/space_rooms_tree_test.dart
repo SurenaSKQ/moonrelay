@@ -142,7 +142,7 @@ void main() {
       expect(nav.isSpace, isFalse);
     });
 
-    test('home → space → home round-trip', () {
+    test('home -> space -> home round-trip', () {
       nav.selectHome();
       expect(nav.isHome, isTrue);
       nav.selectSpace('!s:test');
@@ -153,7 +153,7 @@ void main() {
       expect(nav.isSpace, isFalse);
     });
 
-    test('all → space → all round-trip', () {
+    test('all -> space -> all round-trip', () {
       nav.selectSpace('!s:test');
       expect(nav.isSpace, isTrue);
       nav.selectAll();
