@@ -23,11 +23,12 @@ import 'package:window_manager/window_manager.dart';
 
 import 'settings_service.dart';
 
-/// A class that many Widgets can interact with to read user settings, update
-/// user settings, or listen to user settings changes.
+/// App-wide user settings: theme, accent, layout, sidebar geometry,
+/// and misc preferences. Notifies listeners on every change so widgets can
+/// rebuild off `context.watch<SettingsController>()`.
 ///
-/// Controllers glue Data Services to Flutter Widgets. The SettingsController
-/// uses the SettingsService to store and retrieve user settings.
+/// Persistence goes through [SettingsService]; values are cached in memory
+/// after [loadSettings] and written back eagerly by the individual setters.
 class SettingsController with ChangeNotifier, WindowListener {
   final SettingsService _settingsService;
   ThemeMode _themeMode = ThemeMode.system;
