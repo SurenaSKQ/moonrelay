@@ -26,7 +26,7 @@ import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // -----------------------------------------------------------------------------
-// StoredAccount  immutable serialisable metadata for a single Matrix session
+// StoredAccount: immutable serialisable metadata for a single Matrix session
 // -----------------------------------------------------------------------------
 
 /// Lightweight account descriptor persisted in [SharedPreferences].
@@ -34,7 +34,7 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 /// This holds the bare minimum needed to display an account in the UI and to
 /// locate its per-account database on disk.  The Matrix SDK's [Client] stores
 /// the actual access token, device keys, sync state etc. inside its own
-/// per-account database – we never persist tokens here.
+/// per-account database; we never persist tokens here.
 class StoredAccount {
   final String userId;
   final String homeserver;
@@ -76,7 +76,7 @@ class StoredAccount {
 }
 
 // -----------------------------------------------------------------------------
-// AccountManager  ChangeNotifier that owns the multi-account lifecycle
+// AccountManager: ChangeNotifier that owns the multi-account lifecycle
 // -----------------------------------------------------------------------------
 
 /// Top-level controller for multi-account support.
@@ -211,7 +211,7 @@ class AccountManager extends ChangeNotifier {
     _activeAccount = account;
     _activeClient = client;
     _encryptionService = encryptionService;
-    // Don't persist here – the account is already saved; this is just a
+    // Don't persist here; the account is already saved; this is just a
     // runtime association.  Notify so the provider tree re-reads.
     notifyListeners();
   }

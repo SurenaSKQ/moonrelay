@@ -92,7 +92,7 @@ class _RoomDelegateState extends State<RoomDelegate> {
   }
 
   void _onSyncTick() {
-    // Reset the retry timer whenever a sync arrives — the room may
+    // Reset the retry timer whenever a sync arrives: the room may
     // appear on the next tick after the sender's server propagates it.
     _retryTimer?.cancel();
     _showRetry = false;

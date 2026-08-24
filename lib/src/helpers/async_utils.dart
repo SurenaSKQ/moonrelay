@@ -61,7 +61,7 @@ Future<T> withTimeout<T>(
 }
 
 /// Runs [fn] and retries up to [maxRetries] times with [delay] between
-/// attempts.  Non-timeout errors are not retried by default  set
+/// attempts.  Non-timeout errors are not retried by default; set
 /// [retryOnAllErrors] to `true` to retry on any exception.
 ///
 /// Returns a [RetryResult] so callers can inspect the final error and
