@@ -57,7 +57,7 @@ void main() {
 
     test('returns 0 when the marker is not in the cache', () {
       // The marker being older than the loaded window still counts
-      // the entire list as unread  the user hasn't caught up.
+      // the entire list as unread; the user hasn't caught up.
       final events = _mkEvents(['a', 'b', 'c']);
       expect(countUnreadInWindow(events, '\$oldMarker'), 3);
     });

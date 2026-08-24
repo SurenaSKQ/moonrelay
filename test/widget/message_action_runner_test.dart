@@ -137,7 +137,7 @@ void main() {
       // not throw and the dialog appears.
       MessageActionRunner.react(ctx, event, room);
       await tester.pump();
-      // The picker is rendered as a modal  assert any emoji entry exists.
+      // The picker is rendered as a modal; assert any emoji entry exists.
       // (The picker shows category tabs; exact labels vary by translation.)
       expect(find.byType(MaterialApp), findsOneWidget);
     });

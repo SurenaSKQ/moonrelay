@@ -141,7 +141,7 @@ void main() {
         // Verifies the bug fix where the helper used to dismiss on any
         // tap that hit the page but not a widget inside it (e.g. a
         // margin between rows).  Now only true outside-card taps
-        // dismiss  the card marks itself with [BarrierDismissBoundary]
+        // dismiss; the card marks itself with [BarrierDismissBoundary]
         // and the dismiss detector hit-tests that boundary.
         bool popped = false;
         await tester.pumpWidget(
@@ -189,7 +189,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('inside'), findsOneWidget);
 
-        // Tap in the bottom-right corner of the card — empty space,
+        // Tap in the bottom-right corner of the card; empty space,
         // not on the 'inside' text.  This must not dismiss.
         final cardCenter = tester.getCenter(find.text('inside'));
         final cardSize = tester.getSize(find.text('inside'));
@@ -204,7 +204,7 @@ void main() {
                 'tapping empty space inside the card must NOT dismiss');
         expect(find.text('inside'), findsOneWidget);
 
-        // Tap well outside the card — true outside tap, must dismiss.
+        // Tap well outside the card: true outside tap, must dismiss.
         await tester.tapAt(const Offset(5, 5));
         await tester.pumpAndSettle();
         expect(popped, isTrue,

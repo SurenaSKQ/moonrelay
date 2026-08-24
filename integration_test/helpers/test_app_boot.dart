@@ -52,7 +52,7 @@ Future<Widget> buildTestApp({
   SharedPreferences.setMockInitialValues({});
 
   // -- 1. Native init (works on desktop test runner) ----------
-  // Vodozemac (native crypto)  needed by Client.init()
+  // Vodozemac (native crypto): needed by Client.init()
   try {
     await vdz.init();
   } catch (e) {
@@ -60,7 +60,7 @@ Future<Widget> buildTestApp({
     // The Client init below will handle missing crypto gracefully.
   }
 
-  // SQLite FFI  needed for the SDK database
+  // SQLite FFI: needed for the SDK database
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 

@@ -79,7 +79,7 @@ void main() {
         final missing = enKeys.difference(entry.value);
         if (missing.isEmpty) continue;
         // A "regression" is a key present in every other locale except
-        // this one  that means a new key was added but only en+others
+        // this one; that means a new key was added but only en+others
         // were updated. If *all* non-en locales are missing the same
         // keys, that's pre-existing debt, not a regression.
         final otherLocales = keysByLocale.entries

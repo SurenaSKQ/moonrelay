@@ -79,7 +79,7 @@ void main() {
       // The hub overlay should be on the stack.
       expect(find.byType(HubScreen), findsOneWidget);
 
-      // Tap a category in the hub sidebar.  We tap by text  the
+      // Tap a category in the hub sidebar.  We tap by text; the
       // categories are defined in `navigation_items.dart` and their
       // localized labels are listed in app_en.arb.  "About" is
       // always present in the categories list and is the most
@@ -111,7 +111,7 @@ void main() {
     'hub overlay stays on top of the room when a settings sub-item is tapped',
     (tester) async {
       // Use a large viewport so the hub overlay's sidebar (which
-      // has a known overflow issue on small viewports  see
+      // has a known overflow issue on small viewports; see
       // `category_sidebar.dart:192`) renders without throwing.
       tester.view.physicalSize = const Size(1920, 1200);
       tester.view.devicePixelRatio = 1.0;

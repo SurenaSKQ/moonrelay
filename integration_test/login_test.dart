@@ -56,7 +56,7 @@ void main() {
             ],
           });
         }
-        // POST  actual login
+        // POST: actual login
         if (req.method == 'POST') {
           final body = jsonDecode(req.body) as Map<String, dynamic>;
           if (body['type'] == 'm.login.password') {
@@ -153,7 +153,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Now on login page  verify form fields
+      // Now on login page: verify form fields
       expect(find.text('Homeserver'), findsOneWidget);
       expect(find.text('Username or email'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
