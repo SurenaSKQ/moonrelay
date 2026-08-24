@@ -67,7 +67,7 @@ class MoonrelayTheme {
   /// Monospace font fallback used when a theme or override does not specify one.
   static const String monoFontFamilyFallback = 'FiraCode';
 
-  // ── ThemeData factories ─────────────────────────────────────────────
+  // -- ThemeData factories ---------------------------------------------
 
   /// Builds the light [ThemeData] for [spec] + [accent].
   ///
@@ -106,7 +106,7 @@ class MoonrelayTheme {
         monoFontFamily: monoFontFamily ?? spec.defaultMonoFontFamily,
       );
 
-  // ── Internal builder ────────────────────────────────────────────────
+  // -- Internal builder ------------------------------------------------
 
   /// Maps a [LayoutDensity] choice to a [VisualDensity] for the theme.
   static VisualDensity _visualDensity(LayoutDensity density) {
@@ -180,7 +180,7 @@ class MoonrelayTheme {
     return data;
   }
 
-  // ── Component theme builders ──────────────────────────────────────
+  // -- Component theme builders --------------------------------------
 
   static AppBarTheme _appBarTheme(
     ColorScheme cs,

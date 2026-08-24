@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Moonrelay release script
 #
 # Usage:
@@ -13,7 +13,7 @@
 # Single source of truth: `pubspec.yaml`. This script only edits that
 # file, and `pkg-locking` is left to Flutter tooling. CI rebuilds
 # artifacts from the committed `pubspec.yaml`, never from the tag.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 set -euo pipefail
 
@@ -24,7 +24,7 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 err()  { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; }
 ok()   { printf '\033[32mOK:\033[0m %s\n' "$*"; }
 
-# ── Helpers ──────────────────────────────────────────────────────────────
+# -- Helpers --------------------------------------------------------------
 read_version() {
   awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | tr -d '"' | cut -d'+' -f1
 }
@@ -55,7 +55,7 @@ ensure_main_branch() {
   fi
 }
 
-# ── Commands ─────────────────────────────────────────────────────────────
+# -- Commands -------------------------------------------------------------
 cmd="${1:-help}"
 case "$cmd" in
   patch|minor|major)

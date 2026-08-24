@@ -1141,7 +1141,7 @@ class _ActionsSection extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
-              // ── Start direct chat ──────────────────
+              // -- Start direct chat ------------------
               ListTile(
                 leading: Icon(LucideIcons.messageSquare, color: scheme.primary),
                 title: Text(l10n.actionStartDirectChat),
@@ -1164,7 +1164,7 @@ class _ActionsSection extends StatelessWidget {
                 ),
               ],
               Divider(height: 1, indent: 16, endIndent: 16),
-              // ── Block / Unblock ────────────────────
+              // -- Block / Unblock --------------------
               ListTile(
                 leading: Icon(
                   isBlocked ? LucideIcons.eyeOff : LucideIcons.ban,
@@ -1177,7 +1177,7 @@ class _ActionsSection extends StatelessWidget {
                     isBlocked ? _unblockUser(context) : _blockUser(context),
               ),
               Divider(height: 1, indent: 16, endIndent: 16),
-              // ── Report ────────────────────────────
+              // -- Report ----------------------------
               ListTile(
                 leading: Icon(LucideIcons.flag,
                     color: scheme.error.withValues(alpha: 0.8)),
@@ -1393,7 +1393,7 @@ class _ActionsSection extends StatelessWidget {
   }
 }
 
-// ── Profile overlay ────────────────────────────────────────────────────────
+// -- Profile overlay --------------------------------------------------------
 
 /// Opens the user profile as a centered modal overlay, similar to
 /// [showHubOverlay] but with a plain dim background instead of blur so the

@@ -391,7 +391,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Layout mutators ──────────────────────────────────────────────────
+  // -- Layout mutators --------------------------------------------------
 
   Future<void> setLayoutMode(LayoutMode mode) async {
     if (mode == _layoutMode) return;
@@ -562,7 +562,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Appearance extras ───────────────────────────────────────────────
+  // -- Appearance extras -----------------------------------------------
 
   Future<void> updateDensity(LayoutDensity value) async {
     if (value == _density) return;
@@ -612,7 +612,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Chat behaviour ──────────────────────────────────────────────────
+  // -- Chat behaviour --------------------------------------------------
 
   Future<void> updateSendReadReceipts(bool value) async {
     if (value == _sendReadReceipts) return;
@@ -765,7 +765,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Notifications (extended) ────────────────────────────────────────
+  // -- Notifications (extended) ----------------------------------------
 
   Future<void> updateNotifyDmsOnly(bool value) async {
     if (value == _notifyDmsOnly) return;
@@ -797,7 +797,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Privacy / deep links / data ─────────────────────────────────────
+  // -- Privacy / deep links / data -------------------------------------
 
   Future<void> updateDeepLinkAutoJoin(bool value) async {
     if (value == _deepLinkAutoJoin) return;
@@ -854,7 +854,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateWipeLogsOnLogout(value);
   }
 
-  // ── Advanced / debounces ────────────────────────────────────────────
+  // -- Advanced / debounces --------------------------------------------
 
   Future<void> updateSyncDebounceMs(int value) async {
     value = value.clamp(0, 5000);
@@ -928,7 +928,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  // ── Logging ─────────────────────────────────────────────────────────
+  // -- Logging ---------------------------------------------------------
 
   Future<void> updateLogMaxFileSizeMb(int value) async {
     value = value.clamp(1, 1024);
@@ -971,7 +971,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateLogVerboseRelease(value);
   }
 
-  // ── Tray ────────────────────────────────────────────────────────────
+  // -- Tray ------------------------------------------------------------
 
   Future<void> updateTrayLeftClick(TrayClickAction value) async {
     if (value == _trayLeftClick) return;
@@ -980,7 +980,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateTrayLeftClick(value);
   }
 
-  // ── Updates ──────────────────────────────────────────────────────────
+  // -- Updates ----------------------------------------------------------
 
   Future<void> updateCheckForUpdates(bool value) async {
     if (value == _checkForUpdates) return;
@@ -989,7 +989,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateCheckForUpdates(value);
   }
 
-  // ── Locale ──────────────────────────────────────────────────────────
+  // -- Locale ----------------------------------------------------------
 
   Future<void> updateLocale(String? locale) async {
     if (locale == _locale) return;

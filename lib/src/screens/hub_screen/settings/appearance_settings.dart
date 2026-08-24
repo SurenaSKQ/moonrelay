@@ -26,9 +26,9 @@ import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Appearance Settings
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubAppearanceSettings extends StatelessWidget {
   const HubAppearanceSettings({super.key});

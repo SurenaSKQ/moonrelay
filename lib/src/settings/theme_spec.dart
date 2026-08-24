@@ -92,7 +92,7 @@ class MoonrelayThemeSpec {
 class MoonrelayThemes {
   MoonrelayThemes._();
 
-  // ── Shipped themes ───────────────────────────────────────────────────
+  // -- Shipped themes ---------------------------------------------------
 
    /// The bundled themes, in their persisted/display order. The first entry is
    /// [MoonrelayThemes.defaultTheme].
@@ -131,7 +131,7 @@ class MoonrelayThemes {
    /// Soft, generously rounded variant with low elevation.
    static const MoonrelayThemeSpec organic = organicTheme;
 
-  // ── Defaults ────────────────────────────────────────────────────────
+  // -- Defaults --------------------------------------------------------
 
   /// The theme used on first install and when an unknown id is requested.
   static const MoonrelayThemeSpec defaultTheme = material;
@@ -139,7 +139,7 @@ class MoonrelayThemes {
   /// Stable machine id of [defaultTheme].
   static const String defaultThemeId = 'material';
 
-  // ── Lookup ──────────────────────────────────────────────────────────
+  // -- Lookup ----------------------------------------------------------
 
   /// Returns the theme whose [MoonrelayThemeSpec.id] matches [id], or null
   /// when no such theme exists.
@@ -185,7 +185,7 @@ class MoonrelayAccent {
 class MoonrelayAccents {
   MoonrelayAccents._();
 
-  // ── Shipped accents ──────────────────────────────────────────────────
+  // -- Shipped accents --------------------------------------------------
 
   /// The bundled accents, in their persisted/display order. The first entry is
   /// [MoonrelayAccents.defaultAccent].
@@ -258,7 +258,7 @@ class MoonrelayAccents {
     seedColor: Color(0xFF5C8AA6),
   );
 
-  // ── Defaults ────────────────────────────────────────────────────────
+  // -- Defaults --------------------------------------------------------
 
   /// The accent used on first install and when an unknown id is requested.
   static const MoonrelayAccent defaultAccent = indigo;
@@ -266,7 +266,7 @@ class MoonrelayAccents {
   /// Stable machine id of [defaultAccent].
   static const String defaultAccentId = 'indigo';
 
-  // ── Lookup ──────────────────────────────────────────────────────────
+  // -- Lookup ----------------------------------------------------------
 
   /// Returns the accent whose [MoonrelayAccent.id] matches [id], or null when
   /// no such accent exists.
@@ -423,7 +423,7 @@ class MoonrelayWidgetStyle {
     }
   }
 
-  // ── Vista merge ───────────────────────────────────────────────────────
+  // -- Vista merge -------------------------------------------------------
 
   /// Vista look: flat, bordered buttons; bordered surfaces; narrow scrollbar.
   ThemeData _mergeVista(
@@ -438,7 +438,7 @@ class MoonrelayWidgetStyle {
     final side = BorderSide(width: borderWidth, color: border);
 
     return base.copyWith(
-      // ── Buttons ───────────────────────────────────────────────────
+      // -- Buttons ---------------------------------------------------
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
@@ -479,7 +479,7 @@ class MoonrelayWidgetStyle {
         ),
       ),
 
-      // ── Toggle controls ───────────────────────────────────────────
+      // -- Toggle controls -------------------------------------------
       checkboxTheme: CheckboxThemeData(
         side: side,
         shape: RoundedRectangleBorder(borderRadius: innerRadius),
@@ -511,7 +511,7 @@ class MoonrelayWidgetStyle {
                 : null),
       ),
 
-      // ── Slider ────────────────────────────────────────────────────
+      // -- Slider ----------------------------------------------------
       sliderTheme: SliderThemeData(
         activeTrackColor: cs.primary,
         inactiveTrackColor: cs.outlineVariant,
@@ -522,7 +522,7 @@ class MoonrelayWidgetStyle {
         ),
       ),
 
-      // ── Scrollbar ─────────────────────────────────────────────────
+      // -- Scrollbar -------------------------------------------------
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(border),
         thickness: WidgetStateProperty.all(scrollbarThickness),
@@ -531,7 +531,7 @@ class MoonrelayWidgetStyle {
         crossAxisMargin: 2,
       ),
 
-      // ── Surfaces ──────────────────────────────────────────────────
+      // -- Surfaces --------------------------------------------------
       cardTheme: CardThemeData(
         elevation: base.cardTheme.elevation,
         color: base.cardTheme.color,
@@ -545,7 +545,7 @@ class MoonrelayWidgetStyle {
         shape: RoundedRectangleBorder(borderRadius: radius, side: side),
       ),
 
-      // ── Inputs ────────────────────────────────────────────────────
+      // -- Inputs ----------------------------------------------------
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: radius, borderSide: side),
         enabledBorder:
@@ -556,10 +556,10 @@ class MoonrelayWidgetStyle {
         ),
       ),
 
-      // ── Dividers ──────────────────────────────────────────────────
+      // -- Dividers --------------------------------------------------
       dividerTheme: DividerThemeData(color: border, thickness: borderWidth),
 
-      // ── AppBar ────────────────────────────────────────────────────
+      // -- AppBar ----------------------------------------------------
       appBarTheme: AppBarTheme(
         backgroundColor: cs.surface,
         foregroundColor: cs.onSurface,
@@ -569,13 +569,13 @@ class MoonrelayWidgetStyle {
         titleTextStyle: base.appBarTheme.titleTextStyle,
       ),
 
-      // ── List tiles ────────────────────────────────────────────────
+      // -- List tiles ------------------------------------------------
       listTileTheme: ListTileThemeData(
         contentPadding: components.list.contentPadding,
         shape: RoundedRectangleBorder(borderRadius: radius),
       ),
 
-      // ── SnackBar ──────────────────────────────────────────────────
+      // -- SnackBar --------------------------------------------------
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -583,13 +583,13 @@ class MoonrelayWidgetStyle {
         ),
       ),
 
-      // ── Progress indicators ───────────────────────────────────────
+      // -- Progress indicators ---------------------------------------
       progressIndicatorTheme: ProgressIndicatorThemeData(
         linearTrackColor: cs.surfaceContainerHighest,
         strokeWidth: components.progress.strokeWidth,
       ),
 
-      // ── Chips ─────────────────────────────────────────────────────
+      // -- Chips -----------------------------------------------------
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(components.chip.cornerRadius),
@@ -601,7 +601,7 @@ class MoonrelayWidgetStyle {
         padding: components.chip.padding,
       ),
 
-      // ── Tooltips ──────────────────────────────────────────────────
+      // -- Tooltips --------------------------------------------------
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: cs.inverseSurface,
@@ -610,7 +610,7 @@ class MoonrelayWidgetStyle {
         padding: components.tooltip.padding,
       ),
 
-      // ── Navigation ────────────────────────────────────────────────
+      // -- Navigation ------------------------------------------------
       navigationBarTheme: NavigationBarThemeData(
         indicatorShape: RoundedRectangleBorder(
           borderRadius:
@@ -618,14 +618,14 @@ class MoonrelayWidgetStyle {
         ),
       ),
 
-      // ── Popup menu ────────────────────────────────────────────────
+      // -- Popup menu ------------------------------------------------
       popupMenuTheme: PopupMenuThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cornerRadius),
         ),
       ),
 
-      // ── Badge ─────────────────────────────────────────────────────
+      // -- Badge -----------------------------------------------------
       badgeTheme: BadgeThemeData(
         backgroundColor: cs.error,
         textColor: cs.onError,
@@ -633,7 +633,7 @@ class MoonrelayWidgetStyle {
         largeSize: components.badge.size,
       ),
 
-       // ── Text selection ────────────────────────────────────────────
+       // -- Text selection --------------------------------------------
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: cs.primary,
         selectionColor: cs.primary.withValues(alpha: 0.3),
@@ -642,7 +642,7 @@ class MoonrelayWidgetStyle {
     );
   }
 
-  // ── Minimal merge ─────────────────────────────────────────────────────
+  // -- Minimal merge -----------------------------------------------------
 
   /// Flat, borderless style: no elevation, no component borders, thin chrome.
   ThemeData _mergeMinimal(
@@ -846,7 +846,7 @@ class MoonrelayWidgetStyle {
     );
   }
 
-  // ── Organic merge ─────────────────────────────────────────────────────
+  // -- Organic merge -----------------------------------------------------
 
   /// Soft, generously rounded style with subtle borders and low elevation.
   ThemeData _mergeOrganic(
@@ -1093,7 +1093,7 @@ class MoonrelayWidgetStyle {
     );
   }
 
-  // ── Moonrelay signature merge ──────────────────────────────────────────
+  // -- Moonrelay signature merge ------------------------------------------
 
   /// Moonrelay's signature look: distinctive app bar with an accent indicator
   /// line, elevated cards with signature shadow, and softly rounded buttons.

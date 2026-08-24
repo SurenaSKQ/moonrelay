@@ -202,7 +202,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
   }
 }
 
-// ─── Thread root tile ──────────────────────────────────────────────────────────
+// --- Thread root tile ----------------------------------------------------------
 
 /// Displays the root event of a thread in a non-interactive card.
 class _ThreadRootTile extends StatelessWidget {

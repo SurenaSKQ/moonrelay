@@ -69,7 +69,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
     return _profileBar(context, _profile!);
   }
 
-  // ── Loading state ───────────────────────────────────────────────────────
+  // -- Loading state -------------------------------------------------------
 
   Widget _loadingIndicator(BuildContext context) {
     final theme = Theme.of(context);
@@ -117,7 +117,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
     );
   }
 
-  // ── Error state ─────────────────────────────────────────────────────────
+  // -- Error state ---------------------------------------------------------
 
   Widget _errorIndicator(BuildContext context) {
     final theme = Theme.of(context);
@@ -157,7 +157,7 @@ class _OwnProfileBarState extends State<OwnProfileBar> {
     );
   }
 
-  // ── Loaded profile ──────────────────────────────────────────────────────
+  // -- Loaded profile ------------------------------------------------------
 
   Widget _profileBar(BuildContext context, Profile profile) {
     final theme = Theme.of(context);

@@ -266,7 +266,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Parent space info ──────────────────────────────────
+          // -- Parent space info ----------------------------------
           if (parentSpace != null) ...[
             Container(
               padding: EdgeInsets.all(t.spaceMd),
@@ -296,10 +296,10 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             ),
             const SizedBox(height: 20),
 
-            // ── Room type toggle (hidden when creating in a space) ─
+            // -- Room type toggle (hidden when creating in a space) -
           ],
 
-          // ── Room type toggle (Room / Space) ──────────────────────
+          // -- Room type toggle (Room / Space) ----------------------
           if (parentSpace == null) ...[
             Text(
               l10n.typeLabel,
@@ -336,7 +336,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
             const SizedBox(height: 20),
           ],
 
-          // ── Room / Space name ────────────────────────────────────
+          // -- Room / Space name ------------------------------------
           Text(
             l10n.displayName,
             style: TextStyle(
@@ -368,7 +368,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
           SizedBox(height: t.spaceLg),
 
-          // ── Room avatar ──────────────────────────────────────────
+          // -- Room avatar ------------------------------------------
           GestureDetector(
             onTap: _avatarBytes == null ? _pickAvatar : null,
             child: Row(
@@ -433,7 +433,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
           ),
           const SizedBox(height: 20),
 
-          // ── Topic ────────────────────────────────────────────────
+          // -- Topic ------------------------------------------------
           Text(
             l10n.roomInfoTitle,
             style: TextStyle(
@@ -466,7 +466,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
           const SizedBox(height: 20),
 
-          // ── Visibility toggle ────────────────────────────────────
+          // -- Visibility toggle ------------------------------------
           Card(
             elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
@@ -514,7 +514,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
           SizedBox(height: t.spaceLg),
 
-          // ── Advanced options toggle ──────────────────────────────
+          // -- Advanced options toggle ------------------------------
           Card(
             elevation: t.elevationNone,
             shape: RoundedRectangleBorder(
@@ -632,7 +632,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
               ),
             if (!_isSpace) SizedBox(height: t.spaceLg),
 
-            // ── Join rules picker ────────────────────────────────
+            // -- Join rules picker --------------------------------
             Text(
               l10n.joinRuleLabel,
               style: TextStyle(
@@ -713,7 +713,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
           SizedBox(height: t.spaceXxl),
 
-          // ── Create button ────────────────────────────────────────
+          // -- Create button ----------------------------------------
           FilledButton.icon(
             onPressed: _loading ? null : _createRoom,
             icon: _loading
