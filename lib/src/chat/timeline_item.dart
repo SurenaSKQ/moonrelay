@@ -67,7 +67,7 @@ enum TimelineItemAction {
 ///
 /// **Display types:**
 /// - [DisplayType.modern] and [DisplayType.bubbles]: hover actions (React,
-///   Reply, Forward, Delete) appear at the top‑right when hovering anywhere
+///   Reply, Forward, Delete) appear at the top-right when hovering anywhere
 ///   on the message.
 /// - [DisplayType.irc]: compact format with no hover actions.
 class TimelineItem extends StatefulWidget {

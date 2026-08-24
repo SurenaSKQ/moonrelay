@@ -36,7 +36,7 @@ import 'package:provider/provider.dart';
 /// images or tall portrait shots both render as a comfortable rectangle
 /// instead of stretching to the full timeline width. The image is then
 /// scaled with `BoxFit.contain` so its aspect ratio is preserved without
-/// cropping  it fits inside the box, not the other way around.
+/// cropping: it fits inside the box, not the other way around.
 class ImageMessageType extends StatefulWidget {
   const ImageMessageType({super.key, required this.event});
   final Event event;
@@ -81,7 +81,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     if (!_shouldAutoDownload()) return;
     // Use the shared cache so multiple State objects for the same
     // event share a single downloaded blob and a single in-flight
-    // future. The State no longer holds a long-lived Future — once
+    // future. The State no longer holds a long-lived Future; once
     // the cache resolves, the bytes live in the global cache and the
     // State reads them from there.
     _downloadFuture = RoomMediaCache.instance.getOrDownload(
@@ -108,7 +108,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   /// Maximum display size for thumbnails in the timeline. Both axes are
-  /// upper bounds  the larger dimension of the image decides the box,
+  /// upper bounds: the larger dimension of the image decides the box,
   /// and the smaller dimension follows proportionally.
   ///
   /// Honoured as a fallback when the [SettingsController] cannot be read
@@ -195,7 +195,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     // Fast path: bytes are already in the shared cache (e.g. we
     // previously downloaded the same attachment, or this is a
     // rebuild after the FutureBuilder resolved once). Avoid creating
-    // another FutureBuilder — the underlying bytes never go stale.
+    // another FutureBuilder; the underlying bytes never go stale.
     final cached = RoomMediaCache.instance.get(_roomId, widget.event.eventId);
     if (cached != null && cached.isNotEmpty) {
       return _buildThumbnail(cs, cached);
@@ -335,7 +335,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
 
     // Cap the decoded bitmap to the rendered box (scaled by device pixel
     // ratio for HiDPI). Without this, Flutter decodes the full source
-    // image — a 4032×3024 photo becomes a ~48 MB ui.Image even though
+    // image: a 4032×3024 photo becomes a ~48 MB ui.Image even though
     // it displays at a few hundred logical pixels.
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
@@ -355,7 +355,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
-          // The picture is the entire visible bubble — no background,
+          // The picture is the entire visible bubble: no background,
           // border, or metadata overlay.  Stickers are now stripped of
           // their backgrounds, and image thumbnails follow suit so the
           // chat reads as a flow of images rather than a row of framed
@@ -383,7 +383,7 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
                   ),
                 ),
               ),
-              // Tiny download affordance in the corner — appears on hover
+              // Tiny download affordance in the corner: appears on hover
               // so it doesn't clutter the bubble when reading.
               Positioned(
                 top: 6,
@@ -479,7 +479,7 @@ class _GifBadge extends StatelessWidget {
 /// Download affordance that fades in only while the cursor is over
 /// the thumbnail.  Kept as a separate widget so its `State` (and
 /// listeners on the hover notifier) stays isolated from the rest of
-/// the image subtree — Image.memory on the parent never re-paints just
+/// the image subtree: Image.memory on the parent never re-paints just
 /// because the cursor moved.
 class _HoverDownloadButton extends StatefulWidget {
   const _HoverDownloadButton({required this.onPressed, required this.tooltip});

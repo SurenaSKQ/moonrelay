@@ -98,7 +98,7 @@ class UserMentionPill extends StatefulWidget {
   /// Fully-qualified Matrix user id (`@localpart:domain`).
   final String userId;
 
-  /// Optional surrounding room  used by the hover preview's quick
+  /// Optional surrounding room: used by the hover preview's quick
   /// actions (kick/ban/power level) and by [showProfileOverlay] to
   /// render room-scoped moderation.
   final Room? room;

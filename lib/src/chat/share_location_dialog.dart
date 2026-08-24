@@ -80,7 +80,7 @@ class _ShareLocationDialogState extends State<_ShareLocationDialog> {
 
       // Build the event content without an `info` block: some Matrix
       // servers (Synapse) reject float values in event content with
-      // M_BAD_JSON.  Spec-wise the `info` block is optional — the
+      // M_BAD_JSON.  Spec-wise the `info` block is optional; the
       // renderer falls back to the geo_uri when info is absent.
       final content = <String, dynamic>{
         'msgtype': 'm.location',

@@ -193,7 +193,7 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final stickerMax = prefs.stickerMax;
     final size = _stickerSize(stickerMax);
-    // Stickers render as the picture alone — no borders, no info
+    // Stickers render as the picture alone: no borders, no info
     // overlays, no background card.  The sticker is the whole bubble.
     return Image.memory(
       bytes,

@@ -218,7 +218,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       }
     }
 
-    // Keyword search  AND across all tokens.
+    // Keyword search: AND across all tokens.
     if (_keywords.isNotEmpty) {
       final haystack = _eventSearchText(event);
       if (!_keywords.every((kw) => haystack.contains(kw))) return false;
@@ -854,7 +854,7 @@ class _HighlightedText extends StatelessWidget {
       }
 
       if (earliestKw == null) {
-        // No more matches  emit the rest as plain text.
+        // No more matches: emit the rest as plain text.
         spans.add(TextSpan(text: text.substring(pos), style: style));
         break;
       }

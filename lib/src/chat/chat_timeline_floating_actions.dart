@@ -24,10 +24,10 @@ import 'package:moonrelay/src/settings/motion.dart';
 /// bottom of the timeline *and* the room has no unread messages.
 ///
 /// Two pills are supported:
-///   1. Jump-to-unread  shown when the room has unread messages
+///   1. Jump-to-unread: shown when the room has unread messages
 ///      below the current viewport.  Takes visual priority when both
 ///      pills are visible.
-///   2. Scroll-to-bottom  shown when the user has scrolled up away
+///   2. Scroll-to-bottom: shown when the user has scrolled up away
 ///      from the newest messages.  Lets them jump back without
 ///      dragging all the way down.
 ///

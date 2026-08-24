@@ -39,10 +39,10 @@ import 'package:provider/provider.dart';
 /// A modern chat composition widget with formatting tools,
 /// attachment support, and a compact/expanded mode toggle.
 ///
-/// **Compact mode** – single-line text field with an attach button,
+/// ** Compact mode**: single-line text field with an attach button,
 /// an expand toggle, and a send button.
 ///
-/// **Expanded mode** – multi-line editor with a full formatting toolbar
+/// ** Expanded mode**: multi-line editor with a full formatting toolbar
 /// (bold, italic, strikethrough, inline code, blockquote, heading,
 /// unordered list, link), an attach button, and a send button.
 class ChatBox extends StatefulWidget {
@@ -87,7 +87,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
 
   /// The composer text captured immediately before [_send] cleared the
-  /// controller.  Stored so we can restore it if `sendFn` throws  the
+  /// controller.  Stored so we can restore it if `sendFn` throws; the
   /// user can correct and resend without retyping a long message.
   String? _draftValue;
 
@@ -384,7 +384,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       // flight; guard before touching state (the error path below is
       // already guarded).
       if (!mounted) return;
-      // Success  clear the draft.
+      // Success: clear the draft.
       _draftValue = null;
       _draftService?.cancelPending();
       unawaited(_draftService?.clear(widget.room.id));

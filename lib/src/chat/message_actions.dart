@@ -30,8 +30,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 /// `(edited)` marker rendered inline by `MessageEventHandler` they implement
 /// the full `m.replace` flow.
 ///
-/// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
-/// This widget does **not** manage its own visibility  the parent controls
+/// This widget does **not** manage its own visibility; the parent controls
 /// when it appears (e.g. via a hover wrapper).
 class MessageActions extends StatelessWidget {
   const MessageActions({
