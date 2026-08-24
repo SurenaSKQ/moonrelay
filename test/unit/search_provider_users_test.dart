@@ -118,7 +118,7 @@ void main() {
           '@a:hs',
         );
 
-        // New query  the cache should be replaced.
+        // New query: the cache should be replaced.
         final newPage = await provider.fetchUsersPage('beta', limit: 10);
         expect(newPage.items.first.userId, '@b:hs');
         expect(lastQuery, 'beta');

@@ -239,7 +239,7 @@ void main() {
       await tester.pump();
 
       // Resolve rooms in *reverse* order. The implementation must
-      // survive any order — only room C's continuation should land.
+      // survive any order; only room C's continuation should land.
       roomA.resolve(_FakeTimeline(label: 'timelineA'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));

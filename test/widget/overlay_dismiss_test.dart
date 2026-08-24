@@ -60,7 +60,7 @@ void main() {
         await tester.tap(find.text('open'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 250));
-        // Tap in the top-left corner  outside the centered card.
+        // Tap in the top-left corner: outside the centered card.
         await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
         // The MaterialApp is still mounted.  The exact pop count
