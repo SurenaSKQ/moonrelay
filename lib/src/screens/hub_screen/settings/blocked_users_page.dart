@@ -50,7 +50,7 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
 
     try {
       // The SDK populates client.ignoredUsers from account data.
-      // Nothing extra to load  just wait a frame.
+      // Nothing extra to load; just wait a frame.
       await Future.delayed(Duration.zero);
       if (!mounted) return;
       setState(() => _loading = false);

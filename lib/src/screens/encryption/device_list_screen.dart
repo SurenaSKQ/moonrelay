@@ -316,7 +316,7 @@ String _formatLastSeen(DateTime dt) {
   final local = dt.isUtc ? dt.toLocal() : dt;
   final delta = DateTime.now().difference(local);
   if (delta.isNegative || delta.inSeconds < 0) {
-    // Device clock skew  show the wall-clock time directly.
+    // Device clock skew: show the wall-clock time directly.
     return '${local.year}-${_pad(local.month)}-${_pad(local.day)} '
         '${_pad(local.hour)}:${_pad(local.minute)}';
   }

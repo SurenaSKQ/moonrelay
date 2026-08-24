@@ -182,7 +182,7 @@ class _TrustBadge extends StatelessWidget {
     final label =
         verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
     // [Semantics] instead of [Tooltip]: same reason as
-    // [_TrustBadge] in `device_list_screen.dart` — the page lives
+    // [_TrustBadge] in `device_list_screen.dart`; the page lives
     // inside the dashboard's [LayoutBuilder] shell, and a Tooltip's
     // internal [OverlayPortal] activation would mark a sibling
     // [_RenderLayoutBuilder] as needing layout mid-performLayout.
