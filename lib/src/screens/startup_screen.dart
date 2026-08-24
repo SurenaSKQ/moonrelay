@@ -114,7 +114,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Left pane ────────────────────────────────────────────────────────────
+  // -- Left pane ------------------------------------------------------------
 
   /// The left column used in the wide layout. Branding is centred vertically
   /// while the footer row sits at the bottom.
@@ -134,7 +134,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Branding ─────────────────────────────────────────────────────────────
+  // -- Branding -------------------------------------------------------------
 
   Widget _buildBranding(
     BuildContext context,
@@ -177,7 +177,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Footer row ───────────────────────────────────────────────────────────
+  // -- Footer row -----------------------------------------------------------
 
   Widget _buildFooter(
     BuildContext context,
@@ -234,7 +234,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Right pane ───────────────────────────────────────────────────────────
+  // -- Right pane -----------------------------------------------------------
 
   Widget _buildRightPane(
     BuildContext context,
@@ -255,7 +255,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Saved accounts ───────────────────────────────────────────────────────
+  // -- Saved accounts -------------------------------------------------------
 
   /// Shows a list of previously-logged-in accounts that the user can tap to
   /// switch to.  Hidden when there are no saved accounts.
@@ -352,7 +352,7 @@ class StartupScreen extends StatelessWidget {
     }
   }
 
-  // ── Action card (login / register / SSO) ─────────────────────────────────
+  // -- Action card (login / register / SSO) ---------------------------------
 
   Widget _buildActionCard(
     BuildContext context,
@@ -429,7 +429,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Project News card ────────────────────────────────────────────────────
+  // -- Project News card ----------------------------------------------------
 
   Widget _buildProjectNewsCard(
     BuildContext context,
@@ -481,7 +481,7 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // ── Donators / Supporters card ───────────────────────────────────────────
+  // -- Donators / Supporters card -------------------------------------------
 
   Widget _buildDonatorsCard(
     BuildContext context,
@@ -560,9 +560,9 @@ class StartupScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Account card for the saved-accounts list on the welcome screen
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A tappable row showing a saved Matrix account.
 class _AccountCard extends StatelessWidget {
@@ -665,13 +665,13 @@ class _AccountCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Welcome settings screen (theme-only subset of the hub settings)
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Credits screen
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A screen that displays developer and project information to build user trust.
 class _CreditsScreen extends StatelessWidget {
@@ -695,7 +695,7 @@ class _CreditsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         children: [
-          // ── Project identity card ────────────────────────────────
+          // -- Project identity card --------------------------------
           Card(
             child: Padding(
               padding: EdgeInsets.all(t.spaceXl),
@@ -729,7 +729,7 @@ class _CreditsScreen extends StatelessWidget {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Author ───────────────────────────────────────────────
+          // -- Author -----------------------------------------------
           _CreditsSection(
             icon: LucideIcons.user,
             title: l10n.author,
@@ -746,7 +746,7 @@ class _CreditsScreen extends StatelessWidget {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── License ──────────────────────────────────────────────
+          // -- License ----------------------------------------------
           _CreditsSection(
             icon: LucideIcons.scrollText,
             title: 'License',
@@ -760,7 +760,7 @@ class _CreditsScreen extends StatelessWidget {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Open Source Credits ──────────────────────────────────
+          // -- Open Source Credits ----------------------------------
           _CreditsSection(
             icon: LucideIcons.code2,
             title: 'Open Source Acknowledgements',
@@ -779,7 +779,7 @@ class _CreditsScreen extends StatelessWidget {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Repository ───────────────────────────────────────────
+          // -- Repository -------------------------------------------
           _CreditsSection(
             icon: LucideIcons.gitBranch,
             title: 'Repository',

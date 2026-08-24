@@ -19,7 +19,7 @@ import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 
 void main() {
   group('MatrixUriParser', () {
-    // ── matrix: scheme parsing ─────────────────────────────────
+    // -- matrix: scheme parsing ---------------------------------
     group('matrix: scheme', () {
       test('parses matrix:r/!roomid:domain', () {
         final result = MatrixUriParser.parse('matrix:r/!roomid:example.org');
@@ -71,7 +71,7 @@ void main() {
       });
     });
 
-    // ── matrix.to permalink parsing ────────────────────────────
+    // -- matrix.to permalink parsing ----------------------------
     group('matrix.to permalink', () {
       test('parses room permalink', () {
         final result = MatrixUriParser.parse(
@@ -120,7 +120,7 @@ void main() {
       });
     });
 
-    // ── parseAll (scanning text) ────────────────────────────────
+    // -- parseAll (scanning text) --------------------------------
     group('parseAll', () {
       test('finds matrix: URIs in plain text', () {
         final results = MatrixUriParser.parseAll(
@@ -162,7 +162,7 @@ void main() {
       });
     });
 
-    // ── URI builder methods ────────────────────────────────────
+    // -- URI builder methods ------------------------------------
     group('buildRoomUri', () {
       test('builds basic room URI', () {
         final uri = MatrixUriParser.buildRoomUri('!roomid:example.org');
@@ -193,7 +193,7 @@ void main() {
       });
     });
 
-    // ── Bare Matrix ID parsing ──────────────────────────────────
+    // -- Bare Matrix ID parsing ----------------------------------
     group('bare Matrix IDs', () {
       test('parses @user:domain as user', () {
         final result = MatrixUriParser.parse('@user:example.org');

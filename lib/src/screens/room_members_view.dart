@@ -133,7 +133,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       _allMembers = [];
     });
 
-    // ── Phase 1: Show local participants right away ────────────────
+    // -- Phase 1: Show local participants right away ----------------
     final localParticipants = widget.room.getParticipants().toList()
       ..sort((b, a) => a.powerLevel.level.compareTo(b.powerLevel.level));
 
@@ -153,7 +153,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       if (_displayedCount < _allMembers.length) _loadNextBatch();
     });
 
-    // ── Phase 2: Fetch server-side member list ─────────────────────
+    // -- Phase 2: Fetch server-side member list ---------------------
     try {
       _isFetchingMore = true;
       final joinedMembers =

@@ -141,7 +141,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                           ),
                         ),
 
-                      // ── Homeserver field ──
+                      // -- Homeserver field --
                       _buildLabel(colors, l10n.homeserverText),
                       const SizedBox(height: 6),
                       TextField(
@@ -162,7 +162,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // ── Username field ──
+                      // -- Username field --
                       _buildLabel(colors, l10n.usernameText),
                       const SizedBox(height: 6),
                       TextField(
@@ -189,7 +189,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       SizedBox(height: t.spaceLg),
 
-                      // ── Password field ──
+                      // -- Password field --
                       _buildLabel(colors, l10n.passwordText),
                       const SizedBox(height: 6),
                       TextField(
@@ -221,7 +221,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       SizedBox(height: t.spaceLg),
 
-                      // ── Confirm Password field ──
+                      // -- Confirm Password field --
                       _buildLabel(colors, l10n.confirmPasswordLabel),
                       const SizedBox(height: 6),
                       TextField(
@@ -253,7 +253,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // ── Terms of service checkbox ──
+                      // -- Terms of service checkbox --
                       CheckboxListTile(
                         value: _agreeToTerms,
                         onChanged: !_loading
@@ -272,7 +272,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // ── Register button ──
+                      // -- Register button --
                       FilledButton.icon(
                         onPressed: _loading ? null : _doRegister,
                         icon: _loading
@@ -318,7 +318,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     );
   }
 
-  // ── Build helpers ─────────────────────────────────────────────────────
+  // -- Build helpers -----------------------------------------------------
 
   Widget _buildLabel(ColorScheme colors, String text) {
     return Text(
@@ -331,7 +331,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     );
   }
 
-  // ── Registration logic ────────────────────────────────────────────────
+  // -- Registration logic ------------------------------------------------
 
   String? _validateForm() {
     final l10n = AppLocalizations.of(context)!;
@@ -415,7 +415,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
         {
           log.i('Registration successful for ${value.userId}');
 
-          // ── Save this account for multi-account support ─────────
+          // -- Save this account for multi-account support ---------
           // Capture provider reads before any subsequent await so the
           // analyzer doesn't see [context] used across the async gap.
           final accountManager = context.read<AccountManager>();
@@ -434,7 +434,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           if (!mounted) return;
           context.go('/main/rooms');
 
-          // ── Post-login encryption: SAS verification only ─────────
+          // -- Post-login encryption: SAS verification only ---------
           // The new encryption flow surfaces a one-shot emoji
           // verification prompt immediately after sign-in.  Cross-
           // signing bootstrap, recovery key flows, and other SSSS

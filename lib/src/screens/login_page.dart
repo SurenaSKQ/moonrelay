@@ -124,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
     final ColorScheme colors = theme.colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
 
-    // ── Full-screen syncing state after successful login ──────────────
+    // -- Full-screen syncing state after successful login --------------
     if (_syncing) {
       return _buildSyncingScreen(colors, theme, l10n);
     }
@@ -202,7 +202,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
 
-                      // ── Homeserver field ──
+                      // -- Homeserver field --
                       _buildLabel(colors, l10n.homeserverText),
                       const SizedBox(height: 6),
                       TextField(
@@ -223,22 +223,22 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // ── SSO mode ──
+                      // -- SSO mode --
                       if (_ssoMode) ..._buildSsoSection(colors, l10n),
 
-                      // ── Auto-SSO status (shown during automatic flow) ──
+                      // -- Auto-SSO status (shown during automatic flow) --
                       if (_autoSsoActive) ..._buildAutoSsoStatus(colors, l10n),
 
-                      // ── Token mode ──
+                      // -- Token mode --
                       if (_tokenMode) ..._buildTokenSection(colors, l10n),
 
-                      // ── Password mode ──
+                      // -- Password mode --
                       if (!_ssoMode && !_tokenMode)
                         ..._buildPasswordSection(colors, l10n),
 
                       SizedBox(height: t.spaceXl),
 
-                      // ── Primary action button ──
+                      // -- Primary action button --
                       if (_autoSsoActive)
                         _buildAutoSsoActionButton(colors, l10n)
                       else if (_ssoMode)
@@ -248,7 +248,7 @@ class _LoginPageState extends State<LoginPage> {
                       else
                         _buildPasswordActionButton(colors, l10n),
 
-                      // ── Mode switcher ──
+                      // -- Mode switcher --
                       if (!_loading && !_autoSsoActive) ...[
                         SizedBox(height: t.spaceMd),
                         if (!_ssoMode && !_tokenMode)
@@ -286,7 +286,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ── Syncing screen ───────────────────────────────────────────────────
+  // -- Syncing screen ---------------------------------------------------
 
   Widget _buildSyncingScreen(
       ColorScheme colors, ThemeData theme, AppLocalizations l10n) {
@@ -341,7 +341,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ── Build helpers ─────────────────────────────────────────────────────
+  // -- Build helpers -----------------------------------------------------
 
   Widget _buildLabel(ColorScheme colors, String text) {
     return Text(
@@ -598,7 +598,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 12),
-        // ── "Paste token manually" toggle ──
+        // -- "Paste token manually" toggle --
         if (!_showManualTokenEntry)
           OutlinedButton.icon(
             onPressed: () => setState(() => _showManualTokenEntry = true),
@@ -610,7 +610,7 @@ class _LoginPageState extends State<LoginPage> {
                   borderRadius: BorderRadius.circular(12)),
             ),
           ),
-        // ── Manual entry visible: show "Complete Login" ──
+        // -- Manual entry visible: show "Complete Login" --
         if (_showManualTokenEntry)
           FilledButton.icon(
             onPressed: _loading ? null : _doSsoComplete,
@@ -644,7 +644,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ── Login actions ────────────────────────────────────────────────────
+  // -- Login actions ----------------------------------------------------
 
   Future<List<LoginFlow>?> _tryCheckHomeserver(
     Client client,
@@ -693,7 +693,7 @@ class _LoginPageState extends State<LoginPage> {
     final Logger log = Provider.of<Logger>(context, listen: false);
     final enc = context.read<EncryptionService>();
 
-    // ── Invalidate any cached session data before a fresh login ──
+    // -- Invalidate any cached session data before a fresh login --
     // This ensures the SDK doesn't carry over a stale Olm account,
     // stale device keys, or any other cached state from a previous
     // session (e.g. after an unclean shutdown or a failed logout).
@@ -741,7 +741,7 @@ class _LoginPageState extends State<LoginPage> {
     switch (result) {
       case RetrySuccess():
         {
-          // ── Transition to syncing state ────────────────────────────
+          // -- Transition to syncing state ----------------------------
           // Login succeeded; the Matrix SDK is now running its first sync
           // in the background.  Show a full-screen loading state so the
           // user sees progress instead of a blank room list.
@@ -751,7 +751,7 @@ class _LoginPageState extends State<LoginPage> {
             _syncing = true;
           });
 
-          // ── Enable encryption now that we're logged in ──────────
+          // -- Enable encryption now that we're logged in ----------
           // Capture all provider reads before any await so the analyzer
           // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
@@ -760,7 +760,7 @@ class _LoginPageState extends State<LoginPage> {
           final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
-          // ── Save this account for multi-account support ─────────
+          // -- Save this account for multi-account support ---------
           await accountManager.addOrUpdateAccount(
             StoredAccount(
               userId: userIdSnapshot,
@@ -782,7 +782,7 @@ class _LoginPageState extends State<LoginPage> {
               context.go('/main/rooms');
           }
 
-          // ── Post-login encryption: SAS verification only ─────────
+          // -- Post-login encryption: SAS verification only ---------
           // The new encryption flow surfaces a one-shot emoji
           // verification prompt immediately after sign-in.  Cross-
           // signing bootstrap, recovery key flows, and other SSSS
@@ -929,7 +929,7 @@ class _LoginPageState extends State<LoginPage> {
     final Uri homeserverUri =
         hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
 
-    // ── Phishing guard ────────────────────────────────────────
+    // -- Phishing guard ----------------------------------------
     // The homeserver address is user-supplied. Before we point the user's
     // browser at it, refuse URLs that obviously are not homeservers and
     // make the destination explicit so a phisher pointing at a look-alike
@@ -944,7 +944,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── Confirmation prompt ──────────────────────────────────
+    // -- Confirmation prompt ----------------------------------
     // Surface the destination so the user can abort a phishing attempt
     // before the browser is opened and SSO credentials are sent.
     final bool? proceed = await showDialog<bool>(
@@ -988,7 +988,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── Try the automatic (local-server) SSO flow ──────────────
+    // -- Try the automatic (local-server) SSO flow --------------
     try {
       await _doAutomaticSso(client, log, l10n, homeserverUri);
       return; // success, we are done
@@ -999,7 +999,7 @@ class _LoginPageState extends State<LoginPage> {
       log.w('Automatic SSO failed with unexpected error: $e');
     }
 
-    // ── Fallback: manual copy-paste flow ───────────────────────
+    // -- Fallback: manual copy-paste flow -----------------------
     if (!mounted) return;
 
     // Build the SSO redirect URL with OOB redirect URI so the browser
@@ -1042,7 +1042,7 @@ class _LoginPageState extends State<LoginPage> {
     AppLocalizations l10n,
     Uri homeserverUri,
   ) async {
-    // ── 1. Start the local callback server ──────────────────────
+    // -- 1. Start the local callback server ----------------------
     final SsoCallbackServer server = SsoCallbackServer();
     late Uri redirectUri;
 
@@ -1069,7 +1069,7 @@ class _LoginPageState extends State<LoginPage> {
       _ssoUrl = null;
     });
 
-    // ── 2. Build the SSO URL with our local redirect ───────────
+    // -- 2. Build the SSO URL with our local redirect -----------
     final Uri ssoUrl = homeserverUri.replace(
       path: '/_matrix/client/v3/login/sso/redirect',
       queryParameters: {
@@ -1083,7 +1083,7 @@ class _LoginPageState extends State<LoginPage> {
     // they are about to authenticate against an unexpected server.
     log.w('Opening SSO redirect for homeserver: $homeserverUri');
 
-    // ── 3. Open the browser ────────────────────────────────────
+    // -- 3. Open the browser ------------------------------------
     try {
       await launchUrl(ssoUrl, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -1099,7 +1099,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── 4. Wait for the token (with timeout) ───────────────────
+    // -- 4. Wait for the token (with timeout) -------------------
     String token;
     try {
       token = await server.token.timeout(
@@ -1120,7 +1120,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── 5. Token received: complete the login ─────────────────
+    // -- 5. Token received: complete the login -----------------
     setState(() {
       _statusMessage = l10n.ssoTokenDetected;
     });
@@ -1182,7 +1182,7 @@ class _LoginPageState extends State<LoginPage> {
     final Logger log = Provider.of<Logger>(context, listen: false);
     final enc = context.read<EncryptionService>();
 
-    // ── Invalidate any cached session data before a fresh login ──
+    // -- Invalidate any cached session data before a fresh login --
     await _clearCachedSession(client, enc, log);
 
     client.supportedLoginTypes.add(AuthenticationTypes.token);
@@ -1222,7 +1222,7 @@ class _LoginPageState extends State<LoginPage> {
             _syncing = true;
           });
 
-          // ── Enable encryption now that we're logged in ──────────
+          // -- Enable encryption now that we're logged in ----------
           // Capture all provider reads before any await so the analyzer
           // doesn't see [context] used across the async gap.
           final encryptionService = context.read<EncryptionService>();
@@ -1231,7 +1231,7 @@ class _LoginPageState extends State<LoginPage> {
           final userIdSnapshot = client.userID!;
           await encryptionService.init();
 
-          // ── Save this account for multi-account support ─────────
+          // -- Save this account for multi-account support ---------
           await accountManager.addOrUpdateAccount(
             StoredAccount(
               userId: userIdSnapshot,

@@ -129,7 +129,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // ── Space identity card ──────────────────────────────────────────
+          // -- Space identity card ------------------------------------------
           _SpaceIdentityCard(
             space: space,
             displayName: space.getLocalizedDisplayname(),
@@ -140,7 +140,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Technical details ────────────────────────────────────────────
+          // -- Technical details --------------------------------------------
           _SectionHeader(title: l10n.detailsSection, scheme: scheme),
           const SizedBox(height: 4),
           _DetailRow(
@@ -182,7 +182,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           ),
           SizedBox(height: t.spaceLg),
 
-          // ── Space editing (permission-gated) ────────────────────────────
+          // -- Space editing (permission-gated) ----------------------------
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
@@ -215,7 +215,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             SizedBox(height: t.spaceSm),
           ],
 
-          // ── Child rooms / subspaces ────────────────────────────────────
+          // -- Child rooms / subspaces ------------------------------------
           if (children.isNotEmpty) ...[
             _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             SizedBox(height: t.spaceXs),
@@ -276,7 +276,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             SizedBox(height: t.spaceSm),
           ],
 
-          // ── Add room section ──────────────────────────────────────────
+          // -- Add room section ------------------------------------------
           if (canEdit) ...[
             _SectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
             SizedBox(height: t.spaceXs),
@@ -331,7 +331,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
             SizedBox(height: t.spaceSm),
           ],
 
-          // ── Danger zone ────────────────────────────────────────────────
+          // -- Danger zone ------------------------------------------------
           if (_canDeleteSpace()) ...[
             _SectionHeader(
               title: l10n.actionsDeleteSection,
@@ -755,9 +755,9 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Internal widgets
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 /// Space identity card shown at the top of the settings page.
 class _SpaceIdentityCard extends StatelessWidget {

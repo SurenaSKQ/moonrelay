@@ -195,7 +195,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
   }
 }
 
-// ─── Thread list tile ──────────────────────────────────────────────────────────
+// --- Thread list tile ----------------------------------------------------------
 
 class _ThreadListTile extends StatelessWidget {
   const _ThreadListTile({

@@ -23,9 +23,9 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Network Settings
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubNetworkSettings extends StatelessWidget {
   const HubNetworkSettings({super.key});

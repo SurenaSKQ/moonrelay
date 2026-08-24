@@ -25,9 +25,9 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Background & Tray Settings
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubBackgroundSettings extends StatelessWidget {
   const HubBackgroundSettings({super.key});

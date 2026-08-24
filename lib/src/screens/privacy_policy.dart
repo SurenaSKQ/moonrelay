@@ -43,7 +43,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         children: [
-          // ── Summary banner ──────────────────────────────────────────
+          // -- Summary banner ------------------------------------------
           Card(
             color: colors.secondaryContainer,
             child: Padding(
@@ -73,7 +73,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Sections ───────────────────────────────────────────────
+          // -- Sections -----------------------------------------------
           _Section(
             icon: LucideIcons.info,
             title: 'Introduction',
@@ -193,7 +193,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // ── Footer note ────────────────────────────────────────────
+          // -- Footer note --------------------------------------------
           Text(
             'Last updated: June 2025',
             textAlign: TextAlign.center,

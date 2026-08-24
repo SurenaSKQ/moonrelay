@@ -24,9 +24,9 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Keybinds Settings
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubKeybindSettings extends StatelessWidget {
   const HubKeybindSettings({super.key});
@@ -62,7 +62,7 @@ class HubKeybindSettings extends StatelessWidget {
               ),
               SizedBox(height: t.spaceXl),
 
-              // ── Send shortcut ─────────────────────────────────────────
+              // -- Send shortcut -----------------------------------------
               HubSettingsSection(
                 title: l10n.sendShortcut,
                 children: [
@@ -101,7 +101,7 @@ class HubKeybindSettings extends StatelessWidget {
               ),
               SizedBox(height: t.spaceLg),
 
-              // ── Global shortcuts reference ────────────────────────────
+              // -- Global shortcuts reference ----------------------------
               HubSettingsSection(
                 title: l10n.shortcutsTitle,
                 children: [
@@ -168,7 +168,7 @@ class HubKeybindSettings extends StatelessWidget {
               ),
               SizedBox(height: t.spaceLg),
 
-              // ── Composer shortcuts reference ──────────────────────────
+              // -- Composer shortcuts reference --------------------------
               HubSettingsSection(
                 title: l10n.composer,
                 children: [

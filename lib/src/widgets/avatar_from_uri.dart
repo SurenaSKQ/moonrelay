@@ -48,7 +48,7 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
   final VoidCallback? onTap;
   final double? radius;
 
-  // ── Memoization ─────────────────────────────────────────────────────────
+  // -- Memoization ---------------------------------------------------------
   // Each (client, uri, size) triple resolves to a single ValueNotifier
   // whose value transitions `null -> Uri` once the SDK returns. The
   // underlying Future is shared across concurrent subscribers.

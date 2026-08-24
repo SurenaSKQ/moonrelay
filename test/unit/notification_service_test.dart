@@ -53,7 +53,7 @@ CachedStreamController<SyncUpdate> makeNoopSync() {
 }
 
 void main() {
-  // ── Muted-rooms persistence ────────────────────────────────────────
+  // -- Muted-rooms persistence ----------------------------------------
   group('NotificationService.init + muted-rooms', () {
     late MockClient client;
     late SettingsController settings;
@@ -193,7 +193,7 @@ void main() {
     });
   });
 
-  // ── Test-notification contract ─────────────────────────────────────
+  // -- Test-notification contract -------------------------------------
   group('NotificationService.showTestNotification', () {
     test('returns false when the plugin failed to initialise', () async {
       SharedPreferences.setMockInitialValues({});
@@ -224,7 +224,7 @@ void main() {
     });
   });
 
-  // ── Lifecycle ──────────────────────────────────────────────────────
+  // -- Lifecycle ------------------------------------------------------
   group('NotificationService.dispose', () {
     test('cancels the sync subscription on dispose', () async {
       SharedPreferences.setMockInitialValues({});

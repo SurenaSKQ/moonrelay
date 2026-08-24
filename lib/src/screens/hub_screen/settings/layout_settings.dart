@@ -25,9 +25,9 @@ import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Layout Settings
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class HubLayoutSettings extends StatelessWidget {
   const HubLayoutSettings({super.key});
@@ -61,7 +61,7 @@ class HubLayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // ── Layout mode ──────────────────────────────────────────
+              // -- Layout mode ------------------------------------------
               RadioGroup<LayoutMode>(
                 groupValue: controller.layoutMode,
                 onChanged: (v) {

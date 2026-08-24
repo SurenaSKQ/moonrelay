@@ -100,7 +100,7 @@ void main() {
       expect(find.byType(ChatBox), findsOneWidget);
     });
 
-    // ─── Regression: unsent text is restored when send fails ─────────
+    // --- Regression: unsent text is restored when send fails ---------
     //
     // Bug: `_send` cleared the controller immediately, then showed a
     // snackbar on failure.  A long message sent on a flaky network would
@@ -127,7 +127,7 @@ void main() {
       },
     );
 
-    // ─── Regression: reply-with-markdown must keep formatted_body ───
+    // --- Regression: reply-with-markdown must keep formatted_body ---
     //
     // The bug we fixed: when a user replied to a message with markdown
     // input, the formatted_body was dropped because the markdown

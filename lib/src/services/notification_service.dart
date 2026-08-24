@@ -478,7 +478,7 @@ class NotificationService {
       if (_mutedRooms.contains(room.id)) continue;
 
       if (room.isDirectChat) {
-        // ── Direct message: per-message notification ──
+        // -- Direct message: per-message notification --
         final event = room.lastEvent;
         if (event == null) continue;
 
@@ -497,10 +497,10 @@ class NotificationService {
 
         _processEvent(room, event);
       } else {
-        // ── Group chat: skip when DMs-only mode is active ──
+        // -- Group chat: skip when DMs-only mode is active --
         if (_settings.notifyDmsOnly) continue;
 
-        // ── Group chat: accumulate for summary notification ──
+        // -- Group chat: accumulate for summary notification --
         final currentCount = room.notificationCount;
         final lastCount = _groupNotifiedCounts[room.id];
 
@@ -693,7 +693,7 @@ class NotificationService {
     }
   }
 
-  // ── Persisted group notified counts ────
+  // -- Persisted group notified counts ----
 
   Future<void> _loadGroupNotifiedCounts() async {
     try {
@@ -729,7 +729,7 @@ class NotificationService {
     }
   }
 
-  // ── Persisted last-notified event IDs ──
+  // -- Persisted last-notified event IDs --
 
   Future<void> _loadLastEventIds() async {
     try {
@@ -778,13 +778,13 @@ class NotificationService {
     return null;
   }
 
-  // ── Per-room mute preferences ───────────
+  // -- Per-room mute preferences -----------
 
   Future<void> loadMutedRooms() async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // ── Current format (StringList) ────────────────────────
+      // -- Current format (StringList) ------------------------
       // getStringList uses `as List<String>?` internally and throws
       // TypeError when the stored value is a legacy comma-separated
       // String rather than a List<String>. Catch that gracefully so
@@ -796,7 +796,7 @@ class NotificationService {
       if (raw != null) {
         _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
       } else {
-        // ── Migration from old comma-separated format ────────
+        // -- Migration from old comma-separated format --------
         final oldRaw = prefs.getString(_mutedRoomsKey);
         if (oldRaw != null) {
           _mutedRooms = oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
@@ -857,7 +857,7 @@ class NotificationService {
     _available = false;
   }
 
-  // ── Public helpers used by the timeline for "catch up" affordances ──
+  // -- Public helpers used by the timeline for "catch up" affordances --
 
   /// Returns the most recently notified event id for [roomId] or an
   /// empty string when no notification has ever fired for the room.

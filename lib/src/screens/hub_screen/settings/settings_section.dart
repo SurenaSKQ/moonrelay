@@ -18,9 +18,9 @@ import 'package:flutter/material.dart';
 
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Settings section helper
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 /// A reusable card-like section for grouping related settings controls.
 class HubSettingsSection extends StatelessWidget {

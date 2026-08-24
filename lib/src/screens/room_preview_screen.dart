@@ -232,15 +232,15 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
         padding:
             EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
-          // ── Identity card ────────────────────────────────────────────
+          // -- Identity card --------------------------------------------
           _buildIdentityCard(cs, textTheme, l10n),
           SizedBox(height: t.spaceXl),
 
-          // ── Join button ──────────────────────────────────────────────
+          // -- Join button ----------------------------------------------
           _buildJoinSection(cs, l10n),
           SizedBox(height: t.spaceXl),
 
-          // ── Recent messages ──────────────────────────────────────────
+          // -- Recent messages ------------------------------------------
           if (!_eventsLoading && _events != null && _events!.isNotEmpty) ...[
             _SectionHeader(title: l10n.roomPreviewLastMessages, scheme: cs),
             SizedBox(height: t.spaceSm),
@@ -610,9 +610,9 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Internal widgets (duplicated here to avoid cross-file dependency)
-// ═════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 /// A small chip used for metadata badges.
 class _InfoChip extends StatelessWidget {

@@ -127,7 +127,7 @@ void main() {
   });
 }
 
-// ── Test stubs ───────────────────────────────────────────────────────
+// -- Test stubs -------------------------------------------------------
 
 class _StubUserSearchResponse extends Mock
     implements SearchUserDirectoryResponse {

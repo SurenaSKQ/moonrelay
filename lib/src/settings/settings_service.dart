@@ -413,7 +413,7 @@ class SettingsService {
     await prefs.setInt(_layoutModeKey, mode.index);
   }
 
-  // ── Batch load ────────────────────────────────────────────────────────
+  // -- Batch load --------------------------------------------------------
 
   /// Loads all settings in a single [SharedPreferences] read, returning a
   /// [SettingsSnapshot] with all keys populated.  This replaces the 27
@@ -674,7 +674,7 @@ class SettingsService {
     return map;
   }
 
-  // ── Layout settings ──────────────────────────────────────────────────
+  // -- Layout settings --------------------------------------------------
 
   Future<bool> leftSidebarVisible() async {
     final prefs = await SharedPreferences.getInstance();
@@ -749,7 +749,7 @@ class SettingsService {
     await prefs.setBool(_showStatusBarKey, value);
   }
 
-  // ── Tray & background ───────────────────────────────────────────────
+  // -- Tray & background -----------------------------------------------
 
   Future<bool> showTrayIcon() async {
     final prefs = await SharedPreferences.getInstance();
@@ -791,7 +791,7 @@ class SettingsService {
     await prefs.setBool(_startMinimizedKey, value);
   }
 
-  // ── Locale ──────────────────────────────────────────────────────────
+  // -- Locale ----------------------------------------------------------
 
   Future<String?> locale() async {
     final prefs = await SharedPreferences.getInstance();
@@ -807,7 +807,7 @@ class SettingsService {
     }
   }
 
-  // ── Pinned spaces ───────────────────────────────────────────────────
+  // -- Pinned spaces ---------------------------------------------------
 
   /// Loads the set of manually pinned subspace room IDs.
   ///
@@ -828,7 +828,7 @@ class SettingsService {
     await prefs.setString(_pinnedSpacesKey, jsonEncode(ids.toList()));
   }
 
-  // ── Space order ──────────────────────────────────────────────────────
+  // -- Space order ------------------------------------------------------
 
   Future<List<String>> spaceOrder() async {
     final prefs = await SharedPreferences.getInstance();
@@ -840,7 +840,7 @@ class SettingsService {
     await prefs.setString(_spaceOrderKey, jsonEncode(order));
   }
 
-  // ── Collapsed groups ─────────────────────────────────────────────────
+  // -- Collapsed groups -------------------------------------------------
 
   Future<Set<String>> collapsedGroups() async {
     final prefs = await SharedPreferences.getInstance();
@@ -852,7 +852,7 @@ class SettingsService {
     await prefs.setString(_collapsedGroupsKey, jsonEncode(ids.toList()));
   }
 
-  // ── Collapsed sidebar sections ───────────────────────────────────────
+  // -- Collapsed sidebar sections ---------------------------------------
 
   /// Loads the ids of the navigation sidebar sections the user collapsed.
   Future<Set<String>> collapsedSidebarSections() async {
@@ -867,7 +867,7 @@ class SettingsService {
         _collapsedSidebarSectionsKey, jsonEncode(ids.toList()));
   }
 
-  // ── Space groups (Map<String, List<String>>) ─────────────────────────
+  // -- Space groups (Map<String, List<String>>) -------------------------
 
   /// Persists the space groups map.  Stored as a JSON object so room IDs
   /// and event IDs that contain `,` or `|` are not corrupted by the
@@ -892,7 +892,7 @@ class SettingsService {
     await prefs.setDouble(_rightSidebarWidthKey, width);
   }
 
-  // ── Font size & UI scale ──────────────────────────────────────────
+  // -- Font size & UI scale ------------------------------------------
 
   Future<double> fontSize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -914,7 +914,7 @@ class SettingsService {
     await prefs.setDouble(_uiScaleKey, scale);
   }
 
-  // ── Notifications ───────────────────────────────────────────
+  // -- Notifications -------------------------------------------
 
   Future<bool> notificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -936,7 +936,7 @@ class SettingsService {
     await prefs.setBool(_enableAnimationsKey, value);
   }
 
-  // ── Appearance extras ───────────────────────────────────────────────
+  // -- Appearance extras -----------------------------------------------
 
   Future<LayoutDensity> density() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1003,7 +1003,7 @@ class SettingsService {
     await prefs.setDouble(_windowMinHeightKey, value);
   }
 
-  // ── Chat behaviour ──────────────────────────────────────────────────
+  // -- Chat behaviour --------------------------------------------------
 
   Future<bool> sendReadReceipts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1215,7 +1215,7 @@ class SettingsService {
     await prefs.setInt(_draftRetentionDaysKey, value);
   }
 
-  // ── Notifications (extended) ────────────────────────────────────────
+  // -- Notifications (extended) ----------------------------------------
 
   Future<bool> notifyDmsOnly() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1257,7 +1257,7 @@ class SettingsService {
     await prefs.setInt(_notificationDedupeCacheSizeKey, value);
   }
 
-  // ── Privacy / deep links / data ─────────────────────────────────────
+  // -- Privacy / deep links / data -------------------------------------
 
   Future<bool> deepLinkAutoJoin() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1329,7 +1329,7 @@ class SettingsService {
     await prefs.setBool(_wipeLogsOnLogoutKey, value);
   }
 
-  // ── Advanced / debounces ────────────────────────────────────────────
+  // -- Advanced / debounces --------------------------------------------
 
   Future<int> syncDebounceMs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1411,7 +1411,7 @@ class SettingsService {
     await prefs.setInt(_searchPageSizeKey, value);
   }
 
-  // ── Logging ─────────────────────────────────────────────────────────
+  // -- Logging ---------------------------------------------------------
 
   Future<int> logMaxFileSizeMb() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1468,7 +1468,7 @@ class SettingsService {
     await prefs.setBool(_logVerboseReleaseKey, value);
   }
 
-  // ── Tray ────────────────────────────────────────────────────────────
+  // -- Tray ------------------------------------------------------------
 
   Future<TrayClickAction> trayLeftClick() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1485,14 +1485,14 @@ class SettingsService {
     await prefs.setInt(_trayLeftClickKey, value.index);
   }
 
-  // ── Space groups ────────────────────────────────────────────────
+  // -- Space groups ------------------------------------------------
   // (Persistence is centralised via the JSON-aware
   // [updateSpaceGroups] further up in this file, and reads go through
   // [_readSpaceGroups].  This section kept only the now-redundant
   // accessor for the legacy key; new callers should use the snapshot
   // path on [loadAll] instead.)
 
-  // ── Updates ──────────────────────────────────────────────────────────
+  // -- Updates ----------------------------------------------------------
 
   Future<void> updateCheckForUpdates(bool value) async {
     final prefs = await SharedPreferences.getInstance();

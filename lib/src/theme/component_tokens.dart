@@ -160,7 +160,7 @@ class MoonrelayComponentTokens {
       ]);
 }
 
-// ── Button tokens ─────────────────────────────────────────────────────
+// -- Button tokens -----------------------------------------------------
 
 @immutable
 class MoonrelayButtonTokens {
@@ -221,7 +221,7 @@ class MoonrelayButtonTokens {
       ]);
 }
 
-// ── Input tokens ──────────────────────────────────────────────────────
+// -- Input tokens ------------------------------------------------------
 
 @immutable
 class MoonrelayInputTokens {
@@ -278,7 +278,7 @@ class MoonrelayInputTokens {
       ]);
 }
 
-// ── Card tokens ───────────────────────────────────────────────────────
+// -- Card tokens -------------------------------------------------------
 
 @immutable
 class MoonrelayCardTokens {
@@ -324,7 +324,7 @@ class MoonrelayCardTokens {
       Object.hashAll([elevation, cornerRadius, padding, margin]);
 }
 
-// ── AppBar tokens ─────────────────────────────────────────────────────
+// -- AppBar tokens -----------------------------------------------------
 
 @immutable
 class MoonrelayAppBarTokens {
@@ -372,7 +372,7 @@ class MoonrelayAppBarTokens {
       ]);
 }
 
-// ── List tokens ───────────────────────────────────────────────────────
+// -- List tokens -------------------------------------------------------
 
 @immutable
 class MoonrelayListTokens {
@@ -421,7 +421,7 @@ class MoonrelayListTokens {
       ]);
 }
 
-// ── Dialog tokens ─────────────────────────────────────────────────────
+// -- Dialog tokens -----------------------------------------------------
 
 @immutable
 class MoonrelayDialogTokens {
@@ -483,7 +483,7 @@ class MoonrelayDialogTokens {
       ]);
 }
 
-// ── Divider tokens ────────────────────────────────────────────────────
+// -- Divider tokens ----------------------------------------------------
 
 @immutable
 class MoonrelayDividerTokens {
@@ -518,7 +518,7 @@ class MoonrelayDividerTokens {
   int get hashCode => Object.hashAll([thickness, indent, endIndent]);
 }
 
-// ── Chip tokens ───────────────────────────────────────────────────────
+// -- Chip tokens -------------------------------------------------------
 
 @immutable
 class MoonrelayChipTokens {
@@ -561,7 +561,7 @@ class MoonrelayChipTokens {
       Object.hashAll([cornerRadius, borderWidth, padding, height]);
 }
 
-// ── Badge tokens ──────────────────────────────────────────────────────
+// -- Badge tokens ------------------------------------------------------
 
 @immutable
 class MoonrelayBadgeTokens {
@@ -595,7 +595,7 @@ class MoonrelayBadgeTokens {
   int get hashCode => Object.hashAll([size, labelStyle, padding]);
 }
 
-// ── Navigation tokens ─────────────────────────────────────────────────
+// -- Navigation tokens -------------------------------------------------
 
 @immutable
 class MoonrelayNavigationTokens {
@@ -642,7 +642,7 @@ class MoonrelayNavigationTokens {
       ]);
 }
 
-// ── Chat tokens ───────────────────────────────────────────────────────
+// -- Chat tokens -------------------------------------------------------
 
 @immutable
 class MoonrelayChatTokens {
@@ -709,7 +709,7 @@ class MoonrelayChatTokens {
       ]);
 }
 
-// ── SnackBar tokens ───────────────────────────────────────────────────
+// -- SnackBar tokens ---------------------------------------------------
 
 @immutable
 class MoonrelaySnackBarTokens {
@@ -743,7 +743,7 @@ class MoonrelaySnackBarTokens {
   int get hashCode => Object.hashAll([cornerRadius, padding, contentStyle]);
 }
 
-// ── Progress tokens ───────────────────────────────────────────────────
+// -- Progress tokens ---------------------------------------------------
 
 @immutable
 class MoonrelayProgressTokens {
@@ -774,7 +774,7 @@ class MoonrelayProgressTokens {
   int get hashCode => Object.hashAll([strokeWidth, linearMinHeight]);
 }
 
-// ── Avatar tokens ─────────────────────────────────────────────────────
+// -- Avatar tokens -----------------------------------------------------
 
 @immutable
 class MoonrelayAvatarTokens {
@@ -818,7 +818,7 @@ class MoonrelayAvatarTokens {
       ]);
 }
 
-// ── Tooltip tokens ────────────────────────────────────────────────────
+// -- Tooltip tokens ----------------------------------------------------
 
 @immutable
 class MoonrelayTooltipTokens {

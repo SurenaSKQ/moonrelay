@@ -62,7 +62,7 @@ class SpacePreferences extends ChangeNotifier {
     super.dispose();
   }
 
-  // ── Load / persist ──────────────────────────────────────────────────
+  // -- Load / persist --------------------------------------------------
 
   /// Load all space preferences from [SettingsService].
   Future<void> load() async {
@@ -83,7 +83,7 @@ class SpacePreferences extends ChangeNotifier {
     ]);
   }
 
-  // ── Pinning ─────────────────────────────────────────────────────────
+  // -- Pinning ---------------------------------------------------------
 
   Future<void> togglePinSpace(String spaceId) async {
     if (spaceId.isEmpty) return;
@@ -98,7 +98,7 @@ class SpacePreferences extends ChangeNotifier {
 
   bool isSpacePinned(String spaceId) => _pinnedSpaces.contains(spaceId);
 
-  // ── Ordering ────────────────────────────────────────────────────────
+  // -- Ordering --------------------------------------------------------
 
   Future<void> updateSpaceOrder(List<String> order) async {
     if (order == _spaceOrder) return;
@@ -127,7 +127,7 @@ class SpacePreferences extends ChangeNotifier {
     }
   }
 
-  // ── Groups ──────────────────────────────────────────────────────────
+  // -- Groups ----------------------------------------------------------
 
   /// Merge new groups into the existing space groups map without
   /// overwriting existing entries.
@@ -241,7 +241,7 @@ class SpacePreferences extends ChangeNotifier {
     await _save();
   }
 
-  // ── Collapsed groups ────────────────────────────────────────────────
+  // -- Collapsed groups ------------------------------------------------
 
   Future<void> toggleGroupCollapsed(String spaceId) async {
     if (spaceId.isEmpty) return;

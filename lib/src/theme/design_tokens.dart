@@ -81,7 +81,7 @@ class MoonrelayDesignTokens {
     required this.radiusFull,
   });
 
-  // ── Spacing scale (8-point grid) ────────────────────────────────────
+  // -- Spacing scale (8-point grid) ------------------------------------
 
   final double spaceXxs;
   final double spaceXs;
@@ -92,7 +92,7 @@ class MoonrelayDesignTokens {
   final double spaceXxl;
   final double spaceXxxl;
 
-  // ── Elevation ───────────────────────────────────────────────────────
+  // -- Elevation -------------------------------------------------------
 
   final double elevationNone;
   final double elevationLow;
@@ -100,13 +100,13 @@ class MoonrelayDesignTokens {
   final double elevationHigh;
   final double elevationOverlay;
 
-  // ── Shadows ─────────────────────────────────────────────────────────
+  // -- Shadows ---------------------------------------------------------
 
   final List<BoxShadow> shadowLow;
   final List<BoxShadow> shadowMedium;
   final List<BoxShadow> shadowHigh;
 
-  // ── Opacity scale ───────────────────────────────────────────────────
+  // -- Opacity scale ---------------------------------------------------
 
   final double opacityDisabled;
   final double opacityHover;
@@ -116,13 +116,13 @@ class MoonrelayDesignTokens {
   final double opacitySubtle;
   final double opacityMuted;
 
-  // ── Border widths ───────────────────────────────────────────────────
+  // -- Border widths ---------------------------------------------------
 
   final double borderWidthThin;
   final double borderWidthMedium;
   final double borderWidthThick;
 
-  // ── Animation ───────────────────────────────────────────────────────
+  // -- Animation -------------------------------------------------------
 
   final Duration durationFast;
   final Duration durationMedium;
@@ -131,17 +131,17 @@ class MoonrelayDesignTokens {
   final Curve curveDecelerate;
   final Curve curveAccelerate;
 
-  // ── Icon sizes ──────────────────────────────────────────────────────
+  // -- Icon sizes ------------------------------------------------------
 
   final double iconSizeSmall;
   final double iconSizeMedium;
   final double iconSizeLarge;
 
-  // ── Touch targets ───────────────────────────────────────────────────
+  // -- Touch targets ---------------------------------------------------
 
   final double minTapTarget;
 
-  // ── Border radii ────────────────────────────────────────────────────
+  // -- Border radii ----------------------------------------------------
 
   final double radiusXs;
   final double radiusSm;
@@ -150,7 +150,7 @@ class MoonrelayDesignTokens {
   final double radiusXl;
   final double radiusFull;
 
-  // ── Factory ─────────────────────────────────────────────────────────
+  // -- Factory ---------------------------------------------------------
 
   /// Derives a complete set of tokens from [spec].
   ///
@@ -230,7 +230,7 @@ class MoonrelayDesignTokens {
     );
   }
 
-  // ── copyWith ────────────────────────────────────────────────────────
+  // -- copyWith --------------------------------------------------------
 
   MoonrelayDesignTokens copyWith({
     double? spaceXxs,
@@ -322,7 +322,7 @@ class MoonrelayDesignTokens {
     );
   }
 
-  // ── lerp ────────────────────────────────────────────────────────────
+  // -- lerp ------------------------------------------------------------
 
   /// Linearly interpolates between two token sets.
   ///
@@ -379,7 +379,7 @@ class MoonrelayDesignTokens {
     );
   }
 
-  // ── == / hashCode ──────────────────────────────────────────────────
+  // -- == / hashCode --------------------------------------------------
 
   @override
   bool operator ==(Object other) {
