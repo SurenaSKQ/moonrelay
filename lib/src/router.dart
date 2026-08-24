@@ -252,7 +252,7 @@ class MoonRouter {
                               }
                             } catch (_) {}
                             // Profile viewing is decoupled from the
-                            // room route  redirect any deep link with
+                            // room route; redirect any deep link with
                             // the form /main/rooms/.../profile/<userid>
                             // to the top-level /profile/<userid> so it
                             // works even when the user isn't joined to
@@ -350,7 +350,7 @@ class MoonRouter {
                 ),
               ),
             ),
-            // Hub screen  opened exclusively as a modal overlay
+            // Hub screen: opened exclusively as a modal overlay
             // (see [showHubOverlay] in `hub_screen.dart`).  It is
             // *not* registered as a GoRouter route because the
             // hub-as-full-page behaviour used to replace the room
@@ -472,7 +472,7 @@ class MoonRouter {
   /// room ID is absent) for the dashboard layout, or a fully-rendered
   /// [MobileRoomsListPage] when the user is on the mobile layout.
   ///
-  /// Both layouts share the same route  the difference is purely in
+  /// Both layouts share the same route; the difference is purely in
   /// how the URL `/main/rooms` is presented.  Keeping the URL stable
   /// means the existing deep-link handling, command-palette routing,
   /// and back-button logic continue to work without modification.
@@ -547,7 +547,7 @@ class _AdaptiveMainLayout extends StatefulWidget {
 class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
   /// The shell the previous build chose.  Tracked so we can detect
   /// transitions and force a route navigation to a clean default
-  /// page  without it, the dashboard inherits the [MobileRoomsListPage]
+  /// page; without it, the dashboard inherits the [MobileRoomsListPage]
   /// (or vice versa) and ends up rendering the previous shell's
   /// content in a pane that wasn't designed for it (e.g. a rooms list
   /// showing up in the right sidebar).
@@ -599,7 +599,7 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
 
     // The controller applies the sticky dead band around each
     // breakpoint, so the committed shell only changes when the width
-    // has clearly crossed over  no separate hysteresis is needed here.
+    // has clearly crossed over, so no separate hysteresis is needed here.
     shell.update(rawWidth: width, layoutMode: layoutMode);
     final useMobile = shell.isMobile;
 

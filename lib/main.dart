@@ -59,7 +59,7 @@ import 'src/splash_screen.dart';
 const int kDbSchemaVersion = 3;
 
 // -----------------------------------------------------------------------------
-// Init state  populated by the boot pipeline, consumed by the app on success
+// Init state: populated by the boot pipeline, consumed by the app on success
 // -----------------------------------------------------------------------------
 
 class _AppState {
@@ -103,7 +103,7 @@ Future<_AppState> _initialize({
   required Logger log,
   required LogService logService,
 }) async {
-  // Load saved accounts first  the boot pipeline needs them to know
+  // Load saved accounts first; the boot pipeline needs them to know
   // which database to open.
   final accountManager = AccountManager(log: log);
   await accountManager.load();
@@ -135,7 +135,7 @@ Future<_AppState> _initialize({
 }
 
 // -----------------------------------------------------------------------------
-// Root widget  swaps between splash and the real app via setState
+// Root widget: swaps between splash and the real app via setState
 // -----------------------------------------------------------------------------
 
 class MoonrelayBootstrap extends StatefulWidget {
@@ -365,7 +365,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // -- Success state  the real app --------------------------
+    // -- Success state: the real app --------------------------
     if (_appState != null) {
       return MultiProvider(
         providers: [
@@ -399,7 +399,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // -- Loading state  the splash screen ---------------------
+    // -- Loading state: the splash screen ---------------------
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
