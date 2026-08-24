@@ -5,14 +5,14 @@ library;
 
 /// How the main chat surface is laid out.
 ///
-/// The default [auto] mode picks a layout based on the current window
-/// width  the full multi-pane [DashboardLayout] when there is room for
+/// The default [auto] mode picks a layout based on the current 
+/// width: the full multi-pane [DashboardLayout] when there is room for
 /// the sidebars, a compact sidebar that merges navigation, rooms, and
 /// spaces when the window is narrow, and a dedicated [MobileLayout] for
 /// very small windows that do not benefit from a side-by-side view.
 ///
 /// Users can override the responsive behaviour by choosing [compact] or
-/// [mobile] explicitly  useful on a desktop user who prefers a single
+/// [mobile] explicitly; useful on a desktop user who prefers a single
 /// chat at a time, or when the auto mode gets it wrong on a particular
 /// monitor.
 enum LayoutMode {

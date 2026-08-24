@@ -123,7 +123,7 @@ class DeepLinkService {
   /// registered protocol handler is invoked (Windows: as the trailing
   /// element of the command line; Linux: from `argv` exposed via
   /// [Platform.executableArguments]).  We do not rely on
-  /// `Platform.environment` here  that only catches child-process env
+  /// `Platform.`Platform.environment` here: that only catches child-process env
   /// variables, not the arguments the app was launched with.
   void _processCommandLineArgs() {
     if (kIsWeb) return;
@@ -151,7 +151,7 @@ class DeepLinkService {
   ///
   /// Note: `Platform.executableArguments` is `@visibleForTesting` in
   /// the Flutter SDK. We still call it from production code because
-  /// the alternative  losing command-line links on first launch  is
+  /// the alternative (losing command-line links on first launch) is
   /// a worse trade-off than the `@visibleForTesting` lint. Upstream
   /// has discussed promoting the field; track
   /// https://github.com/flutter/flutter/issues/142523.

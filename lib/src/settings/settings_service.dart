@@ -626,7 +626,7 @@ class SettingsService {
         return decoded.whereType<String>().where((s) => s.isNotEmpty).toSet();
       }
     } catch (_) {
-      // Legacy comma-separated format  fall through.
+      // Legacy comma-separated format: fall through.
     }
     return raw.split(',').where((id) => id.isNotEmpty).toSet();
   }
@@ -640,7 +640,7 @@ class SettingsService {
         return decoded.whereType<String>().where((s) => s.isNotEmpty).toList();
       }
     } catch (_) {
-      // Legacy comma-separated format  fall through.
+      // Legacy comma-separated format: fall through.
     }
     return raw.split(',').where((id) => id.isNotEmpty).toList();
   }
@@ -661,7 +661,7 @@ class SettingsService {
         return result;
       }
     } catch (_) {
-      // Legacy `key:value,key:value` format  fall through.
+      // Legacy `key:value,key:value` format: fall through.
     }
     final map = <String, List<String>>{};
     for (final entry in raw.split('|')) {
@@ -874,7 +874,7 @@ class SettingsService {
   /// previous stringly-typed encoding.
   Future<void> updateSpaceGroups(Map<String, List<String>> groups) async {
     final prefs = await SharedPreferences.getInstance();
-    // Cast to Map<String, dynamic> for jsonEncode  the inner lists stay
+    // Cast to Map<String, dynamic> for jsonEncode; the inner lists stay
     // as List<String> which jsonEncode accepts as a list of strings.
     final encoded = <String, dynamic>{
       for (final entry in groups.entries) entry.key: entry.value,
