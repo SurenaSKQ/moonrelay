@@ -2,7 +2,7 @@
 
 A Matrix chat client for professionals, built with Flutter. Targets **Linux** and **Windows** (desktop-first). Alpha stage.
 
-Important note: Absolutely never use '—' in your writing, I hate it.
+Important note: Absolutely never use the em dash character (U+2014) in your writing, I hate it.
 
 ## Essential Commands
 
@@ -13,6 +13,9 @@ flutter run -d linux     # Linux
 
 # Analyze (required before PRs)
 flutter analyze
+
+# Typography guard (required before PRs)
+./tools/check_typography.sh   # fails on em/en dashes, nb hyphens, BOMs
 
 # Run ALL tests
 flutter test
@@ -216,7 +219,8 @@ Match the repository's established commit style (see `git log`):
   out from the dashboard", not "Add logout_test.dart").
 - Body is optional; use it when the subject cannot carry the *why*.
   Multi-part changes get short bullets. Wrap body lines at ~72 columns.
-- Never use '—' (the project rule above applies to commits too).
+- Never use the em dash character (U+2014, see the rule at the top)
+  (the project rule above applies to commits too).
 
 ## Testing
 
