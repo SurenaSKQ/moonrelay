@@ -148,7 +148,7 @@
   "@encryptionRecoveryKeyReminderTitle": {
     "description": "Title of the post-bootstrap reminder that surfaces recovery key limitations."
   },
-  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key  the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
+  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key; the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
   "@encryptionRecoveryKeyReminderBody": {
     "description": "Explanation shown after bootstrap completes. Recovery keys are encrypted at rest by the SDK, so the wizard cannot surface them."
   },
@@ -767,7 +767,7 @@
   "@encryptionExportKeysDescription": {
     "description": "Subtitle for the export-keys action."
   },
-  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password  anyone with the file can read your encrypted history. Continue?",
+  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password; anyone with the file can read your encrypted history. Continue?",
   "@encryptionExportKeysConfirm": {
     "description": "Body of the confirm dialog shown before exporting encryption keys."
   },
@@ -2057,7 +2057,7 @@
   "@unpinMessage": {
     "description": "Tooltip for the unpin message action."
   },
-  "showPinnedOnly": "Viewing pinned messages only  tap to show all",
+  "showPinnedOnly": "Viewing pinned messages only; tap to show all",
   "@showPinnedOnly": {
     "description": "Tooltip for the pinned filter toggle when active."
   },
@@ -3317,7 +3317,7 @@
   "@testNotificationDescription": {
     "description": "Subtitle for the test notification action."
   },
-  "testNotificationFired": "Test notification fired  check logs",
+  "testNotificationFired": "Test notification fired; check logs",
   "@testNotificationFired": {
     "description": "Snackbar after firing a test notification."
   },

@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-/// A comprehensive privacy policy screen.
+/// The privacy policy, displayed inline.
 ///
 /// Explains what data Moonrelay collects, how it is used, and what rights
 /// users have.  The policy is displayed inline so it remains accurate
@@ -99,7 +99,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
               '• Your Matrix account credentials (access tokens)\n'
                   '• Room history and message content you have received\n'
                   '• User profiles, avatars, and display names\n'
-                  '• Encryption keys for end‑to‑end encrypted rooms\n'
+                  '• Encryption keys for end-to-end encrypted rooms\n'
                   '• Application preferences (theme, layout, notification '
                   'settings)',
               'No data is transmitted to us or any third party beyond '
@@ -122,7 +122,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
               'Moonrelay does not have access to that data.  The '
                   'application simply relays your input to the homeserver '
                   'you specify at login.',
-              'If you join end‑to‑end encrypted rooms, message content '
+              'If you join end-to-end encrypted rooms, message content '
                   'is encrypted on your device before it leaves, and can '
                   'only be decrypted by the intended recipients.  Even the '
                   'homeserver cannot read it.',
@@ -170,7 +170,7 @@ class PrivacyPolicyPopupScreen extends StatelessWidget {
             icon: LucideIcons.code2,
             title: 'Open Source',
             children: [
-              'Moonrelay is free and open‑source software released under '
+              'Moonrelay is free and open-source software released under '
                   'the GNU Affero General Public License v3 or later.  You '
                   'can inspect, audit, and modify the source code at any '
                   'time.  The complete source is available at the '
