@@ -107,7 +107,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
 
   /// Splits raw input into tokens respecting double-quoted phrases.
   ///
-  /// `'foo "bar baz" qux'` → `['foo', 'bar baz', 'qux']`
+  /// `'foo "bar baz" qux'` -> `['foo', 'bar baz', 'qux']`
   List<String> _parseKeywords(String raw) {
     final trimmed = raw.trim().toLowerCase();
     if (trimmed.isEmpty) return [];

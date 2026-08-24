@@ -429,7 +429,7 @@ class EncryptionService extends ChangeNotifier {
   /// because the SDK unconditionally sets `directVerified = true` for the
   /// current device (self-trust), which would always make `verified` true
   /// even without cross-signing.  [crossVerified] checks the actual
-  /// signature chain: device → self-signing key → master key.
+  /// signature chain: device -> self-signing key -> master key.
   bool get isThisDeviceVerified {
     try {
       final enc = _enc;
@@ -696,7 +696,7 @@ class EncryptionService extends ChangeNotifier {
   /// can respond.  The returned [KeyVerification] object drives the same
   /// SAS UI used for cross-user verification.
   Future<KeyVerification> requestSelfVerification() async {
-    _log.i('requesting self-verification (device → device)');
+    _log.i('requesting self-verification (device -> device)');
     final enc = _enc;
     if (enc == null) throw Exception('Encryption not available');
     if (_client.userID == null) throw Exception('Not logged in');

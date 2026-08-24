@@ -96,8 +96,8 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
 
     if (settings.rightSidebarVisible &&
         settings.rightPaneChoice == RightPaneChoice.roomInfo) {
-      // Sidebar is already open and on room_info → no-op.
-      // Otherwise (sidebar hidden, or on different pane) → open it.
+      // Sidebar is already open and on room_info: no-op.
+      // Otherwise (sidebar hidden, or on different pane): open it.
       return;
     }
 

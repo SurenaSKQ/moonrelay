@@ -273,7 +273,7 @@ Future<BootContext> runBootPipeline({
   }
 
   // -- 11. Wire up AccountManager ------------------------------
-  // Initialise the persisted active-account → live client association
+  // Initialise the persisted active-account to live client association
   // so widgets bound to `Provider<Client>` see the same pair after a
   // hot-restart. The early-init branch in 9 handles the logged-out
   // case (notification service skipped).

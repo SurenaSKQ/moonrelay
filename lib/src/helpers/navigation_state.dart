@@ -30,9 +30,9 @@ class NavigationState extends ChangeNotifier {
   String _selectedId = _navAllId;
 
   /// The raw ID of the selected destination.
-  /// - `___home___` → direct messages
-  /// - `___all___`  → every room
-  /// - Any other value → a space room ID
+  /// - `___home___` -> direct messages
+  /// - `___all___`  -> every room
+  /// - Any other value -> a space room ID
   String get selectedId => _selectedId;
 
   /// Whether the "Home" (direct messages) destination is active.
