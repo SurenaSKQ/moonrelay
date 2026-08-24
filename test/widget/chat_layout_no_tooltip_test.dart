@@ -135,7 +135,7 @@ void main() {
       (tester) async {
         // The widget filters out the current user; we set up a
         // remote user on the mock event so it has something to
-        // render.  The exact render shape is not under test  only
+        // render.  The exact render shape is not under test; only
         // that no Tooltip element gets mounted.
         final mockRoom = MockRoom();
         final mockClient = MockClient();

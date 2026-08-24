@@ -334,13 +334,13 @@ class MockMatrixHttpClient extends http.BaseClient {
           }
         ];
 
-    // Cross-signing keys upload  accept whatever the SDK sends.
+    // Cross-signing keys upload; accept whatever the SDK sends.
     final signingKeysRe = RegExp(
         r'_matrix/client/v3/keys/device_signing/upload|_matrix/client/v3/keys/signatures/upload');
     registerRoute(
         signingKeysRe, (req) => _jsonResponse(200, <String, dynamic>{}));
 
-    // Device list  use whenDevicesRequested so tests can override.
+    // Device list: use whenDevicesRequested so tests can override.
     registerRoute(
       RegExp(r'_matrix/client/v3/devices$'),
       (req) => _jsonResponse(200, {'devices': whenDevicesRequested()}),
@@ -395,7 +395,7 @@ class MockMatrixHttpClient extends http.BaseClient {
       List<Map<String, dynamic>>.unmodifiable(_sentMessages);
   final List<Map<String, dynamic>> _sentMessages = <Map<String, dynamic>>[];
 
-  /// Public field  tests can rename this to a deterministic
+  /// Public field: tests can rename this to a deterministic
   /// `device_id` so login + sync responses stay referentially stable
   /// across runs.
   String currentDeviceId = 'E2ETEST-DEVICE';

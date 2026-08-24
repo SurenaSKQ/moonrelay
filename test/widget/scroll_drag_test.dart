@@ -36,7 +36,7 @@ void main() {
       final scrollController = ScrollController();
       addTearDown(scrollController.dispose);
 
-      // Mirrors `_isScrolledUp`  the FAB visibility flag in
+      // Mirrors `_isScrolledUp`: the FAB visibility flag in
       // production.
       bool isScrolledUp = false;
       // The actual "rebuild" we trigger after `setState` in
