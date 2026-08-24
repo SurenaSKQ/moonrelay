@@ -42,7 +42,7 @@ import 'package:moonrelay/src/services/notification_service.dart';
 ///
 /// Tray icon setup can fail (sandboxed Linux, locked-down Windows
 /// corporate installs, missing `path_provider` permission). When
-/// [_setup] throws, [_init] clears [_instance] and returns  the
+/// [_setup] throws, [_init] clears [_instance] and returns; the
 /// rest of the app's window-management code paths
 /// ([showWindow], [hideWindow], [toggleWindow], [quit]) still work
 /// via direct [windowManager] calls in [AppFrame]. Callers that

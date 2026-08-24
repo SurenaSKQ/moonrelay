@@ -174,7 +174,7 @@ class EncryptionService extends ChangeNotifier {
   /// the user's device id and a creation timestamp so the importer
   /// can refuse to load an out-of-date or wrong-device blob.
   ///
-  /// The export is gated behind a confirm dialog in the UI  the keys
+  /// The export is gated behind a confirm dialog in the UI; the keys
   /// are sensitive enough that they should never be exported without
   /// an explicit user action.  Returns the JSON string the caller can
   /// hand off to a file picker (or write to disk).  Throws when no
@@ -359,8 +359,8 @@ class EncryptionService extends ChangeNotifier {
   /// On every wizard-state transition the service refreshes its derived
   /// state (cross-signing flag + backup flag + device list) and notifies
   /// listeners so the GUI mirrors the bootstrap's progress without a
-  /// manual `refresh()` call.  When the bootstrap finishes  with or
-  /// without cancellation  [_initialRefreshComplete] is reset so the
+  /// manual `refresh()` call.  When the bootstrap finishes (with or
+  /// without cancellation), [_initialRefreshComplete] is reset so the
   /// post-login checker no longer suppresses prompts.
   Bootstrap startBootstrap() {
     _log.i('EncryptionService: starting bootstrap');
@@ -406,7 +406,7 @@ class EncryptionService extends ChangeNotifier {
       if (ed == null || ed.isEmpty) return null;
       // Decode base64 and render as 8 uppercase hex byte groups, the
       // same format used by Element web.  Fall back to the raw string
-      // if the decode fails (defensive  the SDK always produces valid
+      // if the decode fails (defensive; the SDK always produces valid
       // base64 here).
       try {
         final raw = base64Decode(ed);
@@ -515,7 +515,7 @@ class EncryptionService extends ChangeNotifier {
         if (dk != null && dk.verified) {
           computed = true;
         } else {
-          // Device not found or not individually verified  fall back to
+          // Device not found or not individually verified; fall back to
           // the user-level master-key check.
           computed = isUserVerifiedById(userId);
         }
@@ -548,7 +548,7 @@ class EncryptionService extends ChangeNotifier {
         return;
       }
       // `keyManager.enabled` mirrors whether the megolm backup secret
-      // is present in SSSS  i.e. whether the backup has been wired
+      // is present in SSSS, i.e. whether the backup has been wired
       // up locally.  This also implies the server has a backup, because
       // you cannot upload keys without uploading (or recovering) the
       // initial secret first.
@@ -723,7 +723,7 @@ class EncryptionService extends ChangeNotifier {
   /// nothing needs to be shown.
   ///
   /// The dialog surfaced by the caller is the [VerificationScreen]
-  /// (SAS / emoji matching)  that is the only authentication
+  /// (SAS / emoji matching); that is the only authentication
   /// method the user is prompted to complete at sign-in.  Cross-
   /// signing bootstrap, recovery key prompts, and other SSSS
   /// operations are explicitly deferred to the encryption settings
@@ -791,7 +791,7 @@ class EncryptionService extends ChangeNotifier {
         if (keys?.deviceKeys[d.deviceId]?.verified != true) own++;
       }
 
-      // Other users  use a Set to avoid double-counting a user
+      // Other users: use a Set to avoid double-counting a user
       // who appears in multiple rooms.
       final seen = <String>{};
       for (final room in _client.rooms) {
@@ -821,7 +821,7 @@ class EncryptionService extends ChangeNotifier {
   /// `bootstrap` is returned when cross-signing is not yet configured
   /// for this account (any account, with or without an existing session).
   /// `verify` is returned when cross-signing exists but the current
-  /// device has not yet been verified  the trust chain to the master
+  /// device has not yet been verified: the trust chain to the master
   /// key is incomplete so we cannot decrypt historical messages sent
   /// by the user's other devices until this device is verified.
   /// `none` is returned when both cross-signing and this-device trust
