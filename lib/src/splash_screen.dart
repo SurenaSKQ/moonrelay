@@ -39,7 +39,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class SplashScreenState extends State<SplashScreen> {
-  /// `null` → still running; `true` → success; `false` → error.
+  /// `null` -> still running; `true` -> success; `false` -> error.
   bool? _done;
 
   /// Status message shown under the spinner.
