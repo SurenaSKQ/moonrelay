@@ -61,13 +61,13 @@ class BlurBackground extends StatelessWidget {
 /// Two things matter for reliable dismissal:
 ///
 ///   1. The "card" the user sees (typically a centred dialog body)
-///      must mark **itself** as the non-dismissable region.  The
+///      must mark itself as the non-dismissable region.  The
 ///      previous implementation tried to infer that region by
 ///      capturing the whole child subtree's render box; that failed
 ///      because the overlay's blur backdrop is full-screen, so the
 ///      captured box always contained the tap.
 ///
-///   2. The dismiss detector must observe taps but **not** steal
+///   2. The dismiss detector must observe taps but not steal
 ///      them from descendants that handle their own gestures (text
 ///      fields, list tiles, ink wells).  [HitTestBehavior.translucent]
 ///      lets descendants compete in the gesture arena; the dismiss

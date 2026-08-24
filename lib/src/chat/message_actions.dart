@@ -21,16 +21,16 @@ import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
-/// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
+/// A floating toolbar of action buttons for "React", "Reply", "Copy",
+/// "Details", "Forward", "Delete" (if permitted), and "Moderation"
 /// actions (kick, ban, report) for users with sufficient permissions.
 ///
 /// When the user is the sender of a text message, the toolbar also exposes
-/// **Edit** and **View edit history** actions; together with the
+/// "Edit" and "View edit history" actions; together with the
 /// `(edited)` marker rendered inline by `MessageEventHandler` they implement
 /// the full `m.replace` flow.
 ///
-/// This widget does **not** manage its own visibility; the parent controls
+/// This widget does not manage its own visibility; the parent controls
 /// when it appears (e.g. via a hover wrapper).
 class MessageActions extends StatelessWidget {
   const MessageActions({

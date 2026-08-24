@@ -31,7 +31,7 @@ class StateEventTile extends StatelessWidget {
     required this.events,
   });
 
-  /// Consecutive state events in **newest-first** (SDK) order.
+  /// Consecutive state events in newest-first (SDK) order.
   final List<Event> events;
 
   @override

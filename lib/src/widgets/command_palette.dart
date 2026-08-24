@@ -21,11 +21,11 @@
 // recently visited rooms).  As soon as the user types, the palette
 // infers a "mode" from the leading character:
 //
-// - **default** (`""`): filter the static command list.
-// - **`?`**:  full backend search (rooms/spaces/messages/users/homeserver).
-// - **`>`**:  filter settings pages.
-// - **`#`**:  restrict to joined rooms/spaces.
-// - **`@`**:  restrict to the user directory.
+// - default (`""`): filter the static command list.
+// - `?`:  full backend search (rooms/spaces/messages/users/homeserver).
+// - `>`:  filter settings pages.
+// - `#`:  restrict to joined rooms/spaces.
+// - `@`:  restrict to the user directory.
 //
 // When the result list overflows the palette the user can scroll
 // downwards to fetch the next page; every category progressively
@@ -531,7 +531,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   /// Detects when the user has scrolled near the bottom of the
   /// results list and kicks off the appropriate next-page fetch.
   ///
-  /// In the `?` (search) mode we fire **every** category that still
+  /// In the `?` (search) mode we fire every category that still
   /// has more results in parallel.  The previous implementation
   /// picked a single category per scroll-tick and walked the
   /// priority list (messages -> homeserver -> rooms) which meant

@@ -34,7 +34,7 @@ import 'package:provider/provider.dart';
 /// load a friendly placeholder is shown instead.
 ///
 /// Tap behaviour depends on the right-sidebar configuration:
-/// - If the right sidebar is **enabled and set to "Room Info"**, tapping
+/// - If the right sidebar is enabled and set to "Room Info"**, tapping
 ///   opens the sidebar (or does nothing if already open).
 /// - Otherwise, tapping navigates to the full [RoomInformations] page.
 class ChatRoomHeader extends StatefulWidget {

@@ -192,7 +192,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
 
   /// Checks whether [event] satisfies ALL active filters.
   ///
-  /// **Keyword matching** uses AND logic: every parsed token must appear
+  /// Keyword matching uses AND logic: every parsed token must appear
   /// somewhere in the event body, filename (if media), or a plain-text
   /// fallback.  Quoted phrases must appear verbatim.
   bool _matchesFilter(Event event) {

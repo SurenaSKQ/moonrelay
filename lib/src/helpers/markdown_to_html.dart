@@ -36,7 +36,7 @@ import 'package:flutter/foundation.dart';
 class MarkdownToHtml {
   /// Converts [markdown] to a Matrix-compatible HTML string.
   ///
-  /// **Do not** call this from the UI thread for large messages; it
+  /// Do not call this from the UI thread for large messages; it
   /// runs the full parser on the calling isolate.  Use [convertAsync]
   /// instead, which dispatches to a background isolate via
   /// [compute].

@@ -1620,7 +1620,7 @@ class _RoomNotificationTileState extends State<_RoomNotificationTile> {
 ///
 /// The room is scanned for `m.room.member` state events with
 /// `membership: knock` and one row is shown per user. Each row exposes
-/// **Approve** and **Deny** actions. The list refreshes whenever the
+/// "Approve" and "Deny" actions. The list refreshes whenever the
 /// room's sync state changes.
 class _KnockRequestsSection extends StatefulWidget {
   const _KnockRequestsSection({required this.room});

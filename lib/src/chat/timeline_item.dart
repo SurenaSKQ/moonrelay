@@ -59,13 +59,13 @@ enum TimelineItemAction {
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
 ///
-/// **Sender grouping logic:**
+/// Sender grouping logic:
 /// - Consecutive events from the same sender within ~10 minutes are grouped:
 ///   the avatar and sender name appear only on the first event of the group.
 /// - The timestamp is shown on every event by default, but hidden for
 ///   grouped events (the first event of the group still shows the time).
 ///
-/// **Display types:**
+/// Display types:
 /// - [DisplayType.modern] and [DisplayType.bubbles]: hover actions (React,
 ///   Reply, Forward, Delete) appear at the top-right when hovering anywhere
 ///   on the message.

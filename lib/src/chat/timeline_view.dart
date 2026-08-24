@@ -32,10 +32,10 @@ import 'package:matrix/matrix.dart';
 /// Renders the list of timeline events with event-type filtering, sender
 /// grouping, and date separators.
 ///
-/// The Matrix SDK stores [Timeline.events] in **newest-first** order
+/// The Matrix SDK stores [Timeline.events] in newest-first order
 /// (`events[0]` is the most recent).  We render them with
 /// `ListView.builder(reverse: true)` so that the newest event sits at the
-/// bottom of the viewport and older events are reached by scrolling **up**.
+/// bottom of the viewport and older events are reached by scrolling up.
 ///
 /// ## Event filtering
 ///
@@ -230,7 +230,7 @@ class TimelineViewState extends State<TimelineView> {
   // Build the flat item list (delegates ordering/logic to the model)
   // ---------------------------------------------------------------------------
 
-  /// Produces the list of widgets in **newest-first** order so that the
+  /// Produces the list of widgets in newest-first order so that the
   /// `reverse: true` ListView places the newest item at the bottom.
   ///
   /// Delegates grouping, ordering, and state-event classification to
