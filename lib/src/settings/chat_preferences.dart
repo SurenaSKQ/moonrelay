@@ -60,6 +60,6 @@ enum MotionLevel {
   /// Honour the boolean toggle as-is (current behaviour).
   on,
 
-  /// Off  every animation becomes `Duration.zero`.
+  /// Off: every animation becomes `Duration.zero`.
   off,
 }

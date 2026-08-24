@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Read-up-to marker  the event ID of the most recent message the
+// Read-up-to marker: the event ID of the most recent message the
 // user has actually seen in a given room. Persisted per (account, room)
 // and consulted by the chat timeline to jump to the last seen position
 // when the room is re-opened.
@@ -89,7 +89,7 @@ class ReadMarkerService {
         return decoded['seq'] as int;
       }
     } catch (_) {
-      // Corrupt entry — treat as unset.
+      // Corrupt entry: treat as unset.
     }
     return -1;
   }

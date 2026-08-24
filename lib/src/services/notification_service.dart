@@ -349,7 +349,7 @@ class NotificationService {
 
     if (action == 'markRead') {
       await _markUriAsRead(matrixUri);
-      // Still open the app  the user expects feedback that their tap
+      // Still open the app; the user expects feedback that their tap
       // was registered.
     }
 
@@ -451,7 +451,7 @@ class NotificationService {
     try {
       _hasFocus = await windowManager.isFocused();
     } catch (_) {
-      // Window manager unavailable (e.g. tests)  assume focused.
+      // Window manager unavailable (e.g. tests); assume focused.
       _hasFocus = true;
     }
   }
@@ -509,7 +509,7 @@ class NotificationService {
         _groupNotifiedCounts[room.id] = currentCount;
         groupChanged = true;
 
-        // First time seeing this room  record the baseline count
+        // First time seeing this room: record the baseline count
         // without notifying so we don't spam for pre-existing messages.
         if (lastCount == null) continue;
 
@@ -563,7 +563,7 @@ class NotificationService {
     // disturbed by foreground alerts.
     if (!_settings.notifyWhenFocused && _hasFocus) return;
 
-    // Encrypted messages should still notify the user  the SDK
+    // Encrypted messages should still notify the user; the SDK
     // may not have decrypted the event by the time the notification
     // fires, in which case the body string is empty. We surface a
     // dedicated "(encrypted message)" placeholder so the user is not
@@ -875,7 +875,7 @@ class NotificationService {
   /// emit a stale "you have N new messages" notification for a room
   /// the user has just caught up on.
   ///
-  /// This is the timeline-side counterpart to [_markUriAsRead]  both
+  /// This is the timeline-side counterpart to [_markUriAsRead]: both
   /// paths funnel through the same debounced persistence so the prefs
   /// blob stays consistent regardless of which surface the user used to
   /// clear the badge.

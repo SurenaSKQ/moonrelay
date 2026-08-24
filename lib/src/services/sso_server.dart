@@ -82,7 +82,7 @@ class SsoCallbackServer {
       queryParameters: {'state': _expectedState},
     );
 
-    // Listen for exactly one request  the SSO redirect.
+    // Listen for exactly one request: the SSO redirect.
     _server!.listen(_handleRequest);
 
     // Self-destruct timer: close server after 120 seconds even without callback.
@@ -107,7 +107,7 @@ class SsoCallbackServer {
     _server = null;
     _port = 0;
     _expectedState = null;
-    // Don't cancel the completer  callers may still await it.
+    // Don't cancel the completer; callers may still await it.
     // If the token was never received, the future will never complete,
     // and the caller is responsible for a timeout.
   }

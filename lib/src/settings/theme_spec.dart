@@ -303,7 +303,7 @@ enum MoonrelayStyleType {
   moonrelay,
 }
 
-/// A theme's widget geometry — the bits of "feel" that a color accent cannot
+/// A theme's widget geometry: the bits of "feel" that a color accent cannot
 /// express (button shape and borders, scrollbar thickness, checkbox style,
 /// divider weight, etc.).
 ///
@@ -658,7 +658,7 @@ class MoonrelayWidgetStyle {
     );
 
     return base.copyWith(
-      // Flat surfaces — no elevation, no borders
+      // Flat surfaces: no elevation, no borders
       cardTheme: CardThemeData(
         elevation: 0,
         color: base.cardTheme.color,

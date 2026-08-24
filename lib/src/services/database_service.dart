@@ -62,7 +62,7 @@ class DatabaseService {
         try {
           await sql.deleteDatabase(dbPath);
         } catch (e, s) {
-          // The wipe failed  if we let [openDatabase] proceed the SDK
+          // The wipe failed; if we let [openDatabase] proceed the SDK
           // will read the old schema with the new version constant and
           // explode at runtime.  Re-throw with a clear prefix so the
           // boot pipeline surfaces a Recovery / exit dialog instead

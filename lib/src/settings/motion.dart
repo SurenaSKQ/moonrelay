@@ -94,7 +94,7 @@ class Motion {
   /// transition.
   ///
   /// Use this when conditionally returning different widgets based on
-  /// animation state  calling [AnimatedSwitcher] with a zero duration
+  /// animation state: calling [AnimatedSwitcher] with a zero duration
   /// still incurs a frame delay on some platforms.
   Widget instantSwap(Widget child, {Key? key}) => enableAnimations
       ? AnimatedSwitcher(
