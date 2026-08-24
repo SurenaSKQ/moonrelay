@@ -37,7 +37,7 @@ import 'package:moonrelay/src/widgets/common/status_card.dart';
 ///
 /// All derived strings (display name, topic, room type, canonical alias,
 /// encryption flag, member count) are recomputed only when the room's
-/// state actually changes  not on every parent rebuild. Previously every
+/// state actually changes, not on every parent rebuild. Previously every
 /// parent build called `room.getLocalizedDisplayname()`,
 /// `room.summary.mJoinedMemberCount`, `room.joinRules`, etc., which do
 /// non-trivial SDK work; during a window resize the entire sidebar rebuilt
@@ -371,7 +371,7 @@ class PinnedSectionState extends State<PinnedSection> {
         }
       }
     } catch (_) {
-      // Timeline not available  fall through to the cache/server for all.
+      // Timeline not available; fall through to the cache/server for all.
       missingFromTimeline
         ..clear()
         ..addAll(pinnedIds);

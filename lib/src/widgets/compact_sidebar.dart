@@ -84,7 +84,7 @@ class _CompactSidebarState extends State<CompactSidebar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    // Read client without subscribing — we already drive our own
+    // Read client without subscribing: we already drive our own
     // rebuilds via the SyncPulse (and the local filter state).
     final client = Provider.of<Client>(context, listen: false);
     final l10n = AppLocalizations.of(context)!;

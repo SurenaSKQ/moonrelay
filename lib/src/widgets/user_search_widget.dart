@@ -73,7 +73,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
     super.dispose();
   }
 
-  /// Debounced search  waits 300ms after the user stops typing.
+  /// Debounced search: waits 300ms after the user stops typing.
   void _onSearchChanged() {
     final query = _searchController.text.trim();
     if (query == _searchQuery) return;

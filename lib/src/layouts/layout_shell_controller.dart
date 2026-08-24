@@ -24,12 +24,12 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 ///
 /// The shell is the *frame* around the route content, not the content
 /// itself:
-///   * [mobile]  single-pane [MobileLayout], used below
+///   * [mobile]: single-pane [MobileLayout], used below
 ///     [LayoutBreakpoints.mobileMax] or when the user opts in to mobile
 ///     mode.
-///   * [compact]  dashboard with the unified [CompactSidebar] and no
+///   * [compact]: dashboard with the unified [CompactSidebar] and no
 ///     right pane, used below [LayoutBreakpoints.compactMax].
-///   * [expanded]  full multi-pane dashboard (navigation sidebar, right
+///   * [expanded]: full multi-pane dashboard (navigation sidebar, right
 ///     context sidebar), used when the window has room for everything.
 enum LayoutShell {
   mobile,

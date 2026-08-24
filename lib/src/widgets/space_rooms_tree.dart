@@ -250,7 +250,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-/// An item in the tree – either a regular room or a subspace.
+/// An item in the tree: either a regular room or a subspace.
 class _TreeItem {
   const _TreeItem({required this.room, this.isSuggested = false});
   final Room room;

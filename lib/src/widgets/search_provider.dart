@@ -35,7 +35,7 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 /// Each category may load synchronously (local rooms/spaces) or require
 /// an asynchronous network round-trip (server message search, user
 /// directory, homeserver public rooms).  Different surfaces can choose
-/// to render only a subset  the command palette's `?` mode keeps the
+/// to render only a subset: the command palette's `?` mode keeps the
 /// full set, while an in-room search would only request messages.
 enum SearchCategory {
   rooms,
@@ -112,7 +112,7 @@ class SearchProvider {
   final Client client;
 
   /// First page of joined room/space matches.  Local searches have no
-  /// server cursor  the caller paginates by stepping [offset] using
+  /// server cursor: the caller paginates by stepping [offset] using
   /// [nextLocalPage].
   SearchPage<Room> searchRoomsFirstPage(String query, {int limit = 10}) {
     return _paginateLocal(
@@ -185,7 +185,7 @@ class SearchProvider {
     );
   }
 
-  /// Server-side full-text message search  first page.
+  /// Server-side full-text message search: first page.
   Future<SearchPage<MessageSearchResult>> searchMessagesFirstPage(
     String query, {
     int limit = 20,
@@ -252,14 +252,14 @@ class SearchProvider {
     }
   }
 
-  /// Public homeserver room directory search  first page.
+  /// Public homeserver room directory search: first page.
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverFirstPage(
     String query, {
     int limit = 10,
   }) =>
       _searchHomeserver(query, limit: limit, since: null);
 
-  /// Public homeserver room directory search  continuation.
+  /// Public homeserver room directory search: continuation.
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverNextPage(
     SearchPageRequest request, {
     int limit = 10,
@@ -288,7 +288,7 @@ class SearchProvider {
     }
   }
 
-  /// User-directory search  paginated locally because the Matrix
+  /// User-directory search: paginated locally because the Matrix
   /// endpoint doesn't return a cursor.
   SearchPage<Profile> searchUsersFirstPage(String query, {int limit = 10}) {
     if (query.isEmpty) return SearchPage<Profile>.empty();

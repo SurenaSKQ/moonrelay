@@ -71,7 +71,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
   void initState() {
     super.initState();
     if (widget.parentSpace != null) {
-      // Creating a room inside a space  always a room, never a space.
+      // Creating a room inside a space: always a room, never a space.
       _isSpace = false;
     }
     _joinRule = _isPublic ? 'public' : 'invite';

@@ -27,7 +27,7 @@ import 'package:provider/provider.dart';
 /// Maps the Matrix SDK's [SyncStatus] down to a three-state presence that
 /// matches what a user expects to see in a header: a connection either
 /// works (online), is actively catching up (away), or has dropped/erred
-/// (offline). This is intentionally a coarse signal  real per-contact
+/// (offline). This is intentionally a coarse signal; real per-contact
 /// Matrix presence is a separate concern left for future work.
 enum PresenceState {
   /// Connected and the last sync completed cleanly.
