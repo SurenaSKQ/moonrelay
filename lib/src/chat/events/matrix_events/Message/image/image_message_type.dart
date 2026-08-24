@@ -32,7 +32,7 @@ import 'package:provider/provider.dart';
 /// Displays an image message with a polished thumbnail card and tap-to-open
 /// full-screen viewer.
 ///
-/// Sizing rule: the thumbnail is **height-constrained** so wide panoramic
+/// Sizing rule: the thumbnail is height-constrained so wide panoramic
 /// images or tall portrait shots both render as a comfortable rectangle
 /// instead of stretching to the full timeline width. The image is then
 /// scaled with `BoxFit.contain` so its aspect ratio is preserved without

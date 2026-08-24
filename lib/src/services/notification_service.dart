@@ -85,9 +85,9 @@ class NotificationService {
   /// users can triage new messages without bringing the window to the
   /// foreground first:
   ///
-  /// - **Mark as read**: silently clear the unread state for the
+  /// -"Mark as read": silently clear the unread state for the
   ///   owning room without opening the app.
-  /// - **Open**: same behaviour as tapping the notification body
+  /// -"Open": same behaviour as tapping the notification body
   ///   bring the window forward and navigate to the room.
   ///
   /// Other platforms fall through to their default tap behaviour
@@ -231,7 +231,7 @@ class NotificationService {
   bool get isAvailable => _available;
 
   /// Create and initialise the notification service. Returns the
-  /// service instance which is **always** usable, even on platforms
+  /// service instance which is always usable, even on platforms
   /// where the plugin failed to initialise. Callers that want to
   /// show notification-related UI should gate it on [isAvailable].
   ///

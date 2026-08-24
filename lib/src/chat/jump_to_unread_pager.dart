@@ -52,7 +52,7 @@ class JumpToUnreadPager {
   /// the user on the "loading" pill for the combined runtime of both
   /// directions.
   ///
-  /// Both directions run in **parallel**; the first to surface the
+  /// Both directions run in parallel; the first to surface the
   /// marker wins.
   ///
   /// Returns `true` if the marker was successfully brought into the

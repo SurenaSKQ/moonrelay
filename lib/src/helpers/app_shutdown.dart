@@ -67,7 +67,7 @@ class MoonShutdown {
 /// Runs an orderly teardown of every live service before the
 /// application terminates.
 ///
-/// **Order matters.**  Sync-heavy consumers are disposed first so they
+/// Order matters: sync-heavy consumers are disposed first so they
 /// stop reacting to events.  Then the Matrix [Client] is disposed,
 /// which tears down the [NativeImplementationsIsolate] background
 /// isolate, and crucially joins the native OS threads that
