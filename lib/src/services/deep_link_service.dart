@@ -38,7 +38,7 @@ import 'package:provider/provider.dart';
 /// For the app to receive `matrix:` URIs, the protocol must be registered
 /// at the OS level:
 ///
-/// **Windows**: Add to the registry
+/// Windows: Add to the registry
 /// ```
 /// HKEY_CLASSES_ROOT\matrix\shell\open\command
 ///   (Default) = "path\to\moonrelay.exe" "%1"
@@ -46,12 +46,12 @@ import 'package:provider/provider.dart';
 ///   (Default) = ""
 /// ```
 ///
-/// **Linux**: Create or amend the `.desktop` file:
+/// Linux: Create or amend the `.desktop` file:
 /// ```
 /// MimeType=x-scheme-handler/matrix;
 /// ```
 ///
-/// **macOS**: Add `matrix` to `Info.plist` `CFBundleURLTypes`.
+/// macOS: Add `matrix` to `Info.plist` `CFBundleURLTypes`.
 class DeepLinkService {
   DeepLinkService({
     required this.log,

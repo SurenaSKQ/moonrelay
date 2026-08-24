@@ -28,7 +28,7 @@ const int kMinutesBetweenEnvironments = 10;
 /// etc.) as opposed to a content event that should be rendered as a
 /// standalone message row.
 ///
-/// Uses an explicit **whitelist** of content event types so that
+/// Uses an explicit whitelist of content event types so that
 /// `m.room.encrypted` events are never misclassified as state events.
 /// The previous implementation (`event.type != Message && event.type != Sticker`)
 /// treated anything that wasn't a message or sticker as a state event, which
@@ -59,7 +59,7 @@ bool isContentEvent(Event event) => !isStateEvent(event);
 ///
 /// [newer] is the chronologically newer event (displayed lower in the
 /// timeline) and [older] is the earlier event.  When they form a group,
-/// the **older** event acts as the group start (shows avatar/name) and the
+/// the older event acts as the group start (shows avatar/name) and the
 /// newer event is a continuation (no avatar).
 ///
 /// Stickers never group with adjacent messages -- they are short,
@@ -246,7 +246,7 @@ class TimelineItemsResult {
     required this.undecryptableCount,
   });
 
-  /// The flat list of visible items in **newest-first** order
+  /// The flat list of visible items in newest-first order
   /// (index 0 is nearmost the banner sentinel, then newest event first,
   /// matching [Timeline.events] order).
   final List<TimelineItemEntry> items;
@@ -265,7 +265,7 @@ class TimelineItemsResult {
 // -- Builder --
 
 /// Produces the list of [TimelineItemEntry] objects for [timeline] in
-/// **newest-first** order so that the `reverse: true` ListView places
+/// newest-first order so that the `reverse: true` ListView places
 /// the newest item at the bottom.
 ///
 /// [DateSeparator] entries are interleaved before events that start a
@@ -336,7 +336,7 @@ TimelineItemsResult buildTimelineItems(
         items.add(TimelineItemEntry.forDateSeparator(event.originServerTs));
       }
 
-      // An event is a continuation of the **older** event above it
+      // An event is a continuation of the older event above it
       // (next in newest-first iteration). Walk past hidden state events
       // so they don't incorrectly absorb the sender info.
       final effectiveNextEvent =

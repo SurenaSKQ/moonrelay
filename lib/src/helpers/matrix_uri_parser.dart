@@ -62,12 +62,12 @@ class MatrixUriResult {
 ///
 /// ## Supported formats
 ///
-/// **matrix:// / matrix: scheme**
+/// matrix:// / matrix: scheme:
 /// - `matrix:r/!roomid:domain?via=example.org`
 /// - `matrix:u/@user:domain`
 /// - `matrix:roomid/!roomid:domain`
 ///
-/// **matrix.to permalink**
+/// matrix.to permalink:
 /// - `https://matrix.to/#/!roomid:domain?via=example.org`
 /// - `https://matrix.to/#/@user:domain`
 /// - `https://matrix.to/#/#alias:domain`

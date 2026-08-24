@@ -124,7 +124,7 @@ class AccountManager extends ChangeNotifier {
   /// Called with `client` after a client is created so the caller can attach
   /// any additional setup (encryption, tray, etc.).
   ///
-  /// Implementations should **return** the [EncryptionService] they create
+  /// Implementations should return the [EncryptionService] they create
   /// for this client so the manager can install it; returning null is
   /// allowed and means "no encryption service required".
   Future<EncryptionService?> Function(Client client)? onClientReady;

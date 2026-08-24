@@ -38,7 +38,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 /// This page discovers the homeserver's supported login flows and presents
 /// the appropriate authentication options:
 /// - Password login with homeserver, username, and password fields
-/// - SSO login that **automatically** captures the token via a local HTTP
+/// - SSO login that automatically captures the token via a local HTTP
 ///   server (falling back to manual copy-paste if the automatic flow fails)
 /// - Token-based login for advanced flows
 class LoginPage extends StatefulWidget {
