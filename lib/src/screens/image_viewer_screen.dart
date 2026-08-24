@@ -265,7 +265,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                     _chromeController.value < 0.5) {
                   _scheduleChromeHide();
                 } else {
-                  // User is dismissing intentionally  cancel the pending
+                  // User is dismissing intentionally; cancel the pending
                   // auto-hide and reverse the controller immediately.
                   _hideScheduleId++;
                   _chromeController.reverse();

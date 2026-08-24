@@ -75,7 +75,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
 
   void _confirmWipeSsss(bool wipe) {
     if (!wipe) {
-      // Keep existing  no destructive action, proceed directly.
+      // Keep existing: no destructive action, proceed directly.
       try {
         _bootstrap.wipeSsss(false);
       } catch (e) {
@@ -625,7 +625,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('encryption_recovery_key_acknowledged', true);
     } catch (_) {
-      // Persistence is best-effort  the next launch will re-prompt,
+      // Persistence is best-effort; the next launch will re-prompt,
       // which is preferable to crashing the dismiss flow.
     }
   }

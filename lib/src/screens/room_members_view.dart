@@ -206,7 +206,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
       }
     } catch (e) {
       if (!mounted) return;
-      // Silently swallow – we already have local data showing.
+      // Silently swallow; we already have local data showing.
     }
 
     if (mounted) setState(() => _isFetchingMore = false);

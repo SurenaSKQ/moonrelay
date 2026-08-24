@@ -1682,7 +1682,7 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
 
     // Confirmation dialog.  Showing display name + Matrix ID + a
     // "View profile" link gives the moderator enough context to be
-    // confident the right person is being invited  knock requests
+    // confident the right person is being invited; knock requests
     // are easy to spoof with a similar-looking displayname.
     final approved = await showDialog<bool>(
       context: context,
@@ -1725,7 +1725,7 @@ class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
         ],
       ),
     );
-    // "View profile" returns null  fall through to navigation so the
+    // "View profile" returns null; fall through to navigation so the
     // moderator can see who they're letting in.
     if (approved == null) {
       if (!mounted) return;

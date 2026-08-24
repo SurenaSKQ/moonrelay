@@ -30,7 +30,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Welcome screen shown before authentication.
 ///
-/// Uses a responsive two‑column layout:
+/// Uses a responsive two-column layout:
 /// - **Wide** (≥880px): a left pane with branding and a footer row of
 ///   Licenses / Privacy Policy / theme toggle, and a right pane of stacked
 ///   cards (login/register, project news, supporters).
@@ -88,7 +88,7 @@ class StartupScreen extends StatelessWidget {
           );
         }
 
-        // Narrow layout  single column, footer pinned at bottom.
+        // Narrow layout: single column, footer pinned at bottom.
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: ConstrainedBox(

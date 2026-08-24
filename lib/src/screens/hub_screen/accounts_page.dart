@@ -45,7 +45,7 @@ class HubAccountsPage extends StatelessWidget {
     final t = theme.moonrelay.tokens;
 
     // If the session has been torn down (userID is null) return an empty
-    // placeholder — the overlay will be dismissed and the route will
+    // placeholder; the overlay will be dismissed and the route will
     // redirect to /welcome on the next frame.
     if (client.userID == null) return const SizedBox.shrink();
 
@@ -168,7 +168,7 @@ class HubAccountsPage extends StatelessWidget {
               SizedBox(height: t.spaceMd),
 
               // An account row with a sign-out action (future-proofed
-              // for multi-account  each account gets its own row).
+              // for multi-account; each account gets its own row).
               Card(
                 elevation: t.elevationNone,
                 shape: RoundedRectangleBorder(

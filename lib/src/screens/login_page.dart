@@ -502,7 +502,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-      // Token field  only shown when the user explicitly requests it.
+      // Token field: only shown when the user explicitly requests it.
       if (_showManualTokenEntry) ...[..._buildManualTokenEntry(colors, l10n)],
     ];
   }
@@ -1120,7 +1120,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ── 5. Token received  complete the login ─────────────────
+    // ── 5. Token received: complete the login ─────────────────
     setState(() {
       _statusMessage = l10n.ssoTokenDetected;
     });

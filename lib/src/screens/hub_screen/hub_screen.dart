@@ -49,7 +49,7 @@ import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
-// The main Hub screen  tab-based UI
+// The main Hub screen: tab-based UI
 // -----------------------------------------------------------------------------
 
 /// A category selection that may be deep-linked into the [HubScreen].
@@ -353,7 +353,7 @@ class _HubScreenState extends State<HubScreen> {
       }
       return tabs;
     }
-    // Top-level strip  one tab per top-level category.
+    // Top-level strip: one tab per top-level category.
     return [
       for (var i = 0; i < _categories.length; i++)
         _HubTab(
@@ -405,7 +405,7 @@ class _HubScreenState extends State<HubScreen> {
           _selectedCategoryIndex = tab.parentCategoryIndex;
           _selectedSubItemIndex = -1;
           // Entering a top-level tab that is expandable should NOT
-          // expand its sub-tabs automatically  the user has to tap
+          // expand its sub-tabs automatically; the user has to tap
           // a sub-tab or the parent overview page.  This matches the
           // previous "category opens on its overview" behaviour.
           _subTabsParentIndex = -1;
@@ -659,7 +659,7 @@ class _HubScreenState extends State<HubScreen> {
   /// as a modal overlay via [showHubOverlay] (where the URL has no
   /// effect on the visible state because the overlay sits on top of
   /// the room page).  In the overlay case calling `context.go` would
-  /// *replace* the room page in the navigator stack  which is exactly
+  /// *replace* the room page in the navigator stack, which is exactly
   /// the bug we just fixed.  We detect the overlay case via
   /// [ModalRoute.opaque] and skip the URL push.
   void _pushHubUrl(String categoryKey, String? subKey) {
