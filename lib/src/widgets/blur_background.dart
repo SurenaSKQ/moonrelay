@@ -149,7 +149,7 @@ class _BarrierDismissableOverlayState extends State<BarrierDismissableOverlay> {
       if (box is! RenderBox) continue;
       // Hit-test the boundary against the pointer's global position.
       // [contains] returns true only when the position lies inside
-      // the box's transformed bounds  a full-screen blur backdrop
+      // the box's transformed bounds: a full-screen blur backdrop
       // would say yes, but a centred card with real padding/elevation
       // will not, so this correctly distinguishes "tapped inside the
       // card" from "tapped on the dim backdrop around it".

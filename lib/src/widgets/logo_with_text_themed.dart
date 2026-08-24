@@ -18,14 +18,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// A polished branding widget that displays a moon icon and the project name.
+/// Moon icon and wordmark shown on the startup screen and in the sidebar.
 ///
-/// Replaces the previous raster-logo approach with a crisp vector icon
-/// and styled text, avoiding platform-specific image loading issues.
-/// Now features:
-/// - A subtle animated gradient glow behind the moon icon
-/// - A multiline tagline below the app name
-/// - Theme-aware colors with proper contrast
+/// Rendered as a vector icon plus styled text so no platform-specific
+/// image asset needs to load. The icon gets an animated gradient glow,
+/// and colors follow the active theme (or [themeMode] when given).
 class LogoWithTextThemed extends StatelessWidget {
   const LogoWithTextThemed({super.key, this.themeMode, this.compact = false});
 

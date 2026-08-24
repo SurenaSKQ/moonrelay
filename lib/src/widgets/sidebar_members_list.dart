@@ -221,7 +221,7 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
         }
       }
     } catch (_) {
-      // Silently swallow  local data is already shown.
+      // Silently swallow; local data is already shown.
     }
     if (mounted && widget.room.id == roomId) {
       setState(() => _isFetchingMore = false);

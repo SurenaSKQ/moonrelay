@@ -27,7 +27,7 @@ import 'package:provider/provider.dart';
 /// encryption settings page.
 ///
 /// Keeping the class around means the dashboard mount site does not
-/// need to change  it still wraps the dashboard in
+/// need to change: it still wraps the dashboard in
 /// [PostLoginSetupChecker], but the widget is now a no-op
 /// [Container] that simply forwards the child.
 class PostLoginSetupChecker extends StatelessWidget {
