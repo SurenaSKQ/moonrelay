@@ -23,10 +23,10 @@ import 'package:matrix/matrix.dart';
 /// Process-wide fan-out for [Client.onRoomState] events.
 ///
 /// Without this, every widget that needs to react to room state (the
-/// right sidebar's `_SidebarRoomInfo`, the members list, the
+/// right sidebar's `SidebarRoomInfo`, the members list, the
 /// encryption badge, etc.) subscribes its own listener and filters
 /// client-side for the relevant room. For a 200-room account every
-/// state event traverses every listener — measurable wasted work for
+/// state event traverses every listener: measurable wasted work for
 /// the kind of high-frequency events the right sidebar cares about
 /// (display name, topic, join rules).
 ///
@@ -102,7 +102,7 @@ class RoomStateBus extends ChangeNotifier {
   }
 
   /// Drops the bus state for [roomId] (e.g. on room leave). The
-  /// returned notifier — if any — is disposed.
+  /// returned notifier, if any, is disposed.
   void disposeRoom(String roomId) {
     final notifier = _perRoomTick.remove(roomId);
     notifier?.dispose();
@@ -111,7 +111,7 @@ class RoomStateBus extends ChangeNotifier {
 
   /// Removes the least-recently-used entries until the map is at or
   /// below [_maxRooms].  O(1) amortised because [LinkedHashMap] keeps
-  /// insertion order — the head is always the LRU entry.
+  /// insertion order: the head is always the LRU entry.
   void _evictIfOverCapacity() {
     while (_perRoomTick.length > _maxRooms) {
       final oldestKey = _perRoomTick.keys.first;

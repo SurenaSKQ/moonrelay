@@ -25,7 +25,7 @@ import 'package:provider/provider.dart';
 ///
 /// Before this existed, every sidebar / pane subscribed to
 /// `client.onSync.stream` directly, each running its own debounce
-/// timer and producing 3–5 `setState` rebuilds per sync tick. The
+/// timer and producing 3-5 `setState` rebuilds per sync tick. The
 /// fan-out here coalesces those into one notification per debounce
 /// window, and consumers read the pulse via `context.select` so they
 /// only rebuild when the version actually changes.
@@ -122,7 +122,7 @@ class SyncPulse extends ChangeNotifier {
 /// Returns the nearest [SyncPulse] from the [BuildContext], or `null`
 /// if none is in scope (e.g. during the splash screen before the
 /// main app is mounted). Use this when a widget can be safely
-/// mounted in a context where the pulse may not be available — for
+/// mounted in a context where the pulse may not be available, for
 /// example, a screen that briefly renders during a transition.
 SyncPulse? maybeSyncPulse(BuildContext context) {
   try {

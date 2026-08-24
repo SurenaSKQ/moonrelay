@@ -27,7 +27,7 @@ import 'package:matrix/matrix.dart';
 ///
 /// This cache deduplicates the bytes by `(roomId, eventId)` and evicts
 /// least-recently-used entries when the byte budget is exceeded. Bytes
-/// are kept just long enough for the visible thumbnails to decode —
+/// are kept just long enough for the visible thumbnails to decode:
 /// after the host widget is disposed, the next access re-resolves via
 /// the network.
 ///

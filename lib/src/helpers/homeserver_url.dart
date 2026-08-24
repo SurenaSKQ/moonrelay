@@ -54,7 +54,7 @@ bool isPlausibleHomeserverUrl(Uri uri) {
     return false;
   }
 
-  // Refuse URLs that smuggle credentials into the location  phishing
+  // Refuse URLs that smuggle credentials into the location: phishing
   // pages occasionally use `https://user:pass@evil.example/` style URIs.
   if (uri.userInfo.isNotEmpty) return false;
 

@@ -106,7 +106,7 @@ extension DateTimeExtension on DateTime {
     if (diff < day) return l10n.timeHours(diff ~/ hour);
     if (diff < week) return l10n.timeDays(diff ~/ day);
 
-    // Older than a week  show date.
+    // Older than a week: show date.
     final sameYear = now.year == year;
     if (sameYear) {
       return '${_monthAbbr(month)} $day';

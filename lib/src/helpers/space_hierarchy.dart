@@ -19,10 +19,10 @@ import 'package:matrix/matrix.dart';
 
 /// A model for the navigation pane's space list.
 ///
-/// - `NavSpaceLeaf` is a single stand‑alone space icon.
-/// - `NavSpaceGroup` is a user‑created group of spaces.
+/// - `NavSpaceLeaf` is a single stand-alone space icon.
+/// - `NavSpaceGroup` is a user-created group of spaces.
 ///
-/// Groups are purely visual; the Matrix space‑child hierarchy is only
+/// Groups are purely visual; the Matrix space-child hierarchy is only
 /// consulted when the user chooses "Sort into groups".
 
 sealed class NavSpaceItem {
@@ -53,9 +53,9 @@ class NavSpaceGroup extends NavSpaceItem {
 /// contains entries, they are rendered as groups containing the listed
 /// spaces.  Spaces that belong to a group are removed from the flat list.
 ///
-/// [order] controls the visual ordering (user‑defined).
+/// [order] controls the visual ordering (user-defined).
 /// [collapsedGroupIds] controls which groups are collapsed.
-/// [knownSpaceIds] is used to detect newly‑joined spaces for auto‑grouping.
+/// [knownSpaceIds] is used to detect newly-joined spaces for auto-grouping.
 List<NavSpaceItem> buildNavItems(
   Iterable<Room> allRooms, {
   required Set<String> collapsedGroupIds,
@@ -72,7 +72,7 @@ List<NavSpaceItem> buildNavItems(
 
   final items = <NavSpaceItem>[];
 
-  // 1. Add groups from user‑defined spaceGroups.
+  // 1. Add groups from user-defined spaceGroups.
   for (final entry in spaceGroups.entries) {
     final groupId = entry.key;
     final childIds = entry.value;
@@ -109,7 +109,7 @@ List<NavSpaceItem> buildNavItems(
   return items;
 }
 
-/// Creates the auto‑grouping map for "Sort into groups".
+/// Creates the auto-grouping map for "Sort into groups".
 ///
 /// For every root space (no joined parent) that has subspaces, a group entry
 /// is created.  Subspaces are collected one level deep.

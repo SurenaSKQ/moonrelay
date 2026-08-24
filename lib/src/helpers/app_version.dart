@@ -53,7 +53,7 @@ class AppVersion {
   static AppVersion? _current;
 
   /// Initialize from PackageInfo. Call once at boot before any UI
-  /// reads `current`. Safe to call multiple times  the first one wins.
+  /// reads `current`. Safe to call multiple times; the first one wins.
   static Future<void> init() async {
     if (_current != null) return;
     try {
