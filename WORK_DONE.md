@@ -1,4 +1,4 @@
-﻿Part of Moonrelay, a matrix protocol client.
+Part of Moonrelay, a matrix protocol client.
 Copyright (C) 2025 Surena Karimpour Ghannadi
 
 This program is free software: you can redistribute it and/or modify
@@ -18,28 +18,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 WORK_DONE
 
 Closed-work ledger for Moonrelay. This file is a running log of things that
-have shipped or been fixed. The current entries cover the July 2026 audit
-pass, the August 2026 performance/memory follow-up, the media widget polish
-pass, the recent UX fix-up pass, the chat-timeline scroll-performance
-pass, the chat-timeline scroll-velocity second pass, the
-hoverbar rearchitecture, the responsive-layout shell rework, the
-shell-flip navigation leak fix, the August 2026 bug-fix pass (24
-fixes from the full-codebase audit), the SSO loopback-host
-regression fix, the timeline scroll-position null-deref crash fix,
-the August 2026 timeline dead-code and duplication removal, the
-timeline Suckless-cleanup pass, the jump-to-unread FAB survival, and
-the jump-to-unread target-selection and scroll-execution fixes, and the
-status-pill honesty fix plus the dead appearance-settings wiring, and the
-blank-content error guidance pass, and the dashboard UI refresh pass
-(OS-window-decorations default with an optional slim in-app header, and
-a unified navigation sidebar), and the collapsible sidebar sections
-follow-up, and the space-selection fix, and the skins refactor, and the
-ArchVista GTK theme skin, and the accent-color/theme decoupling with the
-Vista widget-style emulation, and the theming overhaul Phases 1-6
-(design tokens, component tokens, theme extension upgrade, widget-style
-expansion, _buildThemeData rewrite, and inline-styling refactor across
-all widget categories), and the theming overhaul Phase 7 (shipping three
-new themes: Moonrelay signature, Minimal flat, and Organic soft-rounded).
+have shipped or been fixed, newest first.
+
+Recent entries cover the July 2026 audit pass; the August 2026
+performance/memory follow-up; the media widget polish and UX fix-up passes;
+the chat-timeline scroll-performance and scroll-velocity work; the hoverbar
+rearchitecture; the responsive-layout shell rework with its shell-flip
+navigation leak fix; the August 2026 bug-fix pass (24 fixes from the
+full-codebase audit); the SSO loopback-host regression fix; the timeline
+scroll-position null-deref crash fix; the August 2026 timeline dead-code
+and duplication removal plus the Suckless-cleanup pass; the jump-to-unread
+FAB survival and target-selection/scroll-execution fixes; the status-pill
+honesty fix with removal of dead appearance-settings wiring; the
+blank-content error guidance pass; the dashboard UI refresh (OS window
+decorations by default, optional slim in-app header, unified navigation
+sidebar); the collapsible sidebar sections follow-up; the space-selection
+fix; the skins refactor with the ArchVista GTK theme skin; the
+accent-color/theme decoupling with Vista widget-style emulation; the
+theming overhaul Phases 1-6 (design tokens, component tokens, theme
+extension upgrade, widget-style expansion, _buildThemeData rewrite,
+inline-styling refactor across all widget categories); Phase 7
+(shipping three new themes: Moonrelay signature, Minimal flat, and Organic
+soft-rounded); and the forbidden-typography sweep with the comment
+hygiene pass.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -47,6 +48,54 @@ Tests at head: flutter test 608 green (584 baseline + 24 new: 12 from the
 skins/theme refactor, 8 from the accent-color decoupling, 3 from the Vista
 widget-style, plus the space-selection and timeline-scroll tests). flutter
 analyze 0 issues.
+
+26. Forbidden typography sweep and comment hygiene
+
+An audit for LLM-style residue found the earlier em-dash cleanups
+(b5ed172, d7709ed, f255079) had swept test/, tools/, and the markdown
+docs but never lib/. lib/ still held about 30 em dashes, a dozen en
+dashes, and 16 invisible non-breaking hyphens (U+2010/U+2011), some of
+them inside user-facing strings. Worse, wherever dashes had been
+stripped the removal left double-space gaps mid-sentence: about 200
+grammatically broken comments across lib/, test/, and
+integration_test/, plus four user-facing strings in app_en.arb whose
+generated getters carried the same gaps.
+
+- lib/, test/, integration_test/: every em/en dash replaced with
+  context-appropriate punctuation (colon, semicolon, comma, or
+  parenthesis per sentence); all non-breaking hyphens normalized to
+  ASCII hyphens, including the shipped strings in
+  lib/src/screens/privacy_policy.dart ("end-to-end", "open-source")
+  and lib/src/screens/licenses.dart.
+- The ~200 stripped-dash double-space gaps were repaired with real
+  punctuation instead of blind deletion; post-sentence double spacing
+  (a house habit, e.g. "render.  Robust") was deliberately kept.
+- app_en.arb: fixed the four gapped user-facing strings;
+  lib/src/localization/app_localizations.dart and
+  app_localizations_en.dart hand-synced to match gen-l10n output
+  because no Flutter SDK was available in the authoring environment
+  to regenerate them.
+- Comment rewrites: lib/src/widgets/logo_with_text_themed.dart lost
+  its changelog narration and "Now features:" residue,
+  lib/src/chat/message_actions.dart dropped a self-praise line,
+  lib/src/screens/privacy_policy.dart dropped "comprehensive", the
+  stale `_SidebarRoomInfo` reference in room_state_bus.dart now names
+  the real `SidebarRoomInfo` class, and the vague "WORK_DONE.md §10"
+  pointer in threads_provider.dart became a plain title quote.
+- WORK_DONE.md: intro run-on paragraph rewritten into readable prose,
+  ~21 stray dashes fixed, and a UTF-8 BOM removed from line 1.
+- CONTRIBUTING.md: two em dashes replaced.
+- tools/check_typography.sh (new): fails on em/en dashes,
+  non-breaking hyphens, and BOMs across dart dirs and root docs; wired
+  into AGENTS.md as a required pre-PR check so the sweep cannot rot
+  again.
+- Working-tree normalization: all 137 tracked files that still carried
+  CRLF endings were converted to LF, matching the `eol=lf` policy in
+  .gitattributes. 17 files whose committed blobs contain CRLF (mostly
+  windows/runner sources) now show as whole-file diffs and will
+  normalize into their next commit; WORK_NEEDED.md 1.9 records the
+  optional `git add --renormalize` shortcut.
+- WORK_NEEDED.md 1.9: created to track the line-ending residue above.
 
 25. Space selection fix: highlight and navigate
 
@@ -87,10 +136,10 @@ expanded, pointing at the screen edge when collapsed in RTL).
   collapsed state and a toggle callback; the spaces region (hidden
   entirely when there are no spaces) and the rooms region mount and
   unmount their lists underneath the headers.
-- test/widget/navigation_sidebar_test.dart (3 new) — tapping the rooms
+- test/widget/navigation_sidebar_test.dart (3 new): tapping the rooms
   or spaces header collapses the section, and a persisted collapsed
   section survives a rebuild.
-- test/unit/settings_controller_test.dart (5 new) — collapse round-trip,
+- test/unit/settings_controller_test.dart (5 new): collapse round-trip,
   set-instance replacement for scoped rebuilds, notify-on-change, and
   persistence across controller reloads.
 
@@ -140,11 +189,11 @@ pane, header chrome) collapse into one navigation sidebar:
   navigationPaneWidth constant.
 
 Tests added:
-- test/widget/navigation_sidebar_test.dart (4) — sidebar renders its
+- test/widget/navigation_sidebar_test.dart (4): sidebar renders its
   chrome, the command palette row opens the palette, the expanded shell
   shows the collapse gutter, and toggling visibility swaps in the
   expand gutter.
-- test/unit/settings_controller_test.dart (+5) — useOsTitleBar
+- test/unit/settings_controller_test.dart (+5): useOsTitleBar
   default/round-trip/notify and the left-sidebar visibility toggle.
 
 22. Blank-content error guidance
@@ -162,7 +211,7 @@ missing, leaving the user with no recourse:
   The not-joined case now hands off to the existing [RoomPreviewScreen]
   (route `/main/room_preview/:roomid`) instead of a blank splash, so a
   deep link to an unjoined room resolves its identity and offers a Join.
-- `lib/src/widgets/empty_state.dart` (new) — a small reusable centred
+- `lib/src/widgets/empty_state.dart` (new): a small reusable centred
   empty/error state (icon + title + message + optional action button),
   matching the visual density of rooms_pane's empty/loading states.
 
@@ -171,7 +220,7 @@ waiting for the server…` / `Retry`) was intentionally left as-is; its
 hardcoded English text is tracked under 1.5.
 
 Tests added:
-- test/widget/empty_states_test.dart (7) — EmptyState rendering with/without
+- test/widget/empty_states_test.dart (7): EmptyState rendering with/without
   an action, ProfileDelegate null/malformed/valid id paths, RoomDelegate
   null id and not-joined-to-preview-screen handoff.
 
@@ -184,7 +233,7 @@ English text "Online" no matter the connection state, while the real
 sync state lived only in the status bar. A disconnected user still read
 "Online". Replaced it:
 
-- lib/src/widgets/sync_status_pill.dart (new) — stateful [SyncStatusPill]
+- lib/src/widgets/sync_status_pill.dart (new): stateful [SyncStatusPill]
   that subscribes to [Client.onSyncStatus] (the same stream
   lib/src/widgets/status_bar.dart already uses) and a pure
   [syncStatusToPresence] helper mapping [SyncStatus.finished] -> online,
@@ -194,20 +243,20 @@ sync state lived only in the status bar. A disconnected user still read
   legible in both light and dark themes, unlike the previous magic
   green. Accepts an optional injected stream/initialStatus so the widget
   is unit-testable without the SDK's private CachedStreamController.
-- lib/src/layouts/app_frame.dart — drop the now-dead [StatusPill] class
+- lib/src/layouts/app_frame.dart: drop the now-dead [StatusPill] class
   and render [SyncStatusPill] in the header (was app_frame.dart:406).
-- lib/src/localization/app_en.arb, lib/src/localization/app_fa.arb — add
+- lib/src/localization/app_en.arb, lib/src/localization/app_fa.arb: add
   statusOnline/statusAway/statusOffline (+ Persian: آنلاین/دور/آفلاین);
   run flutter gen-l10n. The generated .dart l10n files are gitignored.
 
 Previously the UI-scale slider and the density chips only updated and
-persisted [SettingsController] values that nothing read — classic
+persisted [SettingsController] values that nothing read; classic
 "control that looks wired but isn't". Wired them:
 
-- lib/src/app.dart — the MaterialApp.router builder now wraps the child
+- lib/src/app.dart: the MaterialApp.router builder now wraps the child
   in a MediaQuery whose textScaler is TextScaler.linear(uiScale), so
   the "Interface scale" slider actually scales every Text in the tree.
-- lib/src/settings/theme.dart — [MoonrelayTheme.light]/[dark] now take
+- lib/src/settings/theme.dart: [MoonrelayTheme.light]/[dark] now take
   an optional LayoutDensity and call ThemeData.visualDensity accordingly
   (comfortable -> VisualDensity.standard, compact -> VisualDensity.compact);
   default stays comfortable so existing call sites are unaffected.
@@ -215,14 +264,14 @@ persisted [SettingsController] values that nothing read — classic
   sync state, the pill now matches it.
 
 Note: the per-message "Message font size" slider (SettingsController.fontSize,
-already wired to the chat timeline) is intentionally left alone — that is
+already wired to the chat timeline) is intentionally left alone; that is
 the intended escape hatch for chat density independent of the global UI
 zoom.
 
 Tests added:
-- test/widget/sync_status_pill_test.dart (7) — presence mapping + pill
+- test/widget/sync_status_pill_test.dart (7): presence mapping + pill
   rendering for finished/error/waiting + a live stream emission flip.
-- test/widget/appearance_settings_test.dart (5) — density->visualDensity
+- test/widget/appearance_settings_test.dart (5): density->visualDensity
   for light/dark/default, uiScale textScaler scaling, and updateUiScale
   persistence + clamping.
 
@@ -2366,9 +2415,9 @@ the ThemeData (the builder hard-coded 'Rubik'/'FiraCode'), surface corner
 radius was hard-coded to 12, and card/dialog radii were not centralised.
 Selecting a look required editing several independent settings.
 
-Introduced a `MoonrelaySkin` — a single, self-contained look-and-feel recipe
+Introduced a `MoonrelaySkin`, a single, self-contained look-and-feel recipe
 (seed colour, default fonts, default density, corner radius, surface
-elevation, default bubble radius) — and a `MoonrelaySkins` registry. The
+elevation, default bubble radius) and a `MoonrelaySkins` registry. The
 active skin is the single source of truth for the app's appearance;
 `MoonrelayTheme` now builds ThemeData from it, wiring in the user's
 font/density overrides so those settings finally take effect app-wide.
@@ -2417,12 +2466,12 @@ captured a genuinely different desktop theme's chrome. Added a skin based on
 `tmp/ArchVista` (a darkened Windows Vista GTK theme). The palette was read
 straight out of `gtk-4.0/gtk.css`: the dominant filled accent is `#5C8AA6`
 (Air Force Blue, used for active buttons, calendar selection, hover/active
-states — 16 occurrences), which is the colour worth a Material 3 seed;
+states; 16 occurrences), which is the colour worth a Material 3 seed;
 Windows' `#3399FF` is only used for window-button highlights (3 occurrences).
 Vista's signature fonts (Segoe UI / Consolas) and near-square corners are
 encoded as the skin's defaults. Because the skin system adds a skin to the
 `MoonrelaySkins.all` list and it auto-appears in the picker, no UI wiring was
-needed — `archVista` shows up next to Compact Modern immediately.
+needed: `archVista` shows up next to Compact Modern immediately.
 
 - lib/src/settings/skins.dart: appended the `archVista` skin to `all` and
   declared it (seed `#5C8AA6`, Sego UI / Consolas, 4px corners, comfortable
@@ -2462,7 +2511,7 @@ appearance is now two swappable dimensions.
   `updateSelectedAccent` only changes the color and leaves the look untouched.
 - lib/src/app.dart: builds light/dark themes from the active theme+accent.
 - lib/src/screens/hub_screen/settings/appearance_settings.dart and
-  lib/src/screens/startup_screen.dart: two radio pickers — "Look & feel"
+  lib/src/screens/startup_screen.dart: two radio pickers, "Look & feel"
   (themes) and "Accent colour" (accents). Each theme preview is tinted with
   the current accent; each accent preview is a circle so it can't be confused
   with a geometry theme.
@@ -2481,7 +2530,7 @@ Tests at head: flutter test 605 green (597 prior + 8 new). flutter analyze 0 iss
 28. Emulate Vista widget style in the ArchVista theme
 
 The ArchVista theme previously differed from Material only in color, font and
-corner radius — the buttons, checkboxes, scrollbars and dividers still used
+corner radius: the buttons, checkboxes, scrollbars and dividers still used
 stock Material geometry. This adds the actual Vista chrome so the look is
 recognizably "a desktop theme", while keeping every color a pure accent swap.
 

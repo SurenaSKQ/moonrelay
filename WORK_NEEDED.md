@@ -183,6 +183,24 @@ recovery path (logged here so the empty-state pass doesn't claim them):
   of silently showing an ever-shrinking list.
 
 
+1.9 Working-tree line endings drift from .gitattributes (mostly resolved)
+
+.gitattributes declares `* text=auto eol=lf`, but the working tree had
+accumulated CRLF endings in 137 tracked files (checked out before the
+attribute existed, or last saved by a Windows editor). The August 2026
+typography sweep normalized every one of them to LF in the working
+tree, and git's index now agrees everywhere.
+
+One residue remains: 17 of those files still have CRLF inside their
+committed blobs (.gitignore, analysis_options.yaml,
+lib/src/settings/settings_service.dart, test/unit_test.dart,
+test/widget_test.dart, and the windows/runner C++/CMake set plus
+windows/.gitignore), so they currently show as whole-file diffs. They
+will normalize into whatever commit next touches them, or you can run
+`git add --renormalize .` first to land the line-ending fix on its own;
+doing it alongside unrelated content changes makes diffs noisy.
+
+
 2. Open features
 
 2.1 Communication surface
