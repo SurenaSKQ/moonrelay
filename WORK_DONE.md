@@ -39,7 +39,9 @@ emulation; the theming overhaul Phases 1-6 (design tokens, component
 tokens, theme extension upgrade, widget-style expansion, _buildThemeData
 rewrite, inline-styling refactor across all widget categories); Phase 7
 (shipping three new themes: Moonrelay signature, Minimal flat, and Organic
-soft-rounded); and the forbidden-typography and comment-hygiene cleanup.
+soft-rounded); the forbidden-typography and comment-hygiene cleanup; and
+the comment de-flourish round that ASCII-fied arrows, banner rules, and
+doc-comment emphasis.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -47,6 +49,33 @@ Tests at head: flutter test 608 green (584 baseline + 24 new: 12 from the
 skins/theme refactor, 8 from the accent-color decoupling, 3 from the Vista
 widget-style, plus the space-selection and timeline-scroll tests). flutter
 analyze 0 issues.
+
+27. Comment de-flourish cleanup
+
+A follow-up review of remaining machine-generated-looking residue in
+comments turned up three habits: typographic arrows instead of ASCII,
+section banners drawn with box-drawing glyphs, and markdown-style bold
+emphasis inside doc comments. All three were normalized to plain ASCII
+so the tree no longer carries decoration that only an automated writer
+would bother with.
+
+- lib/, test/, integration_test/: every U+2192 arrow replaced with ->
+  for mappings and chains, or reworded with words where prose read
+  better; every U+2500/U+2550 banner rule swapped for -/= with layout
+  preserved. The one intentional exception is the U+2502 tree marker
+  that html_tag_parser.dart emits into rendered message HTML; the
+  typography guard now knows about it.
+- Doc comments: markdown bold removed everywhere except
+  markdown_to_html.dart, where `**bold**` and friends document the
+  literal parser input. Emphasized UI names now use plain quotes.
+- tools/check_typography.sh: extended with arrow and box-drawing
+  checks so both cannot creep back.
+- WORK_DONE.md: synthetic phrasing simplified ("Suckless-cleanup pass"
+  -> "Timeline simplification", "Status pillar honesty" -> "Sync pill
+  reflects real state", "(Nth pass)" suffixes dropped). Subsection
+  titles quoted by test files were kept byte-identical.
+- lib/src/settings/settings_controller.dart: replaced the Flutter
+  architecture-sample class doc with a description of this controller.
 
 26. Forbidden typography sweep and comment hygiene
 
