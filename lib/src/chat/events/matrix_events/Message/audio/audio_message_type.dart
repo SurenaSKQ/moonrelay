@@ -67,7 +67,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     // [ValueNotifier]s so the leaf widgets (slider, play/pause
     // icon) rebuild via [ValueListenableBuilder] instead of forcing
     // a full widget-tree rebuild. The previous implementation called
-    // `setState` from three separate stream listeners — for a
+    // `setState` from three separate stream listeners: for a
     // position that ticks at ~10 Hz during playback that produced
     // 10 setState calls per second per audio message.
     _player.positionStream.listen((p) => _position.value = p);
@@ -161,7 +161,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
         ..writeAsBytesSync(_bytes!);
       await _player.setFilePath(tmp.path);
     } on Object catch (e, st) {
-      // Don't crash the chat — log and surface the failure.
+      // Don't crash the chat; log and surface the failure.
       FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
       if (mounted) setState(() => _lastError = e);
       rethrow;
@@ -209,7 +209,7 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
       );
     } on Object catch (e, st) {
       FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
-      // User dismissal is not an error — only report real failures.
+      // User dismissal is not an error; only report real failures.
       if (kDebugMode) {
         // ignore: avoid_print
         print('Audio save failed: $e');

@@ -49,7 +49,7 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
   void initState() {
     super.initState();
     final motion = Motion.of(context);
-    // Use a slow pulse  the user is waiting for new events so the
+    // Use a slow pulse: the user is waiting for new events so the
     // animation needs to convey "working" without flickering.
     _controller = AnimationController(
       vsync: this,

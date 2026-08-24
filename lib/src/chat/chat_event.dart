@@ -299,7 +299,7 @@ class _MessageEventHandlerState extends State<MessageEventHandler> {
     final event = widget.event;
     final room = widget.room;
     final timeline = widget.timeline;
-    // Failed decryption  show the decryption-failed placeholder
+    // Failed decryption: show the decryption-failed placeholder
     // with a manual key-request button.
     if (event.type == EventTypes.Encrypted) {
       return DecryptionFailedWidget(
@@ -567,7 +567,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
 
   /// Memoized future for the missing-event fetch. Without this the
   /// build method would create a new `getEventById` future on every
-  /// parent rebuild — a sync tick while the preview is mounted would
+  /// parent rebuild: a sync tick while the preview is mounted would
   /// re-issue the network call, leak the in-flight future, and
   /// flicker the placeholder.
   Future<Event?>? _pendingFetch;
@@ -585,7 +585,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
       collapseThreshold =
           context.read<SettingsController>().replyPreviewThreshold;
     } catch (_) {
-      // No controller in tree  fall back to the static default.
+      // No controller in tree: fall back to the static default.
     }
     if (widget.repliedTo != null) {
       return _buildForBody(context, widget.repliedTo!.body, collapseThreshold);
@@ -657,7 +657,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
           constraints: BoxConstraints(
             minHeight: 20,
             // Cap the bar at a short height so very long quoted text
-            // doesn't push the rest of the chat down  the toggle
+            // doesn't push the rest of the chat down; the toggle
             // affordance below it gives the user a way to read the
             // full body when they actually want to.
             maxHeight: _expanded ? double.infinity : 40,

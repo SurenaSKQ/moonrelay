@@ -41,7 +41,7 @@ class TypingIndicator extends StatefulWidget {
 class _TypingIndicatorState extends State<TypingIndicator> {
   /// Bound to [SyncPulse] (debounced 350 ms fan-out) instead of
   /// subscribing to [Client.onSync] directly. Typing notifications
-  /// don't need every raw sync tick — a debounced pulse is plenty
+  /// don't need every raw sync tick; a debounced pulse is plenty
   /// and saves us one raw stream subscription per typing indicator
   /// instance.
   VoidCallback? _pulseListener;
@@ -194,7 +194,7 @@ class TypingNotifier {
 
   /// Notifies the homeserver that the user is typing, restarting the
   /// auto-stop timer. Safe to call on every keystroke. No-op when the
-  /// client is not logged in (no `userID`)  callers in widget tests
+  /// client is not logged in (no `userID`); callers in widget tests
   /// and pre-login flows depend on this guard.
   void notify() {
     final userId = _room.client.userID;
