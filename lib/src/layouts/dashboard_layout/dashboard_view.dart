@@ -79,7 +79,7 @@ class DashboardView extends StatelessWidget {
       return CompactDashboard(width: width, child: child);
     }
 
-    // -- Wide shell  full multi-pane layout -----------------------
+    // -- Wide shell: full multi-pane layout -----------------------
     final showLeft = settings.leftSidebarVisible;
     final showRight = settings.rightSidebarVisible && !shouldUseCompact;
     final sidebarWidth =

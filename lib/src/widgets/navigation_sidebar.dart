@@ -811,7 +811,7 @@ class _SpaceAvatar extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Drag-and-drop helpers  ported unchanged from the navigation rail
+// Drag-and-drop helpers: ported unchanged from the navigation rail
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _DraggableIcon extends StatelessWidget {
@@ -922,7 +922,7 @@ class _DFeedback extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Context menu  long-press / right-click opens the menu; the row itself
+// Context menu: long-press / right-click opens the menu; the row itself
 // owns the plain tap (see [_SpaceRow]).
 // ═══════════════════════════════════════════════════════════════════════════
 

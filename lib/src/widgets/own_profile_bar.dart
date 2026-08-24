@@ -19,8 +19,8 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
-/// A compact bar showing the user's own profile  avatar, display name,
-/// and Matrix ID  intended for the bottom of the sidebar pane.
+/// A compact bar showing the user's own profile: avatar, display name,
+/// and Matrix ID: intended for the bottom of the sidebar pane.
 ///
 /// Loads the profile once on creation and caches the result so that
 /// ancestor rebuilds do not trigger repeated network requests.

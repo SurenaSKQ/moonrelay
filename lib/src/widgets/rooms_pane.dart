@@ -93,7 +93,7 @@ class _RoomsPaneState extends State<RoomsPane> {
 
   /// Holds the latest filtered rooms. Updated via the shared [SyncPulse]
   /// (a single debounced fan-out for the whole app) so multiple panes
-  /// don't all subscribe to `client.onSync.stream` and produce 3–5
+  /// don't all subscribe to `client.onSync.stream` and produce 3-5
   /// rebuilds per tick.
   List<Room>? _filteredRooms;
   int _lastFilteredVersion = -1;
@@ -179,7 +179,7 @@ class _RoomsPaneState extends State<RoomsPane> {
 
   @override
   Widget build(BuildContext context) {
-    // Read the client without subscribing — we already drive our own
+    // Read the client without subscribing: we already drive our own
     // rebuilds via the shared [SyncPulse] (debounced 350 ms by the
     // app-wide fan-out). Subscribing here would cause every Client
     // notification (every sync tick, every key verification event,
@@ -366,7 +366,7 @@ class _RoomAvatar extends StatelessWidget {
         children: [
           // The avatar fills the available area.
           Positioned.fill(child: _buildAvatar()),
-          // Unread dot – bottom-right, partially overlaps the avatar edge.
+          // Unread dot: bottom-right, partially overlaps the avatar edge.
           if (room.hasNewMessages)
             Positioned(
               right: 0,
@@ -441,7 +441,7 @@ class _RoomAvatar extends StatelessWidget {
   /// Splits on whitespace and takes the first character of the first
   /// two non-empty parts.  `String.characters.firstOrNull` is used so
   /// the function is safe with empty parts and multi-byte Unicode
-  /// (e.g. Persian, CJK) displaynames  a direct `s[0]` would throw
+  /// (e.g. Persian, (CJK) displaynames; a direct `s[0]` would throw
   /// on an empty split or split grapheme boundaries mid-codepoint.
   String _initialsForDisplayname(String displayname) {
     final parts = displayname
@@ -489,7 +489,7 @@ class _RoomUnreadBadges extends StatelessWidget {
       );
     }
     if (notificationCount > 0) {
-      // Plain unread (no @-mention)  softer accent so it doesn't
+      // Plain unread (no 22mention): softer accent so it doesn't
       // compete with highlights when both could be present.
       return _Badge(
         count: notificationCount,
