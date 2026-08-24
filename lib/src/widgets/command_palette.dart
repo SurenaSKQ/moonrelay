@@ -534,7 +534,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   /// In the `?` (search) mode we fire **every** category that still
   /// has more results in parallel.  The previous implementation
   /// picked a single category per scroll-tick and walked the
-  /// priority list (messages → homeserver → rooms) which meant
+  /// priority list (messages -> homeserver -> rooms) which meant
   /// hundreds of pixels of scroll were needed to drain each
   /// category in turn.  Firing them in parallel keeps the result
   /// list "topped up" smoothly without one slow endpoint blocking

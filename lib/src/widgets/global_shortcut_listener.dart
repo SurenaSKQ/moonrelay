@@ -18,10 +18,10 @@
 //
 // Mount this widget above the dashboard so the following shortcuts fire
 // from anywhere in the room page tree:
-//   - `Ctrl+Shift+P` → command palette (also reachable via the 
+//   - `Ctrl+Shift+P`: command palette (also reachable via the 
 //                      button; there is no separate "search overlay"
 //                      any more; the palette absorbs every search mode)
-//   - `Ctrl+Shift+?` → keyboard shortcuts cheat sheet
+//   - `Ctrl+Shift+?`: keyboard shortcuts cheat sheet
 //
 // Shortcuts are swallowed when a text field has focus so users can still
 // type the letters without triggering the overlay.

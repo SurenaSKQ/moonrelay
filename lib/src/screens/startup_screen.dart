@@ -325,7 +325,7 @@ class StartupScreen extends StatelessWidget {
       if (accountManager.isLoggedIn) {
         context.go('/main/rooms');
       } else {
-        // Session was lost (e.g. DB wipe) → prompt re-login.
+        // Session was lost (e.g. DB wipe), so prompt re-login.
         context.go('/welcome/login', extra: {
           'homeserver': account.homeserver,
           'username': account.userId,

@@ -47,7 +47,7 @@ class DatabaseService {
 
     if (storedVersion == null || storedVersion != schemaVersion) {
       log.i(
-        'Database schema version changed ($storedVersion → $schemaVersion); '
+        'Database schema version changed ( -> ); '
         'wiping $dbName',
       );
       if (await File(dbPath).exists()) {

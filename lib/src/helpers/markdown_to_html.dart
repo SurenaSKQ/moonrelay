@@ -22,17 +22,17 @@ import 'package:flutter/foundation.dart';
 /// supports and is _not_ a full Markdown parser.
 ///
 /// Supported syntax:
-/// - `**bold**` → `<b>bold</b>`
-/// - `*italic*` → `<i>italic</i>`
-/// - `~~strikethrough~~` → `<s>strikethrough</s>`
-/// - `` `inline code` `` → `<code>inline code</code>`
-/// - `` ```code block``` `` → `<pre>code block</pre>`
-/// - `> quote` → `<blockquote><p>quote</p></blockquote>`
-/// - `# heading` → `<h1>heading</h1>` (up to `######`)
-/// - `[text](url)` → `<a href="url">text</a>`
-/// - `- item` → `<ul><li>item</li></ul>`
-/// - `1. item` → `<ol><li>item</li></ol>`
-/// - Newlines → `<br>`
+/// - `**bold**` -> `<b>bold</b>`
+/// - `*italic*` -> `<i>italic</i>`
+/// - `~~strikethrough~~` -> `<s>strikethrough</s>`
+/// - `` `inline code` `` -> `<code>inline code</code>`
+/// - `` ```code block``` `` -> `<pre>code block</pre>`
+/// - `> quote` -> `<blockquote><p>quote</p></blockquote>`
+/// - `# heading` -> `<h1>heading</h1>` (up to `######`)
+/// - `[text](url)` -> `<a href="url">text</a>`
+/// - `- item` -> `<ul><li>item</li></ul>`
+/// - `1. item` -> `<ol><li>item</li></ol>`
+/// - Newlines -> `<br>`
 class MarkdownToHtml {
   /// Converts [markdown] to a Matrix-compatible HTML string.
   ///

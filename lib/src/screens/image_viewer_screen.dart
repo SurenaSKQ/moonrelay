@@ -111,7 +111,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
 
   void _scheduleChromeHide() {
     // Always drive the chrome back to fully visible first.  If the user
-    // taps while the controller is mid-reverse (animating from 1 → 0) the
+    // taps while the controller is mid-reverse (animating from 1 to 0) the
     // forward call from a stale tick could be in flight; calling
     // [AnimationController.stop] cancels any active animation so the
     // forward we issue immediately after starts from the controller's
@@ -255,7 +255,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
           // a tap detector; a raw pointer listener sees every event
           // regardless of arena outcome, so taps on the photo reliably
           // toggle the chrome.  A nested [GestureDetector] still
-          // participates in the arena for long-press → save, which
+          // participates in the arena for long-press -> save, which
           // does not conflict with [InteractiveViewer]'s pan/zoom.
           Positioned.fill(
             child: Listener(

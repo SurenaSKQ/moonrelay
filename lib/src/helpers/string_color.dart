@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 /// Generates Color from a string.
 extension StringColor on String {
-  /// Bounded LRU cache of `(string, lightness) → color` lookups.
+  /// Bounded LRU cache of `(string, lightness) -> color` lookups.
   ///
   /// The cache used to be unbounded, which leaked memory across very long
   /// sessions in rooms with thousands of unique senders.  The LRU keeps

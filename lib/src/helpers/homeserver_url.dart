@@ -44,7 +44,7 @@ bool isPlausibleHomeserverUrl(Uri uri) {
   // Refuse loopback destinations: no real homeserver runs there and a
   // user typing `localhost` is almost always going to land on their
   // own machine.  `Uri.host` returns IPv6 addresses without the
-  // surrounding brackets (e.g. `[::1]` → `::1`), so we match on both.
+  // surrounding brackets (e.g. `[::1]` -> `::1`), so we match on both.
   if (lower == 'localhost' ||
       lower == 'localhost.localdomain' ||
       lower.startsWith('127.') ||
