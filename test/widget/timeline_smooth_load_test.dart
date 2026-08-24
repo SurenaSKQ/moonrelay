@@ -85,7 +85,7 @@ void main() {
         matching: find.byType(Opacity),
       );
       // Each skeleton body element (avatar circle + three bars) is
-      // wrapped in an AnimatedBuilder → Opacity, giving four
+      // wrapped in an AnimatedBuilder -> Opacity, giving four
       // containers per tile.  With one tile, expect at least 4.
       expect(opacity.evaluate().length, lessThanOrEqualTo(8));
       expect(opacity.evaluate().length, greaterThanOrEqualTo(4));

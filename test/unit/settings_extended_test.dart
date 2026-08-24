@@ -238,13 +238,13 @@ void main() {
     test('clamps font size, bubble radius, and window size', () async {
       final controller = SettingsController(SettingsService());
       await controller.loadSettings();
-      await controller.updateFontSize(100); // > 28 → clamped to 28
+      await controller.updateFontSize(100); // > 28 -> clamped to 28
       expect(controller.fontSize, 28.0);
-      await controller.updateBubbleRadius(-10); // < 0 → clamped to 0
+      await controller.updateBubbleRadius(-10); // < 0 -> clamped to 0
       expect(controller.bubbleRadius, 0.0);
-      await controller.updateWindowMinWidth(99999); // > 2000 → clamped
+      await controller.updateWindowMinWidth(99999); // > 2000 -> clamped
       expect(controller.windowMinWidth, 2000.0);
-      await controller.updateWindowMinHeight(0); // < 400 → clamped
+      await controller.updateWindowMinHeight(0); // < 400 -> clamped
       expect(controller.windowMinHeight, 400.0);
     });
 
