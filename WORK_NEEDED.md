@@ -118,7 +118,7 @@ warnings are server-data artifacts (device ID reuse / malformed keys),
 
 Several user-facing strings are still hardcoded English instead of living
 in app_en.arb/app_fa.arb and routing through l10n. Not touched in the
-status-pill/density pass:
+status-pill/density round:
 
 - lib/src/helpers/room_delegate.dart:158,165  ("Still waiting for the
   server…", "Retry" in the sync-waiting fallback).
@@ -263,7 +263,7 @@ The following previously-tracked room-management items have shipped:
   pill next to the sender name.
 
 
-3. Features shipped (July 2026 audit pass)
+3. Features shipped (July 2026 review)
 
 3.1 Messaging and chat
 

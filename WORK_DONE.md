@@ -20,27 +20,26 @@ WORK_DONE
 Closed-work ledger for Moonrelay. This file is a running log of things that
 have shipped or been fixed, newest first.
 
-Recent entries cover the July 2026 audit pass; the August 2026
-performance/memory follow-up; the media widget polish and UX fix-up passes;
+Recent entries cover the July 2026 code review; the August 2026
+performance/memory follow-up; the media widget and UX fix-up rounds;
 the chat-timeline scroll-performance and scroll-velocity work; the hoverbar
 rearchitecture; the responsive-layout shell rework with its shell-flip
-navigation leak fix; the August 2026 bug-fix pass (24 fixes from the
-full-codebase audit); the SSO loopback-host regression fix; the timeline
+navigation leak fix; an August 2026 bug-fix batch (24 fixes from a
+full-codebase review); the SSO loopback-host regression fix; the timeline
 scroll-position null-deref crash fix; the August 2026 timeline dead-code
-and duplication removal plus the Suckless-cleanup pass; the jump-to-unread
-FAB survival and target-selection/scroll-execution fixes; the status-pill
-honesty fix with removal of dead appearance-settings wiring; the
-blank-content error guidance pass; the dashboard UI refresh (OS window
-decorations by default, optional slim in-app header, unified navigation
-sidebar); the collapsible sidebar sections follow-up; the space-selection
-fix; the skins refactor with the ArchVista GTK theme skin; the
-accent-color/theme decoupling with Vista widget-style emulation; the
-theming overhaul Phases 1-6 (design tokens, component tokens, theme
-extension upgrade, widget-style expansion, _buildThemeData rewrite,
-inline-styling refactor across all widget categories); Phase 7
+and duplication removal plus a timeline simplification round; the
+jump-to-unread FAB survival and target-selection/scroll-execution fixes;
+a correction to the sync status pill plus removal of dead
+appearance-settings wiring; blank-content error guidance; the dashboard
+UI refresh (OS window decorations by default, optional slim in-app
+header, unified navigation sidebar); the collapsible sidebar sections
+follow-up; the space-selection fix; the skins refactor with the ArchVista
+GTK theme skin; the accent-color/theme decoupling with Vista widget-style
+emulation; the theming overhaul Phases 1-6 (design tokens, component
+tokens, theme extension upgrade, widget-style expansion, _buildThemeData
+rewrite, inline-styling refactor across all widget categories); Phase 7
 (shipping three new themes: Moonrelay signature, Minimal flat, and Organic
-soft-rounded); and the forbidden-typography sweep with the comment
-hygiene pass.
+soft-rounded); and the forbidden-typography and comment-hygiene cleanup.
 
 Known-fail tests: 0 [<---- Update this if a test is known as broken ---->]
 
@@ -51,7 +50,7 @@ analyze 0 issues.
 
 26. Forbidden typography sweep and comment hygiene
 
-An audit for LLM-style residue found the earlier em-dash cleanups
+A review for LLM-style residue found the earlier em-dash cleanups
 (b5ed172, d7709ed, f255079) had swept test/, tools/, and the markdown
 docs but never lib/. lib/ still held about 30 em dashes, a dozen en
 dashes, and 16 invisible non-breaking hyphens (U+2010/U+2011), some of
@@ -224,7 +223,7 @@ Tests added:
   an action, ProfileDelegate null/malformed/valid id paths, RoomDelegate
   null id and not-joined-to-preview-screen handoff.
 
-21. Status pillar honesty and dead appearance settings
+21. Sync pill reflects real state; drop dead appearance settings
 
 Two UX gaps where the UI either lied or ignored the user's controls.
 
@@ -282,7 +281,7 @@ Dead duplicate files deleted:
 - `lib/src/chat/history_pagination.dart` was never imported or referenced
   anywhere in the codebase. It was a near-verbatim duplicate of the
   active `lib/src/chat/history_pager.dart` (same `_shouldDrainStateEvents`,
-  same constants). Deleted. The WORK_NEEDED audit had already flagged
+  same constants). Deleted. WORK_NEEDED had already flagged
   this as a refactor candidate.
 
 - `lib/src/chat/read_marker_coordinator.dart` was never imported or
@@ -370,7 +369,7 @@ Dead-count and message-like helper consolidation
 
 1. Desktop-service hardening
 
-Items from the July audit that touched the desktop platform services.
+Items from the July review that touched the desktop platform services.
 
 1. NotificationService used to swallow plugin init failures. _initPlugin
    now returns a bool, an isAvailable flag is exposed, and the service
@@ -452,7 +451,7 @@ Items from the July audit that touched the desktop platform services.
 
 2. Chat timeline, encryption, settings, login, search
 
-A grab bag of fixes that came out of the July audit and the original
+A grab bag of fixes that came out of the July review and the original
 WORK_NEEDED backlog. Each entry is short on purpose.
 
 - Reply sending was dropping markdown formatting. chat_box.dart:_send now
@@ -700,7 +699,7 @@ dedup, and SyncPulse coalescing. See test/unit/.
 
 4. Cross-cutting improvements
 
-Quick list of the broader refactors that landed alongside the audit items.
+Quick list of the broader refactors that landed alongside the review items.
 
 - Provider wiring - Provider<RoomStateBus> and ChangeNotifierProvider<SyncPulse>
   injected by MoonrelayApp; rebinds on AccountManager account switch. See
@@ -784,7 +783,7 @@ test/widget/message_action_runner_test.dart, login_page_test.dart,
 delivery_indicator_test.dart, encryption_badge_test.dart.
 
 
-6. Media widget polish (July 2026 - second pass)
+6. Media widget polish (July 2026 follow-up)
 
 Follow-up to section 3 P0/P1 work. Two sub-batches: a visual overhaul of
 the image and video bubbles plus an in-app image viewer, and a robustness
@@ -933,7 +932,7 @@ errors.
     implementations. See lib/src/localization/.
 
 
-7. UX fixes - image viewer, compact mode, timeline, overlays (August 2026 - third pass)
+7. UX fixes - image viewer, compact mode, timeline, overlays (August 2026)
 
 Targeted follow-up on four long-standing UX bugs. Tests at head: flutter
 test 441 green, flutter analyze 0 errors. Pre-existing
@@ -1114,9 +1113,9 @@ unchanged.
 Tests at head: flutter test 486 green; flutter analyze
 reports 0 issues. Known-fail tests: 0.
 
-9. Image / video / sticker widget audit (issue 7)
+9. Image / video / sticker widget review (issue 7)
 
-Audit pass on the four media-bubble widgets. Three real defects
+Review of the four media-bubble widgets. Three real defects
 fixed; one comment-only misdirection corrected; the
 chat-page layout race is closed off on the remaining
 `Tooltip` (see issue 6) so hover affordances no longer
@@ -1177,7 +1176,7 @@ deprecations remain).
 
 10. Chat-timeline race / single-flight / stopwatch /
     cache-invalidation / LRU / shutdown ordering / CAS
-    consolidation (August 2026 - fourth pass)
+    consolidation (August 2026)
 
 Closed the architecture audit follow-up. The remaining
 race-prone, cancellation-discipline, and listener-proliferation
@@ -1331,9 +1330,9 @@ Test accessors
 Tests at head: flutter test 478 green; flutter analyze
 0 errors, 0 warnings, 0 info-level notes (clean).
 
-11. Lint hygiene sweep (August 2026 - fourth pass)
+11. Lint hygiene sweep (August 2026)
 
-Final code-hygiene pass to clean the remaining info-level
+Final cleanup of the remaining info-level
 notes that flutter analyze had been carrying.
 
 - `lib/src/screens/hub_screen/settings/layout_settings.dart`:
@@ -1475,7 +1474,7 @@ Behaviour preserved
   so no test source had to change.
 
 
-13. Chat-timeline scroll-performance pass
+13. Chat-timeline scroll performance
 
 User reported that fast scrolling through the chat timeline
 felt sluggish and laggy. Root cause was that every parent
@@ -1608,7 +1607,7 @@ pre-existing `_ItemAppearance({super.key, ...})` unused
 this change.
 
 
-14. Chat-timeline scroll-velocity second pass
+14. Chat-timeline scroll velocity, round two
 
 Follow-up to section 13. Targeted at the per-frame work
 on the hot scrolling path: list-view virtualization, the
@@ -2027,7 +2026,7 @@ race on the shared temp database); they are unrelated to the hang fix.
 
 
 
-18. Bug-fix pass (24 fixes from the full-codebase audit)
+18. Bug-fix batch (24 fixes from a full-codebase review)
 
 A dedicated bug-fix pass over the whole codebase, one commit per fix.
 Every fix landed with a "Fix ..." / "Stop ..." style commit and the
@@ -2239,7 +2238,7 @@ Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
 
 Tests at head: flutter analyze 0 issues. flutter test unit + widget all green.
 
-26. Timeline Suckless-cleanup pass
+26. Timeline simplification
 
 The chat timeline was carrying several layers of indirection that the
 Suckless philosophy (do one thing, do it well, no dead weight) flagged as
