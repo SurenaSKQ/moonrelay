@@ -104,7 +104,7 @@ void main() {
 
   group('LayoutBreakpoints.clampSidebarWidth', () {
     test('returns requested width when it fits in the viewport', () {
-      // viewport=800, sidebar=400, main=300, other=0 → 400 fits.
+      // viewport=800, sidebar=400, main=300, other=0 -> 400 fits.
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 400,
         viewportWidth: 800,
@@ -148,7 +148,7 @@ void main() {
     });
 
     test('accounts for other panes when computing available space', () {
-      // viewport=700, sidebar=300, main=200, other=200 → 300 fits.
+      // viewport=700, sidebar=300, main=200, other=200 -> 300 fits.
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 300,
         viewportWidth: 700,

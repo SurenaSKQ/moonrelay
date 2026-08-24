@@ -22,7 +22,7 @@ import 'package:moonrelay/src/helpers/log_service.dart';
 /// These tests pin the redaction ruleset so a future refactor of
 /// `_RedactingLogOutput` cannot silently drop a class of secrets from
 /// the on-disk log stream.  Every rule gets at least one positive case
-/// (sensitive value present → sanitised) and at least one negative case
+/// (sensitive value present -> sanitised) and at least one negative case
 /// (plaintext preserved).
 void main() {
   group('redactString', () {

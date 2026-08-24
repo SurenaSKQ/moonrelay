@@ -87,7 +87,7 @@ test/
 ### Init pipeline (`main.dart`)
 
 ```
-main() → MoonrelayBootstrap → _boot()
+main() -> MoonrelayBootstrap -> _boot()
   1. initializeLog()  LogService
   2. _initialize()  heavy init:
      a. Vodozemac native crypto init
@@ -114,10 +114,10 @@ Key: `kDbSchemaVersion` constant controls DB wipe. Bump on every release during 
 ### Routing (`go_router`)
 
 ShellRoutes create nested layouts:
-- `/welcome` → `StartscreenFrame > StartupHomeFrame > StartupScreen/Login/Register`
-- `/main/rooms` → `AppFrame > DashboardLayout > RoomDelegate/RoomPage`
-- `/main/rooms/:roomid` → selected room with optional `/profile/:userid` and `/roomDetails` sub-routes
-- `/hub` → settings/logs/licenses/profile hub
+- `/welcome` -> `StartscreenFrame > StartupHomeFrame > StartupScreen/Login/Register`
+- `/main/rooms` -> `AppFrame > DashboardLayout > RoomDelegate/RoomPage`
+- `/main/rooms/:roomid` -> selected room with optional `/profile/:userid` and `/roomDetails` sub-routes
+- `/hub` -> settings/logs/licenses/profile hub
 
 Redirect guards: `loggedInRedirect` and `loggedOutRedirect` read `Provider.of<Client>`.
 
@@ -263,7 +263,7 @@ E2E tests live in `integration_test/` and use the `integration_test` package. Th
 - `integration_test/helpers/mock_matrix_http_client.dart`  stateful mock that holds room data and builds sync responses
 - `integration_test/helpers/test_app_boot.dart`  `buildTestApp(mockHttp:)` performs a minimal boot (native crypto + SQLite + mock Client) and returns a provider-wrapped widget tree
 
-**Sync loop note:** The Matrix SDK runs a periodic sync timer. Use `tester.pump()` (not `pumpAndSettle()`) to advance the fake clock without blocking on the active timer. Multiple pumps flush the async login → sync → navigation chain.
+**Sync loop note:** The Matrix SDK runs a periodic sync timer. Use `tester.pump()` (not `pumpAndSettle()`) to advance the fake clock without blocking on the active timer. Multiple pumps flush the async login -> sync -> navigation chain.
 
 ```dart
 IntegrationTestWidgetsFlutterBinding.ensureInitialized();

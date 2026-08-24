@@ -141,7 +141,7 @@ void main() {
         await tester.enterText(find.byType(TextField), '**bold reply**');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
-        // The Markdown→HTML conversion now runs through
+        // The Markdown-to-HTML conversion now runs through
         // [MarkdownToHtml.convertAsync] which dispatches to a
         // background isolate.  `runAsync` gives the test enough real
         // wall-clock time to let the isolate complete and the

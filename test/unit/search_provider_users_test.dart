@@ -54,7 +54,7 @@ void main() {
           limit: 10,
         );
         expect(page.items, isEmpty,
-            reason: 'no fetchUsersPage call yet → empty page');
+            reason: 'no fetchUsersPage call yet -> empty page');
       },
     );
 

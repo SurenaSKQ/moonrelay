@@ -158,8 +158,8 @@ void main() {
 
       // -- Tap "Log Out" button --
       await tester.tap(find.text('Log Out'));
-      // Flush the async logout chain: overlay dismiss → accountManager.logout()
-      // → client.logout() POST → context.go('/')
+      // Flush the async logout chain: overlay dismiss -> accountManager.logout()
+      // -> client.logout() POST -> context.go('/')
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
