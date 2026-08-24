@@ -63,7 +63,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     super.dispose();
   }
 
-  /// Initial load  shows progress.
+  /// Initial load: shows progress.
   Future<void> _loadData() async {
     try {
       final profile =
@@ -76,7 +76,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
           widget.client.userID!,
         );
       } catch (_) {
-        // Presence not available  that's fine.
+        // Presence not available; that's fine.
       }
       if (!mounted) return;
       setState(() {
@@ -90,7 +90,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     }
   }
 
-  /// Silent refresh  updates the cached data without chasing into a
+  /// Silent refresh: updates the cached data without chasing into a
   /// loading state, so the UI stays stable.
   Future<void> _silentRefresh() async {
     try {
@@ -110,7 +110,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
         _presence = presence;
       });
     } catch (_) {
-      // Swallow  keep showing stale data rather than flashing.
+      // Swallow; keep showing stale data rather than flashing.
     }
   }
 

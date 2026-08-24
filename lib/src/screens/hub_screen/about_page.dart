@@ -234,7 +234,7 @@ class HubAboutPage extends StatelessWidget {
       return;
     }
 
-    // Not joined  try to join first, then navigate.
+    // Not joined; try to join first, then navigate.
     try {
       await client.joinRoom(spaceId);
       if (!context.mounted) return;

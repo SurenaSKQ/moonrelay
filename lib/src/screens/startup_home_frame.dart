@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 /// Provides a clean, theme-aware surface with a subtle gradient and
 /// backdrop blur behind the startup, login, and registration pages.
 /// Each child page supplies its own card-based layout, so this frame
-/// is intentionally minimal  just a background that respects the
+/// is intentionally minimal: just a background that respects the
 /// current light/dark theme.
 class StartupHomeFrame extends StatelessWidget {
   const StartupHomeFrame({super.key, required this.child});

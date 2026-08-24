@@ -26,7 +26,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Update settings page  manual check + startup preference
+// Update settings page: manual check + startup preference
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HubUpdateSettings extends StatelessWidget {

@@ -33,8 +33,8 @@ import 'package:provider/provider.dart';
 /// A full-featured profile view for any Matrix user.
 ///
 /// When [room] is provided the page also shows room-specific information
-/// (membership, power level) and – if the logged‑in user has sufficient
-/// privileges – moderation actions (kick, ban, change power level, invite).
+/// (membership, power level) and, if the logged-in user has sufficient
+/// privileges, moderation actions (kick, ban, change power level, invite).
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
@@ -1399,7 +1399,7 @@ class _ActionsSection extends StatelessWidget {
 /// [showHubOverlay] but with a plain dim background instead of blur so the
 /// chat remains visible underneath.
 ///
-/// The overlay is independent of the room route  it does not push onto
+/// The overlay is independent of the room route; it does not push onto
 /// GoRouter's stack.  When [room] is provided the profile renders room-
 /// scoped moderation actions (kick/ban/power level).
 ///
@@ -1412,7 +1412,7 @@ Future<void> showProfileOverlay(
   Room? room,
 }) async {
   final client = context.read<Client>();
-  // Validate the userid shape before opening  Matrix IDs look like
+  // Validate the userid shape before opening: Matrix IDs look like
   // `@localpart:domain` and anything else is a programming error or a
   // mis-parsed URI.
   if (!RegExp(r'^@.+:.+$').hasMatch(userId)) {
@@ -1422,7 +1422,7 @@ Future<void> showProfileOverlay(
     return;
   }
   // Avoid opening a second overlay on top of an existing one for the
-  // same user  prevents stacking if the caller fires from multiple
+  // same user; prevents stacking if the caller fires from multiple
   // gestures in quick succession.
   final navigator = Navigator.of(context, rootNavigator: true);
   await navigator.push(
