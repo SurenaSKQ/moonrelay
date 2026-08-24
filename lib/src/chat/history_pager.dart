@@ -159,7 +159,7 @@ class HistoryPager {
       return;
     }
 
-    // User scrolled away from the top  drop the skeleton flag if it
+    // User scrolled away from the top; drop the skeleton flag if it
     // was showing so the placeholder doesn't linger.
     if (_state != HistoryFillState.idle) {
       _transition(HistoryFillState.idle);

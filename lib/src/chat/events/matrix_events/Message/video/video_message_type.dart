@@ -168,12 +168,12 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     }
     final ratio = w / h;
     if (h >= w) {
-      // Portrait — clamp height, follow width.
+      // Portrait: clamp height, follow width.
       final height = maxHeight;
       final width = (height * ratio).clamp(120.0, maxWidth);
       return Size(width, height);
     }
-    // Landscape — clamp width, follow height.
+    // Landscape: clamp width, follow height.
     final width = maxWidth;
     final height = (width / ratio).clamp(120.0, maxHeight);
     return Size(width, height);
@@ -343,7 +343,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     final playerSize = _playerSize(prefs.videoMax);
 
     // The video bubble hugs the player + metadata row. No full-row
-    // background — both panels have their own subtle fills so the
+    // background: both panels have their own subtle fills so the
     // bubble reads as a unit only when the player itself is being
     // rendered.  The outer `Align` keeps the bubble glued to the left
     // edge so the chat doesn't get an oversized video card centred in
@@ -559,7 +559,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
     if (c != null && c.value.isInitialized) {
       // Subscribe only to the controller's ValueListenable so a frame
-      // tick only re-paints the surface — the metadata row stays put.
+      // tick only re-paints the surface: the metadata row stays put.
       // Without ValueListenableBuilder we'd rebuild the entire Stack
       // (overlays, progress indicator, fullscreen button) at 60Hz.
       return _InitializedPlayer(controller: c, l10n: l10n);
@@ -571,7 +571,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Widget _buildErrorPlayer(ColorScheme cs, AppLocalizations l10n) {
     return GestureDetector(
       onTap: () {
-        // Clear the failure flag and kick off a retry — the user
+        // Clear the failure flag and kick off a retry; the user
         // gets one explicit tap instead of an invisible dead button.
         setState(() {
           _controllerFailed = false;
@@ -760,7 +760,7 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
 /// Subtree that paints the [VideoPlayer] once it's initialized.
 /// Wrapped in its own widget so only this subtree rebuilds on each
-/// controller value tick — the surrounding metadata row stays put.
+/// controller value tick: the surrounding metadata row stays put.
 class _InitializedPlayer extends StatelessWidget {
   const _InitializedPlayer({required this.controller, required this.l10n});
 
@@ -784,7 +784,7 @@ class _InitializedPlayer extends StatelessWidget {
                   await controller.play();
                 }
               } catch (_) {
-                // Swallow controller exceptions — they don't affect
+                // Swallow controller exceptions: they don't affect
                 // the visual state meaningfully and the user can
                 // retry by tapping again.
               }
@@ -968,7 +968,7 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer>
         await c.play();
       }
     } catch (_) {
-      // Swallow controller failures — the user can retry with another
+      // Swallow controller failures; the user can retry with another
       // tap.
     }
     if (mounted) _showChrome();

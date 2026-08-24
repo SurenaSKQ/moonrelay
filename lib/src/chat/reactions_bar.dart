@@ -174,7 +174,7 @@ class ReactionsBar extends StatelessWidget {
         try {
           await r.redactEvent();
         } catch (_) {
-          // Silently ignore – the redaction may already be in-flight.
+          // Silently ignore; the redaction may already be in-flight.
         }
       }
     } else {

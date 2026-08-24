@@ -28,7 +28,7 @@ import 'package:provider/provider.dart';
 /// When [event] is provided and the event is a reply (contains
 /// `m.relates_to` / `m.in_reply_to`), the reply-quoted portion of
 /// [textBody] is excluded from URL scanning so that `@user:domain`
-/// mentions inside the replied‑to quote don't trigger preview banners.
+/// mentions inside the replied-to quote don't trigger preview banners.
 ///
 /// If no Matrix URLs are found the [child] is returned unchanged.
 class MatrixUrlBannerWrapper extends StatelessWidget {
@@ -141,7 +141,7 @@ class MatrixUrlBannerWrapper extends StatelessWidget {
     return false;
   }
 
-  /// Strips the reply‑quote prefix from [text] when this event is a reply.
+  /// Strips the reply-quote prefix from [text] when this event is a reply.
   ///
   /// Matrix replies prefix the body with one or more lines starting with
   /// `> ` followed by `\n\n` and the actual message.  Only the actual
