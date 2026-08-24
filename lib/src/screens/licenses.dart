@@ -85,7 +85,7 @@ class _LicensesScreenState extends State<LicensesScreen> {
     _LicenseEntry(
       name: 'BSD 3-Clause License',
       description:
-          'Used by some low‑level Dart packages and platform bindings.',
+          'Used by some low-level Dart packages and platform bindings.',
       packages:
           'flutter_acrylic, system_theme, window_manager, sqflite_common_ffi',
       url: 'https://opensource.org/licenses/BSD-3-Clause',
