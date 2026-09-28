@@ -16,12 +16,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
-import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Regression coverage for the previously-dead appearance settings:
@@ -35,8 +35,7 @@ void main() {
   group('LayoutDensity -> VisualDensity', () {
     test('comfortable maps to standard', () {
       final theme = MoonrelayTheme.light(
-        MoonrelayThemes.defaultTheme,
-        MoonrelayAccents.defaultAccent,
+        MoonrelayAccents.defaultAccent.seedColor,
         density: LayoutDensity.comfortable,
       );
       expect(theme.visualDensity, VisualDensity.standard);
@@ -44,8 +43,7 @@ void main() {
 
     test('compact maps to compact', () {
       final theme = MoonrelayTheme.dark(
-        MoonrelayThemes.defaultTheme,
-        MoonrelayAccents.defaultAccent,
+        MoonrelayAccents.defaultAccent.seedColor,
         density: LayoutDensity.compact,
       );
       expect(theme.visualDensity, VisualDensity.compact);
@@ -53,36 +51,27 @@ void main() {
 
     test('defaults to comfortable when omitted', () {
       final theme = MoonrelayTheme.light(
-        MoonrelayThemes.defaultTheme,
-        MoonrelayAccents.defaultAccent,
+        MoonrelayAccents.defaultAccent.seedColor,
       );
       expect(theme.visualDensity, VisualDensity.standard);
     });
 
-    test('theme corner radius flows into cardTheme', () {
-      final sharp = MoonrelayThemes.highContrast;
+    test('cards use the shared corner radius', () {
       expect(
-        MoonrelayTheme.light(sharp, MoonrelayAccents.defaultAccent)
+        MoonrelayTheme.light(MoonrelayAccents.defaultAccent.seedColor)
             .cardTheme
             .shape,
         isA<RoundedRectangleBorder>().having(
           (s) => s.borderRadius,
           'radius',
-          BorderRadius.circular(sharp.cornerRadius),
+          BorderRadius.circular(MoonrelayDesignTokens.baseCornerRadius),
         ),
       );
     });
 
     test('accent seed drives the color scheme', () {
-      final light = MoonrelayTheme.light(
-        MoonrelayThemes.material,
-        MoonrelayAccents.indigo,
-      );
-      final vista = MoonrelayTheme.light(
-        MoonrelayThemes.material,
-        MoonrelayAccents.vistaBlue,
-      );
-      // Same look, different accent recolors the scheme.
+      final light = MoonrelayTheme.light(MoonrelayAccents.indigo.seedColor);
+      final vista = MoonrelayTheme.light(MoonrelayAccents.vistaBlue.seedColor);
       expect(vista.colorScheme.primary, isNot(light.colorScheme.primary));
     });
   });

@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -54,57 +52,52 @@ class MoonrelayAppTheme extends ChangeNotifier {
 /// Moonrelay's complete theme definition.
 ///
 /// Provides [light] and [dark] [ThemeData] factories that configure Material 3
-/// color schemes, typography, and component styles. The color scheme is seeded
-/// from the active [MoonrelayAccent] while every geometric token (fonts,
-/// density, corner radius, surface elevation, chat-bubble radius) is sourced
-/// from the active [MoonrelayThemeSpec], so swapping either one changes the
-/// whole look: a theme swap redefines the widget shape and layout, while an
-/// accent swap only recolors the existing widgets. The independent
-/// [LayoutDensity], font-family overrides layer on top of the spec's
-/// defaults.
+/// color schemes, typography, and component styles. The color scheme is
+/// seeded from the active accent colour; geometry is fixed by the app's single
+/// token set, so the only user-facing appearance controls are the seed colour,
+/// the [LayoutDensity] and the font-family overrides.
 class MoonrelayTheme {
   MoonrelayTheme._();
 
-  /// Monospace font fallback used when a theme or override does not specify one.
+  /// App font used when no override is persisted.
+  static const String fontFamilyFallback = 'Rubik';
+
+  /// Monospace font fallback used when no override is persisted.
   static const String monoFontFamilyFallback = 'FiraCode';
 
   // -- ThemeData factories ---------------------------------------------
 
-  /// Builds the light [ThemeData] for [spec] + [accent].
+  /// Builds the light [ThemeData] for the given [seed] colour.
   ///
   /// [density], [fontFamily] and [monoFontFamily] are the user's persisted
-  /// overrides; when null the spec's defaults win.
+  /// overrides; when null the built-in defaults win.
   static ThemeData light(
-    MoonrelayThemeSpec spec,
-    MoonrelayAccent accent, {
+    Color seed, {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
   }) =>
       _buildThemeData(
-        spec,
-        accent,
+        seed,
         Brightness.light,
-        density: density ?? spec.defaultDensity,
-        fontFamily: fontFamily ?? spec.defaultFontFamily,
-        monoFontFamily: monoFontFamily ?? spec.defaultMonoFontFamily,
+        density: density ?? LayoutDensity.comfortable,
+        fontFamily: fontFamily ?? fontFamilyFallback,
+        monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
       );
 
-  /// Builds the dark [ThemeData] for [spec] + [accent].
+  /// Builds the dark [ThemeData] for the given [seed] colour.
   static ThemeData dark(
-    MoonrelayThemeSpec spec,
-    MoonrelayAccent accent, {
+    Color seed, {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
   }) =>
       _buildThemeData(
-        spec,
-        accent,
+        seed,
         Brightness.dark,
-        density: density ?? spec.defaultDensity,
-        fontFamily: fontFamily ?? spec.defaultFontFamily,
-        monoFontFamily: monoFontFamily ?? spec.defaultMonoFontFamily,
+        density: density ?? LayoutDensity.comfortable,
+        fontFamily: fontFamily ?? fontFamilyFallback,
+        monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
       );
 
   // -- Internal builder ------------------------------------------------
@@ -118,21 +111,20 @@ class MoonrelayTheme {
   }
 
   static ThemeData _buildThemeData(
-    MoonrelayThemeSpec spec,
-    MoonrelayAccent accent,
+    Color seed,
     Brightness brightness, {
     required LayoutDensity density,
     required String fontFamily,
     required String monoFontFamily,
   }) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: accent.seedColor,
+      seedColor: seed,
       brightness: brightness,
     );
-    final tokens = MoonrelayDesignTokens.fromSpec(spec);
-    final components = MoonrelayComponentTokens.fromDesignTokens(tokens, spec);
+    final tokens = MoonrelayDesignTokens.standard();
+    final components = MoonrelayComponentTokens.fromDesignTokens(tokens);
 
-    ThemeData data = ThemeData(
+    return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       visualDensity: _visualDensity(density),
@@ -171,14 +163,6 @@ class MoonrelayTheme {
         ),
       ],
     );
-
-    // A theme's widget style restyles the geometry (borders, button shape,
-    // scrollbar, ...) on top of the shared tokens. Colours stay the accent's
-    // job, so this only touches component themes, never the color scheme.
-    if (spec.widgetStyle != null) {
-      data = spec.widgetStyle!.mergeInto(data, colorScheme, tokens, components);
-    }
-    return data;
   }
 
   // -- Component theme builders --------------------------------------

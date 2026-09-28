@@ -118,15 +118,13 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
               onGenerateTitle: (context) =>
                   AppLocalizations.of(context)!.appTitle,
               theme: MoonrelayTheme.light(
-                settingsController.selectedTheme,
-                settingsController.selectedAccent,
+                settingsController.selectedAccent.seedColor,
                 density: settingsController.density,
                 fontFamily: settingsController.fontFamily,
                 monoFontFamily: settingsController.monoFontFamily,
               ),
               darkTheme: MoonrelayTheme.dark(
-                settingsController.selectedTheme,
-                settingsController.selectedAccent,
+                settingsController.selectedAccent.seedColor,
                 density: settingsController.density,
                 fontFamily: settingsController.fontFamily,
                 monoFontFamily: settingsController.monoFontFamily,

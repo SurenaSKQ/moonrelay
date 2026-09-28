@@ -19,7 +19,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
-import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,57 +160,6 @@ void main() {
       final service = SettingsService();
       await service.updateSelectedTheme('compact');
       expect(await service.selectedThemeId(), 'compact');
-    });
-  });
-
-  group('ArchVista widget look', () {
-    // Resolves the ElevatedButton shape border so tests stay free of
-    // null-aware chain warnings while still asserting on the geometry.
-    ShapeBorder? buttonShape(ThemeData theme) {
-      final style = theme.elevatedButtonTheme.style;
-      final shape = style?.shape;
-      return shape?.resolve({});
-    }
-
-    test('archVista ships a widget style; material does not', () {
-      expect(MoonrelayThemes.archVista.widgetStyle, isNotNull);
-      expect(MoonrelayThemes.material.widgetStyle, isNull);
-    });
-
-    test('buttons gain a border under the Vista look', () {
-      final mat = MoonrelayTheme.light(
-        MoonrelayThemes.material,
-        MoonrelayAccents.indigo,
-      );
-      final vista = MoonrelayTheme.light(
-        MoonrelayThemes.archVista,
-        MoonrelayAccents.vistaBlue,
-      );
-
-      // Material buttons carry no explicit shape (no border).
-      expect(buttonShape(mat), isNull);
-      // Vista buttons ship a bordered, square-cornered shape.
-      final shape = buttonShape(vista);
-      expect(shape, isA<RoundedRectangleBorder>());
-      expect((shape as RoundedRectangleBorder).side.width, greaterThan(0));
-    });
-
-    test('Vista geometry is independent of the accent', () {
-      final blue = MoonrelayTheme.light(
-        MoonrelayThemes.archVista,
-        MoonrelayAccents.vistaBlue,
-      );
-      final indigo = MoonrelayTheme.light(
-        MoonrelayThemes.archVista,
-        MoonrelayAccents.indigo,
-      );
-
-      final a = (buttonShape(blue) as RoundedRectangleBorder?)?.side.width;
-      final b = (buttonShape(indigo) as RoundedRectangleBorder?)?.side.width;
-      // Same look => same button geometry ...
-      expect(a, equals(b));
-      // ... but different accent color drives the scheme.
-      expect(blue.colorScheme.primary, isNot(indigo.colorScheme.primary));
     });
   });
 }
