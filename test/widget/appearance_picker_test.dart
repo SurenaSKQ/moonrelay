@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

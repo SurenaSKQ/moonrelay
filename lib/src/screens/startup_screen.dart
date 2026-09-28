@@ -25,6 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 

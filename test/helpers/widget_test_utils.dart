@@ -27,6 +27,7 @@ import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/theme.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:provider/provider.dart';
 
