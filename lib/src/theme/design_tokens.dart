@@ -17,13 +17,12 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 
-/// Atomic visual constants derived from a [MoonrelayThemeSpec].
+/// Atomic visual constants for the app's single look.
 ///
 /// Tokens encapsulate every magic number that would otherwise appear inline in
-/// widgets. They are computed once from the active theme spec and distributed
-/// via [MoonrelayThemeExtension] so that any widget can reference
+/// widgets. They are computed once by [MoonrelayDesignTokens.standard] and
+/// distributed via [MoonrelayThemeExtension] so that any widget can reference
 /// `theme.tokens.spaceLg` instead of a bare `16`.
 @immutable
 class MoonrelayDesignTokens {
@@ -72,7 +71,7 @@ class MoonrelayDesignTokens {
     required this.iconSizeLarge,
     // Touch targets
     required this.minTapTarget,
-    // Border radii (derived from spec.cornerRadius)
+    // Border radii (derived from [baseCornerRadius])
     required this.radiusXs,
     required this.radiusSm,
     required this.radiusMd,
@@ -152,12 +151,13 @@ class MoonrelayDesignTokens {
 
   // -- Factory ---------------------------------------------------------
 
-  /// Derives a complete set of tokens from [spec].
-  ///
-  /// Fixed values (spacing, opacity, animation) follow Material 3 defaults.
-  /// Radius tokens are computed relative to [MoonrelayThemeSpec.cornerRadius].
-  factory MoonrelayDesignTokens.fromSpec(MoonrelayThemeSpec spec) {
-    final r = spec.cornerRadius;
+  /// The corner radius every rounded surface is derived from.
+  static const double baseCornerRadius = 12.0;
+
+  /// The one and only token set: Material 3 defaults for spacing, opacity and
+  /// animation, with the radius scale derived from [baseCornerRadius].
+  factory MoonrelayDesignTokens.standard() {
+    final r = baseCornerRadius;
     return MoonrelayDesignTokens(
       // Spacing (8-point grid)
       spaceXxs: 2,
@@ -220,7 +220,7 @@ class MoonrelayDesignTokens {
       // Touch targets
       minTapTarget: 48,
 
-      // Border radii (derived from spec cornerRadius)
+      // Border radii (derived from the base corner radius)
       radiusXs: (r - 8).clamp(0.0, r),
       radiusSm: (r - 4).clamp(0.0, r),
       radiusMd: r,

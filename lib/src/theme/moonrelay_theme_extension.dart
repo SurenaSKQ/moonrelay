@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 
@@ -42,12 +41,11 @@ class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
       theme.extension<MoonrelayThemeExtension>() ?? _fallback;
 
   static MoonrelayThemeExtension _buildFallback() {
-    final spec = MoonrelayThemes.material;
-    final tokens = MoonrelayDesignTokens.fromSpec(spec);
+    final tokens = MoonrelayDesignTokens.standard();
     return MoonrelayThemeExtension(
       monoFontFamily: 'FiraCode',
       tokens: tokens,
-      components: MoonrelayComponentTokens.fromDesignTokens(tokens, spec),
+      components: MoonrelayComponentTokens.fromDesignTokens(tokens),
     );
   }
 

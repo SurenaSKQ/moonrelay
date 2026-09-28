@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 
 /// Per-component semantic tokens derived from [MoonrelayDesignTokens].
@@ -59,23 +58,22 @@ class MoonrelayComponentTokens {
   final MoonrelayAvatarTokens avatar;
   final MoonrelayTooltipTokens tooltip;
 
-  /// Derives all component tokens from [tokens] and [spec].
+  /// Derives all component tokens from [tokens].
   factory MoonrelayComponentTokens.fromDesignTokens(
     MoonrelayDesignTokens tokens,
-    MoonrelayThemeSpec spec,
   ) {
     return MoonrelayComponentTokens(
       button: MoonrelayButtonTokens.fromDesignTokens(tokens),
       input: MoonrelayInputTokens.fromDesignTokens(tokens),
-      card: MoonrelayCardTokens.fromDesignTokens(tokens, spec),
+      card: MoonrelayCardTokens.fromDesignTokens(tokens),
       appBar: MoonrelayAppBarTokens.fromDesignTokens(tokens),
       list: MoonrelayListTokens.fromDesignTokens(tokens),
-      dialog: MoonrelayDialogTokens.fromDesignTokens(tokens, spec),
+      dialog: MoonrelayDialogTokens.fromDesignTokens(tokens),
       divider: MoonrelayDividerTokens.fromDesignTokens(tokens),
       chip: MoonrelayChipTokens.fromDesignTokens(tokens),
       badge: MoonrelayBadgeTokens.fromDesignTokens(tokens),
       navigation: MoonrelayNavigationTokens.fromDesignTokens(tokens),
-      chat: MoonrelayChatTokens.fromDesignTokens(tokens, spec),
+      chat: MoonrelayChatTokens.fromDesignTokens(tokens),
       snackBar: MoonrelaySnackBarTokens.fromDesignTokens(tokens),
       progress: MoonrelayProgressTokens.fromDesignTokens(tokens),
       avatar: MoonrelayAvatarTokens.fromDesignTokens(tokens),
@@ -294,12 +292,9 @@ class MoonrelayCardTokens {
   final EdgeInsets padding;
   final EdgeInsets margin;
 
-  factory MoonrelayCardTokens.fromDesignTokens(
-    MoonrelayDesignTokens t,
-    MoonrelayThemeSpec spec,
-  ) {
+  factory MoonrelayCardTokens.fromDesignTokens(MoonrelayDesignTokens t) {
     return MoonrelayCardTokens(
-      elevation: spec.surfaceElevation,
+      elevation: 0,
       cornerRadius: t.radiusMd,
       padding: EdgeInsets.all(t.spaceLg),
       margin: EdgeInsets.symmetric(
@@ -437,12 +432,9 @@ class MoonrelayDialogTokens {
   final EdgeInsets contentPadding;
   final EdgeInsets actionsPadding;
 
-  factory MoonrelayDialogTokens.fromDesignTokens(
-    MoonrelayDesignTokens t,
-    MoonrelayThemeSpec spec,
-  ) {
+  factory MoonrelayDialogTokens.fromDesignTokens(MoonrelayDesignTokens t) {
     return MoonrelayDialogTokens(
-      cornerRadius: spec.cornerRadius,
+      cornerRadius: t.radiusMd,
       titlePadding: EdgeInsets.fromLTRB(
         t.spaceXl,
         t.spaceXl,
@@ -666,12 +658,9 @@ class MoonrelayChatTokens {
   final double reactionRadius;
   final double composerMinHeight;
 
-  factory MoonrelayChatTokens.fromDesignTokens(
-    MoonrelayDesignTokens t,
-    MoonrelayThemeSpec spec,
-  ) {
+  factory MoonrelayChatTokens.fromDesignTokens(MoonrelayDesignTokens t) {
     return MoonrelayChatTokens(
-      bubbleRadius: spec.defaultBubbleRadius,
+      bubbleRadius: MoonrelayDesignTokens.baseCornerRadius,
       avatarSize: t.iconSizeLarge * 1.5,
       spacing: t.spaceSm,
       messagePaddingH: t.spaceLg,
