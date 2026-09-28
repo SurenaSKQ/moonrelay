@@ -17,60 +17,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/helpers/color_palette.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
-import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  group('MoonrelayThemes registry', () {
-    test('is non-empty and ships the default theme first', () {
-      expect(MoonrelayThemes.all, isNotEmpty);
-      expect(MoonrelayThemes.all.first, same(MoonrelayThemes.defaultTheme));
-      expect(MoonrelayThemes.defaultThemeId, MoonrelayThemes.defaultTheme.id);
-    });
-
-    test('every theme has a unique id, a label and a seed-free geometry', () {
-      final ids = <String>{};
-      for (final theme in MoonrelayThemes.all) {
-        expect(theme.id, isNotEmpty);
-        expect(theme.label, isNotEmpty);
-        expect(theme.defaultDensity, isNotNull);
-        expect(theme.cornerRadius, greaterThanOrEqualTo(0));
-        expect(ids.add(theme.id), isTrue,
-            reason: 'duplicate theme id: ${theme.id}');
-      }
-    });
-
-    test('byId resolves known ids and rejects unknown ones', () {
-      expect(MoonrelayThemes.byId('compact'), same(MoonrelayThemes.compact));
-      expect(MoonrelayThemes.byId('nope'), isNull);
-      expect(MoonrelayThemes.byId(null), isNull);
-    });
-
-    test('fromId falls back to the default theme for unknown ids', () {
-      expect(
-          MoonrelayThemes.fromId('nope'), same(MoonrelayThemes.defaultTheme));
-      expect(MoonrelayThemes.fromId(null), same(MoonrelayThemes.defaultTheme));
-    });
-
-    test('the compact theme is tighter than the default material theme', () {
-      expect(MoonrelayThemes.compact.defaultDensity, LayoutDensity.compact);
-      expect(MoonrelayThemes.compact.cornerRadius,
-          lessThan(MoonrelayThemes.defaultTheme.cornerRadius));
-    });
-
-    test('the archVista theme uses Vista fonts and sharp corners', () {
-      const spec = MoonrelayThemes.archVista;
-      expect(spec.defaultFontFamily, 'Segoe UI');
-      expect(spec.defaultMonoFontFamily, 'Consolas');
-      expect(spec.cornerRadius, 4.0);
-      expect(spec.defaultDensity, LayoutDensity.comfortable);
-    });
-  });
-
   group('MoonrelayAccents registry', () {
+    test('is non-empty and ships the default accent first', () {
+      expect(MoonrelayAccents.all, isNotEmpty);
+      expect(MoonrelayAccents.all.first, same(MoonrelayAccents.defaultAccent));
+      expect(
+          MoonrelayAccents.defaultAccentId, MoonrelayAccents.defaultAccent.id);
+    });
+
     test('every accent has a unique id, label and seed colour', () {
       final ids = <String>{};
       for (final accent in MoonrelayAccents.all) {
@@ -82,18 +41,30 @@ void main() {
       }
     });
 
-    test('byId/fromId resolve and fall back like the themes registry', () {
+    test('byId resolves known ids and rejects unknown ones', () {
       expect(
           MoonrelayAccents.byId('vistaBlue'), same(MoonrelayAccents.vistaBlue));
+      expect(MoonrelayAccents.byId('nope'), isNull);
+      expect(MoonrelayAccents.byId(null), isNull);
+    });
+
+    test('fromId falls back to the default accent for unknown ids', () {
       expect(MoonrelayAccents.fromId('nope'),
+          same(MoonrelayAccents.defaultAccent));
+      expect(MoonrelayAccents.fromId(null),
           same(MoonrelayAccents.defaultAccent));
     });
 
-    test('vistaBlue captures ArchVista GTK accent (#5C8AA6)', () {
+    test('every accent yields a distinct seed colour', () {
+      final seeds = MoonrelayAccents.all.map((a) => a.seedColor.toARGB32());
+      expect(seeds.toSet().length, MoonrelayAccents.all.length);
+    });
+
+    test('vistaBlue captures the air-force blue (#5C8AA6)', () {
       expect(MoonrelayAccents.vistaBlue.seedColor, const Color(0xFF5C8AA6));
     });
 
-    test('charcoal is the high-contrast neutral', () {
+    test('charcoal is the neutral accent', () {
       expect(MoonrelayAccents.charcoal.seedColor,
           MoonrelayColorPalette.ordinaryDarkGrey);
     });
