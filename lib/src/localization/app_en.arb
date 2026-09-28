@@ -48,8 +48,6 @@
   "closeWindow": "Close window",
   "showSystemMenu": "Show system menu",
 
-  "lightMode": "Light Mode",
-  "darkMode": "Dark Mode",
   "home": "Home",
   "directMessages": "Direct Messages",
 
@@ -612,14 +610,8 @@
   "system": "System",
   "light": "Light",
   "dark": "Dark",
-  "colourTheme": "Colour theme",
-  "lookAndFeel": "Look & feel",
-  "lookAndFeelDesc": "Choose the widget style and font for the app.",
   "accentColor": "Accent colour",
-  "accentColorDesc": "Choose the accent colour applied within the selected look.",
-  "skin": "Skin",
-  "skinDescription": "Choose the look and feel applied across the app",
-  "enable": "Enable",
+  "accentColorDesc": "Choose the accent colour used across the app.",
   "chatDisplayType": "Chat display type",
 
   "leftSidebar": "Left sidebar",
@@ -967,14 +959,6 @@
 
   "today": "Today",
   "yesterday": "Yesterday",
-
-  "themeDefault": "Default (Indigo)",
-  "themeOceanBlue": "Ocean Blue",
-  "themeMidnightSlate": "British Racing Green",
-  "themeCrimson": "Bright Maroon",
-  "themeAmber": "Amber",
-  "themeSteel": "Lime Green",
-  "themeSky": "Sky",
 
   "displayModern": "Modern",
   "displayIrc": "IRC",
@@ -2885,7 +2869,7 @@
   "@commandPaletteRecent": {
     "description": "Section header in the command palette listing previously executed actions."
   },
-  "commandPaletteAppearanceDesc": "Theme, accent color, and density",
+  "commandPaletteAppearanceDesc": "Theme, accent color, density, and fonts",
   "@commandPaletteAppearanceDesc": {
     "description": "Short description shown next to the Appearance settings entry."
   },
