@@ -24,9 +24,8 @@ import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Welcome screen shown before authentication.
@@ -880,7 +879,6 @@ class _CreditsSection extends StatelessWidget {
 ///
 /// Exposes a subset of theming options:
 /// - Theme mode (System / Light / Dark)
-/// - Look & feel (MoonrelayThemeSpec)
 /// - Accent colour (MoonrelayAccent)
 class _WelcomeSettingsScreen extends StatelessWidget {
   const _WelcomeSettingsScreen();
@@ -944,44 +942,6 @@ class _WelcomeSettingsScreen extends StatelessWidget {
                           title: Text(l10n.dark),
                           value: ThemeMode.dark,
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-
-              // Theme (look and feel)
-              _SettingsSection(
-                title: l10n.lookAndFeel,
-                children: [
-                  RadioGroup<String>(
-                    groupValue: controller.selectedThemeId,
-                    onChanged: (v) {
-                      if (v != null) controller.updateSelectedTheme(v);
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final look in MoonrelayThemes.all)
-                          RadioListTile<String>(
-                            title: Row(
-                              children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: controller.selectedAccent.seedColor,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                SizedBox(width: t.spaceMd),
-                                Text(look.label),
-                              ],
-                            ),
-                            value: look.id,
-                            dense: true,
-                          ),
                       ],
                     ),
                   ),

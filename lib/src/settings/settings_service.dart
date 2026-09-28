@@ -16,11 +16,10 @@
 
 import 'dart:convert';
 
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,7 +27,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// available for granular reads after the initial load.
 class SettingsSnapshot {
   final ThemeMode themeMode;
-  final String selectedThemeId;
   final String selectedAccentId;
   final DisplayType displayType;
   final LayoutMode layoutMode;
@@ -115,7 +113,6 @@ class SettingsSnapshot {
   const SettingsSnapshot({
     this.locale,
     this.themeMode = ThemeMode.system,
-    this.selectedThemeId = MoonrelayThemes.defaultThemeId,
     this.selectedAccentId = MoonrelayAccents.defaultAccentId,
     this.displayType = DisplayType.modern,
     this.layoutMode = LayoutMode.auto,
@@ -197,16 +194,7 @@ class SettingsSnapshot {
 /// A service that stores and retrieves user settings.
 class SettingsService {
   static const _themeModeKey = 'theme_mode';
-  static const _selectedThemeKey = 'selected_theme';
   static const _selectedAccentKey = 'selected_accent';
-
-  /// Legacy hybrid skin id (`selected_skin`), written by versions before the
-  /// theme/accent split. Read-only: used only to migrate existing installs.
-  static const _selectedSkinKey = 'selected_skin';
-
-  /// Legacy integer colour-theme index (`theme_option`), written by versions
-  /// before skins existed. Read-only: used only to migrate existing installs.
-  static const _themeOptionKey = 'theme_option';
   static const _displayTypeKey = 'display_type';
   static const _layoutModeKey = 'layout_mode';
 
@@ -305,78 +293,18 @@ class SettingsService {
   // Locale
   static const _localeKey = 'locale';
 
-  /// Maps the legacy `theme_option` integer index (persisted by older
-  /// versions under `_themeOptionKey`) to the matching accent id, so existing
-  /// installs keep their colour choice after the theme/accent split. The seven
-  /// entries correspond, in order, to the original colour theme enum:
-  /// indigo, oceanBlue, midnightSlate, crimson, amber, steel, sky. The legacy
-  /// index only encoded a colour, so migrated installs land on the default
-  /// [MoonrelayThemes.material] look.
-  static const List<String> _legacyOptionToAccent = <String>[
-    'indigo',
-    'ocean',
-    'midnight',
-    'crimson',
-    'amber',
-    'steel',
-    'sky',
-  ];
-
-  /// Maps the legacy hybrid `selected_skin` id (persisted by versions after
-  /// the original skin refactor but before the theme/accent split) to a theme
-  /// id. Colour skins map to the material look; the standalone look-skins
-  /// (highContrast, compact, archVista) keep their geometry.
-  static const Map<String, String> _legacySkinToTheme = <String, String>{
-    'indigo': 'material',
-    'ocean': 'material',
-    'midnight': 'material',
-    'crimson': 'material',
-    'amber': 'material',
-    'steel': 'material',
-    'sky': 'material',
-    'highContrast': 'highContrast',
-    'compact': 'compact',
-    'archVista': 'archVista',
-  };
-
-  /// Same mapping as [_legacySkinToTheme], but for the accent half.
-  static const Map<String, String> _legacySkinToAccent = <String, String>{
-    'indigo': 'indigo',
-    'ocean': 'ocean',
-    'midnight': 'midnight',
-    'crimson': 'crimson',
-    'amber': 'amber',
-    'steel': 'steel',
-    'sky': 'sky',
-    'highContrast': 'charcoal',
-    'compact': 'ocean',
-    'archVista': 'vistaBlue',
-  };
-
-  /// Loads the persisted accent id (without migration logic; used for
-  /// granular reads). Defaults to [MoonrelayAccents.defaultAccentId].
+  /// Loads the persisted accent id. Defaults to
+  /// [MoonrelayAccents.defaultAccentId] when the key is absent or names an
+  /// accent that no longer ships.
   Future<String> selectedAccentId() async {
     final prefs = await SharedPreferences.getInstance();
-    return _readSelectedThemeAndAccent(prefs).$2;
+    return _readAccentId(prefs);
   }
 
   /// Persists the active accent id under `selected_accent`.
   Future<void> updateSelectedAccent(String id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_selectedAccentKey, id);
-  }
-
-  /// Loads the persisted theme id (without migration logic; used for
-  /// granular reads). Defaults to [MoonrelayThemes.defaultThemeId].
-  Future<String> selectedThemeId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return _readSelectedThemeAndAccent(prefs).$1;
-  }
-
-  /// Persists the active theme id under `selected_theme`.
-  Future<void> updateSelectedTheme(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_selectedThemeKey, id);
   }
 
   Future<ThemeMode> themeMode() async {
@@ -422,8 +350,7 @@ class SettingsService {
   Future<SettingsSnapshot> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     return SettingsSnapshot(
-      selectedThemeId: _readSelectedThemeAndAccent(prefs).$1,
-      selectedAccentId: _readSelectedThemeAndAccent(prefs).$2,
+      selectedAccentId: _readAccentId(prefs),
       themeMode: _readThemeMode(prefs),
       displayType: _readDisplayType(prefs),
       layoutMode: _readLayoutMode(prefs),
@@ -544,44 +471,11 @@ class SettingsService {
     );
   }
 
-  /// Resolves the persisted theme+accent, migrating from the legacy
-  /// `theme_option` integer index or the hybrid `selected_skin` id when an
-  /// upgrade is in progress. Each half is resolved independently so a
-  /// partially-migrated store (e.g. an accent set before a theme on the
-  /// current version) still reads sensibly. Precedence for each field,
-  /// highest first:
-  ///  1. its own new key (`selected_theme` / `selected_accent`)
-  ///  2. the matching field of the legacy hybrid `selected_skin`
-  ///  3. `theme_option` (accent only; theme falls back to material)
-  ///  4. the built-in default
-  ///
-  /// Returns a `(themeId, accentId)` record, both validated against the
-  /// registries.
-  static (String, String) _readSelectedThemeAndAccent(SharedPreferences prefs) {
-    final legacySkin = prefs.getString(_selectedSkinKey);
-    final legacySkinTheme =
-        legacySkin == null ? null : _legacySkinToTheme[legacySkin];
-    final legacySkinAccent =
-        legacySkin == null ? null : _legacySkinToAccent[legacySkin];
-
-    final index = prefs.getInt(_themeOptionKey);
-    final legacyAccentFromIndex =
-        (index != null && index >= 0 && index < _legacyOptionToAccent.length)
-            ? _legacyOptionToAccent[index]
-            : null;
-    final themeOptionValid = legacyAccentFromIndex != null;
-
-    final themeId = prefs.getString(_selectedThemeKey) ??
-        legacySkinTheme ??
-        (themeOptionValid ? MoonrelayThemes.material.id : null);
-    final accentId = prefs.getString(_selectedAccentKey) ??
-        legacySkinAccent ??
-        legacyAccentFromIndex;
-
-    return (
-      MoonrelayThemes.byId(themeId)?.id ?? MoonrelayThemes.defaultThemeId,
-      MoonrelayAccents.byId(accentId)?.id ?? MoonrelayAccents.defaultAccentId,
-    );
+  /// Resolves the persisted accent id, falling back to the built-in default
+  /// when the key is missing or names an accent that no longer ships.
+  static String _readAccentId(SharedPreferences prefs) {
+    final id = prefs.getString(_selectedAccentKey);
+    return MoonrelayAccents.byId(id)?.id ?? MoonrelayAccents.defaultAccentId;
   }
 
   static ThemeMode _readThemeMode(SharedPreferences prefs) {

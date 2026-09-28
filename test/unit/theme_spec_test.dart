@@ -99,55 +99,12 @@ void main() {
     });
   });
 
-  group('SettingsService theme+accent migration', () {
+  group('SettingsService accent persistence', () {
     setUp(() => SharedPreferences.setMockInitialValues({}));
 
-    test('falls back to defaults on a fresh install', () async {
+    test('falls back to the default accent on a fresh install', () async {
       final snapshot = await SettingsService().loadAll();
-      expect(snapshot.selectedThemeId, MoonrelayThemes.defaultThemeId);
       expect(snapshot.selectedAccentId, MoonrelayAccents.defaultAccentId);
-    });
-
-    test('migrates the legacy theme_option index to an accent', () async {
-      // Legacy enum order: 0 indigo, 1 oceanBlue, 2 midnightSlate, ...
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'theme_option': 2,
-      });
-      final snapshot = await SettingsService().loadAll();
-      expect(snapshot.selectedThemeId, MoonrelayThemes.material.id);
-      expect(snapshot.selectedAccentId, 'midnight');
-    });
-
-    test('clamps out-of-range legacy indices to the defaults', () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'theme_option': 999,
-      });
-      final snapshot = await SettingsService().loadAll();
-      expect(snapshot.selectedThemeId, MoonrelayThemes.defaultThemeId);
-      expect(snapshot.selectedAccentId, MoonrelayAccents.defaultAccentId);
-    });
-
-    test('selected_skin takes precedence over the legacy theme_option',
-        () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'theme_option': 5,
-        'selected_skin': 'compact',
-      });
-      final snapshot = await SettingsService().loadAll();
-      expect(snapshot.selectedThemeId, MoonrelayThemes.compact.id);
-      expect(snapshot.selectedAccentId, 'ocean');
-    });
-
-    test('selected_theme + selected_accent take top precedence', () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'theme_option': 1,
-        'selected_skin': 'indigo',
-        'selected_theme': 'archVista',
-        'selected_accent': 'vistaBlue',
-      });
-      final snapshot = await SettingsService().loadAll();
-      expect(snapshot.selectedThemeId, MoonrelayThemes.archVista.id);
-      expect(snapshot.selectedAccentId, MoonrelayAccents.vistaBlue.id);
     });
 
     test('updateSelectedAccent persists the id', () async {
@@ -156,10 +113,24 @@ void main() {
       expect(await service.selectedAccentId(), 'sky');
     });
 
-    test('updateSelectedTheme persists the id', () async {
-      final service = SettingsService();
-      await service.updateSelectedTheme('compact');
-      expect(await service.selectedThemeId(), 'compact');
+    test('an unknown persisted id falls back to the default accent', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'selected_accent': 'no-such-accent',
+      });
+      final snapshot = await SettingsService().loadAll();
+      expect(snapshot.selectedAccentId, MoonrelayAccents.defaultAccentId);
+    });
+
+    test('retired theme keys are ignored', () async {
+      // The look axis is gone, so the keys it used to own carry no meaning
+      // and must not influence the accent.
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'selected_theme': 'archVista',
+        'selected_skin': 'archVista',
+        'theme_option': 2,
+      });
+      final snapshot = await SettingsService().loadAll();
+      expect(snapshot.selectedAccentId, MoonrelayAccents.defaultAccentId);
     });
   });
 }
