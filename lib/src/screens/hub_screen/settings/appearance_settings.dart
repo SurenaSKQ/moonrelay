@@ -19,12 +19,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
@@ -39,7 +38,6 @@ class HubAppearanceSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final theme = Theme.of(context);
         final t = MoonrelayThemeExtension.of(context).tokens;
         return SingleChildScrollView(
           padding: EdgeInsets.all(t.spaceXl),
@@ -86,57 +84,6 @@ class HubAppearanceSettings extends StatelessWidget {
                           title: Text(l10n.dark),
                           value: ThemeMode.dark,
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-
-              // Theme (look and feel)
-              HubSettingsSection(
-                title: l10n.lookAndFeel,
-                subtitle: l10n.lookAndFeelDesc,
-                children: [
-                  RadioGroup<String>(
-                    groupValue: controller.selectedThemeId,
-                    onChanged: (v) {
-                      if (v != null) controller.updateSelectedTheme(v);
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final look in MoonrelayThemes.all)
-                          RadioListTile<String>(
-                            value: look.id,
-                            dense: true,
-                            selected: look.id == controller.selectedThemeId,
-                            title: Row(
-                              children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: controller.selectedAccent.seedColor,
-                                    borderRadius: BorderRadius.circular(
-                                      look.cornerRadius == 0
-                                          ? 4
-                                          : look.cornerRadius,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: t.spaceMd),
-                                Text(look.label),
-                              ],
-                            ),
-                            subtitle: Text(
-                              look.description,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),

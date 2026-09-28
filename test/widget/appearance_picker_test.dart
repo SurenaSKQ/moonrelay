@@ -17,9 +17,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/accents.dart';
-import 'package:moonrelay/src/settings/theme_spec.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/widget_test_utils.dart';
@@ -27,41 +26,11 @@ import '../helpers/widget_test_utils.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('selecting a theme updates the controller and resets density',
+  testWidgets('selecting an accent recolors without touching density',
       (tester) async {
     final controller = createTestSettingsController();
-    // Baseline before selection.
-    expect(controller.selectedThemeId, MoonrelayThemes.defaultThemeId);
+    expect(controller.selectedAccentId, MoonrelayAccents.defaultAccentId);
     expect(controller.density, LayoutDensity.comfortable);
-
-    await tester.pumpWidget(
-      wrapWithProviders(
-        settingsController: controller,
-        child: const HubAppearanceSettings(),
-      ),
-    );
-    await tester.pump();
-
-    final compactTile = find.widgetWithText(
-        RadioListTile<String>, MoonrelayThemes.compact.label);
-    await tester.ensureVisible(compactTile);
-    await tester.tap(compactTile);
-    await tester.pump();
-
-    // A) the look switched to compact ...
-    expect(controller.selectedThemeId, MoonrelayThemes.compact.id);
-    // B) ... and density reset to the compact theme's default, proving a
-    //    theme redefines the look and feel rather than just hue.
-    expect(controller.density, LayoutDensity.compact);
-  });
-
-  testWidgets('selecting an accent keeps the look (no density reset)',
-      (tester) async {
-    final controller = createTestSettingsController();
-
-    // Put the look on compact (compact density) first.
-    await controller.updateSelectedTheme(MoonrelayThemes.compact.id);
-    expect(controller.density, LayoutDensity.compact);
 
     await tester.pumpWidget(
       wrapWithProviders(
@@ -77,9 +46,30 @@ void main() {
     await tester.tap(skyTile);
     await tester.pump();
 
-    // Accent change recolors the current look only.
     expect(controller.selectedAccentId, MoonrelayAccents.sky.id);
-    expect(controller.selectedThemeId, MoonrelayThemes.compact.id);
+    expect(controller.selectedAccent, same(MoonrelayAccents.sky));
+    // Accents own the hue only; geometry settings survive the switch.
+    expect(controller.density, LayoutDensity.comfortable);
+  });
+
+  testWidgets('selecting a density chip keeps the accent', (tester) async {
+    final controller = createTestSettingsController();
+    await controller.updateSelectedAccent(MoonrelayAccents.crimson.id);
+
+    await tester.pumpWidget(
+      wrapWithProviders(
+        settingsController: controller,
+        child: const HubAppearanceSettings(),
+      ),
+    );
+    await tester.pump();
+
+    final compactChip = find.widgetWithText(ChoiceChip, 'Compact');
+    await tester.ensureVisible(compactChip);
+    await tester.tap(compactChip);
+    await tester.pump();
+
     expect(controller.density, LayoutDensity.compact);
+    expect(controller.selectedAccentId, MoonrelayAccents.crimson.id);
   });
 }
