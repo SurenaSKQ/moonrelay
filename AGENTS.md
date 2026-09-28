@@ -70,7 +70,8 @@ lib/
       database_service.dart  # Schema version checks, backup-before-wipe, MatrixSdkDatabase creation
       deep_link_service.dart  # Handles incoming matrix:// URLs via method channel
     layouts/                  # Frame and dashboard layout widgets
-    settings/                 # Controller, service, theme, display/layout enums
+    settings/                 # Controller, service, accents, display/layout enums
+    theme/                    # Design tokens, component tokens, ThemeExtension
     encryption/               # EncryptionService (cross-signing, key backup, devices)
     localization/             # ARB file + generated l10n code
     events/
@@ -136,7 +137,7 @@ AppFrame (custom titlebar + window controls)
 ### State management
 
 **Provider** is the sole state management approach (no Riverpod/Bloc):
-- `SettingsController`  theme, display mode, sidebar sizes, layout choices. Persisted via `SharedPreferences`
+- `SettingsController`  theme mode, accent colour, density, display mode, sidebar sizes, layout choices. Persisted via `SharedPreferences`
 - `NavigationState`  selected space/home/all destination
 - `CurrentRoom`  currently active room (set by RoomPage, read by sidebar)
 - `EncryptionService`  cross-signing, key backup, device management
@@ -332,6 +333,8 @@ testWidgets('login then see rooms', (tester) async {
 13. **Deep link service**: `DeepLinkService` listens on a method channel (`moonrelay/deep_links`) for `openUri` calls and also checks command-line args for `matrix:` URIs on startup. The `DeepLinkListener` widget (inside the MaterialApp.router tree) registers the navigation callback. Platform registration files are in `windows/runner/register_matrix_protocol.reg` and `linux/runner/moonrelay.desktop`.
 
 14. **Windows protocol registration**: Run `windows/runner/register_matrix_protocol.reg` as Administrator to register `matrix://` URL handling. On Linux, run `xdg-desktop-menu install linux/runner/moonrelay.desktop && xdg-mime default moonrelay.desktop x-scheme-handler/matrix`.
+
+15. **Theming is deliberately minimal**: the app has one look. `MoonrelayTheme.light`/`dark` take a single seed `Color`; geometry comes from `MoonrelayDesignTokens.standard()` and the per-component `MoonrelayComponentTokens` derived from it. The only user-facing appearance controls are theme mode, the accent seed colour (`lib/src/settings/accents.dart`), `LayoutDensity`, the font families and the bubble radius. A former "look and feel" axis (seven `MoonrelayThemeSpec`s plus per-look `MoonrelayWidgetStyle` merges) was removed on purpose; do not reintroduce a second appearance axis. Outside the theme builder, widgets only reach for `components.avatar`; the other sub-token classes are builder-only, so a new field there buys nothing until a widget reads it.
 
 ## Edge Cases When Editing
 
