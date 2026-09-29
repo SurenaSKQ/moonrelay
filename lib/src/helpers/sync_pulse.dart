@@ -50,11 +50,21 @@ class SyncPulse extends ChangeNotifier {
   bool _hasTicked = false;
   bool get hasTicked => _hasTicked;
 
-  final Duration _debounce;
+  Duration _debounce;
   Client? _client;
   StreamSubscription<SyncUpdate>? _sub;
   Timer? _debounceTimer;
   bool _disposed = false;
+
+  /// Retunes the debounce window from `SettingsController.syncDebounceMs`.
+  ///
+  /// A pending timer is left running rather than rearmed: the change
+  /// lands on the next tick either way, and cancelling here would emit
+  /// a pulse early for a window the user just widened.
+  set debounce(Duration value) {
+    if (_debounce == value) return;
+    _debounce = value;
+  }
 
   /// Bind the pulse to [client]. Cancels any prior subscription so the
   /// pulse is safe to re-bind on account switch.
