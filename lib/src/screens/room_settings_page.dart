@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
@@ -152,7 +153,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     // parameters on `pickFiles`.
     final file = await FilePicker.pickFile(type: FileType.image);
     if (file == null) return;
-    final bytes = await file.readAsBytes();
+    final bytes = await readFileBytes(file);
     if (bytes.isEmpty) return;
 
     try {

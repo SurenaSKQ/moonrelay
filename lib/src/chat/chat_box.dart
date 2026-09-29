@@ -28,6 +28,7 @@ import 'package:moonrelay/src/chat/share_location_dialog.dart';
 import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/chat/voice_recorder_dialog.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/draft_service.dart';
@@ -491,9 +492,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     for (final file in result.files) {
       // Read bytes on demand via the new PlatformFile API; the older
       // `file.bytes` and `withData: true` parameters are deprecated in
-      // file_picker 12.
+      // file_picker 12. readFileBytes checks the picker's size metadata
+      // first, so an oversized video is refused before it is allocated.
       try {
-        final fileBytes = await file.readAsBytes();
+        final fileBytes = await readFileBytes(file);
         await withTimeout(
           () => widget.room.sendFileEvent(
             MatrixFile(bytes: fileBytes, name: file.name),
