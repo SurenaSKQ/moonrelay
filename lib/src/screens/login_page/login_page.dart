@@ -651,25 +651,34 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _syncing = false);
   }
 
-  Future<void> _doPasswordLogin() async {
+  /// The shared opening half of every sign-in request: clear the previous
+  /// session, check the homeserver is reachable, and confirm it advertises
+  /// [type].
+  ///
+  /// [type] is one of the `AuthenticationTypes` constants, which are plain
+  /// strings: the SDK keys both [Client.supportedLoginTypes] and
+  /// [LoginFlow.type] off them.
+  ///
+  /// Returns the parsed homeserver when the request may proceed, or null
+  /// after having set [_error] and cleared [_loading]. Returning null rather
+  /// than taking a callback keeps every caller's early return in the same
+  /// place, which is what stopped the three copies from drifting.
+  Future<Uri?> _prepareLoginRequest(
+    String type, {
+    String? unsupportedMessage,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
 
-    final Client client = Provider.of<Client>(context, listen: false);
-    final Logger log = Provider.of<Logger>(context, listen: false);
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
     final enc = context.read<EncryptionService>();
 
-    // -- Invalidate any cached session data before a fresh login --
-    // This ensures the SDK doesn't carry over a stale Olm account,
-    // stale device keys, or any other cached state from a previous
-    // session (e.g. after an unclean shutdown or a failed logout).
+    // Invalidate any cached session data before a fresh login, so the SDK
+    // doesn't carry over a stale Olm account or device keys from a previous
+    // session (an unclean shutdown, or a failed logout).
     await _clearCachedSession(client, enc, log);
 
-    // Ensure supported login types includes password
-    client.supportedLoginTypes.add(AuthenticationTypes.password);
+    client.supportedLoginTypes.add(type);
 
     final Uri? homeserverUri = parseHomeserverInput(_homeserverCtrl.text);
     if (homeserverUri == null) {
@@ -677,36 +686,52 @@ class _LoginPageState extends State<LoginPage> {
         _error = l10n.ssoHomeserverInvalid;
         _loading = false;
       });
-      return;
+      return null;
     }
 
     final List<LoginFlow>? flows =
         await _tryCheckHomeserver(client, homeserverUri);
     if (flows == null || !mounted) {
       if (mounted) setState(() => _loading = false);
-      return;
+      return null;
     }
 
-    if (!flows.any((f) => f.type == AuthenticationTypes.password)) {
+    if (unsupportedMessage != null &&
+        !flows.any((f) => f.type == type)) {
       setState(() {
-        _error = l10n.passwordLoginNotSupported;
+        _error = unsupportedMessage;
         _loading = false;
       });
-      return;
+      return null;
     }
 
+    return homeserverUri;
+  }
+
+  /// Runs [attempt] with the retry and failure handling every sign-in type
+  /// needs, then hands a success to [_onLoginSucceeded].
+  ///
+  /// [messageFor] builds the user-facing text from a failure and must not
+  /// embed the error: pass it through [safeErrorMessage], since
+  /// `MatrixHttpException.toString()` echoes the request body and with it
+  /// the typed password or the pasted token. The log line is built here
+  /// rather than by the callers for the same reason, so that a new call
+  /// site cannot accidentally attach the exception object.
+  Future<void> _runLoginRequest({
+    required String label,
+    required Future<void> Function(Client client) attempt,
+    required String Function(AppLocalizations l10n, Object error) messageFor,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final client = Provider.of<Client>(context, listen: false);
+    final log = Provider.of<Logger>(context, listen: false);
+
     final result = await withRetry(
-      () => client.login(
-        LoginType.mLoginPassword,
-        password: _passwordCtrl.text,
-        identifier:
-            AuthenticationUserIdentifier(user: _usernameCtrl.text.trim()),
-        initialDeviceDisplayName: 'Moonrelay',
-      ),
+      () => attempt(client),
       maxRetries: 1,
       timeout: kLoginTimeout,
       log: log,
-      label: 'passwordLogin',
+      label: label,
       retryOnAllErrors: true, // login errors are often transient
     );
 
@@ -714,33 +739,47 @@ class _LoginPageState extends State<LoginPage> {
 
     switch (result) {
       case RetrySuccess():
-        {
-          await _onLoginSucceeded(context, client, log);
-        }
+        await _onLoginSucceeded(context, client, log);
       case RetryFailed(:final error, :final attempts):
-        {
-          // SECURITY: never pass the raw error to either the logger or the
-          // UI  `MatrixHttpException.toString()` echoes the request body,
-          // which the homeserver can echo back the typed password in 4xx
-          // responses. Log only the class and rethrow; the user-facing
-          // message is a static copy that omits the offending field.
-          log.e(
-              'Login failed after $attempts attempt(s) (${error.runtimeType})');
-          setState(() => _error = error is TimeoutException
-              ? l10n.loginTimedOut
-              : l10n.loginFailed(safeErrorMessage(error)));
-          if (mounted) setState(() => _loading = false);
-        }
+        // Log the class only. Attaching the error object would put the
+        // request body in the log file via toString.
+        log.e('$label failed after $attempts attempt(s) (${error.runtimeType})');
+        setState(() => _error = error is TimeoutException
+            ? l10n.loginTimedOut
+            : messageFor(l10n, error));
+        if (mounted) setState(() => _loading = false);
     }
   }
 
-  /// Returns a user-facing error string that does not leak credentials.
-  ///
-  /// The Matrix SDK's `MatrixHttpException.toString()` echoes the request
-  /// body, so a homeserver that returns the password field in a 4xx
-  /// response would surface it in the UI and in redacted logs.  This
-  /// helper maps known error types to friendly copy and falls back to a
-  /// generic message that exposes only the exception's class name.
+  Future<void> _doPasswordLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final l10n = AppLocalizations.of(context)!;
+
+    if (await _prepareLoginRequest(
+          AuthenticationTypes.password,
+          unsupportedMessage: l10n.passwordLoginNotSupported,
+        ) ==
+        null) {
+      return;
+    }
+
+    await _runLoginRequest(
+      label: 'passwordLogin',
+      messageFor: (l10n, error) => l10n.loginFailed(safeErrorMessage(error)),
+      attempt: (client) => client.login(
+        LoginType.mLoginPassword,
+        password: _passwordCtrl.text,
+        identifier:
+            AuthenticationUserIdentifier(user: _usernameCtrl.text.trim()),
+        initialDeviceDisplayName: 'Moonrelay',
+      ),
+    );
+  }
+
   /// Clears any cached session data from the SDK and EncryptionService
   /// so a fresh login starts with a clean slate.
   ///
@@ -799,6 +838,13 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Attempts SSO login using the automatic (local server callback) flow.
   /// Falls back to the manual copy-paste flow if the automatic approach fails.
+  ///
+  /// Deliberately does not go through [_prepareLoginRequest], because the
+  /// order matters here in a way it does not for the other two types: the
+  /// phishing guard and the user's confirmation both have to happen before
+  /// anything contacts the server, and `_prepareLoginRequest` checks the
+  /// homeserver first. The token half still does, via
+  /// [_completeTokenLogin], once a token has been obtained by hand.
   Future<void> _doSsoOpenBrowser() async {
     final l10n = AppLocalizations.of(context)!;
     setState(() {
@@ -965,65 +1011,23 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _completeTokenLogin(String token) async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    final Client client = Provider.of<Client>(context, listen: false);
-    final Logger log = Provider.of<Logger>(context, listen: false);
-    final enc = context.read<EncryptionService>();
+    if (await _prepareLoginRequest(AuthenticationTypes.token) == null) return;
 
-    // -- Invalidate any cached session data before a fresh login --
-    await _clearCachedSession(client, enc, log);
-
-    client.supportedLoginTypes.add(AuthenticationTypes.token);
-
-    final Uri? homeserverUri = parseHomeserverInput(_homeserverCtrl.text);
-    if (homeserverUri == null) {
-      setState(() {
-        _error = l10n.ssoHomeserverInvalid;
-        _loading = false;
-      });
-      return;
-    }
-
-    final List<LoginFlow>? flows =
-        await _tryCheckHomeserver(client, homeserverUri);
-    if (flows == null || !mounted) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
-    final result = await withRetry(
-      () => client.login(
+    await _runLoginRequest(
+      label: 'tokenLogin',
+      messageFor: (l10n, error) => l10n.tokenLoginFailed(
+        safeErrorMessage(error),
+      ),
+      attempt: (client) => client.login(
         LoginType.mLoginToken,
         token: token,
         initialDeviceDisplayName: 'Moonrelay',
       ),
-      maxRetries: 1,
-      timeout: kLoginTimeout,
-      log: log,
-      label: 'tokenLogin',
-      retryOnAllErrors: true,
     );
-
-    if (!mounted) return;
-
-    switch (result) {
-      case RetrySuccess():
-        {
-          await _onLoginSucceeded(context, client, log);
-        }
-      case RetryFailed(:final error, :final attempts):
-        {
-          log.e('Token login failed after $attempts attempt(s)', error: error);
-          setState(() => _error = error is TimeoutException
-              ? l10n.loginTimedOut
-              : l10n.tokenLoginFailed(safeErrorMessage(error)));
-          if (mounted) setState(() => _loading = false);
-        }
-    }
   }
 }
