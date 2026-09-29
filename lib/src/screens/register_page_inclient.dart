@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/login_errors.dart';
 import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/form_field_label.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -141,7 +142,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                         ),
 
                       // -- Homeserver field --
-                      _buildLabel(colors, l10n.homeserverText),
+                      buildFormFieldLabel(context, l10n.homeserverText),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _homeserverCtrl,
@@ -162,7 +163,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       const SizedBox(height: 20),
 
                       // -- Username field --
-                      _buildLabel(colors, l10n.usernameText),
+                      buildFormFieldLabel(context, l10n.usernameText),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _usernameCtrl,
@@ -189,7 +190,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       SizedBox(height: t.spaceLg),
 
                       // -- Password field --
-                      _buildLabel(colors, l10n.passwordText),
+                      buildFormFieldLabel(context, l10n.passwordText),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _passwordCtrl,
@@ -221,7 +222,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       SizedBox(height: t.spaceLg),
 
                       // -- Confirm Password field --
-                      _buildLabel(colors, l10n.confirmPasswordLabel),
+                      buildFormFieldLabel(context, l10n.confirmPasswordLabel),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _confirmPasswordCtrl,
@@ -319,16 +320,6 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
 
   // -- Build helpers -----------------------------------------------------
 
-  Widget _buildLabel(ColorScheme colors, String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.w500,
-        fontSize: 13,
-        color: colors.onSurfaceVariant,
-      ),
-    );
-  }
 
   // -- Registration logic ------------------------------------------------
 

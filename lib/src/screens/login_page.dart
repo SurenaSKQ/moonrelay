@@ -33,6 +33,7 @@ import 'package:moonrelay/src/screens/login_page/login_mode.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/form_field_label.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -194,7 +195,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
 
                       // -- Homeserver field --
-                      _buildLabel(colors, l10n.homeserverText),
+                      buildFormFieldLabel(context, l10n.homeserverText),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _homeserverCtrl,
@@ -317,16 +318,6 @@ class _LoginPageState extends State<LoginPage> {
 
   // -- Build helpers -----------------------------------------------------
 
-  Widget _buildLabel(ColorScheme colors, String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.w500,
-        fontSize: 13,
-        color: colors.onSurfaceVariant,
-      ),
-    );
-  }
 
   Widget _buildModeLink(String text, VoidCallback onTap) {
     return Align(
@@ -344,7 +335,7 @@ class _LoginPageState extends State<LoginPage> {
   List<Widget> _buildPasswordSection(
       ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, l10n.usernameOrEmail),
+      buildFormFieldLabel(context, l10n.usernameOrEmail),
       const SizedBox(height: 6),
       TextField(
         controller: _usernameCtrl,
@@ -363,7 +354,7 @@ class _LoginPageState extends State<LoginPage> {
         enabled: !_loading,
       ),
       const SizedBox(height: 16),
-      _buildLabel(colors, l10n.passwordText),
+      buildFormFieldLabel(context, l10n.passwordText),
       const SizedBox(height: 6),
       TextField(
         controller: _passwordCtrl,
@@ -480,7 +471,7 @@ class _LoginPageState extends State<LoginPage> {
 
   List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, l10n.ssoUrlLabel),
+      buildFormFieldLabel(context, l10n.ssoUrlLabel),
       const SizedBox(height: 6),
       Container(
         padding: const EdgeInsets.all(12),
@@ -521,52 +512,47 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   /// Builds the manual token-paste field (hidden behind a toggle by default).
+  ///
+  /// Shares the field itself with the token mode, because it is the same
+  /// field reading the same controller; only the surrounding label and hint
+  /// differ, to say that the token is pasted after the browser round trip.
   List<Widget> _buildManualTokenEntry(
       ColorScheme colors, AppLocalizations l10n) {
     return [
       const SizedBox(height: 16),
-      _buildLabel(colors, '${l10n.tokenLabel} (paste after authenticating)'),
+      buildFormFieldLabel(context, '${l10n.tokenLabel} (paste after authenticating)'),
       const SizedBox(height: 6),
-      TextField(
-        controller: _tokenCtrl,
-        decoration: InputDecoration(
-          hintText: l10n.tokenHint,
-          prefixIcon: const Icon(LucideIcons.key, size: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        style: const TextStyle(fontSize: 14),
-        enabled: !_loading,
-      ),
+      _buildTokenField(l10n.tokenHint),
     ];
   }
 
   List<Widget> _buildTokenSection(ColorScheme colors, AppLocalizations l10n) {
     return [
-      _buildLabel(colors, l10n.tokenLabel),
+      buildFormFieldLabel(context, l10n.tokenLabel),
       const SizedBox(height: 6),
-      TextField(
-        controller: _tokenCtrl,
-        decoration: InputDecoration(
-          hintText: 'Paste your login token here…',
-          prefixIcon: const Icon(LucideIcons.key, size: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        style: const TextStyle(fontSize: 14),
-        enabled: !_loading,
-      ),
+      _buildTokenField('Paste your login token here…'),
     ];
+  }
+
+  /// The access-token input, used by both the token mode and the SSO
+  /// manual fallback.
+  Widget _buildTokenField(String hint) {
+    return TextField(
+      controller: _tokenCtrl,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: const Icon(LucideIcons.key, size: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+      ),
+      style: const TextStyle(fontSize: 14),
+      enabled: !_loading,
+    );
   }
 
   Widget _buildPasswordActionButton(
