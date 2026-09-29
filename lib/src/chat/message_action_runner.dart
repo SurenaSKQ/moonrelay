@@ -23,6 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/edit_history_dialog.dart';
 import 'package:moonrelay/src/chat/edit_message_dialog.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 import 'package:provider/provider.dart';
@@ -50,24 +51,18 @@ class MessageActionRunner {
   static void copy(BuildContext context, Event event) {
     final body = event.body;
     Clipboard.setData(ClipboardData(text: body));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.messageCopiedToClipboard),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showMessage(
+      AppLocalizations.of(context)!.messageCopiedToClipboard,
+      duration: kFeedbackDuration,
     );
   }
 
   /// Copies the event ID to the clipboard. Useful for moderation / debug.
   static void copyEventId(BuildContext context, Event event) {
     Clipboard.setData(ClipboardData(text: event.eventId));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.messageEventIdCopied),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showMessage(
+      AppLocalizations.of(context)!.messageEventIdCopied,
+      duration: kFeedbackDuration,
     );
   }
 
@@ -75,12 +70,9 @@ class MessageActionRunner {
   static void copyLink(BuildContext context, Event event, Room room) {
     final link = _permalinkFor(event, room);
     Clipboard.setData(ClipboardData(text: link));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.messageLinkCopied),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showMessage(
+      AppLocalizations.of(context)!.messageLinkCopied,
+      duration: kFeedbackDuration,
     );
   }
 
@@ -88,12 +80,9 @@ class MessageActionRunner {
   static void copyRawJson(BuildContext context, Event event) {
     final text = const JsonEncoder.withIndent('  ').convert(event.content);
     Clipboard.setData(ClipboardData(text: text));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.messageRawJsonCopied),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showMessage(
+      AppLocalizations.of(context)!.messageRawJsonCopied,
+      duration: kFeedbackDuration,
     );
   }
 
@@ -163,24 +152,11 @@ class MessageActionRunner {
         ? pinned.where((id) => id != eventId).toList()
         : [...pinned, eventId];
 
-    try {
-      await room.setPinnedEvents(updated);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            wasPinned
-                ? AppLocalizations.of(context)!.unpinMessage
-                : AppLocalizations.of(context)!.pinMessage,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
-      );
-    }
+    final l10n = AppLocalizations.of(context)!;
+    await context.showActionResult(
+      action: () => room.setPinnedEvents(updated),
+      successMessage: wasPinned ? l10n.unpinMessage : l10n.pinMessage,
+    );
   }
 
   /// Shows a confirmation dialog before redacting (or cancelling) the event.
@@ -194,78 +170,43 @@ class MessageActionRunner {
   ) async {
     final l10n = AppLocalizations.of(context)!;
 
-    if (event.status.isError) {
-      // Stuck local echo: remove it from the timeline instead of
-      // attempting to redact a server event that may not exist or
-      // whose eventId we don't know.
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.deleteMessage),
-          content: Text(l10n.cancelFailedSendConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                l10n.delete,
-                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-              ),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-      try {
-        await event.cancelSend();
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.sendCancelled),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } catch (e) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.failedToDelete('$e'))),
-        );
-      }
+    // The two branches differ only in what the user is asked and in what
+    // actually happens, so they share one dialog and one confirm handler
+    // rather than carrying a near-identical copy of each.
+    final isStuckEcho = event.status.isError;
+    final confirmed = await context.confirmDestructive(
+      title: l10n.deleteMessage,
+      // A stuck local echo is not on the server yet, so redaction would
+      // fail on an eventId the homeserver has never seen. The wording has
+      // to say we are cancelling, not deleting, or the user thinks the
+      // wrong thing happened.
+      message: isStuckEcho
+          ? l10n.cancelFailedSendConfirm
+          : l10n.areYouSureDeleteMessage,
+      confirmLabel: l10n.delete,
+    );
+    if (!confirmed) return;
+    if (!context.mounted) return;
+    await _deleteAfterConfirm(context, event, isStuckEcho: isStuckEcho);
+  }
+
+  static Future<void> _deleteAfterConfirm(
+    BuildContext context,
+    Event event, {
+    required bool isStuckEcho,
+  }) async {
+    if (isStuckEcho) {
+      await cancelFailedSend(context, event);
       return;
     }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteMessage),
-        content: Text(l10n.areYouSureDeleteMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              l10n.delete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
+    final l10n = AppLocalizations.of(context)!;
+    await context.showActionResult(
+      action: () => event.redactEvent(reason: 'Deleted by user'),
+      // A successful redact redraws the timeline behind the snackbar, so
+      // there is nothing to confirm.
+      successMessage: null,
+      formatError: (e) => l10n.failedToDelete('$e'),
     );
-    if (confirmed != true) return;
-    try {
-      await event.redactEvent(reason: 'Deleted by user');
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.failedToDelete('$e'))),
-      );
-    }
   }
 
   /// Kicks the sender of [event] from [room] after a confirmation dialog.
@@ -274,40 +215,17 @@ class MessageActionRunner {
     Event event,
     Room room,
   ) async {
-    final log = context.read<Logger>();
-    final l10n = AppLocalizations.of(context)!;
     final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
-    final confirmed = await showDialog<bool>(
+    final l10n = AppLocalizations.of(context)!;
+    await _runModerationAction(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionKick),
-        content: Text(l10n.kickConfirm(senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionKick),
-          ),
-        ],
-      ),
+      logLabel: 'kick',
+      title: l10n.actionKick,
+      message: l10n.kickConfirm(senderName),
+      confirmLabel: l10n.actionKick,
+      successMessage: l10n.userKicked(senderName),
+      action: () => room.kick(event.senderId),
     );
-    if (confirmed != true) return;
-    try {
-      await room.kick(event.senderId);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userKicked(senderName))),
-      );
-    } catch (e) {
-      log.w('Failed to kick', error: e);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
   }
 
   /// Bans the sender of [event] from [room] after a confirmation dialog.
@@ -316,43 +234,17 @@ class MessageActionRunner {
     Event event,
     Room room,
   ) async {
-    final log = context.read<Logger>();
-    final l10n = AppLocalizations.of(context)!;
     final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
-    final confirmed = await showDialog<bool>(
+    final l10n = AppLocalizations.of(context)!;
+    await _runModerationAction(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionBan),
-        content: Text(l10n.banConfirm(senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionBan),
-          ),
-        ],
-      ),
+      logLabel: 'ban',
+      title: l10n.actionBan,
+      message: l10n.banConfirm(senderName),
+      confirmLabel: l10n.actionBan,
+      successMessage: l10n.userBanned(senderName),
+      action: () => room.ban(event.senderId),
     );
-    if (confirmed != true) return;
-    try {
-      await room.ban(event.senderId);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userBanned(senderName))),
-      );
-    } catch (e) {
-      log.w('Failed to ban', error: e);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
   }
 
   /// Asks for a reason and reports the sender of [event] to the user's
@@ -362,49 +254,19 @@ class MessageActionRunner {
     Event event,
     Room room,
   ) async {
-    final log = context.read<Logger>();
     final l10n = AppLocalizations.of(context)!;
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: Text(l10n.actionReport),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            minLines: 2,
-            maxLines: 5,
-            decoration: InputDecoration(hintText: l10n.reportReasonHint),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(controller.text.trim()),
-              child: Text(l10n.actionReport),
-            ),
-          ],
-        );
-      },
-    );
+    // Captured before the dialog: a provider read after the await would
+    // touch a context that may be gone.
+    final log = context.read<Logger>();
+    final reason = await _promptForReason(context, l10n);
     if (reason == null) return;
-    try {
-      await room.client.reportUser(event.senderId, reason);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.userReported)),
-      );
-    } catch (e) {
-      log.w('Failed to report user', error: e);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+    if (!context.mounted) return;
+    await context.showActionResult(
+      action: () => room.client.reportUser(event.senderId, reason),
+      successMessage: l10n.userReported,
+      log: log,
+      logLabel: 'report user',
+    );
   }
 
   /// Retries sending a failed event by calling [Event.sendAgain].
@@ -418,23 +280,13 @@ class MessageActionRunner {
     Room room,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    final log = context.read<Logger>();
-    try {
-      await event.sendAgain();
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.sendRetried),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      log.w('Failed to retry send', error: e);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+    await context.showActionResult(
+      action: event.sendAgain,
+      successMessage: l10n.sendRetried,
+      duration: kFeedbackDuration,
+      log: context.read<Logger>(),
+      logLabel: 'retry send',
+    );
   }
 
   /// Removes a failed (unsent) event from the local timeline.
@@ -448,23 +300,83 @@ class MessageActionRunner {
     Event event,
   ) async {
     final l10n = AppLocalizations.of(context)!;
+    await context.showActionResult(
+      action: event.cancelSend,
+      successMessage: l10n.sendCancelled,
+      duration: kFeedbackDuration,
+      formatError: (e) => l10n.failedToDelete('$e'),
+      log: context.read<Logger>(),
+      logLabel: 'cancel send',
+    );
+  }
+
+  /// The shared shape of every moderation action: confirm, act, report.
+  ///
+  /// Keeping kick and ban (and anything added later) on one code path is what
+  /// makes them behave the same way: identical confirm button, identical
+  /// success wording, identical error wording, and a log line naming the
+  /// action that failed.
+  static Future<void> _runModerationAction({
+    required BuildContext context,
+    required String logLabel,
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required String successMessage,
+    required Future<void> Function() action,
+  }) async {
+    // Captured before the dialog: a provider read after the await would
+    // touch a context that may be gone.
     final log = context.read<Logger>();
-    try {
-      await event.cancelSend();
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.sendCancelled),
-          duration: const Duration(seconds: 2),
+    final confirmed = await context.confirmDestructive(
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+    );
+    if (!confirmed) return;
+    if (!context.mounted) return;
+    await context.showActionResult(
+      action: action,
+      successMessage: successMessage,
+      log: log,
+      logLabel: logLabel,
+    );
+  }
+
+  /// Collects an optional free-text reason for a moderation action.
+  ///
+  /// Returns `null` when the user cancels, which is different from an empty
+  /// string: an empty reason is still a valid report.
+  static Future<String?> _promptForReason(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.actionReport),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          decoration: InputDecoration(hintText: l10n.reportReasonHint),
         ),
-      );
-    } catch (e) {
-      log.w('Failed to cancel send', error: e);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(l10n.actionReport),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   /// Whether the current user can moderate (kick) the sender of [event]
