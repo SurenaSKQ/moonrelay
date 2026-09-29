@@ -682,6 +682,67 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
+  /// Everything that happens between a successful `client.login` and the
+  /// rooms screen, for every login method.
+  ///
+  /// This was duplicated between the password flow and the token flow, and
+  /// the copies had already drifted: only the password one prompted for
+  /// device verification afterwards, so a user who signed in with a token
+  /// was never offered the check the other path asks for. The prompt now
+  /// happens on both, which is what its own comment says it is for.
+  Future<void> _onLoginSucceeded(
+    BuildContext context,
+    Client client,
+    Logger log,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    // -- Transition to syncing state ----------------------------------
+    // Login succeeded; the Matrix SDK is now running its first sync in
+    // the background. Show a full-screen loading state so the user sees
+    // progress instead of a blank room list.
+    setState(() {
+      _statusMessage = l10n.syncingYourAccount;
+      _loading = false; // allow the build method to show _syncing UI
+      _syncing = true;
+    });
+
+    // -- Enable encryption now that we're logged in ------------------
+    // Capture all provider reads before any await so the analyzer does
+    // not see [context] used across the async gap.
+    final encryptionService = context.read<EncryptionService>();
+    final accountManager = context.read<AccountManager>();
+    final homeserverSnapshot = client.homeserver?.toString() ?? '';
+    final userIdSnapshot = client.userID!;
+    await encryptionService.init();
+
+    // -- Save this account for multi-account support ------------------
+    await accountManager.addOrUpdateAccount(
+      StoredAccount(
+        userId: userIdSnapshot,
+        homeserver: homeserverSnapshot,
+      ),
+      client: client,
+      encryptionService: encryptionService,
+    );
+
+    final syncResult = await _waitForInitialSync(client, log);
+    if (!mounted) return;
+    if (!syncResult) {
+      log.w('Initial sync not yet complete, proceeding to rooms');
+    }
+    if (!context.mounted) return;
+    context.go('/main/rooms');
+
+    // -- Post-login encryption: SAS verification only ----------------
+    // The new encryption flow surfaces a one-shot emoji verification
+    // prompt immediately after sign-in. Cross-signing bootstrap, recovery
+    // key flows, and other SSSS prompts are intentionally deferred to the
+    // encryption settings page so the user is not ambushed by password-
+    // style dialogs every time they open the app.
+    await _maybePromptDeviceVerification(encryptionService);
+  }
+
   Future<void> _doPasswordLogin() async {
     final l10n = AppLocalizations.of(context)!;
     setState(() {
@@ -741,55 +802,7 @@ class _LoginPageState extends State<LoginPage> {
     switch (result) {
       case RetrySuccess():
         {
-          // -- Transition to syncing state ----------------------------
-          // Login succeeded; the Matrix SDK is now running its first sync
-          // in the background.  Show a full-screen loading state so the
-          // user sees progress instead of a blank room list.
-          setState(() {
-            _statusMessage = l10n.syncingYourAccount;
-            _loading = false; // allow the build method to show _syncing UI
-            _syncing = true;
-          });
-
-          // -- Enable encryption now that we're logged in ----------
-          // Capture all provider reads before any await so the analyzer
-          // doesn't see [context] used across the async gap.
-          final encryptionService = context.read<EncryptionService>();
-          final accountManager = context.read<AccountManager>();
-          final homeserverSnapshot = client.homeserver?.toString() ?? '';
-          final userIdSnapshot = client.userID!;
-          await encryptionService.init();
-
-          // -- Save this account for multi-account support ---------
-          await accountManager.addOrUpdateAccount(
-            StoredAccount(
-              userId: userIdSnapshot,
-              homeserver: homeserverSnapshot,
-            ),
-            client: client,
-            encryptionService: encryptionService,
-          );
-
-          final syncResult = await _waitForInitialSync(client, log);
-
-          if (!mounted) return;
-
-          switch (syncResult) {
-            case true:
-              context.go('/main/rooms');
-            case false:
-              log.w('Initial sync not yet complete, proceeding to rooms');
-              context.go('/main/rooms');
-          }
-
-          // -- Post-login encryption: SAS verification only ---------
-          // The new encryption flow surfaces a one-shot emoji
-          // verification prompt immediately after sign-in.  Cross-
-          // signing bootstrap, recovery key flows, and other SSSS
-          // prompts are intentionally deferred to the encryption
-          // settings page so the user is not ambushed by password-
-          // style dialogs every time they open the app.
-          await _maybePromptDeviceVerification(encryptionService);
+          await _onLoginSucceeded(context, client, log);
         }
       case RetryFailed(:final error, :final attempts):
         {
@@ -1216,41 +1229,7 @@ class _LoginPageState extends State<LoginPage> {
     switch (result) {
       case RetrySuccess():
         {
-          setState(() {
-            _statusMessage = l10n.syncingYourAccount;
-            _loading = false;
-            _syncing = true;
-          });
-
-          // -- Enable encryption now that we're logged in ----------
-          // Capture all provider reads before any await so the analyzer
-          // doesn't see [context] used across the async gap.
-          final encryptionService = context.read<EncryptionService>();
-          final accountManager = context.read<AccountManager>();
-          final homeserverSnapshot = client.homeserver?.toString() ?? '';
-          final userIdSnapshot = client.userID!;
-          await encryptionService.init();
-
-          // -- Save this account for multi-account support ---------
-          await accountManager.addOrUpdateAccount(
-            StoredAccount(
-              userId: userIdSnapshot,
-              homeserver: homeserverSnapshot,
-            ),
-            client: client,
-            encryptionService: encryptionService,
-          );
-
-          final syncResult = await _waitForInitialSync(client, log);
-
-          if (!mounted) return;
-
-          if (syncResult) {
-            context.go('/main/rooms');
-          } else {
-            log.w('Initial sync not yet complete, proceeding to rooms');
-            context.go('/main/rooms');
-          }
+          await _onLoginSucceeded(context, client, log);
         }
       case RetryFailed(:final error, :final attempts):
         {
