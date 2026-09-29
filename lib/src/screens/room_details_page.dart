@@ -23,7 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/room_members_view.dart';
+import 'package:moonrelay/src/screens/room_members_view/room_members_view.dart';
 import 'package:moonrelay/src/screens/room_threads_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
