@@ -750,9 +750,14 @@ class _LoginPageState extends State<LoginPage> {
     // Ensure supported login types includes password
     client.supportedLoginTypes.add(AuthenticationTypes.password);
 
-    final String hs = _homeserverCtrl.text.trim();
-    final Uri homeserverUri =
-        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+    final Uri? homeserverUri = parseHomeserverInput(_homeserverCtrl.text);
+    if (homeserverUri == null) {
+      setState(() {
+        _error = l10n.ssoHomeserverInvalid;
+        _loading = false;
+      });
+      return;
+    }
 
     final List<LoginFlow>? flows =
         await _tryCheckHomeserver(client, homeserverUri);
@@ -885,9 +890,14 @@ class _LoginPageState extends State<LoginPage> {
 
     client.supportedLoginTypes.add(AuthenticationTypes.sso);
 
-    final String hs = _homeserverCtrl.text.trim();
-    final Uri homeserverUri =
-        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+    final Uri? homeserverUri = parseHomeserverInput(_homeserverCtrl.text);
+    if (homeserverUri == null) {
+      setState(() {
+        _error = l10n.ssoHomeserverInvalid;
+        _loading = false;
+      });
+      return;
+    }
 
     // -- Phishing guard ----------------------------------------
     // The homeserver address is user-supplied. Before we point the user's
@@ -1141,9 +1151,14 @@ class _LoginPageState extends State<LoginPage> {
 
     client.supportedLoginTypes.add(AuthenticationTypes.token);
 
-    final String hs = _homeserverCtrl.text.trim();
-    final Uri homeserverUri =
-        hs.contains('://') ? Uri.parse(hs) : Uri.https(hs, '');
+    final Uri? homeserverUri = parseHomeserverInput(_homeserverCtrl.text);
+    if (homeserverUri == null) {
+      setState(() {
+        _error = l10n.ssoHomeserverInvalid;
+        _loading = false;
+      });
+      return;
+    }
 
     final List<LoginFlow>? flows =
         await _tryCheckHomeserver(client, homeserverUri);

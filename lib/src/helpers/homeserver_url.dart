@@ -28,6 +28,34 @@
 /// before the browser is launched.
 library;
 
+/// Parses freeform homeserver text from the login field into a [Uri].
+///
+/// The field accepts both `matrix.org` and `https://matrix.org` because
+/// that is what people type, so a bare host is promoted to HTTPS rather
+/// than rejected. Returns `null` when the text is empty or will not parse,
+/// which is what the callers want to be able to report: the login page has
+/// to tell the user their address is unusable, and `Uri.parse` throwing
+/// inside a `setState` is not a way to do that.
+///
+/// The result is not yet trusted; pass it through [isPlausibleHomeserverUrl]
+/// before opening a browser or sending credentials anywhere.
+Uri? parseHomeserverInput(String input) {
+  final String trimmed = input.trim();
+  if (trimmed.isEmpty) return null;
+  final Uri parsed;
+  try {
+    parsed = trimmed.contains('://')
+        ? Uri.parse(trimmed)
+        : Uri.https(trimmed, '');
+  } on FormatException {
+    return null;
+  }
+  // `Uri.parse('https://')` succeeds and yields an empty host, so parsing
+  // alone is not enough to call the text a URL the user could have meant.
+  if (parsed.host.isEmpty) return null;
+  return parsed;
+}
+
 /// Returns `true` when [uri] looks like a homeserver the user actually
 /// intends to authenticate against (a public HTTP/HTTPS origin).
 bool isPlausibleHomeserverUrl(Uri uri) {
