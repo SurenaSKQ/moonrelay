@@ -751,8 +751,16 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateNotificationSoundEnabled(value);
   }
 
+  /// Sets the in-memory notification dedupe cache size.
+  ///
+  /// Clamped to at least 1, not 0: the cache is what stops the same event
+  /// raising two notifications inside one boot, and a limit of 0 would
+  /// evict the entry the instant it was inserted, leaving the control
+  /// looking configured while the dedupe does nothing. The on-disk
+  /// last-notified map is the cross-boot backstop, but it only records
+  /// per-room read markers, so it cannot cover every duplicate.
   Future<void> updateNotificationDedupeCacheSize(int value) async {
-    value = value.clamp(0, 100000);
+    value = value.clamp(1, 100000);
     if (value != _notificationDedupeCacheSize) {
       _notificationDedupeCacheSize = value;
       notifyListeners();

@@ -69,8 +69,9 @@ class NotificationService {
   /// Maximum number of in-memory event-ids we track to avoid showing
   /// the same notification twice within a single boot. The on-disk
   /// `_lastNotifiedEventIds` map handles persistence across reboots;
-  /// this Set is a cheap in-memory short-circuit and is bounded.
-  static const int _notifiedIdsCacheLimit = 256;
+  /// this Set is a cheap in-memory short-circuit and is bounded by
+  /// `SettingsController.notificationDedupeCacheSize`, which is read
+  /// per event so the limit is live.
 
   /// Default tag format for per-event notifications: combines the
   /// owning room and the Matrix event id so the plugin dedupes by
@@ -440,7 +441,7 @@ class NotificationService {
       _lastNotifiedEventIds[room.id] = lastSynced.eventId;
       _persistDebouncer?.cancel();
       _persistDebouncer = Timer(
-        const Duration(milliseconds: 750),
+        Duration(milliseconds: _settings.notificationPersistMs),
         () async {
           await _persistLastEventIds();
           await _persistGroupNotifiedCounts();
@@ -577,12 +578,13 @@ class NotificationService {
     // Debounce all persistence to once-per-burst: a single chat session
     // can shift the *_lastNotifiedEventIds and the group-count maps by
     // many entries per sync, and a half-written prefs blob is just as
-    // wrong as a missing one. 750 ms is well under the SDK's default
-    // 30 s long-poll and keeps the prefs disk write off the hot path.
+    // wrong as a missing one. The window comes from
+    // notificationPersistMs and is meant to stay well under the SDK's
+    // default 30 s long-poll so the prefs write stays off the hot path.
     if (changed || groupChanged) {
       _persistDebouncer?.cancel();
       _persistDebouncer = Timer(
-        const Duration(milliseconds: 750),
+        Duration(milliseconds: _settings.notificationPersistMs),
         () async {
           if (changed) await _persistLastEventIds();
           if (groupChanged) await _persistGroupNotifiedCounts();
@@ -736,7 +738,14 @@ class NotificationService {
     if (_notifiedEventIds.add(eventId)) {
       _seenOrder.add(eventId);
     }
-    while (_seenOrder.length > _notifiedIdsCacheLimit) {
+    // notificationDedupeCacheSize is clamped to at least 1, so this
+    // always keeps the entry that was just added. At 0 the cache would
+    // empty itself on insert and the dedupe would silently stop working
+    // while still looking configured.
+    final limit = _settings.notificationDedupeCacheSize < 1
+        ? 1
+        : _settings.notificationDedupeCacheSize;
+    while (_seenOrder.length > limit) {
       final oldest = _seenOrder.removeAt(0);
       _notifiedEventIds.remove(oldest);
     }
