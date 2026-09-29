@@ -88,8 +88,8 @@ class SettingsSnapshot {
   final int notificationDedupeCacheSize;
   final bool deepLinkAutoJoin;
   final int dbBackupKeepCount;
-  final bool autoLockEnabled;
-  final int autoLockMinutes;
+  final bool autoOfflinePresenceEnabled;
+  final int autoOfflinePresenceMinutes;
   final int syncDebounceMs;
   final int searchDebounceMs;
   final int draftAutosaveMs;
@@ -165,9 +165,9 @@ class SettingsSnapshot {
     this.notificationSoundEnabled = true,
     this.notificationDedupeCacheSize = 256,
     this.deepLinkAutoJoin = false,
-      this.dbBackupKeepCount = 1,
-      this.autoLockEnabled = false,
-    this.autoLockMinutes = 0,
+    this.dbBackupKeepCount = 1,
+    this.autoOfflinePresenceEnabled = false,
+    this.autoOfflinePresenceMinutes = 5,
     this.syncDebounceMs = 350,
     this.searchDebounceMs = 300,
     this.draftAutosaveMs = 500,
@@ -256,8 +256,8 @@ class SettingsService {
   // Privacy / deep links / data
   static const _deepLinkAutoJoinKey = 'deep_link_auto_join';
   static const _dbBackupKeepCountKey = 'db_backup_keep_count';
-  static const _autoLockEnabledKey = 'auto_lock_enabled';
-  static const _autoLockMinutesKey = 'auto_lock_minutes';
+  static const _autoOfflinePresenceEnabledKey = 'auto_offline_presence_enabled';
+  static const _autoOfflinePresenceMinutesKey = 'auto_offline_presence_minutes';
   static const _wipeLogsOnLogoutKey = 'wipe_logs_on_logout';
 
   // Advanced / debounces
@@ -430,8 +430,10 @@ class SettingsService {
           prefs.getInt(_notificationDedupeCacheSizeKey) ?? 256,
       deepLinkAutoJoin: prefs.getBool(_deepLinkAutoJoinKey) ?? false,
       dbBackupKeepCount: prefs.getInt(_dbBackupKeepCountKey) ?? 1,
-      autoLockEnabled: prefs.getBool(_autoLockEnabledKey) ?? false,
-      autoLockMinutes: prefs.getInt(_autoLockMinutesKey) ?? 0,
+    autoOfflinePresenceEnabled:
+        prefs.getBool(_autoOfflinePresenceEnabledKey) ?? false,
+    autoOfflinePresenceMinutes:
+        prefs.getInt(_autoOfflinePresenceMinutesKey) ?? 5,
       wipeLogsOnLogout: prefs.getBool(_wipeLogsOnLogoutKey) ?? true,
       syncDebounceMs: prefs.getInt(_syncDebounceMsKey) ?? 350,
       searchDebounceMs: prefs.getInt(_searchDebounceMsKey) ?? 300,
@@ -1166,24 +1168,24 @@ class SettingsService {
     await prefs.setInt(_dbBackupKeepCountKey, value);
   }
 
-  Future<bool> autoLockEnabled() async {
+  Future<bool> autoOfflinePresenceEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_autoLockEnabledKey) ?? false;
+    return prefs.getBool(_autoOfflinePresenceEnabledKey) ?? false;
   }
 
-  Future<void> updateAutoLockEnabled(bool value) async {
+  Future<void> updateAutoOfflinePresenceEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_autoLockEnabledKey, value);
+    await prefs.setBool(_autoOfflinePresenceEnabledKey, value);
   }
 
-  Future<int> autoLockMinutes() async {
+  Future<int> autoOfflinePresenceMinutes() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_autoLockMinutesKey) ?? 0;
+    return prefs.getInt(_autoOfflinePresenceMinutesKey) ?? 5;
   }
 
-  Future<void> updateAutoLockMinutes(int value) async {
+  Future<void> updateAutoOfflinePresenceMinutes(int value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_autoLockMinutesKey, value);
+    await prefs.setInt(_autoOfflinePresenceMinutesKey, value);
   }
 
   Future<bool> wipeLogsOnLogout() async {

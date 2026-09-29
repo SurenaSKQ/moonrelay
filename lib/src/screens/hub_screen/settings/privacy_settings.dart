@@ -92,30 +92,34 @@ class HubPrivacySettings extends StatelessWidget {
               ),
               SizedBox(height: t.spaceLg),
               HubSettingsSection(
-                title: l10n.security,
+                title: l10n.presence,
                 children: [
                   SwitchListTile(
-                    title: Text(l10n.autoLockEnabled),
-                    subtitle: Text(l10n.autoLockEnabledDescription),
-                    value: controller.autoLockEnabled,
-                    onChanged: (v) => controller.updateAutoLockEnabled(v),
-                    secondary: const Icon(LucideIcons.lock, size: 22),
+                    title: Text(l10n.autoOfflinePresenceEnabled),
+                    subtitle:
+                        Text(l10n.autoOfflinePresenceEnabledDescription),
+                    value: controller.autoOfflinePresenceEnabled,
+                    onChanged: (v) =>
+                        controller.updateAutoOfflinePresenceEnabled(v),
+                    secondary: const Icon(LucideIcons.circleUser, size: 22),
                   ),
                   ListTile(
                     leading: const Icon(LucideIcons.timer, size: 22),
-                    enabled: controller.autoLockEnabled,
-                    title: Text(l10n.autoLockMinutes),
-                    subtitle: Text('${controller.autoLockMinutes}'),
+                    enabled: controller.autoOfflinePresenceEnabled,
+                    title: Text(l10n.autoOfflinePresenceMinutes),
+                    subtitle: Text('${controller.autoOfflinePresenceMinutes}'),
                     trailing: SizedBox(
                       width: 160,
                       child: Slider(
-                        value: controller.autoLockMinutes.toDouble(),
-                        min: 0,
+                        value: controller.autoOfflinePresenceMinutes
+                            .toDouble(),
+                        min: 1,
                         max: 60,
                         divisions: 60,
-                        label: '${controller.autoLockMinutes}',
-                        onChanged: controller.autoLockEnabled
-                            ? (v) => controller.updateAutoLockMinutes(v.round())
+                        label: '${controller.autoOfflinePresenceMinutes}',
+                        onChanged: controller.autoOfflinePresenceEnabled
+                            ? (v) => controller
+                                .updateAutoOfflinePresenceMinutes(v.round())
                             : null,
                       ),
                     ),

@@ -143,8 +143,8 @@ void main() {
       await service.updateDraftRetentionDays(7);
       await service.updateDeepLinkAutoJoin(true);
       await service.updateDbBackupKeepCount(3);
-      await service.updateAutoLockEnabled(true);
-      await service.updateAutoLockMinutes(15);
+      await service.updateAutoOfflinePresenceEnabled(true);
+      await service.updateAutoOfflinePresenceMinutes(15);
       await service.updateWipeLogsOnLogout(false);
       await service.updateSyncDebounceMs(100);
       await service.updateSearchDebounceMs(200);
@@ -189,8 +189,8 @@ void main() {
       expect(snap.draftRetentionDays, 7);
       expect(snap.deepLinkAutoJoin, isTrue);
       expect(snap.dbBackupKeepCount, 3);
-      expect(snap.autoLockEnabled, isTrue);
-      expect(snap.autoLockMinutes, 15);
+      expect(snap.autoOfflinePresenceEnabled, isTrue);
+      expect(snap.autoOfflinePresenceMinutes, 15);
       expect(snap.wipeLogsOnLogout, isFalse);
       expect(snap.syncDebounceMs, 100);
       expect(snap.searchDebounceMs, 200);

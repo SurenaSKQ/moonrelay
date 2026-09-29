@@ -2952,17 +2952,17 @@
   "@dbBackupKeepCount": {
     "description": "How many .bak files to keep when the database is wiped."
   },
-  "autoLockEnabled": "Auto-lock when idle",
-  "@autoLockEnabled": {
-    "description": "Toggle for auto-locking the app after a period of inactivity."
+  "autoOfflinePresenceEnabled": "Appear offline when idle",
+  "@autoOfflinePresenceEnabled": {
+    "description": "Toggle for marking the account offline after a period of inactivity."
   },
-  "autoLockEnabledDescription": "Mark the account as offline after a period of no keyboard or mouse activity.",
-  "@autoLockEnabledDescription": {
-    "description": "Subtitle for the auto-lock toggle."
+  "autoOfflinePresenceEnabledDescription": "Mark the account as offline after a period of no keyboard or mouse activity.",
+  "@autoOfflinePresenceEnabledDescription": {
+    "description": "Subtitle for the appear-offline-when-idle toggle."
   },
-  "autoLockMinutes": "Idle minutes before auto-lock",
-  "@autoLockMinutes": {
-    "description": "Number of minutes of inactivity before the auto-lock kicks in."
+  "autoOfflinePresenceMinutes": "Idle minutes before appearing offline",
+  "@autoOfflinePresenceMinutes": {
+    "description": "Number of minutes of inactivity before the account is marked offline."
   },
   "wipeLogsOnLogout": "Wipe logs on logout",
   "@wipeLogsOnLogout": {
