@@ -3307,6 +3307,23 @@
   "@testNotificationFired": {
     "description": "Snackbar after firing a test notification."
   },
+  "testNotificationBody": "This is a test notification from Moonrelay.",
+  "@testNotificationBody": {
+    "description": "Body text of the debug test notification."
+  },
+
+  "notificationActionMarkRead": "Mark as read",
+  "@notificationActionMarkRead": {
+    "description": "Windows notification action button that clears a room's unread state without opening the app."
+  },
+  "notificationActionOpen": "Open",
+  "@notificationActionOpen": {
+    "description": "Default notification action label, used as the tap affordance on Linux and as the Windows open button."
+  },
+  "notificationChannelDescription": "Matrix message notifications",
+  "@notificationChannelDescription": {
+    "description": "Android notification channel description."
+  },
   "notificationFailed": "Notification failed: {error}",
   "@notificationFailed": {
     "description": "Snackbar shown when a test notification fails.",
