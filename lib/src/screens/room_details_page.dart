@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view.dart';
 import 'package:moonrelay/src/screens/room_threads_view.dart';
@@ -84,15 +85,9 @@ class _RoomInformationsState extends State<RoomInformations> {
 
   /// Friendly creation date string.
   String _creationDate(Room room) {
-    final createEvent =
-        room.getState(EventTypes.RoomCreate)?.content.tryGet('created_at');
-    if (createEvent is String && createEvent.isNotEmpty) {
-      final dt = DateTime.tryParse(createEvent);
-      if (dt != null) {
-        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-      }
-    }
-    return AppLocalizations.of(context)!.unknownDate;
+    final created = roomCreatedAt(room);
+    if (created == null) return AppLocalizations.of(context)!.unknownDate;
+    return formatIsoDay(created);
   }
 
   void _copyRoomId() {

@@ -91,6 +91,7 @@ extension FeedbackContext on BuildContext {
     required Future<void> Function() action,
     required String? successMessage,
     String Function(Object error)? formatError,
+    bool floating = false,
     Duration? duration,
     Logger? log,
     String logLabel = 'action',
@@ -98,7 +99,7 @@ extension FeedbackContext on BuildContext {
     try {
       await action();
       if (successMessage != null) {
-        showMessage(successMessage, duration: duration);
+        showMessage(successMessage, floating: floating, duration: duration);
       }
       return true;
     } catch (e) {
@@ -106,6 +107,7 @@ extension FeedbackContext on BuildContext {
       showMessage(
         formatError?.call(e) ?? AppLocalizations.of(this)!.actionFailed('$e'),
         isError: true,
+        floating: floating,
         duration: duration,
       );
       return false;
