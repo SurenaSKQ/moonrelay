@@ -1060,7 +1060,6 @@
   "noRoomSelected": "No room selected",
   "noRoomSelectedHint": "Pick a room from the sidebar to start reading or chatting.",
 
-  "profileIdNullError": "شناسه کاربر قابل درک نبود. لطفاً بعداً دوباره تلاش کنید یا یک باگ به پروژه ما گزارش دهید.",
   "profileIdInvalid": "شناسه کاربر قابل درک نبود ({error}). لطفاً بعداً دوباره تلاش کنید یا یک باگ به پروژه ما گزارش دهید.",
   "@profileIdInvalid": {
     "description": "Error shown when the profile user ID is invalid.",

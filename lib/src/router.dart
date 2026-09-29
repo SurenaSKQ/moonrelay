@@ -16,7 +16,7 @@
 
 import 'dart:async';
 
-import 'package:moonrelay/src/helpers/profile_delegate.dart';
+import 'package:moonrelay/src/widgets/profile_view.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
@@ -34,7 +34,7 @@ import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
-import 'package:moonrelay/src/helpers/room_delegate.dart';
+import 'package:moonrelay/src/widgets/room_resolver.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -213,8 +213,7 @@ class MoonRouter {
                   pageBuilder: (context, state) => genericPageBuilder(
                     context,
                     state,
-                    RoomDelegate(
-                      roomID: state.pathParameters['roomid']!,
+                    RoomResolver(roomId: state.pathParameters['roomid']!,
                       threadRootEventId:
                           state.uri.queryParameters['threadRoot'],
                     ),
@@ -226,8 +225,8 @@ class MoonRouter {
                       pageBuilder: (context, state) => genericPageBuilder(
                         context,
                         state,
-                        ProfileDelegate(
-                          userid: state.pathParameters['userid'],
+                        ProfileView(
+                          userId: state.pathParameters['userid'] ?? '',
                         ),
                       ),
                       routes: [
@@ -273,8 +272,7 @@ class MoonRouter {
                           pageBuilder: (context, state) => genericPageBuilder(
                             context,
                             state,
-                            ProfileDelegate(
-                              userid: Uri.decodeComponent(
+                            ProfileView(userId: Uri.decodeComponent(
                                 state.pathParameters['userid'] ?? '',
                               ),
                             ),
@@ -326,13 +324,13 @@ class MoonRouter {
               pageBuilder: (context, state) => genericPageBuilder(
                 context,
                 state,
-                ProfileDelegate(
-                  // This route means "my profile", so it has to name the
-                  // signed-in user. A null here is not an absent
-                  // parameter, it is the whole point of the route, and
-                  // ProfileDelegate answers a null with an error card.
-                  userid: _ownUserId(context),
-                ),
+            ProfileView(
+              // This route means "my profile", so it has to name the
+              // signed-in user. A null here is not an absent
+              // parameter, it is the whole point of the route, and
+              // ProfileView answers an empty id with an error card.
+              userId: _ownUserId(context) ?? '',
+            ),
               ),
             ),
             // Stand-alone profile route.  Decoupled from the room tree
@@ -358,8 +356,7 @@ class MoonRouter {
               pageBuilder: (context, state) => genericPageBuilder(
                 context,
                 state,
-                ProfileDelegate(
-                  userid: Uri.decodeComponent(
+                ProfileView(userId: Uri.decodeComponent(
                     state.pathParameters['userid'] ?? '',
                   ),
                 ),
@@ -483,9 +480,9 @@ class MoonRouter {
 
   /// Page builder for the `/main/rooms` route (no `:roomid`).
   ///
-  /// Returns a [RoomDelegate] (which renders an empty space when the
-  /// room ID is absent) for the dashboard layout, or a fully-rendered
-  /// [MobileRoomsListPage] when the user is on the mobile layout.
+  /// Returns a [RoomResolver] for the room the route names, or a
+  /// fully-rendered [MobileRoomsListPage] when the user is on the
+  /// mobile layout.
   ///
   /// Both layouts share the same route; the difference is purely in
   /// how the URL `/main/rooms` is presented.  Keeping the URL stable
@@ -520,8 +517,8 @@ class MoonRouter {
       final roomID = state.pathParameters['roomid'];
       if (roomID == null || roomID.isEmpty) {
         // No room selected. On the dashboard that is the resting state,
-        // not an error, and it used to render RoomDelegate's "Room not
-        // found" card here.
+        // not an error, and it used to render the room resolver's
+        // "Room not found" card here.
         final l10n = AppLocalizations.of(context);
         child = EmptyState(
           icon: Icons.forum_outlined,
@@ -530,8 +527,7 @@ class MoonRouter {
               'Pick a room from the sidebar to start reading or chatting.',
         );
       } else {
-        child = RoomDelegate(
-          roomID: roomID,
+        child = RoomResolver(roomId: roomID,
           threadRootEventId: state.uri.queryParameters['threadRoot'],
         );
       }

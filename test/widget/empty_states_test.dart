@@ -16,11 +16,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonrelay/src/helpers/profile_delegate.dart';
-import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
+import 'package:moonrelay/src/widgets/profile_view.dart';
+import 'package:moonrelay/src/widgets/room_resolver.dart';
 
 import '../helpers/mocks.dart';
 import '../helpers/widget_test_utils.dart';
@@ -71,22 +72,11 @@ void main() {
     });
   });
 
-  group('ProfileDelegate error states', () {
-    testWidgets('null userid shows an error state instead of a blank pane',
-        (tester) async {
-      await tester.pumpWidget(
-        wrapWithProviders(child: const ProfileDelegate(userid: null)),
-      );
-
-      expect(find.byType(EmptyState), findsOneWidget);
-      // The localized error heading is rendered.
-      expect(find.text('Error'), findsOneWidget);
-    });
-
+  group('ProfileView error states', () {
     testWidgets('malformed userid shows the invalid-id error state',
         (tester) async {
       await tester.pumpWidget(
-        wrapWithProviders(child: const ProfileDelegate(userid: 'not-a-user')),
+        wrapWithProviders(child: const ProfileView(userId: 'not-a-user')),
       );
 
       expect(find.byType(EmptyState), findsOneWidget);
@@ -94,27 +84,43 @@ void main() {
 
     testWidgets('valid userid does not short-circuit into the error state',
         (tester) async {
-      // No network is needed: we only assert the delegate did NOT
-      // short-circuit into the error state.
+      // No network is needed: we only assert the view did NOT short-circuit
+      // into the error state.
       await tester.pumpWidget(
-        wrapWithProviders(child: const ProfileDelegate(userid: '@alice:example.org')),
+        wrapWithProviders(child: const ProfileView(userId: '@alice:example.org')),
       );
 
       expect(find.byType(EmptyState), findsNothing);
     });
+
+    testWidgets('an empty userid is an error state, not a blank pane',
+        (tester) async {
+      // `/main/myprofile` used to reach this widget with a null id and get
+      // an error card on the user's own profile. The router now resolves
+      // the signed-in id, so an empty value can only mean a broken route.
+      await tester.pumpWidget(
+        wrapWithProviders(child: const ProfileView(userId: '')),
+      );
+
+      expect(find.byType(EmptyState), findsOneWidget);
+    });
   });
 
-  group('RoomDelegate empty/error states', () {
-    testWidgets('null room id shows an error state', (tester) async {
+  group('RoomResolver empty/error states', () {
+    testWidgets('empty room id shows the not-found message', (tester) async {
       await tester.pumpWidget(
-        wrapWithProviders(child: const RoomDelegate(roomID: null)),
+        wrapWithProviders(child: const RoomResolver(roomId: '')),
       );
       // Flush the post-frame SyncPulse lookup (no-ops without a SyncPulse).
       await tester.pump();
 
-      expect(find.byType(EmptyState), findsOneWidget);
-      expect(find.text('Error'), findsOneWidget);
+      expect(find.text('Room not found'), findsOneWidget);
     });
+
+    // The "room is in the sync cache" branch is a single `room != null`
+    // check and is exercised for real by test/widget/router_test.dart, which
+    // drives the whole route table. Stubbing RoomPage's subtree here would
+    // be brittle mock scaffolding for no extra signal.
 
     testWidgets('not-joined room hands off to the room preview screen',
         (tester) async {
@@ -130,13 +136,33 @@ void main() {
       await tester.pumpWidget(
         wrapWithProviders(
           client: client,
-          child: const RoomDelegate(roomID: '!missing:example.org'),
+          child: const RoomResolver(roomId: '!missing:example.org'),
         ),
       );
       await tester.pump();
 
       // The content is the existing preview screen (not a blank splash).
       expect(find.byType(RoomPreviewScreen), findsOneWidget);
+    });
+
+    testWidgets('an empty sync cache waits rather than claiming not-found',
+        (tester) async {
+      // This is the cold deep-link case: the room may simply not have
+      // arrived yet, so the resolver must not tell the user it is missing.
+      final client = MockClient();
+      when(() => client.rooms).thenReturn(<Room>[]);
+      when(() => client.getRoomById('!cold:example.org')).thenReturn(null);
+
+      await tester.pumpWidget(
+        wrapWithProviders(
+          client: client,
+          child: const RoomResolver(roomId: '!cold:example.org'),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(RoomPreviewScreen), findsNothing);
     });
   });
 }
