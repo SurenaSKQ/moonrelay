@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -204,16 +205,16 @@ class _RoomInformationsState extends State<RoomInformations> {
           SizedBox(height: t.spaceLg),
 
           // -- Room actions ---------------------------------------------
-          _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
-          _ActionTile(
+          InfoActionTile(
             icon: LucideIcons.settings,
             label: l10n.roomSettings,
             description: l10n.roomSettingsDescription,
             onTap: () => context.push('/main/rooms/${room.id}/settings'),
             scheme: scheme,
           ),
-          _ActionTile(
+          InfoActionTile(
             icon: LucideIcons.copy,
             label: l10n.copyRoomId,
             description: room.id,
@@ -221,7 +222,7 @@ class _RoomInformationsState extends State<RoomInformations> {
             scheme: scheme,
           ),
           if (room.encrypted)
-            _ActionTile(
+            InfoActionTile(
               icon: LucideIcons.rotateCw,
               label: l10n.rotateMegolmSession,
               description: l10n.rotateMegolmSessionDescription,
@@ -232,9 +233,9 @@ class _RoomInformationsState extends State<RoomInformations> {
           SizedBox(height: t.spaceLg),
 
           // -- Room details ---------------------------------------------
-          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
-          _DetailRow(
+          InfoDetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
                 : room.joinRules == JoinRules.knock ||
@@ -245,20 +246,20 @@ class _RoomInformationsState extends State<RoomInformations> {
             value: roomType,
             scheme: scheme,
           ),
-          _DetailRow(
+          InfoDetailRow(
             icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
             value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
           if (canonicalAlias != null)
-            _DetailRow(
+            InfoDetailRow(
               icon: LucideIcons.hash,
               label: l10n.addressLabel,
               value: canonicalAlias,
               scheme: scheme,
             ),
-          _DetailRow(
+          InfoDetailRow(
             icon: LucideIcons.calendar,
             label: l10n.createdLabel,
             value: creationDate,
@@ -267,13 +268,13 @@ class _RoomInformationsState extends State<RoomInformations> {
           SizedBox(height: t.spaceLg),
 
           // -- Security -------------------------------------------------
-          _SectionHeader(title: l10n.securitySection, scheme: scheme),
+          InfoSectionHeader(title: l10n.securitySection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _buildSecuritySection(context, scheme, room, isEncrypted),
           SizedBox(height: t.spaceLg),
 
           // -- Top members ----------------------------------------------
-          _SectionHeader(title: l10n.membersSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.membersSection, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _TopMembersSection(
             room: room,
@@ -283,7 +284,7 @@ class _RoomInformationsState extends State<RoomInformations> {
           SizedBox(height: t.spaceLg),
 
           // -- Threads -------------------------------------------------
-          _SectionHeader(title: l10n.threads, scheme: scheme),
+          InfoSectionHeader(title: l10n.threads, scheme: scheme),
           SizedBox(height: t.spaceSm),
           _TopThreadsSection(
             room: room,
@@ -303,7 +304,7 @@ class _RoomInformationsState extends State<RoomInformations> {
   ) {
     final l10n = AppLocalizations.of(context)!;
     if (!isEncrypted) {
-      return _DetailRow(
+      return InfoDetailRow(
         icon: LucideIcons.lockOpen,
         label: l10n.encryptionLabel,
         value: l10n.notEnabled,
@@ -314,7 +315,7 @@ class _RoomInformationsState extends State<RoomInformations> {
 
     return Column(
       children: [
-        _DetailRow(
+        InfoDetailRow(
           icon: LucideIcons.shieldCheck,
           label: l10n.encryptionLabel,
           value: room.encryptionAlgorithm ?? 'Megolm',
@@ -323,7 +324,7 @@ class _RoomInformationsState extends State<RoomInformations> {
         if (participants.length <= 10)
           ...participants.map((member) {
             if (member.id == room.client.userID) return const SizedBox.shrink();
-            return _DetailRow(
+            return InfoDetailRow(
               icon: LucideIcons.user,
               label: member.calcDisplayname(),
               value: '',
@@ -460,7 +461,7 @@ class _RoomIdentityCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                _InfoChip(
+                InfoChip(
                   icon: room.joinRules == JoinRules.public
                       ? Icons.public_rounded
                       : room.joinRules == JoinRules.knock ||
@@ -470,13 +471,13 @@ class _RoomIdentityCard extends StatelessWidget {
                   label: roomType,
                   scheme: scheme,
                 ),
-                _InfoChip(
+                InfoChip(
                   icon: Icons.people_rounded,
                   label: '$totalMembers ${l10n.members}',
                   scheme: scheme,
                 ),
                 if (room.isDirectChat)
-                  _InfoChip(
+                  InfoChip(
                     icon: Icons.person_rounded,
                     label: 'Direct Chat',
                     scheme: scheme,
@@ -491,164 +492,12 @@ class _RoomIdentityCard extends StatelessWidget {
 }
 
 /// A small chip used for room metadata badges.
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
-        borderRadius: BorderRadius.circular(t.radiusXl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          SizedBox(width: t.spaceXs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// A section header label.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.scheme});
-
-  final String title;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: scheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
 
 /// A tappable action row.
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    this.description,
-    required this.onTap,
-    required this.scheme,
-  }) : color = null;
-
-  final IconData icon;
-  final String label;
-  final String? description;
-  final Color? color;
-  final VoidCallback onTap;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final effectiveColor = color ?? scheme.primary;
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.surfaceContainerLow,
-      margin: const EdgeInsets.only(bottom: 4),
-      child: ListTile(
-        leading: Icon(icon, color: effectiveColor),
-        title: Text(
-          label,
-          style: TextStyle(color: effectiveColor),
-        ),
-        subtitle: description != null
-            ? Text(
-                description!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(t.radiusMd),
-        ),
-      ),
-    );
-  }
-}
 
 /// A read-only detail row with icon, label, and value.
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.scheme,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final ColorScheme scheme;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          SizedBox(width: t.spaceMd),
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: scheme.onSurface,
-              ),
-            ),
-          ),
-          if (trailing != null) trailing!,
-        ],
-      ),
-    );
-  }
-}
 
 // =============================================================================
 // Top members section

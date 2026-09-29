@@ -28,9 +28,9 @@ import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:moonrelay/src/screens/room_settings/power_levels_editor.dart';
 import 'package:moonrelay/src/screens/room_settings/room_identity_card.dart';
-import 'package:moonrelay/src/screens/room_settings/room_settings_widgets.dart';
 import 'package:moonrelay/src/screens/room_settings/room_notification_tile.dart';
 import 'package:moonrelay/src/screens/room_settings/knock_requests_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -400,22 +400,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           SizedBox(height: t.spaceLg),
 
           // -- Technical details ------------------------------------------
-          RoomSettingsSectionHeader(title: l10n.detailsSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: LucideIcons.hash,
             label: l10n.roomIdLabel,
             value: room.id,
             scheme: scheme,
           ),
           if (canonicalAlias != null)
-            RoomDetailRow(
+            InfoDetailRow(
               icon: LucideIcons.atSign,
               label: l10n.addressLabel,
               value: canonicalAlias,
               scheme: scheme,
             ),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
                 : room.joinRules == JoinRules.knock ||
@@ -426,19 +426,19 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             value: roomType,
             scheme: scheme,
           ),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
             value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: LucideIcons.calendar,
             label: l10n.createdLabel,
             value: creationDate,
             scheme: scheme,
           ),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: LucideIcons.users,
             label: l10n.members,
             value: '$totalMembers',
@@ -450,10 +450,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
-            RoomSettingsSectionHeader(title: l10n.actionsSection, scheme: scheme),
+            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceXs),
             if (_canChange('m.room.name'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.pencil,
                 label: l10n.editRoomName,
                 description: room.getLocalizedDisplayname(),
@@ -461,7 +461,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.topic'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.alignLeft,
                 label: l10n.editRoomTopic,
                 description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
@@ -469,7 +469,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.avatar'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.image,
                 label: l10n.changeRoomAvatar,
                 description: l10n.changeRoomAvatarDescription,
@@ -486,10 +486,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               _canChange('m.room.guest_access') ||
               _canChange('m.room.power_levels') ||
               _canChange('m.room.encryption')) ...[
-            RoomSettingsSectionHeader(title: l10n.actionsSection, scheme: scheme),
+            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceXs),
             if (_canChange('m.room.join_rules'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.logIn,
                 label: l10n.joinRuleLabel,
                 description: roomType,
@@ -497,7 +497,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.history_visibility'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.eye,
                 label: l10n.historyVisibilitySection,
                 description: _historyVisibilityLabel(context, room),
@@ -505,7 +505,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.canonical_alias'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.atSign,
                 label: l10n.canonicalAliasSection,
                 description: canonicalAlias ?? l10n.notSet,
@@ -513,7 +513,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.guest_access'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.userPlus,
                 label: l10n.guestAccessSection,
                 description: _guestAccessLabel(context, room),
@@ -521,7 +521,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.power_levels'))
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.keyRound,
                 label: l10n.powerLevelsSection,
                 description: l10n.powerLevelUsersDefault,
@@ -529,7 +529,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.encryption') && !isEncrypted)
-              RoomActionTile(
+              InfoActionTile(
                 icon: LucideIcons.shieldCheck,
                 label: l10n.encryptionSection,
                 description: l10n.enableEncryption,
@@ -540,10 +540,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
 
           // -- Room list visibility -------------------------------------
-          RoomSettingsSectionHeader(
+          InfoSectionHeader(
               title: l10n.directoryVisibilitySection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          RoomActionTile(
+          InfoActionTile(
             icon: LucideIcons.globe,
             label: l10n.directoryVisibilitySection,
             description: room.joinRules == JoinRules.public
@@ -555,16 +555,16 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           SizedBox(height: t.spaceSm),
 
           // -- Room version + upgrade flow ------------------------------
-          RoomSettingsSectionHeader(title: l10n.detailsSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          RoomDetailRow(
+          InfoDetailRow(
             icon: LucideIcons.server,
             label: l10n.roomVersion,
             value: room.roomVersion ?? 'unknown',
             scheme: scheme,
           ),
           if (_canChange('m.room.tombstone') || _isAdmin)
-            RoomActionTile(
+            InfoActionTile(
               icon: LucideIcons.arrowUpCircle,
               label: l10n.upgradeRoom,
               description: l10n.upgradeRoomDescription,
@@ -579,20 +579,20 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             KnockRequestsSection(room: room),
 
           // --- Notification settings ----------------------------------
-          RoomSettingsSectionHeader(title: l10n.notificationSettings, scheme: scheme),
+          InfoSectionHeader(title: l10n.notificationSettings, scheme: scheme),
           SizedBox(height: t.spaceXs),
           RoomNotificationTile(room: room),
           SizedBox(height: t.spaceSm),
 
           // -- Danger zone ------------------------------------------------
           if (_isAdmin || room.membership == Membership.leave)
-            RoomSettingsSectionHeader(
+            InfoSectionHeader(
               title: l10n.actionsDeleteSection,
               scheme: scheme,
             ),
           if (room.membership == Membership.join) ...[
             SizedBox(height: t.spaceXs),
-            RoomActionTile(
+            InfoActionTile(
               icon: LucideIcons.logOut,
               label: l10n.leaveRoom,
               description: l10n.leaveRoomDescription,
@@ -603,7 +603,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
           if (_isAdmin) ...[
             SizedBox(height: t.spaceXs),
-            RoomActionTile(
+            InfoActionTile(
               icon: LucideIcons.trash2,
               label: l10n.deleteRoom,
               description: l10n.deleteRoomDescription,
@@ -614,7 +614,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
           if (room.membership == Membership.leave) ...[
             SizedBox(height: t.spaceXs),
-            RoomActionTile(
+            InfoActionTile(
               icon: LucideIcons.eyeOff,
               label: l10n.forgetRoom,
               description: l10n.forgetRoomDescription,

@@ -14,12 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-class RoomInfoChip extends StatelessWidget {
-  const RoomInfoChip({
+
+// -- Shared information-panel pieces ---------------------------------------
+
+/// A small labelled pill, used for a fact about the room or space rather
+/// than something the user can act on.
+class InfoChip extends StatelessWidget {
+  const InfoChip({
     super.key,
     required this.icon,
     required this.label,
@@ -58,16 +62,25 @@ class RoomInfoChip extends StatelessWidget {
   }
 }
 
-class RoomSettingsSectionHeader extends StatelessWidget {
-  const RoomSettingsSectionHeader({
-    super.key,required this.title, required this.scheme});
+class InfoSectionHeader extends StatelessWidget {
+  const InfoSectionHeader({
+    super.key,
+    required this.title,
+    required this.scheme,
+    this.icon,
+  });
 
   final String title;
   final ColorScheme scheme;
 
+  /// Optional leading glyph. The room and space panels use a bare title;
+  /// the profile and encryption panels lead with an icon.
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
-    return Text(
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final text = Text(
       title,
       style: TextStyle(
         fontSize: 14,
@@ -75,11 +88,20 @@ class RoomSettingsSectionHeader extends StatelessWidget {
         color: scheme.onSurfaceVariant,
       ),
     );
+    final glyph = icon;
+    if (glyph == null) return text;
+    return Row(
+      children: [
+        Icon(glyph, size: 16, color: scheme.onSurfaceVariant),
+        SizedBox(width: t.spaceXs),
+        text,
+      ],
+    );
   }
 }
 
-class RoomActionTile extends StatelessWidget {
-  const RoomActionTile({
+class InfoActionTile extends StatelessWidget {
+  const InfoActionTile({
     super.key,
     required this.icon,
     required this.label,
@@ -129,19 +151,29 @@ class RoomActionTile extends StatelessWidget {
   }
 }
 
-class RoomDetailRow extends StatelessWidget {
-  const RoomDetailRow({
+class InfoDetailRow extends StatelessWidget {
+  const InfoDetailRow({
     super.key,
     required this.icon,
     required this.label,
     required this.value,
     required this.scheme,
+    this.trailing,
+    this.valueFontFamily,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final ColorScheme scheme;
+
+  /// Optional widget rendered after the value, e.g. a verification badge.
+  final Widget? trailing;
+
+  /// Font for the value. The room and space panels pass a monospace face
+  /// because their values are identifiers; the member list does not,
+  /// because its values are names and a date.
+  final String? valueFontFamily;
 
   @override
   Widget build(BuildContext context) {
@@ -169,14 +201,14 @@ class RoomDetailRow extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: scheme.onSurface,
-                fontFamily: 'monospace',
+                fontFamily: valueFontFamily,
               ),
             ),
           ),
+          if (trailing != null) trailing!,
         ],
       ),
     );
   }
 }
 
-/// A tile that toggles notification mute for the current room.

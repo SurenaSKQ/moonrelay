@@ -24,6 +24,7 @@ import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/common/feedback.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -258,7 +259,7 @@ class ProfilePageContents extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ---- About section ----
-          _SectionHeader(
+          InfoSectionHeader(
             icon: LucideIcons.info,
             title: l10n.sectionAbout,
             scheme: scheme,
@@ -485,36 +486,6 @@ class _ProfileHeader extends StatelessWidget {
 // Section Header
 // ---------------------------------------------------------------------------
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String title;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: scheme.primary,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Section: Profile Info Card (display name, user ID, presence detail)
@@ -662,7 +633,7 @@ class _RoomContextSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        InfoSectionHeader(
           icon: LucideIcons.shield,
           title: l10n.roomInfoTitle,
           scheme: scheme,
@@ -807,7 +778,7 @@ class _ModerationSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        InfoSectionHeader(
           icon: LucideIcons.slash,
           title: l10n.sectionModeration,
           scheme: scheme,
@@ -1128,7 +1099,7 @@ class _ActionsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        InfoSectionHeader(
           icon: LucideIcons.navigation,
           title: l10n.actionsSection,
           scheme: scheme,

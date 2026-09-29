@@ -17,6 +17,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -156,9 +157,9 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
           // -- Quick actions (for members with permission) ----------------
           if (isJoined && canEdit) ...[
-            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceSm),
-            _ActionTile(
+            InfoActionTile(
               icon: LucideIcons.plus,
               label: l10n.addRoomToSpace,
               description: l10n.spaceSettingsDescription,
@@ -170,7 +171,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
           // -- Child subspaces --------------------------------------------
           if (subspaces.isNotEmpty) ...[
-            _SectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
+            InfoSectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
             SizedBox(height: t.spaceSm),
             for (final child in subspaces)
               _buildChildTile(
@@ -186,7 +187,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
           // -- Child rooms (joined) ---------------------------------------
           if (joinedRooms.isNotEmpty) ...[
-            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
+            InfoSectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             SizedBox(height: t.spaceSm),
             for (final child in joinedRooms)
               _buildChildTile(
@@ -202,7 +203,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
           // -- Unjoined rooms ----------------------------------------------
           if (unjoined.isNotEmpty) ...[
-            _SectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
+            InfoSectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
             SizedBox(height: t.spaceSm),
             for (final child in unjoined)
               _UnjoinedRoomTile(
@@ -321,12 +322,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
               spacing: 8,
               runSpacing: 6,
               children: [
-                _InfoChip(
+                InfoChip(
                   icon: LucideIcons.folder,
                   label: l10n.spaceType,
                   scheme: scheme,
                 ),
-                _InfoChip(
+                InfoChip(
                   icon: LucideIcons.users,
                   label: '$totalMembers ${l10n.members}',
                   scheme: scheme,
@@ -509,113 +510,9 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
 // -- Internal widgets ----------------------------------------------------------
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.scheme});
 
-  final String title;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: scheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
-        borderRadius: BorderRadius.circular(t.radiusXl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          SizedBox(width: t.spaceXs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// A tappable action row used in the quick-actions section.
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    this.description,
-    required this.onTap,
-    required this.scheme,
-  }) : color = null;
-
-  final IconData icon;
-  final String label;
-  final String? description;
-  final VoidCallback onTap;
-  final ColorScheme scheme;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final effectiveColor = color ?? scheme.primary;
-    return Card(
-      elevation: t.elevationNone,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: Icon(icon, size: 22, color: effectiveColor),
-        title: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: description != null
-            ? Text(
-                description!,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
-              )
-            : null,
-        trailing: Icon(
-          LucideIcons.chevronRight,
-          size: 18,
-          color: scheme.onSurfaceVariant,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
 
 /// A tile for a room in a space that the user has not yet joined.
 ///

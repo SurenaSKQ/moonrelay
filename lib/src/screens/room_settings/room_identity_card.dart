@@ -19,7 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/screens/room_settings/room_settings_widgets.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 class RoomIdentityCard extends StatelessWidget {
   const RoomIdentityCard({
@@ -92,18 +92,18 @@ class RoomIdentityCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                RoomInfoChip(
+                InfoChip(
                   icon: Icons.public_rounded,
                   label: roomType,
                   scheme: scheme,
                 ),
-                RoomInfoChip(
+                InfoChip(
                   icon: Icons.people_rounded,
                   label: '$totalMembers ${l10n.members}',
                   scheme: scheme,
                 ),
                 if (room.isDirectChat)
-                  RoomInfoChip(
+                  InfoChip(
                     icon: Icons.person_rounded,
                     label: l10n.directMessage,
                     scheme: scheme,
