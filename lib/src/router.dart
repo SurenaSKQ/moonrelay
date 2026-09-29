@@ -16,7 +16,6 @@
 
 import 'dart:async';
 
-import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
@@ -566,8 +565,10 @@ class MoonRouter {
 /// The shell decision is never made here.  [LayoutShellController]
 /// owns the width-to-shell mapping (with a sticky dead band) and is
 /// read by every layout consumer, so the frame and the route pages
-/// cannot disagree.  This widget merely renders the committed shell
-/// and nudges navigation when the shell flips.
+/// cannot disagree.  This widget renders the committed shell and nothing
+/// else.  In particular it does not navigate when the shell changes: a
+/// shell flip is a change of frame, not of destination, and the route
+/// stack is left exactly as the user left it.
 class _AdaptiveMainLayout extends StatefulWidget {
   const _AdaptiveMainLayout({required this.child});
 
@@ -578,14 +579,6 @@ class _AdaptiveMainLayout extends StatefulWidget {
 }
 
 class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
-  /// The shell the previous build chose.  Tracked so we can detect
-  /// transitions and force a route navigation to a clean default
-  /// page; without it, the dashboard inherits the [MobileRoomsListPage]
-  /// (or vice versa) and ends up rendering the previous shell's
-  /// content in a pane that wasn't designed for it (e.g. a rooms list
-  /// showing up in the right sidebar).
-  bool? _lastUseMobile;
-
   @override
   void initState() {
     super.initState();
@@ -595,26 +588,6 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
     // should be re-derived from the current width instead of inheriting
     // a stale one from the previous session.
     context.read<LayoutShellController>().reset();
-  }
-
-  /// Re-navigates to the active room (or to the rooms list when no
-  /// room is open) so the new shell renders a clean default state.
-  ///
-  /// The page child itself rebuilds reactively through the
-  /// [ListenableBuilder] in [_roomsListPageBuilder], so this only has
-  /// to fix the *URL*: when the shell flipped the user may have been
-  /// sitting on a room or the bare rooms list, and the new shell's
-  /// default page should be re-derived from [CurrentRoom].  A plain
-  /// [GoRouter.go] is enough; the old push/pop "refresh" hack leaked a
-  /// page onto the route stack on every shell flip because the pushed
-  /// page's future only completes when something pops it, which never
-  /// happened, so every mobile/dashboard switch mounted a second live
-  /// chat surface that was never disposed.
-  void _navigateToActiveRoom() {
-    final room = context.read<CurrentRoom>().room;
-    final target = room == null ? '/main/rooms' : '/main/rooms/${room.id}';
-    final router = GoRouter.of(context);
-    router.go(target);
   }
 
   @override
@@ -634,20 +607,8 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
     // breakpoint, so the committed shell only changes when the width
     // has clearly crossed over, so no separate hysteresis is needed here.
     shell.update(rawWidth: width, layoutMode: layoutMode);
-    final useMobile = shell.isMobile;
 
-    if (_lastUseMobile != null && _lastUseMobile != useMobile) {
-      // Shell transitioned.  Defer the navigation to a post-frame
-      // callback so we never call [GoRouter.go] from inside a build
-      // pass (which trips an assertion in newer Flutter versions).
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _navigateToActiveRoom();
-      });
-    }
-    _lastUseMobile = useMobile;
-
-    if (useMobile) {
+    if (shell.isMobile) {
       return MobileLayout(child: widget.child);
     }
     return DashboardLayout(child: widget.child);
