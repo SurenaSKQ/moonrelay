@@ -41,7 +41,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
 /// The application's route table.

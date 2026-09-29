@@ -25,7 +25,7 @@ import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/screens/logs_page.dart';
-import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';

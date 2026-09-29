@@ -15,6 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:convert';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/recovery_key_reminder.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/overview_widgets.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -107,16 +109,16 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           // of the session without forcing the user to re-run the
           // bootstrap wizard.
           if (enc.crossSigningBootstrapped && !_recoveryKeyAcknowledged)
-            _RecoveryKeyReminderCard(
+            RecoveryKeyReminderCard(
               onDismiss: _acknowledgeRecoveryKey,
               loc: loc,
               scheme: scheme,
             ),
           // -- Cross-signing section --------------------------------------
-          _SectionHeader(
+          EncryptionSectionHeader(
             icon: LucideIcons.shield,
             title: loc.encryptionCrossSigning,
-            trailing: _StatusBadge(
+            trailing: StatusBadge(
               label: enc.crossSigningBootstrapped
                   ? loc.encryptionStatusOk
                   : loc.encryptionStatusActionRequired,
@@ -129,7 +131,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StatusRow(
+                  StatusRow(
                     icon: enc.crossSigningBootstrapped
                         ? LucideIcons.checkCircle
                         : LucideIcons.alertCircle,
@@ -141,7 +143,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                         : loc.encryptionCrossSigningInactive,
                   ),
                   SizedBox(height: t.spaceSm),
-                  _StatusRow(
+                  StatusRow(
                     icon: enc.isThisDeviceVerified
                         ? LucideIcons.shieldCheck
                         : LucideIcons.shieldOff,
@@ -154,7 +156,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                   ),
                   if (enc.crossSigningBootstrapped) ...[
                     SizedBox(height: t.spaceMd),
-                    _FingerprintRow(
+                    FingerprintRow(
                       scheme: scheme,
                       label: loc.encryptionCrossSigningFingerprint,
                       fingerprint: enc.masterKeyFingerprint,
@@ -200,7 +202,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
 
           // -- Setup benefits checklist (shown when not yet bootstrapped) --
           if (!enc.crossSigningBootstrapped) ...[
-            _SectionHeader(
+            EncryptionSectionHeader(
               icon: LucideIcons.lightbulb,
               title: loc.encryptionSetupChecklist,
             ),
@@ -211,19 +213,19 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _BulletRow(
+                    BulletRow(
                       icon: LucideIcons.shieldCheck,
                       scheme: scheme,
                       text: loc.encryptionSetupChecklistCrossSigning,
                     ),
                     const SizedBox(height: 10),
-                    _BulletRow(
+                    BulletRow(
                       icon: LucideIcons.cloud,
                       scheme: scheme,
                       text: loc.encryptionSetupChecklistBackup,
                     ),
                     const SizedBox(height: 10),
-                    _BulletRow(
+                    BulletRow(
                       icon: LucideIcons.smartphone,
                       scheme: scheme,
                       text: loc.encryptionSetupChecklistDevice,
@@ -236,10 +238,10 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           ],
 
           // -- Devices section ------------------------------------------
-          _SectionHeader(
+          EncryptionSectionHeader(
             icon: LucideIcons.smartphone,
             title: loc.encryptionDevices,
-            trailing: _StatusBadge(
+            trailing: StatusBadge(
               label: enc.isThisDeviceVerified
                   ? loc.encryptionStatusOk
                   : loc.encryptionStatusActionRequired,
@@ -264,10 +266,10 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           SizedBox(height: t.spaceLg),
 
           // -- Key backup section ----------------------------------------
-          _SectionHeader(
+          EncryptionSectionHeader(
             icon: LucideIcons.cloud,
             title: loc.encryptionKeyBackup,
-            trailing: _StatusBadge(
+            trailing: StatusBadge(
               label: enc.keyBackupExists
                   ? loc.encryptionKeyBackupActive
                   : loc.encryptionKeyBackupInactive,
@@ -280,7 +282,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StatusRow(
+                  StatusRow(
                     icon: enc.keyBackupExists
                         ? LucideIcons.cloud
                         : LucideIcons.cloudOff,
@@ -294,7 +296,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                     SizedBox(height: t.spaceMd),
                     // Algorithm
                     if (enc.keyBackupAlgorithm != null)
-                      _DetailLine(
+                      DetailLine(
                         scheme: scheme,
                         label: loc.encryptionBackupAlgorithm,
                         value: enc.keyBackupAlgorithm!,
@@ -306,7 +308,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                     // set" for that would be a guess, and this row is the
                     // user's only signal about whether they can still
                     // restore their history.
-                    _StatusRow(
+                    StatusRow(
                       icon: switch (enc.keyBackupCached) {
                         true => LucideIcons.checkCircle,
                         false => LucideIcons.circleAlert,
@@ -362,7 +364,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           SizedBox(height: t.spaceLg),
 
           // -- Verify other users section --------------------------------
-          _SectionHeader(
+          EncryptionSectionHeader(
             icon: LucideIcons.users,
             title: loc.encryptionVerifiedUsers,
           ),
@@ -374,7 +376,7 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
           // and must be triggered explicitly.  The button copy makes
           // this clear and the action writes to a user-chosen file
           // rather than auto-opening it.
-          _SectionHeader(
+          EncryptionSectionHeader(
             icon: LucideIcons.keyRound,
             title: loc.encryptionLocalDataSection,
           ),
@@ -637,8 +639,9 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
+class EncryptionSectionHeader extends StatelessWidget {
+  const EncryptionSectionHeader({
+    super.key,
     required this.icon,
     required this.title,
     this.trailing,
@@ -661,268 +664,6 @@ class _SectionHeader extends StatelessWidget {
           Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
           if (trailing != null) trailing!,
         ],
-      ),
-    );
-  }
-}
-
-/// Small pill-shaped status label used in the overview to give an at-a-glance
-/// "this feature is OK / needs attention" indicator next to each section header.
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.label, required this.ok});
-
-  final String label;
-  final bool ok;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final color = ok ? Colors.green : scheme.outline;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: t.opacityFocus),
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        border: Border.all(color: color.withValues(alpha: t.opacityDisabled)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(ok ? LucideIcons.checkCircle : LucideIcons.alertCircle,
-              size: 12, color: color),
-          SizedBox(width: t.spaceXs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: iconColor),
-        SizedBox(width: t.spaceSm),
-        Expanded(child: Text(label)),
-      ],
-    );
-  }
-}
-
-/// Bullet-row used by the "Why set up encryption?" checklist.
-class _BulletRow extends StatelessWidget {
-  const _BulletRow({
-    required this.icon,
-    required this.scheme,
-    required this.text,
-  });
-
-  final IconData icon;
-  final ColorScheme scheme;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text)),
-      ],
-    );
-  }
-}
-
-/// Two-column label + monospace fingerprint reader for the user-facing
-/// "Master key fingerprint" entry.  Selectable so the user can copy it.
-class _FingerprintRow extends StatelessWidget {
-  const _FingerprintRow({
-    required this.scheme,
-    required this.label,
-    required this.fingerprint,
-  });
-
-  final ColorScheme scheme;
-  final String label;
-  final String? fingerprint;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    if (fingerprint == null || fingerprint!.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 13,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ),
-          SizedBox(height: t.spaceXs),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: SelectableText(
-              fingerprint!,
-              style: TextStyle(
-                fontSize: 12,
-                fontFamily: 'monospace',
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A small label-below-value detail line for showing backup metadata.
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({
-    required this.scheme,
-    required this.label,
-    required this.value,
-  });
-
-  final ColorScheme scheme;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          const SizedBox(width: 26), // align with icon width in _StatusRow
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 13,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Persistent reminder shown at the top of the encryption overview when
-/// cross-signing is bootstrapped but the user has not yet confirmed
-/// that they have saved their recovery key.
-///
-/// The banner is intentionally non-blocking: it explains why the key
-/// matters and offers a single "I saved it" button that dismisses it
-/// for the rest of the session (and persists the acknowledgement so it
-/// stays dismissed on subsequent launches).
-class _RecoveryKeyReminderCard extends StatelessWidget {
-  const _RecoveryKeyReminderCard({
-    required this.onDismiss,
-    required this.loc,
-    required this.scheme,
-  });
-
-  final Future<void> Function() onDismiss;
-  final AppLocalizations loc;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.tertiaryContainer.withValues(alpha: t.opacityDisabled),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(color: scheme.tertiary.withValues(alpha: 0.3)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(t.spaceLg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  LucideIcons.keyRound,
-                  color: scheme.tertiary,
-                  size: 22,
-                ),
-                SizedBox(width: t.spaceMd),
-                Expanded(
-                  child: Text(
-                    loc.encryptionRecoveryKeyReminderTitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: t.spaceSm),
-            Text(
-              loc.encryptionRecoveryKeyReminderBody,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                fontSize: 13,
-              ),
-            ),
-            SizedBox(height: t.spaceMd),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                icon: Icon(LucideIcons.check, size: t.iconSizeSmall),
-                onPressed: () {
-                  // ignore: discarded_futures
-                  onDismiss();
-                },
-                label: Text(loc.encryptionRecoveryKeyReminderAck),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
