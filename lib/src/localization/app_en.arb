@@ -1122,6 +1122,8 @@
   },
   "encryptionBackupRecoveryKeySet": "Recovery key is set",
   "encryptionBackupNoRecoveryKey": "No recovery key set",
+  "encryptionBackupRecoveryKeyUnknown": "Recovery key status unknown",
+  "encryptionBackupRecoveryKeyUnknownHint": "Moonrelay cannot tell from the Matrix API whether a recovery key was set up. If you are not sure, re-run the recovery setup to be certain you can restore encrypted history on a new device.",
   "encryptionBackupRecoveryKeyHint": "If you didn't set a recovery passphrase or key during setup, re-run setup to generate one. Without it, you cannot restore encrypted history on a new device.",
 
   "roomNotFound": "Room not found",

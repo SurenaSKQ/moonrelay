@@ -172,7 +172,48 @@ setState(() => _appState = state);
 
 // Retry/timeout wrappers (see async_utils.dart)
 final result = await withRetry(() => someOperation(), log: log, label: 'op');
+
+// Snackbar feedback with the mounted guard built in
+context.showMessage(l10n.done);
+await context.showActionResult(
+  action: () => room.setName(name),
+  successMessage: l10n.roomNameUpdated,
+);
+final ok = await context.confirmDestructive(
+  title: l10n.deleteMessage,
+  message: l10n.areYouSureDeleteMessage,
+  confirmLabel: l10n.delete,
+);
 ```
+
+### Error handling
+
+Every `catch` does one of two things. Anything else is a bug waiting to be
+found six months later:
+
+1. **Logs.** Use the `Logger` the class or widget already has, with a message
+   naming the operation (`log.w('Failed to kick', error: e)`), or go through
+   `context.showActionResult`, which logs and surfaces a snackbar.
+2. **Swallows with a reason.** A bare `catch (_)` is only acceptable when the
+   exception is expected and uninteresting, and it must carry a comment naming
+   what was expected and why the fallback is safe. `return false` because the
+   SDK throws on unloaded state is a decision; `return false` because you did
+   not want to look is not.
+
+Two rules that the `catch` sites have gotten wrong before:
+
+- **Fail closed on anything the user acts on.** A capability check that
+  returns `true` on error (`canEditText`) puts a button in front of the user
+  that then fails. Return the conservative value instead.
+- **Never derive a security fact from an unrelated one.** A green "Recovery
+  key is set" backed by `crossSigning.enabled` is a wrong answer presented
+  confidently. When the real signal is not available, model it as
+  unavailable (`bool?` plus a third UI state) rather than substituting a
+  proxy.
+
+For UI feedback, use the `FeedbackContext` extension in
+`lib/src/helpers/feedback.dart` instead of a hand-written
+`try / await / mounted / SnackBar` block.
 
 ### Comment style
 - Doc comments (`///`) on public APIs, classes, and non-trivial fields

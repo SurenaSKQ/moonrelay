@@ -387,10 +387,13 @@ class MessageActionRunner {
     try {
       return room
           .unsafeGetUserFromMemoryOrFallback(event.senderId)
-          .canKick;
-    } catch (_) {
-      return false;
-    }
+            .canKick;
+        } catch (_) {
+          // `unsafeGetUserFromMemoryOrFallback` throws when the sender is
+          // not in the local user cache yet. No cached user, no known
+          // power level, so no kick.
+          return false;
+        }
   }
 
   /// Whether the current user can ban the sender of [event] in [room].
@@ -401,10 +404,12 @@ class MessageActionRunner {
     try {
       return room
           .unsafeGetUserFromMemoryOrFallback(event.senderId)
-          .canBan;
-    } catch (_) {
-      return false;
-    }
+            .canBan;
+        } catch (_) {
+          // Same probe as canKick: an uncached User throws, and an
+          // uncached user cannot be banned.
+          return false;
+        }
   }
 
   /// Whether [event] is editable by the current user: text-shaped, sent
@@ -424,7 +429,12 @@ class MessageActionRunner {
     try {
       return event.canRedact;
     } catch (_) {
-      return true;
+      // `canRedact` walks the power level chain, which the SDK throws from
+      // when a user or room state event has not loaded yet. Answering
+      // `true` here would put an Edit button in front of the user that
+      // then fails when tapped, so fail closed and hide the action until
+      // the state arrives.
+      return false;
     }
   }
 

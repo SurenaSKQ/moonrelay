@@ -105,11 +105,19 @@ class EncryptionService extends ChangeNotifier {
   String? _keyBackupAlgorithm;
   String? get keyBackupAlgorithm => _keyBackupAlgorithm;
 
-  /// `true` when the SSSS cache currently holds the megolm backup key, so
+  /// Whether the SSSS cache currently holds the megolm backup key, so
   /// the backup can be restored on a new device with just the recovery
   /// passphrase or key.
-  bool _keyBackupCached = false;
-  bool get keyBackupCached => _keyBackupCached;
+  ///
+  /// Tri-state on purpose. The public Matrix SDK has no accessor for
+  /// whether the recovery secret was actually set up, so a `bool` here
+  /// would have to be a guess. `null` means "cannot tell" and lets the UI
+  /// say so, which is much better than a confident wrong answer on a
+  /// screen that talks about whether the user can still recover their
+  /// history. See [_refreshBackupState] for what each value is derived
+  /// from.
+  bool? _keyBackupCached;
+  bool? get keyBackupCached => _keyBackupCached;
 
   List<Device> _myDevices = const [];
   List<Device> get myDevices => _myDevices;
@@ -416,9 +424,12 @@ class EncryptionService extends ChangeNotifier {
         }
         return groups.join(' ');
       } catch (_) {
+        // `FormatException` from `base64Decode` if the SDK ever hands us
+        // something that is not base64. Show it raw rather than nothing.
         return ed;
       }
     } catch (_) {
+      // No cross-signing identity for this user yet.
       return null;
     }
   }
@@ -441,6 +452,8 @@ class EncryptionService extends ChangeNotifier {
       // chain, not just self-trust.
       return deviceKey.crossVerified;
     } catch (_) {
+      // `crossVerified` walks the signature chain and throws when a key in
+      // it has not been downloaded. Unverifiable, not verified.
       return false;
     }
   }
@@ -474,6 +487,9 @@ class EncryptionService extends ChangeNotifier {
         computed = mk?.verified ?? false;
       }
     } catch (_) {
+      // `mk.verified` throws when a key in the signature chain is missing
+      // from the local cache. Cached as unverified, which is the fail-safe
+      // direction for an encrypted session.
       computed = false;
     }
     _userVerifiedCache[userId] = computed;
@@ -521,6 +537,7 @@ class EncryptionService extends ChangeNotifier {
         }
       }
     } catch (_) {
+      // Same signature-chain throw as isUserVerifiedById.
       computed = false;
     }
     _deviceVerifiedCache[cacheKey] = computed;
@@ -544,7 +561,7 @@ class EncryptionService extends ChangeNotifier {
       if (enc == null) {
         _keyBackupExists = false;
         _keyBackupAlgorithm = null;
-        _keyBackupCached = false;
+        _keyBackupCached = null;
         return;
       }
       // `keyManager.enabled` mirrors whether the megolm backup secret
@@ -564,28 +581,36 @@ class EncryptionService extends ChangeNotifier {
               ? 'm.megolm_backup.v1.curve25519-aes-sha2'
               : null;
         } catch (_) {
+          // `crossSigning` throws when the SDK has not finished loading
+          // the account's signing keys. Report no algorithm rather than
+          // guessing one.
           _keyBackupAlgorithm = null;
         }
 
         // Whether SSSS is holding the cached secret is the closest
-        // analogue to "has the recovery passphrase/key been set up";
-        // a fresh install with no passphrase yet will report false.
+        // analogue to "has the recovery passphrase/key been set up".
         //
-        // We don't have a direct accessor on `enc.keyManager` for the
-        // cached secret, but we can probe the SSSS validator/callback
-        // path by checking whether the megolm backup secret *would*
-        // be retrievable.  For now, conservatively: enabled + having
-        // bootstrapped cross-signing strongly implies a recovery key
-        // exists, since the bootstrap process creates one.
-        _keyBackupCached = enc.crossSigning.enabled;
+        // We do not have a direct accessor for the cached secret, and the
+        // previous implementation substituted `crossSigning.enabled`
+        // here, which meant any account that had bootstrapped
+        // cross-signing was shown a green "Recovery key is set" whether or
+        // not a recovery key had ever been entered. On a screen whose
+        // whole job is telling the user whether they can still recover
+        // their history, a derived answer is worse than no answer, so
+        // this reports "cannot tell" until the SDK exposes a real
+        // accessor. Do not guess here.
+        _keyBackupCached = null;
       } else {
         _keyBackupAlgorithm = null;
+        // No backup at all means there is nothing to have cached a key
+        // for, so `false` here is a fact rather than a guess.
         _keyBackupCached = false;
       }
     } catch (_) {
+      // The whole refresh failed, so nothing about the backup is known.
       _keyBackupExists = false;
       _keyBackupAlgorithm = null;
-      _keyBackupCached = false;
+      _keyBackupCached = null;
     }
   }
 
@@ -805,7 +830,11 @@ class EncryptionService extends ChangeNotifier {
         }
       }
     } catch (_) {
-      // best-effort
+      // Best-effort counts for a dashboard tile. `getParticipants` and the
+      // `verified` checks throw on state that has not loaded, and a
+      // partial count is still better than failing the refresh. The counts
+      // computed before the throw are kept.
+      _log.d('Unverified device count is partial: device keys not loaded');
     }
 
     _cachedUnverified = (own: own, other: other);
@@ -865,7 +894,7 @@ class EncryptionService extends ChangeNotifier {
     _crossSigningBootstrapped = false;
     _keyBackupExists = false;
     _keyBackupAlgorithm = null;
-    _keyBackupCached = false;
+    _keyBackupCached = null;
     _myDevices = [];
     _cachedUnverified = null;
     _initialRefreshComplete = false;
