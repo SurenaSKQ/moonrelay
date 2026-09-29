@@ -66,6 +66,13 @@ class EncryptionService extends ChangeNotifier {
   final Client _client;
   final Logger _log;
 
+  /// How many times [init] re-checks for the SDK's `Encryption` object
+  /// before giving up, and how long it waits between checks. Product is
+  /// the worst-case boot delay, 5 seconds.
+  static const int _kEncryptionWaitAttempts = 50;
+  static const Duration _kEncryptionWaitInterval =
+      Duration(milliseconds: 100);
+
   // -----------------------------------------------------------------------
   // Memoized verification lookups
   // -----------------------------------------------------------------------
@@ -250,9 +257,15 @@ class EncryptionService extends ChangeNotifier {
     // The Matrix SDK creates and initialises the Encryption object
     // during the login flow.  If it hasn't finished yet, give it a
     // brief window before we start querying its state.
+    //
+    // Worst case this delays init() by
+    // `_kEncryptionWaitAttempts * _kEncryptionWaitInterval` (5 seconds) and
+    // then carries on with encryption unavailable rather than failing, so
+    // raising either constant trades boot latency for the chance of
+    // catching a slow homeserver.
     var waited = 0;
-    while (_client.encryption == null && waited < 50) {
-      await Future.delayed(const Duration(milliseconds: 100));
+    while (_client.encryption == null && waited < _kEncryptionWaitAttempts) {
+      await Future.delayed(_kEncryptionWaitInterval);
       waited++;
     }
     if (_client.encryption == null) {

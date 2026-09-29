@@ -20,6 +20,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Opens a sticker picker that lets the user pick an image file and send
@@ -43,7 +44,7 @@ Future<void> showStickerPicker(BuildContext context, Room room) async {
   // Read bytes on demand via the new PlatformFile API. The legacy
   // `file.bytes` and `withData: true` parameters are deprecated in
   // file_picker 12.
-  final bytes = await file.readAsBytes();
+  final bytes = await readFileBytes(file);
   if (bytes.isEmpty) return;
   if (!context.mounted) return;
 
