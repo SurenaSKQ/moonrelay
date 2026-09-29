@@ -27,7 +27,7 @@ import 'package:moonrelay/src/screens/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
 import 'package:moonrelay/src/screens/room_details_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
-import 'package:moonrelay/src/screens/room_settings_page.dart';
+import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';

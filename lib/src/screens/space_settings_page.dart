@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -143,40 +144,40 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           SizedBox(height: t.spaceLg),
 
           // -- Technical details --------------------------------------------
-          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
+          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
           const SizedBox(height: 4),
-          _DetailRow(
+          InfoDetailRow(
             icon: LucideIcons.hash,
             label: l10n.roomIdLabel,
             value: space.id,
             scheme: scheme,
           ),
           if (canonicalAlias != null)
-            _DetailRow(
+            InfoDetailRow(
               icon: LucideIcons.atSign,
               label: l10n.addressLabel,
               value: canonicalAlias,
               scheme: scheme,
             ),
-          _DetailRow(
+          InfoDetailRow(
             icon: LucideIcons.folder,
             label: l10n.typeLabel,
             value: l10n.spaceType,
             scheme: scheme,
           ),
-          _DetailRow(
+          InfoDetailRow(
             icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
             value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
-          _DetailRow(
+          InfoDetailRow(
             icon: LucideIcons.calendar,
             label: l10n.createdLabel,
             value: creationDate,
             scheme: scheme,
           ),
-          _DetailRow(
+          InfoDetailRow(
             icon: LucideIcons.users,
             label: l10n.members,
             value: '$totalMembers',
@@ -188,10 +189,10 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
-            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
             const SizedBox(height: 4),
             if (_canChange('m.room.name'))
-              _ActionTile(
+              InfoActionTile(
                 icon: LucideIcons.pencil,
                 label: l10n.editSpaceName,
                 description: space.getLocalizedDisplayname(),
@@ -199,7 +200,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.topic'))
-              _ActionTile(
+              InfoActionTile(
                 icon: LucideIcons.alignLeft,
                 label: l10n.editSpaceTopic,
                 description: space.topic.isNotEmpty ? space.topic : l10n.notSet,
@@ -207,7 +208,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.avatar'))
-              _ActionTile(
+              InfoActionTile(
                 icon: LucideIcons.image,
                 label: l10n.changeSpaceAvatar,
                 description: l10n.changeSpaceAvatarDescription,
@@ -219,7 +220,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
 
           // -- Child rooms / subspaces ------------------------------------
           if (children.isNotEmpty) ...[
-            _SectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
+            InfoSectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
             SizedBox(height: t.spaceXs),
             ...children.map((child) {
               final childRoomId = child.roomId;
@@ -280,7 +281,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
 
           // -- Add room section ------------------------------------------
           if (canEdit) ...[
-            _SectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
+            InfoSectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
             SizedBox(height: t.spaceXs),
             if (availableRooms.isEmpty)
               Padding(
@@ -335,12 +336,12 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
 
           // -- Danger zone ------------------------------------------------
           if (_canDeleteSpace()) ...[
-            _SectionHeader(
+            InfoSectionHeader(
               title: l10n.actionsDeleteSection,
               scheme: scheme,
             ),
             SizedBox(height: t.spaceXs),
-            _ActionTile(
+            InfoActionTile(
               icon: LucideIcons.trash2,
               label: l10n.deleteSpace,
               description: l10n.deleteSpaceDescription,
@@ -824,12 +825,12 @@ class _SpaceIdentityCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                _InfoChip(
+                InfoChip(
                   icon: LucideIcons.folder,
                   label: l10n.spaceType,
                   scheme: scheme,
                 ),
-                _InfoChip(
+                InfoChip(
                   icon: LucideIcons.users,
                   label: '$totalMembers ${l10n.members}',
                   scheme: scheme,
@@ -844,165 +845,12 @@ class _SpaceIdentityCard extends StatelessWidget {
 }
 
 /// A small chip used for room metadata badges.
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
-        borderRadius: BorderRadius.circular(t.radiusXl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// A section header label.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.scheme});
-
-  final String title;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: scheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
 
 /// A tappable action row.
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    this.description,
-    this.color,
-    required this.onTap,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? description;
-  final Color? color;
-  final VoidCallback onTap;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final effectiveColor = color ?? scheme.primary;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Card(
-      elevation: t.elevationNone,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: Icon(icon, size: 22, color: effectiveColor),
-        title: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: description != null
-            ? Text(
-                description!,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
-              )
-            : null,
-        trailing: Icon(
-          LucideIcons.chevronRight,
-          size: 18,
-          color: scheme.onSurfaceVariant,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
 
 /// A read-only detail row with icon, label, and value.
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          SizedBox(width: t.spaceMd),
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: scheme.onSurface,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// A modal dialog that shows deletion progress for a space with many children.
 class _DeleteSpaceProgressDialog extends StatefulWidget {
