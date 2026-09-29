@@ -34,6 +34,7 @@ import 'package:moonrelay/src/screens/login_page/sso_widgets.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/form_field_label.dart';
+import 'package:moonrelay/src/widgets/form_keyboard.dart';
 
 /// Login page with password and SSO support.
 ///
@@ -56,6 +57,16 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
   final TextEditingController _tokenCtrl = TextEditingController();
+
+  final FocusNode _homeserverFocus = FocusNode(debugLabel: 'homeserver');
+  final FocusNode _usernameFocus = FocusNode(debugLabel: 'username');
+  final FocusNode _passwordFocus = FocusNode(debugLabel: 'password');
+  final FocusNode _tokenFocus = FocusNode(debugLabel: 'token');
+
+  /// The text fields currently on screen, in the order Tab and Enter walk
+  /// them. Reassigned on every build, because the mode decides which fields
+  /// exist.
+  final FormFieldOrder _fieldOrder = FormFieldOrder();
 
   bool _loading = false;
   bool _syncing = false;
@@ -113,6 +124,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _ssoCapture.dispose();
+    _homeserverFocus.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    _tokenFocus.dispose();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -132,11 +147,27 @@ class _LoginPageState extends State<LoginPage> {
       return _buildSyncingScreen(colors, theme, l10n);
     }
 
+    // The field order is recomputed here because the mode decides which
+    // fields are on screen: password shows username and password, the token
+    // mode shows a token field, and the SSO manual fallback shows the same
+    // token field. Enter advances through whichever of them are visible, so
+    // the last one it reaches is the one that submits.
+    _fieldOrder.nodes = switch (_mode) {
+      LoginMode.password => [_homeserverFocus, _usernameFocus, _passwordFocus],
+      LoginMode.sso || LoginMode.token => [
+          _homeserverFocus,
+          if (_ssoStep.showsManualTokenEntry) _tokenFocus,
+        ],
+    };
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      body: FormKeyboard(
+        onSubmit: _submitCurrentMode,
+        enabled: !_loading && !_ssoStep.isAwaitingCallback,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
@@ -210,6 +241,12 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _homeserverCtrl,
+                        focusNode: _homeserverFocus,
+                        textInputAction: _fieldOrder.getActionAt(0),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          0,
+                          onLast: _submitCurrentMode,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'matrix.org',
                           prefixIcon: const Icon(LucideIcons.server, size: 18),
@@ -268,11 +305,37 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
+        ),
       ),
     );
   }
 
   // -- Syncing screen ---------------------------------------------------
+
+  /// The action Enter triggers from the last visible field, and what the
+  /// form-wide Enter shortcut runs when focus is not in a field.
+  ///
+  /// This is the same action the primary button performs, which is the
+  /// point: keyboard-only sign-in has to reach the password request, the
+  /// token request, and the SSO browser handoff, and each of those modes
+  /// shows a different set of fields.
+  void _submitCurrentMode() {
+    switch (_mode) {
+      case LoginMode.password:
+        _doPasswordLogin();
+      case LoginMode.token:
+        _doTokenLogin();
+      case LoginMode.sso:
+        // The manual fallback pastes a token and completes, which is the
+        // token request. Without this branch, Enter would open a browser
+        // the user has already just come back from.
+        if (_ssoStep.showsManualTokenEntry) {
+          _doSsoComplete();
+        } else {
+          _doSsoOpenBrowser();
+        }
+    }
+  }
 
   Widget _buildSyncingScreen(
       ColorScheme colors, ThemeData theme, AppLocalizations l10n) {
@@ -350,6 +413,12 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 6),
       TextField(
         controller: _usernameCtrl,
+        focusNode: _usernameFocus,
+        textInputAction: _fieldOrder.getActionAt(1),
+        onSubmitted: _fieldOrder.submittedAt(
+          1,
+          onLast: _submitCurrentMode,
+        ),
         decoration: InputDecoration(
           hintText: l10n.usernameHint,
           prefixIcon: const Icon(LucideIcons.user, size: 18),
@@ -369,7 +438,13 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 6),
       TextField(
         controller: _passwordCtrl,
+        focusNode: _passwordFocus,
         obscureText: true,
+        textInputAction: _fieldOrder.getActionAt(2),
+        onSubmitted: _fieldOrder.submittedAt(
+          2,
+          onLast: _submitCurrentMode,
+        ),
         decoration: InputDecoration(
           hintText: '••••••••',
           prefixIcon: const Icon(LucideIcons.lock, size: 18),
@@ -457,7 +532,7 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 16),
       buildFormFieldLabel(context, '${l10n.tokenLabel} (paste after authenticating)'),
       const SizedBox(height: 6),
-      _buildTokenField(l10n.tokenHint),
+      _buildTokenField(l10n.tokenHint, 1),
     ];
   }
 
@@ -465,15 +540,23 @@ class _LoginPageState extends State<LoginPage> {
     return [
       buildFormFieldLabel(context, l10n.tokenLabel),
       const SizedBox(height: 6),
-      _buildTokenField('Paste your login token here…'),
+      _buildTokenField('Paste your login token here…', 1),
     ];
   }
 
   /// The access-token input, used by both the token mode and the SSO
   /// manual fallback.
-  Widget _buildTokenField(String hint) {
+  ///
+  /// [index] is where this field sits in the visible order. It is 1 in both
+  /// modes that show it, since the homeserver field is the only one above
+  /// it either way, but it is passed in rather than assumed so the two call
+  /// sites state it.
+  Widget _buildTokenField(String hint, int index) {
     return TextField(
       controller: _tokenCtrl,
+      focusNode: _tokenFocus,
+      textInputAction: _fieldOrder.getActionAt(index),
+      onSubmitted: _fieldOrder.submittedAt(index, onLast: _submitCurrentMode),
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: const Icon(LucideIcons.key, size: 18),
