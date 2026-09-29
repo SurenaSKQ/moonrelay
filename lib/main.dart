@@ -377,9 +377,9 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           ChangeNotifierProvider<NavigationState>(
             create: (_) => NavigationState(),
           ),
-          ChangeNotifierProvider<LayoutShellController>(
-            create: (_) => LayoutShellController(),
-          ),
+        Provider<LayoutShellController>(
+          create: (_) => LayoutShellController(),
+        ),
           ChangeNotifierProvider<AccountManager>.value(
               value: _appState!.accountManager),
           ChangeNotifierProvider<EncryptionService>.value(

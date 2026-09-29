@@ -497,52 +497,45 @@ class MoonRouter {
   /// mobile shell because the window is too narrow.  The decision is
   /// read from the controller (never recomputed here) so this page
   /// builder and the surrounding shell always agree in the same frame.
+  /// The page child depends on the committed shell (mobile vs
+  /// dashboard).  It does not subscribe to the controller: switching
+  /// between [MobileLayout] and [DashboardLayout] changes the widget type
+  /// above the navigator, so Flutter tears the old subtree down and mounts
+  /// a new one, which re-runs this builder against the shell that is
+  /// committed at that point.
   static Page _roomsListPageBuilder(
     BuildContext context,
     GoRouterState state,
   ) {
-    final settings = Provider.of<SettingsController>(context, listen: false);
     final shell = Provider.of<LayoutShellController>(context, listen: false);
-    final width = MediaQuery.sizeOf(context).width;
-    shell.update(rawWidth: width, layoutMode: settings.layoutMode);
 
-    // The page child depends on the committed shell (mobile vs
-    // dashboard).  It must rebuild when the shell flips, so we subscribe
-    // to the controller here rather than reading it once: GoRouter only
-    // re-runs this builder when the route actually changes, so a shell
-    // flip would otherwise leave the previous shell's page (e.g. a
-    // MobileRoomsListPage) rendered inside the wrong layout.  Wrapping
-    // the child in a [ListenableBuilder] makes the flip rebuild the
-    // child on the same frame the shell commits, with no navigation.
-    final child = ListenableBuilder(
-      listenable: shell,
-      builder: (context, _) {
-        if (shell.isMobile) {
-          return const MobileRoomsListPage();
-        }
-        // This page is the parent of the :roomid route, so it is on the
-        // stack whether or not a room is open. Reading the child's
-        // pathParameters to decide what to render is what made the two
-        // routes disagree; ask the state directly instead.
-        final roomID = state.pathParameters['roomid'];
-        if (roomID == null || roomID.isEmpty) {
-          // No room selected. On the dashboard that is the resting state,
-          // not an error, and it used to render RoomDelegate's "Room not
-          // found" card here.
-          final l10n = AppLocalizations.of(context);
-          return EmptyState(
-            icon: Icons.forum_outlined,
-            title: l10n?.noRoomSelected ?? 'No room selected',
-            message: l10n?.noRoomSelectedHint ??
-                'Pick a room from the sidebar to start reading or chatting.',
-          );
-        }
-        return RoomDelegate(
+    Widget child;
+    if (shell.isMobile) {
+      child = const MobileRoomsListPage();
+    } else {
+      // This page is the parent of the :roomid route, so it is on the
+      // stack whether or not a room is open. Reading the child's
+      // pathParameters to decide what to render is what made the two
+      // routes disagree; ask the state directly instead.
+      final roomID = state.pathParameters['roomid'];
+      if (roomID == null || roomID.isEmpty) {
+        // No room selected. On the dashboard that is the resting state,
+        // not an error, and it used to render RoomDelegate's "Room not
+        // found" card here.
+        final l10n = AppLocalizations.of(context);
+        child = EmptyState(
+          icon: Icons.forum_outlined,
+          title: l10n?.noRoomSelected ?? 'No room selected',
+          message: l10n?.noRoomSelectedHint ??
+              'Pick a room from the sidebar to start reading or chatting.',
+        );
+      } else {
+        child = RoomDelegate(
           roomID: roomID,
           threadRootEventId: state.uri.queryParameters['threadRoot'],
         );
-      },
-    );
+      }
+    }
     return genericPageBuilder(context, state, child);
   }
 }
@@ -601,12 +594,14 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
       (s) => s.layoutMode,
     );
     final width = MediaQuery.sizeOf(context).width;
-    final shell = context.watch<LayoutShellController>();
 
-    // The controller applies the sticky dead band around each
-    // breakpoint, so the committed shell only changes when the width
-    // has clearly crossed over, so no separate hysteresis is needed here.
-    shell.update(rawWidth: width, layoutMode: layoutMode);
+    // The single writer of the shell. The controller applies the sticky
+    // dead band around each breakpoint, so the committed shell only
+    // changes when the width has clearly crossed over and no separate
+    // hysteresis is needed here. It does not notify: every consumer is a
+    // descendant of this widget and reads the value in the same pass.
+    final shell = context.read<LayoutShellController>()
+      ..resolve(rawWidth: width, layoutMode: layoutMode);
 
     if (shell.isMobile) {
       return MobileLayout(child: widget.child);

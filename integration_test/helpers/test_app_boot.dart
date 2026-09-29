@@ -143,7 +143,7 @@ Future<Widget> buildTestApp({
       ChangeNotifierProvider<NavigationState>(
         create: (_) => NavigationState(),
       ),
-      ChangeNotifierProvider<LayoutShellController>(
+      Provider<LayoutShellController>(
         create: (_) => LayoutShellController(),
       ),
       ChangeNotifierProvider<AccountManager>.value(value: accountManager),

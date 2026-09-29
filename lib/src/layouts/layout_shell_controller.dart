@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
-
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 
-/// The concrete shell currently committed for the main chat surface.
+/// The concrete shell currently resolved for the main chat surface.
 ///
 /// The shell is the *frame* around the route content, not the content
 /// itself:
@@ -37,41 +34,52 @@ enum LayoutShell {
   expanded,
 }
 
-/// Owns the "mobile vs compact vs expanded" shell decision for the main
-/// chat surface.
+/// Resolves the "mobile vs compact vs expanded" shell for the main chat
+/// surface.
 ///
-/// This controller is the single source of truth for the shell.  Every
-/// consumer (the router's page builders, [_AdaptiveMainLayout], and
-/// [DashboardLayout]) reads the committed [shell] from here instead of
-/// re-deriving it from the window width, so all of them agree on the
-/// same layout in the same frame.  It lives at the app level (above the
-/// [GoRouter] tree) so the decision survives shell switches: previously
-/// the dashboard owned its own controller, so every mobile ↔ dashboard
-/// flip created a fresh controller that started in the "expanded" state
-/// and took hundreds of milliseconds to settle back to the correct
-/// shell, which is what made the app appear to hover between layouts.
+/// ## Why this is not a [ChangeNotifier]
 ///
-/// The decision is a *sticky state machine*:
+/// It was one, and it was the source of most of the trouble in this area.
+/// The router's page builder called [update] from inside a GoRouter page
+/// build, the shell widget called it from its own `build`, and because
+/// mutating a notifier mid-build is illegal, `_commit` had to defer
+/// `notifyListeners` to a post-frame callback. That deferral then made it
+/// look safe to drive navigation from the same place, which is how a shell
+/// flip came to replace the whole route stack and eject the user from the
+/// page they had open.
+///
+/// The notification is unnecessary because the rule is simpler than it
+/// looks: **[_AdaptiveMainLayout] is the only writer, it resolves during
+/// its own build, and every consumer is a descendant of it.** A descendant
+/// builds after its ancestor in the same pass, so a consumer reading
+/// [shell] during build already sees this frame's decision. Nothing needs
+/// to be told, so nothing notifies.
+///
+/// The class is therefore a plain sticky cache with no lifecycle of its
+/// own. Adding a listener back means adding back the same class of bug, so
+/// if you find yourself wanting one, the write-once-during-build rule has
+/// been broken somewhere instead.
+///
+/// ## The decision
+///
+/// It is a sticky state machine:
 ///   * A shell, once committed, is kept until the width has crossed a
 ///     breakpoint far enough to clearly warrant a change.  A dead band
 ///     of [_kHysteresisPx] is anchored to the shell we are currently
 ///     in, so a window parked near a boundary stays in whichever shell
 ///     it entered, and a drag across the boundary commits once instead
 ///     of flapping.
-///   * The very first evaluation commits immediately, so a freshly
-///     opened window never flashes the wrong shell while the user waits
-///     for a settle timer.
+///   * The first resolution commits immediately, so a freshly opened
+///     window never flashes the wrong shell while the user waits for a
+///     settle timer.
 ///   * A user-forced [LayoutMode] overrides the width logic entirely
 ///     and sticks until the mode changes back to [LayoutMode.auto].
 ///
 /// There is deliberately no debounce timer and no "pending" state.
 /// The dead band alone prevents oscillation across a boundary, and a
-/// committed decision renders immediately instead of after a settle
-/// delay.  This replaces the previous timer-based implementation,
-/// whose 400 ms settle window plus a second, independent hysteresis
-/// pass in the router could leave the app switching between the full
-/// and compact layouts.
-class LayoutShellController extends ChangeNotifier {
+/// resolved decision renders immediately instead of after a settle
+/// delay.
+class LayoutShellController {
   LayoutShellController();
 
   /// Dead band applied around each breakpoint, anchored to the shell
@@ -93,20 +101,19 @@ class LayoutShellController extends ChangeNotifier {
   /// Whether the shell currently renders the full multi-pane dashboard.
   bool get isExpanded => _shell == LayoutShell.expanded;
 
-  /// True once [update] has committed a width-driven decision.  The
-  /// first evaluation must commit unconditionally because there is no
+  /// True once [resolve] has committed a width-driven decision.  The
+  /// first resolution must commit unconditionally because there is no
   /// prior shell to protect from flapping; afterwards the dead band
   /// applies.
-  bool _hasCommittedOnce = false;
+  bool _hasResolvedOnce = false;
 
-  /// Re-evaluates the shell decision against [rawWidth] and the user's
-  /// forced [layoutMode], returning the shell that should be rendered
-  /// *now* (the committed one).
+  /// The shell to render for [rawWidth] under [layoutMode], remembered for
+  /// descendants that ask later in the same build.
   ///
-  /// Safe to call from build methods: it only ever mutates the
-  /// committed shell (deferring [notifyListeners] to the end of the
-  /// frame) and never schedules timers.
-  LayoutShell update({
+  /// Call this once per frame, from [_AdaptiveMainLayout]'s build. It
+  /// mutates only its own two fields, never schedules work, and never
+  /// notifies.
+  LayoutShell resolve({
     required double rawWidth,
     required LayoutMode layoutMode,
   }) {
@@ -115,7 +122,7 @@ class LayoutShellController extends ChangeNotifier {
     // A forced mode and the very first width evaluation both commit
     // directly: the user asked for it, or there is no previous shell
     // to hold onto.
-    if (layoutMode != LayoutMode.auto || !_hasCommittedOnce) {
+    if (layoutMode != LayoutMode.auto || !_hasResolvedOnce) {
       return _commit(target);
     }
 
@@ -166,25 +173,12 @@ class LayoutShellController extends ChangeNotifier {
   }
 
   LayoutShell _commit(LayoutShell next) {
-    _hasCommittedOnce = true;
-    if (next == _shell) return _shell;
+    _hasResolvedOnce = true;
     _shell = next;
-    // Defer the notification until after the current frame: this
-    // controller is typically read from inside a [LayoutBuilder] or a
-    // GoRouter page builder during build.  Calling [notifyListeners]
-    // synchronously from there would re-enter the framework mid-layout,
-    // producing `_RenderLayoutBuilder was mutated in performLayout` and
-    // the `_elements.contains(element)` assertion failure when the
-    // listener schedules a rebuild before the current layout pass
-    // finishes.  Posting the notification to the end of the frame
-    // avoids the cycle entirely.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (_shell == next) notifyListeners();
-    }, debugLabel: 'LayoutShellController._commit');
     return _shell;
   }
 
-  /// Clears the sticky memory so the next [update] commits the
+  /// Clears the sticky memory so the next [resolve] commits the
   /// width-appropriate shell unconditionally.
   ///
   /// Called when the main chat surface (re)mounts, e.g. after a fresh
@@ -192,6 +186,6 @@ class LayoutShellController extends ChangeNotifier {
   /// unmounted, so it should be re-evaluated from the current width
   /// instead of inheriting a stale committed shell.
   void reset() {
-    _hasCommittedOnce = false;
+    _hasResolvedOnce = false;
   }
 }
