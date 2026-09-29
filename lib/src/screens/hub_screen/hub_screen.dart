@@ -145,18 +145,29 @@ class _HubScreenState extends State<HubScreen> {
   // the user re-selects the top-level tab.
   int _subTabsParentIndex = -1;
 
-  @override
-  void initState() {
-    super.initState();
-  }
+  /// The locale [_categories] was last built against, so a locale switch
+  /// can rebuild the labels instead of keeping the stale ones.
+  Locale? _builtForLocale;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_categories.isEmpty) {
+    // The category labels are baked from `AppLocalizations` at build time,
+    // so they have to be rebuilt when the locale changes. Guarding only on
+    // `isEmpty` (as this used to) left the whole nav strip in the previous
+    // language after a locale switch, which is most of what the locale
+    // setting is for.
+    final locale = Localizations.localeOf(context);
+    if (_categories.isEmpty || _builtForLocale != locale) {
+      final hadCategories = _categories.isNotEmpty;
+      _builtForLocale = locale;
       _buildCategories();
-      // Apply initial selection from the route if one was supplied.
-      _applySelection(widget.selection, duringBuild: true);
+      // Apply initial selection from the route if one was supplied. On a
+      // locale change the selection is already valid and re-applying it
+      // would push a redundant navigation, so only do it on first build.
+      if (!hadCategories) {
+        _applySelection(widget.selection, duringBuild: true);
+      }
     }
   }
 
@@ -166,11 +177,6 @@ class _HubScreenState extends State<HubScreen> {
     if (oldWidget.selection != widget.selection) {
       _applySelection(widget.selection);
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   /// Maps a [HubCategorySelection] (category/sub keys) into the
