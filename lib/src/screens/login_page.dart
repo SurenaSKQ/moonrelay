@@ -71,9 +71,6 @@ class _LoginPageState extends State<LoginPage> {
   /// The local HTTP server used to capture the SSO login token.
   SsoCallbackServer? _ssoServer;
 
-  /// A timer that can cancel the automatic SSO wait if it takes too long.
-  Timer? _autoSsoTimer;
-
   /// Whether the manual token-paste field is visible in the fallback SSO UI.
   bool _showManualTokenEntry = false;
 
@@ -109,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _autoSsoTimer?.cancel();
     _ssoServer?.stop();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
@@ -1118,8 +1114,6 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       setState(() => _autoSsoActive = false);
       throw SsoAutomaticException('Timed out waiting for browser redirect');
-    } finally {
-      _autoSsoTimer?.cancel();
     }
 
     if (!mounted) {
@@ -1148,7 +1142,6 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Cancels the automatic SSO flow and switches to the manual fallback.
   void _cancelAutoSso() {
-    _autoSsoTimer?.cancel();
     _ssoServer?.stop();
     _ssoServer = null;
     setState(() {
