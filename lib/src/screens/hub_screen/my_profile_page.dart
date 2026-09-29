@@ -22,10 +22,12 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
@@ -233,57 +235,103 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
       ),
     );
     if (newStatus == null || !mounted) return;
-    try {
-      await withRetry(
-        () => widget.client.setPresence(
-          widget.client.userID!,
-          _presence?.presence ?? PresenceType.online,
-          statusMsg: newStatus.isEmpty ? null : newStatus,
-        ),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'setStatus',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.statusMessageUpdated)),
-      );
-      _silentRefresh();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+    // Empty is sent as an empty string, not null. The SDK omits
+    // status_msg when it is null, so the server keeps the previous value
+    // and the field would visibly refuse to clear. The current presence
+    // is passed through rather than defaulted, because an unread
+    // presence must not become an implicit "go online" as a side effect
+    // of editing a caption.
+    await context.showActionResult(
+      action: () async {
+        final result = await withRetry(
+          () => widget.client.setPresence(
+            widget.client.userID!,
+            _presence?.presence ?? PresenceType.online,
+            statusMsg: newStatus,
+          ),
+          maxRetries: 1,
+          timeout: kDefaultTimeout,
+          log: log,
+          label: 'setStatus',
+        );
+        // withRetry returns a result rather than throwing, so the
+        // outcome has to be matched. A bare try/catch around the call
+        // would compile, look right, and report success on a 403.
+        switch (result) {
+          case RetrySuccess():
+            return;
+          case RetryFailed(:final error):
+            throw StateError('$error');
+        }
+      },
+      successMessage: l10n.statusMessageUpdated,
+      log: log,
+      logLabel: 'update status message',
+    );
+    if (!mounted) return;
+    _silentRefresh();
   }
 
   Future<void> _setPresence(PresenceType pt) async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
-    try {
-      await withRetry(
-        () => widget.client.setPresence(
-          widget.client.userID!,
-          pt,
-          statusMsg: _presence?.statusMsg,
-        ),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
+    // Route through the service when there is one, so a manual choice
+    // also pins client.syncPresence and is not undone by the next
+    // long-poll. Falling back to a direct call keeps the control working
+    // in the logged-out and test trees where no service is bound.
+    final presenceService = context.read<PresenceService?>();
+    if (presenceService == null) {
+      await context.showActionResult(
+        action: () async {
+          final result = await withRetry(
+            () => widget.client.setPresence(
+              widget.client.userID!,
+              pt,
+              statusMsg: _presence?.statusMsg,
+            ),
+            maxRetries: 1,
+            timeout: kDefaultTimeout,
+            log: log,
+            label: 'setPresence',
+          );
+          switch (result) {
+            case RetrySuccess():
+              return;
+            case RetryFailed(:final error):
+              throw StateError('$error');
+          }
+        },
+        successMessage: l10n.presenceStatusUpdated,
         log: log,
-        label: 'setPresence',
+        logLabel: 'update presence',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.presenceStatusUpdated)),
-      );
       _silentRefresh();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
+      return;
     }
+
+    await context.showActionResult(
+      action: () => presenceService.setUserPresence(
+        pt,
+        statusMsg: _presence?.statusMsg,
+      ),
+      successMessage: l10n.presenceStatusUpdated,
+      log: log,
+      logLabel: 'update presence',
+    );
+    if (!mounted) return;
+    // Reflect the choice locally rather than re-reading: setPresence does
+    // not write the SDK's presence cache, so a fetch right now would
+    // return the value from before the change and the chip would not move.
+    setState(() {
+      _presence = CachedPresence(
+        pt,
+        0,
+        _presence?.statusMsg,
+        pt == PresenceType.online,
+        _presence?.userid ?? widget.client.userID ?? '',
+      );
+    });
   }
 
   @override
