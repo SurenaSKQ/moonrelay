@@ -100,7 +100,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   // Privacy / deep links / data
   bool _deepLinkAutoJoin = false;
-  bool _dbWipeRequiresPrompt = false;
   int _dbBackupKeepCount = 1;
   int _avatarCacheTtlDays = 7;
   bool _autoLockEnabled = false;
@@ -204,7 +203,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   // Privacy / deep links / data
   bool get deepLinkAutoJoin => _deepLinkAutoJoin;
-  bool get dbWipeRequiresPrompt => _dbWipeRequiresPrompt;
   int get dbBackupKeepCount => _dbBackupKeepCount;
   int get avatarCacheTtlDays => _avatarCacheTtlDays;
   bool get autoLockEnabled => _autoLockEnabled;
@@ -296,7 +294,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _notificationDedupeCacheSize = snapshot.notificationDedupeCacheSize;
 
     _deepLinkAutoJoin = snapshot.deepLinkAutoJoin;
-    _dbWipeRequiresPrompt = snapshot.dbWipeRequiresPrompt;
     _dbBackupKeepCount = snapshot.dbBackupKeepCount;
     _avatarCacheTtlDays = snapshot.avatarCacheTtlDays;
     _autoLockEnabled = snapshot.autoLockEnabled;
@@ -775,13 +772,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _deepLinkAutoJoin = value;
     notifyListeners();
     await _settingsService.updateDeepLinkAutoJoin(value);
-  }
-
-  Future<void> updateDbWipeRequiresPrompt(bool value) async {
-    if (value == _dbWipeRequiresPrompt) return;
-    _dbWipeRequiresPrompt = value;
-    notifyListeners();
-    await _settingsService.updateDbWipeRequiresPrompt(value);
   }
 
   Future<void> updateDbBackupKeepCount(int value) async {
