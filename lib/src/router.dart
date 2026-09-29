@@ -30,7 +30,7 @@ import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
 import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
-import 'package:moonrelay/src/screens/startup_screen.dart';
+import 'package:moonrelay/src/screens/startup_screen/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
