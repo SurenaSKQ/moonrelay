@@ -22,11 +22,9 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:moonrelay/src/encryption/encryption_service.dart';
-import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
-import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/login_errors.dart';
+import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
@@ -415,34 +413,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
       case RetrySuccess(:final value):
         {
           log.i('Registration successful for ${value.userId}');
-
-          // -- Save this account for multi-account support ---------
-          // Capture provider reads before any subsequent await so the
-          // analyzer doesn't see [context] used across the async gap.
-          final accountManager = context.read<AccountManager>();
-          final encryptionService = context.read<EncryptionService>();
-          final homeserverSnapshot = client.homeserver?.toString() ?? '';
-          final userIdSnapshot = client.userID!;
-          await accountManager.addOrUpdateAccount(
-            StoredAccount(
-              userId: userIdSnapshot,
-              homeserver: homeserverSnapshot,
-            ),
-            client: client,
-            encryptionService: encryptionService,
-          );
-
-          if (!mounted) return;
-          context.go('/main/rooms');
-
-          // -- Post-login encryption: SAS verification only ---------
-          // The new encryption flow surfaces a one-shot emoji
-          // verification prompt immediately after sign-in.  Cross-
-          // signing bootstrap, recovery key flows, and other SSSS
-          // prompts are intentionally deferred to the encryption
-          // settings page so the user is not ambushed by password-
-          // style dialogs every time they open the app.
-          await _maybePromptDeviceVerification(encryptionService);
+          await completeSignIn(context, client);
         }
       case RetryFailed(:final error):
         {
@@ -470,37 +441,5 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
           }
         }
     }
-  }
-
-  /// Drives the new post-login encryption prompt.  When the device
-  /// is not yet verified, requests an SAS / emoji verification and
-  /// shows the verification screen so the user can match the emoji
-  /// sequence against another signed-in device.
-  ///
-  /// Best-effort: any failure is logged and swallowed so a stuck
-  /// verification handshake can never prevent the user from
-  /// reaching the room list.
-  Future<void> _maybePromptDeviceVerification(
-    EncryptionService encryptionService,
-  ) async {
-    if (!mounted) return;
-    final log = Provider.of<Logger>(context, listen: false);
-    KeyVerification? kv;
-    try {
-      kv = await encryptionService.startPostLoginFlow();
-    } catch (e) {
-      log.w('post-login encryption flow failed', error: e);
-      return;
-    }
-    if (kv == null) return;
-    if (!mounted) return;
-    await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => VerificationScreen(
-          request: kv!,
-          isIncoming: false,
-        ),
-      ),
-    );
   }
 }
