@@ -52,6 +52,11 @@ lib/
     splash_screen.dart        # Boot splash with status/error states
     screens/                  # Full-page views (rooms, profiles, settings, etc.)
       encryption/             # Encryption setup screens
+      <name>/                 # A screen big enough to have a directory
+        <name>.dart           #   the page and its State
+        <part>.dart           #   one extracted piece each (cards, tiles, dialogs)
+      hub_screen/             # The hub: main file + one file per sub-page
+        settings/             #   and one file per settings page
     chat/                     # Chat widgets (timeline, chat box, events)
       message_action_runner.dart   # Canonical implementations of every message action (react, copy, edit, pin, delete, kick/ban/report)
       message_actions.dart         # Floating hover toolbar that appears on message hover (delegates to runner)
@@ -65,6 +70,7 @@ lib/
     widgets/                  # Reusable UI components
       encryption/             # Incoming verification listener, trust indicators
       deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
+      info_widgets.dart       # Shared InfoChip / InfoSectionHeader / InfoActionTile / InfoDetailRow
       room_resolver.dart      # Room id from the URL -> RoomPage / preview / waiting
       profile_view.dart       # User id -> ProfilePage, with id validation
     helpers/                  # Data-free utility classes & shared state
