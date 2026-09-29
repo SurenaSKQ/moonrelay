@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -49,6 +50,52 @@ class MoonrelayAppTheme extends ChangeNotifier {
   }
 }
 
+/// Moonrelay's route transition policy, driven by the user's animation
+/// preference.
+///
+/// This used to live in the router as a `pageBuilder` that returned a
+/// `CustomTransitionPage` (or a `NoTransitionPage` when animations were
+/// off). That put the animation setting in two places at once: the router
+/// had to consult [SettingsController] from inside a page build, and every
+/// route had to remember to route its widget through the helper. Expressing
+/// the same policy as a [PageTransitionsBuilder] means the router declares
+/// plain `builder:` callbacks and the theme decides how they animate.
+///
+/// Durations match what the router used: [MotionDurations.medium] forward,
+/// [MotionDurations.fast] back.
+class MoonrelayPageTransitionsBuilder extends PageTransitionsBuilder {
+  /// Creates the builder for one platform slot.
+  const MoonrelayPageTransitionsBuilder({
+    required this.animationsEnabled,
+  });
+
+  /// Whether route transitions should animate at all.
+  final bool animationsEnabled;
+
+  @override
+  Duration get transitionDuration =>
+      animationsEnabled ? MotionDurations.medium : Duration.zero;
+
+  @override
+  Duration get reverseTransitionDuration =>
+      animationsEnabled ? MotionDurations.fast : Duration.zero;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // Returning the child untouched is how a transition is disabled
+    // without swapping the route type, so the page keeps its key and
+    // restoration behaviour.
+    if (!animationsEnabled) return child;
+    return FadeTransition(opacity: animation, child: child);
+  }
+}
+
 /// Moonrelay's complete theme definition.
 ///
 /// Provides [light] and [dark] [ThemeData] factories that configure Material 3
@@ -70,12 +117,14 @@ class MoonrelayTheme {
   /// Builds the light [ThemeData] for the given [seed] colour.
   ///
   /// [density], [fontFamily] and [monoFontFamily] are the user's persisted
-  /// overrides; when null the built-in defaults win.
+  /// overrides; when null the built-in defaults win.  [enableAnimations]
+  /// gates every route transition; see [MoonrelayPageTransitionsBuilder].
   static ThemeData light(
     Color seed, {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
+    bool enableAnimations = true,
   }) =>
       _buildThemeData(
         seed,
@@ -83,6 +132,7 @@ class MoonrelayTheme {
         density: density ?? LayoutDensity.comfortable,
         fontFamily: fontFamily ?? fontFamilyFallback,
         monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
+        enableAnimations: enableAnimations,
       );
 
   /// Builds the dark [ThemeData] for the given [seed] colour.
@@ -91,6 +141,7 @@ class MoonrelayTheme {
     LayoutDensity? density,
     String? fontFamily,
     String? monoFontFamily,
+    bool enableAnimations = true,
   }) =>
       _buildThemeData(
         seed,
@@ -98,6 +149,7 @@ class MoonrelayTheme {
         density: density ?? LayoutDensity.comfortable,
         fontFamily: fontFamily ?? fontFamilyFallback,
         monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
+        enableAnimations: enableAnimations,
       );
 
   // -- Internal builder ------------------------------------------------
@@ -116,6 +168,7 @@ class MoonrelayTheme {
     required LayoutDensity density,
     required String fontFamily,
     required String monoFontFamily,
+    required bool enableAnimations,
   }) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,
@@ -153,6 +206,17 @@ class MoonrelayTheme {
       navigationBarTheme:
           _navigationBarTheme(colorScheme, components.navigation),
       textSelectionTheme: _textSelectionTheme(colorScheme),
+
+      // Route transitions are a theme concern, not a router concern.
+      // See [MoonrelayPageTransitionsBuilder].
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          for (final platform in TargetPlatform.values)
+            platform: MoonrelayPageTransitionsBuilder(
+              animationsEnabled: enableAnimations,
+            ),
+        },
+      ),
 
       // Custom design tokens exposed via ThemeExtension
       extensions: <ThemeExtension<dynamic>>[
