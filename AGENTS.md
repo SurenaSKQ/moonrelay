@@ -65,6 +65,8 @@ lib/
     widgets/                  # Reusable UI components
       encryption/             # Incoming verification listener, trust indicators
       deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
+      room_resolver.dart      # Room id from the URL -> RoomPage / preview / waiting
+      profile_view.dart       # User id -> ProfilePage, with id validation
     helpers/                  # Data-free utility classes & shared state
       matrix_uri_parser.dart  # Parses matrix: and matrix.to URIs
       feedback.dart           # FeedbackContext: snackbar + confirm helpers with the mounted guard
@@ -119,30 +121,61 @@ Key: `kDbSchemaVersion` constant controls DB wipe. Bump on every release during 
 
 ### Routing (`go_router`)
 
+Every route uses `builder:`, never `pageBuilder:`. Route transitions are a
+theme concern (`MoonrelayPageTransitionsBuilder` in
+`lib/src/settings/theme.dart`), not a router one, so the router never reads
+the animation preference.
+
 ShellRoutes create nested layouts:
 - `/welcome` -> `StartscreenFrame > StartupHomeFrame > StartupScreen/Login/Register`
-- `/main/rooms` -> `AppFrame > DashboardLayout > RoomDelegate/RoomPage`
-- `/main/rooms/:roomid` -> selected room with optional `/profile/:userid` and `/roomDetails` sub-routes
-- `/hub` -> settings/logs/licenses/profile hub
+- `/main/rooms` -> `AppFrame > _AdaptiveMainLayout > RoomsListRoute` (or `MobileRoomsListPage`)
+- `/main/rooms/:roomid` -> `RoomResolver`, with optional `profile`, `thread/:threadRootId` and `settings` sub-routes
 
 Redirect guards: `loggedInRedirect` and `loggedOutRedirect` read `Provider.of<Client>`.
+
+**There are no "delegate" widgets.** An earlier design had `RoomDelegate`
+and `ProfileDelegate`, which took a nullable id and reported a null id as an
+error. That conflated "no id, use a sensible default" with "malformed id",
+and it made `/main/myprofile` render an error card. If you are adding a
+route that resolves an id to a screen, resolve the id in the `builder`
+(where `state.pathParameters` is available) and pass a non-null value down;
+render the error state only for a genuinely invalid value. See `RoomResolver`
+and `ProfileView`.
+
+**GoRouter already percent-decodes `pathParameters`.** Do not decode them
+again: a user ID containing a literal `%` (legal in a Matrix localpart)
+throws a `FormatException` on the second pass. Re-encode when putting a
+decoded value back into a path (`Uri.encodeComponent`).
+
+**The layout shell is resolved once per frame, during build.** The rule, in
+`lib/src/layouts/layout_shell_controller.dart`:
+- `_AdaptiveMainLayout` (in `router.dart`) is the *only* writer. It calls
+  `resolve()` in its `build`.
+- `LayoutShellController` is deliberately NOT a `ChangeNotifier`. Every
+  consumer is a descendant of `_AdaptiveMainLayout`, so they build after it
+  in the same pass and read the fresh value with `context.read`.
+- If you need a consumer to rebuild on a shell change, it must be a
+  descendant of `_AdaptiveMainLayout`. That is what replaced a post-frame
+  `notifyListeners` deferral and, earlier, a `router.go()` on every flip that
+  was ejecting users from pushed sub-routes.
 
 ### Layout hierarchy
 
 ```
 AppFrame (custom titlebar + window controls)
-└-- _AdaptiveMainLayout (commits the shell from LayoutShellController)
+└-- _AdaptiveMainLayout (resolves the shell from LayoutShellController)
     ├-- DashboardLayout (multi-pane, expanded + compact shells)
     │   ├-- Navigation sidebar (Home, All, Spaces)
     │   ├-- Left sidebar (rooms/spaces/friends, collapsible)
-    │   ├-- Main content (route child  RoomPage, HubScreen, etc.)
+    │   ├-- Main content (route child: RoomsListRoute, RoomResolver, ...)
     │   ├-- Right sidebar (room info/members, collapsible)
     │   └-- StatusBar (sync status)
     └-- MobileLayout (single pane)
 ```
 
-There is no `_DashboardView` class; `DashboardLayout` owns the shell decision
-by delegating to the shared, app-level `LayoutShellController`.
+`DashboardLayout` only *reads* the resolved shell; `_AdaptiveMainLayout` is
+the single writer. See the routing section for why the controller is not a
+`ChangeNotifier`.
 
 ### State management
 
@@ -389,8 +422,8 @@ testWidgets('login then see rooms', (tester) async {
 
 ## Edge Cases When Editing
 
-- **Room lookup in Router**: `RoomDelegate` doesn't validate ID format  just calls `client.getRoomById()`. If the first sync hasn't completed (room list empty), shows a spinner instead of an error.
-- **ProfileDelegate**: Validates `@user:domain` format with regex `^@.+:.+`. Redirects own profile to hub screen.
+- **Room lookup in the router**: `RoomResolver` doesn't validate ID format; it just calls `client.getRoomById()`. If the first sync hasn't completed (room list empty), it shows a spinner with a retry, not an error. `/main/rooms` with no room selected renders the `RoomsListRoute` empty state, which is a different thing from a missing room.
+- **`ProfileView`**: validates `@user:domain` format with regex `^@.+:.+`. It takes a non-null `userId`; resolving "which user" is the router's job (`/main/myprofile` substitutes `client.userID`).
 - **DB operations use `databaseFactoryFfi`**: set in init after `sqfliteFfiInit()`. Not the default `databaseFactory`.
 - **Native crypto is mandatory**: `flutter_vodozemac.init()` is called early in the init pipeline. If it fails, the app can't boot.
 
