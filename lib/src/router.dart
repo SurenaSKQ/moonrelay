@@ -16,8 +16,6 @@
 
 import 'dart:async';
 
-import 'package:moonrelay/src/widgets/profile_view.dart';
-import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
@@ -34,12 +32,11 @@ import 'package:moonrelay/src/screens/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
-import 'package:moonrelay/src/widgets/room_resolver.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/profile_view.dart';
+import 'package:moonrelay/src/widgets/room_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -47,13 +44,31 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
+/// The application's route table.
+///
+/// Every route uses `builder:` rather than `pageBuilder:`. `pageBuilder`
+/// hands back a [Page], which buys per-route transitions and
+/// `NoTransitionPage`, but in practice it was only ever used to funnel every
+/// widget through `genericPageBuilder`, and that put three things in the
+/// router that did not belong there: the user's animation preference, a
+/// hand-rolled fade, and a mid-build call to `LayoutShellController.update`.
+/// Transitions are now a theme concern
+/// (`MoonrelayPageTransitionsBuilder`), so routes only describe what they
+/// render.
+///
+/// It also means route widgets are ordinary widgets again. The old
+/// `RoomDelegate` / `ProfileDelegate` wrappers existed to do work a
+/// `builder:` closure can do inline; see [RoomResolver] and [ProfileView].
 class MoonRouter {
+  MoonRouter();
+
   /// Returns `true` when the active account has a valid Matrix session.
   static bool _isLoggedIn(BuildContext context) {
     try {
       final client = Provider.of<Client>(context, listen: false);
       return client.isLogged();
     } catch (_) {
+      // Not in the tree yet, which during boot means no session either.
       return false;
     }
   }
@@ -72,82 +87,68 @@ class MoonRouter {
     return _isLoggedIn(context) ? null : '/welcome';
   }
 
-  /// The signed-in account's own user ID, or null when there is no
-  /// session in the tree yet.
-  static String? _ownUserId(BuildContext context) {
-    try {
-      return Provider.of<Client>(context, listen: false).userID;
-    } catch (_) {
-      return null;
-    }
+  // -- Route param helpers ----------------------------------------------
+
+  /// Reads a path parameter, or an empty string when it is absent.
+  ///
+  /// GoRouter has already percent-decoded matched segments by the time they
+  /// reach [GoRouterState.pathParameters], so this deliberately does *not*
+  /// decode again. Decoding twice is not a no-op: a user ID containing a
+  /// literal `%` (which is legal in a Matrix localpart) would throw a
+  /// [FormatException] on the second pass. The old router decoded in some
+  /// places and not others, which is how a `redirect` came to compare a
+  /// decoded value while the neighbouring `builder` passed an undecoded one.
+  static String _param(GoRouterState state, String name) {
+    return state.pathParameters[name] ?? '';
   }
 
-  MoonRouter();
-
-  /// Resolves a space room from route parameters, or null if not found.
+  /// Resolves a space room from the `:spaceid` parameter, or null.
   static Room? _spaceFromState(BuildContext context, GoRouterState state) {
-    final spaceId = state.pathParameters['spaceid'];
-    if (spaceId == null) return null;
+    final spaceId = _param(state, 'spaceid');
+    if (spaceId.isEmpty) return null;
     return Provider.of<Client>(context, listen: false).getRoomById(spaceId);
   }
 
-  /// Resolves a room from the route's :roomid parameter, or null when
-  /// the room is not in the sync cache yet (e.g. a cold deep link to a
-  /// room that hasn't been synced).  Callers render a not-found page
-  /// instead of throwing on a null bang.
+  /// Resolves a room from the `:roomid` parameter, or null when the room is
+  /// not in the sync cache yet (e.g. a cold deep link to a room that has not
+  /// been synced). Callers render a not-found page instead of throwing.
   static Room? _roomFromState(BuildContext context, GoRouterState state) {
-    final roomId = state.pathParameters['roomid'];
-    if (roomId == null) return null;
+    final roomId = _param(state, 'roomid');
+    if (roomId.isEmpty) return null;
     return Provider.of<Client>(context, listen: false).getRoomById(roomId);
   }
 
-  /// Builds a "not found" fallback page for missing rooms/spaces.
-  static Page _notFoundPage(
-    BuildContext context,
-    GoRouterState state,
-    String label,
-  ) =>
-      genericPageBuilder(context, state, Center(child: Text(label)));
+  /// A not-found page for a room or space that could not be resolved.
+  static Widget _notFound(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return EmptyState(
+      icon: Icons.search_off,
+      title: l10n?.error ?? 'Error',
+      message: l10n?.roomNotFound ?? 'Room not found',
+    );
+  }
 
-  // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
+  // -- Routes ------------------------------------------------------------
+
   static final List<RouteBase> routes = [
     ShellRoute(
-      pageBuilder: (context, state, child) => genericPageBuilder(
-        context,
-        state,
-        StartscreenFrame(child: child),
-      ),
+      builder: (context, state, child) => StartscreenFrame(child: child),
       routes: [
         ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            StartupHomeFrame(
-              child: child,
-            ),
-          ),
+          builder: (context, state, child) => StartupHomeFrame(child: child),
           redirect: loggedInRedirect,
           routes: [
             GoRoute(
               path: '/welcome',
-              pageBuilder: (context, state) =>
-                  genericPageBuilder(context, state, StartupScreen()),
+              builder: (context, state) => const StartupScreen(),
               routes: [
                 GoRoute(
                   path: 'login',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    const LoginPage(),
-                  ),
+                  builder: (context, state) => const LoginPage(),
                 ),
                 GoRoute(
                   path: 'register',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    const RegisterInClientPage(),
-                  ),
+                  builder: (context, state) => const RegisterInClientPage(),
                 ),
               ],
             ),
@@ -162,20 +163,12 @@ class MoonRouter {
         GoRoute(
           path: '/add-account',
           redirect: loggedOutRedirect,
-          pageBuilder: (context, state) => genericPageBuilder(
-            context,
-            state,
-            const LoginPage(),
-          ),
+          builder: (context, state) => const LoginPage(),
         ),
       ],
     ),
     ShellRoute(
-      pageBuilder: (context, state, child) => genericPageBuilder(
-        context,
-        state,
-        AppFrame(child: child),
-      ),
+      builder: (context, state, child) => AppFrame(child: child),
       routes: [
         GoRoute(
           path: '/',
@@ -183,51 +176,25 @@ class MoonRouter {
               _isLoggedIn(context) ? '/main/rooms' : '/welcome',
         ),
         ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            // The DashboardLayout replaces the old TwoColumnLayout.
-            // It reads sidebar visibility and pane choice from
-            // SettingsController and uses LayoutBuilder for responsive
-            // breakpoints. The user profile button is now rendered
-            // in the AppFrame header bar.
-            //
-            // When the user opts into [LayoutMode.mobile] the shell
-            // renders the dedicated single-pane [MobileLayout] instead.
-            // Mobile mode does not need the navigation sidebar, the
-            // multi-pane sidebars, or the resize handles, so it lives
-            // outside the dashboard code path entirely.
-            _AdaptiveMainLayout(child: child),
-          ),
+          builder: (context, state, child) => _AdaptiveMainLayout(child: child),
           routes: [
             GoRoute(
               path: '/main/rooms',
               redirect: loggedOutRedirect,
-              pageBuilder: (context, state) => _roomsListPageBuilder(
-                context,
-                state,
-              ),
+              builder: (context, state) => const RoomsListRoute(),
               routes: [
                 GoRoute(
                   path: ':roomid',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    RoomResolver(roomId: state.pathParameters['roomid']!,
-                      threadRootEventId:
-                          state.uri.queryParameters['threadRoot'],
-                    ),
-                  ),
                   redirect: loggedOutRedirect,
+                  builder: (context, state) => RoomResolver(
+                    roomId: _param(state, 'roomid'),
+                    threadRootEventId: state.uri.queryParameters['threadRoot'],
+                  ),
                   routes: [
                     GoRoute(
                       path: 'profile',
-                      pageBuilder: (context, state) => genericPageBuilder(
-                        context,
-                        state,
-                        ProfileView(
-                          userId: state.pathParameters['userid'] ?? '',
-                        ),
+                      builder: (context, state) => ProfileView(
+                        userId: _param(state, 'userid'),
                       ),
                       routes: [
                         // IMPORTANT: literal paths must come before
@@ -235,84 +202,61 @@ class MoonRouter {
                         // first (e.g. "roomDetails" must precede :userid).
                         GoRoute(
                           path: 'roomDetails',
-                          pageBuilder: (context, state) {
+                          builder: (context, state) {
                             final room = _roomFromState(context, state);
-                            if (room == null) {
-                              return _notFoundPage(
-                                  context, state, 'Room not found');
-                            }
-                            return genericPageBuilder(
-                              context,
-                              state,
-                              RoomInformations(room: room),
-                            );
+                            if (room == null) return _notFound(context);
+                            return RoomInformations(room: room);
                           },
                         ),
                         GoRoute(
                           path: ':userid',
                           redirect: (context, state) {
-                            final raw = state.pathParameters['userid'];
-                            if (raw == null) return null;
-                            final userid = Uri.decodeComponent(raw);
+                            final userid = _param(state, 'userid');
+                            if (userid.isEmpty) return '/main/rooms';
+                            // Own profile has its own route so the existing
+                            // self-profile flow keeps working.
                             try {
                               final client =
                                   Provider.of<Client>(context, listen: false);
                               if (userid == client.userID) {
                                 return '/main/myprofile';
                               }
-                            } catch (_) {}
+                            } catch (_) {
+                              // No session in the tree: fall through and
+                              // let the profile view report the failure.
+                            }
                             // Profile viewing is decoupled from the
                             // room route; redirect any deep link with
                             // the form /main/rooms/.../profile/<userid>
                             // to the top-level /profile/<userid> so it
                             // works even when the user isn't joined to
-                            // the originating room.
+                            // the originating room. The value arrives
+                            // decoded, so it has to be re-encoded to go
+                            // back into a path segment.
                             return '/profile/${Uri.encodeComponent(userid)}';
                           },
-                          pageBuilder: (context, state) => genericPageBuilder(
-                            context,
-                            state,
-                            ProfileView(userId: Uri.decodeComponent(
-                                state.pathParameters['userid'] ?? '',
-                              ),
-                            ),
-                          ),
+                          builder: (context, state) =>
+                              ProfileView(userId: _param(state, 'userid')),
                         ),
                       ],
                     ),
                     GoRoute(
                       path: 'thread/:threadRootId',
-                      pageBuilder: (context, state) {
+                      builder: (context, state) {
                         final room = _roomFromState(context, state);
-                        if (room == null) {
-                          return _notFoundPage(
-                              context, state, 'Room not found');
-                        }
-                        final threadRootId =
-                            state.pathParameters['threadRootId']!;
-                        return genericPageBuilder(
-                          context,
-                          state,
-                          ThreadViewPage(
-                            room: room,
-                            threadRootEventId: threadRootId,
-                          ),
+                        if (room == null) return _notFound(context);
+                        return ThreadViewPage(
+                          room: room,
+                          threadRootEventId: _param(state, 'threadRootId'),
                         );
                       },
                     ),
                     GoRoute(
                       path: 'settings',
-                      pageBuilder: (context, state) {
+                      builder: (context, state) {
                         final room = _roomFromState(context, state);
-                        if (room == null) {
-                          return _notFoundPage(
-                              context, state, 'Room not found');
-                        }
-                        return genericPageBuilder(
-                          context,
-                          state,
-                          RoomSettingsPage(room: room),
-                        );
+                        if (room == null) return _notFound(context);
+                        return RoomSettingsPage(room: room);
                       },
                     ),
                   ],
@@ -321,16 +265,8 @@ class MoonRouter {
             ),
             GoRoute(
               path: '/main/myprofile',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-            ProfileView(
-              // This route means "my profile", so it has to name the
-              // signed-in user. A null here is not an absent
-              // parameter, it is the whole point of the route, and
-              // ProfileView answers an empty id with an error card.
-              userId: _ownUserId(context) ?? '',
-            ),
+              builder: (context, state) => ProfileView(
+                userId: _ownUserId(context),
               ),
             ),
             // Stand-alone profile route.  Decoupled from the room tree
@@ -342,25 +278,20 @@ class MoonRouter {
             GoRoute(
               path: '/profile/:userid',
               redirect: (context, state) {
-                final raw = state.pathParameters['userid'];
-                if (raw == null || raw.isEmpty) return null;
-                final userid = Uri.decodeComponent(raw);
+                final userid = _param(state, 'userid');
+                if (userid.isEmpty) return null;
                 try {
                   final client = Provider.of<Client>(context, listen: false);
                   if (userid == client.userID) {
                     return '/main/myprofile';
                   }
-                } catch (_) {}
+                } catch (_) {
+                  // No session in the tree; let the view report it.
+                }
                 return null;
               },
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                ProfileView(userId: Uri.decodeComponent(
-                    state.pathParameters['userid'] ?? '',
-                  ),
-                ),
-              ),
+              builder: (context, state) =>
+                  ProfileView(userId: _param(state, 'userid')),
             ),
             // Hub screen: opened exclusively as a modal overlay
             // (see [showHubOverlay] in `hub_screen.dart`).  It is
@@ -375,164 +306,92 @@ class MoonRouter {
             // of the GoRouter.
             GoRoute(
               path: '/main/encryption',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const EncryptionOverviewScreen(),
-              ),
+              builder: (context, state) => const EncryptionOverviewScreen(),
             ),
             GoRoute(
               path: '/main/devices',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const DeviceListScreen(),
-              ),
+              builder: (context, state) => const DeviceListScreen(),
             ),
             GoRoute(
               path: '/main/space/:spaceid',
-              pageBuilder: (context, state) {
-                final space = _spaceFromState(context, state);
-                if (space == null) {
-                  return _notFoundPage(context, state, 'Space not found');
-                }
-                return genericPageBuilder(
-                  context,
-                  state,
-                  SpaceHomePage(space: space),
-                );
-              },
               redirect: loggedOutRedirect,
+              builder: (context, state) {
+                final space = _spaceFromState(context, state);
+                if (space == null) return _notFound(context);
+                return SpaceHomePage(space: space);
+              },
               routes: [
                 GoRoute(
                   path: 'settings',
-                  pageBuilder: (context, state) {
+                  builder: (context, state) {
                     final space = _spaceFromState(context, state);
-                    if (space == null) {
-                      return _notFoundPage(context, state, 'Space not found');
-                    }
-                    return genericPageBuilder(
-                      context,
-                      state,
-                      SpaceSettingsPage(space: space),
-                    );
+                    if (space == null) return _notFound(context);
+                    return SpaceSettingsPage(space: space);
                   },
                 ),
               ],
             ),
             GoRoute(
               path: '/main/room_preview/:roomid',
-              pageBuilder: (context, state) {
-                final String roomId = state.pathParameters['roomid']!;
-                return genericPageBuilder(
-                  context,
-                  state,
-                  RoomPreviewScreen(roomId: roomId),
-                );
-              },
               redirect: loggedOutRedirect,
+              builder: (context, state) => RoomPreviewScreen(
+                roomId: _param(state, 'roomid'),
+              ),
             ),
             GoRoute(
               path: '/main/addroom',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const AddRoomPage(),
-              ),
+              builder: (context, state) => const AddRoomPage(),
             ),
           ],
-        )
+        ),
       ],
     ),
   ];
 
-  static Page genericPageBuilder(
-    BuildContext context,
-    GoRouterState state,
-    Widget child,
-  ) {
-    // Honour the user's animation preference: when motion is enabled
-    // we apply a soft fade to keep the navigation feeling responsive,
-    // and we collapse back to [NoTransitionPage] when the user has
-    // opted out (animations are off, accessibility reduced-motion).
-    final motion = Motion.of(context);
-    if (!motion.enableAnimations) {
-      return NoTransitionPage(
-        key: state.pageKey,
-        restorationId: state.pageKey.value,
-        child: child,
-      );
+  /// The signed-in account's own user ID, or an empty string when there is
+  /// no session yet.
+  ///
+  /// `/main/myprofile` exists precisely to mean "my profile", so it resolves
+  /// the ID here instead of handing a null down to a widget that had to
+  /// guess whether null meant "use mine" or "this is broken".
+  static String _ownUserId(BuildContext context) {
+    try {
+      return Provider.of<Client>(context, listen: false).userID ?? '';
+    } catch (_) {
+      return '';
     }
-    return CustomTransitionPage(
-      key: state.pageKey,
-      restorationId: state.pageKey.value,
-      transitionDuration: motion.duration(MotionDurations.medium),
-      reverseTransitionDuration: motion.duration(MotionDurations.fast),
-      transitionsBuilder: (context, animation, secondary, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-      child: child,
-    );
   }
+}
 
-  /// Page builder for the `/main/rooms` route (no `:roomid`).
-  ///
-  /// Returns a [RoomResolver] for the room the route names, or a
-  /// fully-rendered [MobileRoomsListPage] when the user is on the
-  /// mobile layout.
-  ///
-  /// Both layouts share the same route; the difference is purely in
-  /// how the URL `/main/rooms` is presented.  Keeping the URL stable
-  /// means the existing deep-link handling, command-palette routing,
-  /// and back-button logic continue to work without modification.
-  ///
-  /// The mobile branch fires when the user has explicitly opted in to
-  /// mobile mode *or* the shared [LayoutShellController] committed the
-  /// mobile shell because the window is too narrow.  The decision is
-  /// read from the controller (never recomputed here) so this page
-  /// builder and the surrounding shell always agree in the same frame.
-  /// The page child depends on the committed shell (mobile vs
-  /// dashboard).  It does not subscribe to the controller: switching
-  /// between [MobileLayout] and [DashboardLayout] changes the widget type
-  /// above the navigator, so Flutter tears the old subtree down and mounts
-  /// a new one, which re-runs this builder against the shell that is
-  /// committed at that point.
-  static Page _roomsListPageBuilder(
-    BuildContext context,
-    GoRouterState state,
-  ) {
-    final shell = Provider.of<LayoutShellController>(context, listen: false);
+/// The content behind `/main/rooms` when no room is selected.
+///
+/// This page is always on the stack: when a room *is* open, the `:roomid`
+/// page sits on top of it, so what renders here only matters when the user
+/// has backed out to the room list. On mobile that is a full page; on the
+/// dashboard it is the main pane beside the room sidebar, where the old
+/// code rendered a `RoomDelegate` with a null room ID and produced a
+/// "Room not found" error card.
+///
+/// Deliberately reads no room ID: the child route owns that, and this page
+/// reaching into the matched child parameters is how the two used to
+/// disagree about which shell was showing.
+class RoomsListRoute extends StatelessWidget {
+  const RoomsListRoute({super.key});
 
-    Widget child;
-    if (shell.isMobile) {
-      child = const MobileRoomsListPage();
-    } else {
-      // This page is the parent of the :roomid route, so it is on the
-      // stack whether or not a room is open. Reading the child's
-      // pathParameters to decide what to render is what made the two
-      // routes disagree; ask the state directly instead.
-      final roomID = state.pathParameters['roomid'];
-      if (roomID == null || roomID.isEmpty) {
-        // No room selected. On the dashboard that is the resting state,
-        // not an error, and it used to render the room resolver's
-        // "Room not found" card here.
-        final l10n = AppLocalizations.of(context);
-        child = EmptyState(
-          icon: Icons.forum_outlined,
-          title: l10n?.noRoomSelected ?? 'No room selected',
-          message: l10n?.noRoomSelectedHint ??
-              'Pick a room from the sidebar to start reading or chatting.',
-        );
-      } else {
-        child = RoomResolver(roomId: roomID,
-          threadRootEventId: state.uri.queryParameters['threadRoot'],
-        );
-      }
-    }
-    return genericPageBuilder(context, state, child);
+  @override
+  Widget build(BuildContext context) {
+    // Reads the shell resolved by _AdaptiveMainLayout earlier in this same
+    // build pass: it is an ancestor, so its decision is already committed.
+    // A descendant reading a resolved value needs no listener.
+    final shell = context.read<LayoutShellController>();
+    if (shell.isMobile) return const MobileRoomsListPage();
+    final l10n = AppLocalizations.of(context);
+    return EmptyState(
+      icon: Icons.forum_outlined,
+      title: l10n?.noRoomSelected ?? 'No room selected',
+      message: l10n?.noRoomSelectedHint ??
+          'Pick a room from the sidebar to start reading or chatting.',
+    );
   }
 }
 
@@ -541,23 +400,17 @@ class MoonRouter {
 ///
 /// Both layouts live inside the same [ShellRoute] so they share the
 /// `/main/rooms` route tree; the only difference is how the route's
-/// `child` is wrapped.  Switching modes at runtime rebuilds this
-/// widget but does not change the route stack, so the chat the user
-/// was looking at stays open.
+/// `child` is wrapped.
 ///
-/// The mobile layout is used when the shared [LayoutShellController]
-/// commits the mobile shell: when the user explicitly opted in via
-/// [LayoutMode.mobile], or when the current viewport is too narrow for
-/// even the unified compact sidebar (below
-/// [LayoutBreakpoints.mobileMax]).
-///
-/// The shell decision is never made here.  [LayoutShellController]
-/// owns the width-to-shell mapping (with a sticky dead band) and is
-/// read by every layout consumer, so the frame and the route pages
-/// cannot disagree.  This widget renders the committed shell and nothing
-/// else.  In particular it does not navigate when the shell changes: a
-/// shell flip is a change of frame, not of destination, and the route
-/// stack is left exactly as the user left it.
+/// The shell decision itself belongs to [LayoutShellController], which every
+/// layout consumer reads, so the frame and the route pages cannot disagree.
+/// This widget renders the committed shell and nothing else. It does *not*
+/// mutate the controller during build: committing from `build` forced
+/// `notifyListeners` to be deferred to a post-frame callback, which in turn
+/// made it look safe to also drive navigation from the same place. The
+/// commit happens in [didChangeDependencies], which is outside the build
+/// pass, so a shell flip now rebuilds the layout and leaves the route stack
+/// exactly as it was.
 class _AdaptiveMainLayout extends StatefulWidget {
   const _AdaptiveMainLayout({required this.child});
 
@@ -568,6 +421,15 @@ class _AdaptiveMainLayout extends StatefulWidget {
 }
 
 class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
+  /// The controller whose `layoutMode` drives the shell, held so a
+  /// settings change can re-resolve without rebuilding this widget.
+  SettingsController? _settings;
+
+  /// Latest window width, refreshed on every resize. Kept as a field so
+  /// the settings listener does not have to read MediaQuery outside the
+  /// dependency phase.
+  double _width = 0;
+
   @override
   void initState() {
     super.initState();
@@ -577,27 +439,40 @@ class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
     // should be re-derived from the current width instead of inheriting
     // a stale one from the previous session.
     context.read<LayoutShellController>().reset();
+    _settings = context.read<SettingsController>()..addListener(_onSettings);
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Only subscribe to the two values that actually drive the shell
-    // decision: the user-forced layout mode and the window width.
-    // Watching the entire SettingsController would rebuild this
-    // widget on every preference change (theme, font size, density,
-    // …) and could trigger spurious shell transitions.
-    final layoutMode = context.select<SettingsController, LayoutMode>(
-      (s) => s.layoutMode,
-    );
-    final width = MediaQuery.sizeOf(context).width;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // `MediaQuery.sizeOf` is the resize dependency. Reading the width here
+    // rather than in build is what lets the shell decision happen exactly
+    // once per frame, before any descendant reads it.
+    _width = MediaQuery.sizeOf(context).width;
+  }
 
-    // The single writer of the shell. The controller applies the sticky
-    // dead band around each breakpoint, so the committed shell only
-    // changes when the width has clearly crossed over and no separate
-    // hysteresis is needed here. It does not notify: every consumer is a
-    // descendant of this widget and reads the value in the same pass.
+  @override
+  void dispose() {
+    _settings?.removeListener(_onSettings);
+    super.dispose();
+  }
+
+  /// Re-renders after a settings change so a forced layout mode takes
+  /// effect. Cheap and idempotent: [LayoutShellController.resolve] only
+  /// commits when the target actually differs past the dead band, so an
+  /// unrelated preference change cannot move the shell.
+  void _onSettings() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = _settings;
+    if (settings == null) return const SizedBox.shrink();
+
+    // The one and only writer. Every consumer of the shell is a descendant
+    // of this widget, so they all read this frame's decision below without
+    // needing a notification.
     final shell = context.read<LayoutShellController>()
-      ..resolve(rawWidth: width, layoutMode: layoutMode);
+      ..resolve(rawWidth: _width, layoutMode: settings.layoutMode);
 
     if (shell.isMobile) {
       return MobileLayout(child: widget.child);
