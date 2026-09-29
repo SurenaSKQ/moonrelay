@@ -17,7 +17,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 
@@ -77,32 +76,27 @@ class _DashboardLayoutState extends State<DashboardLayout> {
       builder: (context, constraints) {
         // -- Shell decision -----------------------------------------------
         //
-        // The shell decision reads the *outer* viewport width (via
-        // [MediaQuery.sizeOf]) instead of the inner [LayoutBuilder]
-        // constraints.  The inner constraints shrink and grow when the
-        // sidebars mount or unmount; the previous implementation used
-        // them as the breakpoint signal and ended up in a feedback
-        // loop where toggling the right sidebar could nudge the
-        // available width across the threshold and flip the shell on
-        // its own.  Anchoring to the window width makes the shell
-        // decision independent of which sidebars are currently mounted.
+        // The shell decision is made by the router's `_AdaptiveMainLayout`
+        // during its own build, which happens before this widget (it is a
+        // descendant). So this only *reads* the resolved shell. It used to
+        // be a second writer, calling `LayoutShellController.update` from
+        // here as well; with the controller no longer notifying, two
+        // writers would race on the same sticky state with no way for the
+        // loser to find out.
         //
-        // This builder only calls [LayoutShellController.update] and
-        // reads the committed shell; it never mutates fields on this
-        // state.  The controller defers its [notifyListeners] to the
-        // end of the frame so no rebuild is scheduled mid-layout.
+        // The width is read for the pane sizing below, not to re-derive the
+        // shell: the inner [LayoutBuilder] constraints shrink and grow when
+        // the sidebars mount or unmount, and using them as the breakpoint
+        // signal previously created a feedback loop where toggling the
+        // right sidebar could nudge the available width across the
+        // threshold and flip the shell on its own. Anchoring to the window
+        // width keeps the decision independent of which sidebars are
+        // currently mounted.
         final width = MediaQuery.sizeOf(context).width;
         final layoutSize = LayoutBreakpoints.sizeForWidth(width);
 
-        final layoutMode = context.select<SettingsController, LayoutMode>(
-          (s) => s.layoutMode,
-        );
-        final shell = context.watch<LayoutShellController>();
+        final shell = context.read<LayoutShellController>();
 
-        shell.update(
-          rawWidth: width,
-          layoutMode: layoutMode,
-        );
         // The dashboard always renders a compact-or-wider shell
         // here; the dedicated mobile shell is mounted at a higher
         // level by the router when needed.
