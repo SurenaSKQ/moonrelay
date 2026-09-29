@@ -142,15 +142,35 @@ Future<BootContext> runBootPipeline({
   }
   databaseFactory = databaseFactoryFfi;
 
-  // -- 3. Open database ----------------------------------------
+  // -- 3. Settings (needed before the database) -----------------
+  // Loaded here rather than in a later step because the database's
+  // backup-retention policy comes from settings, and the wipe that
+  // policy governs happens during database open.
+  onStatus('Loading preferences…');
+  log.t('Boot: Settings');
+  if (!kIsWeb &&
+      [
+        TargetPlatform.windows,
+        TargetPlatform.android,
+      ].contains(defaultTargetPlatform)) {
+    SystemTheme.accentColor.load();
+  }
+  final settingsController = SettingsController(SettingsService());
+  await settingsController.loadSettings();
+
+  // -- 4. Open database ----------------------------------------
   onStatus('Opening database…');
   log.t('Boot: Database');
-  final dbService = DatabaseService(schemaVersion: schemaVersion, log: log);
+  final dbService = DatabaseService(
+    schemaVersion: schemaVersion,
+    log: log,
+    backupKeepCount: settingsController.dbBackupKeepCount,
+  );
   final String dbName =
       accountManager.activeAccount?.databaseName ?? 'moonrelay.db';
   final dbobj = await dbService.openDatabaseFor(dbName);
 
-  // -- 4. Create Matrix Client ---------------------------------
+  // -- 5. Create Matrix Client ---------------------------------
   onStatus('Starting network client…');
   log.t('Boot: Matrix Client');
   final sdk = Client(
@@ -172,22 +192,19 @@ Future<BootContext> runBootPipeline({
     rethrow;
   }
 
-  // -- 5. Theme & Settings -------------------------------------
-  onStatus('Loading preferences…');
-  log.t('Boot: Settings');
-  if (!kIsWeb &&
-      [
-        TargetPlatform.windows,
-        TargetPlatform.android,
-      ].contains(defaultTargetPlatform)) {
-    SystemTheme.accentColor.load();
-  }
-  final settingsController = SettingsController(SettingsService());
-  await settingsController.loadSettings();
-
-  // Apply verbose-release log preference now that settings are loaded.
+  // -- 5. Remaining settings-dependent boot work ---------------
+  // Settings themselves loaded in step 3, ahead of the database.
   logService.updateVerboseRelease(settingsController.logVerboseRelease);
-
+  // Re-assert the full logging policy. The service is built before
+  // settings load, so without this the size, retention, flush-delay and
+  // level controls would only take effect from the first change made in
+  // the settings page rather than at boot.
+  await logService.applyPolicy(
+    maxFileSizeMb: settingsController.logMaxFileSizeMb,
+    maxRotatedFiles: settingsController.logMaxFiles,
+    flushDelaySeconds: settingsController.logFlushDelayS,
+    level: settingsController.logLevel,
+  );
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();
 
@@ -208,14 +225,22 @@ Future<BootContext> runBootPipeline({
   }
 
   // -- 7. Encryption service -----------------------------------
+  // AccountManager owns this instance, not the ServiceRegistry. It is
+  // rebuilt per client by `onClientReady` below, so a registry entry
+  // created here would hold a disposed notifier after the first
+  // account switch. `AccountManager.shutdown` disposes whichever one
+  // is live at shutdown time.
   onStatus('Preparing encryption…');
   log.t('Boot: Encryption');
-  final encryptionService = EncryptionService(client: sdk, logger: log);
+  final encryptionService = EncryptionService(
+    client: sdk,
+    logger: log,
+    refreshDebounce:
+        Duration(milliseconds: settingsController.encryptionRefreshDebounceMs),
+  );
   if (sdk.isLogged()) {
     await encryptionService.init();
   }
-  registry.register(encryptionService,
-      disposer: () => encryptionService.dispose());
 
   // -- 8. CurrentRoom ------------------------------------------
   final currentRoom = CurrentRoom();
@@ -234,7 +259,10 @@ Future<BootContext> runBootPipeline({
   // (before any login) lands on the right page.
   onStatus('Setting up deep link handler…');
   log.t('Boot: DeepLink');
-  deepLinkService = DeepLinkService(log: log);
+  deepLinkService = DeepLinkService(
+    log: log,
+    dedupWindow: Duration(milliseconds: settingsController.deepLinkDedupMs),
+  );
   try {
     await deepLinkService.init();
   } catch (e) {
@@ -266,7 +294,12 @@ Future<BootContext> runBootPipeline({
     onStatus('Setting up system tray…');
     log.t('Boot: Tray');
     try {
-      await TrayService.init(accountManager: accountManager, log: log);
+      await TrayService.init(
+        accountManager: accountManager,
+        log: log,
+        settings: settingsController,
+        deepLinkService: deepLinkService,
+      );
     } catch (e) {
       log.w('Tray service init failed', error: e);
     }
@@ -312,7 +345,16 @@ Future<BootContext> runBootPipeline({
 
   accountManager.onClientReady = (client) async {
     if (client.isLogged()) {
-      final enc = EncryptionService(client: client, logger: log);
+      // Same refresh-debounce value as the boot-time instance above; a
+      // new service is built per client, so the two sites must stay in
+      // sync or the setting would apply to only one of them.
+      final enc = EncryptionService(
+        client: client,
+        logger: log,
+        refreshDebounce: Duration(
+          milliseconds: settingsController.encryptionRefreshDebounceMs,
+        ),
+      );
       await enc.init();
       return enc;
     }
@@ -320,8 +362,14 @@ Future<BootContext> runBootPipeline({
   };
 
   // -- 12. Auto-update service ------------------------------------
+  // Registered because it owns an http.Client that dispose() closes;
+  // before this, nothing ever called it and the socket outlived the
+  // process. Unlike the account-scoped services this one is built once
+  // and never swapped, so the registry is the right owner.
   log.t('Boot: AutoUpdateService');
   final autoUpdateService = AutoUpdateService(log: log);
+  registry.register(autoUpdateService,
+      disposer: () => autoUpdateService.dispose());
 
   log.i('Initialization complete');
 
@@ -336,7 +384,7 @@ Future<BootContext> runBootPipeline({
     if (!hasRooms) {
       try {
         await sdk.onSync.stream.first.timeout(
-          const Duration(seconds: 8),
+          Duration(seconds: settingsController.firstSyncTimeoutS),
         );
       } on TimeoutException {
         log.w('Boot: timed out waiting for first sync; '
