@@ -22,8 +22,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:provider/provider.dart';
 
 /// A panel for searching messages inside a single room.
 ///
@@ -155,11 +157,16 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
     if (!queryChanged && !senderChanged) return;
 
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      _keywords = keywords;
-      _senderFilter = sender;
-      _performSearch();
-    });
+    _debounce = Timer(
+      Duration(
+        milliseconds: context.read<SettingsController>().searchDebounceMs,
+      ),
+      () {
+        _keywords = keywords;
+        _senderFilter = sender;
+        _performSearch();
+      },
+    );
   }
 
   void _onTypeChanged(String type) {
@@ -270,7 +277,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       final result = await widget.room.searchEvents(
         searchTerm: _keywords.first,
         nextBatch: reset ? null : _nextBatch,
-        limit: 100,
+        limit: context.read<SettingsController>().searchPageSize,
       );
 
       if (!mounted || token != _searchToken) return;
