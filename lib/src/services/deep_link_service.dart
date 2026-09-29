@@ -55,9 +55,14 @@ import 'package:provider/provider.dart';
 class DeepLinkService {
   DeepLinkService({
     required this.log,
-  });
+    Duration dedupWindow = const Duration(milliseconds: 500),
+  }) : _dedupWindow = dedupWindow;
 
   final Logger log;
+
+  /// Window in which a repeated delivery of the same URI is suppressed.
+  /// Seeded from `SettingsController.deepLinkDedupMs` at boot.
+  final Duration _dedupWindow;
 
   /// The callback invoked when a matrix URI is received.
   /// The service processes the URI and passes the [MatrixUriResult] to this
@@ -104,7 +109,10 @@ class DeepLinkService {
 
   /// Two delivery windows. OSes occasionally deliver the same protocol
   /// URI twice for the same launch; we suppress the duplicate.
-  static const Duration _dedupWindow = Duration(milliseconds: 500);
+  ///
+  /// `_lastUri` and `_lastAt` stay static deliberately. There is exactly
+  /// one service instance for the process, and static state is what lets
+  /// the window survive a re-`init()`, which is the case this guards.
   static String _lastUri = '';
   static DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
 
