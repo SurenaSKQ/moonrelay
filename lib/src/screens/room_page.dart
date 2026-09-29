@@ -16,7 +16,7 @@
 
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
-import 'package:moonrelay/src/chat/in_room_search_panel.dart';
+import 'package:moonrelay/src/chat/in_room_search_panel/in_room_search_panel.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'package:moonrelay/src/chat/in_room_search_panel/search_result_tile.dart';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -77,13 +78,13 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
   int _searchToken = 0;
 
   // Message type filter options
-  static const List<_TypeFilter> _typeFilters = [
-    _TypeFilter('', LucideIcons.fileText), // All
-    _TypeFilter(MessageTypes.Text, LucideIcons.type),
-    _TypeFilter(MessageTypes.Image, LucideIcons.image),
-    _TypeFilter(MessageTypes.File, LucideIcons.file),
-    _TypeFilter(MessageTypes.Audio, LucideIcons.headphones),
-    _TypeFilter(MessageTypes.Video, LucideIcons.video),
+  static const List<InRoomResultFilter> inRoomResultFilters = [
+    InRoomResultFilter('', LucideIcons.fileText), // All
+    InRoomResultFilter(MessageTypes.Text, LucideIcons.type),
+    InRoomResultFilter(MessageTypes.Image, LucideIcons.image),
+    InRoomResultFilter(MessageTypes.File, LucideIcons.file),
+    InRoomResultFilter(MessageTypes.Audio, LucideIcons.headphones),
+    InRoomResultFilter(MessageTypes.Video, LucideIcons.video),
   ];
 
   @override
@@ -479,8 +480,8 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
       child: Wrap(
         spacing: 6,
         runSpacing: 4,
-        children: List.generate(_typeFilters.length, (i) {
-          final filter = _typeFilters[i];
+        children: List.generate(inRoomResultFilters.length, (i) {
+          final filter = inRoomResultFilters[i];
           final isSelected = _selectedType == filter.type;
           return FilterChip(
             label: Text(
@@ -597,7 +598,7 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
             separatorBuilder: (_, __) => Divider(
                 height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
             itemBuilder: (context, index) {
-              return _InRoomResultTile(
+              return InRoomResultTile(
                 event: _results[index],
                 keywords: _keywords,
                 onJumpToEvent: widget.onJumpToEvent,
@@ -643,241 +644,4 @@ class _InRoomSearchPanelState extends State<InRoomSearchPanel> {
 
 // --- Internal models ----------------------------------------------------------
 
-class _TypeFilter {
-  final String type; // empty = all
-  final IconData icon;
-  const _TypeFilter(this.type, this.icon);
-}
-
 // --- Result tile --------------------------------------------------------------
-
-class _InRoomResultTile extends StatelessWidget {
-  final Event event;
-  final List<String> keywords;
-  final void Function(String eventId)? onJumpToEvent;
-
-  const _InRoomResultTile({
-    required this.event,
-    required this.keywords,
-    this.onJumpToEvent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final sender = event.senderFromMemoryOrFallback;
-    final senderName = sender.displayName ?? sender.id;
-    final body = event.body;
-    final msgType = event.messageType;
-
-    final typeIcon = switch (msgType) {
-      MessageTypes.Image => LucideIcons.image,
-      MessageTypes.Video => LucideIcons.video,
-      MessageTypes.Audio => LucideIcons.headphones,
-      MessageTypes.File => LucideIcons.file,
-      _ => LucideIcons.messageSquare,
-    };
-
-    return InkWell(
-      onTap: () => onJumpToEvent?.call(event.eventId),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: t.spaceXs, vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Type icon
-            Container(
-              margin: EdgeInsets.only(top: t.spaceXxs),
-              padding: EdgeInsets.all(t.spaceXs),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(typeIcon, size: 14, color: scheme.onSurfaceVariant),
-            ),
-            SizedBox(width: t.spaceSm),
-
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sender name + match-count chip
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          senderName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: scheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (keywords.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        _MatchCountChip(text: body, keywords: keywords),
-                      ],
-                    ],
-                  ),
-                  SizedBox(height: t.spaceXxs),
-                  // Message body with keyword highlights
-                  _HighlightedText(
-                    text: body.isNotEmpty ? body : '(no content)',
-                    keywords: keywords,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    highlightStyle: TextStyle(
-                      fontSize: 12,
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact pill that shows how many times any of the [keywords]
-/// appears in [text].  Hidden when there are no matches, so the
-/// results list stays clean when the user has not typed a query.
-///
-/// The chip is rendered next to the sender name in each result tile
-/// so a user can quickly gauge how relevant a hit is without having
-/// to read the body.
-class _MatchCountChip extends StatelessWidget {
-  const _MatchCountChip({required this.text, required this.keywords});
-
-  final String text;
-  final List<String> keywords;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final l10n = AppLocalizations.of(context)!;
-    final count = _countMatches();
-    if (count == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(t.radiusMd),
-      ),
-      child: Text(
-        count == 1
-            ? l10n.searchMatchCount(count)
-            : l10n.searchMatchCountMany(count),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: scheme.onPrimaryContainer,
-        ),
-      ),
-    );
-  }
-
-  /// Returns the total number of case-insensitive occurrences of all
-  /// [keywords] inside [text].  Non-overlapping counts are summed
-  /// across all keywords so multi-word queries show the combined
-  /// match count.
-  int _countMatches() {
-    final haystack = text.toLowerCase();
-    var total = 0;
-    for (final raw in keywords) {
-      final needle = raw.toLowerCase();
-      if (needle.isEmpty) continue;
-      var idx = 0;
-      while (true) {
-        final found = haystack.indexOf(needle, idx);
-        if (found < 0) break;
-        total++;
-        idx = found + needle.length;
-      }
-    }
-    return total;
-  }
-}
-
-/// Renders [text] with every occurrence of any keyword in [keywords]
-/// wrapped in a highlighted [TextSpan].
-class _HighlightedText extends StatelessWidget {
-  final String text;
-  final List<String> keywords;
-  final TextStyle style;
-  final TextStyle highlightStyle;
-  final int maxLines;
-
-  const _HighlightedText({
-    required this.text,
-    required this.keywords,
-    required this.style,
-    required this.highlightStyle,
-    this.maxLines = 2,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (keywords.isEmpty) {
-      return Text(text,
-          style: style, maxLines: maxLines, overflow: TextOverflow.ellipsis);
-    }
-
-    // Build a single lower-case copy for case-insensitive scanning.
-    final lower = text.toLowerCase();
-    final spans = <TextSpan>[];
-    var pos = 0;
-
-    while (pos < text.length) {
-      // Find the earliest occurrence of any keyword.
-      var earliestStart = text.length;
-      String? earliestKw;
-
-      for (final kw in keywords) {
-        final idx = lower.indexOf(kw, pos);
-        if (idx != -1 && idx < earliestStart) {
-          earliestStart = idx;
-          earliestKw = kw;
-        }
-      }
-
-      if (earliestKw == null) {
-        // No more matches: emit the rest as plain text.
-        spans.add(TextSpan(text: text.substring(pos), style: style));
-        break;
-      }
-
-      // Plain segment before the match.
-      if (earliestStart > pos) {
-        spans.add(
-            TextSpan(text: text.substring(pos, earliestStart), style: style));
-      }
-
-      // Highlighted match.
-      spans.add(TextSpan(
-        text: text.substring(earliestStart, earliestStart + earliestKw.length),
-        style: highlightStyle,
-      ));
-
-      pos = earliestStart + earliestKw.length;
-    }
-
-    return RichText(
-      text: TextSpan(children: spans),
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-}
