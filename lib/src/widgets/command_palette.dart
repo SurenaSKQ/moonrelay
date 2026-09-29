@@ -642,7 +642,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
 
   void _runHomeserverRoom(PublishedRoomsChunk room) {
     // Homeserver rooms are not yet joined, so /main/rooms/:roomid (which
-    // expects RoomDelegate to find the room) would spin forever.  Use
+    // expects RoomResolver to find the room) would spin forever.  Use
     // the dedicated preview route instead.
     Navigator.of(context).pop();
     if (!mounted) return;
