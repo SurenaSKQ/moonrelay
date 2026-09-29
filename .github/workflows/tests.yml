@@ -1,16 +1,20 @@
 # Moonrelay CI
 #
 # Runs on push and PR to the active branches, plus manual dispatch.
-# Per project guidance there is no CI today; this is the entry point. Flutter
-# 3.24.x matches the SDK constraint (>=3.2.6 <4.0.0) and is pinned to
-# keep builds reproducible until the project bumps its SDK floor.
+# Flutter is pinned so builds stay reproducible until the project bumps
+# its SDK floor. The comments below describe what each job covers.
 #
 # Jobs:
-#   - analyze    : static analysis (cheapest blocker, parallel per OS)
-#   - unit       : pure-Dart + widget tests
-#   - integration: E2E with the mock Matrix HTTP client
-#   - build-linux: produces a release linux bundle smoke check
+#   - analyze     : static analysis (cheapest blocker, parallel per OS)
+#   - unit        : pure-Dart + widget tests
+#   - build-linux : produces a release linux bundle smoke check
 #   - build-windows: produces a release windows bundle smoke check
+#
+# The integration_test/ suite is deliberately NOT run here. It needs a real
+# desktop session: the hosted Windows runner cannot reliably attach the
+# debug VM, and the Linux runner would need Xvfb. CONTRIBUTING.md asks
+# contributors to run it locally when they touch login, sync, navigation,
+# the chat box, or a screen.
 
 name: ci
 
@@ -131,15 +135,12 @@ jobs:
 
 
   # -- Build smoke tests (release bundles) ---------------------------
-  build-windows:
-    name: build-windows
+  build-linux:
+    name: build-linux
     needs: [unit]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-
-
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -168,7 +169,6 @@ jobs:
             libcurl4 libjsoncpp25 libayatana-appindicator3-1 \
             libsqlite3-dev libsecret-1-dev libjsoncpp-dev libcurl4-openssl-dev \
             cmake ninja-build clang pkg-config
-
       - run: flutter pub get
       - run: flutter gen-l10n
       - run: flutter build linux --release
