@@ -71,6 +71,16 @@ class MoonRouter {
     return _isLoggedIn(context) ? null : '/welcome';
   }
 
+  /// The signed-in account's own user ID, or null when there is no
+  /// session in the tree yet.
+  static String? _ownUserId(BuildContext context) {
+    try {
+      return Provider.of<Client>(context, listen: false).userID;
+    } catch (_) {
+      return null;
+    }
+  }
+
   MoonRouter();
 
   /// Resolves a space room from route parameters, or null if not found.
@@ -316,7 +326,11 @@ class MoonRouter {
                 context,
                 state,
                 ProfileDelegate(
-                  userid: null,
+                  // This route means "my profile", so it has to name the
+                  // signed-in user. A null here is not an absent
+                  // parameter, it is the whole point of the route, and
+                  // ProfileDelegate answers a null with an error card.
+                  userid: _ownUserId(context),
                 ),
               ),
             ),
