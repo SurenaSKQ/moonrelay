@@ -3005,6 +3005,10 @@
   "@autoDownloadVideos": {
     "description": "Policy for automatically downloading video attachments."
   },
+  "clickToDownload": "Click to download",
+  "@clickToDownload": {
+    "description": "Label on an attachment placeholder whose download is withheld until the user asks for it."
+  },
   "autoDownloadAlways": "Always",
   "@autoDownloadAlways": {
     "description": "AutoDownloadPolicy value: always download regardless of network."

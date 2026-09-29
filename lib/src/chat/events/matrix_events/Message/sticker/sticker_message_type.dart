@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -41,6 +41,10 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
 
   bool _autoDownloadResolved = false;
 
+  /// Resolved download policy. The size threshold is deliberately not
+  /// applied to stickers; see [_resolveAutoDownload].
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +60,18 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     if (_autoDownloadResolved) return;
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
-    if (!_shouldAutoDownload()) return;
+    // Stickers are small by nature and there is no sticker-specific
+    // auto-download policy, so they follow the image policy but are not
+    // subject to the size threshold. A threshold on stickers would only
+    // ever produce a "click to download" tile in place of a sticker,
+    // which is a worse outcome than downloading a few hundred KB.
+    final settings = context.read<SettingsController>();
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: settings.autoDownloadImages,
+    ).ignoringSizeThreshold;
+    if (!_policy.shouldAutoDownload) return;
     // Share the in-flight future with the global cache so other
     // States for the same event don't download a second copy.
     _downloadFuture = RoomMediaCache.instance.getOrDownload(
@@ -66,20 +81,16 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     );
   }
 
-  /// Checks the user's auto-download preference for images (stickers).
-  bool _shouldAutoDownload() {
-    try {
-      final policy = context.read<SettingsController>().autoDownloadImages;
-      switch (policy) {
-        case AutoDownloadPolicy.always:
-        case AutoDownloadPolicy.wifi:
-          return true;
-        case AutoDownloadPolicy.never:
-          return false;
-      }
-    } catch (_) {
-      return true;
-    }
+  /// Starts the download from the click-to-download tile.
+  void _downloadOnTap() {
+    setState(() {
+      _policy = _policy.asDownloading();
+      _downloadFuture ??= RoomMediaCache.instance.getOrDownload(
+        widget.event.roomId ?? widget.event.eventId,
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(),
+      );
+    });
   }
 
   /// Image dimensions from the event content's `info` blob. Tolerates
@@ -155,11 +166,15 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
   }
 
   Widget _buildPlaceholder(ColorScheme cs) {
-    return SizedBox(
+    // Reached when the image policy says "never". The size threshold does
+    // not apply here, so this is a real click-to-download affordance
+    // rather than a dead icon.
+    return ClickToDownloadTile(
+      policy: _policy,
+      onDownload: _downloadOnTap,
+      icon: Icons.sticky_note_2_outlined,
       width: 100,
       height: 100,
-      child: Icon(Icons.sticky_note_2_outlined,
-          size: 36, color: cs.onSurfaceVariant),
     );
   }
 

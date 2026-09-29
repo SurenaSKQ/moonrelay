@@ -24,7 +24,7 @@ import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +49,11 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
   bool _autoDownloadResolved = false;
+
+  /// Resolved download policy for this event. Defaults to permissive so
+  /// the pre-dependencies build (and a tree with no
+  /// [SettingsController]) behaves as it did before the threshold existed.
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
 
   /// Resolve the room id once for [RoomMediaCache] keying. Falls back
   /// to the event id when the room id isn't yet attached (early in the
@@ -78,33 +83,38 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     if (_autoDownloadResolved) return;
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
-    if (!_shouldAutoDownload()) return;
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadImages,
+    );
+    if (!_policy.shouldAutoDownload) return;
+    _startDownload();
+  }
+
+  /// Starts (or joins) the download for this event.
+  ///
+  /// Split out from [_resolveAutoDownload] so the click-to-download tile
+  /// can start it after the initial render declined to.
+  void _startDownload() {
     // Use the shared cache so multiple State objects for the same
     // event share a single downloaded blob and a single in-flight
     // future. The State no longer holds a long-lived Future; once
     // the cache resolves, the bytes live in the global cache and the
     // State reads them from there.
-    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+    _downloadFuture ??= RoomMediaCache.instance.getOrDownload(
       _roomId,
       widget.event.eventId,
       () => widget.event.downloadAndDecryptAttachment(),
     );
   }
 
-  /// Checks the user's auto-download preference for images.
-  bool _shouldAutoDownload() {
-    try {
-      final policy = context.read<SettingsController>().autoDownloadImages;
-      switch (policy) {
-        case AutoDownloadPolicy.always:
-        case AutoDownloadPolicy.wifi:
-          return true;
-        case AutoDownloadPolicy.never:
-          return false;
-      }
-    } catch (_) {
-      return true;
-    }
+  /// Starts the download from an explicit user action.
+  void _downloadOnTap() {
+    setState(() {
+      _policy = _policy.asDownloading();
+      _startDownload();
+    });
   }
 
   /// Maximum display size for thumbnails in the timeline. Both axes are
@@ -229,6 +239,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   }
 
   Widget _buildPlaceholder(ColorScheme cs) {
+    // Withheld for size: offer the download instead of a dead icon.
+    if (_policy.requiresExplicitClick) {
+      return ClickToDownloadTile(
+        policy: _policy,
+        onDownload: _downloadOnTap,
+        icon: Icons.image_outlined,
+        width: 120,
+        height: 120,
+      );
+    }
     return Container(
       width: 120,
       height: 120,

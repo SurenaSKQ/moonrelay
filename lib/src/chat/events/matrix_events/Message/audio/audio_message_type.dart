@@ -26,7 +26,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -90,7 +90,15 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     if (_autoDownloadResolved) return;
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
-    if (!_shouldAutoDownload()) return;
+    // The play button already routes through _downloadOnDemand, so a
+    // withheld audio just waits for the user rather than needing its own
+    // placeholder.
+    final policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadFiles,
+    );
+    if (!policy.shouldAutoDownload) return;
     // Share the in-flight future with the global cache so audio
     // re-entries (e.g. scrolling away and back) don't re-download.
     // `roomId` is nullable on the SDK type; fall back to the event
@@ -101,22 +109,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
       widget.event.eventId,
       () => widget.event.downloadAndDecryptAttachment(),
     );
-  }
-
-  /// Checks the user's auto-download preference for files (audio).
-  bool _shouldAutoDownload() {
-    try {
-      final policy = context.read<SettingsController>().autoDownloadFiles;
-      switch (policy) {
-        case AutoDownloadPolicy.always:
-        case AutoDownloadPolicy.wifi:
-          return true;
-        case AutoDownloadPolicy.never:
-          return false;
-      }
-    } catch (_) {
-      return true;
-    }
   }
 
   // ---- Content helpers ----
