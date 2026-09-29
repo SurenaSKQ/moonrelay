@@ -60,11 +60,20 @@ class EncryptionService extends ChangeNotifier {
   EncryptionService({
     required Client client,
     required Logger logger,
+    Duration refreshDebounce = const Duration(milliseconds: 750),
   })  : _client = client,
-        _log = logger;
+        _log = logger,
+        _refreshDebounceDuration = refreshDebounce;
 
   final Client _client;
   final Logger _log;
+
+  /// Window that coalesces the per-sync cross-signing, key-backup and
+  /// device refresh, from `SettingsController.encryptionRefreshDebounceMs`.
+  /// Passed in rather than read from a `BuildContext` because a fresh
+  /// instance is built per client on every account switch; both
+  /// construction sites in `boot.dart` pass it.
+  final Duration _refreshDebounceDuration;
 
   /// How many times [init] re-checks for the SDK's `Encryption` object
   /// before giving up, and how long it waits between checks. Product is
@@ -312,7 +321,7 @@ class EncryptionService extends ChangeNotifier {
 
     // Refresh state in the background.
     _refreshDebounce?.cancel();
-    _refreshDebounce = Timer(const Duration(milliseconds: 750), _runRefresh);
+    _refreshDebounce = Timer(_refreshDebounceDuration, _runRefresh);
   }
 
   /// Runs the three refresh tasks in parallel, deduplicating concurrent
