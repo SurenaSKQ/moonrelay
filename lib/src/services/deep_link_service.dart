@@ -22,7 +22,9 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
 /// Handles incoming Matrix deep links (`matrix:` scheme and
@@ -201,10 +203,15 @@ class DeepLinkService {
 /// via the context's provider tree.
 ///
 /// Call this from the callback registered on [DeepLinkService.onMatrixUri].
-void navigateToMatrixUri(
+///
+/// Returns a future because `deepLinkAutoJoin` has to await `joinRoom`.
+/// The callback it is assigned to is `void Function(MatrixUriResult)`, so
+/// callers that ignore the result are fine; the only awaiting caller is
+/// the auto-join branch below.
+Future<void> navigateToMatrixUri(
   BuildContext context,
   MatrixUriResult result,
-) {
+) async {
   // Import is at the bottom to avoid circular dependency issues.
   final client = Provider.of<Client>(context, listen: false);
 
@@ -222,6 +229,9 @@ void navigateToMatrixUri(
     return;
   }
 
+  final settings = context.read<SettingsController>();
+  final log = context.read<Logger>();
+
   switch (result.entityType) {
     case MatrixUriEntity.room:
     case MatrixUriEntity.roomAlias:
@@ -229,6 +239,8 @@ void navigateToMatrixUri(
       final room = client.getRoomById(result.entityId);
       if (room != null) {
         context.go('/main/rooms/${Uri.encodeComponent(result.entityId)}');
+      } else if (settings.deepLinkAutoJoin) {
+        await _autoJoinRoom(context, client, result, log);
       } else {
         // Open room preview.
         context.go(
@@ -251,5 +263,45 @@ void navigateToMatrixUri(
         return;
       }
       context.go('/profile/${Uri.encodeComponent(result.entityId)}');
+  }
+}
+
+/// Joins the room behind an unjoined deep link, honouring
+/// `SettingsController.deepLinkAutoJoin`.
+///
+/// Falls back to the room preview on failure rather than dead-ending the
+/// user on a spinner: the link is then a way to *see* the room, and the
+/// preview page is where a human can decide. That is also the behaviour
+/// when the setting is off, so a failed auto-join is indistinguishable
+/// from a disabled one, which is the right outcome for an action this
+/// user did not explicitly take.
+Future<void> _autoJoinRoom(
+  BuildContext context,
+  Client client,
+  MatrixUriResult result,
+  Logger log,
+) async {
+  // withRetry returns a RetryResult rather than throwing, so the result
+  // has to be matched. A bare try/await/catch here would compile, look
+  // correct, and silently swallow every failure.
+  final outcome = await withRetry(
+    () => client.joinRoom(result.entityId),
+    maxRetries: 1,
+    log: log,
+    label: 'deep link auto-join',
+  );
+
+  if (!context.mounted) return;
+
+  switch (outcome) {
+    case RetrySuccess(:final value):
+      // joinRoom returns the canonical room ID even when the link carried
+      // an alias, and the room route resolves ids only, so navigate with
+      // the returned value rather than the parsed one.
+      log.i('Deep link auto-joined ${result.entityId} as $value');
+      context.go('/main/rooms/${Uri.encodeComponent(value)}');
+    case RetryFailed(:final error):
+      log.w('Deep link auto-join failed for ${result.entityId}: $error');
+      context.go('/main/room_preview/${Uri.encodeComponent(result.entityId)}');
   }
 }
