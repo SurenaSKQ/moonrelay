@@ -37,6 +37,7 @@ class SsoCallbackServer {
   HttpServer? _server;
   Completer<String>? _completer;
   int _port = 0;
+  Uri? _redirectUri;
 
   /// The randomly generated CSRF nonce that must appear in the callback.
   String? _expectedState;
@@ -49,6 +50,11 @@ class SsoCallbackServer {
 
   /// The port the server is listening on, or 0 if not started.
   int get port => _port;
+
+  /// The callback URL handed back by [start], kept so callers that need to
+  /// show the destination to the user can read it back without keeping
+  /// their own copy of a value this class already holds.
+  Uri? get redirectUri => _redirectUri;
 
   /// Starts the local HTTP server on a random available port and returns
   /// the [Uri] the browser should be redirected to for SSO.
@@ -81,6 +87,7 @@ class SsoCallbackServer {
       path: '/callback',
       queryParameters: {'state': _expectedState},
     );
+    _redirectUri = redirectUri;
 
     // Listen for exactly one request: the SSO redirect.
     _server!.listen(_handleRequest);
@@ -106,6 +113,7 @@ class SsoCallbackServer {
     await _server?.close(force: true);
     _server = null;
     _port = 0;
+    _redirectUri = null;
     _expectedState = null;
     // Don't cancel the completer; callers may still await it.
     // If the token was never received, the future will never complete,

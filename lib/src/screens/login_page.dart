@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +29,7 @@ import 'package:moonrelay/src/helpers/login_errors.dart';
 import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/login_page/login_mode.dart';
-import 'package:moonrelay/src/services/sso_server.dart';
+import 'package:moonrelay/src/screens/login_page/sso_token_capture.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/form_field_label.dart';
@@ -66,8 +65,19 @@ class _LoginPageState extends State<LoginPage> {
   /// Where the user is inside the SSO sub-flow.
   SsoStep _ssoStep = SsoStep.idle;
 
-  /// The local HTTP server used to capture the SSO login token.
-  SsoCallbackServer? _ssoServer;
+  /// Runs the automatic half of SSO: the local server that catches the
+  /// browser redirect and hands back a token.
+  ///
+  /// Built in [initState] rather than as a field initializer because it
+  /// needs a [Logger] from the provider tree, which does not exist yet when
+  /// field initializers run.
+  late final SsoTokenCapture _ssoCapture;
+
+  @override
+  void initState() {
+    super.initState();
+    _ssoCapture = SsoTokenCapture(log: context.read<Logger>());
+  }
 
   String? _error;
   String? _ssoUrl;
@@ -101,7 +111,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _ssoServer?.stop();
+    _ssoCapture.dispose();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -945,19 +955,35 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     // -- Try the automatic (local-server) SSO flow --------------
-    try {
-      await _doAutomaticSso(client, log, l10n, homeserverUri);
-      return; // success, we are done
-    } on SsoAutomaticException catch (e) {
-      log.w('Automatic SSO failed: ${e.message}');
-      // Fall through to manual flow below
-    } catch (e) {
-      log.w('Automatic SSO failed with unexpected error: $e');
+    setState(() {
+      _ssoStep = SsoStep.awaitingCallback;
+      _loading = false;
+      _ssoUrl = null;
+    });
+
+    final SsoAttempt attempt = await _ssoCapture.captureToken(homeserverUri);
+    if (!mounted) return;
+
+    switch (attempt) {
+      case SsoTokenReceived(:final token):
+        setState(() => _statusMessage = l10n.ssoTokenDetected);
+        setState(() {
+          _ssoStep = SsoStep.idle;
+          _loading = true;
+        });
+        await _completeTokenLogin(token);
+        return;
+      case SsoAbandoned():
+        setState(() {
+          _ssoStep = SsoStep.idle;
+          _loading = false;
+        });
+        return;
+      case SsoAutomaticFailed(:final reason):
+        log.w('Automatic SSO failed: $reason');
     }
 
     // -- Fallback: manual copy-paste flow -----------------------
-    if (!mounted) return;
-
     // Build the SSO redirect URL with OOB redirect URI so the browser
     // shows the token after auth.
     final Uri ssoUrl = homeserverUri.replace(
@@ -982,122 +1008,14 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Attempts the automatic SSO flow by:
-  ///   1. Starting a local HTTP server on a random port.
-  ///   2. Building the SSO redirect URL pointing to that local server.
-  ///   3. Opening the browser.
-  ///   4. Waiting for the browser to redirect back with the login token.
-  ///   5. Completing the login.
-  ///
-  /// Throws [SsoAutomaticException] if any step fails, letting the caller
-  /// fall back to the manual flow.
-  Future<void> _doAutomaticSso(
-    Client client,
-    Logger log,
-    AppLocalizations l10n,
-    Uri homeserverUri,
-  ) async {
-    // -- 1. Start the local callback server ----------------------
-    final SsoCallbackServer server = SsoCallbackServer();
-    late Uri redirectUri;
-
-    try {
-      redirectUri = await server.start();
-    } on SocketException catch (e) {
-      await server.stop();
-      throw SsoAutomaticException(
-        'Failed to bind local server: $e',
-      );
-    }
-
-    _ssoServer = server;
-
-    if (!mounted) {
-      await server.stop();
-      return;
-    }
-
-    setState(() {
-      _ssoStep = SsoStep.awaitingCallback;
-      _loading = false;
-      _ssoUrl = null;
-    });
-
-    // -- 2. Build the SSO URL with our local redirect -----------
-    final Uri ssoUrl = homeserverUri.replace(
-      path: '/_matrix/client/v3/login/sso/redirect',
-      queryParameters: {
-        'redirectUrl': redirectUri.toString(),
-      },
-    );
-
-    // SECURITY: a hostile homeserver URL would still let it issue a
-    // login token to the browser tab.  We can't fully prevent that,
-    // but we can surface the destination so the user is aware that
-    // they are about to authenticate against an unexpected server.
-    log.w('Opening SSO redirect for homeserver: $homeserverUri');
-
-    // -- 3. Open the browser ------------------------------------
-    try {
-      await launchUrl(ssoUrl, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      await server.stop();
-      _ssoServer = null;
-      if (!mounted) return;
-      setState(() => _ssoStep = SsoStep.idle);
-      throw SsoAutomaticException('Could not open browser: $e');
-    }
-
-    if (!mounted) {
-      await server.stop();
-      return;
-    }
-
-    // -- 4. Wait for the token (with timeout) -------------------
-    String token;
-    try {
-      token = await server.token.timeout(
-        const Duration(minutes: 3),
-      );
-    } on TimeoutException {
-      await server.stop();
-      _ssoServer = null;
-      if (!mounted) return;
-      setState(() => _ssoStep = SsoStep.idle);
-      throw SsoAutomaticException('Timed out waiting for browser redirect');
-    }
-
-    if (!mounted) {
-      await server.stop();
-      return;
-    }
-
-    // -- 5. Token received: complete the login -----------------
-    setState(() {
-      _statusMessage = l10n.ssoTokenDetected;
-    });
-
-    // Small delay so the user sees the status update.
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    // Shut down the server before the token login call.
-    await server.stop();
-    _ssoServer = null;
-
-    if (!mounted) return;
-
-    setState(() => _ssoStep = SsoStep.idle);
-
-    await _completeTokenLogin(token);
-  }
-
   /// Cancels the automatic SSO flow and switches to the manual fallback.
-  void _cancelAutoSso() {
-    _ssoServer?.stop();
-    _ssoServer = null;
+  Future<void> _cancelAutoSso() async {
+    await _ssoCapture.cancel();
+    if (!mounted) return;
     setState(() {
       _ssoStep = SsoStep.automaticFailed;
       _loading = false;
+      _ssoUrl = _ssoCapture.destination?.toString();
     });
   }
 
@@ -1183,14 +1101,4 @@ class _LoginPageState extends State<LoginPage> {
         }
     }
   }
-}
-
-/// Thrown when the automatic SSO flow fails, so the caller can fall back
-/// to the manual token-paste flow.
-class SsoAutomaticException implements Exception {
-  SsoAutomaticException(this.message);
-  final String message;
-
-  @override
-  String toString() => 'SsoAutomaticException: $message';
 }
