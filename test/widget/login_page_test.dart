@@ -21,7 +21,7 @@ import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/login_page.dart';
+import 'package:moonrelay/src/screens/login_page/login_page.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/mocks.dart';
