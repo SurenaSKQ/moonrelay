@@ -44,11 +44,12 @@ check() {
 
 DART_DIRS=(lib test integration_test)
 DOCS=(README.md CONTRIBUTING.md AGENTS.md WORK_DONE.md WORK_NEEDED.md)
+YAML=(.github/workflows)
 
-check "em dash (U+2014)"      '\x{2014}'              "${DART_DIRS[@]}" "${DOCS[@]}"
-check "en dash (U+2013)"      '\x{2013}'              "${DART_DIRS[@]}" "${DOCS[@]}"
-check "nb hyphen (U+2010/11)" '[\x{2010}\x{2011}]'    "${DART_DIRS[@]}" "${DOCS[@]}"
-check "arrow (U+2192)"        '\x{2192}'              "${DART_DIRS[@]}" "${DOCS[@]}"
+check "em dash (U+2014)"      '\x{2014}'              "${DART_DIRS[@]}" "${DOCS[@]}" "${YAML[@]}"
+check "en dash (U+2013)"      '\x{2013}'              "${DART_DIRS[@]}" "${DOCS[@]}" "${YAML[@]}"
+check "nb hyphen (U+2010/11)" '[\x{2010}\x{2011}]'    "${DART_DIRS[@]}" "${DOCS[@]}" "${YAML[@]}"
+check "arrow (U+2192)"        '\x{2192}'              "${DART_DIRS[@]}" "${DOCS[@]}" "${YAML[@]}"
 check "BOM"                   '^\xEF\xBB\xBF'         "${DOCS[@]}"
 
 # Box-drawing banners. One deliberate exception: html_tag_parser.dart
