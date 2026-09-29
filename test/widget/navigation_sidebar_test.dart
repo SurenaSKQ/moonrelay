@@ -32,7 +32,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';

@@ -23,7 +23,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/status_bar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
