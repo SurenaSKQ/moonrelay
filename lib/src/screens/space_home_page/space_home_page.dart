@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'package:moonrelay/src/screens/space_home_page/unjoined_room_tile.dart';
 
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
@@ -206,7 +207,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
             InfoSectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
             SizedBox(height: t.spaceSm),
             for (final child in unjoined)
-              _UnjoinedRoomTile(
+              UnjoinedRoomTile(
                 child: child,
                 client: client,
                 scheme: scheme,
@@ -510,133 +511,4 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
 // -- Internal widgets ----------------------------------------------------------
 
-
-
 /// A tappable action row used in the quick-actions section.
-
-/// A tile for a room in a space that the user has not yet joined.
-///
-/// Fetches the room preview summary from the server to show the display name
-/// and avatar, falling back to the room ID when unavailable.
-class _UnjoinedRoomTile extends StatefulWidget {
-  const _UnjoinedRoomTile({
-    required this.child,
-    required this.client,
-    required this.scheme,
-    required this.l10n,
-  });
-
-  final dynamic child;
-  final Client client;
-  final ColorScheme scheme;
-  final AppLocalizations l10n;
-
-  @override
-  State<_UnjoinedRoomTile> createState() => _UnjoinedRoomTileState();
-}
-
-class _UnjoinedRoomTileState extends State<_UnjoinedRoomTile> {
-  /// The room summary fetched from the server.
-  ///
-  /// Null while loading or if the fetch failed.
-  GetRoomSummaryResponse$3? _summary;
-  bool _loading = true;
-
-  String get _roomId => (widget.child.roomId as String?) ?? '?';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSummary();
-  }
-
-  Future<void> _loadSummary() async {
-    try {
-      final summary = await widget.client.getRoomSummary(_roomId);
-      if (mounted) {
-        setState(() {
-          _summary = summary;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ext = MoonrelayThemeExtension.of(context);
-    final t = ext.tokens;
-    final isSuggested = widget.child.suggested == true;
-
-    final displayName = _loading
-        ? _roomId
-        : (_summary?.name?.isNotEmpty == true
-            ? _summary!.name!
-            : _summary?.canonicalAlias ?? _roomId);
-
-    final avatarUri = _summary?.avatarUrl;
-
-    return Card(
-      elevation: t.elevationNone,
-      margin: const EdgeInsets.only(bottom: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(
-            color: widget.scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: ext.components.avatar.sizeMedium / 2,
-          backgroundColor:
-              widget.scheme.primaryContainer.withValues(alpha: t.opacitySubtle),
-          backgroundImage:
-              avatarUri != null ? NetworkImage(avatarUri.toString()) : null,
-          onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
-          child: avatarUri == null
-              ? Icon(
-                  LucideIcons.hash,
-                  size: 18,
-                  color: widget.scheme.onPrimaryContainer,
-                )
-              : null,
-        ),
-        title: Text(
-          displayName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            fontFamily: _loading || _summary?.name?.isNotEmpty != true
-                ? 'JetBrainsMono'
-                : null,
-            fontSize:
-                _loading || _summary?.name?.isNotEmpty != true ? 13 : null,
-          ),
-        ),
-        subtitle: isSuggested
-            ? Text(
-                widget.l10n.roomPreviewSuggested,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: widget.scheme.tertiary,
-                ),
-              )
-            : null,
-        trailing: FilledButton.tonal(
-          onPressed: () => context.push('/main/room_preview/$_roomId'),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Text(
-            widget.l10n.roomPreviewView,
-            style: const TextStyle(fontSize: 12),
-          ),
-        ),
-      ),
-    );
-  }
-}
