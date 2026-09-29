@@ -1133,7 +1133,6 @@
   "noRoomSelectedHint": "Pick a room from the sidebar to start reading or chatting.",
 
 
-  "profileIdNullError": "The User's ID could not be understood. Please try again later, or report a bug to our project.",
   "profileIdInvalid": "The User's ID could not be understood ({error}). Please try again later, or report a bug to our project.",
   "@profileIdInvalid": {
     "description": "Error shown when the profile user ID is invalid.",
