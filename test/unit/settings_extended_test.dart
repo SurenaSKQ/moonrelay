@@ -176,7 +176,6 @@ void main() {
       await service.updateNotifyWhenFocused(false);
       await service.updateNotificationSoundEnabled(false);
       await service.updateNotificationDedupeCacheSize(1024);
-      await service.updateAvatarCacheTtlDays(14);
 
       final snap = await service.loadAll();
       expect(snap.density, LayoutDensity.compact);
@@ -223,7 +222,6 @@ void main() {
       expect(snap.notifyWhenFocused, isFalse);
       expect(snap.notificationSoundEnabled, isFalse);
       expect(snap.notificationDedupeCacheSize, 1024);
-      expect(snap.avatarCacheTtlDays, 14);
     });
   });
 

@@ -2952,10 +2952,6 @@
   "@dbBackupKeepCount": {
     "description": "How many .bak files to keep when the database is wiped."
   },
-  "avatarCacheTtlDays": "Avatar cache retention (days)",
-  "@avatarCacheTtlDays": {
-    "description": "How many days to keep downloaded avatar thumbnails cached before re-downloading."
-  },
   "autoLockEnabled": "Auto-lock when idle",
   "@autoLockEnabled": {
     "description": "Toggle for auto-locking the app after a period of inactivity."

@@ -101,7 +101,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Privacy / deep links / data
   bool _deepLinkAutoJoin = false;
   int _dbBackupKeepCount = 1;
-  int _avatarCacheTtlDays = 7;
   bool _autoLockEnabled = false;
   int _autoLockMinutes = 0;
   bool _wipeLogsOnLogout = true;
@@ -204,7 +203,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Privacy / deep links / data
   bool get deepLinkAutoJoin => _deepLinkAutoJoin;
   int get dbBackupKeepCount => _dbBackupKeepCount;
-  int get avatarCacheTtlDays => _avatarCacheTtlDays;
   bool get autoLockEnabled => _autoLockEnabled;
   int get autoLockMinutes => _autoLockMinutes;
   bool get wipeLogsOnLogout => _wipeLogsOnLogout;
@@ -295,7 +293,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
     _deepLinkAutoJoin = snapshot.deepLinkAutoJoin;
     _dbBackupKeepCount = snapshot.dbBackupKeepCount;
-    _avatarCacheTtlDays = snapshot.avatarCacheTtlDays;
     _autoLockEnabled = snapshot.autoLockEnabled;
     _autoLockMinutes = snapshot.autoLockMinutes;
     _wipeLogsOnLogout = snapshot.wipeLogsOnLogout;
@@ -780,15 +777,6 @@ class SettingsController with ChangeNotifier, WindowListener {
       _dbBackupKeepCount = value;
       notifyListeners();
       await _settingsService.updateDbBackupKeepCount(value);
-    }
-  }
-
-  Future<void> updateAvatarCacheTtlDays(int value) async {
-    value = value.clamp(0, 90);
-    if (value != _avatarCacheTtlDays) {
-      _avatarCacheTtlDays = value;
-      notifyListeners();
-      await _settingsService.updateAvatarCacheTtlDays(value);
     }
   }
 
