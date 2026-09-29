@@ -18,6 +18,8 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/screens/space_settings/delete_space_progress.dart';
+import 'package:moonrelay/src/screens/space_settings/space_identity_card.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -29,7 +31,6 @@ import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum number of child rooms to delete before showing a progress dialog.
@@ -133,7 +134,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
           // -- Space identity card ------------------------------------------
-          _SpaceIdentityCard(
+          SpaceIdentityCard(
             space: space,
             displayName: space.getLocalizedDisplayname(),
             topic: space.topic,
@@ -686,7 +687,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
       return showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => _DeleteSpaceProgressDialog(
+        builder: (ctx) => DeleteSpaceProgressDialog(
           space: space,
           childRooms: childRooms,
           l10n: l10n,
@@ -756,93 +757,6 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
 // Internal widgets
 // =============================================================================
 
-/// Space identity card shown at the top of the settings page.
-class _SpaceIdentityCard extends StatelessWidget {
-  const _SpaceIdentityCard({
-    required this.space,
-    required this.displayName,
-    required this.topic,
-    required this.totalMembers,
-    required this.scheme,
-    required this.textTheme,
-  });
-
-  final Room space;
-  final String displayName;
-  final String topic;
-  final int totalMembers;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusLg),
-        side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(t.spaceXl),
-        child: Column(
-          children: [
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: AvatarFromUriOrFallbackImage(
-                client: space.client,
-                avatarUri: space.avatar,
-              ),
-            ),
-            SizedBox(height: t.spaceLg),
-            Text(
-              displayName,
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (topic.isNotEmpty) ...[
-              SizedBox(height: t.spaceXs),
-              Text(
-                topic,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            SizedBox(height: t.spaceMd),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                InfoChip(
-                  icon: LucideIcons.folder,
-                  label: l10n.spaceType,
-                  scheme: scheme,
-                ),
-                InfoChip(
-                  icon: LucideIcons.users,
-                  label: '$totalMembers ${l10n.members}',
-                  scheme: scheme,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// A small chip used for room metadata badges.
 
@@ -851,141 +765,3 @@ class _SpaceIdentityCard extends StatelessWidget {
 /// A tappable action row.
 
 /// A read-only detail row with icon, label, and value.
-
-/// A modal dialog that shows deletion progress for a space with many children.
-class _DeleteSpaceProgressDialog extends StatefulWidget {
-  const _DeleteSpaceProgressDialog({
-    required this.space,
-    required this.childRooms,
-    required this.l10n,
-    required this.log,
-  });
-
-  final Room space;
-  final List<Room> childRooms;
-  final AppLocalizations l10n;
-  final Logger log;
-
-  @override
-  State<_DeleteSpaceProgressDialog> createState() =>
-      _DeleteSpaceProgressDialogState();
-}
-
-class _DeleteSpaceProgressDialogState
-    extends State<_DeleteSpaceProgressDialog> {
-  int _deleted = 0;
-  String? _error;
-  bool _done = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _deleteAll());
-  }
-
-  Future<void> _deleteAll() async {
-    final l10n = widget.l10n;
-    final log = widget.log;
-    final space = widget.space;
-    final client = space.client;
-
-    for (final child in widget.childRooms) {
-      try {
-        final serverUrl = client.homeserver.toString();
-        final url = serverUrl.endsWith('/')
-            ? '${serverUrl}_synapse/admin/v2/rooms/${child.id}/delete'
-            : '$serverUrl/_synapse/admin/v2/rooms/${child.id}/delete';
-
-        await withRetry(
-          () => client.httpClient.post(
-            Uri.parse(url),
-            body: '{}',
-            headers: {'authorization': 'Bearer ${client.accessToken}'},
-          ),
-          maxRetries: 1,
-          timeout: kDefaultTimeout,
-          log: log,
-          label: 'deleteChildRoom',
-        );
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _error = l10n.deleteChildRoomFailed(
-            child.getLocalizedDisplayname(),
-            '$e',
-          );
-        });
-      }
-
-      if (!mounted) return;
-      setState(() => _deleted++);
-    }
-
-    try {
-      final serverUrl = client.homeserver.toString();
-      final url = serverUrl.endsWith('/')
-          ? '${serverUrl}_synapse/admin/v2/rooms/${space.id}/delete'
-          : '$serverUrl/_synapse/admin/v2/rooms/${space.id}/delete';
-
-      await withRetry(
-        () => client.httpClient.post(
-          Uri.parse(url),
-          body: '{}',
-          headers: {'authorization': 'Bearer ${client.accessToken}'},
-        ),
-        maxRetries: 1,
-        timeout: kDefaultTimeout,
-        log: log,
-        label: 'deleteSpace',
-      );
-
-      await space.leave();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = l10n.deleteSpaceFailed('$e');
-      });
-    }
-
-    if (!mounted) return;
-    setState(() => _done = true);
-
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_error ?? l10n.deleteSpaceSuccess),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    if (context.mounted) context.go('/main/rooms');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final total = widget.childRooms.length + 1;
-
-    return AlertDialog(
-      title: Text(widget.l10n.deleteSpace),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          LinearProgressIndicator(
-            value: _done ? 1.0 : _deleted / total,
-          ),
-          SizedBox(height: t.spaceLg),
-          Text(
-            _done
-                ? widget.l10n.deleteSpaceSuccess
-                : _error ??
-                    '$_deleted / $total ${widget.l10n.delete.toLowerCase()}',
-            style: TextStyle(color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
