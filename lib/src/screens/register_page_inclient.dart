@@ -26,6 +26,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/login_errors.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
@@ -463,7 +464,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
             setState(() {
               _error = error is TimeoutException
                   ? l10n.registerTimedOut
-                  : l10n.registerFailed('$error');
+                  : l10n.registerFailed(safeErrorMessage(error));
               _loading = false;
             });
           }
