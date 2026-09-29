@@ -132,7 +132,14 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     // [dispose] to balance the reference count.
     final drafts = DraftService.instanceFor(userId);
     _draftService = drafts;
-    final draft = await drafts.load(widget.room.id);
+    // The service is ref-counted and outlives any single composer, so
+    // push the current values on every load rather than letting it keep
+    // whatever it was constructed with.
+    drafts.setDebounce(Duration(milliseconds: settings.draftAutosaveMs));
+    final draft = await drafts.load(
+      widget.room.id,
+      maxAge: Duration(days: settings.draftRetentionDays),
+    );
     if (!mounted || draft.isEmpty) return;
     _controller.text = draft.body;
   }

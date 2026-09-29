@@ -109,23 +109,56 @@ class DraftService {
     }
   }
 
-  static const Duration _debounce = Duration(milliseconds: 500);
+  /// Debounce window before a pending draft is written, from
+  /// `SettingsController.draftAutosaveMs`.
+  ///
+  /// Mutable rather than `const` because the service is a ref-counted
+  /// singleton: it is allocated when the first composer opens and lives
+  /// until the last one closes, which is far longer than a settings
+  /// change takes. [setDebounce] is called on every composer load so the
+  /// value is live instead of frozen at allocation time.
+  Duration _debounce = const Duration(milliseconds: 500);
+
+  /// The current autosave debounce window. Exposed so a caller can
+  /// confirm the value it pushed took effect.
+  Duration get debounce => _debounce;
+
+  /// Retunes the autosave debounce. See [_debounce].
+  void setDebounce(Duration value) {
+    if (_debounce == value) return;
+    _debounce = value;
+  }
 
   /// Loads the persisted draft for [roomId], or returns an empty draft
   /// if none is stored. Network failures are caught and treated as
   /// "no draft" - composer restoration must never block startup.
-  Future<RoomDraft> load(String roomId) async {
+  ///
+  /// When [maxAge] is supplied, a draft last touched longer ago is
+  /// treated as absent and its key removed, which is how
+  /// `SettingsController.draftRetentionDays` gets enforced: the
+  /// timestamp is already persisted and parsed, so expiry is a
+  /// comparison rather than new bookkeeping.
+  Future<RoomDraft> load(String roomId, {Duration? maxAge}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_keyFor(roomId));
+      final key = _keyFor(roomId);
+      final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return const RoomDraft.empty();
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return const RoomDraft.empty();
+      final updatedAt =
+          DateTime.fromMillisecondsSinceEpoch((decoded['ts'] as int?) ?? 0);
+      if (maxAge != null &&
+          DateTime.now().difference(updatedAt) > maxAge) {
+        // Expired. Drop the key so the sweep does not have to run again
+        // on the next load, then report it as absent.
+        unawaited(prefs.remove(key));
+        return const RoomDraft.empty();
+      }
       return RoomDraft(
         body: (decoded['body'] as String?) ?? '',
         replyToEventId: decoded['replyToEventId'] as String?,
-        updatedAt:
-            DateTime.fromMillisecondsSinceEpoch((decoded['ts'] as int?) ?? 0),
+        updatedAt: updatedAt,
       );
     } catch (_) {
       return const RoomDraft.empty();
