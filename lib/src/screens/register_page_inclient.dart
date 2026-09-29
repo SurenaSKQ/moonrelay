@@ -28,6 +28,7 @@ import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/form_field_label.dart';
+import 'package:moonrelay/src/widgets/form_keyboard.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -56,8 +57,22 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
   String? _error;
   String? _usernameError;
 
+  final FocusNode _homeserverFocus = FocusNode(debugLabel: 'homeserver');
+  final FocusNode _usernameFocus = FocusNode(debugLabel: 'username');
+  final FocusNode _passwordFocus = FocusNode(debugLabel: 'password');
+  final FocusNode _confirmPasswordFocus =
+      FocusNode(debugLabel: 'confirmPassword');
+
+  /// The register form's fields are always all four, so the order is fixed
+  /// and Enter on the last one submits.
+  final FormFieldOrder _fieldOrder = FormFieldOrder();
+
   @override
   void dispose() {
+    _homeserverFocus.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -72,11 +87,21 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
     final ColorScheme colors = theme.colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
 
+    _fieldOrder.nodes = [
+      _homeserverFocus,
+      _usernameFocus,
+      _passwordFocus,
+      _confirmPasswordFocus,
+    ];
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      body: FormKeyboard(
+        onSubmit: _doRegister,
+        enabled: !_loading,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
@@ -146,6 +171,12 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _homeserverCtrl,
+                        focusNode: _homeserverFocus,
+                        textInputAction: _fieldOrder.getActionAt(0),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          0,
+                          onLast: _doRegister,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'matrix.org',
                           prefixIcon: const Icon(LucideIcons.server, size: 18),
@@ -167,6 +198,12 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _usernameCtrl,
+                        focusNode: _usernameFocus,
+                        textInputAction: _fieldOrder.getActionAt(1),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          1,
+                          onLast: _doRegister,
+                        ),
                         decoration: InputDecoration(
                           hintText: l10n.usernameHint,
                           prefixIcon: const Icon(LucideIcons.user, size: 18),
@@ -194,7 +231,13 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _passwordCtrl,
+                        focusNode: _passwordFocus,
                         obscureText: _obscurePassword,
+                        textInputAction: _fieldOrder.getActionAt(2),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          2,
+                          onLast: _doRegister,
+                        ),
                         decoration: InputDecoration(
                           hintText: '••••••••',
                           prefixIcon: const Icon(LucideIcons.lock, size: 18),
@@ -226,7 +269,13 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _confirmPasswordCtrl,
+                        focusNode: _confirmPasswordFocus,
                         obscureText: _obscureConfirm,
+                        textInputAction: _fieldOrder.getActionAt(3),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          3,
+                          onLast: _doRegister,
+                        ),
                         decoration: InputDecoration(
                           hintText: '••••••••',
                           prefixIcon: const Icon(LucideIcons.lock, size: 18),
@@ -313,6 +362,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
