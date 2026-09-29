@@ -27,7 +27,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -69,6 +69,9 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
 
   bool _autoDownloadResolved = false;
 
+  /// Resolved download policy, including the shared size threshold.
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
+
   @override
   void initState() {
     super.initState();
@@ -84,7 +87,12 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     if (_autoDownloadResolved) return;
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
-    if (!_shouldAutoDownload()) return;
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadVideos,
+    );
+    if (!_policy.shouldAutoDownload) return;
     // Share the in-flight future with the global cache.
     _downloadFuture = RoomMediaCache.instance.getOrDownload(
       widget.event.roomId ?? widget.event.eventId,
@@ -97,22 +105,6 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
         widget.event.eventId,
         () => widget.event.downloadAndDecryptAttachment(getThumbnail: true),
       );
-    }
-  }
-
-  /// Checks the user's auto-download preference for videos.
-  bool _shouldAutoDownload() {
-    try {
-      final policy = context.read<SettingsController>().autoDownloadVideos;
-      switch (policy) {
-        case AutoDownloadPolicy.always:
-        case AutoDownloadPolicy.wifi:
-          return true;
-        case AutoDownloadPolicy.never:
-          return false;
-      }
-    } catch (_) {
-      return true;
     }
   }
 

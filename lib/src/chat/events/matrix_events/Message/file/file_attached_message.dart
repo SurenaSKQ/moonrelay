@@ -19,7 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -61,24 +61,16 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
     if (_autoDownloadResolved) return;
     _autoDownloadResolved = true;
     if (!widget.event.hasAttachment) return;
-    if (!_shouldAutoDownload()) return;
+    // The file bubble already renders its own download control and calls
+    // [_downloadOnDemand], so gating the auto-download is all that is
+    // needed here: a large file waits for that button.
+    final policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadFiles,
+    );
+    if (!policy.shouldAutoDownload) return;
     _downloadFuture = widget.event.downloadAndDecryptAttachment();
-  }
-
-  /// Checks the user's auto-download preference for file attachments.
-  bool _shouldAutoDownload() {
-    try {
-      final policy = context.read<SettingsController>().autoDownloadFiles;
-      switch (policy) {
-        case AutoDownloadPolicy.always:
-        case AutoDownloadPolicy.wifi:
-          return true;
-        case AutoDownloadPolicy.never:
-          return false;
-      }
-    } catch (_) {
-      return true;
-    }
   }
 
   // ---- Content helpers ----
