@@ -2948,14 +2948,6 @@
   "@database": {
     "description": "Section title for database-related privacy settings."
   },
-  "dbWipeRequiresPrompt": "Prompt before database wipe",
-  "@dbWipeRequiresPrompt": {
-    "description": "Toggle that asks the user to confirm before wiping the local database on schema mismatch."
-  },
-  "dbWipeRequiresPromptDescription": "Show a confirmation before the local database is wiped on schema bumps.",
-  "@dbWipeRequiresPromptDescription": {
-    "description": "Subtitle for the database-wipe prompt toggle."
-  },
   "dbBackupKeepCount": "Database backups to keep",
   "@dbBackupKeepCount": {
     "description": "How many .bak files to keep when the database is wiped."

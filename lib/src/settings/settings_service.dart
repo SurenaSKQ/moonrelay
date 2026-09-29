@@ -87,7 +87,6 @@ class SettingsSnapshot {
   final bool notificationSoundEnabled;
   final int notificationDedupeCacheSize;
   final bool deepLinkAutoJoin;
-  final bool dbWipeRequiresPrompt;
   final int dbBackupKeepCount;
   final int avatarCacheTtlDays;
   final bool autoLockEnabled;
@@ -167,8 +166,7 @@ class SettingsSnapshot {
     this.notificationSoundEnabled = true,
     this.notificationDedupeCacheSize = 256,
     this.deepLinkAutoJoin = false,
-    this.dbWipeRequiresPrompt = false,
-    this.dbBackupKeepCount = 1,
+      this.dbBackupKeepCount = 1,
     this.avatarCacheTtlDays = 7,
     this.autoLockEnabled = false,
     this.autoLockMinutes = 0,
@@ -259,7 +257,6 @@ class SettingsService {
 
   // Privacy / deep links / data
   static const _deepLinkAutoJoinKey = 'deep_link_auto_join';
-  static const _dbWipeRequiresPromptKey = 'db_wipe_requires_prompt';
   static const _dbBackupKeepCountKey = 'db_backup_keep_count';
   static const _avatarCacheTtlDaysKey = 'avatar_cache_ttl_days';
   static const _autoLockEnabledKey = 'auto_lock_enabled';
@@ -435,7 +432,6 @@ class SettingsService {
       notificationDedupeCacheSize:
           prefs.getInt(_notificationDedupeCacheSizeKey) ?? 256,
       deepLinkAutoJoin: prefs.getBool(_deepLinkAutoJoinKey) ?? false,
-      dbWipeRequiresPrompt: prefs.getBool(_dbWipeRequiresPromptKey) ?? false,
       dbBackupKeepCount: prefs.getInt(_dbBackupKeepCountKey) ?? 1,
       avatarCacheTtlDays: prefs.getInt(_avatarCacheTtlDaysKey) ?? 7,
       autoLockEnabled: prefs.getBool(_autoLockEnabledKey) ?? false,
@@ -1162,16 +1158,6 @@ class SettingsService {
   Future<void> updateDeepLinkAutoJoin(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_deepLinkAutoJoinKey, value);
-  }
-
-  Future<bool> dbWipeRequiresPrompt() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_dbWipeRequiresPromptKey) ?? false;
-  }
-
-  Future<void> updateDbWipeRequiresPrompt(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_dbWipeRequiresPromptKey, value);
   }
 
   Future<int> dbBackupKeepCount() async {

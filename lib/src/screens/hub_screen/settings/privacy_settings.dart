@@ -71,13 +71,6 @@ class HubPrivacySettings extends StatelessWidget {
               HubSettingsSection(
                 title: l10n.database,
                 children: [
-                  SwitchListTile(
-                    title: Text(l10n.dbWipeRequiresPrompt),
-                    subtitle: Text(l10n.dbWipeRequiresPromptDescription),
-                    value: controller.dbWipeRequiresPrompt,
-                    onChanged: (v) => controller.updateDbWipeRequiresPrompt(v),
-                    secondary: const Icon(LucideIcons.database, size: 22),
-                  ),
                   ListTile(
                     leading: const Icon(LucideIcons.history, size: 22),
                     title: Text(l10n.dbBackupKeepCount),

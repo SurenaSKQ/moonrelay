@@ -2868,14 +2868,6 @@
   "@database": {
     "description": "Section title for database-related privacy settings."
   },
-  "dbWipeRequiresPrompt": "تأیید قبل از پاک کردن پایگاه داده",
-  "@dbWipeRequiresPrompt": {
-    "description": "Toggle that asks the user to confirm before wiping the local database on schema mismatch."
-  },
-  "dbWipeRequiresPromptDescription": "نمایش تأییدیه قبل از پاک شدن پایگاه داده در هنگام تغییر نسخه.",
-  "@dbWipeRequiresPromptDescription": {
-    "description": "Subtitle for the database-wipe prompt toggle."
-  },
   "dbBackupKeepCount": "تعداد پشتیبان‌های پایگاه داده",
   "@dbBackupKeepCount": {
     "description": "How many .bak files to keep when the database is wiped."
