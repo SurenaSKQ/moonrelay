@@ -39,6 +39,8 @@ import 'package:moonrelay/src/helpers/room_delegate.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
@@ -519,8 +521,25 @@ class MoonRouter {
         if (shell.isMobile) {
           return const MobileRoomsListPage();
         }
+        // This page is the parent of the :roomid route, so it is on the
+        // stack whether or not a room is open. Reading the child's
+        // pathParameters to decide what to render is what made the two
+        // routes disagree; ask the state directly instead.
+        final roomID = state.pathParameters['roomid'];
+        if (roomID == null || roomID.isEmpty) {
+          // No room selected. On the dashboard that is the resting state,
+          // not an error, and it used to render RoomDelegate's "Room not
+          // found" card here.
+          final l10n = AppLocalizations.of(context);
+          return EmptyState(
+            icon: Icons.forum_outlined,
+            title: l10n?.noRoomSelected ?? 'No room selected',
+            message: l10n?.noRoomSelectedHint ??
+                'Pick a room from the sidebar to start reading or chatting.',
+          );
+        }
         return RoomDelegate(
-          roomID: state.pathParameters['roomid'],
+          roomID: roomID,
           threadRootEventId: state.uri.queryParameters['threadRoot'],
         );
       },
