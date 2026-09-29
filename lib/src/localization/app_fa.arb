@@ -3209,6 +3209,22 @@
   "@testNotificationFired": {
     "description": "Snackbar after firing a test notification."
   },
+  "testNotificationBody": "این یک اعلان آزمایشی از Moonrelay است.",
+  "@testNotificationBody": {
+    "description": "Body text of the debug test notification."
+  },
+  "notificationActionMarkRead": "علامت‌گذاری به عنوان خوانده‌شده",
+  "@notificationActionMarkRead": {
+    "description": "Windows notification action button that clears a room's unread state without opening the app."
+  },
+  "notificationActionOpen": "باز کردن",
+  "@notificationActionOpen": {
+    "description": "Default notification action label, used as the tap affordance on Linux and as the Windows open button."
+  },
+  "notificationChannelDescription": "اعلان‌های پیام مینه‌ساز",
+  "@notificationChannelDescription": {
+    "description": "Android notification channel description."
+  },
   "notificationFailed": "اعلان ناموفق: {error}",
   "@notificationFailed": {
     "description": "Snackbar shown when a test notification fails.",

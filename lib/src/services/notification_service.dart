@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -24,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
@@ -76,6 +78,34 @@ class NotificationService {
   static String _eventTag(String roomId, String eventId) =>
       'matrix:$roomId:$eventId';
 
+  /// Cached notification strings, refreshed when the account's language
+  /// changes. `null` until [init] resolves them, in which case
+  /// [_buildDetails] falls back to English.
+  static AppLocalizations? _strings;
+
+  /// The language tag [_strings] was resolved for, so a no-op refresh can
+  /// be skipped.
+  static String? _stringsLocale;
+
+  /// Points the notification chrome at [tag], reloading the strings.
+  ///
+  /// Notifications are built outside the widget tree, so there is no
+  /// `BuildContext` to read `AppLocalizations.of` from. The delegate is
+  /// synchronous for the locales this app ships, so this is cheap enough
+  /// to run on every language change, which is as often as it happens.
+  static Future<void> useLocale(String? tag) async {
+    if (_strings != null && _stringsLocale == tag) return;
+    _stringsLocale = tag;
+    try {
+      _strings = await AppLocalizations.delegate
+          .load(tag == null ? const Locale('en') : Locale(tag));
+    } catch (_) {
+      // The delegate throws for a locale it has no table for. Keep the
+      // previous strings rather than blanking the notification labels.
+      _stringsLocale = null;
+    }
+  }
+
   /// Builds the [NotificationDetails] used by every notification.
   /// Pulled out into a single helper because the channel / importance
   /// / priority are identical for direct messages, group summaries,
@@ -93,29 +123,36 @@ class NotificationService {
   /// Other platforms fall through to their default tap behaviour
   /// (open the app), which the platform-specific plugin surfaces
   /// support for out of the box.
+  ///
+  /// The user-visible strings go through [_strings] rather than being
+  /// hardcoded. This class has no `BuildContext`, so it resolves them
+  /// from the delegate against the account's chosen language.
   static NotificationDetails _buildDetails(String? payload,
       {bool playSound = true}) {
-    return NotificationDetails(
-      android: AndroidNotificationDetails(
+    final strings = _strings;
+    return NotificationDetails(      android: AndroidNotificationDetails(
         'moonrelay_channel',
         'Moonrelay',
-        channelDescription: 'Matrix message notifications',
+        channelDescription: strings?.notificationChannelDescription,
         importance: Importance.high,
         priority: Priority.high,
         playSound: playSound,
       ),
       iOS: DarwinNotificationDetails(),
-      linux: LinuxNotificationDetails(defaultActionName: 'Open'),
+      linux: LinuxNotificationDetails(
+        defaultActionName: strings?.notificationActionOpen,
+      ),
       macOS: DarwinNotificationDetails(),
       windows: WindowsNotificationDetails(
-        actions: const <WindowsAction>[
+        actions: <WindowsAction>[
           WindowsAction(
-            content: 'Mark as read',
+            content: strings?.notificationActionMarkRead ??
+                'Mark as read',
             arguments: 'action=markRead',
             activationType: WindowsActivationType.foreground,
           ),
           WindowsAction(
-            content: 'Open',
+            content: strings?.notificationActionOpen ?? 'Open',
             arguments: 'action=open',
             activationType: WindowsActivationType.foreground,
           ),
@@ -255,6 +292,11 @@ class NotificationService {
       onNavigate,
       log,
     );
+    // The notification chrome is built outside the widget tree, so the
+    // account's language has to be pushed in from here and refreshed when
+    // the user changes it.
+    await useLocale(settings.locale);
+    service._settings.addListener(service._onSettingsChanged);
     await service.loadMutedRooms();
     await service._loadLastEventIds();
     await service._loadGroupNotifiedCounts();
@@ -265,6 +307,12 @@ class NotificationService {
     log.i('Notification service initialised'
         '${ok ? '' : ' (plugin unavailable on this platform)'}');
     return service;
+  }
+
+  void _onSettingsChanged() {
+    // Language is the only setting the notification chrome renders, so
+    // this is a no-op for every other preference change.
+    unawaited(useLocale(_settings.locale));
   }
 
   /// Initialises the platform plugin. Returns `true` on success; on
@@ -675,7 +723,8 @@ class NotificationService {
     await plugin.show(
       id: 0,
       title: 'Moonrelay',
-      body: 'This is a test notification from Moonrelay.',
+      body: _strings?.testNotificationBody ??
+          'This is a test notification from Moonrelay.',
       notificationDetails: _buildDetails(null),
     );
     return true;
@@ -841,6 +890,7 @@ class NotificationService {
       sub.cancel();
     }
     _subscriptions.clear();
+    _settings.removeListener(_onSettingsChanged);
     _persistDebouncer?.cancel();
     _persistDebouncer = null;
     // Reset the in-memory caches so a re-`init` after `dispose`
