@@ -24,14 +24,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/homeserver_url.dart';
 import 'package:moonrelay/src/helpers/login_errors.dart';
+import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
-import 'package:moonrelay/src/screens/encryption/verification_screen.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Login page with password and SSO support.
@@ -682,11 +681,10 @@ class _LoginPageState extends State<LoginPage> {
   /// Everything that happens between a successful `client.login` and the
   /// rooms screen, for every login method.
   ///
-  /// This was duplicated between the password flow and the token flow, and
-  /// the copies had already drifted: only the password one prompted for
-  /// device verification afterwards, so a user who signed in with a token
-  /// was never offered the check the other path asks for. The prompt now
-  /// happens on both, which is what its own comment says it is for.
+  /// The shared part lives in `completeSignIn`. What stays here is the
+  /// syncing screen, which the register page has no equivalent of: after a
+  /// sign-in the SDK runs its first sync in the background, and showing a
+  /// full-screen progress state beats landing on an empty room list.
   Future<void> _onLoginSucceeded(
     BuildContext context,
     Client client,
@@ -694,50 +692,25 @@ class _LoginPageState extends State<LoginPage> {
   ) async {
     final l10n = AppLocalizations.of(context)!;
 
-    // -- Transition to syncing state ----------------------------------
-    // Login succeeded; the Matrix SDK is now running its first sync in
-    // the background. Show a full-screen loading state so the user sees
-    // progress instead of a blank room list.
     setState(() {
       _statusMessage = l10n.syncingYourAccount;
       _loading = false; // allow the build method to show _syncing UI
       _syncing = true;
     });
 
-    // -- Enable encryption now that we're logged in ------------------
-    // Capture all provider reads before any await so the analyzer does
-    // not see [context] used across the async gap.
-    final encryptionService = context.read<EncryptionService>();
-    final accountManager = context.read<AccountManager>();
-    final homeserverSnapshot = client.homeserver?.toString() ?? '';
-    final userIdSnapshot = client.userID!;
-    await encryptionService.init();
-
-    // -- Save this account for multi-account support ------------------
-    await accountManager.addOrUpdateAccount(
-      StoredAccount(
-        userId: userIdSnapshot,
-        homeserver: homeserverSnapshot,
-      ),
-      client: client,
-      encryptionService: encryptionService,
+    await completeSignIn(
+      context,
+      client,
+      beforeNavigate: () async {
+        final synced = await _waitForInitialSync(client, log);
+        if (!synced) {
+          log.w('Initial sync not yet complete, proceeding to rooms');
+        }
+      },
     );
 
-    final syncResult = await _waitForInitialSync(client, log);
     if (!mounted) return;
-    if (!syncResult) {
-      log.w('Initial sync not yet complete, proceeding to rooms');
-    }
-    if (!context.mounted) return;
-    context.go('/main/rooms');
-
-    // -- Post-login encryption: SAS verification only ----------------
-    // The new encryption flow surfaces a one-shot emoji verification
-    // prompt immediately after sign-in. Cross-signing bootstrap, recovery
-    // key flows, and other SSSS prompts are intentionally deferred to the
-    // encryption settings page so the user is not ambushed by password-
-    // style dialogs every time they open the app.
-    await _maybePromptDeviceVerification(encryptionService);
+    setState(() => _syncing = false);
   }
 
   Future<void> _doPasswordLogin() async {
@@ -879,39 +852,6 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
-  }
-
-  /// Drives the new post-login encryption prompt.  When the device
-  /// is not yet verified, requests an SAS / emoji verification and
-  /// shows the verification screen so the user can match the emoji
-  /// sequence against another signed-in device.
-  ///
-  /// The check is best-effort: any failure (encryption not ready,
-  /// the other device does not respond, the user cancels) is logged
-  /// and swallowed so a stuck verification handshake can never
-  /// prevent the user from reaching the room list.
-  Future<void> _maybePromptDeviceVerification(
-    EncryptionService encryptionService,
-  ) async {
-    if (!mounted) return;
-    final log = Provider.of<Logger>(context, listen: false);
-    KeyVerification? kv;
-    try {
-      kv = await encryptionService.startPostLoginFlow();
-    } catch (e) {
-      log.w('post-login encryption flow failed', error: e);
-      return;
-    }
-    if (kv == null) return;
-    if (!mounted) return;
-    await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => VerificationScreen(
-          request: kv!,
-          isIncoming: false,
-        ),
-      ),
-    );
   }
 
   /// Attempts SSO login using the automatic (local server callback) flow.
