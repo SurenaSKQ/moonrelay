@@ -182,4 +182,46 @@ void main() {
               'sub-item tap on the hub overlay');
     },
   );
+
+  // The bug this guards against: the category labels are built from
+  // AppLocalizations once and cached on the State, so a locale switch
+  // used to leave the whole nav strip in the previous language. The
+  // locale setting is a large part of why anyone switches language.
+  testWidgets('hub category labels follow a locale change', (tester) async {
+    final client = MockClient();
+    when(() => client.userID).thenReturn('@me:example.com');
+    when(() => client.getProfileFromUserId(any()))
+        .thenAnswer((_) async => Profile(userId: '@me:example.com'));
+    when(() => client.rooms).thenReturn(<Room>[]);
+
+    Widget app(Locale locale) => wrapWithProviders(
+          client: client,
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: HubScreen(
+              client: client,
+              selection: const HubCategorySelection(categoryKey: 'settings'),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(app(const Locale('en')));
+    await tester.pumpAndSettle();
+    final hubElement = find.byType(HubScreen).evaluate().first;
+    final englishAccounts = AppLocalizations.of(hubElement)!.accounts;
+    expect(find.text(englishAccounts), findsWidgets);
+
+    // Re-pump the same tree under Persian, the way a locale change would.
+    await tester.pumpWidget(app(const Locale('fa')));
+    await tester.pumpAndSettle();
+
+    final persianAccounts = AppLocalizations.of(hubElement)!.accounts;
+    expect(persianAccounts, isNot(englishAccounts),
+        reason: 'the fixture is useless unless the two locales differ');
+    expect(find.text(persianAccounts), findsWidgets,
+        reason: 'the hub nav strip should be relabelled on a locale change');
+    expect(find.text(englishAccounts), findsNothing);
+  });
 }
