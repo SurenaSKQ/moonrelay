@@ -30,6 +30,7 @@ import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/login_page/login_mode.dart';
 import 'package:moonrelay/src/screens/login_page/sso_token_capture.dart';
+import 'package:moonrelay/src/screens/login_page/sso_widgets.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/form_field_label.dart';
@@ -390,59 +391,13 @@ class _LoginPageState extends State<LoginPage> {
   List<Widget> _buildAutoSsoStatus(ColorScheme colors, AppLocalizations l10n) {
     return [
       const SizedBox(height: 8),
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colors.primaryContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: colors.primary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                l10n.ssoWaitingForBrowser,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colors.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      const SsoAwaitingBanner(),
     ];
   }
 
   /// Builds the cancel / switch-to-manual button during automatic SSO.
   Widget _buildAutoSsoActionButton(ColorScheme colors, AppLocalizations l10n) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        OutlinedButton.icon(
-          onPressed: _cancelAutoSso,
-          icon: const Icon(LucideIcons.arrowLeft, size: 18),
-          label: Text(l10n.ssoSwitchToManual),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ],
-    );
+    return SsoSwitchToManualButton(onPressed: _cancelAutoSso);
   }
 
   /// The links that move away from the current mode.
@@ -481,40 +436,10 @@ class _LoginPageState extends State<LoginPage> {
 
   List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
     return [
-      buildFormFieldLabel(context, l10n.ssoUrlLabel),
-      const SizedBox(height: 6),
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          _ssoUrl ?? l10n.ssoStartingHint,
-          style: TextStyle(
-            fontFamily: 'SpaceMono',
-            fontSize: 12,
-            color: colors.onSurfaceVariant,
-          ),
-        ),
-      ),
-      // Why the automatic flow stopped. This used to live in the
-      // auto-SSO status block, which is only built while the browser
-      // callback is pending. Every path that set the failure flag also
-      // cleared the pending flag, so the message could never render and
-      // the user was left with a stalled page and no explanation.
-      if (_ssoStep.showsFailureNotice)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            l10n.ssoAutomaticFailed,
-            style: TextStyle(
-              fontSize: 13,
-              color: colors.error,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+      SsoUrlDisplay(url: _ssoUrl),
+      // Why the automatic flow stopped, so the manual fallback is not a
+      // dead end the user has to guess their way out of.
+      if (_ssoStep.showsFailureNotice) const SsoFailureNotice(),
       // Token field: only shown when the user explicitly requests it.
       if (_ssoStep.showsManualTokenEntry)
         ..._buildManualTokenEntry(colors, l10n),
