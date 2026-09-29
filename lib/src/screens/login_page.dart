@@ -29,6 +29,7 @@ import 'package:moonrelay/src/helpers/homeserver_url.dart';
 import 'package:moonrelay/src/helpers/login_errors.dart';
 import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/login_page/login_mode.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -57,21 +58,15 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _loading = false;
   bool _syncing = false;
-  bool _ssoMode = false;
-  bool _tokenMode = false;
 
-  /// Tracks whether we are running the automatic (local-server) SSO flow.
-  bool _autoSsoActive = false;
+  /// Which sign-in form is showing.
+  LoginMode _mode = LoginMode.password;
 
-  /// Set to `true` when the automatic SSO flow fails so we show the manual
-  /// fallback UI instead.
-  bool _autoSsoFailed = false;
+  /// Where the user is inside the SSO sub-flow.
+  SsoStep _ssoStep = SsoStep.idle;
 
   /// The local HTTP server used to capture the SSO login token.
   SsoCallbackServer? _ssoServer;
-
-  /// Whether the manual token-paste field is visible in the fallback SSO UI.
-  bool _showManualTokenEntry = false;
 
   String? _error;
   String? _ssoUrl;
@@ -87,8 +82,8 @@ class _LoginPageState extends State<LoginPage> {
       final Object? extra = GoRouterState.of(context).extra;
       if (extra == 'sso') {
         setState(() {
-          _ssoMode = true;
-          _showManualTokenEntry = false;
+          _mode = LoginMode.sso;
+          _ssoStep = SsoStep.idle;
         });
       } else if (extra is Map<String, String>) {
         final hs = extra['homeserver'];
@@ -154,9 +149,9 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           SizedBox(width: t.spaceSm),
                           Text(
-                            _ssoMode
+                            _mode == LoginMode.sso
                                 ? l10n.ssoTitle
-                                : _tokenMode
+                                : _mode == LoginMode.token
                                     ? l10n.tokenLoginTitle
                                     : l10n.signInTitle,
                             style: TextStyle(
@@ -220,56 +215,39 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 20),
 
                       // -- SSO mode --
-                      if (_ssoMode) ..._buildSsoSection(colors, l10n),
+                      if (_mode == LoginMode.sso)
+                        ..._buildSsoSection(colors, l10n),
 
                       // -- Auto-SSO status (shown during automatic flow) --
-                      if (_autoSsoActive) ..._buildAutoSsoStatus(colors, l10n),
+                      if (_ssoStep.isAwaitingCallback)
+                        ..._buildAutoSsoStatus(colors, l10n),
 
                       // -- Token mode --
-                      if (_tokenMode) ..._buildTokenSection(colors, l10n),
+                      if (_mode == LoginMode.token)
+                        ..._buildTokenSection(colors, l10n),
 
                       // -- Password mode --
-                      if (!_ssoMode && !_tokenMode)
+                      if (_mode.showsCredentialFields)
                         ..._buildPasswordSection(colors, l10n),
 
                       SizedBox(height: t.spaceXl),
 
                       // -- Primary action button --
-                      if (_autoSsoActive)
+                      if (_ssoStep.isAwaitingCallback)
                         _buildAutoSsoActionButton(colors, l10n)
-                      else if (_ssoMode)
-                        _buildSsoActionButton(colors, l10n)
-                      else if (_tokenMode)
-                        _buildTokenActionButton(colors, l10n)
                       else
-                        _buildPasswordActionButton(colors, l10n),
+                        switch (_mode) {
+                          LoginMode.sso => _buildSsoActionButton(colors, l10n),
+                          LoginMode.token =>
+                            _buildTokenActionButton(colors, l10n),
+                          LoginMode.password =>
+                            _buildPasswordActionButton(colors, l10n),
+                        },
 
                       // -- Mode switcher --
-                      if (!_loading && !_autoSsoActive) ...[
+                      if (!_loading && !_ssoStep.isAwaitingCallback) ...[
                         SizedBox(height: t.spaceMd),
-                        if (!_ssoMode && !_tokenMode)
-                          _buildModeLink(
-                            l10n.useSsoInstead,
-                            () => setState(() {
-                              _ssoMode = true;
-                              _showManualTokenEntry = false;
-                            }),
-                          ),
-                        if (_ssoMode && !_tokenMode)
-                          _buildModeLink(
-                            l10n.usePasswordInstead,
-                            () => setState(() => _ssoMode = false),
-                          ),
-                        if (!_ssoMode && !_tokenMode)
-                          _buildModeLink(
-                            l10n.useTokenInstead,
-                            () => setState(() => _tokenMode = true),
-                          ),
-                        if (_tokenMode)
-                          _buildModeLink(
-                            l10n.backToPasswordLogin,
-                            () => setState(() => _tokenMode = false),
-                          ),
+                        ..._buildModeLinks(l10n),
                       ],
                     ],
                   ),
@@ -462,21 +440,42 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        if (_autoSsoFailed)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              l10n.ssoAutomaticFailed,
-              style: TextStyle(
-                fontSize: 13,
-                color: colors.error,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
       ],
     );
+  }
+
+  /// The links that move away from the current mode.
+  ///
+  /// Two of them sit side by side in password mode and only one fits in the
+  /// other two, so this returns a list rather than a single widget.
+  List<Widget> _buildModeLinks(AppLocalizations l10n) {
+    return switch (_mode) {
+      LoginMode.password => [
+          _buildModeLink(
+            l10n.useSsoInstead,
+            () => setState(() {
+              _mode = LoginMode.sso;
+              _ssoStep = SsoStep.idle;
+            }),
+          ),
+          _buildModeLink(
+            l10n.useTokenInstead,
+            () => setState(() => _mode = LoginMode.token),
+          ),
+        ],
+      LoginMode.sso => [
+          _buildModeLink(
+            l10n.usePasswordInstead,
+            () => setState(() => _mode = LoginMode.password),
+          ),
+        ],
+      LoginMode.token => [
+          _buildModeLink(
+            l10n.backToPasswordLogin,
+            () => setState(() => _mode = LoginMode.password),
+          ),
+        ],
+    };
   }
 
   List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
@@ -498,8 +497,26 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+      // Why the automatic flow stopped. This used to live in the
+      // auto-SSO status block, which is only built while the browser
+      // callback is pending. Every path that set the failure flag also
+      // cleared the pending flag, so the message could never render and
+      // the user was left with a stalled page and no explanation.
+      if (_ssoStep.showsFailureNotice)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            l10n.ssoAutomaticFailed,
+            style: TextStyle(
+              fontSize: 13,
+              color: colors.error,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
       // Token field: only shown when the user explicitly requests it.
-      if (_showManualTokenEntry) ...[..._buildManualTokenEntry(colors, l10n)],
+      if (_ssoStep.showsManualTokenEntry)
+        ..._buildManualTokenEntry(colors, l10n),
     ];
   }
 
@@ -595,9 +612,9 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 12),
         // -- "Paste token manually" toggle --
-        if (!_showManualTokenEntry)
+        if (!_ssoStep.showsManualTokenEntry)
           OutlinedButton.icon(
-            onPressed: () => setState(() => _showManualTokenEntry = true),
+            onPressed: () => setState(() => _ssoStep = SsoStep.manualTokenEntry),
             icon: const Icon(LucideIcons.key, size: 18),
             label: Text(l10n.ssoPasteManually),
             style: OutlinedButton.styleFrom(
@@ -607,7 +624,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         // -- Manual entry visible: show "Complete Login" --
-        if (_showManualTokenEntry)
+        if (_ssoStep.showsManualTokenEntry)
           FilledButton.icon(
             onPressed: _loading ? null : _doSsoComplete,
             icon: const Icon(LucideIcons.check, size: 18),
@@ -956,8 +973,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() {
       _ssoUrl = ssoUrl.toString();
-      _autoSsoFailed = true;
-      _autoSsoActive = false;
+      _ssoStep = SsoStep.automaticFailed;
       _loading = false;
     });
 
@@ -1006,8 +1022,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() {
-      _autoSsoActive = true;
-      _autoSsoFailed = false;
+      _ssoStep = SsoStep.awaitingCallback;
       _loading = false;
       _ssoUrl = null;
     });
@@ -1033,7 +1048,7 @@ class _LoginPageState extends State<LoginPage> {
       await server.stop();
       _ssoServer = null;
       if (!mounted) return;
-      setState(() => _autoSsoActive = false);
+      setState(() => _ssoStep = SsoStep.idle);
       throw SsoAutomaticException('Could not open browser: $e');
     }
 
@@ -1052,7 +1067,7 @@ class _LoginPageState extends State<LoginPage> {
       await server.stop();
       _ssoServer = null;
       if (!mounted) return;
-      setState(() => _autoSsoActive = false);
+      setState(() => _ssoStep = SsoStep.idle);
       throw SsoAutomaticException('Timed out waiting for browser redirect');
     }
 
@@ -1075,7 +1090,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
 
-    setState(() => _autoSsoActive = false);
+    setState(() => _ssoStep = SsoStep.idle);
 
     await _completeTokenLogin(token);
   }
@@ -1085,8 +1100,7 @@ class _LoginPageState extends State<LoginPage> {
     _ssoServer?.stop();
     _ssoServer = null;
     setState(() {
-      _autoSsoActive = false;
-      _autoSsoFailed = true;
+      _ssoStep = SsoStep.automaticFailed;
       _loading = false;
     });
   }
