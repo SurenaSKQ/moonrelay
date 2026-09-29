@@ -27,11 +27,12 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
-import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:moonrelay/src/widgets/room_notification_sheet.dart';
-import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/screens/room_settings/power_levels_editor.dart';
+import 'package:moonrelay/src/screens/room_settings/room_identity_card.dart';
+import 'package:moonrelay/src/screens/room_settings/room_settings_widgets.dart';
+import 'package:moonrelay/src/screens/room_settings/room_notification_tile.dart';
+import 'package:moonrelay/src/screens/room_settings/knock_requests_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
@@ -45,16 +46,6 @@ class RoomSettingsPage extends StatefulWidget {
 
   @override
   State<RoomSettingsPage> createState() => _RoomSettingsPageState();
-}
-
-/// Converts a possibly-null raw event content map into a
-/// `Map<String, dynamic>`. Used by the room state editors to coerce the
-/// SDK's loosely-typed `Map<dynamic, dynamic>` into something safe.
-Map<String, dynamic> _asStringMap(Object? raw) {
-  if (raw is! Map) return <String, dynamic>{};
-  final out = <String, dynamic>{};
-  raw.forEach((k, v) => out[k.toString()] = v);
-  return out;
 }
 
 class _RoomSettingsPageState extends State<RoomSettingsPage> {
@@ -399,7 +390,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
         children: [
           // -- Room identity card ----------------------------------------
-          _RoomIdentityCard(
+          RoomIdentityCard(
             room: room,
             roomType: roomType,
             totalMembers: totalMembers,
@@ -409,22 +400,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           SizedBox(height: t.spaceLg),
 
           // -- Technical details ------------------------------------------
-          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
+          RoomSettingsSectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          _DetailRow(
+          RoomDetailRow(
             icon: LucideIcons.hash,
             label: l10n.roomIdLabel,
             value: room.id,
             scheme: scheme,
           ),
           if (canonicalAlias != null)
-            _DetailRow(
+            RoomDetailRow(
               icon: LucideIcons.atSign,
               label: l10n.addressLabel,
               value: canonicalAlias,
               scheme: scheme,
             ),
-          _DetailRow(
+          RoomDetailRow(
             icon: room.joinRules == JoinRules.public
                 ? LucideIcons.globe
                 : room.joinRules == JoinRules.knock ||
@@ -435,19 +426,19 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             value: roomType,
             scheme: scheme,
           ),
-          _DetailRow(
+          RoomDetailRow(
             icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
             label: l10n.encryptionLabel,
             value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             scheme: scheme,
           ),
-          _DetailRow(
+          RoomDetailRow(
             icon: LucideIcons.calendar,
             label: l10n.createdLabel,
             value: creationDate,
             scheme: scheme,
           ),
-          _DetailRow(
+          RoomDetailRow(
             icon: LucideIcons.users,
             label: l10n.members,
             value: '$totalMembers',
@@ -459,10 +450,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           if (_canChange('m.room.name') ||
               _canChange('m.room.topic') ||
               _canChange('m.room.avatar')) ...[
-            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            RoomSettingsSectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceXs),
             if (_canChange('m.room.name'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.pencil,
                 label: l10n.editRoomName,
                 description: room.getLocalizedDisplayname(),
@@ -470,7 +461,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.topic'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.alignLeft,
                 label: l10n.editRoomTopic,
                 description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
@@ -478,7 +469,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.avatar'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.image,
                 label: l10n.changeRoomAvatar,
                 description: l10n.changeRoomAvatarDescription,
@@ -495,10 +486,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               _canChange('m.room.guest_access') ||
               _canChange('m.room.power_levels') ||
               _canChange('m.room.encryption')) ...[
-            _SectionHeader(title: l10n.actionsSection, scheme: scheme),
+            RoomSettingsSectionHeader(title: l10n.actionsSection, scheme: scheme),
             SizedBox(height: t.spaceXs),
             if (_canChange('m.room.join_rules'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.logIn,
                 label: l10n.joinRuleLabel,
                 description: roomType,
@@ -506,7 +497,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.history_visibility'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.eye,
                 label: l10n.historyVisibilitySection,
                 description: _historyVisibilityLabel(context, room),
@@ -514,7 +505,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.canonical_alias'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.atSign,
                 label: l10n.canonicalAliasSection,
                 description: canonicalAlias ?? l10n.notSet,
@@ -522,7 +513,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.guest_access'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.userPlus,
                 label: l10n.guestAccessSection,
                 description: _guestAccessLabel(context, room),
@@ -530,7 +521,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.power_levels'))
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.keyRound,
                 label: l10n.powerLevelsSection,
                 description: l10n.powerLevelUsersDefault,
@@ -538,7 +529,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 scheme: scheme,
               ),
             if (_canChange('m.room.encryption') && !isEncrypted)
-              _ActionTile(
+              RoomActionTile(
                 icon: LucideIcons.shieldCheck,
                 label: l10n.encryptionSection,
                 description: l10n.enableEncryption,
@@ -549,10 +540,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
 
           // -- Room list visibility -------------------------------------
-          _SectionHeader(
+          RoomSettingsSectionHeader(
               title: l10n.directoryVisibilitySection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          _ActionTile(
+          RoomActionTile(
             icon: LucideIcons.globe,
             label: l10n.directoryVisibilitySection,
             description: room.joinRules == JoinRules.public
@@ -564,16 +555,16 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           SizedBox(height: t.spaceSm),
 
           // -- Room version + upgrade flow ------------------------------
-          _SectionHeader(title: l10n.detailsSection, scheme: scheme),
+          RoomSettingsSectionHeader(title: l10n.detailsSection, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          _DetailRow(
+          RoomDetailRow(
             icon: LucideIcons.server,
             label: l10n.roomVersion,
             value: room.roomVersion ?? 'unknown',
             scheme: scheme,
           ),
           if (_canChange('m.room.tombstone') || _isAdmin)
-            _ActionTile(
+            RoomActionTile(
               icon: LucideIcons.arrowUpCircle,
               label: l10n.upgradeRoom,
               description: l10n.upgradeRoomDescription,
@@ -585,23 +576,23 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           // -- Knock requests (only when joinRule allows knock) ---------
           if (room.joinRules == JoinRules.knock ||
               room.joinRules == JoinRules.knockRestricted)
-            _KnockRequestsSection(room: room),
+            KnockRequestsSection(room: room),
 
           // --- Notification settings ----------------------------------
-          _SectionHeader(title: l10n.notificationSettings, scheme: scheme),
+          RoomSettingsSectionHeader(title: l10n.notificationSettings, scheme: scheme),
           SizedBox(height: t.spaceXs),
-          _RoomNotificationTile(room: room),
+          RoomNotificationTile(room: room),
           SizedBox(height: t.spaceSm),
 
           // -- Danger zone ------------------------------------------------
           if (_isAdmin || room.membership == Membership.leave)
-            _SectionHeader(
+            RoomSettingsSectionHeader(
               title: l10n.actionsDeleteSection,
               scheme: scheme,
             ),
           if (room.membership == Membership.join) ...[
             SizedBox(height: t.spaceXs),
-            _ActionTile(
+            RoomActionTile(
               icon: LucideIcons.logOut,
               label: l10n.leaveRoom,
               description: l10n.leaveRoomDescription,
@@ -612,7 +603,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
           if (_isAdmin) ...[
             SizedBox(height: t.spaceXs),
-            _ActionTile(
+            RoomActionTile(
               icon: LucideIcons.trash2,
               label: l10n.deleteRoom,
               description: l10n.deleteRoomDescription,
@@ -623,7 +614,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
           if (room.membership == Membership.leave) ...[
             SizedBox(height: t.spaceXs),
-            _ActionTile(
+            RoomActionTile(
               icon: LucideIcons.eyeOff,
               label: l10n.forgetRoom,
               description: l10n.forgetRoomDescription,
@@ -866,145 +857,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     await _setStateEvent('m.room.guest_access', 'guest_access', selected);
   }
 
-  Future<void> _editPowerLevels(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    // Capture the client before any await so we can use it after the
-    // gap without tripping the `use_build_context_synchronously` lint.
-    final client = context.read<Client>();
-    final raw = widget.room.getState('m.room.power_levels')?.content;
-
-    int read(Map<String, dynamic> state, String key, int fallback) {
-      final v = state[key];
-      return v is int ? v : fallback;
-    }
-
-    final state = _asStringMap(raw);
-
-    int usersDefault = read(state, 'users_default', 0);
-    int evDefault = read(state, 'events_default', 0);
-    int stDefault = read(state, 'state_default', 50);
-    int banLvl = read(state, 'ban', 50);
-    int kickLvl = read(state, 'kick', 50);
-    int inviteLvl = read(state, 'invite', 50);
-    int redactLvl = read(state, 'redact', 50);
-
-    final userOverrides = <String, int>{};
-    for (final entry in state.entries) {
-      final key = entry.key;
-      final value = entry.value;
-      if (key.startsWith('@') && value is int) {
-        userOverrides[key] = value;
-      }
-    }
-
-    final updated = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setState) {
-            Widget slider(
-                String label, int current, void Function(int) onChanged) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child:
-                            Text(label, style: const TextStyle(fontSize: 13)),
-                      ),
-                      Text('$current',
-                          style: const TextStyle(
-                              fontFamily: 'JetBrainsMono', fontSize: 12)),
-                    ],
-                  ),
-                  Slider(
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    value: current.toDouble(),
-                    onChanged: (n) {
-                      setState(() => onChanged(n.toInt()));
-                    },
-                  ),
-                ],
-              );
-            }
-
-            return AlertDialog(
-              title: Text(l10n.powerLevelsSection),
-              content: SizedBox(
-                width: 460,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      slider(l10n.powerLevelUsersDefault, usersDefault, (v) {
-                        usersDefault = v;
-                      }),
-                      slider(l10n.powerLevelEventsDefault, evDefault, (v) {
-                        evDefault = v;
-                      }),
-                      slider(l10n.powerLevelStateDefault, stDefault, (v) {
-                        stDefault = v;
-                      }),
-                      slider(l10n.powerLevelBan, banLvl, (v) {
-                        banLvl = v;
-                      }),
-                      slider(l10n.powerLevelKick, kickLvl, (v) {
-                        kickLvl = v;
-                      }),
-                      slider(l10n.powerLevelInvite, inviteLvl, (v) {
-                        inviteLvl = v;
-                      }),
-                      slider(l10n.powerLevelRedact, redactLvl, (v) {
-                        redactLvl = v;
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(l10n.cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(l10n.editSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (updated != true || !mounted) return;
-
-    final newState = <String, dynamic>{
-      'users_default': usersDefault,
-      'events_default': evDefault,
-      'state_default': stDefault,
-      'ban': banLvl,
-      'kick': kickLvl,
-      'invite': inviteLvl,
-      'redact': redactLvl,
-      'users': userOverrides,
-    };
-
-    try {
-      await client.setRoomStateWithKey(
-        widget.room.id,
-        'm.room.power_levels',
-        '',
-        newState,
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+  Future<void> _editPowerLevels(BuildContext context) {
+    return showPowerLevelsEditor(context, widget.room);
   }
 
   Future<void> _enableEncryption(BuildContext context) async {
@@ -1168,607 +1022,5 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         SnackBar(content: Text(l10n.actionFailed('$e'))),
       );
     }
-  }
-}
-
-// =============================================================================
-// Internal widgets (reused from room_details_page.dart)
-// =============================================================================
-
-class _RoomIdentityCard extends StatelessWidget {
-  const _RoomIdentityCard({
-    required this.room,
-    required this.roomType,
-    required this.totalMembers,
-    required this.scheme,
-    required this.textTheme,
-  });
-
-  final Room room;
-  final String roomType;
-  final int totalMembers;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final displayName = room.getLocalizedDisplayname();
-    final topic = room.topic;
-    final hasTopic = topic.isNotEmpty;
-
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusLg),
-        side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: AvatarFromUriOrFallbackImage(
-                client: room.client,
-                avatarUri: room.avatar,
-              ),
-            ),
-            SizedBox(height: t.spaceLg),
-            Text(
-              displayName,
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (hasTopic) ...[
-              SizedBox(height: t.spaceXs),
-              Text(
-                topic,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            SizedBox(height: t.spaceMd),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                _InfoChip(
-                  icon: Icons.public_rounded,
-                  label: roomType,
-                  scheme: scheme,
-                ),
-                _InfoChip(
-                  icon: Icons.people_rounded,
-                  label: '$totalMembers ${l10n.members}',
-                  scheme: scheme,
-                ),
-                if (room.isDirectChat)
-                  _InfoChip(
-                    icon: Icons.person_rounded,
-                    label: l10n.directMessage,
-                    scheme: scheme,
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: t.opacitySubtle),
-        borderRadius: BorderRadius.circular(t.radiusXl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          SizedBox(width: t.spaceXs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.scheme});
-
-  final String title;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: scheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    this.description,
-    this.color,
-    required this.onTap,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? description;
-  final Color? color;
-  final VoidCallback onTap;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final effectiveColor = color ?? scheme.primary;
-    return Card(
-      elevation: t.elevationNone,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: Icon(icon, size: 22, color: effectiveColor),
-        title: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: description != null
-            ? Text(
-                description!,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
-              )
-            : null,
-        trailing: Icon(
-          LucideIcons.chevronRight,
-          size: 18,
-          color: scheme.onSurfaceVariant,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.scheme,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          SizedBox(width: t.spaceMd),
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: scheme.onSurface,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A tile that toggles notification mute for the current room.
-class _RoomNotificationTile extends StatefulWidget {
-  const _RoomNotificationTile({required this.room});
-
-  final Room room;
-
-  @override
-  State<_RoomNotificationTile> createState() => _RoomNotificationTileState();
-}
-
-class _RoomNotificationTileState extends State<_RoomNotificationTile> {
-  bool _muted = false;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMutedState();
-  }
-
-  Future<void> _loadMutedState() async {
-    final notif = context.read<NotificationService>();
-    final muted = await notif.isRoomMuted(widget.room.id);
-    if (mounted) {
-      setState(() {
-        _muted = muted;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _toggle() async {
-    final notif = context.read<NotificationService>();
-    final newMuted = !_muted;
-    await notif.setRoomMuted(widget.room.id, newMuted);
-    if (mounted) {
-      setState(() => _muted = newMuted);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            newMuted
-                ? AppLocalizations.of(context)!.roomMuted
-                : AppLocalizations.of(context)!.roomUnmuted,
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final l10n = AppLocalizations.of(context)!;
-    final client = context.read<Client>();
-    // The full per-room notification sheet (mute + mentions-only)
-    // lives in [RoomNotificationSheet].  Opening it from the tile's
-    // tap area keeps the one-tap mute switch on the tile itself
-    // while still exposing the mentions-only setting without a
-    // separate route.
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.surfaceContainerLow,
-      child: Column(
-        children: [
-          SwitchListTile(
-            secondary: Icon(
-              _muted ? LucideIcons.bellOff : LucideIcons.bell,
-              color: scheme.onSurfaceVariant,
-            ),
-            title: Text(l10n.muteRoom),
-            subtitle: Text(l10n.muteRoomDescription),
-            value: _muted,
-            onChanged: _loading ? null : (_) => _toggle(),
-          ),
-          const Divider(height: 0),
-          ListTile(
-            leading: Icon(
-              LucideIcons.settings,
-              color: scheme.onSurfaceVariant,
-            ),
-            title: Text(l10n.notificationSettings),
-            trailing: Icon(
-              LucideIcons.chevronRight,
-              color: scheme.onSurfaceVariant,
-            ),
-            onTap: () => showRoomNotificationSheet(context,
-                client: client, room: widget.room),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Lists pending knock requests for a room whose join rule allows knocking.
-///
-/// The room is scanned for `m.room.member` state events with
-/// `membership: knock` and one row is shown per user. Each row exposes
-/// "Approve" and "Deny" actions. The list refreshes whenever the
-/// room's sync state changes.
-class _KnockRequestsSection extends StatefulWidget {
-  const _KnockRequestsSection({required this.room});
-  final Room room;
-
-  @override
-  State<_KnockRequestsSection> createState() => _KnockRequestsSectionState();
-}
-
-class _KnockRequestsSectionState extends State<_KnockRequestsSection> {
-  List<User> _knockingUsers = const [];
-  bool _knocksLoaded = false;
-
-  /// Last [SyncPulse.version] observed at build time. The build re-runs
-  /// the knock-list fetch whenever the pulse version advances; we
-  /// compare against the previously observed value so a build caused by
-  /// another field (locale, theme) doesn't trigger a redundant fetch.
-  int _lastPulseVersion = -1;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadKnocks();
-  }
-
-  Future<void> _loadKnocks() async {
-    final l10n = AppLocalizations.of(context)!;
-    try {
-      final matrixEvents =
-          await widget.room.client.getMembersByRoom(widget.room.id);
-      final members = matrixEvents
-              ?.map((e) => Event.fromMatrixEvent(e, widget.room).asUser)
-              .where((u) => u.membership == Membership.knock)
-              .toList() ??
-          [];
-      if (!mounted) return;
-      setState(() {
-        _knockingUsers = members;
-        _knocksLoaded = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _knocksLoaded = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  Future<void> _approve(String userId) async {
-    final l10n = AppLocalizations.of(context)!;
-    final name =
-        widget.room.unsafeGetUserFromMemoryOrFallback(userId).calcDisplayname();
-
-    // Confirmation dialog.  Showing display name + Matrix ID + a
-    // "View profile" link gives the moderator enough context to be
-    // confident the right person is being invited; knock requests
-    // are easy to spoof with a similar-looking displayname.
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.knockApproveConfirmTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              userId,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(l10n.knockApproveConfirmBody),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: Text(l10n.viewProfile),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.approve),
-          ),
-        ],
-      ),
-    );
-    // "View profile" returns null; fall through to navigation so the
-    // moderator can see who they're letting in.
-    if (approved == null) {
-      if (!mounted) return;
-      context.push('/main/rooms/${widget.room.id}/profile/$userId');
-      return;
-    }
-    if (approved != true) return;
-
-    try {
-      await widget.room.invite(userId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.knockApproved(name))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  Future<void> _deny(String userId) async {
-    final l10n = AppLocalizations.of(context)!;
-    final name =
-        widget.room.unsafeGetUserFromMemoryOrFallback(userId).calcDisplayname();
-    try {
-      await widget.room.kick(userId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.knockDenied(name))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-
-    // Read the debounced sync pulse so we refresh the knock list on
-    // every coalesced tick. The pulse provider is always in scope for
-    // this screen (it's mounted inside the account-aware router), so a
-    // missing pulse would indicate a wiring bug rather than a transient
-    // state and we let the build continue without a refresh.
-    final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
-    if (pulseVersion != _lastPulseVersion) {
-      _lastPulseVersion = pulseVersion;
-      // Refresh asynchronously; the build phase must not await.
-      _loadKnocks();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 4),
-          child: Text(
-            l10n.pendingKnocks,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        if (!_knocksLoaded)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
-            child: SizedBox(
-              height: t.spaceXl,
-              width: t.spaceXl,
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-            ),
-          )
-        else if (_knockingUsers.isEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: t.spaceSm),
-            child: Text(
-              l10n.noPendingKnocks,
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-          )
-        else
-          ..._knockingUsers.map((user) {
-            return Card(
-              elevation: t.elevationNone,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(t.radiusMd),
-                side:
-                    BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
-              ),
-              child: ListTile(
-                title: Text(user.calcDisplayname()),
-                subtitle: Text(user.id,
-                    style: const TextStyle(
-                        fontFamily: 'JetBrainsMono', fontSize: 11)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton.icon(
-                      icon: Icon(LucideIcons.x, size: t.iconSizeSmall),
-                      label: Text(l10n.denyKnock),
-                      style: TextButton.styleFrom(
-                        foregroundColor: cs.error,
-                      ),
-                      onPressed: () => _deny(user.id),
-                    ),
-                    SizedBox(width: t.spaceXs),
-                    FilledButton.tonalIcon(
-                      icon: Icon(LucideIcons.check, size: t.iconSizeSmall),
-                      label: Text(l10n.approveKnock),
-                      onPressed: () => _approve(user.id),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-      ],
-    );
   }
 }
