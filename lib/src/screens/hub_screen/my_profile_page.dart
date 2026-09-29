@@ -50,6 +50,15 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   Profile? _profile;
   CachedPresence? _presence;
 
+  /// Monotonic token for profile loads. A load whose token is stale by
+  /// the time it resolves is discarded, so a slow first request cannot
+  /// land on top of a fast second one and show the older data.
+  int _loadToken = 0;
+
+  /// Whether a silent refresh is currently in flight, so a burst of
+  /// sync pulses starts one refresh rather than several.
+  bool _refreshing = false;
+
   /// Last [SyncPulse.version] observed at build time. The build re-runs
   /// the silent refresh whenever the pulse advances, so we no longer
   /// need to subscribe to `client.onSync.stream` directly.
@@ -66,54 +75,85 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant HubMyProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // An account switch delivers a new client to the same Element, so
+    // initState does not run again. Without this the page would keep
+    // showing the previous account's name, id, presence and status
+    // message under the new session.
+    if (!identical(oldWidget.client, widget.client)) {
+      _loadData();
+    }
+  }
+
   /// Initial load: shows progress.
   Future<void> _loadData() async {
-    try {
-      final profile =
-          await widget.client.getProfileFromUserId(widget.client.userID!);
-      CachedPresence? presence;
-      try {
-        final resp = await widget.client.getPresence(widget.client.userID!);
-        presence = CachedPresence.fromPresenceResponse(
-          resp,
-          widget.client.userID!,
-        );
-      } catch (_) {
-        // Presence not available; that's fine.
-      }
+    final userId = widget.client.userID;
+    if (userId == null) {
       if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
+    final token = ++_loadToken;
+    try {
+      final profile = await widget.client.getProfileFromUserId(userId);
+      // fetchCurrentPresence rather than the raw generated getPresence:
+      // the helper consults the SDK's in-memory map and its database
+      // before hitting the network, and the raw call did neither, so
+      // this was one request per refresh with nothing cached.
+      final presence = await withTimeoutOrFallback(
+        () => widget.client.fetchCurrentPresence(userId),
+        fallback: CachedPresence.neverSeen(userId),
+        label: 'own presence',
+      );
+      // A newer load started while this one was in flight; its result is
+      // the one the user is waiting for.
+      if (!mounted || token != _loadToken) return;
       setState(() {
         _profile = profile;
         _presence = presence;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || token != _loadToken) return;
       setState(() => _loading = false);
     }
   }
 
   /// Silent refresh: updates the cached data without chasing into a
   /// loading state, so the UI stays stable.
+  ///
+  /// Guarded twice. The in-flight flag stops a second pulse from
+  /// starting overlapping work, and the token means a result that
+  /// overtook a newer one is dropped rather than applied late.
   Future<void> _silentRefresh() async {
+    if (_refreshing) return;
+    final userId = widget.client.userID;
+    if (userId == null) return;
+    _refreshing = true;
+    final token = ++_loadToken;
     try {
-      final profile =
-          await widget.client.getProfileFromUserId(widget.client.userID!);
-      CachedPresence? presence;
-      try {
-        final resp = await widget.client.getPresence(widget.client.userID!);
-        presence = CachedPresence.fromPresenceResponse(
-          resp,
-          widget.client.userID!,
-        );
-      } catch (_) {}
-      if (!mounted) return;
+      final profile = await widget.client.getProfileFromUserId(userId);
+      final presence = await withTimeoutOrFallback(
+        () => widget.client.fetchCurrentPresence(userId),
+        fallback: CachedPresence.neverSeen(userId),
+        label: 'own presence refresh',
+      );
+      if (!mounted || token != _loadToken) return;
       setState(() {
         _profile = profile;
         _presence = presence;
       });
-    } catch (_) {
-      // Swallow; keep showing stale data rather than flashing.
+    } on Object catch (e) {
+      // Keep showing stale data rather than flashing an error; the
+      // profile is a cache, and a failed refresh is not worth a
+      // snackbar on a screen the user did not act on.
+      if (mounted) {
+        context.read<Logger>().w('Silent profile refresh failed', error: e);
+      }
+    } finally {
+      _refreshing = false;
     }
   }
 
@@ -337,12 +377,23 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   @override
   Widget build(BuildContext context) {
     // Read the debounced sync pulse so we run a silent refresh on every
-    // coalesced tick instead of every raw sync event. The hub is always
-    // mounted inside the account-aware router so the pulse is in scope.
+    // Read the debounced sync pulse so we can refresh on a coalesced tick
+    // rather than every raw sync event. The hub is always mounted inside
+    // the account-aware router so the pulse is in scope.
+    //
+    // The version is only observed here. The refresh is scheduled as a
+    // post-frame callback rather than fired from build: a network call
+    // started during a build is the same build-phase side effect the
+    // layout-shell work removed, and a rebuild caused by anything
+    // unrelated (a resize, a theme change) can otherwise re-trigger it.
     final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
-      if (!_loading) _silentRefresh();
+      if (!_loading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _silentRefresh();
+        });
+      }
     }
 
     final l10n = AppLocalizations.of(context)!;
