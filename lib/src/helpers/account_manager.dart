@@ -355,9 +355,45 @@ class AccountManager extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposeActiveClient();
+    // The framework calls this when the provider tree goes away. The
+    // real, awaited teardown is [shutdown]; this is only a safety net
+    // for the case where the tree is torn down without a shutdown
+    // sequence having run.
     _encryptionService?.dispose();
     _encryptionService = null;
+    _disposeActiveClient();
     super.dispose();
+  }
+
+  /// Tears down the account-scoped resources this manager owns: the live
+  /// [EncryptionService] first, then the live [Client].
+  ///
+  /// [AccountManager] is the single owner of both. The [Client] is
+  /// replaced on every account switch and the boot-time
+  /// `EncryptionService` is replaced alongside it
+  /// (`onClientReady` builds a fresh one per client), so neither can be
+  /// held by reference at shutdown-registration time; resolving them
+  /// here is what makes the teardown reach the instances that are
+  /// actually live.
+  ///
+  /// Order matters and is the whole point of awaiting rather than
+  /// disposing both ad hoc: [EncryptionService] subscribes to
+  /// `client.onSync`, so it has to stop reacting before the client that
+  /// feeds it goes away. Disposing the client also joins the native
+  /// threads that `vodozemac.dll` spawned inside the SDK's
+  /// `NativeImplementationsIsolate`, which is what lets Windows release
+  /// the process and the build output folder, so the await is load
+  /// bearing rather than decorative.
+  Future<void> shutdown() async {
+    final enc = _encryptionService;
+    _encryptionService = null;
+    if (enc != null) {
+      try {
+        enc.dispose();
+      } catch (e) {
+        log.w('Error disposing encryption service', error: e);
+      }
+    }
+    await _disposeActiveClient();
   }
 }

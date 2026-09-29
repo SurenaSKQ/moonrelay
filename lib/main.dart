@@ -218,8 +218,13 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       // Register the unified shutdown callback so every close path
       // (window close button, tray "Quit", system close) tears down
       // services in the correct order before destroying the window.
+      //
+      // The account manager is captured rather than `state.sdk`: the
+      // Client is rebuilt on every account switch, so a client frozen
+      // into this closure is the boot one and is stale by the time the
+      // user quits. `performShutdown` resolves the live pair from it.
       MoonShutdown.register(() => performShutdown(
-            client: state.sdk,
+            accountManager: state.accountManager,
             log: state.log,
             logService: state.logService,
             registry: state.registry,

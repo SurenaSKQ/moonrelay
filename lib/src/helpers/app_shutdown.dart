@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:logger/logger.dart';
-import 'package:matrix/matrix.dart';
 
+import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/service_registry.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 
@@ -67,16 +67,23 @@ class MoonShutdown {
 /// Runs an orderly teardown of every live service before the
 /// application terminates.
 ///
-/// Order matters: sync-heavy consumers are disposed first so they
-/// stop reacting to events.  Then the Matrix [Client] is disposed,
-/// which tears down the [NativeImplementationsIsolate] background
-/// isolate, and crucially joins the native OS threads that
-/// `vodozemac.dll` (Rust FFI) spawned inside that isolate.  If we
-/// skipped this step, those orphaned threads would keep the DLL
-/// loaded, preventing Windows from fully releasing the process and
-/// locking the build output folder for the next rebuild.
+/// [accountManager] is passed rather than a [Client] because the
+/// account-scoped resources are replaced on every account switch: the
+/// shutdown callback is registered once at boot, so a `Client` captured
+/// in that closure is the boot client and is stale by the time the user
+/// quits if they switched accounts. [AccountManager.shutdown] resolves
+/// whatever is actually live.
+///
+/// Order matters: sync-heavy consumers are disposed first so they stop
+/// reacting to events, then the [Client] is disposed, which tears down
+/// the [NativeImplementationsIsolate] background isolate and crucially
+/// joins the native OS threads that `vodozemac.dll` (Rust FFI) spawned
+/// inside that isolate.  If we skipped this step, those orphaned threads
+/// would keep the DLL loaded, preventing Windows from fully releasing
+/// the process and locking the build output folder for the next
+/// rebuild.
 Future<void> performShutdown({
-  required Client client,
+  required AccountManager accountManager,
   required Logger log,
   required LogService logService,
   required ServiceRegistry registry,
@@ -85,18 +92,20 @@ Future<void> performShutdown({
   log.i('Shutting down…');
 
   // -- 1. Tear down all registry services in reverse order ------
-  // This handles EncryptionService, NotificationService,
-  // DeepLinkService, and any other service that registered during boot.
+  // This handles NotificationService, DeepLinkService,
+  // AutoUpdateService, and any other process-lifetime service that
+  // registered during boot.  The EncryptionService and the Client are
+  // deliberately absent: AccountManager owns those, and they get
+  // swapped on account switch, so the registry would only ever hold a
+  // disposed reference.
   await registry.shutdownAll(log);
 
-  // -- 2. Kill the Matrix client ---------------------------------
-  // This shuts down the sync loop, closes the database, and
-  // most importantly, tears down the NativeImplementationsIsolate which
-  // joins the native OS threads inside vodozemac.dll.
+  // -- 2. Account-scoped resources -------------------------------
+  // Disposes the live EncryptionService, then the live Client.
   try {
-    await client.dispose();
+    await accountManager.shutdown();
   } catch (e) {
-    log.w('Client dispose failed', error: e);
+    log.w('Account manager shutdown failed', error: e);
   }
 
   // -- 3. Tray icon cleanup --------------------------------------
@@ -108,11 +117,13 @@ Future<void> performShutdown({
     }
   }
 
-  // -- 4. Wipe log files -----------------------------------------
+  // -- 4. Close the log sink -------------------------------------
+  // `dispose`, not `wipeLogs`: the process is about to end, and
+  // `wipeLogs` exists to truncate while keeping logging alive.
   try {
-    await logService.wipeLogs();
+    await logService.dispose();
   } catch (e) {
-    log.w('Log wipe failed', error: e);
+    log.w('Log teardown failed', error: e);
   }
 
   log.i('Shutdown complete');
