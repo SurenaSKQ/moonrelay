@@ -101,8 +101,8 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Privacy / deep links / data
   bool _deepLinkAutoJoin = false;
   int _dbBackupKeepCount = 1;
-  bool _autoLockEnabled = false;
-  int _autoLockMinutes = 0;
+  bool _autoOfflinePresenceEnabled = false;
+  int _autoOfflinePresenceMinutes = 0;
   bool _wipeLogsOnLogout = true;
 
   // Advanced / debounces
@@ -203,8 +203,8 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Privacy / deep links / data
   bool get deepLinkAutoJoin => _deepLinkAutoJoin;
   int get dbBackupKeepCount => _dbBackupKeepCount;
-  bool get autoLockEnabled => _autoLockEnabled;
-  int get autoLockMinutes => _autoLockMinutes;
+  bool get autoOfflinePresenceEnabled => _autoOfflinePresenceEnabled;
+  int get autoOfflinePresenceMinutes => _autoOfflinePresenceMinutes;
   bool get wipeLogsOnLogout => _wipeLogsOnLogout;
 
   // Advanced / debounces
@@ -293,8 +293,8 @@ class SettingsController with ChangeNotifier, WindowListener {
 
     _deepLinkAutoJoin = snapshot.deepLinkAutoJoin;
     _dbBackupKeepCount = snapshot.dbBackupKeepCount;
-    _autoLockEnabled = snapshot.autoLockEnabled;
-    _autoLockMinutes = snapshot.autoLockMinutes;
+    _autoOfflinePresenceEnabled = snapshot.autoOfflinePresenceEnabled;
+    _autoOfflinePresenceMinutes = snapshot.autoOfflinePresenceMinutes;
     _wipeLogsOnLogout = snapshot.wipeLogsOnLogout;
 
     _syncDebounceMs = snapshot.syncDebounceMs;
@@ -780,19 +780,24 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  Future<void> updateAutoLockEnabled(bool value) async {
-    if (value == _autoLockEnabled) return;
-    _autoLockEnabled = value;
+  Future<void> updateAutoOfflinePresenceEnabled(bool value) async {
+    if (value == _autoOfflinePresenceEnabled) return;
+    _autoOfflinePresenceEnabled = value;
     notifyListeners();
-    await _settingsService.updateAutoLockEnabled(value);
+    await _settingsService.updateAutoOfflinePresenceEnabled(value);
   }
 
-  Future<void> updateAutoLockMinutes(int value) async {
-    value = value.clamp(0, 24 * 60);
-    if (value != _autoLockMinutes) {
-      _autoLockMinutes = value;
+  /// Sets the idle window, in minutes, before the account is marked offline.
+  ///
+  /// Clamped to start at 1 rather than 0: turning the toggle on without
+  /// touching the slider would otherwise mean "go offline on every
+  /// activity gap", with no way back in.
+  Future<void> updateAutoOfflinePresenceMinutes(int value) async {
+    value = value.clamp(1, 24 * 60);
+    if (value != _autoOfflinePresenceMinutes) {
+      _autoOfflinePresenceMinutes = value;
       notifyListeners();
-      await _settingsService.updateAutoLockMinutes(value);
+      await _settingsService.updateAutoOfflinePresenceMinutes(value);
     }
   }
 

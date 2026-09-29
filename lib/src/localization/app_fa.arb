@@ -2872,17 +2872,17 @@
   "@dbBackupKeepCount": {
     "description": "How many .bak files to keep when the database is wiped."
   },
-  "autoLockEnabled": "قفل خودکار هنگام عدم فعالیت",
-  "@autoLockEnabled": {
-    "description": "Toggle for auto-locking the app after a period of inactivity."
+  "autoOfflinePresenceEnabled": "نمایش آفلاین هنگام عدم فعالیت",
+  "@autoOfflinePresenceEnabled": {
+    "description": "Toggle for marking the account offline after a period of inactivity."
   },
-  "autoLockEnabledDescription": "علامت زدن حساب کاربری به عنوان آفلاین پس از مدتی بدون فعالیت صفحه‌کلید یا ماوس.",
-  "@autoLockEnabledDescription": {
-    "description": "Subtitle for the auto-lock toggle."
+  "autoOfflinePresenceEnabledDescription": "علامت زدن حساب کاربری به عنوان آفلاین پس از مدتی بدون فعالیت صفحه‌کلید یا ماوس.",
+  "@autoOfflinePresenceEnabledDescription": {
+    "description": "Subtitle for the appear-offline-when-idle toggle."
   },
-  "autoLockMinutes": "دقایق عدم فعالیت قبل از قفل خودکار",
-  "@autoLockMinutes": {
-    "description": "Number of minutes of inactivity before the auto-lock kicks in."
+  "autoOfflinePresenceMinutes": "دقایق عدم فعالیت پیش از نمایش آفلاین",
+  "@autoOfflinePresenceMinutes": {
+    "description": "Number of minutes of inactivity before the account is marked offline."
   },
   "wipeLogsOnLogout": "پاک کردن گزارش‌ها هنگام خروج",
   "@wipeLogsOnLogout": {
