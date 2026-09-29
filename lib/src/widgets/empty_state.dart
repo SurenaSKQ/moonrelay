@@ -19,11 +19,9 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A centred, self-contained empty/error state for a content pane.
 ///
-/// Replaces the two previous patterns this widget replaces:
-///  - `ProfileDelegate` returning a blank `SizedBox.shrink()` and relying
-///    solely on a transient snackbar, and
-///  - `RoomDelegate` returning a bare `EmptySpace()` (app branding splash)
-///    for a genuinely-missing room with no explanation.
+/// Used for the two cases the route layer deliberately does not treat as
+/// errors: no room is selected yet (`RoomsListRoute`) and a route id that is
+/// genuinely invalid (`ProfileView`).
 ///
 /// The state is a plain message with an icon; pass [actionLabel] and
 /// [onAction] to offer a single recovery affordance (e.g. "Back" or

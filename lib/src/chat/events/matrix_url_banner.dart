@@ -242,8 +242,8 @@ class MatrixUrlBanner extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (room != null) {
-        // Navigate by resolved room ID (not alias) so RoomDelegate can
-        // find it via getRoomById().
+      // Navigate by resolved room ID (not alias) so RoomResolver can
+      // find it via getRoomById().
         context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
       } else {
         context.push(
@@ -265,7 +265,7 @@ class MatrixUrlBanner extends StatelessWidget {
   /// - Uses `context.go` against `/profile/:userid` so the navigation
   ///   decouples from any room route the banner is currently sitting
   ///   under -- previously this pushed to `/main/rooms/<userid>` which
-  ///   silently failed because `RoomDelegate` couldn't resolve a userid
+  ///   silently failed because the room route could not resolve a userid
   ///   as a room id.
   void _openUser(BuildContext context) {
     final userId = result.entityId;

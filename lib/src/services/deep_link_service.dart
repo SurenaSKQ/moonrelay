@@ -230,9 +230,9 @@ void navigateToMatrixUri(
     case MatrixUriEntity.user:
       // Navigate to a user profile via the top-level profile route.
       // The previous implementation pushed to `/main/rooms/<userid>`,
-      // which silently failed because `RoomDelegate` could not
-      // resolve a userid as a room id -- the profile overlay is now
-      // decoupled from the room route.
+    // which silently failed because the room route could not
+    // resolve a userid as a room id -- the profile overlay is now
+    // decoupled from the room route.
       if (!RegExp(r'^@.+:.+$').hasMatch(result.entityId)) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
