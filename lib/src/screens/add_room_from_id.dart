@@ -24,7 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_directory_search.dart';
-import 'package:moonrelay/src/widgets/create_room_form.dart';
+import 'package:moonrelay/src/widgets/create_room_form/create_room_form.dart';
 import 'package:moonrelay/src/widgets/user_search_widget.dart';
 import 'package:provider/provider.dart';
 

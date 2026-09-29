@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'package:moonrelay/src/widgets/create_room_form/join_rule_tile.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -651,7 +652,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
               ),
               child: Column(
                 children: [
-                  _JoinRuleTile(
+                  JoinRuleTile(
                     value: 'public',
                     groupValue: _joinRule,
                     icon: LucideIcons.globe,
@@ -662,7 +663,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                       _isPublic = v == 'public';
                     }),
                   ),
-                  _JoinRuleTile(
+                  JoinRuleTile(
                     value: 'invite',
                     groupValue: _joinRule,
                     icon: LucideIcons.lock,
@@ -673,7 +674,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                       _isPublic = false;
                     }),
                   ),
-                  _JoinRuleTile(
+                  JoinRuleTile(
                     value: 'knock',
                     groupValue: _joinRule,
                     icon: LucideIcons.logIn,
@@ -684,7 +685,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                       _isPublic = false;
                     }),
                   ),
-                  _JoinRuleTile(
+                  JoinRuleTile(
                     value: 'restricted',
                     groupValue: _joinRule,
                     icon: LucideIcons.shield,
@@ -695,7 +696,7 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
                       _isPublic = false;
                     }),
                   ),
-                  _JoinRuleTile(
+                  JoinRuleTile(
                     value: 'knock_restricted',
                     groupValue: _joinRule,
                     icon: LucideIcons.shield,
@@ -745,43 +746,4 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
 
   String get _typeLabel =>
       widget.parentSpace != null ? 'room' : (_isSpace ? 'space' : 'room');
-}
-
-/// A radio list tile used inside the join rules picker.
-class _JoinRuleTile extends StatelessWidget {
-  const _JoinRuleTile({
-    required this.value,
-    required this.groupValue,
-    required this.icon,
-    required this.title,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final String value;
-  final String groupValue;
-  final IconData icon;
-  final String title;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final selected = value == groupValue;
-
-    return ListTile(
-      leading: Icon(icon,
-          size: t.iconSizeMedium, color: selected ? cs.primary : cs.onSurfaceVariant),
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      trailing: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        size: t.iconSizeMedium,
-        color: selected ? cs.primary : cs.onSurfaceVariant,
-      ),
-      onTap: enabled ? () => onChanged(value) : null,
-      dense: true,
-    );
-  }
 }
