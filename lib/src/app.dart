@@ -168,6 +168,13 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
           _bindPulse(client);
           app = Provider<Client>.value(value: client, child: app);
         }
+
+        // Retune the sync fan-out debounce from the user's setting. The
+        // pulse is owned by this State, so it lives above the routes and
+        // is not rebuilt per screen. Read here rather than at
+        // construction because the value is user-editable at runtime.
+        _syncPulse.debounce =
+            Duration(milliseconds: settingsController.syncDebounceMs);
         app = ChangeNotifierProvider<SyncPulse>.value(
           value: _syncPulse,
           child: app,
