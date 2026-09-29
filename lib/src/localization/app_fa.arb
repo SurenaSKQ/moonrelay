@@ -1053,6 +1053,7 @@
   "encryptionKeysBackedUp": "کلیدهای پشتیبان‌گیری‌شده",
   "encryptionBackupRecoveryKeySet": "کلید بازیابی تنظیم شده است",
   "encryptionBackupNoRecoveryKey": "کلید بازیابی تنظیم نشده است",
+  "encryptionBackupRecoveryKeyUnknown": "وضعیت کلید بازیابی نامشخص است",
   "roomNotFound": "اتاق یافت نشد",
   "roomNotFoundHint": "باید قبل از مشاهده پیام‌ها به یک اتاق بپیوندید. از نوار جست‌وجوی بالا برای یافتن و پیوستن به اتاق‌ها استفاده کنید.",
   "profileIdNullError": "شناسه کاربر قابل درک نبود. لطفاً بعداً دوباره تلاش کنید یا یک باگ به پروژه ما گزارش دهید.",
@@ -3464,6 +3465,7 @@
   "@encryptionBackupRecoveryKeyHint": {
     "description": "Hint for recovery key setup."
   },
+  "encryptionBackupRecoveryKeyUnknownHint": "Moonrelay نمی‌تواند از طریق API مینه‌ساز تشخیص دهد که آیا کلید بازیابی تنظیم شده است. اگر مطمئن نیستید، تنظیمات بازیابی را دوباره اجرا کنید تا از بازیابی تاریخچه رمزنگاری‌شده در دستگاه جدید مطمئن شوید.",
   "stateMessageRedacted": "پیام توسط {name} حذف شد",
   "@stateMessageRedacted": {
     "description": "Timeline event showing that someone deleted a message.",

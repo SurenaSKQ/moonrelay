@@ -146,5 +146,47 @@ void main() {
           .first;
       expect(appbarIcon, isNotNull);
     });
+
+    group('recovery key row', () {
+      Future<void> pumpBackupCard(WidgetTester tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Key Backup'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('reads "set" when a key is cached', (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(true);
+        await pumpBackupCard(tester);
+        expect(find.text('Recovery key is set'), findsOneWidget);
+        expect(find.text('No recovery key set'), findsNothing);
+        expect(find.text('Recovery key status unknown'), findsNothing);
+      });
+
+      testWidgets('reads "not set" when the key is known absent',
+          (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(false);
+        await pumpBackupCard(tester);
+        expect(find.text('No recovery key set'), findsOneWidget);
+        expect(find.text('Recovery key is set'), findsNothing);
+      });
+
+      // The regression this pins: the old implementation reported
+      // crossSigning.enabled here, so any bootstrapped account was told it
+      // had a recovery key. `null` must render as its own state, never as
+      // either of the two answers.
+      testWidgets('reads "unknown" when the SDK gives no signal',
+          (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(null);
+        await pumpBackupCard(tester);
+        expect(find.text('Recovery key status unknown'), findsOneWidget);
+        expect(find.text('Recovery key is set'), findsNothing);
+        expect(find.text('No recovery key set'), findsNothing);
+      });
+    });
   });
 }

@@ -78,6 +78,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     try {
       return room.encrypted;
     } catch (_) {
+      // The SDK throws when the room's `m.room.encryption` state has not
+      // loaded. Not encrypted as far as this screen can tell, which is
+      // the safe direction: the encryption badge is informational, the
+      // real enforcement is in the SDK.
       return false;
     }
   }

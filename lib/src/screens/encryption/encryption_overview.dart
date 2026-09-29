@@ -299,24 +299,37 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
                         label: loc.encryptionBackupAlgorithm,
                         value: enc.keyBackupAlgorithm!,
                       ),
-                    // Cached recovery key
+                    // Cached recovery key.
+                    //
+                    // Tri-state: `keyBackupCached` is null when the SDK
+                    // gives us no way to know. Showing "No recovery key
+                    // set" for that would be a guess, and this row is the
+                    // user's only signal about whether they can still
+                    // restore their history.
                     _StatusRow(
-                      icon: enc.keyBackupCached
-                          ? LucideIcons.checkCircle
-                          : LucideIcons.helpCircle,
-                      iconColor: enc.keyBackupCached
-                          ? Colors.green
-                          : Colors.orange,
-                      label: enc.keyBackupCached
-                          ? loc.encryptionBackupRecoveryKeySet
-                          : loc.encryptionBackupNoRecoveryKey,
+                      icon: switch (enc.keyBackupCached) {
+                        true => LucideIcons.checkCircle,
+                        false => LucideIcons.circleAlert,
+                        null => LucideIcons.helpCircle,
+                      },
+                      iconColor: switch (enc.keyBackupCached) {
+                        true => Colors.green,
+                        false || null => Colors.orange,
+                      },
+                      label: switch (enc.keyBackupCached) {
+                        true => loc.encryptionBackupRecoveryKeySet,
+                        false => loc.encryptionBackupNoRecoveryKey,
+                        null => loc.encryptionBackupRecoveryKeyUnknown,
+                      },
                     ),
-                    if (!enc.keyBackupCached) ...[
+                    if (enc.keyBackupCached != true) ...[
                       SizedBox(height: t.spaceSm),
                       Padding(
                         padding: const EdgeInsets.only(left: 26),
                         child: Text(
-                          loc.encryptionBackupRecoveryKeyHint,
+                          enc.keyBackupCached == false
+                              ? loc.encryptionBackupRecoveryKeyHint
+                              : loc.encryptionBackupRecoveryKeyUnknownHint,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.outline,
                           ),
