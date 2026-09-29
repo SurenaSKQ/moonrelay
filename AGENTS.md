@@ -43,10 +43,11 @@ flutter gen-l10n
 
 ```
 lib/
-  main.dart                   # Entry point, init pipeline, MultiProvider setup
+  main.dart                   # Entry point, MoonrelayBootstrap, MultiProvider setup
   src/
     app.dart                  # MaterialApp.router
     router.dart               # GoRouter with ShellRoute nesting
+    boot.dart                 # runBootPipeline: the actual init sequence
     init_logger.dart          # Log service bootstrap
     splash_screen.dart        # Boot splash with status/error states
     screens/                  # Full-page views (rooms, profiles, settings, etc.)
@@ -66,48 +67,52 @@ lib/
       deep_link_listener.dart # Listens to DeepLinkService & navigates via GoRouter
     helpers/                  # Data-free utility classes & shared state
       matrix_uri_parser.dart  # Parses matrix: and matrix.to URIs
+      feedback.dart           # FeedbackContext: snackbar + confirm helpers with the mounted guard
+      async_utils.dart        # withTimeout / withRetry / withTimeoutOrFallback
     services/                 # Database lifecycle, SSO callback, deep links, notifications
       database_service.dart  # Schema version checks, backup-before-wipe, MatrixSdkDatabase creation
       deep_link_service.dart  # Handles incoming matrix:// URLs via method channel
-    layouts/                  # Frame and dashboard layout widgets
+    layouts/                  # AppFrame, dashboard/mobile layouts, LayoutShellController
     settings/                 # Controller, service, accents, display/layout enums
     theme/                    # Design tokens, component tokens, ThemeExtension
     encryption/               # EncryptionService (cross-signing, key backup, devices)
     localization/             # ARB file + generated l10n code
-    events/
-      message_body.dart       # Shared text/HTML body renderer for all display styles
 test/
   unit/                       # Pure Dart tests (no Flutter dependency)
-    matrix_uri_parser_test.dart  # 25 tests for MatrixUriParser
+    matrix_uri_parser_test.dart  # 50 cases for MatrixUriParser
   widget/                     # Flutter widget tests
   helpers/                    # Shared test utilities (mocks, wrapWithProviders)
 ```
 
 ## Architecture & Control Flow
 
-### Init pipeline (`main.dart`)
+### Init pipeline (`main.dart` + `boot.dart`)
 
 ```
 main() -> MoonrelayBootstrap -> _boot()
   1. initializeLog()  LogService
-  2. _initialize()  heavy init:
+  2. _initialize() in main.dart: load saved accounts, then hand off to
+     runBootPipeline() in boot.dart, which does the heavy init:
      a. Vodozemac native crypto init
      b. SQLite FFI init
-     c. Database schema version check (wipes on version bump)
-     d. Open database + MatrixSdkDatabase
-     e. Create Matrix Client (with NativeImplementationsIsolate)
-     f. System theme + SettingsController load
-     g. Window manager setup (custom titlebar on desktop)
-     h. EncryptionService init
-     i. CurrentRoom init
-     j. NotificationService init
-     k. TrayService init (desktop only)
-     l. DeepLinkService init (method channel for matrix:// URLs)
-     m. AccountManager wiring
+     c. Open database + MatrixSdkDatabase (schema check wipes on bump)
+     d. Create Matrix Client (with NativeImplementationsIsolate)
+     e. SettingsController + SpacePreferences load
+     f. Window manager setup (custom titlebar on desktop)
+     g. EncryptionService init
+     h. CurrentRoom init
+     i. DeepLinkService init, then NotificationService init
+     j. TrayService init (desktop only)
+     k. AccountManager wiring (rebuilds Client/EncryptionService if it
+        switches to a saved account)
+     l. AutoUpdateService
+     m. Wait for first sync
   3. MultiProvider wraps MoonrelayApp with:
-     - Client, Logger, LogService (Provider)
-     - SettingsController, NavigationState, EncryptionService, CurrentRoom, AccountManager (ChangeNotifierProvider)
-     - NotificationService, DeepLinkService (Provider)
+     - Client, Logger, LogService, NotificationService, DeepLinkService,
+       AutoUpdateService (Provider)
+     - SettingsController, NavigationState, LayoutShellController,
+       AccountManager, EncryptionService, SpacePreferences, CurrentRoom
+       (ChangeNotifierProvider)
 ```
 
 Key: `kDbSchemaVersion` constant controls DB wipe. Bump on every release during alpha.
@@ -126,13 +131,18 @@ Redirect guards: `loggedInRedirect` and `loggedOutRedirect` read `Provider.of<Cl
 
 ```
 AppFrame (custom titlebar + window controls)
-└-- DashboardLayout (multi-pane desktop layout)
-    ├-- NavigationPane (leftmost bar  Home, All, Spaces)
-    ├-- Left Sidebar (rooms/spaces/friends list, collapsible)
-    ├-- Main content (route child  RoomPage, HubScreen, etc.)
-    ├-- Right Sidebar (room info/members, collapsible, hides <1100px)
-    └-- StatusBar (sync status)
+└-- _AdaptiveMainLayout (commits the shell from LayoutShellController)
+    ├-- DashboardLayout (multi-pane, expanded + compact shells)
+    │   ├-- Navigation sidebar (Home, All, Spaces)
+    │   ├-- Left sidebar (rooms/spaces/friends, collapsible)
+    │   ├-- Main content (route child  RoomPage, HubScreen, etc.)
+    │   ├-- Right sidebar (room info/members, collapsible)
+    │   └-- StatusBar (sync status)
+    └-- MobileLayout (single pane)
 ```
+
+There is no `_DashboardView` class; `DashboardLayout` owns the shell decision
+by delegating to the shared, app-level `LayoutShellController`.
 
 ### State management
 
@@ -151,7 +161,7 @@ Pattern: `Consumer2<A, B>` or `ListenableBuilder` for rebuild scoping. `context.
 - `// Part of Moonrelay, a matrix protocol client.` first line
 - Formatted section separators: `// -- Section name --`
 - Named constructors with `super.key`
-- Private types prefixed with `_` (e.g. `_AppState`, `_DashboardView`)
+- Private types prefixed with `_` (e.g. `_AppState`, `_DashboardLayoutState`)
 - `const` constructors where possible
 
 ### Common Dart patterns
@@ -332,8 +342,8 @@ testWidgets('login then see rooms', (tester) async {
 
 | Package | Purpose |
 |---------|---------|
-| `matrix: ^7.2.3` | Matrix Dart SDK (networking, sync, rooms, events) |
-| `flutter_vodozemac: ^0.5.0` | Native Olm/Megolm crypto (E2EE) |
+| `matrix: ^9.0.0` | Matrix Dart SDK (networking, sync, rooms, events) |
+| `flutter_vodozemac: ^0.6.0` | Native Olm/Megolm crypto (E2EE) |
 | `provider: ^6.1.2` | State management |
 | `go_router: ^17.3.0` | Declarative routing with ShellRoute nesting |
 | `lucide_icons_flutter: ^3.0.4` | Icon set |
@@ -349,11 +359,11 @@ testWidgets('login then see rooms', (tester) async {
 
 1. **Timeline is newest-first**: `Timeline.events[0]` is the most recent event. `ListView.builder(reverse: true)` renders from bottom. Events with `relationshipEventId != null` (replies, reactions, edits, threads) are filtered out  they render inline with their parent.
 
-2. **Database wipe on version mismatch**: `kDbSchemaVersion = 1` in `main.dart`. If the stored version doesn't match, the DB is deleted entirely. Bump on every alpha release.
+2. **Database wipe on version mismatch**: `kDbSchemaVersion = 3` at `lib/main.dart:59`. If the stored version doesn't match, the DB is deleted entirely. Bump on every alpha release.
 
 3. **Splash ↔ app swap**: The init pipeline runs outside the widget tree in `MoonrelayBootstrap._boot()`. The splash screen can't receive status updates until the widget tree is stable. The swap happens via a single `setState(() => _appState = ...)`.
 
-4. **Right sidebar hides < 1100px**: `DashboardLayout._DashboardView` uses `LayoutBuilder` with a hardcoded `constraints.maxWidth >= 1100` breakpoint.
+4. **Three shells, not two**: `LayoutBreakpoints` in `lib/src/helpers/responsive.dart` defines `mobileMax` and `compactMax` (1100). `LayoutShellController` maps width plus the user's forced `LayoutMode` onto `mobile` / `compact` / `expanded` with a 60px sticky dead band, and is the single source of truth every consumer reads.
 
 5. **Sidebar resize uses local state**: `_DashboardLayoutState` tracks ephemeral `_leftWidth`/`_rightWidth` during drag, persists to `SettingsController` only on drag end.
 
@@ -361,13 +371,13 @@ testWidgets('login then see rooms', (tester) async {
 
 7. **Encryption state refreshes on every sync**: `EncryptionService` attaches to `client.onSync.stream` and refreshes cross-signing, backup, and device state after every sync.
 
-8. **No CI found**: No `.github/` workflows. `dart analyze` must pass before PRs (per README).
+8. **CI exists**: `.github/workflows/` has five workflows. `tests.yml` (the `ci` workflow) runs `flutter analyze` plus the unit and widget suites on both OSes, then release bundle smoke checks. `package-linux.yml`, `package-windows.yml` and `release.yml` handle distribution. The `integration_test/` suite is NOT in CI: it needs a real desktop session, so `CONTRIBUTING.md` asks contributors to run it locally.
 
 9. **`metadata` file exists**: Don't modify `.metadata`  Flutter uses it internally.
 
 10. **env. SDK constraint**: `>=3.2.6 <4.0.0`  uses Dart 3 features (sealed classes in `async_utils.dart`).
 
-11. **Reply sending not wired**: `ChatBox` has reply preview UI but `sendFn` doesn't include `m.relates_to` with `m.in_reply_to`. The receiving side works via `_ReplyPreview`.
+11. **Reply sending IS wired**: `ChatBox._send` puts `m.relates_to.m.in_reply_to.event_id` into the outgoing content at `lib/src/chat/chat_box.dart:342-346`, and threading adds `m.thread` to the same block. Both the sending and receiving halves work; an older note here claimed otherwise and would have led an agent to "fix" working code.
 
 12. **Matrix URL banners in chat**: Text content wraps with `MatrixUrlBannerWrapper`, which scans the message body for `matrix:` and `matrix.to` URLs and appends `MatrixUrlBanner` widgets. The banner shows room/user info and a "Go to Room" / "Preview Room" / "Open Profile" button. Detection uses `MatrixUriParser.parseAll()`. The text body itself is rendered by the shared `MessageBody` widget.
 
@@ -548,13 +558,13 @@ Image.network(
 * **Screen Reader Testing:** Regularly test your app with TalkBack (Android) and VoiceOver (iOS).
 
 ## Analysis Options
-Strictly follow `flutter_lints`.
 
-```yaml
-include: package:flutter_lints/flutter.yaml
-linter:
-  rules:
-    avoid_print: true
-    prefer_single_quotes: true
-    always_use_package_imports: true
-```
+`analysis_options.yaml` enables stock `package:flutter_lints` and nothing
+else, so the only rules that fire are Flutter's defaults. Do not assume
+extra lints are active: in particular the project uses double quotes and
+`dart:developer`'s `log` (or the injected `Logger`) rather than the
+single-quote / `avoid_print` discipline some style guides recommend, and
+`lib/main.dart` mixes relative and package imports on purpose.
+
+If you add a lint rule to `analysis_options.yaml`, expect to fix the
+resulting findings in the same change, or do not add it.
