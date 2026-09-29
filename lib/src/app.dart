@@ -122,12 +122,14 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
                 density: settingsController.density,
                 fontFamily: settingsController.fontFamily,
                 monoFontFamily: settingsController.monoFontFamily,
+                enableAnimations: settingsController.enableAnimations,
               ),
               darkTheme: MoonrelayTheme.dark(
                 settingsController.selectedAccent.seedColor,
                 density: settingsController.density,
                 fontFamily: settingsController.fontFamily,
                 monoFontFamily: settingsController.monoFontFamily,
+                enableAnimations: settingsController.enableAnimations,
               ),
               themeMode: settingsController.themeMode,
               builder: (context, child) => MediaQuery(
