@@ -45,6 +45,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/privacy_settings.dart'
 import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/update_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/keybind_settings.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
@@ -379,9 +380,19 @@ class _HubScreenState extends State<HubScreen> {
     try {
       final accountManager = context.read<AccountManager>();
       final logService = context.read<LogService>();
+      // Service, not a single read, because the advanced settings page
+      // applies changes through it: these four names are consumed there
+      // rather than read directly, which is what keeps the logger's
+      // identity stable for the long-lived references to it.
+      final settings = context.read<SettingsController>();
       await accountManager.logout();
-      // Wipe all log files now that the session has been torn down.
-      await logService.wipeLogs();
+      // Wipe all log files now that the session has been torn down, so no
+      // session-related line survives on disk. Gated on the user's
+      // privacy preference: it was previously unconditional, which made
+      // the toggle in privacy settings do nothing.
+      if (settings.wipeLogsOnLogout) {
+        await logService.wipeLogs();
+      }
       if (!mounted) return;
       context.go('/');
     } catch (e) {
