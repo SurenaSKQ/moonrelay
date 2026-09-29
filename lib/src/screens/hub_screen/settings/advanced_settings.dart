@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import 'package:moonrelay/src/helpers/log_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
@@ -170,7 +173,11 @@ class HubAdvancedSettings extends StatelessWidget {
                     min: 1,
                     max: 256,
                     divisions: 255,
-                    onChanged: controller.updateLogMaxFileSizeMb,
+                    onChanged: (v) => _updateLogs(
+                      context,
+                      controller,
+                      (c) => c.updateLogMaxFileSizeMb(v),
+                    ),
                   ),
                   _SliderTile(
                     icon: LucideIcons.files,
@@ -179,7 +186,11 @@ class HubAdvancedSettings extends StatelessWidget {
                     min: 0,
                     max: 50,
                     divisions: 50,
-                    onChanged: controller.updateLogMaxFiles,
+                    onChanged: (v) => _updateLogs(
+                      context,
+                      controller,
+                      (c) => c.updateLogMaxFiles(v),
+                    ),
                   ),
                   _SliderTile(
                     icon: LucideIcons.timer,
@@ -189,7 +200,11 @@ class HubAdvancedSettings extends StatelessWidget {
                     min: 1,
                     max: 600,
                     divisions: 60,
-                    onChanged: controller.updateLogFlushDelayS,
+                    onChanged: (v) => _updateLogs(
+                      context,
+                      controller,
+                      (c) => c.updateLogFlushDelayS(v),
+                    ),
                   ),
                   SwitchListTile(
                     title: Text(l10n.logVerboseRelease),
@@ -230,7 +245,42 @@ class HubAdvancedSettings extends StatelessWidget {
         ),
       ),
     );
-    if (selected != null) await controller.updateLogLevel(selected);
+    if (selected == null) return;
+    if (!context.mounted) return;
+    _updateLogs(context, controller, (c) => c.updateLogLevel(selected));
+  }
+
+  /// Persists a logging setting and then pushes the whole policy into the
+  /// live sink.
+  ///
+  /// The four logging controls share one sink, so they are applied as a
+  /// set rather than individually: `LogService.reconfigure` rebuilds the
+  /// output, and doing that four times for one user action would churn
+  /// the file handle for nothing. [mutate] persists first, so the
+  /// controller is authoritative by the time the policy is read back.
+  ///
+  /// The apply is unawaited on purpose. It is a file-handle swap with no
+  /// user-visible result, and blocking the slider on it would make
+  /// dragging feel sticky. A failure is logged inside `LogService` rather
+  /// than surfaced, because the old sink keeps working in that case.
+  static void _updateLogs(
+    BuildContext context,
+    SettingsController controller,
+    Future<void> Function(SettingsController) mutate,
+  ) {
+    // Resolve the service before any await: the read has to happen in the
+    // frame the tap arrived in, and holding a `BuildContext` across the
+    // persist would trip `use_build_context_synchronously`.
+    final logService = context.read<LogService>();
+    unawaited(() async {
+      await mutate(controller);
+      await logService.applyPolicy(
+        maxFileSizeMb: controller.logMaxFileSizeMb,
+        maxRotatedFiles: controller.logMaxFiles,
+        flushDelaySeconds: controller.logFlushDelayS,
+        level: controller.logLevel,
+      );
+    }());
   }
 }
 
