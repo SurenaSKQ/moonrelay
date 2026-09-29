@@ -24,6 +24,8 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
+import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -81,15 +83,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 
   String _creationDate(Room room) {
-    final createEvent =
-        room.getState(EventTypes.RoomCreate)?.content.tryGet('created_at');
-    if (createEvent is String && createEvent.isNotEmpty) {
-      final dt = DateTime.tryParse(createEvent);
-      if (dt != null) {
-        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-      }
-    }
-    return AppLocalizations.of(context)!.unknownDate;
+    final created = roomCreatedAt(room);
+    if (created == null) return AppLocalizations.of(context)!.unknownDate;
+    return formatIsoDay(created);
   }
 
   bool _canChange(String eventType) =>
@@ -104,113 +100,43 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Future<void> _editRoomName() async {
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
-    final controller =
-        TextEditingController(text: room.getLocalizedDisplayname());
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.editRoomName),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.editRoomNameHint,
-          ),
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
+    final newName = await _promptText(
+      title: l10n.editRoomName,
+      hintText: l10n.editRoomNameHint,
+      initial: room.getLocalizedDisplayname(),
     );
+    // A room always has a name, so an empty one is a rejected edit rather
+    // than a request to clear the field.
+    if (newName == null || newName.isEmpty || !mounted) return;
+    if (newName == room.getLocalizedDisplayname()) return;
 
-    if (confirmed != true || !mounted) return;
-
-    final newName = controller.text.trim();
-    if (newName.isEmpty || newName == room.getLocalizedDisplayname()) return;
-
-    try {
-      await room.setName(newName);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.roomNameUpdated),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    await context.showActionResult(
+      action: () => room.setName(newName),
+      successMessage: l10n.roomNameUpdated,
+      floating: true,
+      formatError: (e) => '${l10n.error}: $e',
+    );
   }
 
   Future<void> _editRoomTopic() async {
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController(text: room.topic);
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.editRoomTopic),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: l10n.editRoomTopicHint,
-          ),
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
+    // Unlike the name, an empty topic is a legitimate way to clear it.
+    final newTopic = await _promptText(
+      title: l10n.editRoomTopic,
+      hintText: l10n.editRoomTopicHint,
+      initial: room.topic,
+      maxLines: 3,
     );
-
-    if (confirmed != true || !mounted) return;
-
-    final newTopic = controller.text.trim();
+    if (newTopic == null || !mounted) return;
     if (newTopic == room.topic) return;
 
-    try {
-      await room.setDescription(newTopic);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.roomTopicUpdated),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    await context.showActionResult(
+      action: () => room.setDescription(newTopic),
+      successMessage: l10n.roomTopicUpdated,
+      floating: true,
+      formatError: (e) => '${l10n.error}: $e',
+    );
   }
 
   Future<void> _changeRoomAvatar() async {
@@ -744,25 +670,90 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     String stateKey = '',
   }) async {
     final log = context.read<Logger>();
-    try {
-      await context.read<Client>().setRoomStateWithKey(
-        widget.room.id,
-        type,
-        stateKey,
-        <String, dynamic>{key: value},
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.done)),
-      );
-    } catch (e) {
-      log.w('Failed to update $type', error: e);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
-      );
-    }
+    await context.showActionResult(
+      action: () => context.read<Client>().setRoomStateWithKey(
+            widget.room.id,
+            type,
+            stateKey,
+            <String, dynamic>{key: value},
+          ),
+      successMessage: AppLocalizations.of(context)!.done,
+      floating: true,
+      log: log,
+      logLabel: 'update $type',
+    );
+  }
+
+  /// Shows a radio list and returns the picked value, or `null` on cancel.
+  ///
+  /// Every "one of a fixed set of enum-ish strings" room setting is this
+  /// dialog with a different title and list, so the pre-change copy of it
+  /// appeared six times in this file.
+  Future<T?> _pickOption<T>({
+    required String title,
+    required T? current,
+    required List<T> values,
+    required String Function(T value) labelOf,
+  }) {
+    return showDialog<T>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(title),
+        children: [
+          RadioGroup<T>(
+            groupValue: current,
+            onChanged: (v) => Navigator.of(ctx).pop(v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final value in values)
+                  RadioListTile<T>(
+                    value: value,
+                    title: Text(labelOf(value)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows a single-line (or multi-line) text prompt and returns the trimmed
+  /// text, or `null` on cancel.
+  ///
+  /// An empty string is a valid answer here: clearing the room alias or the
+  /// topic is a real edit, so the caller cannot treat "empty" as "cancel".
+  Future<String?> _promptText({
+    required String title,
+    String? hintText,
+    String initial = '',
+    int maxLines = 1,
+  }) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: maxLines,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(hintText: hintText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text(AppLocalizations.of(ctx)!.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(AppLocalizations.of(ctx)!.ok),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
   }
 
   String _joinRuleLabel(AppLocalizations l10n, JoinRules r) {
@@ -784,33 +775,17 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _editJoinRules(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final selected = await showDialog<JoinRules>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.joinRuleLabel),
-        children: [
-          RadioGroup<JoinRules>(
-            groupValue: widget.room.joinRules,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final r in [
-                  JoinRules.public,
-                  JoinRules.invite,
-                  JoinRules.knock,
-                  JoinRules.restricted,
-                  JoinRules.knockRestricted,
-                ])
-                  RadioListTile<JoinRules>(
-                    value: r,
-                    title: Text(_joinRuleLabel(l10n, r)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final selected = await _pickOption<JoinRules>(
+      title: l10n.joinRuleLabel,
+      current: widget.room.joinRules,
+      values: const [
+        JoinRules.public,
+        JoinRules.invite,
+        JoinRules.knock,
+        JoinRules.restricted,
+        JoinRules.knockRestricted,
+      ],
+      labelOf: (r) => _joinRuleLabel(l10n, r),
     );
     if (selected == null || !mounted) return;
     await _setStateEvent('m.room.join_rules', 'join_rule', selected.name);
@@ -818,37 +793,20 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<void> _editHistoryVisibility(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final options = <String, String>{
-      'world_readable': l10n.historyVisibilityWorldReadable,
-      'shared': l10n.historyVisibilityShared,
-      'invited': l10n.historyVisibilityInvited,
-      'joined': l10n.historyVisibilityJoined,
-    };
     final current = widget.room
             .getState('m.room.history_visibility')
             ?.content['history_visibility'] as String? ??
         'shared';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.historyVisibilitySection),
-        children: [
-          RadioGroup<String>(
-            groupValue: current,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final entry in options.entries)
-                  RadioListTile<String>(
-                    value: entry.key,
-                    title: Text(entry.value),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final selected = await _pickOption<String>(
+      title: l10n.historyVisibilitySection,
+      current: current,
+      values: const ['world_readable', 'shared', 'invited', 'joined'],
+      labelOf: (value) => switch (value) {
+        'world_readable' => l10n.historyVisibilityWorldReadable,
+        'invited' => l10n.historyVisibilityInvited,
+        'joined' => l10n.historyVisibilityJoined,
+        _ => l10n.historyVisibilityShared,
+      },
     );
     if (selected == null || !mounted) return;
     await _setStateEvent(
@@ -863,44 +821,26 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     // Capture the client before any await so we can use it after the
     // gap without tripping the `use_build_context_synchronously` lint.
     final client = context.read<Client>();
-    final controller = TextEditingController(text: widget.room.canonicalAlias);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.canonicalAliasSection),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: l10n.canonicalAliasHint),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
+    final result = await _promptText(
+      title: l10n.canonicalAliasSection,
+      hintText: l10n.canonicalAliasHint,
+      initial: widget.room.canonicalAlias,
     );
-    if (result == null || !mounted) return;
-    try {
-      await client.setRoomStateWithKey(
+    if (result == null || !context.mounted) return;
+    // An empty alias is a real edit (it removes the alias), so this sends
+    // an explicit null rather than skipping the request.
+    await context.showActionResult(
+      action: () => client.setRoomStateWithKey(
         widget.room.id,
         'm.room.canonical_alias',
         '',
         <String, dynamic>{
           'alias': result.isEmpty ? null : result,
         },
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+      ),
+      successMessage: null,
+      floating: true,
+    );
   }
 
   Future<void> _editGuestAccess(BuildContext context) async {
@@ -909,30 +849,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             .getState('m.room.guest_access')
             ?.content['guest_access'] as String? ??
         'forbidden';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.guestAccessSection),
-        children: [
-          RadioGroup<String>(
-            groupValue: current,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<String>(
-                  value: 'can_join',
-                  title: Text(l10n.guestAccessCanJoin),
-                ),
-                RadioListTile<String>(
-                  value: 'forbidden',
-                  title: Text(l10n.guestAccessForbidden),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final selected = await _pickOption<String>(
+      title: l10n.guestAccessSection,
+      current: current,
+      values: const ['can_join', 'forbidden'],
+      labelOf: (value) => value == 'can_join'
+          ? l10n.guestAccessCanJoin
+          : l10n.guestAccessForbidden,
     );
     if (selected == null || !mounted) return;
     await _setStateEvent('m.room.guest_access', 'guest_access', selected);
@@ -1133,48 +1056,28 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             // we don't track locally.
             ?.content['visibility'] as String? ??
         'private';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.directoryVisibilitySection),
-        children: [
-          RadioGroup<String>(
-            groupValue: current,
-            onChanged: (v) => Navigator.of(ctx).pop(v),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<String>(
-                  value: 'public',
-                  title: Text(l10n.directoryVisibilityPublic),
-                ),
-                RadioListTile<String>(
-                  value: 'private',
-                  title: Text(l10n.directoryVisibilityPrivate),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final selected = await _pickOption<String>(
+      title: l10n.directoryVisibilitySection,
+      current: current,
+      values: const ['public', 'private'],
+      labelOf: (value) => value == 'public'
+          ? l10n.directoryVisibilityPublic
+          : l10n.directoryVisibilityPrivate,
     );
-    if (selected == null || !mounted) return;
-    try {
-      // The directory visibility lives on the API rather than as a state
-      // event; we hit `_matrix/client/v3/directory/list/room/{id}` via the
-      // generated MatrixApi.
-      final vis = selected == 'public' ? 'public' : 'private';
-      // Use the MatrixApi helper inherited by Client.
-      await client.setRoomVisibilityOnDirectory(
+    if (selected == null || !context.mounted) return;
+    // The directory visibility lives on the API rather than as a state
+    // event; we hit `_matrix/client/v3/directory/list/room/{id}` via the
+    // generated MatrixApi.
+    await context.showActionResult(
+      action: () => client.setRoomVisibilityOnDirectory(
         room.id,
-        visibility: vis == 'public' ? Visibility.public : Visibility.private,
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.actionFailed('$e'))),
-      );
-    }
+        visibility: selected == 'public'
+            ? Visibility.public
+            : Visibility.private,
+      ),
+      successMessage: null,
+      floating: true,
+    );
   }
 
   Future<void> _upgradeRoom(BuildContext context) async {

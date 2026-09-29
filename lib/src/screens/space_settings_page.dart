@@ -23,6 +23,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -366,15 +367,9 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
   }
 
   String _creationDate(Room room) {
-    final createEvent =
-        room.getState(EventTypes.RoomCreate)?.content.tryGet('created_at');
-    if (createEvent is String && createEvent.isNotEmpty) {
-      final dt = DateTime.tryParse(createEvent);
-      if (dt != null) {
-        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-      }
-    }
-    return AppLocalizations.of(context)!.unknownDate;
+    final created = roomCreatedAt(room);
+    if (created == null) return AppLocalizations.of(context)!.unknownDate;
+    return formatIsoDay(created);
   }
 
   // ---------------------------------------------------------------------------
