@@ -88,23 +88,6 @@ class HubPrivacySettings extends StatelessWidget {
                       ),
                     ),
                   ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.user, size: 22),
-                    title: Text(l10n.avatarCacheTtlDays),
-                    subtitle: Text('${controller.avatarCacheTtlDays}'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.avatarCacheTtlDays.toDouble(),
-                        min: 0,
-                        max: 90,
-                        divisions: 90,
-                        label: '${controller.avatarCacheTtlDays}',
-                        onChanged: (v) =>
-                            controller.updateAvatarCacheTtlDays(v.round()),
-                      ),
-                    ),
-                  ),
                 ],
               ),
               SizedBox(height: t.spaceLg),

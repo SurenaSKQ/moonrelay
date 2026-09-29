@@ -88,7 +88,6 @@ class SettingsSnapshot {
   final int notificationDedupeCacheSize;
   final bool deepLinkAutoJoin;
   final int dbBackupKeepCount;
-  final int avatarCacheTtlDays;
   final bool autoLockEnabled;
   final int autoLockMinutes;
   final int syncDebounceMs;
@@ -167,8 +166,7 @@ class SettingsSnapshot {
     this.notificationDedupeCacheSize = 256,
     this.deepLinkAutoJoin = false,
       this.dbBackupKeepCount = 1,
-    this.avatarCacheTtlDays = 7,
-    this.autoLockEnabled = false,
+      this.autoLockEnabled = false,
     this.autoLockMinutes = 0,
     this.syncDebounceMs = 350,
     this.searchDebounceMs = 300,
@@ -258,7 +256,6 @@ class SettingsService {
   // Privacy / deep links / data
   static const _deepLinkAutoJoinKey = 'deep_link_auto_join';
   static const _dbBackupKeepCountKey = 'db_backup_keep_count';
-  static const _avatarCacheTtlDaysKey = 'avatar_cache_ttl_days';
   static const _autoLockEnabledKey = 'auto_lock_enabled';
   static const _autoLockMinutesKey = 'auto_lock_minutes';
   static const _wipeLogsOnLogoutKey = 'wipe_logs_on_logout';
@@ -433,7 +430,6 @@ class SettingsService {
           prefs.getInt(_notificationDedupeCacheSizeKey) ?? 256,
       deepLinkAutoJoin: prefs.getBool(_deepLinkAutoJoinKey) ?? false,
       dbBackupKeepCount: prefs.getInt(_dbBackupKeepCountKey) ?? 1,
-      avatarCacheTtlDays: prefs.getInt(_avatarCacheTtlDaysKey) ?? 7,
       autoLockEnabled: prefs.getBool(_autoLockEnabledKey) ?? false,
       autoLockMinutes: prefs.getInt(_autoLockMinutesKey) ?? 0,
       wipeLogsOnLogout: prefs.getBool(_wipeLogsOnLogoutKey) ?? true,
@@ -1168,16 +1164,6 @@ class SettingsService {
   Future<void> updateDbBackupKeepCount(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_dbBackupKeepCountKey, value);
-  }
-
-  Future<int> avatarCacheTtlDays() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_avatarCacheTtlDaysKey) ?? 7;
-  }
-
-  Future<void> updateAvatarCacheTtlDays(int value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_avatarCacheTtlDaysKey, value);
   }
 
   Future<bool> autoLockEnabled() async {
