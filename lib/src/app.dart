@@ -19,11 +19,14 @@ import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router.dart';
+import 'package:moonrelay/src/services/presence_service.dart';
+import 'package:moonrelay/src/widgets/activity_tracker.dart';
 import 'package:moonrelay/src/widgets/deep_link_listener.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:logger/logger.dart';
 import 'settings/settings_controller.dart';
 import 'settings/theme.dart';
 import 'encryption/encryption_service.dart';
@@ -64,21 +67,46 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
   /// lifetime reason as [_syncPulse].
   final RoomStateBus _roomStateBus = RoomStateBus();
 
+  /// Owns the account's published Matrix presence. Same lifetime reason
+  /// as [_syncPulse], and it has to live above the routes: a screen-scoped
+  /// version would restart its idle window on every navigation, which
+  /// would leave a user permanently "active" while reading.
+  PresenceService? _presenceService;
+
   Client? _boundClient;
 
   @override
   void dispose() {
+    _presenceService?.dispose();
     _router.dispose();
     _syncPulse.dispose();
     _roomStateBus.dispose();
     super.dispose();
   }
 
-  void _bindPulse(Client client) {
+  void _bindPulse(Client client, SettingsController settings) {
     if (identical(_boundClient, client)) return;
     _boundClient = client;
     _syncPulse.bind(client);
     _roomStateBus.bind(client);
+
+    // Created on the first bind rather than as a field initializer,
+    // because it needs the settings controller and the logger, both of
+    // which come from the provider tree.
+    final presence = _presenceService ??= PresenceService(
+      settings: settings,
+      log: context.read<Logger>(),
+    );
+    // The service re-reads settings on every activity and on every
+    // timer tick, but a toggle change has to re-arm the timer, so the
+    // listener is what carries the "user just turned this on" signal.
+    settings.removeListener(_onPresenceSettingsChanged);
+    settings.addListener(_onPresenceSettingsChanged);
+    presence.bind(client);
+  }
+
+  void _onPresenceSettingsChanged() {
+    _presenceService?.onSettingsChanged();
   }
 
   @override
@@ -165,7 +193,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
         // them during the logout transition before the route changes.
         // Client and EncryptionService are only provided when active.
         if (client != null) {
-          _bindPulse(client);
+          _bindPulse(client, settingsController);
           app = Provider<Client>.value(value: client, child: app);
         }
 
@@ -193,8 +221,19 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
             child: app,
           );
         }
+        // Provided so ActivityTracker and the profile page can reach the
+        // same instance. Optional, because it is created on the first
+        // client bind and a logged-out tree has none.
+        if (_presenceService != null) {
+          app = Provider<PresenceService>.value(
+            value: _presenceService!,
+            child: app,
+          );
+        }
 
-        return DeepLinkListener(child: app);
+        return DeepLinkListener(
+          child: ActivityTracker(child: app),
+        );
       },
     );
   }
