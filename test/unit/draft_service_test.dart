@@ -106,5 +106,69 @@ void main() {
       final loaded = await drafts.load('!room:example.com');
       expect(loaded.body, 'in-progress');
     });
+
+    group('retention (draftRetentionDays)', () {
+      const room = '!retention:example.com';
+
+      test('a draft within the window is returned', () async {
+        await drafts.saveNow(room, 'recent thought');
+
+        final loaded = await drafts.load(
+          room,
+          maxAge: const Duration(days: 30),
+        );
+        expect(loaded.body, 'recent thought');
+      });
+
+      test('a draft older than the window is treated as absent', () async {
+        await drafts.saveNow(room, 'ancient thought');
+
+        // A zero window makes any non-zero age expired, without having to
+        // wait real days or hand-write a timestamp.
+        final loaded = await drafts.load(room, maxAge: Duration.zero);
+        expect(loaded.isEmpty, isTrue,
+            reason: 'an expired draft must not be restored into the composer');
+      });
+
+      test('an expired draft is also dropped from storage', () async {
+        await drafts.saveNow(room, 'ancient thought');
+
+        await drafts.load(room, maxAge: Duration.zero);
+
+        // Loading again with no window must not resurrect it.
+        final second = await drafts.load(room);
+        expect(second.isEmpty, isTrue);
+      });
+
+      test('no window means no expiry', () async {
+        await drafts.saveNow(room, 'still here');
+
+        final loaded = await drafts.load(room);
+        expect(loaded.body, 'still here');
+      });
+    });
+
+    group('autosave debounce (draftAutosaveMs)', () {
+      test('setDebounce is honoured and defaults to 500ms', () async {
+        expect(drafts.debounce, const Duration(milliseconds: 500));
+
+        drafts.setDebounce(const Duration(milliseconds: 20));
+        expect(drafts.debounce, const Duration(milliseconds: 20));
+
+        drafts.scheduleSave('!debounce:example.com', 'quick');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        final loaded = await drafts.load('!debounce:example.com');
+        expect(loaded.body, 'quick',
+            reason: 'a 20ms debounce should have flushed well within 200ms');
+      });
+
+      test('a reconfigured service keeps the new window', () async {
+        // The service is a ref-counted singleton, so the value pushed by
+        // the composer has to survive for later composers.
+        drafts.setDebounce(const Duration(milliseconds: 30));
+        expect(drafts.debounce, const Duration(milliseconds: 30));
+      });
+    });
   });
 }
