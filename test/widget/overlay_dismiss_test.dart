@@ -25,7 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/command_palette.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/mocks.dart';

@@ -19,7 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/command_palette.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 
 /// Full-width command palette launcher row used by both sidebar
 /// configurations (the navigation sidebar and the compact sidebar).

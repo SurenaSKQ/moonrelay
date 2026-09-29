@@ -39,12 +39,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/command_palette/palette_commands.dart';
+import 'package:moonrelay/src/widgets/command_palette/palette_models.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/search_provider.dart';
@@ -73,43 +74,6 @@ class _CommandPalettePage extends StatefulWidget {
 /// Helper struct that lets the parallel `Future.wait` in
 /// [_CommandPalettePageState._runFullSearchFirst] collect
 /// heterogeneous `SearchPage` results without a fan-out of
-/// `setState` calls.  Each field is nullable so a single sub-page
-/// failure doesn't poison the rest of the bundled result.
-class _InitialSearchResult {
-  const _InitialSearchResult({
-    this.messages,
-    this.homeserver,
-    this.users,
-  });
-
-  const _InitialSearchResult.empty()
-      : messages = null,
-        homeserver = null,
-        users = null;
-
-  final SearchPage<MessageSearchResult>? messages;
-  final SearchPage<PublishedRoomsChunk>? homeserver;
-  final SearchPage<Profile>? users;
-}
-
-/// The active palette mode.  Determined by the leading character of
-/// the input; the rest of the input is the *query*.
-enum _PaletteMode {
-  /// Filter the static action list by substring.
-  commands,
-
-  /// Run a full backend search (rooms/spaces/messages/users/homeserver).
-  search,
-
-  /// Filter the in-app settings pages.
-  settings,
-
-  /// Restrict search to rooms/spaces.
-  rooms,
-
-  /// Restrict search to users.
-  users,
-}
 
 class _CommandPalettePageState extends State<_CommandPalettePage> {
   final TextEditingController _ctl = TextEditingController();
@@ -119,7 +83,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   Timer? _debounce;
 
   String _rawText = '';
-  _PaletteMode _mode = _PaletteMode.commands;
+  PaletteMode _mode = PaletteMode.commands;
   String _query = '';
 
   // Aggregated paginated state for search-driven modes.  Each list has
@@ -199,24 +163,24 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     });
   }
 
-  _PaletteMode _detectMode(String input) {
-    if (input.isEmpty) return _PaletteMode.commands;
+  PaletteMode _detectMode(String input) {
+    if (input.isEmpty) return PaletteMode.commands;
     final first = input[0];
     switch (first) {
       case '?':
-        return _PaletteMode.search;
+        return PaletteMode.search;
       case '>':
-        return _PaletteMode.settings;
+        return PaletteMode.settings;
       case '#':
-        return _PaletteMode.rooms;
+        return PaletteMode.rooms;
       case '@':
-        return _PaletteMode.users;
+        return PaletteMode.users;
     }
-    return _PaletteMode.commands;
+    return PaletteMode.commands;
   }
 
-  String _stripPrefix(String input, _PaletteMode mode) {
-    if (mode == _PaletteMode.commands) return input.trim();
+  String _stripPrefix(String input, PaletteMode mode) {
+    if (mode == PaletteMode.commands) return input.trim();
     return input.substring(1).trim();
   }
 
@@ -229,24 +193,24 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     // Anything other than the empty commands/settings modes goes
     // through the search provider.
     switch (_mode) {
-      case _PaletteMode.search:
+      case PaletteMode.search:
         if (_query.isEmpty) {
           _resetSearchLists();
           return;
         }
         _runFullSearchFirst(_query);
         break;
-      case _PaletteMode.rooms:
+      case PaletteMode.rooms:
         _runRoomsFirst(_query);
         break;
-      case _PaletteMode.users:
+      case PaletteMode.users:
         _runUsersFirst(_query);
         break;
-      case _PaletteMode.settings:
+      case PaletteMode.settings:
         // Settings list is filtered synchronously in build().
         setState(() {});
         break;
-      case _PaletteMode.commands:
+      case PaletteMode.commands:
         // Commands list is filtered synchronously in build().
         setState(() {});
         break;
@@ -314,18 +278,18 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     // local rooms/spaces immediately, then each server result
     // streams in as it returns.  Each sub-page is independent so a
     // slow homeserver doesn't block messages, and vice versa.
-    final results = await Future.wait<_InitialSearchResult>([
+    final results = await Future.wait<InitialSearchResult>([
       provider.searchMessagesFirstPage(query, limit: 20).then(
-        (v) => _InitialSearchResult(messages: v),
-        onError: (_) => _InitialSearchResult.empty(),
+        (v) => InitialSearchResult(messages: v),
+        onError: (_) => InitialSearchResult.empty(),
       ),
       provider.searchHomeserverFirstPage(query, limit: 10).then(
-        (v) => _InitialSearchResult(homeserver: v),
-        onError: (_) => _InitialSearchResult.empty(),
+        (v) => InitialSearchResult(homeserver: v),
+        onError: (_) => InitialSearchResult.empty(),
       ),
       provider.fetchUsersPage(query, limit: 10).then(
-        (v) => _InitialSearchResult(users: v),
-        onError: (_) => _InitialSearchResult.empty(),
+        (v) => InitialSearchResult(users: v),
+        onError: (_) => InitialSearchResult.empty(),
       ),
     ]);
     if (!mounted) return;
@@ -546,7 +510,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     final atEnd = pos.pixels >= pos.maxScrollExtent - 150;
     if (!atEnd) return;
     switch (_mode) {
-      case _PaletteMode.search:
+      case PaletteMode.search:
         // Local categories first; they're synchronous, so the
         // user sees the new entries immediately on the next frame.
         if (_hasMoreRooms || _hasMoreSpaces) _runRoomsMore();
@@ -556,14 +520,14 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         if (_hasMoreHomeserver) _runFullSearchMoreHomeserver();
         if (_hasMoreUsers) _runFullSearchMoreUsers();
         break;
-      case _PaletteMode.rooms:
+      case PaletteMode.rooms:
         _runRoomsMore();
         break;
-      case _PaletteMode.users:
+      case PaletteMode.users:
         _runUsersMore();
         break;
-      case _PaletteMode.commands:
-      case _PaletteMode.settings:
+      case PaletteMode.commands:
+      case PaletteMode.settings:
         break;
     }
   }
@@ -729,11 +693,11 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   /// Inline pill explaining what mode the palette is currently in.
   Widget _buildModeHint(AppLocalizations loc) {
     final hint = switch (_mode) {
-      _PaletteMode.commands => loc.commandPaletteHint,
-      _PaletteMode.search => loc.commandPaletteModeSearch,
-      _PaletteMode.settings => loc.commandPaletteModeSettings,
-      _PaletteMode.rooms => loc.commandPaletteModeRooms,
-      _PaletteMode.users => loc.commandPaletteModeUsers,
+      PaletteMode.commands => loc.commandPaletteHint,
+      PaletteMode.search => loc.commandPaletteModeSearch,
+      PaletteMode.settings => loc.commandPaletteModeSettings,
+      PaletteMode.rooms => loc.commandPaletteModeRooms,
+      PaletteMode.users => loc.commandPaletteModeUsers,
     };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -761,42 +725,42 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     );
   }
 
-  IconData _modeIcon(_PaletteMode mode) => switch (mode) {
-        _PaletteMode.commands => LucideIcons.command,
-        _PaletteMode.search => LucideIcons.search,
-        _PaletteMode.settings => LucideIcons.settings,
-        _PaletteMode.rooms => LucideIcons.hash,
-        _PaletteMode.users => LucideIcons.atSign,
+  IconData _modeIcon(PaletteMode mode) => switch (mode) {
+        PaletteMode.commands => LucideIcons.command,
+        PaletteMode.search => LucideIcons.search,
+        PaletteMode.settings => LucideIcons.settings,
+        PaletteMode.rooms => LucideIcons.hash,
+        PaletteMode.users => LucideIcons.atSign,
       };
 
-  String _hintForMode(AppLocalizations loc, _PaletteMode mode) =>
+  String _hintForMode(AppLocalizations loc, PaletteMode mode) =>
       switch (mode) {
-        _PaletteMode.commands => loc.commandPaletteHint,
-        _PaletteMode.search => loc.commandPaletteSearchHint,
-        _PaletteMode.settings => loc.commandPaletteSettingsHint,
-        _PaletteMode.rooms => loc.commandPaletteRoomsHint,
-        _PaletteMode.users => loc.commandPaletteUsersHint,
+        PaletteMode.commands => loc.commandPaletteHint,
+        PaletteMode.search => loc.commandPaletteSearchHint,
+        PaletteMode.settings => loc.commandPaletteSettingsHint,
+        PaletteMode.rooms => loc.commandPaletteRoomsHint,
+        PaletteMode.users => loc.commandPaletteUsersHint,
       };
 
   // -- Mode-specific list builders -----------------------------------
 
   Widget _buildList(AppLocalizations loc) {
     switch (_mode) {
-      case _PaletteMode.commands:
+      case PaletteMode.commands:
         return _buildCommandsList(loc);
-      case _PaletteMode.settings:
+      case PaletteMode.settings:
         return _buildSettingsList(loc);
-      case _PaletteMode.rooms:
+      case PaletteMode.rooms:
         return _buildRoomsList(loc);
-      case _PaletteMode.users:
+      case PaletteMode.users:
         return _buildUsersList(loc);
-      case _PaletteMode.search:
+      case PaletteMode.search:
         return _buildSearchList(loc);
     }
   }
 
   Widget _buildCommandsList(AppLocalizations loc) {
-    final actions = _buildActions(loc);
+    final actions = buildPaletteActions(context, loc);
     final q = _query.toLowerCase();
     final filtered = q.isEmpty
         ? actions
@@ -832,7 +796,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   }
 
   Widget _buildSettingsList(AppLocalizations loc) {
-    final entries = _buildSettingsEntries(loc);
+    final entries = buildSettingsEntries(loc);
     final q = _query.toLowerCase();
     final filtered = q.isEmpty
         ? entries
@@ -955,13 +919,13 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
         _isPaginatingUsers ||
         _isPaginatingRooms ||
         _isPaginatingSpaces;
-    final hasMore = _mode == _PaletteMode.search
+    final hasMore = _mode == PaletteMode.search
         ? (_hasMoreMessages ||
             _hasMoreHomeserver ||
             _hasMoreUsers ||
             _hasMoreRooms ||
             _hasMoreSpaces)
-        : _mode == _PaletteMode.rooms
+        : _mode == PaletteMode.rooms
             ? (_hasMoreRooms || _hasMoreSpaces)
             : _hasMoreUsers;
     if (paginating) {
@@ -996,7 +960,7 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
   // -- Recents section helpers ----------------------------------------
 
   List<Widget> _buildRecentSection(AppLocalizations loc) {
-    final actions = _buildActions(loc);
+    final actions = buildPaletteActions(context, loc);
     final recents = RecentActivity.instance.actions;
     if (recents.isEmpty) return const [];
     return [
@@ -1055,246 +1019,42 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
 
   /// Returns the first selectable result for the current mode.  Used
   /// by the "Enter on single match" shortcut.
-  List<_PaletteResult> _currentResults(AppLocalizations loc) {
+  List<PaletteResult> _currentResults(AppLocalizations loc) {
     switch (_mode) {
-      case _PaletteMode.commands:
-        final actions = _buildActions(loc);
+      case PaletteMode.commands:
+        final actions = buildPaletteActions(context, loc);
         final q = _query.toLowerCase();
         return [
           for (final a in actions)
             if (a.label.toLowerCase().contains(q) ||
                 a.key.toLowerCase().contains(q))
-              _PaletteResult(() => _runAction(a)),
+              PaletteResult(() => _runAction(a)),
         ];
-      case _PaletteMode.settings:
+      case PaletteMode.settings:
         return [
-          for (final e in _buildSettingsEntries(loc))
+          for (final e in buildSettingsEntries(loc))
             if (e.label.toLowerCase().contains(_query.toLowerCase()) ||
                 e.description.toLowerCase().contains(_query.toLowerCase()))
-              _PaletteResult(() => _openSettingsRoute(e.path)),
+              PaletteResult(() => _openSettingsRoute(e.path)),
         ];
-      case _PaletteMode.rooms:
+      case PaletteMode.rooms:
         return [
           for (final r in [..._matchedRooms, ..._matchedSpaces])
-            _PaletteResult(() => _runRoom(r)),
+            PaletteResult(() => _runRoom(r)),
         ];
-      case _PaletteMode.users:
+      case PaletteMode.users:
         return [
-          for (final u in _userResults) _PaletteResult(() => _runUser(u)),
+          for (final u in _userResults) PaletteResult(() => _runUser(u)),
         ];
-      case _PaletteMode.search:
+      case PaletteMode.search:
         return [
           for (final r in [..._matchedRooms, ..._matchedSpaces])
-            _PaletteResult(() => _runRoom(r)),
-          for (final m in _msgResults) _PaletteResult(() => _runMessage(m)),
-          for (final u in _userResults) _PaletteResult(() => _runUser(u)),
+            PaletteResult(() => _runRoom(r)),
+          for (final m in _msgResults) PaletteResult(() => _runMessage(m)),
+          for (final u in _userResults) PaletteResult(() => _runUser(u)),
           for (final h in _homeserverResults)
-            _PaletteResult(() => _runHomeserverRoom(h)),
+            PaletteResult(() => _runHomeserverRoom(h)),
         ];
     }
   }
-
-  // -- Static data ---------------------------------------------------
-
-  List<CommandAction> _buildActions(AppLocalizations loc) {
-    final settings = _settingsControllerOrNull(context);
-    return [
-      CommandAction(
-        key: 'open_settings',
-        label: loc.commandPaletteOpenSettings,
-        icon: LucideIcons.settings,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(
-              categoryKey: 'settings',
-            ),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'open_accounts',
-        label: loc.commandPaletteOpenAccounts,
-        icon: LucideIcons.userRound,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(categoryKey: 'accounts'),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'open_logs',
-        label: loc.commandPaletteOpenLogs,
-        icon: LucideIcons.scrollText,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(
-              categoryKey: 'settings',
-              subKey: 'logs',
-            ),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'open_profile',
-        label: loc.commandPaletteOpenProfile,
-        icon: LucideIcons.userCircle,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(categoryKey: 'profile'),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'open_about',
-        label: loc.commandPaletteOpenAbout,
-        icon: LucideIcons.info,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(categoryKey: 'about'),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'open_security',
-        label: loc.commandPaletteOpenSecurity,
-        icon: LucideIcons.shield,
-        callback: (ctx) {
-          showHubOverlay(
-            ctx,
-            selection: const HubCategorySelection(
-              categoryKey: 'settings',
-              subKey: 'security',
-            ),
-          );
-        },
-      ),
-      CommandAction(
-        key: 'toggle_left_sidebar',
-        label: loc.commandPaletteToggleSidebar,
-        icon: LucideIcons.panelLeft,
-        callback: (ctx) {
-          if (settings != null) {
-            settings.setLeftSidebarVisible(!settings.leftSidebarVisible);
-          }
-        },
-      ),
-      CommandAction(
-        key: 'toggle_right_sidebar',
-        label: loc.commandPaletteToggleRightSidebar,
-        icon: LucideIcons.panelRight,
-        callback: (ctx) {
-          if (settings != null) {
-            settings.setRightSidebarVisible(!settings.rightSidebarVisible);
-          }
-        },
-      ),
-      CommandAction(
-        key: 'add_room',
-        label: loc.commandPaletteAddRoom,
-        icon: LucideIcons.plusCircle,
-        callback: (ctx) => ctx.push('/main/addroom'),
-      ),
-    ];
-  }
-
-  List<_SettingsEntry> _buildSettingsEntries(AppLocalizations loc) => [
-        _SettingsEntry(
-          label: loc.appearance,
-          description: loc.commandPaletteAppearanceDesc,
-          icon: LucideIcons.palette,
-          path: '/hub/settings/appearance',
-        ),
-        _SettingsEntry(
-          label: loc.layout,
-          description: loc.commandPaletteLayoutDesc,
-          icon: LucideIcons.layoutDashboard,
-          path: '/hub/settings/layout',
-        ),
-        _SettingsEntry(
-          label: loc.encryptionAndSecurity,
-          description: loc.commandPaletteSecurityDesc,
-          icon: LucideIcons.shield,
-          path: '/hub/settings/security',
-        ),
-        _SettingsEntry(
-          label: loc.chatSettings,
-          description: loc.commandPaletteChatDesc,
-          icon: LucideIcons.messageSquare,
-          path: '/hub/settings/chat',
-        ),
-        _SettingsEntry(
-          label: loc.network,
-          description: loc.commandPaletteNetworkDesc,
-          icon: LucideIcons.activity,
-          path: '/hub/settings/network',
-        ),
-        _SettingsEntry(
-          label: loc.backgroundAndTray,
-          description: loc.commandPaletteBackgroundDesc,
-          icon: LucideIcons.minimize2,
-          path: '/hub/settings/background',
-        ),
-        _SettingsEntry(
-          label: loc.notifications,
-          description: loc.commandPaletteNotificationsDesc,
-          icon: LucideIcons.bell,
-          path: '/hub/settings/notifications',
-        ),
-        _SettingsEntry(
-          label: loc.blockedUsers,
-          description: loc.commandPaletteBlockedDesc,
-          icon: LucideIcons.ban,
-          path: '/hub/settings/blocked',
-        ),
-        _SettingsEntry(
-          label: loc.logs,
-          description: loc.commandPaletteLogsDesc,
-          icon: LucideIcons.fileText,
-          path: '/hub/settings/logs',
-        ),
-      ];
-}
-
-class _PaletteResult {
-  _PaletteResult(this.run);
-  final VoidCallback run;
-}
-
-class _SettingsEntry {
-  _SettingsEntry({
-    required this.label,
-    required this.description,
-    required this.icon,
-    required this.path,
-  });
-  final String label;
-  final String description;
-  final IconData icon;
-  final String path;
-}
-
-SettingsController? _settingsControllerOrNull(BuildContext context) {
-  try {
-    return context.read<SettingsController>();
-  } catch (_) {
-    return null;
-  }
-}
-
-class CommandAction {
-  const CommandAction({
-    required this.key,
-    required this.label,
-    required this.icon,
-    required this.callback,
-  });
-  final String key;
-  final String label;
-  final IconData icon;
-  final void Function(BuildContext) callback;
 }

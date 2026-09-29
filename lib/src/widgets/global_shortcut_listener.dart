@@ -28,7 +28,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:moonrelay/src/widgets/command_palette.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/widgets/keyboard_shortcuts_overlay.dart';
 
 class GlobalShortcutListener extends StatelessWidget {
