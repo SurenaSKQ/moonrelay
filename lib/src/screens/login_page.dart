@@ -27,6 +27,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/homeserver_url.dart';
+import 'package:moonrelay/src/helpers/login_errors.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/sso_server.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
@@ -815,7 +816,7 @@ class _LoginPageState extends State<LoginPage> {
               'Login failed after $attempts attempt(s) (${error.runtimeType})');
           setState(() => _error = error is TimeoutException
               ? l10n.loginTimedOut
-              : l10n.loginFailed(_safeErrorMessage(error)));
+              : l10n.loginFailed(safeErrorMessage(error)));
           if (mounted) setState(() => _loading = false);
         }
     }
@@ -828,13 +829,6 @@ class _LoginPageState extends State<LoginPage> {
   /// response would surface it in the UI and in redacted logs.  This
   /// helper maps known error types to friendly copy and falls back to a
   /// generic message that exposes only the exception's class name.
-  String _safeErrorMessage(Object error) {
-    if (error is TimeoutException) return 'request timed out';
-    // Strip the request body by relying on the exception's public
-    // properties; never touch `.toString()`.
-    return error.runtimeType.toString();
-  }
-
   /// Clears any cached session data from the SDK and EncryptionService
   /// so a fresh login starts with a clean slate.
   ///
@@ -1236,7 +1230,7 @@ class _LoginPageState extends State<LoginPage> {
           log.e('Token login failed after $attempts attempt(s)', error: error);
           setState(() => _error = error is TimeoutException
               ? l10n.loginTimedOut
-              : l10n.tokenLoginFailed('$error'));
+              : l10n.tokenLoginFailed(safeErrorMessage(error)));
           if (mounted) setState(() => _loading = false);
         }
     }
