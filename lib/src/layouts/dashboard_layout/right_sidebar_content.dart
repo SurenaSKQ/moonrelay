@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/chat/thread_list_sidebar.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -108,8 +109,19 @@ class RightSidebarWithSwitcher extends StatelessWidget {
   }
 }
 
-/// A compact header bar with a dropdown to switch between room-info and
-/// members views.
+/// A tab strip across the top of the right pane.
+///
+/// This was a `DropdownButton` over the same five values. A dropdown is the
+/// wrong control here for two reasons. It hides four destinations behind a
+/// closed menu, and threads and pinned messages are not secondary: they are
+/// where a user goes to answer a mention or find something they were told
+/// to look at. And the header showed only the selected value as a bare
+/// icon, so the pane did not advertise what it could show.
+///
+/// The labels it hard-coded ('Room Info', 'Members', 'Threads', 'Pinned')
+/// are gone with it. [localizedRightPaneChoice] already existed and was
+/// already used by the hub's layout settings, so the same mapping is used
+/// here rather than a second one.
 class RightSidebarHeader extends StatelessWidget {
   const RightSidebarHeader({
     super.key,
@@ -120,11 +132,36 @@ class RightSidebarHeader extends StatelessWidget {
   final RightPaneChoice currentChoice;
   final void Function(RightPaneChoice) onChanged;
 
+  /// The destinations worth a tab, in reading order.
+  ///
+  /// [RightPaneChoice.none] is deliberately absent. "Show nothing" is not a
+  /// destination, and the pane already has a collapse control for it, so
+  /// giving it a tab would spend one of four slots on turning the pane
+  /// off. The value stays valid in storage: a user who was last on `none`
+  /// opens the pane to a strip with nothing selected rather than to an
+  /// error, and one tap puts them somewhere.
+  static const List<RightPaneChoice> destinations = <RightPaneChoice>[
+    RightPaneChoice.roomInfo,
+    RightPaneChoice.members,
+    RightPaneChoice.threads,
+    RightPaneChoice.pinned,
+  ];
+
+  static IconData _iconFor(RightPaneChoice choice) =>
+      switch (choice) {
+        RightPaneChoice.roomInfo => LucideIcons.info,
+        RightPaneChoice.members => LucideIcons.users,
+        RightPaneChoice.threads => LucideIcons.messageSquare,
+        RightPaneChoice.pinned => Icons.push_pin_outlined,
+        RightPaneChoice.none => LucideIcons.panelRight,
+      };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       color: scheme.surfaceContainerHighest,
@@ -134,60 +171,88 @@ class RightSidebarHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Selected view icon
-          Icon(
-            switch (currentChoice) {
-              RightPaneChoice.roomInfo => LucideIcons.info,
-              RightPaneChoice.members => LucideIcons.users,
-              RightPaneChoice.threads => LucideIcons.messageSquare,
-              RightPaneChoice.pinned => Icons.push_pin_outlined,
-              RightPaneChoice.none => LucideIcons.panelRight,
-            },
-            size: t.iconSizeSmall,
-            color: scheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          // Dropdown
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<RightPaneChoice>(
-                value: currentChoice,
-                isDense: true,
-                isExpanded: true,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurfaceVariant,
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: RightPaneChoice.roomInfo,
-                    child: Text('Room Info'),
-                  ),
-                  DropdownMenuItem(
-                    value: RightPaneChoice.members,
-                    child: Text('Members'),
-                  ),
-                  DropdownMenuItem(
-                    value: RightPaneChoice.threads,
-                    child: Text('Threads'),
-                  ),
-                  DropdownMenuItem(
-                    value: RightPaneChoice.pinned,
-                    child: Text('Pinned'),
-                  ),
-                  DropdownMenuItem(
-                    value: RightPaneChoice.none,
-                    child: Text('None'),
-                  ),
-                ],
-                onChanged: (v) {
-                  if (v != null) onChanged(v);
-                },
+          for (final choice in destinations) ...[
+            Expanded(
+              child: _PaneTab(
+                icon: _iconFor(choice),
+                label: localizedRightPaneChoice(choice, l10n),
+                selected: choice == currentChoice,
+                onTap: () => onChanged(choice),
               ),
             ),
-          ),
+            if (choice != destinations.last) const SizedBox(width: 2),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// One destination in [RightSidebarHeader].
+///
+/// Icon plus a short label, selected state carried by the container rather
+/// than by colour alone, so the strip still reads at a glance in a theme
+/// where the accent is close to the surface.
+class _PaneTab extends StatelessWidget {
+  const _PaneTab({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: selected
+            ? scheme.secondaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(t.radiusSm),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: t.spaceXs),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: t.iconSizeSmall + 2,
+                  color: selected
+                      ? scheme.onSecondaryContainer
+                      : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.2,
+                    fontWeight:
+                        selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected
+                        ? scheme.onSecondaryContainer
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
