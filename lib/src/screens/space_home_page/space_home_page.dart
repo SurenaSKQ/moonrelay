@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -423,10 +424,14 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
           if (roomId == null) return;
           if (isSubspace) {
             // Navigate to the subspace home page.
-            context.push('/main/space/$roomId');
+            context.push('/main/space/${Uri.encodeComponent(roomId)}');
           } else {
-            // Navigate to the room chat.
-            context.push('/main/rooms/$roomId');
+            // Switch to the room chat, through the shell-aware seam: in the
+            // single-pane shell this pushes so the space page stays on the
+            // stack, and on the dashboard it replaces so a tour of child
+            // rooms does not build a history the user has to walk back
+            // through one chat at a time.
+            openRoom(context, roomId);
           }
         },
       ),

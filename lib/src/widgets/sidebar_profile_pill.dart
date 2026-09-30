@@ -15,11 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/async_utils.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// User profile pill shown at the top of the navigation sidebar.
@@ -74,10 +75,10 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
         '';
 
     return GestureDetector(
-      onTap: () => showHubOverlay(
-        context,
-        selection: const HubCategorySelection(categoryKey: 'profile'),
-      ),
+      // `push`, so the hub covers the window and the chat it was opened
+      // from is still underneath when the hub's back button is used. This
+      // replaces a modal overlay that existed for exactly that reason.
+      onTap: () => context.push(hubPath()),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: t.spaceSm),
         decoration: BoxDecoration(

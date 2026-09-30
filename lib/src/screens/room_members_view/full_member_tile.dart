@@ -16,9 +16,9 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/presence_bus.dart';
@@ -266,7 +266,6 @@ class FullMemberTileState extends State<FullMemberTile> {
 
   Future<void> _sendMessage(BuildContext context) async {
     final log = context.read<Logger>();
-    final goRouter = GoRouter.of(context);
     final navigator = Navigator.of(context);
 
     final result = await withRetry(
@@ -282,7 +281,7 @@ class FullMemberTileState extends State<FullMemberTile> {
     switch (result) {
       case RetrySuccess(:final value):
         navigator.pop();
-        goRouter.go('/main/rooms/$value');
+        openRoom(context, value);
       case RetryFailed(:final error):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
