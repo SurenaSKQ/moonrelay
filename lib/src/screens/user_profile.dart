@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
 import 'package:moonrelay/src/screens/user_profile/moderation_section.dart';
@@ -52,6 +53,15 @@ class ProfilePage extends StatefulWidget {
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
+}
+
+/// A never-changing null presence, for the tree with no [PresenceBus].
+///
+/// Used instead of branching the whole subtree, so a logged-out profile
+/// or a test without the provider still renders, just without a live
+/// presence line.
+class _NullPresenceListenable extends ValueNotifier<CachedPresence?> {
+  _NullPresenceListenable() : super(null);
 }
 
 class _ProfilePageState extends State<ProfilePage> {
@@ -101,6 +111,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Seeds the SDK's presence cache and this State's copy.
+  ///
+  /// The live value comes from [PresenceBus] in build, so a presence
+  /// event arriving over sync updates the header without a refetch. This
+  /// is the one-shot that makes the first value available at all.
   Future<void> _fetchPresence() async {
     try {
       final presence = await withTimeoutOrFallback(
@@ -110,8 +125,17 @@ class _ProfilePageState extends State<ProfilePage> {
       );
       if (!mounted) return;
       setState(() => _presence = presence);
-    } catch (_) {
-      // Non-critical; silently ignore.
+    } on Object catch (e) {
+      // Presence is decoration on this page; a failure means the header
+      // shows no presence line, which is the correct degradation. The
+      // fallback in withTimeoutOrFallback already covers the timeout
+      // case, so this only fires on something unexpected, and it is
+      // worth a log line rather than silence.
+      if (mounted) {
+        context
+            .read<Logger>()
+            .w('Presence fetch failed for ${widget.userID}', error: e);
+      }
     }
   }
 
@@ -147,18 +171,28 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
+    // The bus wins over the one-shot fetch when it has a value, so a
+    // presence event arriving over sync updates the header without a
+    // refetch. `_presence` is only the seed.
+    final bus = context.read<PresenceBus?>();
+    final livePresence = bus?.presenceOf(widget.userID);
+
     return Scaffold(
       appBar: _buildAppBar(
         context,
         _displayName,
       ),
-      body: ProfilePageContents(
-        client: widget.client,
-        userProfile: _profile,
-        presence: _presence,
-        room: widget.room,
-        roomUser: _roomUser,
-        roomUserLoading: _roomUserLoading,
+      body: ValueListenableBuilder<CachedPresence?>(
+        valueListenable: bus?.listenTo(widget.userID) ??
+            _NullPresenceListenable(),
+        builder: (context, eventPresence, __) => ProfilePageContents(
+          client: widget.client,
+          userProfile: _profile,
+          presence: eventPresence ?? livePresence ?? _presence,
+          room: widget.room,
+          roomUser: _roomUser,
+          roomUserLoading: _roomUserLoading,
+        ),
       ),
     );
   }
