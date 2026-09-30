@@ -20,10 +20,10 @@ import 'package:moonrelay/src/screens/room_details/top_threads_section.dart';
 import 'package:moonrelay/src/screens/room_details/top_members_section.dart';
 import 'package:moonrelay/src/screens/room_details/room_identity_card.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
@@ -204,7 +204,7 @@ class _RoomInformationsState extends State<RoomInformations> {
             icon: LucideIcons.settings,
             label: l10n.roomSettings,
             description: l10n.roomSettingsDescription,
-            onTap: () => context.push('/main/rooms/${room.id}/settings'),
+            onTap: () => openRoomSubpage(context, room.id, 'settings'),
             scheme: scheme,
           ),
           InfoActionTile(

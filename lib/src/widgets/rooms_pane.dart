@@ -17,15 +17,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption_badge.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:provider/provider.dart';
 
 /// Scoped, per-client thumbnail cache for room avatars.
@@ -67,12 +68,30 @@ class _ClientThumbnailCache {
   }
 }
 
+/// The room filters the navigation surfaces select between.
+///
+/// These live here rather than at each call site because three separate
+/// implementations had drifted: the expanded sidebar, the compact sidebar
+/// and the single-pane list each rolled their own predicate. They are
+/// deliberately *named* rather than inlined, because the difference
+/// between them is a correctness question, not a style one. Every one of
+/// them excludes spaces, and a space opened through [RoomsPane] resolves
+/// to a chat view of a room that is not a room.
+bool roomIsDirectChat(Room room) => room.isDirectChat;
+
+/// Every joined room that is a real room, i.e. not a space.
+bool roomIsChat(Room room) => !room.isSpace;
+
+/// Only spaces, which are never opened as a chat.
+bool roomIsSpace(Room room) => room.isSpace;
+
 /// A scrollable list of rooms, optionally filtered by [roomFilter].
 ///
 /// If [roomFilter] is `null`, every room the user is a member of is shown.
-/// Otherwise only rooms for which the predicate returns `true` are shown
-/// this is used by the navigation pane to display direct chats, all rooms,
-/// or rooms belonging to a specific space.
+/// Otherwise only rooms for which the predicate returns `true` are shown.
+/// Pass one of [roomIsDirectChat], [roomIsChat] or [roomIsSpace] rather
+/// than an inline predicate: a `null` filter means "including spaces",
+/// which is almost never what a room list wants.
 class RoomsPane extends StatefulWidget {
   /// An optional filter predicate. Return `true` to include a room.
   final bool Function(Room room)? roomFilter;
@@ -315,7 +334,7 @@ Future<void> _joinRoom(BuildContext context, Room room) async {
       }
     }
     if (!context.mounted) return;
-    context.pushReplacement('/main/rooms/${room.id}');
+    openRoom(context, room.id);
   } catch (e) {
     log.f(
       'Failed to join',
@@ -351,17 +370,24 @@ class _RoomAvatar extends StatelessWidget {
     required this.room,
     required this.client,
     required this.scheme,
+    this.size = 40,
   });
 
   final Room room;
   final Client client;
   final ColorScheme scheme;
 
+  /// Edge length of the square avatar. Scaled down by the row in narrow
+  /// panes, where a 40px avatar left too little room for the room name.
+  final double size;
+
   @override
   Widget build(BuildContext context) {
+    // The dot scales with the avatar so it does not swallow a small one.
+    final double dot = size * 0.3;
     return SizedBox(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       child: Stack(
         children: [
           // The avatar fills the available area.
@@ -372,8 +398,8 @@ class _RoomAvatar extends StatelessWidget {
               right: 0,
               bottom: 0,
               child: Container(
-                width: 12,
-                height: 12,
+                width: dot,
+                height: dot,
                 decoration: BoxDecoration(
                   color: scheme.error,
                   shape: BoxShape.circle,
@@ -541,6 +567,15 @@ class _Badge extends StatelessWidget {
 /// simple "avatar + name + subtitle + badges" layout we use here. With
 /// 200 rooms in a sidebar this swap measurably reduces paint time
 /// during scroll.
+///
+/// The row scales its type and avatar to the width it is actually given,
+/// not to the window. It is used in the navigation pane, where 200px is
+/// the floor, and as the single-pane list's whole surface, where it gets
+/// the full width; the 18/16px pair was chosen for the latter and
+/// overflowed the former's name column into the badges. There used to be
+/// a second, denser row widget for the narrow case, but it was a
+/// regression rather than an adaptation: it dropped the encryption and
+/// mention badges, so the honest fix was to make one row adapt.
 class _RoomRow extends StatelessWidget {
   const _RoomRow({
     required this.room,
@@ -559,59 +594,20 @@ class _RoomRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return InkWell(
+    return SidebarRow(
+      title: displayname,
+      subtitle: room.lastEvent?.body ?? l10n.noMessages,
       onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: t.spaceMd,
-          vertical: t.spaceSm,
-        ),
-        child: Row(
-          children: [
-            _RoomAvatar(room: room, client: client, scheme: scheme),
-            SizedBox(width: t.spaceMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          displayname,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w300,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                      RoomEncryptionBadge(room: room),
-                    ],
-                  ),
-                  SizedBox(height: t.spaceXxs),
-                  Text(
-                    room.lastEvent?.body ?? l10n.noMessages,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w300,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: t.spaceSm),
-            _RoomUnreadBadges(
-              notificationCount: room.notificationCount,
-              highlightCount: room.highlightCount,
-            ),
-          ],
-        ),
+      titleSuffix: RoomEncryptionBadge(room: room),
+      leading: _RoomAvatar(
+        room: room,
+        client: client,
+        scheme: scheme,
+        size: sidebarMetricsFor(context).leadingSize,
+      ),
+      trailing: _RoomUnreadBadges(
+        notificationCount: room.notificationCount,
+        highlightCount: room.highlightCount,
       ),
     );
   }

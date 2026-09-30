@@ -15,9 +15,9 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -356,12 +356,14 @@ class MemberTileState extends State<MemberTile> {
 
   void _sendMessage(BuildContext context) {
     // Open a direct chat with this user, or navigate to an existing one.
-    final goRouter = GoRouter.of(context);
     final navigator = Navigator.of(context);
     widget.member.startDirectChat().then((roomId) {
-      // Pop this page first, then navigate via GoRouter.
+      // The seam needs a context, and the one passed in is only safe to
+      // touch after checking we are still mounted: startDirectChat is a
+      // network round trip and this row can be rebuilt out from under it.
+      if (!mounted) return;
       navigator.pop();
-      goRouter.go('/main/rooms/$roomId');
+      openRoom(this.context, roomId);
     }).catchError((e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

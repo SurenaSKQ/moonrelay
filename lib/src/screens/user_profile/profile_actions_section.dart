@@ -16,10 +16,10 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
@@ -129,7 +129,6 @@ class ProfileActionsSection extends StatelessWidget {
 
   Future<void> _startDirectChat(BuildContext context) async {
     final log = context.read<Logger>();
-    final goRouter = GoRouter.of(context);
     final navigator = Navigator.of(context);
 
     final result = await withRetry(
@@ -145,7 +144,7 @@ class ProfileActionsSection extends StatelessWidget {
     switch (result) {
       case RetrySuccess(:final value):
         navigator.pop();
-        goRouter.go('/main/rooms/$value');
+        openRoom(context, value);
       case RetryFailed(:final error):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
