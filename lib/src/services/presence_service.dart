@@ -70,6 +70,11 @@ class PresenceService with WindowListener {
   /// override. Null means "follow idleness", which is the default.
   PresenceType? _userChoice;
 
+  /// The latest intent that arrived while a write was in flight, drained
+  /// once the write settles. Latest-wins, so a burst of transitions
+  /// collapses rather than queueing.
+  PresenceType? _pending;
+
   /// True while the idle timer is running, meaning the account is
   /// currently published as offline because of inactivity.
   bool get isIdleOffline => _idleTimer != null;
@@ -169,9 +174,14 @@ class PresenceService with WindowListener {
   /// woke it. Comparing wall-clock time at the resume is the only
   /// reliable measure, which is why [clock] is injectable.
   void onResumed() {
+    // A manual choice outranks the idle logic, same as every other
+    // transition. Checking it here rather than only in the timer is what
+    // stops a resume from undoing a presence the user picked by hand.
+    if (_userChoice != null) return;
+    if (!settings.autoOfflinePresenceEnabled) return;
     final idleFor = clock().difference(_lastActivity ?? clock());
     final window = Duration(minutes: settings.autoOfflinePresenceMinutes);
-    if (settings.autoOfflinePresenceEnabled && idleFor >= window) {
+    if (idleFor >= window) {
       // The sleep itself counts as idle time, so the account is offline
       // the moment the user comes back rather than after a fresh window.
       unawaited(_publish(PresenceType.offline));
@@ -250,7 +260,13 @@ class PresenceService with WindowListener {
     final window = Duration(minutes: settings.autoOfflinePresenceMinutes);
     final idleFor = clock().difference(_lastActivity ?? clock());
     if (idleFor < window) {
-      await _publish(PresenceType.online);
+      // Only publish if we are currently published as offline. Binding
+      // and a settings change both land here, and a redundant "online"
+      // PUT on every account switch would be noise the server does not
+      // need: the sync loop already marks the client online.
+      if (_published == PresenceType.offline) {
+        await _publish(PresenceType.online);
+      }
     } else {
       _startIdleTimer(Duration.zero);
     }
@@ -308,7 +324,14 @@ class PresenceService with WindowListener {
       // and a redundant PUT on every keystroke would be noise.
       if (statusMsg == null) return;
     }
-    if (_isApplying) return;
+    if (_isApplying) {
+      // A write is already in flight. Record the newer intent rather
+      // than dropping it: dropping meant an idle transition that landed
+      // while an online write was in flight was silently discarded, and
+      // the account stayed online for the rest of the idle window.
+      _pending = type;
+      return;
+    }
 
     _isApplying = true;
     try {
@@ -321,6 +344,15 @@ class PresenceService with WindowListener {
       log.w('Could not publish presence $type', error: e, stackTrace: s);
     } finally {
       _isApplying = false;
+    }
+
+    // Drain anything that arrived while the write was in flight. Bounded
+    // to one step: a coalesced "latest intent wins" is enough, and a
+    // loop here could spin while a caller keeps the service busy.
+    final pending = _pending;
+    _pending = null;
+    if (pending != null && pending != _published) {
+      await _publish(pending);
     }
   }
 
