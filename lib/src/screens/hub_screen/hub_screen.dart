@@ -39,7 +39,6 @@ import 'package:moonrelay/src/screens/hub_screen/settings/background_settings.da
 import 'package:moonrelay/src/screens/hub_screen/settings/blocked_users_page.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/layout_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/network_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/privacy_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart';
@@ -269,11 +268,6 @@ class _HubScreenState extends State<HubScreen> {
             key: 'keybinds',
             label: l10n.keybinds,
             icon: LucideIcons.keyboard,
-          ),
-          HubNavigationItem(
-            key: 'network',
-            label: l10n.network,
-            icon: LucideIcons.activity,
           ),
           HubNavigationItem(
             key: 'logs',
@@ -635,8 +629,6 @@ class _HubScreenState extends State<HubScreen> {
         return const HubChatSettings();
       case 'keybinds':
         return const HubKeybindSettings();
-      case 'network':
-        return const HubNetworkSettings();
       case 'logs':
         return const LogsPage();
       case 'background':
