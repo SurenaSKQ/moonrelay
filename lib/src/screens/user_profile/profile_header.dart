@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/presence_colors.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 class ProfileHeader extends StatelessWidget {
@@ -58,12 +59,8 @@ class ProfileHeader extends StatelessWidget {
       PresenceType.unavailable => l10n.presenceUnavailable,
       null => null,
     };
-    final presenceColor = switch (presence?.presence) {
-      PresenceType.online => const Color(0xFF2ECC71),
-      PresenceType.unavailable => const Color(0xFFF39C12),
-      PresenceType.offline => scheme.onSurfaceVariant,
-      _ => scheme.onSurfaceVariant,
-    };
+    final presenceColors = PresenceColors.of(scheme, presence?.presence);
+    final presenceColor = presenceColors.forPresence(presence?.presence);
 
     return Center(
       child: Column(
@@ -138,7 +135,7 @@ class ProfileHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: presenceColor.withValues(alpha: 0.15),
+                color: PresenceColors.tint(presenceColor, scheme),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
