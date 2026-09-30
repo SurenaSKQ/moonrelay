@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
@@ -238,7 +239,12 @@ Future<void> navigateToMatrixUri(
       // Check if already joined.
       final room = client.getRoomById(result.entityId);
       if (room != null) {
-        context.go('/main/rooms/${Uri.encodeComponent(result.entityId)}');
+        // Deliberately a `go`, and deliberately not the [openRoom] seam: a
+        // deep link arrives from outside the app, so there is no in-app
+        // context worth preserving and the page the user was on is not a
+        // step they took through this navigator. Pushing would bury
+        // whatever they had open underneath a room they were linked to.
+        context.go(MoonRoutePaths.roomChatPath(result.entityId));
       } else if (settings.deepLinkAutoJoin) {
         await _autoJoinRoom(context, client, result, log);
       } else {
@@ -299,7 +305,7 @@ Future<void> _autoJoinRoom(
       // an alias, and the room route resolves ids only, so navigate with
       // the returned value rather than the parsed one.
       log.i('Deep link auto-joined ${result.entityId} as $value');
-      context.go('/main/rooms/${Uri.encodeComponent(value)}');
+      context.go(MoonRoutePaths.roomChatPath(value));
     case RetryFailed(:final error):
       log.w('Deep link auto-join failed for ${result.entityId}: $error');
       context.go('/main/room_preview/${Uri.encodeComponent(result.entityId)}');

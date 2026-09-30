@@ -17,10 +17,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Visibility;
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -188,7 +188,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
         );
         // Navigate with the returned room ID, not the alias, so the
         // room route resolves (getRoomById only matches room IDs).
-        context.push('/main/rooms/$value');
+        openRoom(context, value);
       case RetryFailed(:final error):
         setState(() {
           _joinError = error is TimeoutException
@@ -219,7 +219,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
       );
       // knockRoom returns the room ID even for an alias; navigate with
       // it so the room route resolves.
-      context.push('/main/rooms/$roomId');
+      openRoom(context, roomId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _knockingRoomId = null);

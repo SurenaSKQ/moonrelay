@@ -19,8 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:flutter/material.dart' hide Visibility;
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
@@ -132,7 +132,11 @@ class KnockRequestsSectionState extends State<KnockRequestsSection> {
     // moderator can see who they're letting in.
     if (approved == null) {
       if (!mounted) return;
-      context.push('/main/rooms/${widget.room.id}/profile/$userId');
+      openRoomSubpage(
+        context,
+        widget.room.id,
+        'profile/${Uri.encodeComponent(userId)}',
+      );
       return;
     }
     if (approved != true) return;

@@ -21,8 +21,8 @@ import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
@@ -52,8 +52,10 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
 
   /// Navigates to the thread view for [event].
   void _onThread(Event event) {
-    context.push(
-      '/main/rooms/${widget.room.id}/thread/${event.eventId}',
+    openRoomSubpage(
+      context,
+      widget.room.id,
+      'thread/${Uri.encodeComponent(event.eventId)}',
     );
   }
 
@@ -127,6 +129,21 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
+      // The room surface fills the pane. It is deliberately not capped and
+      // deliberately not centred.
+      //
+      // It was, briefly: the whole room was constrained to a 760px column
+      // and centred, on the reasoning that a 480px bubble in a full-width
+      // list leaves a lot of empty surface on a wide monitor and that a
+      // centred column would read as a deliberate measure. That is a
+      // reading-page argument and this is not a reading page. A chat client
+      // is a window onto a live conversation, and on a desktop the window
+      // is the thing the user sized deliberately: the extra width is there
+      // to be used, and an empty band beside the conversation reads as a
+      // layout that ran out of ideas rather than as breathing room.
+      //
+      // `test/widget/room_page_measure_test.dart` now pins the opposite
+      // invariant, so the cap cannot quietly come back.
       body: Column(
         children: [
           ChatRoomHeader(

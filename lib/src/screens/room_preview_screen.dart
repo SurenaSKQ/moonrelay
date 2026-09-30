@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
@@ -200,8 +201,15 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
         // joinRoom returns the canonical room ID even when the user
         // joined via an alias; navigate with the ID so the room route
         // resolves (getRoomById only matches room IDs).
+        //
+        // Deliberately not [openRoom]. This one is a replace in every
+        // shell, and for a good reason: this page is stale the moment the
+        // join succeeds, so leaving it underneath the room would send Back
+        // into a preview of a room the user is already in. `push` in the
+        // single-pane shell, which is what [openRoom] would do there,
+        // trades that for a back button that walks into a dead end.
         context.pushReplacement(
-          '/main/rooms/${Uri.encodeComponent(value)}',
+          MoonRoutePaths.roomChatPath(value),
         );
       case RetryFailed(:final error):
         setState(() {

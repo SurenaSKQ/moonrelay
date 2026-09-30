@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
@@ -242,9 +243,9 @@ class MatrixUrlBanner extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (room != null) {
-      // Navigate by resolved room ID (not alias) so RoomResolver can
-      // find it via getRoomById().
-        context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
+        // Navigate by resolved room ID (not alias) so RoomResolver can
+        // find it via getRoomById(). The seam encodes the path segment.
+        openRoom(context, room.id);
       } else {
         context.push(
           '/main/room_preview/${Uri.encodeComponent(result.entityId)}',

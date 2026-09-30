@@ -44,8 +44,8 @@ import 'package:moonrelay/src/widgets/command_palette/palette_models.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
 import 'package:moonrelay/src/widgets/search_provider.dart';
@@ -548,50 +548,28 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
     Navigator.of(context).pop();
     if (!mounted) return;
     RecentActivity.instance.recordRoom(room.id);
-    context.go('/main/rooms/${room.id}');
+    openRoom(context, room.id);
   }
 
-  /// Opens the selected settings path.  The path is one of
-  /// `/hub/<category>/<sub>` (e.g. `/hub/settings/appearance`).
+  /// Opens the selected settings location, which is a real hub route
+  /// (e.g. `/hub/settings/appearance`).
   ///
-  /// We never call `context.go(path)` here.  That would route the
-  /// GoRouter to a full-page hub, which is the old behaviour the user
-  /// just had us remove: it replaces the room page in the navigator
-  /// stack.  Instead, we open the hub as a modal overlay via
-  /// [showHubOverlay] so the chat stays visible underneath.
+  /// `push`, so the palette closes and the hub covers the window with the
+  /// chat still underneath it. This is what the modal overlay was for; the
+  /// overlay is gone and the route does the same job, except that the URL
+  /// now matches what is on screen and a stale `/hub/...` link from the
+  /// palette resolves instead of silently rendering an empty pane.
   void _openSettingsRoute(String path) {
     Navigator.of(context).pop();
     if (!mounted) return;
-    final selection = _hubSelectionForPath(path);
-    if (selection == null) {
-      // Path is not a hub path.  Fall back to a direct go.
-      context.go(path);
-      return;
-    }
-    showHubOverlay(context, selection: selection);
-  }
-
-  /// Parses a `/hub/<category>[/<sub>]` path into a
-  /// [HubCategorySelection].  Returns `null` for paths that don't
-  /// start with `/hub/`.
-  HubCategorySelection? _hubSelectionForPath(String path) {
-    if (!path.startsWith('/hub/')) return null;
-    final rest = path.substring('/hub/'.length);
-    if (rest.isEmpty) return const HubCategorySelection();
-    final segments = rest.split('/');
-    final category = segments.first;
-    final sub = segments.length > 1 ? segments[1] : null;
-    return HubCategorySelection(
-      categoryKey: category,
-      subKey: sub,
-    );
+    context.push(path);
   }
 
   void _runMessage(MessageSearchResult msg) {
     Navigator.of(context).pop();
     if (!mounted) return;
     RecentActivity.instance.recordRoom(msg.room.id);
-    context.go('/main/rooms/${msg.room.id}');
+    openRoom(context, msg.room.id);
   }
 
   void _runUser(Profile user) {
