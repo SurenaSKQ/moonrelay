@@ -428,9 +428,17 @@ class ProfileInfoRow extends StatelessWidget {
 
 // -- Profile overlay --------------------------------------------------------
 
-/// Opens the user profile as a centered modal overlay, similar to
-/// [showHubOverlay] but with a plain dim background instead of blur so the
-/// chat remains visible underneath.
+/// Opens the user profile as a centered modal overlay, with a plain dim
+/// background instead of blur so the chat remains visible underneath.
+///
+/// This is the last modal-overlay surface left in the app. The hub used to
+/// be presented the same way and is now a routed page instead, because a
+/// modal cannot be described by a URL and the hub wanted to be reachable by
+/// one. A profile overlay is the easier case: it is a transient look at
+/// somebody, not a place the user can be linked to or come back to, and
+/// there is nothing in it that wants a second entry point. If a profile ever
+/// needs deep links, or a settings surface of its own, this should become a
+/// route on the same pattern rather than grow a selection object.
 ///
 /// The overlay is independent of the room route; it does not push onto
 /// GoRouter's stack.  When [room] is provided the profile renders room-
