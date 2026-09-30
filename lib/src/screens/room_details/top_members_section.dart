@@ -14,17 +14,19 @@
 // You should have received a copy of the GNU Affero General Public
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_members_view/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 class TopMembersSection extends StatelessWidget {
   const TopMembersSection({
@@ -131,22 +133,6 @@ class MemberTile extends StatefulWidget {
 }
 
 class MemberTileState extends State<MemberTile> {
-  CachedPresence? _presence;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchPresence();
-  }
-
-  Future<void> _fetchPresence() async {
-    try {
-      final presence = await widget.member.room.client
-          .fetchCurrentPresence(widget.member.id);
-      if (mounted) setState(() => _presence = presence);
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -159,7 +145,33 @@ class MemberTileState extends State<MemberTile> {
       Membership.leave => l10n.leftBadge,
     };
 
-    final lastSeenText = _buildLastSeenText(context);
+    // Watched rather than fetched once, so a member coming online
+    // updates this row as the event arrives over sync. Absent bus (a test
+    // with no provider) renders no presence line.
+    final bus = context.read<PresenceBus?>();
+    if (bus == null) {
+      return _buildTile(context, l10n, t, membershipLabel, null);
+    }
+    return ValueListenableBuilder<CachedPresence?>(
+      valueListenable: bus.listenTo(widget.member.id),
+      builder: (context, live, __) => _buildTile(
+        context,
+        l10n,
+        t,
+        membershipLabel,
+        live ?? bus.presenceOf(widget.member.id),
+      ),
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+    String? membershipLabel,
+    CachedPresence? presence,
+  ) {
+    final lastSeenText = _buildLastSeenText(context, presence);
 
     return GestureDetector(
       onLongPress: () => _showContextMenu(context),
@@ -361,12 +373,12 @@ class MemberTileState extends State<MemberTile> {
     });
   }
 
-  String? _buildLastSeenText(BuildContext context) {
-    final ts = _presence?.lastActiveTimestamp;
+  String? _buildLastSeenText(BuildContext context, CachedPresence? presence) {
+    final ts = presence?.lastActiveTimestamp;
     if (ts == null) return null;
     final l10n = AppLocalizations.of(context)!;
     final timeStr = ts.relativeTimeShort(context);
-    return switch (_presence!.presence) {
+    return switch (presence!.presence) {
       PresenceType.online => l10n.activeAgo(timeStr),
       _ => l10n.lastSeenAgo(timeStr),
     };

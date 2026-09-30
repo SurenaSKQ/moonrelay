@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -73,11 +74,17 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
   /// would leave a user permanently "active" while reading.
   PresenceService? _presenceService;
 
+  /// Fans out `Client.onPresenceChanged` so the three read surfaces do
+  /// not each subscribe and filter. Always provided, like [_syncPulse],
+  /// so widgets can read it during the logout transition.
+  final PresenceBus _presenceBus = PresenceBus();
+
   Client? _boundClient;
 
   @override
   void dispose() {
     _presenceService?.dispose();
+    _presenceBus.dispose();
     _router.dispose();
     _syncPulse.dispose();
     _roomStateBus.dispose();
@@ -89,6 +96,7 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
     _boundClient = client;
     _syncPulse.bind(client);
     _roomStateBus.bind(client);
+    _presenceBus.bind(client);
 
     // Created on the first bind rather than as a field initializer,
     // because it needs the settings controller and the logger, both of
@@ -213,6 +221,13 @@ class _MoonrelayAppState extends State<MoonrelayApp> {
         // would assert at runtime.
         app = ChangeNotifierProvider<RoomStateBus>.value(
           value: _roomStateBus,
+          child: app,
+        );
+        // Always provided, unlike PresenceService: the member tiles read
+        // it on every row, and a missing provider would mean no presence
+        // line at all rather than a stale one.
+        app = ChangeNotifierProvider<PresenceBus>.value(
+          value: _presenceBus,
           child: app,
         );
         if (enc != null) {
