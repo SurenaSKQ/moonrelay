@@ -278,10 +278,32 @@ class PresenceService with WindowListener {
     await _publish(PresenceType.online);
   }
 
+  /// Publishes [type] for [client], pinning [Client.syncPresence] so the
+  /// choice survives the next `/sync`.
+  ///
+  /// Static so a caller with no bound service, such as the profile
+  /// screen in a tree where nothing is bound, still publishes correctly
+  /// rather than reverting to the decorative `setPresence`-only call this
+  /// replaced. Throws on failure, so the caller's own error handling
+  /// decides what the user is told; [PresenceService._publish] is the
+  /// wrapper that swallows and logs.
+  static Future<void> publishTo(
+    Client client, {
+    required PresenceType type,
+    String? statusMsg,
+  }) async {
+    if (!client.isLogged() || client.userID == null) return;
+    // Pinned before the PUT so a long-poll racing this call cannot undo
+    // it. Null means "let the server decide", which is what online and
+    // unavailable both want.
+    client.syncPresence = type == PresenceType.online ? null : type;
+    await client.setPresence(client.userID!, type, statusMsg: statusMsg);
+  }
+
   Future<void> _publish(PresenceType type, {String? statusMsg}) async {
     final client = _client;
     if (_disposed || client == null || !client.isLogged()) return;
-    if (_published == type && _isApplying == false) {
+    if (_published == type) {
       // Already published this state; the server has nothing to update
       // and a redundant PUT on every keystroke would be noise.
       if (statusMsg == null) return;
@@ -289,17 +311,8 @@ class PresenceService with WindowListener {
     if (_isApplying) return;
 
     _isApplying = true;
-    // Pin the sync presence first, so a long-poll racing this call does
-    // not undo it. Null means "let the server decide", which is what
-    // online and unavailable both want.
-    client.syncPresence =
-        type == PresenceType.online ? null : type;
     try {
-      await client.setPresence(
-        client.userID!,
-        type,
-        statusMsg: statusMsg,
-      );
+      await publishTo(client, type: type, statusMsg: statusMsg);
       _published = type;
       log.d('Presence published: $type');
     } on Object catch (e, s) {

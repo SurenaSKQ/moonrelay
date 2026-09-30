@@ -284,9 +284,9 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
     await context.showActionResult(
       action: () async {
         final result = await withRetry(
-          () => widget.client.setPresence(
-            widget.client.userID!,
-            _presence?.presence ?? PresenceType.online,
+          () => PresenceService.publishTo(
+            widget.client,
+            type: _presence?.presence ?? PresenceType.online,
             statusMsg: newStatus,
           ),
           maxRetries: 1,
@@ -315,46 +315,38 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   Future<void> _setPresence(PresenceType pt) async {
     final l10n = AppLocalizations.of(context)!;
     final log = context.read<Logger>();
-    // Route through the service when there is one, so a manual choice
-    // also pins client.syncPresence and is not undone by the next
-    // long-poll. Falling back to a direct call keeps the control working
-    // in the logged-out and test trees where no service is bound.
+    // Route through the service when one is bound, so a manual choice also
+    // stops the idle logic overriding it. Without a service (the logged-out
+    // tree, or a test) it falls back to the same static helper, so
+    // syncPresence is still pinned and the choice still survives the next
+    // long-poll. The two paths cannot drift because there is one
+    // implementation of the publish step.
     final presenceService = context.read<PresenceService?>();
-    if (presenceService == null) {
-      await context.showActionResult(
-        action: () async {
-          final result = await withRetry(
-            () => widget.client.setPresence(
-              widget.client.userID!,
+    await context.showActionResult(
+      action: presenceService != null
+          ? () => presenceService.setUserPresence(
               pt,
               statusMsg: _presence?.statusMsg,
-            ),
-            maxRetries: 1,
-            timeout: kDefaultTimeout,
-            log: log,
-            label: 'setPresence',
-          );
-          switch (result) {
-            case RetrySuccess():
-              return;
-            case RetryFailed(:final error):
-              throw StateError('$error');
-          }
-        },
-        successMessage: l10n.presenceStatusUpdated,
-        log: log,
-        logLabel: 'update presence',
-      );
-      if (!mounted) return;
-      _silentRefresh();
-      return;
-    }
-
-    await context.showActionResult(
-      action: () => presenceService.setUserPresence(
-        pt,
-        statusMsg: _presence?.statusMsg,
-      ),
+            )
+          : () async {
+              final result = await withRetry(
+                () => PresenceService.publishTo(
+                  widget.client,
+                  type: pt,
+                  statusMsg: _presence?.statusMsg,
+                ),
+                maxRetries: 1,
+                timeout: kDefaultTimeout,
+                log: log,
+                label: 'setPresence',
+              );
+              switch (result) {
+                case RetrySuccess():
+                  return;
+                case RetryFailed(:final error):
+                  throw StateError('$error');
+              }
+            },
       successMessage: l10n.presenceStatusUpdated,
       log: log,
       logLabel: 'update presence',
