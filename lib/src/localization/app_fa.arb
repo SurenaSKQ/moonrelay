@@ -943,7 +943,6 @@
   "presenceOnline": "آنلاین",
   "presenceOffline": "آفلاین",
   "presenceUnavailable": "غیرقابل دسترس",
-  "presenceUnknown": "نامشخص",
   "lastActive": "آخرین فعالیت",
   "@lastActive": {
     "description": "Label for the last active timestamp field."
@@ -2529,14 +2528,6 @@
   "displayNameUpdated": "نام نمایشی به‌روزرسانی شد.",
   "@displayNameUpdated": {
     "description": "Snackbar after updating display name."
-  },
-  "sharePresence": "اشتراک‌گذاری حضور",
-  "@sharePresence": {
-    "description": "Toggle to share presence with other users."
-  },
-  "sharePresenceDescription": "به کاربران دیگر اجازه دهید وضعیت آنلاین شما را ببینند.",
-  "@sharePresenceDescription": {
-    "description": "Description for the share-presence toggle."
   },
   "expandReplies": "نمایش متن گفتگو",
   "@expandReplies": {
