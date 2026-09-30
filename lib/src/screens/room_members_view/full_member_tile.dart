@@ -21,8 +21,10 @@ import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
@@ -46,27 +48,15 @@ class FullMemberTile extends StatefulWidget {
 }
 
 class FullMemberTileState extends State<FullMemberTile> {
-  CachedPresence? _presence;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchPresence();
-  }
-
-  Future<void> _fetchPresence() async {
-    try {
-      final presence = await widget.member.room.client
-          .fetchCurrentPresence(widget.member.id);
-      if (mounted) setState(() => _presence = presence);
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final t = MoonrelayThemeExtension.of(context).tokens;
-    final lastSeenText = _buildLastSeenText(context);
+    // Watched rather than fetched once: the bus delivers presence events
+    // as they arrive over /sync, so a member coming online updates this
+    // row without the list being reopened. The fetch is kicked off from
+    // the same subtree and only seeds the SDK's cache.
+    final bus = context.read<PresenceBus?>();
     final membershipLabel = switch (widget.member.membership) {
       Membership.ban => l10n.bannedBadge,
       Membership.invite => l10n.invitedBadge,
@@ -75,6 +65,32 @@ class FullMemberTileState extends State<FullMemberTile> {
       Membership.leave => l10n.leftBadge,
     };
 
+    // Absent bus (logged-out tree, or a test with no provider) means the
+    // row renders with no presence line, which is the pre-bus behaviour
+    // for a user whose presence was never fetched.
+    if (bus == null) {
+      return _buildTile(context, l10n, t, null, membershipLabel);
+    }
+    return ValueListenableBuilder<CachedPresence?>(
+      valueListenable: bus.listenTo(widget.member.id),
+      builder: (context, live, __) => _buildTile(
+        context,
+        l10n,
+        t,
+        live ?? bus.presenceOf(widget.member.id),
+        membershipLabel,
+      ),
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context,
+    AppLocalizations l10n,
+    MoonrelayDesignTokens t,
+    CachedPresence? presence,
+    String? membershipLabel,
+  ) {
+    final lastSeenText = _buildLastSeenText(context, presence);
     return GestureDetector(
       onLongPress: () => _showContextMenu(context),
       child: MouseRegion(
@@ -278,12 +294,12 @@ class FullMemberTileState extends State<FullMemberTile> {
     }
   }
 
-  String? _buildLastSeenText(BuildContext context) {
-    final ts = _presence?.lastActiveTimestamp;
+  String? _buildLastSeenText(BuildContext context, CachedPresence? presence) {
+    final ts = presence?.lastActiveTimestamp;
     if (ts == null) return null;
     final l10n = AppLocalizations.of(context)!;
     final timeStr = ts.relativeTimeShort(context);
-    return switch (_presence!.presence) {
+    return switch (presence!.presence) {
       PresenceType.online => l10n.activeAgo(timeStr),
       _ => l10n.lastSeenAgo(timeStr),
     };
