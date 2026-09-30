@@ -18,7 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:provider/provider.dart';
 
-/// Feeds pointer and keyboard activity to the [PresenceService].
+/// Feeds pointer, keyboard and lifecycle activity to the
+/// [PresenceService].
 ///
 /// Wraps the whole app rather than each screen, so typing in the
 /// composer, scrolling the timeline and clicking anywhere all count,
@@ -27,15 +28,47 @@ import 'package:provider/provider.dart';
 /// Both handlers are passive: they call [PresenceService.noteActivity],
 /// which only does work when the account is currently published offline,
 /// so this is cheap enough to sit on the hot path of every event.
-class ActivityTracker extends StatelessWidget {
+///
+/// Also the app's only [WidgetsBindingObserver], which it needs for the
+/// resume case. A desktop machine that suspends has no timer ticks, so
+/// without this the account would stay published as online through a
+/// sleep and only be corrected the next time something happened to wake
+/// the idle window.
+class ActivityTracker extends StatefulWidget {
   const ActivityTracker({super.key, required this.child});
 
   final Widget child;
 
   @override
+  State<ActivityTracker> createState() => _ActivityTrackerState();
+}
+
+class _ActivityTrackerState extends State<ActivityTracker>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    // Read rather than watch: this runs outside a build, and a missing
+    // service just means nothing to re-evaluate.
+    context.read<PresenceService?>()?.onResumed();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final presence = context.read<PresenceService?>();
-    if (presence == null) return child;
+    if (presence == null) return widget.child;
     return Focus(
       // An ancestor focus node is in the primary focus's chain, so this
       // receives bubbled key events without stealing focus from the
@@ -53,7 +86,7 @@ class ActivityTracker extends StatelessWidget {
         onPointerDown: (_) => presence.noteActivity(),
         onPointerMove: (_) => presence.noteActivity(),
         onPointerSignal: (_) => presence.noteActivity(),
-        child: child,
+        child: widget.child,
       ),
     );
   }
