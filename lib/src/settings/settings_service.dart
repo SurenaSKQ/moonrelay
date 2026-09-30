@@ -300,8 +300,7 @@ class SettingsService {
 
   Future<ThemeMode> themeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? themeIndex = prefs.getInt(_themeModeKey);
-    return themeIndex != null ? ThemeMode.values[themeIndex] : ThemeMode.system;
+    return _readEnum(prefs, _themeModeKey, ThemeMode.values, ThemeMode.system);
   }
 
   Future<void> updateThemeMode(ThemeMode theme) async {
@@ -311,10 +310,12 @@ class SettingsService {
 
   Future<DisplayType> displayType() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? typeIndex = prefs.getInt(_displayTypeKey);
-    return typeIndex != null
-        ? DisplayType.values[typeIndex]
-        : DisplayType.modern;
+    return _readEnum(
+      prefs,
+      _displayTypeKey,
+      DisplayType.values,
+      DisplayType.modern,
+    );
   }
 
   Future<void> updateDisplayType(DisplayType displayType) async {
@@ -324,8 +325,7 @@ class SettingsService {
 
   Future<LayoutMode> layoutMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? index = prefs.getInt(_layoutModeKey);
-    return index != null ? LayoutMode.values[index] : LayoutMode.auto;
+    return _readEnum(prefs, _layoutModeKey, LayoutMode.values, LayoutMode.auto);
   }
 
   Future<void> updateLayoutMode(LayoutMode mode) async {
@@ -468,28 +468,14 @@ class SettingsService {
     return MoonrelayAccents.byId(id)?.id ?? MoonrelayAccents.defaultAccentId;
   }
 
-  static ThemeMode _readThemeMode(SharedPreferences prefs) {
-    final index = prefs.getInt(_themeModeKey);
-    return index != null ? ThemeMode.values[index] : ThemeMode.system;
-  }
-
-  static DisplayType _readDisplayType(SharedPreferences prefs) {
-    final index = prefs.getInt(_displayTypeKey);
-    return index != null ? DisplayType.values[index] : DisplayType.modern;
-  }
-
-  static LayoutMode _readLayoutMode(SharedPreferences prefs) {
-    final index = prefs.getInt(_layoutModeKey);
-    return index != null ? LayoutMode.values[index] : LayoutMode.auto;
-  }
-
-  static RightPaneChoice _readRightPaneChoice(SharedPreferences prefs) {
-    final index = prefs.getInt(_rightPaneChoiceKey);
-    return index != null
-        ? RightPaneChoice.values[index]
-        : RightPaneChoice.roomInfo;
-  }
-
+  /// Reads a persisted enum stored by [index], falling back when the key is
+  /// missing **or** when the stored index no longer names a live value.
+  ///
+  /// The out-of-range case is not hypothetical: dropping or reordering a
+  /// value in one of these enums turns every already-persisted index into
+  /// a `RangeError` here, and these readers run during boot, so the crash
+  /// lands before the app ever paints. A user whose stored preference has
+  /// become unreadable should get the default, not a failed launch.
   static T _readEnum<T extends Enum>(
     SharedPreferences prefs,
     String key,
@@ -501,6 +487,22 @@ class SettingsService {
     if (index < 0 || index >= values.length) return fallback;
     return values[index];
   }
+
+  static ThemeMode _readThemeMode(SharedPreferences prefs) =>
+      _readEnum(prefs, _themeModeKey, ThemeMode.values, ThemeMode.system);
+
+  static DisplayType _readDisplayType(SharedPreferences prefs) =>
+      _readEnum(prefs, _displayTypeKey, DisplayType.values, DisplayType.modern);
+
+  static LayoutMode _readLayoutMode(SharedPreferences prefs) =>
+      _readEnum(prefs, _layoutModeKey, LayoutMode.values, LayoutMode.auto);
+
+  static RightPaneChoice _readRightPaneChoice(SharedPreferences prefs) => _readEnum(
+        prefs,
+        _rightPaneChoiceKey,
+        RightPaneChoice.values,
+        RightPaneChoice.roomInfo,
+      );
 
   static Set<String> _readCommaSet(SharedPreferences prefs, String key) {
     final raw = prefs.getString(key);
@@ -593,10 +595,12 @@ class SettingsService {
 
   Future<RightPaneChoice> rightPaneChoice() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? index = prefs.getInt(_rightPaneChoiceKey);
-    return index != null
-        ? RightPaneChoice.values[index]
-        : RightPaneChoice.roomInfo;
+    return _readEnum(
+      prefs,
+      _rightPaneChoiceKey,
+      RightPaneChoice.values,
+      RightPaneChoice.roomInfo,
+    );
   }
 
   Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
