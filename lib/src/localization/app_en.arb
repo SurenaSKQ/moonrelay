@@ -2954,11 +2954,11 @@
   },
   "autoOfflinePresenceEnabled": "Appear offline when idle",
   "@autoOfflinePresenceEnabled": {
-    "description": "Toggle for marking the account offline after a period of inactivity."
+    "description": "Toggle for marking the account offline after a period of inactivity. This is a Matrix presence change only, visible to other users; it does not lock the app, clear keys, or affect the session in any other way. Do not word this as a lock."
   },
   "autoOfflinePresenceEnabledDescription": "Mark the account as offline after a period of no keyboard or mouse activity.",
   "@autoOfflinePresenceEnabledDescription": {
-    "description": "Subtitle for the appear-offline-when-idle toggle."
+    "description": "Subtitle for the appear-offline-when-idle toggle. Presence only: other users see you as offline, nothing is locked and no keys are cleared."
   },
   "autoOfflinePresenceMinutes": "Idle minutes before appearing offline",
   "@autoOfflinePresenceMinutes": {

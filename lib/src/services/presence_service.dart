@@ -31,13 +31,34 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 /// profile screen, both of which reported success on failure (see the
 /// commit that fixes them), and nothing tracked idleness at all.
 ///
-/// The important constraint, and the reason this exists as a service
-/// rather than a timer in a screen: `Client.syncPresence` must be pinned
-/// alongside any "appear offline" choice. Per the Matrix spec, omitting
-/// `set_presence` on `/sync` tells the server to mark the client online,
-/// so a user who taps "Appear offline" would be flipped back within one
-/// long-poll interval. A `setPresence` call alone is therefore
-/// decorative.
+/// ## What "away" means here, and what it does not
+///
+/// Away is a *presence* fact and nothing else. It is `m.presence` on the
+/// wire, the same field a user sets by hand from the profile screen, and
+/// it is the only thing this service changes. Going idle publishes
+/// `PresenceType.offline`, or leaves the account where the user last put
+/// it. There is no other effect, by design.
+///
+/// Specifically, going idle does **not** touch cryptographic state: no
+/// megolm or olm keys are dropped, cleared, re-exported or evicted from
+/// memory, no database is closed, and no lock screen appears. Those
+/// actions were once implied by a setting called "auto-lock", which the
+/// app could not honour anyway: the SDK's `Encryption` exposes only
+/// `dispose()`, with no re-entry point, and `Client.dispose()` leaves the
+/// client unusable. A setting named "lock" promised a guarantee the app could not deliver.
+///
+/// If a real local lock is ever wanted, it is a separate feature with its
+/// own name and its own surface, and it belongs next to the encryption
+/// controls rather than to presence. It should not be bolted onto this
+/// service, whose only job is one field on the wire.
+///
+/// ## The constraint that shapes the design
+///
+/// `Client.syncPresence` must be pinned alongside any "appear offline"
+/// choice. Per the Matrix spec, omitting `set_presence` on `/sync` tells
+/// the server to mark the client online, so a user who taps "Appear
+/// offline" would be flipped back within one long-poll interval. A
+/// `setPresence` call alone is therefore decorative.
 class PresenceService with WindowListener {
   PresenceService({
     required this.settings,
