@@ -1024,9 +1024,17 @@
   },
 
   "presenceOnline": "Online",
+  "@presenceOnline": {
+    "description": "Matrix presence state: the user is online now."
+  },
   "presenceOffline": "Offline",
+  "@presenceOffline": {
+    "description": "Matrix presence state: the user is offline."
+  },
   "presenceUnavailable": "Unavailable",
-  "presenceUnknown": "Unknown",
+  "@presenceUnavailable": {
+    "description": "Matrix presence state: idle / away."
+  },
 
   "lastActive": "Last Active",
   "@lastActive": {
@@ -2617,14 +2625,6 @@
   "displayNameUpdated": "Display name updated.",
   "@displayNameUpdated": {
     "description": "Snackbar after updating display name."
-  },
-  "sharePresence": "Share presence",
-  "@sharePresence": {
-    "description": "Toggle to share presence with other users."
-  },
-  "sharePresenceDescription": "Allow other users to see your online status.",
-  "@sharePresenceDescription": {
-    "description": "Description for the share-presence toggle."
   },
 
   "expandReplies": "Show thread context",
