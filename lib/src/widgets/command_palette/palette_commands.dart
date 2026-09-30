@@ -18,8 +18,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/widgets/command_palette/palette_models.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
+import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
+
+/// Opens the hub at [category], optionally at one of its sub-items.
+///
+/// `push`, so the chat the palette was opened over is still underneath and
+/// the hub's back button returns to it. This is what the modal overlay used
+/// to do; the difference is that the hub is now a real location, so the
+/// palette's `/hub/...` entries and its six `>`-mode actions resolve to the
+/// same place instead of only one of them working.
+void openHub(BuildContext context, {String? category, String? sub}) {
+  context.push(hubPath(category: category, sub: sub));
+}
 
 // Part of Moonrelay, a matrix protocol client.
 // Copyright (C) 2025 Surena Karimpour Ghannadi
@@ -46,12 +58,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenSettings,
       icon: LucideIcons.settings,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(
-            categoryKey: 'settings',
-          ),
-        );
+        openHub(ctx, category: HubRouteKeys.settings);
       },
     ),
     CommandAction(
@@ -59,10 +66,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenAccounts,
       icon: LucideIcons.userRound,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(categoryKey: 'accounts'),
-        );
+        openHub(ctx, category: HubRouteKeys.accounts);
       },
     ),
     CommandAction(
@@ -70,13 +74,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenLogs,
       icon: LucideIcons.scrollText,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(
-            categoryKey: 'settings',
-            subKey: 'logs',
-          ),
-        );
+        openHub(ctx, category: HubRouteKeys.settings, sub: HubRouteKeys.logs);
       },
     ),
     CommandAction(
@@ -84,10 +82,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenProfile,
       icon: LucideIcons.userCircle,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(categoryKey: 'profile'),
-        );
+        openHub(ctx);
       },
     ),
     CommandAction(
@@ -95,10 +90,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenAbout,
       icon: LucideIcons.info,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(categoryKey: 'about'),
-        );
+        openHub(ctx, category: HubRouteKeys.about);
       },
     ),
     CommandAction(
@@ -106,13 +98,7 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       label: loc.commandPaletteOpenSecurity,
       icon: LucideIcons.shield,
       callback: (ctx) {
-        showHubOverlay(
-          ctx,
-          selection: const HubCategorySelection(
-            categoryKey: 'settings',
-            subKey: 'security',
-          ),
-        );
+        openHub(ctx, category: HubRouteKeys.settings, sub: HubRouteKeys.security);
       },
     ),
     CommandAction(
@@ -149,54 +135,49 @@ List<SettingsEntry> buildSettingsEntries(AppLocalizations loc) => [
         label: loc.appearance,
         description: loc.commandPaletteAppearanceDesc,
         icon: LucideIcons.palette,
-        path: '/hub/settings/appearance',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.appearance),
       ),
       SettingsEntry(
         label: loc.layout,
         description: loc.commandPaletteLayoutDesc,
         icon: LucideIcons.layoutDashboard,
-        path: '/hub/settings/layout',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.layout),
       ),
       SettingsEntry(
         label: loc.encryptionAndSecurity,
         description: loc.commandPaletteSecurityDesc,
         icon: LucideIcons.shield,
-        path: '/hub/settings/security',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.security),
       ),
       SettingsEntry(
         label: loc.chatSettings,
         description: loc.commandPaletteChatDesc,
         icon: LucideIcons.messageSquare,
-        path: '/hub/settings/chat',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.chat),
       ),
-      SettingsEntry(
-        label: loc.network,
-        description: loc.commandPaletteNetworkDesc,
-        icon: LucideIcons.activity,
-        path: '/hub/settings/network',
-      ),
+
       SettingsEntry(
         label: loc.backgroundAndTray,
         description: loc.commandPaletteBackgroundDesc,
         icon: LucideIcons.minimize2,
-        path: '/hub/settings/background',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.background),
       ),
       SettingsEntry(
         label: loc.notifications,
         description: loc.commandPaletteNotificationsDesc,
         icon: LucideIcons.bell,
-        path: '/hub/settings/notifications',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.notifications),
       ),
       SettingsEntry(
         label: loc.blockedUsers,
         description: loc.commandPaletteBlockedDesc,
         icon: LucideIcons.ban,
-        path: '/hub/settings/blocked',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.blocked),
       ),
       SettingsEntry(
         label: loc.logs,
         description: loc.commandPaletteLogsDesc,
         icon: LucideIcons.fileText,
-        path: '/hub/settings/logs',
+        path: hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.logs),
       ),
   ];

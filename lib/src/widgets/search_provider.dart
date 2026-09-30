@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
@@ -605,21 +606,31 @@ class SearchSectionHeader extends StatelessWidget {
 
 // --- Navigation helpers ------------------------------------------------------
 
+/// Each of these dismisses the palette first, then delegates to the
+/// shell-aware seam. They used to call `context.go` directly, which is the
+/// dashboard's answer and reset the single-pane shell's page stack every
+/// time a search result was chosen: the room list was rebuilt from scratch
+/// and the user's place in it was gone.
+///
+/// `context.pop()` is the palette closing itself, not a navigation intent,
+/// so it stays a plain pop here; [openRoom] is the part that has to know
+/// which shell it is in.
+
 /// Navigates to a [Room] for search results.
 void navigateToRoom(BuildContext context, Room room) {
   context.pop();
-  context.go('/main/rooms/${room.id}');
+  openRoom(context, room.id);
 }
 
 void navigateToMessageRoom(BuildContext context, MessageSearchResult msg) {
   context.pop();
-  context.go('/main/rooms/${msg.room.id}');
+  openRoom(context, msg.room.id);
 }
 
 void navigateToHomeserverRoom(BuildContext context, PublishedRoomsChunk room) {
   final alias = room.canonicalAlias ?? room.roomId;
   context.pop();
-  context.go('/main/rooms/$alias');
+  openRoom(context, alias);
 }
 
 void navigateToUser(BuildContext context, Profile user) {

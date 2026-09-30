@@ -18,8 +18,8 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
@@ -310,11 +310,10 @@ class _UserHoverPreviewState extends State<UserHoverPreview> {
   Future<void> _startDirectChat() async {
     widget.onClose();
     final client = context.read<Client>();
-    final goRouter = GoRouter.of(context);
     try {
       final roomId = await client.startDirectChat(widget.userId);
       if (!mounted) return;
-      goRouter.go('/main/rooms/${Uri.encodeComponent(roomId)}');
+      openRoom(context, roomId);
     } catch (_) {/* swallow -- profile overlay offers retry */}
   }
 

@@ -33,6 +33,11 @@ import 'package:moonrelay/src/screens/space_settings_page.dart';
 import 'package:moonrelay/src/screens/startup_screen/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
+import 'package:moonrelay/src/screens/global_search_page.dart';
+import 'package:moonrelay/src/screens/hub_screen/hub_screen.dart';
+import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
+import 'package:moonrelay/src/screens/spaces_list_page.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/profile_view.dart';
@@ -269,6 +274,42 @@ class MoonRouter {
                 userId: _ownUserId(context),
               ),
             ),
+            // The single-pane shell's four destinations. They are routes
+            // rather than `NavigationState` sentinels so they deep link,
+            // survive a cold start, and let the navigation bar read its
+            // selected index off the matched route instead of a second
+            // source of truth. See [FocusDestination].
+            //
+            // `/main/rooms` doubles as the dashboard's room list, so this
+            // only adds the three that had no route at all.
+            GoRoute(
+              path: MoonRoutePaths.spacesTemplate,
+              redirect: loggedOutRedirect,
+              builder: (context, state) => const SpacesListPage(),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.searchTemplate,
+              redirect: loggedOutRedirect,
+              builder: (context, state) => const GlobalSearchPage(),
+            ),
+            // The single-pane shell's "You" navigation destination.
+            //
+            // A redirect to the hub rather than a page of its own. It used
+            // to host the profile editor plus three links into the hub, which
+            // meant two routes rendering the same editor and a second place
+            // for the hub's section list to be maintained. The hub's index
+            // *is* the profile followed by that list, in the same order, so
+            // this is the same screen with one less thing to keep in step.
+            //
+            // The route stays, because the navigation bar needs a
+            // destination to land on and deep links to it already exist.
+            GoRoute(
+              path: MoonRoutePaths.youTemplate,
+              redirect: (context, state) {
+                final redirect = loggedOutRedirect(context, state);
+                return redirect ?? hubPath();
+              },
+            ),
             // Stand-alone profile route.  Decoupled from the room tree
             // so opening a user profile from a matrix link, deep link,
             // command palette, or inline mention doesn't require the
@@ -293,17 +334,6 @@ class MoonRouter {
               builder: (context, state) =>
                   ProfileView(userId: _param(state, 'userid')),
             ),
-            // Hub screen: opened exclusively as a modal overlay
-            // (see [showHubOverlay] in `hub_screen.dart`).  It is
-            // *not* registered as a GoRouter route because the
-            // hub-as-full-page behaviour used to replace the room
-            // page in the navigator stack.  Going through the
-            // overlay preserves the chat underneath.
-            //
-            // The `/hub/...` deep-link paths still exist in code
-            // (e.g. command palette `>`-mode entries) but are now
-            // intercepted and routed through the overlay instead
-            // of the GoRouter.
             GoRoute(
               path: '/main/encryption',
               builder: (context, state) => const EncryptionOverviewScreen(),
@@ -344,9 +374,86 @@ class MoonRouter {
             ),
           ],
         ),
+        // The hub, as a full-screen page on both shells.
+        //
+        // A sibling of the /main ShellRoute rather than a route inside
+        // it, on purpose. Nested inside, it would render in the dashboard's
+        // middle pane and behind the single-pane shell's navigation bar:
+        // two different presentations of the same screen. As a sibling it is
+        // the whole window in both, so the only difference between the
+        // shells here is how the user arrived.
+        //
+        // It shares AppFrame with /main, so the window title bar and
+        // its drag region are identical. Both ShellRoutes sit under the same
+        // navigator, so entering the hub with push keeps the chat
+        // underneath and the hub's own back button returns to it.
+        ShellRoute(
+          builder: (context, state, child) => child,
+          routes: [
+            // The index: your profile, with the section list under it on a
+            // narrow window and beside it on a wide one. No redirect, because
+            // the index is a real page rather than a default for a missing
+            // category.
+            GoRoute(
+              path: MoonRoutePaths.hubIndex,
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: null,
+              ),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.hubTemplate,
+              redirect: (context, state) =>
+                  _hubRedirect(state, subKey: null),
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: _param(state, 'category'),
+              ),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.hubSubTemplate,
+              // A sub-item only exists under a category that has items, and
+              // "network" is the standing proof that this list has drifted
+              // from the real one before: a command-palette entry pointed at
+              // /hub/settings/network, which has never been a sub-item and
+              // rendered an empty page. Rejecting it here turns that class
+              // of dead link into a redirect rather than a blank pane.
+              redirect: (context, state) => _hubRedirect(
+                state,
+                subKey: _param(state, 'sub'),
+              ),
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: _param(state, 'category'),
+                subKey: _param(state, 'sub'),
+              ),
+            ),
+          ],
+        ),
       ],
     ),
   ];
+
+  /// Validates a hub location, falling back to the landing page.
+  ///
+  /// Returns null when the location is already good, so it composes with
+  /// GoRouter's redirect as "fix it, or leave it alone".
+  static String? _hubRedirect(GoRouterState state, {String? subKey}) {
+    final String category = _param(state, 'category');
+    // An unknown category is the index page rather than an error: the index
+    // is a real destination, and a mistyped or retired link is better served
+    // by the hub's front door than by a blank pane.
+    if (!HubRouteKeys.isCategory(category)) return MoonRoutePaths.hubIndex;
+    if (subKey == null || subKey.isEmpty) return null;
+    // Only the settings category has sub-items today. Checking the parent as
+    // well as the key keeps /hub/about/whatever from rendering an About
+    // page that silently ignores the extra segment.
+    if (category != HubRouteKeys.settings ||
+        !HubRouteKeys.isSettingsSubItem(subKey)) {
+      return hubPath(category: category);
+    }
+    return null;
+  }
 
   /// The signed-in account's own user ID, or an empty string when there is
   /// no session yet.

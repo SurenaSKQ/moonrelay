@@ -17,10 +17,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -144,7 +144,7 @@ class _UserSearchWidgetState extends State<UserSearchWidget> {
 
     switch (result) {
       case RetrySuccess(:final value):
-        context.go('/main/rooms/$value');
+        openRoom(context, value);
       case RetryFailed(:final error):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

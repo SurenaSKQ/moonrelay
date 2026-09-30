@@ -15,15 +15,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/room_pane_sheet.dart';
 import 'package:moonrelay/src/widgets/sync_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -86,29 +88,36 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         (widget.room.summary.mJoinedMemberCount ?? 0);
   }
 
-  /// React to a tap on the room header.
-  ///
-  /// *If* the right sidebar is enabled *and* its pane choice is
-  /// [`RightPaneChoice.roomInfo`] we toggle the sidebar instead of
-  /// navigating to the full-info page.  Otherwise the old push-navigation
-  /// behaviour is retained.
-  void _onTap() {
-    final settings = context.read<SettingsController>();
+/// React to a tap on the room header.
+///
+/// On the dashboard the right sidebar is the room's detail surface, so if
+/// it is visible and already on room info there is nothing to open. In the
+/// single-pane shell there is no right sidebar at all, so the same four
+/// panes are presented as a sheet instead of falling through to the
+/// full-page room details, which is the desktop page reused on a phone.
+void _onTap() {
+  final settings = context.read<SettingsController>();
+  final shell = context.read<LayoutShellController>();
 
-    if (settings.rightSidebarVisible &&
-        settings.rightPaneChoice == RightPaneChoice.roomInfo) {
-      // Sidebar is already open and on room_info: no-op.
-      // Otherwise (sidebar hidden, or on different pane): open it.
-      return;
-    }
-
-    // Fall back to full-page navigation.
-    _openRoomInfo();
+  if (shell.isMobile) {
+    showRoomPaneSheet(context, room: widget.room);
+    return;
   }
+
+  if (settings.rightSidebarVisible &&
+      settings.rightPaneChoice == RightPaneChoice.roomInfo) {
+    // Sidebar is already open and on room_info: no-op.
+    // Otherwise (sidebar hidden, or on different pane): open it.
+    return;
+  }
+
+  // Fall back to full-page navigation.
+  _openRoomInfo();
+}
 
   /// Navigate to the room info page via go_router.
   void _openRoomInfo() {
-    context.push('/main/rooms/${widget.room.id}/profile/roomDetails');
+    openRoomSubpage(context, widget.room.id, 'profile/roomDetails');
   }
 
   @override
@@ -129,131 +138,169 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             ? _topic
             : AppLocalizations.of(context)!.noTopicSet;
 
-        // Adapt the header to the available width:
-        // - Very narrow panes drop badges and the topic line to keep the
-        //   title and toolbar reachable.
-        // - Narrow panes drop the topic and shrink the avatar.
-        final width = MediaQuery.sizeOf(context).width;
-        final compactHeader = width < 480;
-        final showTopic = !compactHeader;
-        final showBadges = width >= 600;
-        final avatarRadius = compactHeader ? 16.0 : 20.0;
-        final nameFontSize = compactHeader ? 14.0 : 16.0;
-        final hPadding = compactHeader ? t.spaceSm : t.spaceMd;
+        // Adapt the header to the *pane's* width, not the window's. The
+        // chat column is a sibling of the sidebars, so at a 1100px window
+        // it can be under 500px wide; measuring the window packed three
+        // controls into a 470px column and squeezed the room name out.
+        //
+        // Each control is gated by what it costs rather than by one shared
+        // band, because they are not the same kind of thing:
+        //  - the sync indicator and the pinned toggle each render nothing at
+        //    all when they have nothing to report, so hiding them by width
+        //    only removes a capability from the user who can least afford to
+        //    lose it, and costs no space when they are quiet
+        //  - the member badge and the topic line are always-present
+        //    furniture, so they are what gives way when the pane is narrow
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final tight = width < 400;
+            final showTopic = width >= 480;
+            final showMemberCount = width >= 440;
+            // Read, not watched: the shell commits in
+            // `_AdaptiveMainLayout`'s build, which is an ancestor and has
+            // already run, so the value is fresh without a subscription.
+            final isSinglePane = context.read<LayoutShellController>().isMobile;
+            final avatarRadius = tight ? 16.0 : 20.0;
+            final nameFontSize = tight ? 14.0 : 16.0;
+            final hPadding = tight ? t.spaceSm : t.spaceMd;
+            final iconSize = tight ? 16.0 : 18.0;
+            final density = tight
+                ? const VisualDensity(horizontal: -2, vertical: -2)
+                : VisualDensity.compact;
 
-        return GestureDetector(
-          onTap: _onTap,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-                horizontal: hPadding, vertical: compactHeader ? 6 : 8),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              border: Border(
-                bottom: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle),
+            return GestureDetector(
+              onTap: _onTap,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: hPadding, vertical: tight ? 6 : 8),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainer,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: scheme.outlineVariant
+                          .withValues(alpha: t.opacitySubtle),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Room avatar
+                    AvatarFromUriOrFallbackImage(
+                      client: widget.room.client,
+                      avatarUri: widget.room.avatar,
+                      radius: avatarRadius,
+                    ),
+                    SizedBox(width: tight ? t.spaceSm : t.spaceMd),
+
+                    // Name + Topic
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              fontSize: nameFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (showTopic) ...[
+                            SizedBox(height: t.spaceXxs),
+                            Text(
+                              topic,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: tight ? t.spaceXs : t.spaceSm),
+
+                    // Sync status. Silent unless something is actually
+                    // wrong or unusually slow; see SyncIndicator for why a
+                    // long-poll in flight is not worth reporting. It
+                    // collapses to nothing when quiet, so it is never
+                    // gated on width.
+                    SyncIndicator(client: widget.room.client),
+
+                    // Pinned messages toggle. Also self-hiding when the
+                    // room has no pinned messages, and an action rather
+                    // than furniture, so it stays reachable at every width.
+                    _PinnedFilterButton(room: widget.room),
+
+                    // In the single-pane shell the four detail panes have
+                    // no sidebar to live in, so they are reachable only
+                    // from here. Without this, pinned messages in
+                    // particular were unreachable below 600px.
+                    if (isSinglePane)
+                      IconButton(
+                        icon: Icon(
+                          LucideIcons.panelsTopLeft,
+                          size: iconSize,
+                        ),
+                        tooltip: AppLocalizations.of(context)!.roomInfo,
+                        visualDensity: density,
+                        onPressed: () =>
+                            showRoomPaneSheet(context, room: widget.room),
+                        color: scheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                      ),
+
+                    if (showMemberCount) ...[
+                      _MemberCountBadge(count: _memberCount, scheme: scheme),
+                      SizedBox(width: t.spaceXs),
+                    ],
+
+                    // In-room search toggle
+                    IconButton(
+                      icon: Icon(
+                        widget.isSearchActive
+                            ? LucideIcons.searchX
+                            : LucideIcons.search,
+                        size: iconSize,
+                      ),
+                      onPressed: widget.onSearchToggle,
+                      tooltip: AppLocalizations.of(context)!.searchInRoom,
+                      visualDensity: density,
+                      color: widget.isSearchActive
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+
+                    // Settings gear: navigate to room settings
+                    IconButton(
+                      icon: Icon(
+                        LucideIcons.settings,
+                        size: iconSize,
+                      ),
+                      onPressed: () => openRoomSubpage(
+                          context, widget.room.id, 'settings'),
+                      tooltip: AppLocalizations.of(context)!.roomSettings,
+                      visualDensity: density,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+
+                    // Chevron indicating tappable
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: tight ? 16 : 20,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            child: Row(
-              children: [
-                // Room avatar
-                AvatarFromUriOrFallbackImage(
-                  client: widget.room.client,
-                  avatarUri: widget.room.avatar,
-                  radius: avatarRadius,
-                ),
-                SizedBox(width: compactHeader ? t.spaceSm : t.spaceMd),
-
-                // Name + Topic
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: nameFontSize,
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (showTopic) ...[
-                        SizedBox(height: t.spaceXxs),
-                        Text(
-                          topic,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                SizedBox(width: compactHeader ? t.spaceXs : t.spaceSm),
-
-                if (showBadges) ...[
-                  // Sync status. Silent unless something is actually
-                  // wrong or unusually slow; see SyncIndicator for why a
-                  // long-poll in flight is not worth reporting.
-                  SyncIndicator(client: widget.room.client),
-
-                  // Member count badge
-                  _MemberCountBadge(count: _memberCount, scheme: scheme),
-                  SizedBox(width: t.spaceXs),
-
-                  // Pinned messages toggle
-                  _PinnedFilterButton(room: widget.room),
-                  SizedBox(width: t.spaceXs),
-                ],
-
-                // In-room search toggle
-                IconButton(
-                  icon: Icon(
-                    widget.isSearchActive
-                        ? LucideIcons.searchX
-                        : LucideIcons.search,
-                    size: compactHeader ? 16 : 18,
-                  ),
-                  onPressed: widget.onSearchToggle,
-                  tooltip: AppLocalizations.of(context)!.searchInRoom,
-                  visualDensity: compactHeader
-                      ? VisualDensity(horizontal: -2, vertical: -2)
-                      : VisualDensity.compact,
-                  color: widget.isSearchActive
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-
-                // Settings gear: navigate to room settings
-                IconButton(
-                  icon: Icon(
-                    LucideIcons.settings,
-                    size: compactHeader ? 16 : 18,
-                  ),
-                  onPressed: () =>
-                      context.push('/main/rooms/${widget.room.id}/settings'),
-                  tooltip: AppLocalizations.of(context)!.roomSettings,
-                  visualDensity: compactHeader
-                      ? VisualDensity(horizontal: -2, vertical: -2)
-                      : VisualDensity.compact,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-
-                // Chevron indicating tappable
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: compactHeader ? 16 : 20,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-              ],
-            ),
-          ),
+            );
+          },
         );
       },
     );

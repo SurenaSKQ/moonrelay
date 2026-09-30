@@ -400,19 +400,10 @@ class _EncryptionOverviewScreenState extends State<EncryptionOverviewScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.encryptionSecurity),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.refreshCw),
-            tooltip: loc.encryptionRefresh,
-            onPressed: () async {
-              await enc.refresh();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(loc.encryptionRefreshed)),
-              );
-            },
-          ),
-        ],
+        // Shared with the hub, which supplies its own section header and
+        // would otherwise have no way to refresh. See
+        // [EncryptionRefreshAction].
+        actions: const [EncryptionRefreshAction()],
       ),
       body: body,
     );
@@ -665,6 +656,36 @@ class EncryptionSectionHeader extends StatelessWidget {
           if (trailing != null) trailing!,
         ],
       ),
+    );
+  }
+}
+
+/// Re-reads cross-signing, key-backup and device state and reports the
+/// result.
+///
+/// Extracted because the page has two presentations that both need it. The
+/// standalone route gets it from its own `AppBar`; the hub supplies its own
+/// section header, so without a shared action the embedded page had no way
+/// to refresh at all while the standalone one did. That is not a cosmetic
+/// difference between two ways of viewing the same data: the refresh is the
+/// only way to pick up a change made on another device.
+class EncryptionRefreshAction extends StatelessWidget {
+  const EncryptionRefreshAction({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+    return IconButton(
+      icon: const Icon(LucideIcons.refreshCw),
+      tooltip: loc.encryptionRefresh,
+      onPressed: () async {
+        final EncryptionService enc = context.read<EncryptionService>();
+        await enc.refresh();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.encryptionRefreshed)),
+        );
+      },
     );
   }
 }

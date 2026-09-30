@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/widgets/create_room_form/join_rule_tile.dart';
 import 'dart:typed_data';
 
@@ -226,14 +227,19 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          context.go('/main/space/${parentSpace.id}');
+          context.go(
+            '/main/space/${Uri.encodeComponent(parentSpace.id)}',
+          );
         } else if (_isSpace) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.spaceCreated)),
           );
-          context.go('/main/space/$value');
+          context.go('/main/space/${Uri.encodeComponent(value)}');
         } else {
-          context.go('/main/rooms/$value');
+          // Open the new room through the seam rather than a raw go, so the
+          // single-pane shell keeps its room list underneath the new chat
+          // instead of resetting to a rebuilt one.
+          openRoom(context, value);
         }
       case RetryFailed(:final error):
         setState(() {

@@ -17,10 +17,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Visibility;
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_directory_search.dart';
@@ -179,7 +179,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
         // Navigate with the returned room ID, not the alias the user
         // typed: joinRoom resolves the alias to a room ID and the room
         // route only resolves room IDs.
-        context.push('/main/rooms/$value');
+        openRoom(context, value);
       case RetryFailed(:final error):
         // Try to detect if the room requires knocking.
         final joinRule = await _detectJoinRule(client, roomidOrAlias, log);
@@ -239,7 +239,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
         SnackBar(content: Text(l10n.knockSent(roomIdOrAlias))),
       );
       // Navigate with the returned room ID so the room route resolves.
-      context.push('/main/rooms/$roomId');
+      openRoom(context, roomId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _knockingRoomId = null);

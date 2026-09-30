@@ -49,8 +49,11 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/layouts/mobile_layout.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/router.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
@@ -147,6 +150,21 @@ Future<GoRouter> pumpRouter(
 
 void main() {
   group('MoonRouter routes', () {
+    // The single-pane shell's "You" navigation destination used to render
+    // `OwnAccountPage`, a page hosting the profile editor plus three links
+    // into the hub. That meant two routes rendering the same editor and the
+    // hub's section list existed in two places that had to be kept in step.
+    // The hub's index is the profile followed by that list, in the same
+    // order, so the destination now redirects there.
+    //
+    // Pinned against the real route table, not a test-local copy: the thing
+    // worth protecting is the redirect on `MoonRoutePaths.youTemplate`, and
+    // a local router that omitted the route would agree with any change.
+    testWidgets('/main/me redirects to the hub index', (tester) async {
+      final router = await pumpRouter(tester, initialLocation: '/main/me');
+      expect(router.state.uri.path, MoonRoutePaths.hubIndex);
+    });
+
     testWidgets('/main/myprofile shows the signed-in user, not an error',
         (tester) async {
       final router = await pumpRouter(
@@ -216,6 +234,147 @@ void main() {
       }
 
       router.dispose();
+    });
+
+    // The single-pane shell used to answer "am I in a room?" by testing for
+    // the presence of a `roomid` path parameter, which is true for every
+    // child of the room route. It then drew a top bar on top of whatever the
+    // page had already drawn, so room settings, thread view and room details
+    // each got a doubled header and a second, competing back arrow stacked
+    // above the `AppBar` they already render. These pin the corrected rule:
+    // the shell decorates only the routes it owns, and it never drops the
+    // page.
+    group('single-pane shell chrome', () {
+      // Narrow enough to resolve the mobile shell (mobileMax is 600).
+      const Size phone = Size(420, 900);
+
+      // The shell top bar's title. It names the destination rather than the
+      // app, because the navigation bar directly below already says where
+      // you are. Scoped to the bar by key, because the navigation bar
+      // deliberately repeats the same label and a bare text count would
+      // conflate the two.
+      const String shellTitle = 'Chats';
+      int shellTitleCount(WidgetTester tester) => tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(kMobileShellTopBar),
+              matching: find.text(shellTitle),
+            ),
+          )
+          .length;
+
+      testWidgets('draws its own top bar on the room list',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms',
+          size: phone,
+        );
+
+        // RoomsPane only mounts under the mobile shell; the desktop branch
+        // is an EmptyState. So the shell title here is the shell's own bar.
+        expect(shellTitleCount(tester), 1);
+        router.dispose();
+      });
+
+      testWidgets('renders the page on a route the shell does not decorate',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/myprofile',
+          size: phone,
+        );
+
+        // The regression this guards: the shell once returned a
+        // SizedBox.shrink() for any route it did not decorate, which blanked
+        // the whole page instead of just omitting the bar.
+        expect(find.byType(ProfileView), findsOneWidget);
+        expect(shellTitleCount(tester), 0);
+        router.dispose();
+      });
+
+      testWidgets('adds no top bar above a pushed sub-page',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms',
+          size: phone,
+        );
+
+        final int onList = shellTitleCount(tester);
+        expect(onList, 1, reason: 'precondition: the list has the shell bar');
+
+        router.push('/main/myprofile');
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+
+        expect(find.byType(ProfileView), findsOneWidget);
+        expect(
+          shellTitleCount(tester),
+          0,
+          reason: 'the shell stacked its own top bar on a page that already '
+              'renders an AppBar',
+        );
+        router.dispose();
+      });
+
+      // The gap that made the single-pane shell unusable: its two entry
+      // points to search and to the user's own profile lived in a sidebar it
+      // does not mount, so both were unreachable, and with them every page
+      // behind them (settings, accounts, devices, logs, logout).
+      testWidgets('shows the navigation bar on a destination',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms',
+          size: phone,
+        );
+
+        expect(find.byKey(kMobileShellNavigationBar), findsOneWidget);
+        expect(find.byType(NavigationDestination), findsNWidgets(4));
+        router.dispose();
+      });
+
+      testWidgets('hides the navigation bar inside a room', (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms/!room:example.org',
+          size: phone,
+        );
+
+        // A conversation is not a tab, and the bar would cost the chat its
+        // vertical space.
+        expect(find.byKey(kMobileShellNavigationBar), findsNothing);
+        router.dispose();
+      });
+
+      testWidgets('a destination switch is lateral, not a history step',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms',
+          size: phone,
+        );
+
+        // Tap the bar's own Search destination, not the top bar's search
+        // button, so this exercises the navigation rather than the action.
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(kMobileShellNavigationBar),
+            matching: find.byIcon(LucideIcons.search),
+          ),
+        );
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+
+        expect(router.state.uri.path, MoonRoutePaths.searchTemplate);
+        // `go`, so switching tabs did not stack a page the user would have
+        // to walk back through.
+        expect(router.canPop(), isFalse);
+        router.dispose();
+      });
     });
 
     testWidgets('path parameters reach the profile view exactly once '
