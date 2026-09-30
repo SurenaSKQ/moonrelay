@@ -21,378 +21,532 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
-import 'package:moonrelay/src/helpers/responsive.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/blur_background.dart';
-import 'package:moonrelay/src/screens/logs_page.dart';
-import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
-import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
-import 'package:moonrelay/src/screens/hub_screen/sub_page_header.dart';
-import 'package:moonrelay/src/screens/hub_screen/accounts_page.dart';
-import 'package:moonrelay/src/screens/hub_screen/my_profile_page.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/app_settings_overview.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/advanced_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/background_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/blocked_users_page.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/chat_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/layout_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/notification_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/privacy_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/storage_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/update_settings.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/keybind_settings.dart';
+import 'package:moonrelay/src/helpers/responsive.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
+import 'package:moonrelay/src/screens/logs_page.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/screens/hub_screen/about_page.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// -----------------------------------------------------------------------------
-// The main Hub screen: tab-based UI
-// -----------------------------------------------------------------------------
+import 'about_page.dart';
+import 'accounts_page.dart';
+import 'hub_nav_list.dart';
+import 'my_profile_page.dart';
+import 'navigation_items.dart';
+import 'settings/advanced_settings.dart';
+import 'settings/appearance_settings.dart';
+import 'settings/app_settings_overview.dart';
+import 'settings/background_settings.dart';
+import 'settings/blocked_users_page.dart';
+import 'settings/chat_settings.dart';
+import 'settings/keybind_settings.dart';
+import 'settings/layout_settings.dart';
+import 'settings/notification_settings.dart';
+import 'settings/privacy_settings.dart';
+import 'settings/storage_settings.dart';
+import 'settings/update_settings.dart';
+import 'sub_page_header.dart';
 
-/// A category selection that may be deep-linked into the [HubScreen].
+/// Width of the hub's navigation pane. Fixed rather than resizable: a
+/// settings sidebar has no text long enough to need more, and a
+/// user-resizable one would mean persisting a second width that has to
+/// agree with the dashboard's sidebar width.
+const double kHubNavWidth = 260;
+
+/// The hub: your profile, app settings, accounts, and about.
 ///
-/// The hub has internal state for `_selectedCategoryIndex` and
-/// `_selectedSubItemIndex`.  When a route specifies a category (and
-/// optional sub-item) the screen must mirror that selection into its
-/// internal state so the active tab and content pane agree with the
-/// URL.
+/// The selected section comes from the route. That is why the hub became a
+/// page at all: while it was a modal overlay the URL could not describe
+/// what was on screen, so the widget kept its selection in private integers
+/// and every hub link in the command palette resolved to nothing.
 ///
-/// The values are stable enough to be passed via GoRouter path
-/// parameters rather than query strings, which makes them matchable
-/// to specific routes (e.g. `/hub/settings/appearance`).
-class HubCategorySelection {
-  const HubCategorySelection({this.categoryKey, this.subKey});
-  final String? categoryKey;
-  final String? subKey;
-}
-
-/// Whether a tab in the hub represents a top-level category or one of
-/// the sub-items that hang off an expandable parent.
-enum _HubTabScope {
-  /// The tab targets a top-level category (e.g. Accounts, Settings).
-  category,
-
-  /// The tab targets a sub-item of an expandable category (e.g.
-  /// Settings > Appearance).  Only used inside the settings tab.
-  subItem,
-}
-
-/// One entry in the hub's tab strip.
+/// Two arrangements, one set of destinations:
 ///
-/// Each entry knows whether it represents a top-level category or a
-/// sub-item of an expandable parent; [controller] is the
-/// [TabController] that drives it.  Tapping a tab navigates to the
-/// canonical URL so deep links remain in sync.
-class _HubTab {
-  const _HubTab({
-    required this.label,
-    required this.icon,
-    required this.key,
-    required this.scope,
-    required this.parentCategoryIndex,
+///  * **Wide window.** A navigation pane on the left listing App Settings,
+///    Accounts and About; content on the right. The active section reveals
+///    its children inline, so a settings sub-page is one tap from anywhere.
+///    This is the Discord shape, and it is what thirteen settings pages
+///    have always needed to be.
+///
+///  * **Narrow window or the single-pane shell.** The index page *is* the
+///    profile, with the section list underneath it. Choosing a section
+///    pushes a full-screen page, so Back walks the stack the way it does
+///    in any other app.
+///
+/// The split reads the shell's own [LayoutShellController.fitsTwoPanes],
+/// which is the same answer the dashboard's detail pane reads. A hub that
+/// went two-pane in a window where the dashboard went one-pane would be two
+/// layouts disagreeing about the same measurement.
+///
+/// What this replaced was a horizontal tab strip that picked its
+/// presentation by counting tabs: four sections got an evenly divided row,
+/// and "App Settings" expanded the strip to fourteen, which is above the
+/// strip's own threshold, so all thirteen settings pages were permanently a
+/// dropdown. That is not a presentation detail, it is why the settings
+/// never looked like a list of settings.
+class HubScreen extends StatelessWidget {
+  const HubScreen({
+    super.key,
+    required this.client,
+    required this.categoryKey,
+    this.subKey,
   });
-
-  /// Localised label shown in the tab.
-  final String label;
-
-  /// Icon shown in the tab.
-  final IconData icon;
-
-  /// Stable key used to resolve content for this tab.
-  final String key;
-
-  /// Whether this is a top-level tab or a sub-tab.
-  final _HubTabScope scope;
-
-  /// The index of the parent top-level category in [_categories].  For
-  /// top-level tabs this equals the tab's own index in the strip.
-  final int parentCategoryIndex;
-}
-
-class HubScreen extends StatefulWidget {
-  const HubScreen({super.key, required this.client, this.selection});
 
   final Client client;
 
-  /// Optional deep-link selection resolved by the router.  When
-  /// present, the screen synchronises its internal category/sub-item
-  /// indices to the supplied keys and reacts to subsequent changes
-  /// (e.g. the user tapping "Open Settings" from the command palette
-  /// while already on `/hub/accounts`).
-  final HubCategorySelection? selection;
+  /// Route path segment naming the section, or null for the index page.
+  /// The router validates it, so by the time this builds it names a real
+  /// section.
+  final String? categoryKey;
+
+  /// Route path segment naming a settings sub-item, or null for a section's
+  /// own overview page.
+  final String? subKey;
 
   @override
-  State<HubScreen> createState() => _HubScreenState();
-}
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final double width = MediaQuery.sizeOf(context).width;
+    final bool twoPanes = context.read<LayoutShellController>().fitsTwoPanes;
 
-class _HubScreenState extends State<HubScreen> {
-  // Index tracking: which top-level category and which sub-item (if any).
-  int _selectedCategoryIndex = 0;
-  int _selectedSubItemIndex = -1;
-
-  // -- Category definitions -------------------------------------------------
-
-  List<HubCategory> _categories = [];
-
-  // When the user is inside an expandable category with sub-items, we
-  // swap the tab strip's contents for the parent category's items so
-  // the user can flip between Appearance / Layout / Encryption & …
-  // without leaving the parent tab.  The parent's index is preserved
-  // so we can render the parent's overview page (or first item) when
-  // the user re-selects the top-level tab.
-  int _subTabsParentIndex = -1;
-
-  /// The locale [_categories] was last built against, so a locale switch
-  /// can rebuild the labels instead of keeping the stale ones.
-  Locale? _builtForLocale;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // The category labels are baked from `AppLocalizations` at build time,
-    // so they have to be rebuilt when the locale changes. Guarding only on
-    // `isEmpty` (as this used to) left the whole nav strip in the previous
-    // language after a locale switch, which is most of what the locale
-    // setting is for.
-    final locale = Localizations.localeOf(context);
-    if (_categories.isEmpty || _builtForLocale != locale) {
-      final hadCategories = _categories.isNotEmpty;
-      _builtForLocale = locale;
-      _buildCategories();
-      // Apply initial selection from the route if one was supplied. On a
-      // locale change the selection is already valid and re-applying it
-      // would push a redundant navigation, so only do it on first build.
-      if (!hadCategories) {
-        _applySelection(widget.selection, duringBuild: true);
-      }
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant HubScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selection != widget.selection) {
-      _applySelection(widget.selection);
-    }
-  }
-
-  /// Maps a [HubCategorySelection] (category/sub keys) into the
-  /// screen's internal indices.
-  ///
-  /// When [duringBuild] is true, the indices are mutated directly and
-  /// a follow-up [setState] is scheduled for after the current frame.
-  /// This avoids triggering an assertion failure when the caller is
-  /// already inside a build cycle (e.g. [didChangeDependencies]).
-  void _applySelection(HubCategorySelection? selection,
-      {bool duringBuild = false}) {
-    if (selection == null) return;
-    final catIdx = _categories.indexWhere(
-      (c) => c.key == selection.categoryKey,
+    final Widget content = HubContent(
+      client: client,
+      categoryKey: categoryKey,
+      subKey: subKey,
     );
-    if (catIdx < 0) return;
 
-    int subIdx = -1;
-    if (selection.subKey != null &&
-        catIdx < _categories.length &&
-        _categories[catIdx].items.isNotEmpty) {
-      subIdx = _categories[catIdx]
-          .items
-          .indexWhere((s) => s.key == selection.subKey);
-    }
+    final Widget nav = HubNavList(
+      selectedCategory: categoryKey,
+      selectedSubItem: subKey,
+      expandActive: twoPanes,
+      onSelect: (String category, String? sub) => _go(context, category, sub),
+    );
 
-    if (catIdx == _selectedCategoryIndex && subIdx == _selectedSubItemIndex) {
-      return;
-    }
-
-    if (duringBuild) {
-      _selectedCategoryIndex = catIdx;
-      _selectedSubItemIndex = subIdx;
-      _subTabsParentIndex = subIdx >= 0 ? catIdx : -1;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() {});
-      });
-    } else {
-      setState(() {
-        _selectedCategoryIndex = catIdx;
-        _selectedSubItemIndex = subIdx;
-        _subTabsParentIndex = subIdx >= 0 ? catIdx : -1;
-      });
-    }
-  }
-
-  void _buildCategories() {
-    final l10n = AppLocalizations.of(context)!;
-    _categories = [
-      HubCategory(
-        key: 'accounts',
-        label: l10n.accounts,
-        icon: LucideIcons.users,
-        isExpandable: false,
-      ),
-      HubCategory(
-        key: 'profile',
-        label: l10n.ownProfileDescriptor,
-        icon: LucideIcons.user,
-        isExpandable: false,
-      ),
-      HubCategory(
-        key: 'settings',
-        label: l10n.appSettings,
-        icon: LucideIcons.settings,
-        isExpandable: true,
-        items: [
-          HubNavigationItem(
-            key: 'appearance',
-            label: l10n.appearance,
-            icon: LucideIcons.palette,
-          ),
-          HubNavigationItem(
-            key: 'layout',
-            label: l10n.layout,
-            icon: LucideIcons.layoutDashboard,
-          ),
-          HubNavigationItem(
-            key: 'security',
-            label: l10n.encryptionAndSecurity,
-            icon: LucideIcons.shield,
-          ),
-          HubNavigationItem(
-            key: 'chat',
-            label: l10n.chatSettings,
-            icon: LucideIcons.messageSquare,
-          ),
-          HubNavigationItem(
-            key: 'keybinds',
-            label: l10n.keybinds,
-            icon: LucideIcons.keyboard,
-          ),
-          HubNavigationItem(
-            key: 'logs',
-            label: l10n.logs,
-            icon: LucideIcons.fileText,
-          ),
-          HubNavigationItem(
-            key: 'background',
-            label: l10n.backgroundAndTray,
-            icon: LucideIcons.minimize2,
-          ),
-          HubNavigationItem(
-            key: 'notifications',
-            label: l10n.notifications,
-            icon: LucideIcons.bell,
-          ),
-          HubNavigationItem(
-            key: 'privacy',
-            label: l10n.privacy,
-            icon: LucideIcons.shieldCheck,
-          ),
-          HubNavigationItem(
-            key: 'storage',
-            label: l10n.storage,
-            icon: LucideIcons.hardDrive,
-          ),
-          HubNavigationItem(
-            key: 'advanced',
-            label: l10n.advanced,
-            icon: LucideIcons.settings2,
-          ),
-          HubNavigationItem(
-            key: 'blocked',
-            label: l10n.blockedUsers,
-            icon: LucideIcons.ban,
-          ),
-          HubNavigationItem(
-            key: 'updates',
-            label: l10n.updates,
-            icon: LucideIcons.download,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.hub),
+        // Two buttons, because "back" means two different things here and
+        // users mean different things by each.
+        //
+        // The arrow is a history step: it walks out of the hub the way it
+        // was entered, undoing one section switch at a time. That is what
+        // someone expects from a back arrow and it is the only thing that
+        // gets them back to the room they opened settings from.
+        //
+        // The cross is an exit. It discards the hub's whole stack and goes
+        // to the dashboard, which is what someone wants when they opened
+        // the hub to change one setting and have changed it. Making them
+        // press Back once per section visited to leave a surface they do
+        // not think of as a stack is a small thing that adds up.
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          tooltip: l10n.back,
+          onPressed: () => _leave(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.x),
+            tooltip: l10n.close,
+            onPressed: () => closeToRoomList(context),
           ),
         ],
       ),
-      HubCategory(
-        key: 'about',
-        label: l10n.about,
-        icon: LucideIcons.info,
-        isExpandable: false,
+      body: LayoutScope(
+        // Window width, not the pane's: the pane is 260px on a wide window
+        // and the whole width on a narrow one, and a descendant that
+        // measures itself should be told what the window is, the same
+        // answer the dashboard's panes get.
+        size: LayoutBreakpoints.sizeForWidth(width),
+        availableWidth: width,
+        child: twoPanes
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: kHubNavWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _AccountHeader(
+                          // Push, not `go`: this is a move *within* the
+                          // hub, and `go` would discard the sections the
+                          // user came from, including the route the hub
+                          // itself was opened from.
+                          onTap: () => _go(context, null, null),
+                          selected: categoryKey == null,
+                        ),
+                        Divider(height: 1, color: scheme.outlineVariant),
+                        Expanded(child: nav),
+                      ],
+                    ),
+                  ),
+                  VerticalDivider(
+                    width: 1,
+                    color: scheme.outlineVariant,
+                  ),
+                  Expanded(child: content),
+                ],
+              )
+            // The index page is the profile with the section list under it.
+            // On any other page the list is not repeated: the section is
+            // full-screen and Back returns here.
+            : categoryKey == null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: content),
+                      Divider(height: 1, color: scheme.outlineVariant),
+                      SizedBox(
+                        height: _kIndexNavHeight,
+                        child: nav,
+                      ),
+                      SizedBox(height: t.spaceXs),
+                    ],
+                  )
+                : content,
       ),
-    ];
+    );
   }
 
-  /// Returns the list of tabs to render in the top strip.
+  /// Moves to a hub location, always by pushing.
   ///
-  /// When the user is inside a top-level category (or has just
-  /// selected one without a sub-item) the strip shows the four
-  /// top-level categories.  When the user is on a sub-item of an
-  /// expandable parent, the strip shows that parent's sub-items so the
-  /// user can flip between settings panes without going back through
-  /// the overview.
-  List<_HubTab> _tabsForCurrentSelection() {
-    if (_subTabsParentIndex >= 0) {
-      final parent = _categories[_subTabsParentIndex];
-      // First tab: the parent overview page.
-      final parentLabel = parent.label;
-      final tabs = <_HubTab>[
-        _HubTab(
-          label: parentLabel,
-          icon: parent.icon,
-          key: parent.key ?? '',
-          scope: _HubTabScope.category,
-          parentCategoryIndex: _subTabsParentIndex,
-        ),
-      ];
-      for (var i = 0; i < parent.items.length; i++) {
-        final sub = parent.items[i];
-        tabs.add(_HubTab(
-          label: sub.label,
-          icon: sub.icon,
-          key: sub.key ?? '',
-          scope: _HubTabScope.subItem,
-          parentCategoryIndex: _subTabsParentIndex,
-        ));
-      }
-      return tabs;
+  /// This used to `go` on the wide shell, on the grounds that a sidebar
+  /// click is a lateral move. That was wrong in a way that only showed up
+  /// once someone pressed Back: `go` replaces the whole page stack, so the
+  /// first section switch inside the hub destroyed the route the hub was
+  /// opened from. After one click there was nothing left to pop, the back
+  /// button went inert, and the chat the user had opened settings *from*
+  /// was unrecoverable. Not a cosmetic problem: the entry point was being
+  /// thrown away.
+  ///
+  /// Pushing keeps the hub a stack in both shells, so Back works at every
+  /// depth and walking out of the hub returns to where you came from. It
+  /// also removes the last behavioural difference between the shells, which
+  /// was the point of having two arrangements of one design rather than two
+  /// designs.
+  void _go(BuildContext context, String? category, String? sub) {
+    final String path = hubPath(category: category, sub: sub);
+    // Re-tapping the row you are already on would otherwise stack a
+    // duplicate entry, making Back appear to do nothing for one press.
+    if (GoRouter.of(context).state.uri.path == path) return;
+    context.push(path);
+  }
+
+  /// Walks one step back through the hub, the way it was entered.
+  ///
+  /// This is the arrow, not the cross. It undoes one section switch at a
+  /// time and, at the hub's entry point, returns to whatever opened the
+  /// hub. The `go` fallback fires only when there is genuinely nothing
+  /// behind: a cold start on `/hub`, or a deep link. [closeToRoomList] is
+  /// the unconditional way out, and it is the cross in the app bar.
+  void _leave(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
     }
-    // Top-level strip: one tab per top-level category.
+    context.go(MoonRoutePaths.roomListTemplate);
+  }
+}
+
+/// Height reserved for the section list on the narrow index page. Enough
+/// for the three rows plus their dividers without the profile above it
+/// being squeezed out.
+const double _kIndexNavHeight = 168;
+
+/// The account identity at the top of the hub's navigation pane.
+///
+/// Tappable, and it is the way back to the index page when the index page's
+/// profile is scrolled past or the user is several sections deep. On the
+/// narrow shell this is not rendered: there the profile *is* the index
+/// page, and there is nothing to navigate back to from.
+class _AccountHeader extends StatelessWidget {
+  const _AccountHeader({required this.onTap, required this.selected});
+
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: AppLocalizations.of(context)!.myProfile,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          color: selected
+              ? scheme.primaryContainer.withValues(alpha: 0.45)
+              : scheme.surfaceContainerLow,
+          padding: EdgeInsets.fromLTRB(t.spaceMd, t.spaceMd, t.spaceSm, t.spaceMd),
+          child: Row(
+            children: [
+              const _ClientAvatar(),
+              SizedBox(width: t.spaceSm),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.myProfile,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? scheme.primary : scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The signed-in user's own avatar, falling back to their Matrix id.
+///
+/// Read from the client rather than passed in: the header is a navigation
+/// affordance and has no business carrying an avatar cache entry, and the
+/// profile page directly below it already resolves the same value. Showing
+/// the fallback rather than a blank circle matters because the id is what
+/// identifies the account when the avatar is missing or 404s, which is the
+/// common case in the integration test.
+class _ClientAvatar extends StatelessWidget {
+  const _ClientAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    final Client client = context.read<Client>();
+    final String userId = client.userID ?? '';
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Text(
+        userId.isEmpty ? '?' : userId.substring(1, 2).toUpperCase(),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// The hub's content pane for one section.
+///
+/// Separate from the chrome above it so the same dispatcher serves both
+/// arrangements, and so the settings pages keep their existing
+/// `HubSubPageHeader` constraint: they are wrapped in an [Expanded], so
+/// every one of them has to be scrollable or fillable.
+class HubContent extends StatelessWidget {
+  const HubContent({
+    super.key,
+    required this.client,
+    required this.categoryKey,
+    this.subKey,
+  });
+
+  final Client client;
+  final String? categoryKey;
+  final String? subKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? sub = subKey;
+
+    if (categoryKey == null) {
+      return HubMyProfilePage(client: client);
+    }
+
+    if (sub != null) {
+      return HubSubPageHeader(
+        title: _subItemTitle(context, sub),
+        // The encryption page is the one section with a control of its own,
+        // and it is the only way to pick up a cross-signing or key-backup
+        // change made on another device. It used to come with an `AppBar`
+        // that the embedded presentation threw away, along with the refresh.
+        actions: sub == HubRouteKeys.security
+            ? const [EncryptionRefreshAction()]
+            : const [],
+        child: _buildSubItem(context, sub),
+      );
+    }
+
+    switch (categoryKey) {
+      case HubRouteKeys.accounts:
+        return _AccountsPane(client: client);
+      case HubRouteKeys.settings:
+        return HubSubPageHeader(
+          title: AppLocalizations.of(context)!.appSettings,
+          child: _SettingsOverview(),
+        );
+      case HubRouteKeys.about:
+        return HubAboutPage(client: client);
+      default:
+        // Unreachable via a route: the router rejects unknown categories.
+        // Reachable by a hand-built widget, so it renders nothing rather
+        // than throwing.
+        return const SizedBox.shrink();
+    }
+  }
+
+  String _subItemTitle(BuildContext context, String sub) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    return switch (sub) {
+      HubRouteKeys.appearance => l10n.appearance,
+      HubRouteKeys.layout => l10n.layout,
+      HubRouteKeys.security => l10n.encryptionAndSecurity,
+      HubRouteKeys.chat => l10n.chatSettings,
+      HubRouteKeys.keybinds => l10n.keybinds,
+      HubRouteKeys.logs => l10n.logs,
+      HubRouteKeys.background => l10n.backgroundAndTray,
+      HubRouteKeys.notifications => l10n.notifications,
+      HubRouteKeys.privacy => l10n.privacy,
+      HubRouteKeys.storage => l10n.storage,
+      HubRouteKeys.advanced => l10n.advanced,
+      HubRouteKeys.blocked => l10n.blockedUsers,
+      HubRouteKeys.updates => l10n.updates,
+      _ => sub,
+    };
+  }
+
+  /// Renders a settings sub-item keyed by its stable identifier. Adding a
+  /// new sub-item is one case here, one entry in `HubRouteKeys`, and one
+  /// row in `HubNavList`; it never depends on a positional index.
+  Widget _buildSubItem(BuildContext context, String subKey) {
+    switch (subKey) {
+      case HubRouteKeys.appearance:
+        return const HubAppearanceSettings();
+      case HubRouteKeys.layout:
+        return const HubLayoutSettings();
+      case HubRouteKeys.security:
+        return const EncryptionOverviewScreen(embedded: true);
+      case HubRouteKeys.chat:
+        return const HubChatSettings();
+      case HubRouteKeys.keybinds:
+        return const HubKeybindSettings();
+      case HubRouteKeys.logs:
+        return const LogsPage();
+      case HubRouteKeys.background:
+        return const HubBackgroundSettings();
+      case HubRouteKeys.notifications:
+        return const HubNotificationSettings();
+      case HubRouteKeys.privacy:
+        return const HubPrivacySettings();
+      case HubRouteKeys.storage:
+        return const HubStorageSettings();
+      case HubRouteKeys.advanced:
+        return const HubAdvancedSettings();
+      case HubRouteKeys.blocked:
+        return const HubBlockedUsersPage();
+      case HubRouteKeys.updates:
+        return const HubUpdateSettings();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+}
+
+/// The list of settings sections, shown on the App Settings overview page.
+///
+/// Rebuilt from [HubRouteKeys] rather than hand-listed, so a section added
+/// to the nav list is reachable from the overview too. The two used to be
+/// separate lists and could disagree, which is how `/hub/settings/network`
+/// came to exist in the command palette while naming nothing at all.
+class _SettingsOverview extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return HubAppSettingsOverview(
+      onItemTap: (int index) {
+        // The index is into this page's own item list, so it is resolved
+        // through the same source of truth rather than trusted as a key.
+        final String? sub = _subKeyAt(index);
+        if (sub == null) return;
+        context.push(hubPath(category: HubRouteKeys.settings, sub: sub));
+      },
+      items: _overviewItems(context),
+    );
+  }
+
+  String? _subKeyAt(int index) {
+    if (index < 0 || index >= HubRouteKeys.settingsSubItems.length) {
+      return null;
+    }
+    return HubRouteKeys.settingsSubItems[index];
+  }
+
+  List<HubNavigationItem> _overviewItems(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final Map<String, String> labels = {
+      HubRouteKeys.appearance: l10n.appearance,
+      HubRouteKeys.layout: l10n.layout,
+      HubRouteKeys.security: l10n.encryptionAndSecurity,
+      HubRouteKeys.chat: l10n.chatSettings,
+      HubRouteKeys.keybinds: l10n.keybinds,
+      HubRouteKeys.logs: l10n.logs,
+      HubRouteKeys.background: l10n.backgroundAndTray,
+      HubRouteKeys.notifications: l10n.notifications,
+      HubRouteKeys.privacy: l10n.privacy,
+      HubRouteKeys.storage: l10n.storage,
+      HubRouteKeys.advanced: l10n.advanced,
+      HubRouteKeys.blocked: l10n.blockedUsers,
+      HubRouteKeys.updates: l10n.updates,
+    };
     return [
-      for (var i = 0; i < _categories.length; i++)
-        _HubTab(
-          label: _categories[i].label,
-          icon: _categories[i].icon,
-          key: _categories[i].key ?? '',
-          scope: _HubTabScope.category,
-          parentCategoryIndex: i,
+      for (final String key in HubRouteKeys.settingsSubItems)
+        HubNavigationItem(
+          key: key,
+          label: labels[key] ?? key,
+          icon: LucideIcons.settings,
         ),
     ];
   }
+}
 
-  int get categoryCount => _categories.length;
+/// The accounts section, which owns logging out.
+///
+/// A `StatefulWidget` for one piece of state: whether the wipe-on-logout
+/// preference is on. The logout sequence itself stays in one place because
+/// it spans the account manager, the log service and the router, and it is
+/// the kind of thing that should not be reachable from two call sites.
+class _AccountsPane extends StatefulWidget {
+  const _AccountsPane({required this.client});
 
+  final Client client;
+
+  @override
+  State<_AccountsPane> createState() => _AccountsPaneState();
+}
+
+class _AccountsPaneState extends State<_AccountsPane> {
   Future<void> _logout() async {
-    final l10n = AppLocalizations.of(context)!;
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     try {
-      final accountManager = context.read<AccountManager>();
-      final logService = context.read<LogService>();
-      // Service, not a single read, because the advanced settings page
-      // applies changes through it: these four names are consumed there
-      // rather than read directly, which is what keeps the logger's
-      // identity stable for the long-lived references to it.
-      final settings = context.read<SettingsController>();
+      final AccountManager accountManager = context.read<AccountManager>();
+      final LogService logService = context.read<LogService>();
+      // Read through the service, not a single reference: the advanced
+      // settings page applies changes through it, so holding this identity
+      // keeps the long-lived reference valid.
+      final bool wipeLogs =
+          context.read<SettingsController>().wipeLogsOnLogout;
       await accountManager.logout();
-      // Wipe all log files now that the session has been torn down, so no
-      // session-related line survives on disk. Gated on the user's
-      // privacy preference: it was previously unconditional, which made
-      // the toggle in privacy settings do nothing.
-      if (settings.wipeLogsOnLogout) {
+      if (!mounted) return;
+      if (wipeLogs) {
         await logService.wipeLogs();
       }
       if (!mounted) return;
       context.go('/');
-    } catch (e) {
+    } catch (e, stack) {
       if (!mounted) return;
-      final log = context.read<Logger>();
-      log.e('Logout error', error: e, stackTrace: StackTrace.current);
+      context
+          .read<Logger>()
+          .e('Logout error', error: e, stackTrace: stack);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -408,551 +562,11 @@ class _HubScreenState extends State<HubScreen> {
     }
   }
 
-  void _selectTab(_HubTab tab) {
-    if (tab.scope == _HubTabScope.category) {
-      if (_subTabsParentIndex != tab.parentCategoryIndex ||
-          _selectedCategoryIndex != tab.parentCategoryIndex) {
-        setState(() {
-          _selectedCategoryIndex = tab.parentCategoryIndex;
-          _selectedSubItemIndex = -1;
-          // Entering a top-level tab that is expandable should NOT
-          // expand its sub-tabs automatically; the user has to tap
-          // a sub-tab or the parent overview page.  This matches the
-          // previous "category opens on its overview" behaviour.
-          _subTabsParentIndex = -1;
-        });
-        final cat = _categories[tab.parentCategoryIndex];
-        if (cat.key != null) _pushHubUrl(cat.key!, null);
-      }
-    } else {
-      final cat = _categories[tab.parentCategoryIndex];
-      setState(() {
-        _selectedCategoryIndex = tab.parentCategoryIndex;
-        _selectedSubItemIndex = cat.items.indexWhere((s) => s.key == tab.key);
-        _subTabsParentIndex = tab.parentCategoryIndex;
-      });
-      if (cat.key != null) _pushHubUrl(cat.key!, tab.key);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final tabs = _tabsForCurrentSelection();
-    final activeIndex = _activeTabIndex(tabs);
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/main/rooms');
-            }
-          },
-        ),
-        title: Text(
-          l10n.hub,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(builder: (context, constraints) {
-          final size = LayoutBreakpoints.sizeForWidth(constraints.maxWidth);
-          return LayoutScope(
-            size: size,
-            availableWidth: constraints.maxWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _HubTabStrip(
-                  tabs: tabs,
-                  activeIndex: activeIndex,
-                  onTap: (i) {
-                    if (i < 0 || i >= tabs.length) return;
-                    _selectTab(tabs[i]);
-                  },
-                ),
-                if (_subTabsParentIndex >= 0 &&
-                    _categories[_subTabsParentIndex].items.length > 1)
-                  _buildBackToTopRow(),
-                const Divider(height: 1),
-                Expanded(
-                  child: KeyedSubtree(
-                    // Re-key on selection so each tab gets a fresh
-                    // element when it becomes visible.  Avoids the
-                    // [TabBarView] controller lifecycle issues and
-                    // doesn't eagerly build inactive tabs (which
-                    // would force all settings pages to mount
-                    // simultaneously and call into the [Client]).
-                    key: ValueKey(activeIndex),
-                    child: activeIndex >= 0 && activeIndex < tabs.length
-                        ? _buildTabBody(tabs[activeIndex])
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  /// Computes which index in the current [tabs] list represents the
-  /// active selection.  Returns 0 when the selection does not match
-  /// any tab (e.g. the deep-link referenced a category the user has
-  /// since collapsed) so the strip and body stay in sync.
-  int _activeTabIndex(List<_HubTab> tabs) {
-    if (tabs.isEmpty) return 0;
-    if (_subTabsParentIndex >= 0) {
-      // Sub-tabs strip: index 0 is the parent overview, the rest are
-      // sub-items in order.
-      final sub = _selectedSubItemIndex;
-      if (sub < 0) return 0;
-      return (sub + 1).clamp(0, tabs.length - 1);
-    }
-    return _selectedCategoryIndex.clamp(0, tabs.length - 1);
-  }
-
-  /// Builds the top-level tab strip as a custom widget that does not
-  /// rely on [TabController].
-  Widget _buildBackToTopRow() {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Container(
-      color: scheme.surfaceContainerLow,
-      padding: EdgeInsets.symmetric(horizontal: t.spaceMd, vertical: t.spaceXs),
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        icon: const Icon(LucideIcons.chevronLeft, size: 14),
-        label: const Text('All categories'),
-        style: TextButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-          textStyle: const TextStyle(fontSize: 12),
-        ),
-        onPressed: () {
-          setState(() {
-            _subTabsParentIndex = -1;
-            _selectedSubItemIndex = -1;
-          });
-          final cat = _categories[_selectedCategoryIndex];
-          if (cat.key != null) _pushHubUrl(cat.key!, null);
-        },
-      ),
-    );
-  }
-
-  Widget _buildTabBody(_HubTab tab) {
-    if (tab.scope == _HubTabScope.category) {
-      // First tab of a sub-tab strip is the parent's overview page.
-      final cat = _categories[tab.parentCategoryIndex];
-      if (_subTabsParentIndex >= 0) {
-        return HubSubPageHeader(
-          title: cat.label,
-          child: HubAppSettingsOverview(
-            items: cat.items,
-            onItemTap: (i) {
-              final sub = cat.items[i];
-              setState(() {
-                _selectedCategoryIndex = tab.parentCategoryIndex;
-                _selectedSubItemIndex = i;
-                _subTabsParentIndex = tab.parentCategoryIndex;
-              });
-              _pushHubUrl(cat.key!, sub.key);
-            },
-          ),
-        );
-      }
-      switch (cat.key) {
-        case 'accounts':
-          return HubAccountsPage(
-            onLogout: _logout,
-            onAddAccount: () => context.push('/add-account'),
-          );
-        case 'profile':
-          return HubMyProfilePage(client: widget.client);
-        case 'settings':
-          return HubSubPageHeader(
-            title: cat.label,
-            child: HubAppSettingsOverview(
-              items: cat.items,
-              onItemTap: (i) {
-                final sub = cat.items[i];
-                setState(() {
-                  _selectedCategoryIndex = tab.parentCategoryIndex;
-                  _selectedSubItemIndex = i;
-                  _subTabsParentIndex = tab.parentCategoryIndex;
-                });
-                _pushHubUrl(cat.key!, sub.key);
-              },
-            ),
-          );
-        case 'about':
-          return HubAboutPage(client: widget.client);
-        default:
-          return const Center(child: Text('…'));
-      }
-    }
-    // Sub-item body.
-    return HubSubPageHeader(
-      title: tab.label,
-      child: _buildSubItemContent(tab.key),
-    );
-  }
-
-  // -- Content routing -----------------------------------------------------
-
-  /// Renders a settings sub-item page keyed by the item's stable
-  /// identifier.  Adding a new sub-item is a one-line case and never
-  /// depends on positional indices.
-  Widget _buildSubItemContent(String? subKey) {
-    // Only the settings category currently has sub-items; other
-    // expandable categories would dispatch here too if added later.
-    final cat = _categories[_selectedCategoryIndex];
-    if (cat.key != 'settings') return const SizedBox.shrink();
-
-    switch (subKey) {
-      case 'appearance':
-        return const HubAppearanceSettings();
-      case 'layout':
-        return const HubLayoutSettings();
-      case 'security':
-        return const EncryptionOverviewScreen(embedded: true);
-      case 'chat':
-        return const HubChatSettings();
-      case 'keybinds':
-        return const HubKeybindSettings();
-      case 'logs':
-        return const LogsPage();
-      case 'background':
-        return const HubBackgroundSettings();
-      case 'notifications':
-        return const HubNotificationSettings();
-      case 'privacy':
-        return const HubPrivacySettings();
-      case 'storage':
-        return const HubStorageSettings();
-      case 'advanced':
-        return const HubAdvancedSettings();
-      case 'blocked':
-        return const HubBlockedUsersPage();
-      case 'updates':
-        return const HubUpdateSettings();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  /// Build the canonical `/hub/<category>/<sub>` URL for the current
-  /// selection.  Returns `null` for the bare `/hub` index route when
-  /// the user is sitting on the top-level of a non-expandable category.
-  String? _hubUrlFor(String categoryKey, String? subKey) {
-    final base = '/hub/$categoryKey';
-    if (subKey == null || subKey.isEmpty) return base;
-    return '$base/$subKey';
-  }
-
-  /// Push the hub sub-route corresponding to the given category / sub
-  /// keys so the URL matches the visible selection and the back button
-  /// can exit cleanly.
-  ///
-  /// The hub can be opened in two ways: as a top-level [GoRoute] (where
-  /// the URL is the source of truth and `context.go` rewrites it) or
-  /// as a modal overlay via [showHubOverlay] (where the URL has no
-  /// effect on the visible state because the overlay sits on top of
-  /// the room page).  In the overlay case calling `context.go` would
-  /// *replace* the room page in the navigator stack, which is exactly
-  /// the bug we just fixed.  We detect the overlay case via
-  /// [ModalRoute.opaque] and skip the URL push.
-  void _pushHubUrl(String categoryKey, String? subKey) {
-    if (!_isOverlay) {
-      final url = _hubUrlFor(categoryKey, subKey);
-      if (url != null && mounted) context.go(url);
-    }
-  }
-
-  /// True when the hub is presented as a modal overlay (i.e. the
-  /// surrounding [ModalRoute] is non-opaque, which is what
-  /// [showHubOverlay] uses).  False when the hub is the top-level
-  /// [GoRoute] and a URL push is appropriate.
-  bool get _isOverlay {
-    final route = ModalRoute.of(context);
-    if (route == null) return false;
-    return !route.opaque;
-  }
-}
-
-// -- Hub overlay ------------------------------------------------------------
-
-/// Opens the hub screen as a centered modal overlay on top of the current
-/// navigation stack (like the command palette), preserving the dashboard
-/// state underneath and blurring the background.
-///
-/// When [selection] is provided, the hub opens to the specified
-/// category/sub-item (e.g. profile, settings, accounts).
-Future<void> showHubOverlay(
-  BuildContext context, {
-  HubCategorySelection? selection,
-}) {
-  final client = Provider.of<Client>(context, listen: false);
-  return Navigator.of(context, rootNavigator: true).push(
-    PageRouteBuilder(
-      opaque: false,
-      barrierDismissible: true,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      reverseTransitionDuration: const Duration(milliseconds: 120),
-      pageBuilder: (_, __, ___) => _HubOverlayPage(
-        client: client,
-        selection: selection,
-      ),
-    ),
-  );
-}
-
-/// Maximum number of tabs shown inline before the strip switches to a
-/// dropdown selector.  Beyond this threshold a [PopupMenuButton] with
-/// the active tab as its label replaces the scrollable row, so items
-/// never overflow off-screen or require horizontal scrolling.
-const int _kMaxInlineTabs = 6;
-
-/// A tab strip widget that does not depend on [TabController].
-///
-/// We avoid [TabController] here because its length is fixed at
-/// construction time and the hub swaps between two different tab
-/// strips (top-level categories vs. a parent's sub-items).  Using a
-/// controller would force us to dispose and re-create it on every
-/// swap, which trips [ChangeNotifier] assertions during paint.  A
-/// stateless strip driven by the parent's selection state is simpler
-/// and avoids the lifecycle pitfalls.
-///
-/// When the number of tabs exceeds [_kMaxInlineTabs] the strip
-/// switches to a dropdown selector so items never overflow or require
-/// off-screen horizontal scrolling.
-class _HubTabStrip extends StatelessWidget {
-  const _HubTabStrip({
-    required this.tabs,
-    required this.activeIndex,
-    required this.onTap,
-  });
-
-  final List<_HubTab> tabs;
-  final int activeIndex;
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final useDropdown = tabs.length > _kMaxInlineTabs;
-    return Container(
-      color: scheme.surfaceContainerLow,
-      child: SizedBox(
-        height: 56,
-        child: useDropdown
-            ? _buildDropdown(context, scheme)
-            : (tabs.length > 4
-                ? SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (var i = 0; i < tabs.length; i++)
-                          _HubTabStripEntry(
-                            tab: tabs[i],
-                            active: i == activeIndex,
-                            onTap: () => onTap(i),
-                          ),
-                      ],
-                    ),
-                  )
-                : Row(
-                    children: [
-                      for (var i = 0; i < tabs.length; i++)
-                        Expanded(
-                          child: _HubTabStripEntry(
-                            tab: tabs[i],
-                            active: i == activeIndex,
-                            onTap: () => onTap(i),
-                          ),
-                        ),
-                    ],
-                  )),
-      ),
-    );
-  }
-
-  Widget _buildDropdown(BuildContext context, ColorScheme scheme) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final activeTab = activeIndex >= 0 && activeIndex < tabs.length
-        ? tabs[activeIndex]
-        : tabs.first;
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
-      child: Center(
-        child: PopupMenuButton<int>(
-          initialValue: activeIndex,
-          onSelected: onTap,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(activeTab.icon, size: 18, color: scheme.onSurfaceVariant),
-              SizedBox(width: t.spaceSm),
-              Text(
-                activeTab.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              SizedBox(width: t.spaceXs),
-              Icon(
-                LucideIcons.chevronDown,
-                size: t.iconSizeSmall,
-                color: scheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-          itemBuilder: (context) => [
-            for (var i = 0; i < tabs.length; i++)
-              PopupMenuItem<int>(
-                value: i,
-                child: Row(
-                  children: [
-                    Icon(
-                      tabs[i].icon,
-                      size: t.iconSizeSmall,
-                      color: i == activeIndex
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      tabs[i].label,
-                      style: TextStyle(
-                        fontWeight: i == activeIndex
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: i == activeIndex
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A single tab button in [_HubTabStrip].  Visually mimics a Material
-/// [Tab] but stays a plain [InkWell] so the parent controls selection
-/// state directly.
-class _HubTabStripEntry extends StatelessWidget {
-  const _HubTabStripEntry({
-    required this.tab,
-    required this.active,
-    required this.onTap,
-  });
-
-  final _HubTab tab;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final fg = active ? scheme.primary : scheme.onSurfaceVariant;
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding:
-            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: active ? scheme.primary : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(tab.icon, size: 18, color: fg),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                tab.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                  color: fg,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Wraps [HubScreen] in a centered, blur-backed card so it appears as a
-/// floating overlay rather than a full-screen page.
-class _HubOverlayPage extends StatelessWidget {
-  const _HubOverlayPage({required this.client, this.selection});
-
-  final Client client;
-  final HubCategorySelection? selection;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Material(
-      color: Colors.transparent,
-      // Wrap the page body in a fullscreen outside-tap detector so
-      // tapping the dimmed background dismisses the hub overlay.  The
-      // PageRoute's barrierDismissible flag is not sufficient on its
-      // own because the page is laid out over the barrier in the
-      // overlay; see [BarrierDismissableOverlay] for the full
-      // rationale.  The card itself is wrapped in
-      // [BarrierDismissBoundary] so taps inside the hub (including
-      // empty padding around widgets) don't dismiss the overlay.
-      child: BarrierDismissableOverlay(
-        child: BlurBackground(
-          overlayColor: Colors.black54,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
-              child: Padding(
-                padding: EdgeInsets.all(t.spaceXl),
-                child: BarrierDismissBoundary(
-                  child: Material(
-                    elevation: 12,
-                    borderRadius: BorderRadius.circular(t.radiusLg),
-                    clipBehavior: Clip.antiAlias,
-                    color: Theme.of(context).colorScheme.surface,
-                    child: HubScreen(client: client, selection: selection),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return HubAccountsPage(
+      onLogout: _logout,
+      onAddAccount: () => context.push('/add-account'),
     );
   }
 }

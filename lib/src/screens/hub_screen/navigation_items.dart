@@ -17,6 +17,81 @@
 import 'package:flutter/material.dart';
 
 // -----------------------------------------------------------------------------
+// Route keys
+// -----------------------------------------------------------------------------
+
+/// The hub's stable route keys.
+///
+/// These are URL path segments, so they are declared here rather than being
+/// spelled inline at each use site. Before the hub became a route the keys
+/// were only ever compared inside one file, which is why
+/// `palette_commands.dart` came to carry its own copy of nine `/hub/...`
+/// path strings and one of them (`/hub/settings/network`) named a sub-item
+/// that has never existed, rendering an empty page. Now that the hub is
+/// reachable by URL, a key that is only known in two places is a bug
+/// waiting to happen, and the router needs the same list the screen uses in
+/// order to reject a bad deep link rather than render an empty pane.
+class HubRouteKeys {
+  const HubRouteKeys._();
+
+  static const String accounts = 'accounts';
+  static const String settings = 'settings';
+  static const String about = 'about';
+
+  /// Every navigable section, in the order the hub presents them.
+  ///
+  /// The profile is deliberately absent: it is the hub's *index*, not a
+  /// section beside the others, so it has no key of its own. It used to be a
+  /// fourth category, which meant `/hub` and `/hub/profile` both rendered
+  /// the same editor and the narrow index page had to choose between showing
+  /// the profile and listing it.
+  static const List<String> categories = <String>[
+    accounts,
+    settings,
+    about,
+  ];
+
+  // Settings sub-items, in presentation order.
+  static const String appearance = 'appearance';
+  static const String layout = 'layout';
+  static const String security = 'security';
+  static const String chat = 'chat';
+  static const String keybinds = 'keybinds';
+  static const String logs = 'logs';
+  static const String background = 'background';
+  static const String notifications = 'notifications';
+  static const String privacy = 'privacy';
+  static const String storage = 'storage';
+  static const String advanced = 'advanced';
+  static const String blocked = 'blocked';
+  static const String updates = 'updates';
+
+  static const List<String> settingsSubItems = <String>[
+    appearance,
+    layout,
+    security,
+    chat,
+    keybinds,
+    logs,
+    background,
+    notifications,
+    privacy,
+    storage,
+    advanced,
+    blocked,
+    updates,
+  ];
+
+  /// True when [key] names a real category.
+  static bool isCategory(String? key) =>
+      key != null && categories.contains(key);
+
+  /// True when [key] names a real settings sub-item.
+  static bool isSettingsSubItem(String? key) =>
+      key != null && settingsSubItems.contains(key);
+}
+
+// -----------------------------------------------------------------------------
 // Data models for hub navigation items
 // -----------------------------------------------------------------------------
 
