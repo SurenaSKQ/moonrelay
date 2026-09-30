@@ -20,14 +20,28 @@ import 'package:flutter/material.dart';
 // Sub-page header wrapper
 // -----------------------------------------------------------------------------
 
+/// A titled strip above a section's body, with optional trailing actions.
+///
+/// The [Expanded] is why every section body has to be scrollable or
+/// fillable. It is not decoration: it is what stops a short body from
+/// stretching and a long one from overflowing, and it is the constraint
+/// that `EncryptionOverviewScreen(embedded: true)` exists to satisfy.
+///
+/// [actions] is how a body that cannot supply its own `AppBar` still gets
+/// its controls. The encryption page is the case that matters: it is the
+/// only section with a refresh, and while it was embedded the only way to
+/// pick up a change made on another device was to leave the hub and open
+/// `/main/encryption` instead.
 class HubSubPageHeader extends StatelessWidget {
   final String title;
   final Widget child;
+  final List<Widget> actions;
 
   const HubSubPageHeader({
     super.key,
     required this.title,
     required this.child,
+    this.actions = const [],
   });
 
   @override
@@ -39,13 +53,20 @@ class HubSubPageHeader extends StatelessWidget {
         Container(
           color: theme.colorScheme.surfaceContainerHighest,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              ...actions,
+            ],
           ),
         ),
         const Divider(height: 1),
