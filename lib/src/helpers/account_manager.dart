@@ -23,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
 // -----------------------------------------------------------------------------
@@ -275,6 +276,22 @@ class AccountManager extends ChangeNotifier {
     // Tear down the previous pair on a microtask so any synchronous
     // provider reads during this frame complete against the new pair.
     Future.microtask(() async {
+      // Mark the outgoing account offline before its client goes away.
+      // Without this it stays published as online on other people's
+      // clients until the server times the session out, and an account
+      // switch is exactly the case where nobody is looking at the window
+      // to notice. Best-effort for the same reason as logout: a server
+      // that already dropped the session would reject it.
+      if (previousClient != null && previousClient.isLogged()) {
+        try {
+          await PresenceService.publishTo(
+            previousClient,
+            type: PresenceType.offline,
+          );
+        } catch (e) {
+          log.w('Could not mark the previous account offline', error: e);
+        }
+      }
       final EncryptionService? previousEnc = previousEncryption;
       if (previousEnc != null) {
         try {
@@ -316,9 +333,23 @@ class AccountManager extends ChangeNotifier {
     if (_activeClient != null && _activeClient!.isLogged()) {
       try {
         await _encryptionService?.onLogout();
-        await _activeClient!.logout();
+        // Mark offline before the session is torn down, or the account
+        // shows as online on other people's clients until the server
+        // times the session out. Best-effort: a homeserver that has
+        // already dropped us would reject it, and the logout below must
+        // still happen.
+        await PresenceService.publishTo(
+          _activeClient!,
+          type: PresenceType.offline,
+        );
       } catch (e) {
         log.w('Logout error, continuing with account removal', error: e);
+      }
+      try {
+        await _activeClient!.logout();
+      } catch (e) {
+        log.w('Client logout failed, continuing with account removal',
+            error: e);
       }
     }
     if (_activeAccount != null) {
