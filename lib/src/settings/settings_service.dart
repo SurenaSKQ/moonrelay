@@ -40,7 +40,6 @@ class SettingsSnapshot {
   /// its own slim header (false).
   final bool useOsTitleBar;
   final bool showStateEvents;
-  final bool showStatusBar;
   final bool showTrayIcon;
   final bool closeToTray;
   final bool minimizeToTray;
@@ -121,7 +120,6 @@ class SettingsSnapshot {
     this.rightPaneChoice = RightPaneChoice.roomInfo,
     this.useOsTitleBar = true,
     this.showStateEvents = true,
-    this.showStatusBar = true,
     this.showTrayIcon = true,
     this.closeToTray = false,
     this.minimizeToTray = false,
@@ -202,7 +200,6 @@ class SettingsService {
   static const _rightPaneChoiceKey = 'right_pane_choice';
   static const _useOsTitleBarKey = 'use_os_title_bar';
   static const _showStateEventsKey = 'show_state_events';
-  static const _showStatusBarKey = 'show_status_bar';
   static const _showTrayIconKey = 'show_tray_icon';
   static const _closeToTrayKey = 'close_to_tray';
   static const _minimizeToTrayKey = 'minimize_to_tray';
@@ -355,7 +352,6 @@ class SettingsService {
       rightPaneChoice: _readRightPaneChoice(prefs),
       useOsTitleBar: prefs.getBool(_useOsTitleBarKey) ?? true,
       showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
-      showStatusBar: prefs.getBool(_showStatusBarKey) ?? true,
       showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
       closeToTray: prefs.getBool(_closeToTrayKey) ?? false,
       minimizeToTray: prefs.getBool(_minimizeToTrayKey) ?? false,
@@ -626,16 +622,6 @@ class SettingsService {
   Future<void> updateShowStateEvents(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showStateEventsKey, value);
-  }
-
-  Future<bool> showStatusBar() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_showStatusBarKey) ?? true;
-  }
-
-  Future<void> updateShowStatusBar(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_showStatusBarKey, value);
   }
 
   // -- Tray & background -----------------------------------------------

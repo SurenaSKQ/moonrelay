@@ -53,7 +53,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   /// when false Moonrelay renders its own slim header bar instead.
   bool _useOsTitleBar = true;
   bool _showStateEvents = true;
-  bool _showStatusBar = true;
   bool _showTrayIcon = true;
   bool _closeToTray = false;
   bool _minimizeToTray = false;
@@ -155,7 +154,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   Set<String> get collapsedSidebarSections => _collapsedSidebarSections;
   bool get useOsTitleBar => _useOsTitleBar;
   bool get showStateEvents => _showStateEvents;
-  bool get showStatusBar => _showStatusBar;
   bool get showTrayIcon => _showTrayIcon;
   bool get closeToTray => _closeToTray;
   bool get minimizeToTray => _minimizeToTray;
@@ -249,7 +247,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _collapsedSidebarSections = snapshot.collapsedSidebarSections;
     _useOsTitleBar = snapshot.useOsTitleBar;
     _showStateEvents = snapshot.showStateEvents;
-    _showStatusBar = snapshot.showStatusBar;
     _showTrayIcon = snapshot.showTrayIcon;
     _closeToTray = snapshot.closeToTray;
     _minimizeToTray = snapshot.minimizeToTray;
@@ -474,14 +471,6 @@ class SettingsController with ChangeNotifier, WindowListener {
       _startMinimized = value;
       notifyListeners();
       await _settingsService.updateStartMinimized(value);
-    }
-  }
-
-  Future<void> updateShowStatusBar(bool value) async {
-    if (value != _showStatusBar) {
-      _showStatusBar = value;
-      notifyListeners();
-      await _settingsService.updateShowStatusBar(value);
     }
   }
 
