@@ -1157,40 +1157,25 @@
   "@networkDescription": {
     "description": "Subtitle description for the Network settings page."
   },
-  "statusBarSection": "Status bar",
-  "@statusBarSection": {
-    "description": "Section title for the status bar toggle."
+
+
+  "syncStillFetching": "Still fetching",
+  "@syncStillFetching": {
+    "description": "Shown in a room when no data has arrived for a while. Deliberately reassuring rather than alarming: Matrix long-polling is slow by nature and the client is still trying."
   },
-  "showStatusBar": "Show status bar",
-  "showStatusBarDescription": "Display the sync status bar at the bottom of the screen.",
-  "@showStatusBarDescription": {
-    "description": "Description for the status bar toggle."
+  "syncStillFetchingDescription": "No new data yet. Moonrelay is still trying; Matrix servers can be slow to respond.",
+  "@syncStillFetchingDescription": {
+    "description": "Tooltip for the still-fetching indicator."
+  },
+  "syncConnectionFailed": "Not syncing",
+  "@syncConnectionFailed": {
+    "description": "Shown in a room when the last sync failed. Doubles as the retry button label."
+  },
+  "syncConnectionFailedDescription": "The last attempt to fetch data failed. Activate to try again.",
+  "@syncConnectionFailedDescription": {
+    "description": "Tooltip for the failed-sync indicator."
   },
 
-  "statusWaitingForResponse": "Waiting for response",
-  "statusSyncing": "Syncing",
-  "statusError": "Error",
-  "statusSynced": "Synced",
-  "statusBarLabel": "Status: {status}",
-  "@statusBarLabel": {
-    "description": "Label for the status bar showing the current sync state.",
-    "placeholders": {
-      "status": { "type": "String" }
-    }
-  },
-
-  "statusOnline": "Online",
-  "@statusOnline": {
-    "description": "Presence label shown in the header status pill when the client is connected and synced."
-  },
-  "statusAway": "Away",
-  "@statusAway": {
-    "description": "Presence label shown in the header status pill when the client is connected but a sync is in flight."
-  },
-  "statusOffline": "Offline",
-  "@statusOffline": {
-    "description": "Presence label shown in the header status pill when the connection to the homeserver has errored or been lost."
-  },
 
   "logs": "Logs",
   "@logs": {

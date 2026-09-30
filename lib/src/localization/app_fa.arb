@@ -1076,41 +1076,12 @@
   "@networkDescription": {
     "description": "Subtitle description for the Network settings page."
   },
-  "statusBarSection": "نوار وضعیت",
-  "@statusBarSection": {
-    "description": "Section title for the status bar toggle."
-  },
-  "showStatusBar": "نمایش نوار وضعیت",
-  "showStatusBarDescription": "نمایش نوار وضعیت همگام‌سازی در پایین صفحه.",
-  "@showStatusBarDescription": {
-    "description": "Description for the status bar toggle."
-  },
-  "statusWaitingForResponse": "منتظر پاسخ",
-  "statusSyncing": "در حال همگام‌سازی",
-  "statusError": "خطا",
-  "statusSynced": "همگام‌سازی شد",
-  "statusBarLabel": "وضعیت: {status}",
-  "@statusBarLabel": {
-    "description": "Label for the status bar showing the current sync state.",
-    "placeholders": {
-      "status": {
-        "type": "String"
-      }
-    }
-  },
 
-  "statusOnline": "آنلاین",
-  "@statusOnline": {
-    "description": "Presence label shown in the header status pill when the client is connected and synced."
-  },
-  "statusAway": "دور",
-  "@statusAway": {
-    "description": "Presence label shown in the header status pill when the client is connected but a sync is in flight."
-  },
-  "statusOffline": "آفلاین",
-  "@statusOffline": {
-    "description": "Presence label shown in the header status pill when the connection to the homeserver has errored or been lost."
-  },
+  "syncStillFetching": "در حال دریافت",
+  "syncStillFetchingDescription": "هنوز داده‌ای دریافت نشده است. Matrix همچنان در تلاش است؛ سرورهای Matrix ممکن است کند پاسخ دهند.",
+  "syncConnectionFailed": "همگام‌سازی نشد",
+  "syncConnectionFailedDescription": "آخرین تلاش برای دریافت داده ناموفق بود. برای تلاش دوباره فعال کنید.",
+
   "logs": "گزارش‌ها",
   "@logs": {
     "description": "Title for the Logs page."

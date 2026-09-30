@@ -21,12 +21,17 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/screens/hub_screen.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/sync_status_pill.dart';
 
 /// User profile pill shown at the top of the navigation sidebar.
 ///
-/// Shows the user's avatar, display name, and a [SyncStatusPill] inside a
-/// highlighted container.  Tapping navigates to the Hub/profile screen.
+/// Shows the user's avatar and display name inside a highlighted
+/// container. Tapping navigates to the Hub/profile screen.
+///
+/// Deliberately shows nothing else. This used to carry a sync indicator,
+/// which was both redundant (a second place reporting the same thing as
+/// the room header) and actively misleading: a connection status sitting
+/// directly under the user's own name reads as that user's presence, and
+/// `PresenceService` now publishes a real one.
 class SidebarProfilePill extends StatefulWidget {
   const SidebarProfilePill({super.key});
 
@@ -86,23 +91,15 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
             const SizedBox(width: 10),
             if (!_loading)
               Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: t.spaceXxs),
-                    const SyncStatusPill(),
-                  ],
+                child: Text(
+                  displayName,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
           ],

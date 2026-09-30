@@ -24,6 +24,7 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/sync_indicator.dart';
 import 'package:provider/provider.dart';
 
 /// A Material 3 room header bar that reactively displays the room's name,
@@ -197,9 +198,10 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 SizedBox(width: compactHeader ? t.spaceXs : t.spaceSm),
 
                 if (showBadges) ...[
-                  // Sync status indicator
-                  _SyncIndicator(client: widget.room.client),
-                  SizedBox(width: t.spaceXs),
+                  // Sync status. Silent unless something is actually
+                  // wrong or unusually slow; see SyncIndicator for why a
+                  // long-poll in flight is not worth reporting.
+                  SyncIndicator(client: widget.room.client),
 
                   // Member count badge
                   _MemberCountBadge(count: _memberCount, scheme: scheme),
@@ -251,62 +253,6 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                 ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// A small badge that shows a (• Syncing) indicator while the Matrix sync is
-/// in progress (waiting for response, processing, or cleaning up).
-///
-/// Hides automatically when the sync reaches the [SyncStatus.finished] state.
-class _SyncIndicator extends StatelessWidget {
-  const _SyncIndicator({required this.client});
-
-  final Client client;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final l10n = AppLocalizations.of(context)!;
-
-    return StreamBuilder<SyncStatusUpdate>(
-      stream: client.onSyncStatus.stream,
-      builder: (context, snapshot) {
-        final status = snapshot.data?.status;
-        final isSyncing = status != null && status != SyncStatus.finished;
-
-        if (!isSyncing) return const SizedBox.shrink();
-
-        return Container(
-          padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: 3),
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(t.radiusMd),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '\u2022', // bullet character
-                style: TextStyle(
-                  fontSize: 14,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-              SizedBox(width: t.spaceXs),
-              Text(
-                l10n.statusSyncing,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-            ],
           ),
         );
       },
