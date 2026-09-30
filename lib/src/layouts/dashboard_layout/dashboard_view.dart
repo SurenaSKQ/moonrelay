@@ -24,7 +24,6 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
-import 'package:moonrelay/src/widgets/status_bar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
@@ -128,16 +127,9 @@ class DashboardView extends StatelessWidget {
     return LayoutScope(
       size: size,
       availableWidth: width,
-      child: Column(
-        children: [
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: isRtl ? paneChildren.reversed.toList() : paneChildren,
-            ),
-          ),
-          if (settings.showStatusBar) const ApplicationStatusBar(),
-        ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: isRtl ? paneChildren.reversed.toList() : paneChildren,
       ),
     );
   }
@@ -296,17 +288,10 @@ class CompactDashboard extends StatelessWidget {
     return LayoutScope(
       size: LayoutSize.compact,
       availableWidth: width,
-      child: Column(
-        children: [
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children:
-                  isRtl ? compactChildren.reversed.toList() : compactChildren,
-            ),
-          ),
-          if (settings.showStatusBar) const ApplicationStatusBar(),
-        ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children:
+            isRtl ? compactChildren.reversed.toList() : compactChildren,
       ),
     );
   }
