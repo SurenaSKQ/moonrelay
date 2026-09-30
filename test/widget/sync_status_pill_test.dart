@@ -38,17 +38,17 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
-  group('syncStatusToPresence', () {
+  group('syncStatusToIndicator', () {
     test('finished maps to online', () {
-      expect(syncStatusToPresence(SyncStatus.finished), PresenceState.online);
+      expect(syncStatusToIndicator(SyncStatus.finished), ConnectionIndicator.online);
     });
     test('waiting/processing/cleaning map to away', () {
-      expect(syncStatusToPresence(SyncStatus.waitingForResponse), PresenceState.away);
-      expect(syncStatusToPresence(SyncStatus.processing), PresenceState.away);
-      expect(syncStatusToPresence(SyncStatus.cleaningUp), PresenceState.away);
+      expect(syncStatusToIndicator(SyncStatus.waitingForResponse), ConnectionIndicator.away);
+      expect(syncStatusToIndicator(SyncStatus.processing), ConnectionIndicator.away);
+      expect(syncStatusToIndicator(SyncStatus.cleaningUp), ConnectionIndicator.away);
     });
     test('error maps to offline', () {
-      expect(syncStatusToPresence(SyncStatus.error), PresenceState.offline);
+      expect(syncStatusToIndicator(SyncStatus.error), ConnectionIndicator.offline);
     });
   });
 
