@@ -24,10 +24,12 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 ///   * [mobile]: single-pane [MobileLayout], used below
 ///     [LayoutBreakpoints.mobileMax] or when the user opts in to mobile
 ///     mode.
-///   * [compact]: dashboard with the unified [CompactSidebar] and no
-///     right pane, used below [LayoutBreakpoints.compactMax].
-///   * [expanded]: full multi-pane dashboard (navigation sidebar, right
-///     context sidebar), used when the window has room for everything.
+///   * [compact]: the dashboard without its detail pane, used below
+///     [LayoutBreakpoints.compactMax]. The navigation pane is the same
+///     widget it is at [expanded]: the two differ only in whether the
+///     detail pane is mounted, and there is no separate compact sidebar.
+///   * [expanded]: the dashboard with both panes, used when the window has
+///     room for everything.
 enum LayoutShell {
   mobile,
   compact,
@@ -100,6 +102,19 @@ class LayoutShellController {
 
   /// Whether the shell currently renders the full multi-pane dashboard.
   bool get isExpanded => _shell == LayoutShell.expanded;
+
+  /// Whether there is room for two panes side by side.
+  ///
+  /// The one answer to that question, read by the dashboard's detail pane
+  /// and by the hub's navigation pane. They have to agree: a hub that went
+  /// two-pane in the same window where the dashboard went one-pane would be
+  /// two layouts disagreeing about the same measurement, which is the
+  /// mistake the dashboard unification removed (see WORK_DONE.md section 44).
+  ///
+  /// The single-pane shell is excluded as well as the compact one: it is not
+  /// "not quite wide enough", it is a different shell with its own
+  /// navigation, and it has no right sidebar to drop.
+  bool get fitsTwoPanes => !isMobile && isExpanded;
 
   /// True once [resolve] has committed a width-driven decision.  The
   /// first resolution must commit unconditionally because there is no

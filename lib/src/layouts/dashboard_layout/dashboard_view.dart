@@ -21,7 +21,6 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/compact_sidebar.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
@@ -37,13 +36,25 @@ import 'pane_hosts.dart';
 /// deterministically whenever the controller rebuilds. Drag state is observed
 /// via [ListenableBuilder] scoped to the sidebar width so unrelated changes
 /// don't propagate.
+///
+/// There used to be a second widget here, `CompactDashboard`, for the
+/// 600-1100px band, with its own sidebar implementation. That made the
+/// narrow dashboard a *different product* rather than the same one in less
+/// space: it dropped space grouping, drag-to-reorder, the space context
+/// menu, auto-grouping and the per-space room tree, and its room rows lost
+/// the encryption and mention badges. None of that needs horizontal room, so
+/// the split cost features and bought nothing.
+///
+/// The single composition below is therefore parameterised by one question,
+/// *is there room for the detail pane*, which is what the shell already
+/// answers. Everything else is the same widget adapting.
 class DashboardView extends StatelessWidget {
   const DashboardView({
     super.key,
     required this.child,
     required this.size,
     required this.width,
-    required this.shouldUseCompact,
+    required this.detailPaneFits,
     required this.rightWidthNotifier,
     required this.onRightResize,
     required this.onRightResizeEnd,
@@ -57,10 +68,16 @@ class DashboardView extends StatelessWidget {
   /// to every media-query change and rebuild on each resize tick).
   final double width;
 
-  /// Pre-resolved compact-vs-wide decision. The controller applies
-  /// hysteresis around the 1280 px boundary so this flag only flips when
-  /// the resize has settled.
-  final bool shouldUseCompact;
+  /// Whether the resolved shell has room for the detail pane alongside the
+  /// navigation pane. False in the compact band, and never reached from
+  /// the single-pane shell, which does not mount this widget.
+  ///
+  /// This is the only thing the shell decides about the dashboard's
+  /// composition. The controller applies hysteresis around the boundary so
+  /// the flag only flips once the resize has settled, which is what stops
+  /// the detail pane being torn down and rebuilt mid-drag.
+  final bool detailPaneFits;
+
   final ValueNotifier<double?> rightWidthNotifier;
   final void Function(double) onRightResize;
   final VoidCallback onRightResizeEnd;
@@ -70,17 +87,12 @@ class DashboardView extends StatelessWidget {
     final settings = context.watch<SettingsController>();
     final theme = Theme.of(context);
 
-    // The compact shell is selected by the controller with hysteresis so
-    // we never tear down / mount the right sidebar mid-resize. Width is
-    // also passed in from the controller so we don't need to read it
-    // from MediaQuery again.
-    if (shouldUseCompact) {
-      return CompactDashboard(width: width, child: child);
-    }
-
-    // -- Wide shell: full multi-pane layout -----------------------
+    // -- One composition, every width -------------------------------
     final showLeft = settings.leftSidebarVisible;
-    final showRight = settings.rightSidebarVisible && !shouldUseCompact;
+    final showRight = settings.rightSidebarVisible && detailPaneFits;
+    // One clamp, one range. The two dashboards used to disagree here
+    // (200..360 against 220..360), so a width the user had chosen in one
+    // shell was silently rewritten in the other.
     final sidebarWidth =
         settings.leftSidebarWidth.clamp(200.0, 360.0).toDouble();
 
@@ -227,72 +239,3 @@ class SidebarExpandGutter extends StatelessWidget {
   }
 }
 
-// --- Compact layout shell --------------------------------------------------
-
-/// Layout used when the window is too narrow to keep both side panes pinned,
-/// or when the user has explicitly opted into compact mode.
-///
-/// Shows the unified [CompactSidebar] next to the main content so the
-/// user can pick a destination and immediately see something useful.
-class CompactDashboard extends StatelessWidget {
-  const CompactDashboard({
-    super.key,
-    required this.child,
-    required this.width,
-  });
-
-  final Widget child;
-
-  /// Viewport width passed in from the controller so [CompactDashboard]
-  /// does not have to call [MediaQuery.sizeOf] (which would subscribe the
-  /// sidebar to every media-query change and rebuild on every resize tick).
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-
-    // Clamp the sidebar width exactly once per build and reuse the result
-    // for both the [SizedBox] wrapper and the [CompactSidebar]'s explicit
-    // width. Previously the clamp was duplicated in two places which made
-    // the layout very slightly inconsistent during animated width changes.
-    final sidebarWidth =
-        settings.leftSidebarWidth.clamp(220.0, 360.0).toDouble();
-
-    // In RTL mode the sidebar order must be reversed.  When the sidebar
-    // is hidden the expand gutter keeps the restore affordance on the
-    // same side of the screen as the sidebar itself.
-    final compactChildren = <Widget>[
-      if (settings.leftSidebarVisible)
-        SizedBox(
-          width: sidebarWidth,
-          child: CompactSidebar(width: sidebarWidth),
-        )
-      else
-        SidebarExpandGutter(
-          onExpand: () => settings.setLeftSidebarVisible(true),
-        ),
-      Expanded(
-        child: GlobalShortcutListener(
-          child: PostLoginSetupChecker(
-            child: IncomingVerificationListener(
-              child: child,
-            ),
-          ),
-        ),
-      ),
-    ];
-
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-
-    return LayoutScope(
-      size: LayoutSize.compact,
-      availableWidth: width,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children:
-            isRtl ? compactChildren.reversed.toList() : compactChildren,
-      ),
-    );
-  }
-}

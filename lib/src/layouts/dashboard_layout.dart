@@ -97,15 +97,15 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
         final shell = context.read<LayoutShellController>();
 
-        // The dashboard always renders a compact-or-wider shell
-        // here; the dedicated mobile shell is mounted at a higher
-        // level by the router when needed.
-        final shouldUseCompact = shell.isCompact;
-
+        // The dashboard's only question about the shell is whether the
+        // detail pane fits alongside the navigation pane. It used to also
+        // choose between two entirely separate dashboard widgets, which is
+        // what let the narrow one quietly become a worse product; see
+        // [DashboardView].
         return DashboardView(
           size: layoutSize,
           width: width,
-          shouldUseCompact: shouldUseCompact,
+          detailPaneFits: shell.fitsTwoPanes,
           rightWidthNotifier: _rightWidth,
           onRightResize: _onRightResize,
           onRightResizeEnd: _onRightResizeEnd,

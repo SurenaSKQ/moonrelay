@@ -132,13 +132,16 @@ class LayoutBreakpoints {
   /// dashboard both consult it.
   static bool shouldUseMobile(double width) => width < mobileMax;
 
-  /// Returns true when the dashboard should use the unified
-  /// [CompactSidebar] rather than the full multi-pane layout at the
-  /// given viewport width.
+  /// Returns true when the dashboard should drop its detail pane rather
+  /// than run the full three-pane layout at the given viewport width.
   ///
   /// The compact shell kicks in at [compactMax] and stays in use all
   /// the way down to [mobileMax] (where the dashboard itself is no
   /// longer usable and [shouldUseMobile] takes over).
+  ///
+  /// Dead: the shell controller maps width to a [LayoutShell] directly and
+  /// the dashboard asks it whether the detail pane fits. Kept only until
+  /// the dead-code sweep, because a test still pins its arithmetic.
   static bool shouldUseCompact(double width) =>
       width < compactMax && !shouldUseMobile(width);
 
