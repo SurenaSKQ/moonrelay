@@ -8,7 +8,10 @@ import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/screens/hub_screen/hub_screen.dart';
+import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/screens/licenses.dart';
 import 'package:moonrelay/src/screens/privacy_policy.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -51,11 +54,22 @@ void main() {
             ChangeNotifierProvider<NavigationState>.value(
               value: NavigationState(),
             ),
+            // The hub reads this to decide between one pane and two.
+            Provider<LayoutShellController>.value(
+              value: LayoutShellController()
+                ..resolve(rawWidth: 1400, layoutMode: LayoutMode.auto),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: HubScreen(client: client),
+            // The category comes from the route now, so the widget requires
+            // one. The accounts page is the first category, and it renders
+            // without reaching for a service the shared wrapper lacks.
+            home: HubScreen(
+              client: client,
+              categoryKey: HubRouteKeys.accounts,
+            ),
           ),
         ),
       );
