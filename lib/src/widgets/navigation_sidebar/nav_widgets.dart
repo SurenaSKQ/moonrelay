@@ -17,6 +17,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
@@ -26,45 +28,80 @@ class NavSectionHeader extends StatelessWidget {
     required this.label,
     required this.collapsed,
     required this.onTap,
+    this.action,
+    this.actionTooltip,
   });
 
   final String label;
   final bool collapsed;
   final VoidCallback onTap;
 
+  /// Optional control at the trailing end, before the collapse chevron.
+  ///
+  /// Exists so a section can own its own "add" affordance. "Add room" used
+  /// to be a full-width navigation row above the sections, which cost a
+  /// row's worth of vertical space in a pane that has roughly five of them
+  /// to give, and put an action that creates a room in the same list as the
+  /// two places you go to find rooms.
+  final Widget? action;
+
+  final String? actionTooltip;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: scheme.surfaceContainerHighest,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
+    // Section headers were a hard-coded 12pt that ignored the density
+    // setting entirely, so the labels sat at a fixed size between rows that
+    // moved. They are the pane's wayfinding, so they get the same setting
+    // as the rows they head, one step below them rather than a constant.
+    final density = context.select<SettingsController, LayoutDensity>(
+      (s) => s.density,
+    );
+    final comfortable = density == LayoutDensity.comfortable;
+    final labelSize = comfortable ? 13.0 : 11.5;
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      padding: EdgeInsets.symmetric(
+        horizontal: comfortable ? 14 : 12,
+        vertical: comfortable ? 8 : 5,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: onTap,
               child: Text(
                 label,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                  fontSize: labelSize,
                   color: scheme.onSurfaceVariant,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(
+          ),
+          if (action != null) ...[
+            if (actionTooltip != null)
+              Tooltip(message: actionTooltip!, child: action!)
+            else
+              action!,
+            const SizedBox(width: 4),
+          ],
+          InkWell(
+            onTap: onTap,
+            child: Icon(
               collapsed
-                  ? (isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronsRight)
+                  ? (isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronRight)
                   : LucideIcons.chevronDown,
               size: 14,
               color: scheme.onSurfaceVariant,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

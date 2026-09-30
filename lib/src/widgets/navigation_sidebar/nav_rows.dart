@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:provider/provider.dart';
 
@@ -40,35 +41,14 @@ class NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
-    return InkWell(
+    return SidebarRow(
+      title: label,
+      selected: selected,
       onTap: onTap,
-      child: Container(
-        color:
-            selected ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
-        padding: EdgeInsets.symmetric(
-            horizontal: t.spaceMd, vertical: t.spaceSm),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: t.iconSizeSmall,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? scheme.primary : scheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+      leading: Icon(
+        icon,
+        size: t.iconSizeSmall,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
       ),
     );
   }
@@ -90,28 +70,11 @@ class SpaceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = theme.colorScheme;
-    return NavRowShell(
+    return SidebarRow(
+      title: space.getLocalizedDisplayname(),
       selected: selected,
       onTap: onTap,
-      child: Row(
-        children: [
-          SpaceAvatar(space: space, theme: theme),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              space.getLocalizedDisplayname(),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? scheme.primary : scheme.onSurface,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+      leading: SpaceAvatar(space: space, theme: theme),
     );
   }
 }
@@ -137,49 +100,41 @@ class GroupRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = MoonrelayThemeExtension.of(context).tokens;
-    final row = InkWell(
+    final row = SidebarRow(
+      title: 'Group',
       onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-            horizontal: t.spaceMd, vertical: t.spaceSm),
-        child: Row(
-          children: [
-            Icon(LucideIcons.folder, size: 18, color: scheme.primary),
-            const SizedBox(width: 10),
-            Expanded(
+      leading: Icon(LucideIcons.folder, size: t.iconSizeSmall, color: scheme.primary),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (count > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant
+                    .withValues(alpha: t.opacityDisabled),
+                borderRadius: BorderRadius.circular(t.radiusSm),
+              ),
               child: Text(
-                'Group',
-                style: const TextStyle(fontSize: 13),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                '$count',
+                style:
+                    TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
               ),
             ),
-            if (count > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                decoration: BoxDecoration(
-                  color: scheme.outlineVariant.withValues(alpha: t.opacityDisabled),
-                  borderRadius: BorderRadius.circular(t.radiusSm),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                      fontSize: 11, color: scheme.onSurfaceVariant),
-                ),
-              ),
-            Icon(
-              expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
-              size: 14,
-              color: scheme.onSurfaceVariant,
-            ),
-          ],
-        ),
+          SizedBox(width: t.spaceSm),
+          Icon(
+            expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
+            size: 14,
+            color: scheme.onSurfaceVariant,
+          ),
+        ],
       ),
     );
     if (expanded) return row;
     return DraggableIcon(
       data: gid,
-      feedback: DragFeedback(theme: Theme.of(context), label: 'Group', uri: null),
+      feedback:
+          DragFeedback(theme: Theme.of(context), label: 'Group', uri: null),
       ghost: Opacity(opacity: 0.3, child: row),
       onDragEnd: onDragEnd,
       child: row,
@@ -220,8 +175,7 @@ class NavRowShell extends StatelessWidget {
 }
 
 class SpaceAvatar extends StatelessWidget {
-  const SpaceAvatar({
-    super.key,required this.space, required this.theme});
+  const SpaceAvatar({super.key, required this.space, required this.theme});
 
   final Room space;
   final ThemeData theme;
@@ -232,10 +186,15 @@ class SpaceAvatar extends StatelessWidget {
     final t = theme.moonrelay.tokens;
     final uri = space.avatar;
     final label = space.getLocalizedDisplayname();
+    // Derived from the same metrics [SidebarRow] uses for its leading slot,
+    // rather than a hard-coded radius 14. At the compact density a 14px
+    // radius is 28px across inside a 22px slot, which overflows.
+    final radius = sidebarMetricsFor(context).leadingSize / 2;
     if (uri == null) {
       return CircleAvatar(
-        radius: 14,
-        backgroundColor: scheme.onSurfaceVariant.withValues(alpha: t.opacityFocus),
+        radius: radius,
+        backgroundColor:
+            scheme.onSurfaceVariant.withValues(alpha: t.opacityFocus),
         child: Text(
           initials(label),
           style: TextStyle(
@@ -250,20 +209,23 @@ class SpaceAvatar extends StatelessWidget {
     return FutureBuilder<Uri>(
       future: withTimeoutOrFallback(
         () => uri.getThumbnailUri(client,
-            method: ThumbnailMethod.scale, width: 28, height: 28),
+            method: ThumbnailMethod.scale,
+            width: radius * 2,
+            height: radius * 2),
         timeout: kDefaultTimeout,
         fallback: uri,
       ),
       builder: (context, snap) => snap.hasData
           ? CircleAvatar(
-              radius: 14,
+              radius: radius,
               backgroundImage: NetworkImage(snap.data.toString(),
                   headers: {'authorization': 'Bearer ${client.accessToken}'}),
               onBackgroundImageError: (_, __) {},
             )
           : CircleAvatar(
-              radius: 14,
-              backgroundColor: scheme.onSurfaceVariant.withValues(alpha: t.opacityFocus),
+              radius: radius,
+              backgroundColor: scheme.onSurfaceVariant
+                  .withValues(alpha: t.opacityFocus),
               child: Text(
                 initials(label),
                 style: TextStyle(

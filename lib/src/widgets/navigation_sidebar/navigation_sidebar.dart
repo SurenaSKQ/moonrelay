@@ -193,8 +193,21 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
                 collapsed: roomsCollapsed,
                 onTap: () => settings.setSidebarSectionCollapsed(
                     _roomsSectionId, !roomsCollapsed),
+                // "Add room" lives here rather than as a third navigation
+                // row. It creates something that appears in this section,
+                // so it belongs on this section's header, and a full row in
+                // a pane with about five rows of height to spend is not
+                // affordable.
+                action: _addRoomButton(l10n),
+                actionTooltip: l10n.addRoom,
               ),
               if (!roomsCollapsed) Expanded(child: roomsBody),
+              // The account is at the bottom, pinned, which is where every
+              // other client puts it and where a user's thumb expects it.
+              // At the top it was the first thing the pane showed and the
+              // last thing anyone looked at.
+              const Divider(height: 1),
+              const _SidebarFooter(),
             ],
           ),
         );
@@ -202,7 +215,25 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     );
   }
 
-  // -- Header: profile pill + command palette ---------------------------
+  /// The `+` on the rooms section header.
+  ///
+  /// Sized to a 22px box so the row it sits in keeps the height of the
+  /// section headers it now shares a line with.
+  Widget _addRoomButton(AppLocalizations l10n) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: IconButton(
+        icon: const Icon(LucideIcons.plus, size: 14),
+        tooltip: l10n.addRoom,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 22, height: 22),
+        onPressed: () => context.push('/main/addroom'),
+      ),
+    );
+  }
+
+  // -- Header: command palette -------------------------------------------
 
   Widget _buildHeader(ColorScheme scheme) {
     return Container(
@@ -211,8 +242,14 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SidebarProfilePill(),
-          SizedBox(height: 6),
+          // No layout-mode control here, and no account row either. It
+          // lives in the hub's Layout settings and nowhere else, and the
+          // account moved to the footer. Both used to be duplicated into
+          // the sidebar and the single-pane shell's "You" destination as
+          // escape hatches, because at the time the hub was a modal
+          // overlay the single-pane shell could not reach; now the hub is a
+          // route, so one home is enough and two copies only invite them to
+          // disagree.
           SidebarCommandPaletteButton(),
         ],
       ),
@@ -242,12 +279,6 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
             label: l10n.navigationAll,
             selected: nav.isAll,
             onTap: nav.selectAll,
-          ),
-          NavRow(
-            icon: LucideIcons.plus,
-            label: l10n.addRoom,
-            selected: false,
-            onTap: () => context.push('/main/addroom'),
           ),
         ],
       ),
@@ -471,10 +502,29 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
 
     return (
       nav.isHome ? l10n.friends : l10n.rooms,
-      RoomsPane(roomFilter: (Room room) {
-        if (nav.isHome) return room.isDirectChat;
-        return !room.isSpace;
-      }),
+      RoomsPane(
+        roomFilter: nav.isHome ? roomIsDirectChat : roomIsChat,
+      ),
+    );
+  }
+}
+
+/// The pinned bottom strip of the navigation sidebar: the signed-in
+/// account.
+///
+/// Split out rather than inlined in the column so its position is a
+/// property of the footer and not of whatever the column happens to be
+/// listing. It sits below both list sections, so it stays put when a
+/// section is collapsed or a space is expanded.
+class _SidebarFooter extends StatelessWidget {
+  const _SidebarFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surfaceContainerLow,
+      child: const SidebarProfilePill(),
     );
   }
 }
