@@ -93,10 +93,13 @@ class SidebarRowMetrics {
 /// Identifies the accent bar [SidebarRow] draws on its leading edge when
 /// selected.
 ///
-/// Exposed so a test can ask whether the bar is there, rather than
-/// inferring it from the row's tint: a selected row and a hovered one are
-/// both "coloured", and a test that cannot tell them apart is testing the
-/// wrong thing.
+/// The bar is a `PositionedDirectional` over the row's leading gutter, which
+/// puts it outside the subtree a `find.descendant` over the label would
+/// reach, so the test needs a key to ask whether it is there at all.
+///
+/// Named in the plural sense of "the bar for this row", which is why it
+/// carries no room or index: each row owns exactly one, and the list gives
+/// every row its own instance.
 const Key sidebarRowAccentBarKey = ValueKey('sidebar-row-accent-bar');
 
 /// One row in a sidebar list.
@@ -241,7 +244,8 @@ class SidebarRow extends StatelessWidget {
             // read the same. A bar on the leading edge is a position, not a
             // colour, so the eye can find it without comparing shades.
             //
-            // Width rather than opacity, so it does not shift the label.
+            // Width rather than opacity, so it cannot wash out against the
+            // row behind it.
             if (selected)
               PositionedDirectional(
                 key: sidebarRowAccentBarKey,
@@ -257,10 +261,18 @@ class SidebarRow extends StatelessWidget {
               constraints: BoxConstraints(minHeight: m.minHeight),
               child: Padding(
                 padding: EdgeInsetsDirectional.fromSTEB(
-                  // The bar's own width is added here rather than to the
-                  // right, so the text lines up with unselected rows and
-                  // the list does not reflow when the selection moves.
-                  m.padH + indent + (selected ? 3 : 0),
+                  // Nothing here accounts for the bar. The bar is 3px wide
+                  // and sits at start: 0 of the Stack, so it draws over the
+                  // row's own leading gutter: padH is 12 or 14, always wider
+                  // than the bar, and the label never reaches it.
+                  //
+                  // Adding the bar's width to this padding, which is what
+                  // used to happen, shifted the label and the avatar 3px
+                  // right on every selected row, so moving the selection
+                  // reflowed the list under the pointer. Worse, it was the
+                  // kind of shift that reads as intentional until you
+                  // click a second row and watch the first one jump back.
+                  m.padH + indent,
                   m.padV,
                   m.padH,
                   m.padV,

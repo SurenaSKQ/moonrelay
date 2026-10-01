@@ -214,6 +214,12 @@ void main() {
       // two hundred: a row that is merely near the tint, or hovered, or
       // mid-transition, all read the same. A bar on the leading edge is a
       // position rather than a colour.
+      //
+      // Asked via the key rather than by counting opaque Containers in the
+      // subtree, which is what this first tried. That cannot work: the tint
+      // is on the Material wrapping the bar, so the count was already 1 for
+      // an unselected row, and it kept the key it found from the previous
+      // pump, so it reported a bar on a row that had just been switched off.
       await pump(
         tester,
         child: const SidebarRow(title: 'Current room', selected: true),
@@ -224,20 +230,67 @@ void main() {
       expect(find.byKey(sidebarRowAccentBarKey), findsNothing);
     });
 
-    testWidgets('the bar does not move the label', (tester) async {
-      // Adding width on the leading side, rather than taking it from the
-      // right, so the text does not shift when the selection moves and the
-      // list does not reflow under the pointer.
-      await pump(tester, child: const SidebarRow(title: 'Plain'));
-      final plain = tester.getTopLeft(find.text('Plain')).dx;
+    testWidgets('the bar does not move the label or the leading slot',
+        (tester) async {
+      // The bar is positioned over the row's leading gutter, so it costs the
+      // label nothing. This test used to assert the opposite, that the label
+      // moved by exactly 3px, which is the width of the bar: the padding did
+      // once account for it, and moving the selection shifted every selected
+      // row's label and avatar 3px right, reflowing the list under the
+      // pointer.
+      //
+      // Asserting an exact 3 was the real problem. It pins the one number
+      // that is wrong, and it would still pass if the bar grew to 30px and
+      // shoved the label across the row. Zero is the invariant; the bar's
+      // existence is covered by the test above, so this is not asserting a
+      // no-op that would also pass with the bar deleted.
+      await pump(
+        tester,
+        child: const SidebarRow(
+          title: 'Plain',
+          leading: ColoredBox(key: ValueKey('lead'), color: Colors.red),
+        ),
+      );
+      final plainLabel = tester.getTopLeft(find.text('Plain')).dx;
+      final plainLeading =
+          tester.getTopLeft(find.byKey(const ValueKey('lead'))).dx;
 
+      await pump(
+        tester,
+        child: const SidebarRow(
+          title: 'Plain',
+          leading: ColoredBox(key: ValueKey('lead'), color: Colors.red),
+          selected: true,
+        ),
+      );
+      final selectedLabel = tester.getTopLeft(find.text('Plain')).dx;
+      final selectedLeading =
+          tester.getTopLeft(find.byKey(const ValueKey('lead'))).dx;
+
+      expect(find.byKey(sidebarRowAccentBarKey), findsOneWidget);
+      expect(selectedLabel - plainLabel, 0);
+      expect(selectedLeading - plainLeading, 0);
+    });
+
+    testWidgets('the bar stays inside the leading gutter', (tester) async {
+      // The invariant that lets the row ignore the bar entirely. If the bar
+      // ever grew past padH, it would reach the label and the padding would
+      // have to start accounting for it again, so this is the guard on that
+      // decision rather than a restatement of the numbers above.
       await pump(
         tester,
         child: const SidebarRow(title: 'Selected', selected: true),
       );
-      final selected = tester.getTopLeft(find.text('Selected')).dx;
+      final row = tester.getRect(find.byType(SidebarRow));
+      final bar = tester.getRect(find.byKey(sidebarRowAccentBarKey));
+      final padH =
+          SidebarRowMetrics.forDensity(LayoutDensity.comfortable).padH;
 
-      expect(selected - plain, 3);
+      expect(bar.left, row.left);
+      expect(bar.right, lessThanOrEqualTo(row.left + padH));
+      // Full height, so it reads as a position rather than a dot.
+      expect(bar.top, row.top);
+      expect(bar.bottom, row.bottom);
     });
 
     testWidgets('taps and long presses reach their callbacks', (tester) async {
