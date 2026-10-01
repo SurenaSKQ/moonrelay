@@ -79,6 +79,50 @@ class TimelineSegment {
     timeline.cancelSubscriptions();
   }
 
+  /// Builds a history window from a `/context` response, or returns null if
+  /// the window is not usable.
+  ///
+  /// A `/context` window is only worth showing if it can reach the rest of the
+  /// room. `room.getEventContext` takes the window's `prevBatch` from the
+  /// response's `start` token (`room.dart:1726-1730`); when that token is
+  /// empty the window holds a handful of events and pages in neither
+  /// direction, so it renders as a dead end.
+  ///
+  /// A dead end is worse than a failure. It looks like the room, it is not the
+  /// room, and the only symptom is that scrolling does nothing. Reporting the
+  /// failure instead lets the existing "that message is no longer available"
+  /// path say so, which is more useful than a view that lies quietly.
+  ///
+  /// Whether the SDK re-anchors correctly for an event older than the live tail
+  /// was never confirmed against a real server (TIMELINE_STORE_PLAN.md 4), so
+  /// this is treated as possible rather than impossible. It costs one check.
+  static TimelineSegment? fromEventContext({
+    required String id,
+    required Timeline timeline,
+    required String anchorEventId,
+    Logger? logger,
+  }) {
+    final segment = TimelineSegment(
+      id: id,
+      timeline: timeline,
+      isLive: false,
+      anchorEventId: anchorEventId,
+      logger: logger,
+    );
+    if (segment.events.isEmpty) {
+      logger?.w('Event context for $anchorEventId came back empty');
+      return null;
+    }
+    if (!segment.canPageOlder && !segment.canPageNewer) {
+      logger?.w(
+        'Event context for $anchorEventId is anchored to nothing '
+        '(prevBatch empty, nextBatch empty); refusing to show a dead-end window',
+      );
+      return null;
+    }
+    return segment;
+  }
+
   // -- Paging ----------------------------------------------------
 
   /// True when [pageOlder] has somewhere to go.
