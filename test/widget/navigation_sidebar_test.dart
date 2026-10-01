@@ -37,6 +37,7 @@ import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
+import 'package:moonrelay/src/widgets/room_list_filter.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
@@ -160,15 +161,19 @@ void main() {
   });
 
   group('NavigationSidebar', () {
-    testWidgets('renders profile pill, command palette, and nav rows',
+    testWidgets('renders the account card, command palette, and the filter',
         (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
       expect(find.byType(SidebarProfilePill), findsOneWidget);
       expect(find.byType(SidebarCommandPaletteButton), findsOneWidget);
-      expect(find.text('Home'), findsOneWidget);
-      expect(find.text('All'), findsOneWidget);
+      // The filter replaced two rows labelled "Home" and "All", which were
+      // navigation words for what is a filter over one list.
+      expect(find.byType(RoomListFilter), findsOneWidget);
+      expect(find.text('Friends'), findsOneWidget);
+      expect(find.text('All rooms'), findsOneWidget);
+      expect(find.text('Home'), findsNothing);
       expect(find.text('Rooms'), findsOneWidget);
       // No spaces in the mock client, so the spaces section is skipped.
       expect(find.text('Spaces'), findsNothing);

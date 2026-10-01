@@ -31,6 +31,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
+import 'package:moonrelay/src/widgets/room_list_filter.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
@@ -172,7 +173,7 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
             children: [
               _buildHeader(scheme),
               const Divider(height: 1),
-              _buildNavRows(l10n, nav, scheme),
+              _buildNavRows(scheme),
               if (items.isNotEmpty) ...[
                 const Divider(height: 1),
                 NavSectionHeader(
@@ -256,32 +257,16 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     );
   }
 
-  // -- Navigation destination rows ---------------------------------------
+  // -- Destination controls -----------------------------------------------
 
-  Widget _buildNavRows(
-    AppLocalizations l10n,
-    NavigationState nav,
-    ColorScheme scheme,
-  ) {
-    return Container(
+  Widget _buildNavRows(ColorScheme scheme) {
+    return ColoredBox(
       color: scheme.surfaceContainerLow,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          NavRow(
-            icon: LucideIcons.home,
-            label: l10n.navigationHome,
-            selected: nav.isHome,
-            onTap: nav.selectHome,
-          ),
-          NavRow(
-            icon: LucideIcons.messageCircle,
-            label: l10n.navigationAll,
-            selected: nav.isAll,
-            onTap: nav.selectAll,
-          ),
-        ],
-      ),
+      // The only controls in this pane that are not rows. These two are two
+      // views of one list, and drawing them as rows in a list of places is
+      // what made "Home" sound like somewhere to go rather than a narrower
+      // list.
+      child: const RoomListFilter(),
     );
   }
 
