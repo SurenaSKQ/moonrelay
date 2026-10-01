@@ -292,15 +292,81 @@ class TimelineStore {
   /// window's copy of an overlapping event is the one that survives, which
   /// matters because a window's events are decrypted in a context that may
   /// be richer than what is in the tail's cache.
-  List<Event> flatten() {
-    final seen = <String>{};
-    final out = <Event>[];
-    for (final segment in _segmentsNewestFirst) {
-      for (final event in segment.events) {
-        if (seen.add(event.eventId)) out.add(event);
+  List<Event> flatten() => [for (final group in _dedupedGroups()) ...group];
+
+  /// Each segment's surviving events, in render order, deduplicated across
+  /// segments by [flatten]'s rule.
+  ///
+  /// The store rather than the model knows where the segment boundaries are,
+  /// so this is the only place that has to answer it. The model receives
+  /// flat groups and decides where a gap belongs between them.
+  List<List<Event>> eventGroups() => _dedupedGroups();
+
+  /// Indices in [flatten] *after* which a gap marker belongs.
+  ///
+  /// A boundary is treated as a hole when the older segment's newest event
+  /// is far enough behind the newer segment's oldest event. That is a
+  /// heuristic and there is no exact signal available: Matrix events carry
+  /// no stream ordering token that survives being put in a `/context`
+  /// window, and two adjacent events routinely share an
+  /// `originServerTs`. So this compares time and tolerates a gap of
+  /// [kGapTolerance] before calling it.
+  ///
+  /// The alternative, showing nothing, was rejected for a reason worth
+  /// recording: two adjacent windows render as one continuous conversation
+  /// with a silent hole in the middle, and the user reads the part below the
+  /// hole as if it directly follows the part above it. They then send a
+  /// message that looks like a reply to something it is not.
+  ///
+  /// Overlaps are not gaps. When the older segment's newest event is newer
+  /// than or equal to the newer segment's oldest event, the two ranges
+  /// touch or overlap and nothing is missing; that is the normal shape when
+  /// a window overlaps the tail it was built from.
+  Set<int> gapBoundaries() {
+    final groups = _dedupedGroups();
+    final boundaries = <int>{};
+    var seen = 0;
+    for (var i = 0; i < groups.length - 1; i++) {
+      final newer = groups[i];
+      final older = groups[i + 1];
+      if (newer.isEmpty || older.isEmpty) continue;
+      seen += newer.length;
+      final newerOldest = newer.last.originServerTs;
+      final olderNewest = older.first.originServerTs;
+      if (newerOldest.difference(olderNewest) > kGapTolerance) {
+        boundaries.add(seen - 1);
       }
     }
-    return out;
+    return boundaries;
+  }
+
+  /// How far apart two events on either side of a segment boundary may be
+  /// before the boundary is drawn as a gap.
+  ///
+  /// Ten minutes is a judgement call. It is long enough that a busy room
+  /// paging in one screenful of messages does not produce a marker, and
+  /// short enough that an afternoon's silence produces one. Events sharing a
+  /// timestamp, which is common inside one send burst, are zero apart and
+  /// never gap.
+  static const Duration kGapTolerance = Duration(minutes: 10);
+
+  /// Segment groups after the cross-segment dedupe, render order.
+  ///
+  /// Later segments win an overlap. The live tail is walked first, so on a
+  /// shared event it is the tail's instance that survives, which is the one
+  /// the app keeps updating as sync brings in reactions and edits. A window's
+  /// copy is a snapshot from `/context` and does not.
+  List<List<Event>> _dedupedGroups() {
+    final seen = <String>{};
+    final groups = <List<Event>>[];
+    for (final segment in _segmentsNewestFirst) {
+      final group = <Event>[];
+      for (final event in segment.events) {
+        if (seen.add(event.eventId)) group.add(event);
+      }
+      if (group.isNotEmpty) groups.add(group);
+    }
+    return groups;
   }
 
   /// Position of [eventId] in [flatten], or `-1` when it is not loaded.
@@ -337,9 +403,16 @@ class TimelineStore {
     return null;
   }
 
-  /// Every segment in display order: history windows newest first, then the
-  /// live tail.
-  List<TimelineSegment> get _segmentsNewestFirst => [..._history, live];
+  /// Every segment in display order: the live tail first, then history
+  /// windows newest first.
+  ///
+  /// The live tail is the *newest* run, so it leads. Index 0 of the render
+  /// list is the newest event, because `reverse: true` puts index 0 at the
+  /// bottom of the scroll view. Putting history first would render the
+  /// oldest messages at the bottom and the newest at the top, which is
+  /// upside down; it was wrong in the first cut of this class and the gap
+  /// work is what exposed it.
+  List<TimelineSegment> get _segmentsNewestFirst => [live, ..._history];
 
   /// Pages [segmentId] one step older and bumps [version] if it landed.
   ///
