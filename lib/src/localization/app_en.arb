@@ -625,6 +625,14 @@
   "rooms": "Rooms",
   "spaces": "Spaces",
   "friends": "Friends",
+  "allRooms": "All rooms",
+  "@allRooms": {
+    "description": "Room-list filter segment: show every joined chat room, as against direct conversations."
+  },
+  "filterRooms": "Filter rooms",
+  "@filterRooms": {
+    "description": "Accessible name for the room-list segmented filter, which narrows the list below it to direct conversations or to all rooms."
+  },
   "chats": "Chats",
   "you": "You",
   "search": "Search",
