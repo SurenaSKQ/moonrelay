@@ -76,9 +76,15 @@ class ThreadUtils {
   ///
   /// The returned map only contains entries for events with at least one
   /// reply, so callers can use `map[id] ?? 0` to read the count.
-  static Map<String, int> buildThreadReplyCounts(Timeline timeline) {
+  ///
+  /// Takes a `List<Event>` rather than a [Timeline] so it can be called with
+  /// the flattened render list of a `TimelineStore`, which spans the live
+  /// tail and any number of history windows. A thread whose root sits in one
+  /// segment and whose replies sit in another still resolves, which is the
+  /// point: counting within a single timeline would drop those.
+  static Map<String, int> buildThreadReplyCounts(List<Event> events) {
     final counts = <String, int>{};
-    for (final event in timeline.events) {
+    for (final event in events) {
       final parentId = event.relationshipEventId;
       final type = event.relationshipType;
       if (parentId == null || parentId == event.eventId) continue;

@@ -59,6 +59,7 @@ void main() {
           width: 400,
           height: 600,
           child: TimelineView(
+            events: timeline.events,
             timeline: timeline,
             room: room,
             displayType: DisplayType.modern,

@@ -272,9 +272,17 @@ class TimelineItemsResult {
 
 // -- Builder --
 
-/// Produces the list of [TimelineItemEntry] objects for [timeline] in
+/// Produces the list of [TimelineItemEntry] objects for [events] in
 /// newest-first order so that the `reverse: true` ListView places
 /// the newest item at the bottom.
+///
+/// Takes a `List<Event>` rather than a [Timeline]. That is the seam that
+/// lets the render list come from somewhere other than a single SDK
+/// timeline: `TimelineStore.flatten()` returns a plain list spanning the live
+/// tail and any number of history windows, and this function has to accept
+/// that without knowing anything about segments. See TIMELINE_STORE_PLAN.md.
+///
+/// The list must already be in SDK order (newest first).
 ///
 /// [DateSeparator] entries are interleaved before events that start a
 /// new calendar day.  Consecutive state events are grouped into a single
@@ -289,13 +297,12 @@ class TimelineItemsResult {
 /// Extracting it here lets the grouping, continuation, and state-event
 /// classification logic be tested without a Flutter widget tester.
 TimelineItemsResult buildTimelineItems(
-  Timeline timeline, {
+  List<Event> events, {
   bool showStateEvents = true,
   bool Function(Event)? filterEvents,
 }) {
-  final events = timeline.events;
   final indices = visibleIndices(events, filterEvents);
-  final threadReplyCounts = ThreadUtils.buildThreadReplyCounts(timeline);
+  final threadReplyCounts = ThreadUtils.buildThreadReplyCounts(events);
 
   // Index 0 is reserved for the undecryptable banner from the start, and
   // the real entry replaces it at the end.  Reserving the slot rather than

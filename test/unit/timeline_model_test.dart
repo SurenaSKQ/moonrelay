@@ -57,12 +57,7 @@ class _TestEvent extends Mock implements Event {
   String? relationshipType;
 }
 
-class _StubTimeline extends Mock implements Timeline {
-  _StubTimeline(this._events);
-  final List<Event> _events;
-  @override
-  List<Event> get events => _events;
-}
+
 
 // -- isStateEvent --
 
@@ -367,7 +362,7 @@ void main() {
 
   group('buildTimelineItems', () {
     test('returns only the undecryptable banner for an empty timeline', () {
-      final result = buildTimelineItems(_StubTimeline([]));
+      final result = buildTimelineItems(const []);
       expect(result.items.length, 1);
       expect(result.items[0].kind, TimelineItemKind.undecryptableBanner);
       expect(result.items[0].undecryptableCount, 0);
@@ -384,7 +379,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // [banner, event]
       expect(result.items.length, 2);
       expect(result.items[0].kind, TimelineItemKind.undecryptableBanner);
@@ -423,7 +418,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 8, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
 
       expect(result.eventIdToItemIndex, isNotEmpty);
       for (final entry in result.eventIdToItemIndex.entries) {
@@ -457,7 +452,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // [banner, newer(continuation), older(groupStart)]
       expect(result.items.length, 3);
       final newerEntry = result.items[1];
@@ -485,7 +480,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       expect(result.items[1].isGroupStart, isTrue);
       expect(result.items[1].isGroupContinuation, isFalse);
       expect(result.items[2].isGroupStart, isTrue);
@@ -502,7 +497,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // banner + one event item
       expect(result.items.length, 2);
       expect(result.items[1].kind, TimelineItemKind.event);
@@ -525,7 +520,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // [banner, stateBatch]
       expect(result.items.length, 2);
       expect(result.items[1].kind, TimelineItemKind.stateEventBatch);
@@ -549,7 +544,7 @@ void main() {
         ),
       ];
       final result = buildTimelineItems(
-        _StubTimeline(events),
+        events,
         showStateEvents: false,
       );
       // banner + msg only (state event skipped)
@@ -573,7 +568,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 9, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // [banner, day2_msg, dateSep, day1_msg]
       expect(result.items.length, 4);
       expect(result.items[2].kind, TimelineItemKind.dateSeparator);
@@ -595,7 +590,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 9, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       expect(result.items.length, 3); // banner + 2 events
       expect(
         result.items.any((e) => e.kind == TimelineItemKind.dateSeparator),
@@ -624,7 +619,7 @@ void main() {
           originServerTs: DateTime(2024, 6, 15, 10, 0, 0),
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // [banner, msg, stateBatch, older_msg]
       final msgEntry = result.items[1];
       expect(msgEntry.kind, TimelineItemKind.event);
@@ -663,7 +658,7 @@ void main() {
           relationshipEventId: 'parent',
         ),
       ];
-      final result = buildTimelineItems(_StubTimeline(events));
+      final result = buildTimelineItems(events);
       // Only thread root is visible; it should have replyCount = 2
       final parentEntry = result.items[1];
       expect(parentEntry.kind, TimelineItemKind.event);

@@ -56,6 +56,7 @@ import 'package:matrix/matrix.dart';
 class TimelineView extends StatefulWidget {
   const TimelineView({
     super.key,
+    required this.events,
     required this.timeline,
     required this.room,
     required this.displayType,
@@ -72,7 +73,32 @@ class TimelineView extends StatefulWidget {
     this.highlightedEventId,
   });
 
+  /// The events to render, newest first, in SDK order.
+  ///
+  /// A plain list rather than a [Timeline], because the render list is
+  /// decoupled from where the events come from. Today the parent passes
+  /// `timeline.events`; with a `TimelineStore` in place it will pass
+  /// `store.flatten()`, which spans the live tail and any number of detached
+  /// history windows in one list. Nothing else in this widget needs to change
+  /// when that swap happens, which is the whole point of the seam.
+  ///
+  /// Must be the same list identity across rebuilds when the contents have
+  /// not changed, because [TimelineViewState._cacheKey] hashes it. The SDK
+  /// mutates `chunk.events` in place rather than replacing it, so
+  /// `timeline.events` satisfies that; `TimelineStore.flatten()` does not,
+  /// which is why stage 5 pairs it with `store.version` instead.
+  final List<Event> events;
+
+  /// The live timeline, handed down to each [TimelineItem] for aggregation
+  /// lookups (reactions, polls, thread membership).
+  ///
+  /// Deliberately *not* the render source. Those lookups are scoped to the
+  /// live tail's `aggregatedEvents` map, and a detached history window has
+  /// none of its own, so an item in a window falls back to the tail for
+  /// aggregate data rather than showing nothing. See TIMELINE_STORE_PLAN.md
+  /// for why that is acceptable and what stage 5 changes about it.
   final Timeline timeline;
+
   final Room room;
   final DisplayType displayType;
   final ScrollController scrollController;
@@ -177,7 +203,7 @@ class TimelineViewState extends State<TimelineView> {
   /// again when font size, display type, state-event visibility, or filter
   /// changes.
   ///
-  /// The room and timeline identities are part of the key.  Both
+  /// The room and event-list identities are part of the key.  Both
   /// [ChatTimeline] and this widget hold stable `GlobalKey`s, so neither
   /// `State` dies on a room switch, and `_timelineVersion` is only ever
   /// incremented.  Without the identity components a new room could
@@ -186,6 +212,13 @@ class TimelineViewState extends State<TimelineView> {
   /// is "is this the same room object", and `identityHashCode` is the
   /// signal `chat_event.dart` already uses for its subtree cache.
   ///
+  /// The event list, not the timeline, is what identifies the *contents*
+  /// now.  They differ in a way that matters: the live tail keeps the same
+  /// `Timeline` object across a history jump, so hashing it would miss a
+  /// swap of the render list. `chunk.events` is mutated in place by the SDK
+  /// rather than replaced, so hashing the list is stable while the contents
+  /// are unchanged and changes when they are not.
+  ///
   /// `highlightedEventId` is intentionally NOT part of the key: the
   /// highlight is applied per-item via [TimelineItem.highlightedEventId]
   /// and a highlight toggle doesn't require rebuilding the entire item
@@ -193,7 +226,7 @@ class TimelineViewState extends State<TimelineView> {
   String get _cacheKey {
     final version = widget.timelineVersion?.value ?? 0;
     return '${identityHashCode(widget.room)}'
-        '_${identityHashCode(widget.timeline)}'
+        '_${identityHashCode(widget.events)}'
         '_$version'
         '_${widget.fontSize}'
         '_${widget.displayType.index}'
@@ -216,7 +249,7 @@ class TimelineViewState extends State<TimelineView> {
     super.initState();
     _lastCacheKey = _cacheKey;
     _undecryptableCount.value =
-        countUndecryptable(widget.timeline.events, widget.filterEvents);
+        countUndecryptable(widget.events, widget.filterEvents);
   }
 
   @override
@@ -327,7 +360,7 @@ class TimelineViewState extends State<TimelineView> {
     if (_cachedItems != null) return _cachedItems!;
 
     final result = buildTimelineItems(
-      widget.timeline,
+      widget.events,
       showStateEvents: widget.showStateEvents,
       filterEvents: widget.filterEvents,
     );
@@ -523,10 +556,10 @@ class TimelineViewState extends State<TimelineView> {
     _doScrollToEvent(eventId, controller, targetIdx);
   }
 
-  /// True when [eventId] is present in the live timeline even though
-  /// the item cache may not have caught up yet.
+  /// True when [eventId] is present in the render list even though the item
+  /// cache may not have caught up yet.
   bool _targetInLiveTimeline(String eventId) =>
-      widget.timeline.events.any((e) => e.eventId == eventId);
+      widget.events.any((e) => e.eventId == eventId);
 
   /// True while a stale-cache scroll refresh is in flight.  Guards the
   /// post-frame retry so a target that legitimately isn't rendered
