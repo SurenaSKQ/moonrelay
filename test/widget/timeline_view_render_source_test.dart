@@ -101,6 +101,7 @@ void main() {
     ScrollController? controller,
     List<List<Event>>? groups,
     Set<int> gapsAfter = const {},
+    void Function(int groupIndex)? onGapApproach,
   }) async {
     await tester.pumpWidget(
       wrapWithProviders(
@@ -113,6 +114,7 @@ void main() {
               events: events,
               eventGroups: groups,
               gapBoundaries: gapsAfter,
+              onGapApproach: onGapApproach,
               timeline: timeline,
               room: room,
               displayType: DisplayType.modern,
@@ -270,6 +272,115 @@ group('gaps', () {
         groups: [events],
       );
       expect(find.byType(TimelineGapMarker), findsNothing);
+    });
+
+    testWidgets('a gap within reach reports the group to grow', (tester) async {
+      // The only thing that makes a drawn gap temporary. Without this the
+      // marker is permanent and the two windows never meet.
+      final reported = <int>[];
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        gapsAfter: const {0},
+        version: version,
+        onGapApproach: reported.add,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      view.reportGapApproach();
+
+      expect(reported, [0],
+          reason: 'group 0 is the newer side, and the one to grow');
+    });
+
+    testWidgets('no gap within reach reports nothing', (tester) async {
+      final reported = <int>[];
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        version: version,
+        onGapApproach: reported.add,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      view.reportGapApproach();
+      expect(reported, isEmpty);
+    });
+
+    testWidgets('the same gap is not reported twice', (tester) async {
+      // A scroll fires this on many consecutive frames while the marker sits
+      // near the fold. One report per gap, not one per frame.
+      final reported = <int>[];
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        gapsAfter: const {0},
+        version: version,
+        onGapApproach: reported.add,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      view.reportGapApproach();
+      view.reportGapApproach();
+      view.reportGapApproach();
+
+      expect(reported, [0]);
+    });
+
+    testWidgets('a gap outside the built range is left alone', (tester) async {
+      // The prefetch can only see markers that are built. A long tail pushes
+      // the boundary above the cache extent, so there is nothing to measure
+      // and nothing to report. (The threshold itself is bounded by the two
+      // assertions at the bottom; a behavioural test for it cannot work,
+      // because a marker far enough to be out of range is never built in the
+      // first place.)
+      final reported = <int>[];
+      final tail = tailOf(200);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        gapsAfter: const {0},
+        version: version,
+        onGapApproach: reported.add,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      view.reportGapApproach();
+      expect(reported, isEmpty);
+
+      // A real bound rather than a comment. Zero would mean never
+      // prefetching, since the marker is off screen by definition when it
+      // matters; the upper bound keeps it from firing for a hole the user
+      // has no intention of reaching.
+      expect(TimelineView.gapPrefetchDistance, greaterThan(0));
+      expect(TimelineView.gapPrefetchDistance, lessThan(600));
     });
 
     testWidgets('the read position stops at the gap', (tester) async {

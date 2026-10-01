@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/chat/timeline_store.dart';
 import 'package:moonrelay/src/helpers/debouncer.dart';
 
 /// State of the scroll-to-load history pipeline, exposed to the parent
@@ -65,7 +65,7 @@ class HistoryPager {
   HistoryPager({
     required this.room,
     required this.scrollController,
-    required this.getTimeline,
+    required this.getSegmentToPage,
     required this.onStateChanged,
     required this.logger,
   });
@@ -74,9 +74,15 @@ class HistoryPager {
 
   final ScrollController scrollController;
 
-  /// Returns the currently-resolved [Timeline], or `null` while the
+  /// The segment the scroll-to-load path should extend, or `null` while the
   /// parent's async init is still pending.
-  final Timeline? Function() getTimeline;
+  ///
+  /// A [TimelineSegment] rather than a `Timeline`, and deliberately not
+  /// "the live tail". With history windows loaded alongside the tail, a
+  /// scroll that reaches the top of the render list is above the *oldest*
+  /// window, so paging the tail would extend the wrong end and the window
+  /// would never grow.
+  final TimelineSegment? Function() getSegmentToPage;
 
   /// Called whenever the pager's fill state changes.  The parent uses
   /// this to drive `setState` so the skeleton overlay appears/disappears.
@@ -152,7 +158,7 @@ class HistoryPager {
     final atEnd = pos.pixels >= pos.maxScrollExtent - _triggerDistance;
 
     if (atEnd) {
-      if (_canPageOlder(getTimeline())) {
+      if (_canPageOlder(getSegmentToPage())) {
         _transition(HistoryFillState.loadingMore);
       }
       _requestMoreHistory();
@@ -173,8 +179,8 @@ class HistoryPager {
   /// it is, the server runs out of events, or the retry / drain budgets
   /// are exhausted.
   void ensureFilled() {
-    final timeline = getTimeline();
-    if (timeline == null) return;
+    final segment = getSegmentToPage();
+    if (segment == null) return;
     if (!scrollController.hasClients) {
       // The scroll controller hasn't laid out yet; defer to the next
       // frame so we have a real [maxScrollExtent] to read.
@@ -190,8 +196,8 @@ class HistoryPager {
     if (_isLoading) return;
 
     if (_autoFillRetries >= _maxAutoFillRetries) {
-      if (!_shouldDrainStateEvents(timeline)) return;
-      _drainStateEventsAtEndOfTimeline(timeline);
+      if (!_shouldDrainStateEvents(segment)) return;
+      _drainStateEventsAtEndOfTimeline(segment);
       return;
     }
 
@@ -201,8 +207,8 @@ class HistoryPager {
       _requestMoreHistory();
     } else {
       _autoFillRetries = 0;
-      if (_shouldDrainStateEvents(timeline)) {
-        _drainStateEventsAtEndOfTimeline(timeline);
+      if (_shouldDrainStateEvents(segment)) {
+        _drainStateEventsAtEndOfTimeline(segment);
       }
     }
   }
@@ -227,7 +233,11 @@ class HistoryPager {
   /// cleared `prev_batch` (room paginated to the beginning).  Drop the
   /// skeleton flag in that case.
   void onTimelineUpdated() {
-    if (_state != HistoryFillState.idle && room.prev_batch == null) {
+    // Gated on the *segment's* own answer rather than `room.prev_batch`.
+    // The latter is the room's live sync token, which is null on any synced
+    // room, so it cleared the skeleton for a window that still had history
+    // to load.
+    if (_state != HistoryFillState.idle && !_canPageOlder(getSegmentToPage())) {
       _transition(HistoryFillState.idle);
     }
   }
@@ -235,8 +245,8 @@ class HistoryPager {
   // -- Internals ------------------------------------------------
 
   Future<void> _requestMoreHistory() async {
-    final timeline = getTimeline();
-    if (timeline == null) return;
+    final segment = getSegmentToPage();
+    if (segment == null) return;
     if (_isLoading) return;
     _isLoading = true;
     _postLoadDebounceTimer(() {
@@ -246,11 +256,17 @@ class HistoryPager {
 
     var succeeded = false;
     try {
-      await withTimeout(
-        () => timeline.requestHistory(),
-        timeout: kDefaultTimeout,
-      );
-      succeeded = true;
+      // `pageOlder` goes through `getRoomEvents`, not `requestHistory`. The
+      // latter routes via `room.prev_batch`, which is the room's live sync
+      // token and has nothing to do with a window's own pagination, so a
+      // synced room would report itself exhausted and refuse to page. It
+      // also swallows its own failures and returns 0, so the outcome is
+      // checked rather than an exception.
+      final added = await segment.pageOlder();
+      succeeded = added > 0;
+      if (!succeeded) {
+        logger?.d('Segment ${segment.id} has no more older events');
+      }
     } catch (e) {
       logger?.w('History request failed for ${room.id}', error: e);
       if (_state != HistoryFillState.idle) {
@@ -277,28 +293,22 @@ class HistoryPager {
     }
   }
 
-  /// True when the *loaded window* can still be paged older.
+  /// True when [segment] can still be paged older.
   ///
-  /// `Timeline.canRequestHistory` consults `room.prev_batch`, which is
-  /// the room's live sync token and has nothing to do with a
-  /// `/context` window's own `chunk.prevBatch`.  On a fully synced room
-  /// `room.prev_batch` is null, so a history window carrying a perfectly
-  /// good `start` token would report itself exhausted and silently
-  /// refuse to page.  Gate on the token the pagination will actually
-  /// use, and fall back to the SDK's own answer for the live tail.
-  bool _canPageOlder(Timeline? timeline) {
-    if (timeline == null) return false;
-    // Ask the SDK first: it is authoritative for the live tail, and the
-    // short-circuit keeps the common path off the `chunk` lookup.
-    if (timeline.canRequestHistory) return true;
-    return timeline.chunk.prevBatch.isNotEmpty;
+  /// Delegates to [TimelineSegment.canPageOlder], which is the rule the
+  /// store uses everywhere else. It used to be duplicated here, over a
+  /// `Timeline`, and that duplication is how the wrong-token bug came back
+  /// twice: this pager once, and the store once. One rule, one place.
+  bool _canPageOlder(TimelineSegment? segment) {
+    if (segment == null) return false;
+    return segment.canPageOlder;
   }
 
   /// True when the trailing [stateDrainWindow] events are all state
   /// events AND the server still has more history to give us.
-  bool _shouldDrainStateEvents(Timeline timeline) {
-    if (!_canPageOlder(timeline)) return false;
-    final events = timeline.events;
+  bool _shouldDrainStateEvents(TimelineSegment segment) {
+    if (!_canPageOlder(segment)) return false;
+    final events = segment.events;
     if (events.isEmpty) return false;
     final start = events.length > _stateDrainWindow
         ? events.length - _stateDrainWindow
@@ -312,9 +322,9 @@ class HistoryPager {
     return true;
   }
 
-  void _drainStateEventsAtEndOfTimeline(Timeline timeline) {
+  void _drainStateEventsAtEndOfTimeline(TimelineSegment segment) {
     if (_isLoading) return;
-    if (!_shouldDrainStateEvents(timeline)) return;
+    if (!_shouldDrainStateEvents(segment)) return;
     if (_stateDrainCount >= _maxStateDrainIterations) return;
     _stateDrainCount++;
     _transition(HistoryFillState.drainingStateEvents);
