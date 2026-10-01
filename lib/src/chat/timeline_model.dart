@@ -104,6 +104,28 @@ Event? nextVisibleMessage(
   return null;
 }
 
+/// True when a visible event after [eventIndex] still belongs to [group].
+///
+/// False means the walk has left [group], so [eventIndex] is the last visible
+/// event of it and a gap marker belongs here.
+///
+/// Scans every later visible event rather than stopping at the first one from
+/// another group. The indices are ordered, so the first foreign group does
+/// come first, but the question is whether any of this group's events remain
+/// and the answer is not decided by seeing someone else's.
+bool _groupHasLaterVisible(
+  List<int> indices,
+  List<int> groupOf,
+  int eventIndex,
+  int group,
+) {
+  for (final index in indices) {
+    if (index <= eventIndex) continue;
+    if (index < groupOf.length && groupOf[index] == group) return true;
+  }
+  return false;
+}
+
 // -- Visible indices --
 
 /// Indices (into `events`) of events that should appear as standalone
@@ -156,6 +178,15 @@ enum TimelineItemKind {
 
   /// The undecryptable-encrypted banner (always at index 0 of the item list).
   undecryptableBanner,
+
+  /// A non-contiguous boundary between two segments of the render list.
+  ///
+  /// Not an event and not addressable, so it has no id and cannot be a jump
+  /// target. It exists because two adjacent history windows otherwise render
+  /// as one continuous conversation with a silent hole in the middle, and the
+  /// user reads the part below the hole as if it directly follows the part
+  /// above it.
+  gap,
 }
 
 /// A single visible entry produced by [buildTimelineItems].
@@ -236,6 +267,12 @@ class TimelineItemEntry {
         kind: TimelineItemKind.undecryptableBanner,
         undecryptableCount: count,
       );
+
+  /// Convenience constructor for a non-contiguous segment boundary.
+  static TimelineItemEntry forGap(DateTime olderThan) => TimelineItemEntry(
+        kind: TimelineItemKind.gap,
+        date: olderThan,
+      );
 }
 
 /// Result bundle returned by [buildTimelineItems].
@@ -300,9 +337,45 @@ TimelineItemsResult buildTimelineItems(
   List<Event> events, {
   bool showStateEvents = true,
   bool Function(Event)? filterEvents,
+}) =>
+    buildTimelineItemsFromGroups(
+      [events],
+      showStateEvents: showStateEvents,
+      filterEvents: filterEvents,
+    );
+
+/// Builds the item list from segment groups, drawing a
+/// [TimelineItemKind.gap] after each group named in [gapsAfter].
+///
+/// [gapsAfter] holds group indices, so a gap lands after group *i* and before
+/// group *i+1*. Group-relative rather than index-relative on purpose: a raw
+/// index into the flattened list is ambiguous the moment a filter hides
+/// events, because a group's last event may not be rendered at all and an
+/// index-based marker would be dropped along with it, silently closing the
+/// hole the marker exists to show.
+///
+/// Group boundaries do not break sender grouping or day separators. A window
+/// continuing the conversation picks up the same grouping and the same day
+/// divider as an unbroken list, so a gap reads as an interruption in a
+/// conversation rather than a change of conversation.
+TimelineItemsResult buildTimelineItemsFromGroups(
+  List<List<Event>> groups, {
+  Set<int> gapsAfter = const {},
+  bool showStateEvents = true,
+  bool Function(Event)? filterEvents,
 }) {
+  final events = [for (final group in groups) ...group];
   final indices = visibleIndices(events, filterEvents);
   final threadReplyCounts = ThreadUtils.buildThreadReplyCounts(events);
+
+  // Which group each event belongs to, so the walk can tell when it has
+  // left one. The model does not need to know how the groups were produced.
+  final groupOf = <int>[];
+  for (var g = 0; g < groups.length; g++) {
+    for (var k = 0; k < groups[g].length; k++) {
+      groupOf.add(g);
+    }
+  }
 
   // Index 0 is reserved for the undecryptable banner from the start, and
   // the real entry replaces it at the end.  Reserving the slot rather than
@@ -377,6 +450,20 @@ TimelineItemsResult buildTimelineItems(
       eventIdToItemIndex[event.eventId] = items.length - 1;
       previousVisible = event;
       i++;
+    }
+
+    // Emit the gap once the walk has left this group, if it wants one.
+    // Checked after every event so it survives a group whose tail is
+    // entirely hidden by the filter: the boundary is still crossed, and the
+    // hole is still real. The last group is excluded because a boundary
+    // needs two sides; naming it would put a marker above the whole
+    // timeline for nothing.
+    final g = eventIndex < groupOf.length ? groupOf[eventIndex] : -1;
+    if (g >= 0 &&
+        g < groups.length - 1 &&
+        gapsAfter.contains(g) &&
+        !_groupHasLaterVisible(indices, groupOf, eventIndex, g)) {
+      items.add(TimelineItemEntry.forGap(event.originServerTs));
     }
   }
 

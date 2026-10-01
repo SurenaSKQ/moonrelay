@@ -314,6 +314,10 @@
     "description": "Shown when a jump to a specific event fails because the server could not return it, for example an event outside the user's access or one that has been redacted and purged."
   },
   "unreadPillDismissTooltip": "Dismiss",
+  "messagesMissing": "Messages missing",
+  "@messagesMissing": {
+    "description": "Marker shown where the timeline has a hole: a boundary between two separately-fetched history windows with messages in between that were not loaded. Without it the two halves read as one continuous conversation."
+  },
   "@unreadPillDismissTooltip": {
     "description": "Tooltip on the small × button next to the jump-to-first-unread pill. Tapping it hides the pill without changing the user's read state."
   },

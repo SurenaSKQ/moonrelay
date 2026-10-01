@@ -16,6 +16,7 @@
 
 import 'package:moonrelay/src/chat/animated_history_skeleton.dart';
 import 'package:moonrelay/src/chat/events/date_separator.dart';
+import 'package:moonrelay/src/chat/events/timeline_gap_marker.dart';
 import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
 import 'package:moonrelay/src/chat/item_appearance.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
@@ -57,6 +58,8 @@ class TimelineView extends StatefulWidget {
   const TimelineView({
     super.key,
     required this.events,
+    this.eventGroups,
+    this.gapBoundaries,
     required this.timeline,
     required this.room,
     required this.displayType,
@@ -97,6 +100,23 @@ class TimelineView extends StatefulWidget {
   /// none of its own, so an item in a window falls back to the tail for
   /// aggregate data rather than showing nothing.
   final Timeline timeline;
+
+  /// The events split by segment, newest group first, when the render list
+  /// comes from more than one place.
+  ///
+  /// Optional because [events] remains the source of truth for what is
+  /// rendered; this only adds the boundary information the model needs to
+  /// place gap markers. When null the whole list is treated as one
+  /// contiguous group, which is the live-tail-only case.
+  final List<List<Event>>? eventGroups;
+
+  /// Group indices after which a gap marker belongs.
+  ///
+  /// Only meaningful alongside [eventGroups], and supplied by whoever
+  /// produced them: `TimelineStore.gapBoundaries()`. The view deliberately
+  /// does not compute contiguity itself, because only the store knows which
+  /// events came from which segment and why.
+  final Set<int>? gapBoundaries;
 
   final Room room;
   final DisplayType displayType;
@@ -188,10 +208,21 @@ class TimelineViewState extends State<TimelineView> {
 
   /// Event id per index of [_cachedItems], or null for items that are
   /// not events (date separators, state batches, the undecryptable
-  /// banner).  Kept in step with [_cachedItems] so the read-position
-  /// walk can map a rendered index back to an event without re-running
-  /// the model.
+  /// banner, gap markers).  Kept in step with [_cachedItems] so the
+  /// read-position walk can map a rendered index back to an event without
+  /// re-running the model.
   List<String?>? _cachedItemEventIds;
+
+  /// Indices of [_cachedItems] holding a gap marker.
+  ///
+  /// The read-position walk treats these as a hard stop rather than
+  /// skipping them. That is a deliberate difference from every other
+  /// null-id entry: a separator or a state batch has events behind it on
+  /// screen, whereas a gap means the messages above are *not* contiguous
+  /// with the ones below. Continuing across would name an event the user
+  /// has not scrolled past and retire messages they never saw, which is
+  /// the failure the whole read-position work exists to prevent.
+  final Set<int> _cachedGapIndices = <int>{};
 
   /// Cached event-id-to-item-index map for jump-to-event.
   Map<String, int>? _cachedEventIdToItemIndex;
@@ -240,6 +271,7 @@ class TimelineViewState extends State<TimelineView> {
   void _invalidateCache() {
     _cachedItems = null;
     _cachedItemEventIds = null;
+    _cachedGapIndices.clear();
     _cachedEventIdToItemIndex = null;
   }
 
@@ -315,6 +347,11 @@ class TimelineViewState extends State<TimelineView> {
     String? oldest;
 
     for (var i = 0; i < items.length && i < ids.length; i++) {
+      // A gap stops the walk. Everything above it is non-contiguous with
+      // what is below, so the user has not reached it by scrolling and
+      // naming an event there would retire messages they never saw.
+      if (_cachedGapIndices.contains(i)) break;
+
       final id = ids[i];
       if (id == null) continue;
       final key = items[i].key;
@@ -358,8 +395,9 @@ class TimelineViewState extends State<TimelineView> {
     }
     if (_cachedItems != null) return _cachedItems!;
 
-    final result = buildTimelineItems(
-      widget.events,
+    final result = buildTimelineItemsFromGroups(
+      widget.eventGroups ?? [widget.events],
+      gapsAfter: widget.gapBoundaries ?? const {},
       showStateEvents: widget.showStateEvents,
       filterEvents: widget.filterEvents,
     );
@@ -407,6 +445,11 @@ class TimelineViewState extends State<TimelineView> {
         case TimelineItemKind.undecryptableBanner:
           itemEventIds.add(null);
           items.add(const UndecryptableBanner());
+
+        case TimelineItemKind.gap:
+          itemEventIds.add(null);
+          _cachedGapIndices.add(items.length);
+          items.add(const TimelineGapMarker());
       }
     }
 
