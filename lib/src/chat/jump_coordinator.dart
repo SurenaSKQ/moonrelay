@@ -24,7 +24,6 @@ import 'package:moonrelay/src/chat/history_pager.dart';
 import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/chat/timeline_scroll_target.dart';
-import 'package:moonrelay/src/chat/chat_unread_utils.dart' as unread;
 
 /// Orchestrates the "jump to first unread" affordance.
 ///
@@ -378,13 +377,4 @@ class JumpCoordinator {
     });
     onStateChanged();
   }
-}
-
-/// Re-exported so the coordinator and the parent can read the unread
-/// count without an extra import line.  Kept here to make the
-/// coordinator's dependency surface obvious: everything it needs to
-/// decide "should I show the pill?" lives next to it.
-int unreadInWindow(Timeline? timeline, String fullyReadMarker) {
-  if (timeline == null) return 0;
-  return unread.countUnreadInWindow(timeline.events, fullyReadMarker);
 }
