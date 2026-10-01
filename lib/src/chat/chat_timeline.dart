@@ -724,6 +724,12 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
     return TimelineView(
       key: _timelineViewKey,
+      // `chunk.events` is mutated in place by the SDK rather than replaced,
+      // so this list keeps its identity for as long as its contents are
+      // unchanged. That is what the view's cache key relies on. Stage 5
+      // replaces this with `store.flatten()`, which does not have that
+      // property, and pairs it with `store.version` instead.
+      events: _timeline!.events,
       timeline: _timeline!,
       room: widget.room,
       displayType: settings.displayType,
