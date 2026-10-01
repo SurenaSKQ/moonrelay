@@ -460,6 +460,95 @@ void main() {
 
   // -- Stage 2: segment paging --
 
+  group('fromEventContext guard', () {
+    test('accepts a window that can page', () {
+      final timeline = _PagingTimeline([_Ev('a'), _Ev('b')], chunk: TimelineChunk(events: []));
+      timeline.chunk.prevBatch = 'start-token';
+
+      final segment = TimelineSegment.fromEventContext(
+        id: 'w',
+        timeline: timeline,
+        anchorEventId: 'b',
+      );
+      expect(segment, isNotNull);
+      expect(segment!.anchorEventId, 'b');
+      expect(segment.canPageOlder, isTrue);
+    });
+
+    test('accepts a window that can only page forward', () {
+      // The window reached the start of the room but has more after it.
+      final timeline = _PagingTimeline([_Ev('a')], chunk: TimelineChunk(events: []))
+        ..allowNewEvent = false;
+      timeline.chunk.prevBatch = '';
+      timeline.chunk.nextBatch = 'end-token';
+
+      expect(
+        TimelineSegment.fromEventContext(
+          id: 'w',
+          timeline: timeline,
+          anchorEventId: 'a',
+        ),
+        isNotNull,
+      );
+    });
+
+    test('refuses an empty window', () {
+      final timeline = _PagingTimeline([], chunk: TimelineChunk(events: []))
+        ..olderPages.add([_Ev('a')]);
+      timeline.chunk.prevBatch = 'start-token';
+
+      expect(
+        TimelineSegment.fromEventContext(
+          id: 'w',
+          timeline: timeline,
+          anchorEventId: 'ghost',
+        ),
+        isNull,
+      );
+    });
+
+    test('refuses a window anchored to nothing', () {
+      // The guard for the unverified re-anchoring claim. If
+      // getEventContext ever comes back with an empty start token, this is a
+      // dead end: a few events that cannot reach anything else. Showing it
+      // is worse than failing, because the only symptom is that scrolling
+      // does nothing.
+      final timeline = _PagingTimeline(
+        [_Ev('a')],
+        chunk: TimelineChunk(events: []),
+      )..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+      timeline.chunk.nextBatch = '';
+
+      expect(
+        TimelineSegment.fromEventContext(
+          id: 'w',
+          timeline: timeline,
+          anchorEventId: 'a',
+        ),
+        isNull,
+      );
+    });
+
+    test('a refused window is not added to the store', () {
+      final timeline = _PagingTimeline([_Ev('a')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+      timeline.chunk.nextBatch = '';
+
+      final store = TimelineStore(live: _live(['tail']));
+      final segment = TimelineSegment.fromEventContext(
+        id: 'w',
+        timeline: timeline,
+        anchorEventId: 'a',
+      );
+      if (segment != null) store.addHistory(segment);
+
+      expect(store.isViewingHistory, isFalse);
+      expect(_ids(store.flatten()), ['tail']);
+    });
+  });
+
   group('canPageOlder', () {
     test('a window with a prevBatch pages even when room.prev_batch is null',
         () {
