@@ -177,17 +177,59 @@ class MoonrelayDesignTokens {
       elevationOverlay: 8,
 
       // Shadows
+      //
+      // Two layers each, and the split matters more than the opacity. A
+      // single soft shadow reads as a glow around an object; a tight
+      // contact shadow directly under a wider, weaker ambient one reads as
+      // a surface sitting above another. One layer cannot do both jobs at
+      // once, which is why the app looked flat: these were one layer at
+      // 10% black and blur 2, and nothing in the app read them anyway.
+      //
+      // Before this pass the tokens had zero readers outside this file, so
+      // every surface in Moonrelay was a flat colour fill and the only
+      // depth cue in the whole chat was a 0.7px border on a message bubble.
+      //
+      // These are the light-theme numbers. They are not re-derived for dark,
+      // where a black shadow on a near-black surface does almost nothing; a
+      // dark theme wants a lighter rim instead of a darker drop. See
+      // WORK_NEEDED.md for that, and for the fact that Material's own
+      // `elevation` still generates its shadows from the theme rather than
+      // from here, so the two systems are not yet one system.
       shadowLow: const [
         BoxShadow(
-            color: Color(0x1A000000), blurRadius: 2, offset: Offset(0, 1)),
+          color: Color(0x0D000000),
+          blurRadius: 1,
+          offset: Offset(0, 1),
+        ),
+        BoxShadow(
+          color: Color(0x14000000),
+          blurRadius: 3,
+          offset: Offset(0, 1),
+        ),
       ],
       shadowMedium: const [
         BoxShadow(
-            color: Color(0x1A000000), blurRadius: 4, offset: Offset(0, 2)),
+          color: Color(0x0F000000),
+          blurRadius: 2,
+          offset: Offset(0, 1),
+        ),
+        BoxShadow(
+          color: Color(0x1F000000),
+          blurRadius: 8,
+          offset: Offset(0, 3),
+        ),
       ],
       shadowHigh: const [
         BoxShadow(
-            color: Color(0x1A000000), blurRadius: 8, offset: Offset(0, 4)),
+          color: Color(0x14000000),
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
+        BoxShadow(
+          color: Color(0x29000000),
+          blurRadius: 18,
+          offset: Offset(0, 8),
+        ),
       ],
 
       // Opacity
