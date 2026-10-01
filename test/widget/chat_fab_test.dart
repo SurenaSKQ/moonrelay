@@ -11,302 +11,196 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU Affero General Public
+// License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Pin tests for the floating action column rendered above the chat
-// composer.  This file covers the scroll-to-bottom and jump-to-unread
-// pills that the [ChatTimeline] overlays when the user is scrolled up
-// or has unread messages below the viewport.
+// Contract tests for the floating action column above the chat composer.
+//
+// These drive the real [ChatTimelineFloatingActions].  The previous version of
+// this file rebuilt copies of both pills locally, which is why it passed
+// while the production class documented a priority between them that its own
+// code did not implement.  A test that exercises a copy of the thing it is
+// testing cannot catch the thing's contract changing.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/chat/chat_timeline_floating_actions.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 void main() {
-  // The [_FloatingActionColumn] is a private widget inside
-  // `chat_timeline.dart`.  The column stacks an [AnimatedSize] +
-  // [AnimatedSwitcher] for each pill, so the tests below exercise the
-  // same Column + AnimatedSize structure and assert the public
-  // behaviour (label, icon, tap handler) that the production code
-  // exposes.
-
-  Widget buildColumn({
+  Future<void> pumpColumn(
+    WidgetTester tester, {
     required bool unreadVisible,
     required bool scrolledUp,
-    required int unreadCount,
-    VoidCallback? onJump,
+    int unreadCount = 3,
+    VoidCallback? onJumpToBottom,
     VoidCallback? onDismiss,
-    VoidCallback? onScroll,
-  }) {
-    return MaterialApp(
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (unreadVisible)
-                _TestJumpToUnreadPill(
-                  count: unreadCount,
-                  onTap: onJump,
-                  onDismiss: onDismiss,
-                ),
-              if (scrolledUp)
-                _TestScrollToBottomPill(onTap: onScroll),
-            ],
+    Future<void> Function()? onJumpToUnread,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: ChatTimelineFloatingActions(
+              unreadCount: unreadCount,
+              isScrolledUp: scrolledUp,
+              unreadVisible: unreadVisible,
+              isJumping: false,
+              onJumpToUnread: onJumpToUnread ?? () async {},
+              onJumpToBottom: onJumpToBottom ?? () {},
+              onDismissUnread: onDismiss ?? () {},
+            ),
           ),
         ),
       ),
     );
+    await tester.pumpAndSettle();
   }
 
-  testWidgets(
-    'scroll-to-bottom pill is not shown when the user is at the bottom',
-    (tester) async {
-      await tester.pumpWidget(
-        buildColumn(unreadVisible: false, scrolledUp: false, unreadCount: 0),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byIcon(LucideIcons.arrowDown), findsNothing);
-    },
-  );
+  Finder unreadPill() => find.byKey(const ValueKey('jump-to-unread'));
+  Finder bottomPill() => find.byKey(const ValueKey('scroll-to-bottom'));
 
-  testWidgets(
-    'scroll-to-bottom pill shows the correct label and icon when scrolled up',
-    (tester) async {
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: false,
-          scrolledUp: true,
-          unreadCount: 0,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byIcon(LucideIcons.arrowDown), findsOneWidget);
-      expect(find.text('Scroll to bottom'), findsOneWidget);
-    },
-  );
+  group('two independent pills', () {
+    testWidgets('neither pill when at the bottom with no unreads',
+        (tester) async {
+      await pumpColumn(tester, unreadVisible: false, scrolledUp: false);
+      expect(unreadPill(), findsNothing);
+      expect(bottomPill(), findsNothing);
+    });
 
-  testWidgets(
-    'jump-to-unread pill shows the count and up-arrow when unread',
-    (tester) async {
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: true,
-          scrolledUp: false,
-          unreadCount: 5,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byIcon(LucideIcons.arrowUp), findsOneWidget);
-      expect(find.text('5 new messages'), findsOneWidget);
-    },
-  );
+    testWidgets('only the unread pill when at the bottom', (tester) async {
+      await pumpColumn(tester, unreadVisible: true, scrolledUp: false);
+      expect(unreadPill(), findsOneWidget);
+      expect(bottomPill(), findsNothing);
+    });
 
-  testWidgets(
-    'both pills can be shown simultaneously',
-    (tester) async {
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: true,
-          scrolledUp: true,
-          unreadCount: 3,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byIcon(LucideIcons.arrowUp), findsOneWidget);
-      expect(find.byIcon(LucideIcons.arrowDown), findsOneWidget);
-      expect(find.text('3 new messages'), findsOneWidget);
-      expect(find.text('Scroll to bottom'), findsOneWidget);
-    },
-  );
+    testWidgets('only the bottom pill when scrolled up', (tester) async {
+      await pumpColumn(tester, unreadVisible: false, scrolledUp: true);
+      expect(unreadPill(), findsNothing);
+      expect(bottomPill(), findsOneWidget);
+    });
 
-  testWidgets(
-    'tapping the scroll-to-bottom pill fires the callback',
-    (tester) async {
-      var tapped = 0;
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: false,
-          scrolledUp: true,
-          unreadCount: 0,
-          onScroll: () => tapped++,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(LucideIcons.arrowDown));
-      await tester.pump();
-      expect(tapped, 1);
-    },
-  );
-
-  testWidgets(
-    'jump-to-unread pill renders the dismiss (×) icon alongside the count',
-    (tester) async {
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: true,
-          scrolledUp: false,
-          unreadCount: 5,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byIcon(LucideIcons.arrowUp), findsOneWidget);
-      expect(find.byIcon(LucideIcons.x), findsOneWidget);
-      expect(find.text('5 new messages'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'tapping the dismiss (×) icon fires onDismiss without firing onTap',
-    (tester) async {
-      var dismissed = 0;
-      var jumped = 0;
-      await tester.pumpWidget(
-        buildColumn(
-          unreadVisible: true,
-          scrolledUp: false,
-          unreadCount: 3,
-          onJump: () => jumped++,
-          onDismiss: () => dismissed++,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(LucideIcons.x));
-      await tester.pump();
-      expect(dismissed, 1);
-      expect(jumped, 0);
-    },
-  );
-}
-
-/// Test-only mock of the jump-to-unread pill matching the public
-/// behaviour of `_JumpToUnreadPill` in `chat_timeline.dart`.
-class _TestJumpToUnreadPill extends StatelessWidget {
-  const _TestJumpToUnreadPill({
-    required this.count,
-    required this.onTap,
-    required this.onDismiss,
+    testWidgets('BOTH pills when scrolled up with unreads', (tester) async {
+      // The claim this file exists for. They answer different questions:
+      // "where is the unread" and "where is the new". A room with unreads
+      // while the user is scrolled up has both, and the old code rendered
+      // only one despite documenting the opposite.
+      await pumpColumn(tester, unreadVisible: true, scrolledUp: true);
+      expect(unreadPill(), findsOneWidget);
+      expect(bottomPill(), findsOneWidget);
+    });
   });
 
-  final int count;
-  final VoidCallback? onTap;
-  final VoidCallback? onDismiss;
+  group('jump to bottom', () {
+    testWidgets('says scroll to bottom and never "back to latest"',
+        (tester) async {
+      // There is no longer a separate "back to latest" mode. It existed
+      // because the timeline used to be substituted with a history window,
+      // so returning to the live head meant rebuilding. With the windows in
+      // the same list as the tail it is a scroll like any other.
+      await pumpColumn(tester, unreadVisible: false, scrolledUp: true);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ChatTimelineFloatingActions)),
+      )!;
+      expect(find.text(l10n.scrollToBottom), findsOneWidget);
+      expect(find.text(l10n.backToLatest), findsNothing);
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    return Material(
-      color: scheme.primary,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      LucideIcons.arrowUp,
-                      size: 14,
-                      color: scheme.onPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      count == 1
-                          ? l10n.jumpToFirstUnread
-                          : l10n.jumpToFirstUnreadMany(count),
-                      style: TextStyle(
-                        color: scheme.onPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            InkResponse(
-              onTap: onDismiss,
-              radius: 14,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  LucideIcons.x,
-                  size: 12,
-                  color: scheme.onPrimary,
-                ),
-              ),
-            ),
+    testWidgets('tapping it fires the callback', (tester) async {
+      var taps = 0;
+      await pumpColumn(
+        tester,
+        unreadVisible: false,
+        scrolledUp: true,
+        onJumpToBottom: () => taps++,
+      );
+      await tester.tap(bottomPill());
+      await tester.pump();
+      expect(taps, 1);
+    });
+  });
+
+  group('jump to unread', () {
+    testWidgets('tapping it fires the callback', (tester) async {
+      var taps = 0;
+      await pumpColumn(
+        tester,
+        unreadVisible: true,
+        scrolledUp: false,
+        onJumpToUnread: () async => taps++,
+      );
+      await tester.tap(find.text('3 new messages'));
+      await tester.pump();
+      expect(taps, 1);
+    });
+
+    testWidgets('the dismiss control fires separately', (tester) async {
+      // Dismissing hides the pill but must not count as a jump; conflating
+      // them made a dismiss look like the user acted on the unread.
+      var jumps = 0;
+      var dismissals = 0;
+      await pumpColumn(
+        tester,
+        unreadVisible: true,
+        scrolledUp: false,
+        onJumpToUnread: () async => jumps++,
+        onDismiss: () => dismissals++,
+      );
+      await tester.tap(find.bySemanticsLabel('Dismiss'));
+      await tester.pump();
+      expect(dismissals, 1);
+      expect(jumps, 0);
+    });
+  });
+
+  group('loading states', () {
+    testWidgets('the context loading pill replaces the unread pill',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Test-only mock of the scroll-to-bottom pill matching the public
-/// behaviour of `_ScrollToBottomPill` in `chat_timeline.dart`.
-class _TestScrollToBottomPill extends StatelessWidget {
-  const _TestScrollToBottomPill({required this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Material(
-        color: scheme.secondaryContainer,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.arrowDown,
-                  size: 14,
-                  color: scheme.onSecondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.scrollToBottom,
-                  style: TextStyle(
-                    color: scheme.onSecondaryContainer,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Center(
+              child: ChatTimelineFloatingActions(
+                unreadCount: 3,
+                isScrolledUp: true,
+                unreadVisible: true,
+                isJumping: true,
+                loadingContext: true,
+                onJumpToUnread: () async {},
+                onJumpToBottom: () {},
+                onDismissUnread: () {},
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+      // Not pumpAndSettle: the spinner animates forever, so the frame
+      // scheduler never goes quiet.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // A tap has to be acknowledged, or it reads as an unresponsive button.
+      expect(
+        find.byKey(const ValueKey('context-loading')),
+        findsOneWidget,
+      );
+      // And the bottom pill is unaffected by that.
+      expect(bottomPill(), findsOneWidget);
+    });
+  });
 }
