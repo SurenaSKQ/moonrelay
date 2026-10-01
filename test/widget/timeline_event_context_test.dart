@@ -204,6 +204,48 @@ void main() {
     },
   );
 
+    // The coordinator resolved the read marker against the tail. A marker in
+    // a loaded window missed the fast path, entered the paginating branch,
+    // and spent its budget paging for something already on screen.
+    testWidgets(
+      'jump-to-unread finds a marker sitting in a window',
+      (tester) async {
+        final s = _setup();
+        await tester.pumpWidget(wrapChatTimeline(s.room));
+        await tester.pump();
+        await tester.pump();
+
+        await _state(tester).jumpToEvent(s.target);
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+
+        // Put the marker partway through the window, so it is nowhere in
+        // the tail and has unread events above it inside the window.
+        final windowIds = s.context.map((e) => e.eventId).toList();
+        s.room.fullyReadId = windowIds[windowIds.length ~/ 2];
+        expect(
+          s.room.live.events.any((e) => e.eventId == s.room.fullyReadId),
+          isFalse,
+          reason: 'precondition: the marker is not in the tail',
+        );
+
+        final pagesBefore = s.room.live.historyRequests;
+        await tester.tap(find.byKey(const ValueKey(kUnreadPillKey)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(seconds: 3));
+
+        expect(tester.takeException(), isNull);
+        expect(
+          s.room.live.historyRequests,
+          pagesBefore,
+          reason: 'a marker already on screen must not send the pager '
+              'looking for it',
+        );
+      },
+    );
+
   testWidgets(
     'a jump into an already-loaded window is a scroll, not a fetch',
     (tester) async {
@@ -293,4 +335,97 @@ void main() {
       expect(find.textContaining('no longer available'), findsOneWidget);
     },
   );
+
+  group('read paths span every loaded window', () {
+    testWidgets('the unread count includes events in a window', (tester) async {
+      // The pill counted the live tail alone. Everything in the tail is
+      // newer than a window, so with the marker *inside* the window the
+      // events between the marker and the tail's start are unread and
+      // visible, and a tail-only count misses every one of them: it stops at
+      // the marker, which is not in the tail at all, so it counts the whole
+      // tail and nothing else.
+      final s = _setup();
+      await tester.pumpWidget(wrapChatTimeline(s.room));
+      await tester.pump();
+      await tester.pump();
+
+      await _state(tester).jumpToEvent(s.target);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+
+      // Put the marker partway through the window.
+      final windowIds = s.context.map((e) => e.eventId).toList();
+      s.room.fullyReadId = windowIds[windowIds.length ~/ 2];
+
+      final store = _store(tester)!;
+      expect(
+        store.live.events.any((e) => e.eventId == s.room.fullyReadId),
+        isFalse,
+        reason: 'precondition: the marker is not in the tail',
+      );
+      // The window's own events sit between the marker and the tail.
+      final markerAt = s.context.indexWhere((e) => e.eventId == s.room.fullyReadId);
+      expect(markerAt, greaterThan(0),
+          reason: 'precondition: newer window events exist to be missed');
+
+      // The count itself is the claim, not the pill's presence: a tail-only
+      // walk never finds the marker, so it counts the entire tail and reports
+      // a number that happens to be non-zero anyway. Asserting "a pill is
+      // visible" passes under both implementations.
+      // The window is OLDER than the tail, so the render list runs newest-first:
+      // tail first, then the window. Everything is newer than a marker that
+      // sits inside the window, so the count is the whole render list. The
+      // tail-only walk never finds that marker and counts the whole tail, so
+      // the two differ by the window's size.
+      final tailLength = store.live.events.length;
+      final windowLength = s.context.length;
+      expect(store.flatten().length, tailLength + windowLength,
+          reason: 'precondition: no overlap between the two segments');
+      final expected = tailLength + windowLength;
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // The label is the assertion. A tail-only walk reports a non-zero
+      // number too, so asserting "a pill is visible" passes under both
+      // implementations and proves nothing.
+      expect(find.text('$expected new messages'), findsOneWidget,
+          reason: 'every event on screen is newer than a marker inside the '
+              'window');
+    });
+
+    testWidgets('a marker inside a window is found without refetching',
+        (tester) async {
+      // The coordinator searched the tail for the read marker. A marker in a
+      // window missed the fast path, entered the paginating branch, and
+      // spent the budget looking for something already on screen.
+      final s = _setup();
+      await tester.pumpWidget(wrapChatTimeline(s.room));
+      await tester.pump();
+      await tester.pump();
+
+      await _state(tester).jumpToEvent(s.target);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+
+      // Put the marker on an event that only the window holds.
+      final windowIds = s.context.map((e) => e.eventId).toSet();
+      s.room.fullyReadId = windowIds.elementAt(windowIds.length ~/ 2);
+      expect(_store(tester)!.live.events.any(
+            (e) => e.eventId == s.room.fullyReadId,
+          ), isFalse,
+          reason: 'precondition: the marker is not in the tail');
+
+      final before = s.room.contextRequests.length;
+      await _state(tester).jumpToEvent(s.target);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(tester.takeException(), isNull);
+      expect(s.room.contextRequests.length, before,
+          reason: 'a jump already satisfied by the cache must not refetch');
+    });
+  });
 }

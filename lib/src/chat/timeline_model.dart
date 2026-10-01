@@ -206,6 +206,7 @@ class TimelineItemEntry {
     this.date,
     this.undecryptableCount = 0,
     this.afterGroup,
+    this.groupIndex,
   });
 
   /// Which kind of entry this is (see [TimelineItemKind]).
@@ -240,12 +241,22 @@ class TimelineItemEntry {
   /// what closes the hole. Null for every other kind.
   final int? afterGroup;
 
+  /// Index of the segment group this event came from, when the render list
+  /// spans more than one.
+  ///
+  /// The renderer needs it to hand the item the timeline that actually holds
+  /// its aggregates. Reactions, edits and reply resolution all read
+  /// 	imeline.aggregatedEvents, which is per-timeline, so an item from a
+  /// history window handed the live tail finds nothing.
+  final int? groupIndex;
+
   /// Convenience constructor for regular message events.
   static TimelineItemEntry forEvent({
     required Event event,
     bool isGroupStart = true,
     bool isGroupContinuation = false,
     int replyCount = 0,
+    int? groupIndex,
   }) =>
       TimelineItemEntry(
         kind: TimelineItemKind.event,
@@ -253,6 +264,7 @@ class TimelineItemEntry {
         isGroupStart: isGroupStart,
         isGroupContinuation: isGroupContinuation,
         replyCount: replyCount,
+        groupIndex: groupIndex,
       );
 
   /// Convenience constructor for date separators.
@@ -458,6 +470,7 @@ TimelineItemsResult buildTimelineItemsFromGroups(
         isGroupStart: !isContinuationFlag,
         isGroupContinuation: isContinuationFlag,
         replyCount: replyCount,
+        groupIndex: eventIndex < groupOf.length ? groupOf[eventIndex] : null,
       ));
 
       eventIdToItemIndex[event.eventId] = items.length - 1;
