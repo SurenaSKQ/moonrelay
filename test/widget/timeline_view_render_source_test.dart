@@ -28,6 +28,7 @@ import 'package:matrix/matrix.dart';
 import 'package:matrix/src/models/timeline_chunk.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:moonrelay/src/chat/events/timeline_gap_marker.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 
@@ -98,6 +99,8 @@ void main() {
     required Timeline timeline,
     ValueNotifier<int>? version,
     ScrollController? controller,
+    List<List<Event>>? groups,
+    Set<int> gapsAfter = const {},
   }) async {
     await tester.pumpWidget(
       wrapWithProviders(
@@ -108,6 +111,8 @@ void main() {
             height: 600,
             child: TimelineView(
               events: events,
+              eventGroups: groups,
+              gapBoundaries: gapsAfter,
               timeline: timeline,
               room: room,
               displayType: DisplayType.modern,
@@ -228,7 +233,107 @@ void main() {
       expect(find.text('first'), findsNothing);
     });
   });
-group('jump targets', () {
+group('gaps', () {
+    // A short live tail and a long window, so the boundary sits inside the
+    // viewport. A tail long enough to fill the screen would put the marker
+    // off it, and `find.byType` only ever sees built children, so the
+    // assertion would pass for the wrong reason.
+    List<Event> tailOf(int n) => [
+          for (var i = 0; i < n; i++)
+            event('evt_$i', sender, ts: DateTime(2025, 6, 15, 20, i)),
+        ];
+
+    List<Event> windowOf(int n) => [
+          for (var i = 0; i < n; i++)
+            event('old_$i', sender, ts: DateTime(2025, 6, 10, 9, i)),
+        ];
+
+    testWidgets('a gap marker renders between the groups', (tester) async {
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        gapsAfter: const {0},
+      );
+      expect(find.byType(TimelineGapMarker), findsOneWidget);
+    });
+
+    testWidgets('no gaps named means no marker', (tester) async {
+      final events = [event('a', sender)];
+      await pumpView(
+        tester,
+        events: events,
+        timeline: _T(events),
+        groups: [events],
+      );
+      expect(find.byType(TimelineGapMarker), findsNothing);
+    });
+
+    testWidgets('the read position stops at the gap', (tester) async {
+      // The decision: a gap means the messages above are not contiguous with
+      // the ones below, so the user has not reached them by scrolling.
+      // Continuing across would name an event they have not scrolled past and
+      // retire messages they never saw.
+      //
+      // The window is on the old end and is below the fold, so a walk that
+      // continued across the gap would report one of its events. A walk that
+      // stops cannot, because nothing above the gap is on screen.
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        gapsAfter: const {0},
+        version: version,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      final readId = view.oldestVisibleEventId;
+
+      expect(readId, isNotNull, reason: 'the tail is on screen');
+      expect(
+        readId,
+        isNot(startsWith('old_')),
+        reason: 'a gap must stop the walk, so nothing above it is read',
+      );
+    });
+
+    testWidgets('without a gap the walk does reach the older events',
+        (tester) async {
+      // The control for the test above. Same layout, no marker: proves the
+      // stop is caused by the gap and not by the older events simply being
+      // off screen for an unrelated reason.
+      final tail = tailOf(4);
+      final window = windowOf(40);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        version: version,
+      );
+
+      final view = tester.state<TimelineViewState>(find.byType(TimelineView));
+      expect(view.oldestVisibleEventId, isNotNull);
+      // Without the stop, the walk continues into the window, because those
+      // events are on screen here. That is what makes the gap test above a
+      // real discriminator.
+      expect(view.oldestVisibleEventId, startsWith('old_'));
+    });
+  });
+
+  group('jump targets', () {
     testWidgets('a jump to an event only in the render list still scrolls',
         (tester) async {
       // The stale-cache path. `_targetInLiveTimeline` decides whether a
