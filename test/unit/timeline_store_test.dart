@@ -23,6 +23,10 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
+// `TimelineChunk` is not exported by `package:matrix/matrix.dart`, only
+// imported by `src/timeline.dart`. A deep import is the established
+// precedent here: `test/helpers/renderable_timeline.dart` does the same.
+import 'package:matrix/src/models/timeline_chunk.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:moonrelay/src/chat/timeline_store.dart';
@@ -58,6 +62,89 @@ class _CancellableTimeline extends _T {
   @override
   void cancelSubscriptions() => cancels++;
 }
+
+/// A timeline that answers `getRoomEvents` from a script.
+///
+/// Models the two things stage 2 exists to get right: pagination reads this
+/// segment's own `chunk.prevBatch`/`nextBatch` rather than the room's live
+/// token, and exhaustion leaves an **empty string** rather than null
+/// (timeline.dart:296).
+class _PagingTimeline extends _T {
+  _PagingTimeline(super.events, {required TimelineChunk chunk})
+      : _chunk = chunk;
+
+  @override
+  TimelineChunk get chunk => _chunk;
+  final TimelineChunk _chunk;
+
+  /// What `room.prev_batch` is. `null` is the normal state of a synced
+  /// room and is the case that broke `canRequestHistory`.
+  bool roomPrevBatchIsNull = true;
+
+  /// Events each page will deliver, oldest call last.
+  final List<List<Event>> olderPages = [];
+  final List<List<Event>> newerPages = [];
+
+  final List<String> calls = [];
+
+  /// When set, the next page throws instead of resolving.
+  Object? failWith;
+
+  @override
+  bool get canRequestHistory => !roomPrevBatchIsNull || _dbNotFullyRead;
+
+  bool _dbNotFullyRead = false;
+
+  @override
+  bool get canRequestFuture => !allowNewEvent;
+
+  // `Timeline.allowNewEvent` is a plain mutable field, so an override has to
+  // be a getter *and* a setter. Overriding it with another field is what
+  // the `overridden_fields` lint rejects.
+  @override
+  bool get allowNewEvent => _allowNewEvent;
+  @override
+  set allowNewEvent(bool value) => _allowNewEvent = value;
+  bool _allowNewEvent = true;
+
+  @override
+  Future<int> getRoomEvents({
+    int historyCount = Room.defaultHistoryCount,
+    dynamic direction = Direction.b,
+    StateFilter? filter,
+  }) async {
+    calls.add(direction.name);
+    final failure = failWith;
+    if (failure != null) throw failure;
+
+    final pages = direction == Direction.b ? olderPages : newerPages;
+    final batch = pages.isEmpty ? const <Event>[] : pages.removeAt(0);
+    if (direction == Direction.b) {
+      events.addAll(batch);
+      // Real SDK: '' once exhausted, never null.
+      chunk.prevBatch = pages.isEmpty ? '' : 'tok-$direction-${pages.length}';
+    } else {
+      events.insertAll(0, batch.reversed);
+      chunk.nextBatch = pages.isEmpty ? '' : 'tok-$direction-${pages.length}';
+    }
+    return batch.length;
+  }
+
+  void setDbNotFullyRead(bool value) => _dbNotFullyRead = value;
+}
+
+TimelineSegment _pagingSegment(
+  _PagingTimeline timeline, {
+  String id = 'w',
+  bool isLive = false,
+  String? anchor,
+}) =>
+    TimelineSegment(
+      id: id,
+      timeline: timeline,
+      isLive: isLive,
+      anchorEventId: anchor,
+    );
 
 /// Builds a segment from event ids, which is what every case here cares
 /// about. Taking ids rather than events keeps the tests readable; the
@@ -368,6 +455,216 @@ void main() {
         ..addHistory(_history(['w'], id: 'w'));
       expect(() => store.history.add(_history(['x'], id: 'x')),
           throwsUnsupportedError);
+    });
+  });
+
+  // -- Stage 2: segment paging --
+
+  group('canPageOlder', () {
+    test('a window with a prevBatch pages even when room.prev_batch is null',
+        () {
+      // THE regression. `Timeline.canRequestHistory` consults
+      // `room.prev_batch`, the room's live sync token, which is null on any
+      // fully synced room. A `/context` window carrying a perfectly good
+      // `start` token would report itself exhausted and silently refuse to
+      // page. This is the second time this rule has been needed;
+      // HistoryPager carries an identical guard.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = true
+        ..olderPages.add([_Ev('older')]);
+      timeline.chunk.prevBatch = 'window-start-token';
+
+      final segment = _pagingSegment(timeline);
+      expect(segment.canPageOlder, isTrue);
+    });
+
+    test('a window with neither token is exhausted', () {
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+      expect(_pagingSegment(timeline).canPageOlder, isFalse);
+    });
+
+    test('room.prev_batch alone is enough for the live tail', () {
+      // The other half of the rule. A live segment reads its first page
+      // from the database, so its chunk anchors start empty and only
+      // `canRequestHistory` can be right.
+      final timeline = _PagingTimeline([_Ev('t')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = false;
+      timeline.chunk.prevBatch = '';
+      expect(_pagingSegment(timeline, id: 'live', isLive: true).canPageOlder,
+          isTrue);
+    });
+
+    test('exhaustion is an empty string, not null', () {
+      // `getRoomEvents` assigns `chunk.prevBatch = newPrevBatch ?? ''`
+      // (timeline.dart:296). A null check here would keep paging forever.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+      expect(_pagingSegment(timeline).canPageOlder, isFalse);
+      timeline.chunk.prevBatch = 'tok';
+      expect(_pagingSegment(timeline).canPageOlder, isTrue);
+    });
+  });
+
+  group('canPageNewer', () {
+    test('a fragmented window can page forward', () {
+      // The SDK flips `allowNewEvent` to false when `chunk.nextBatch` is
+      // non-empty (timeline.dart:365-370), which is what makes a
+      // `/context` window forward-pageable at all.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..allowNewEvent = false;
+      timeline.chunk.nextBatch = 'window-end-token';
+      expect(_pagingSegment(timeline).canPageNewer, isTrue);
+    });
+
+    test('the live tail never pages forward', () {
+      // This asymmetry is the entire reason the live tail had to be
+      // substituted for in the first place: `canRequestFuture` is
+      // `!allowNewEvent`, permanently false on a live segment.
+      final timeline = _PagingTimeline([_Ev('t')], chunk: TimelineChunk(events: []))
+        ..allowNewEvent = true;
+      timeline.chunk.nextBatch = '';
+      expect(
+        _pagingSegment(timeline, id: 'live', isLive: true).canPageNewer,
+        isFalse,
+      );
+    });
+
+    test('a window with a live-shaped nextBatch still cannot page forward', () {
+      // The live tail is the only thing that can never page forward, and it
+      // is identified by isLive rather than by the SDK's flags. A window
+      // whose `allowNewEvent` happens to still be true is still a window.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..allowNewEvent = true;
+      timeline.chunk.nextBatch = 'tok';
+      final segment = _pagingSegment(timeline);
+      expect(segment.canPageNewer, isTrue,
+          reason: 'a window with an anchor can page forward regardless');
+    });
+
+    test('a spent nextBatch reports exhausted even while canRequestFuture is true',
+        () {
+      // The SDK clears its own forward flag once a page reaches the end
+      // (timeline.dart:269-275), but leaning on that flag for exhaustion is
+      // how this class of bug happened once already. The segment's own
+      // anchor is authoritative, so an empty one wins even while the SDK
+      // still claims it can page.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..allowNewEvent = false; // -> canRequestFuture == true
+      timeline.chunk.nextBatch = '';
+
+      expect(timeline.canRequestFuture, isTrue,
+          reason: 'the SDK flag is still set; that is the point');
+      expect(_pagingSegment(timeline).canPageNewer, isFalse);
+    });
+  });
+
+  group('pageOlder / pageNewer', () {
+    test('appends older events to the segment', () async {
+      final timeline = _PagingTimeline(
+        [_Ev('new')],
+        chunk: TimelineChunk(events: []),
+      )..olderPages.add([_Ev('older')]);
+      timeline.chunk.prevBatch = 'tok';
+
+      final segment = _pagingSegment(timeline);
+      expect(await segment.pageOlder(), 1);
+      expect(_ids(segment.events), ['new', 'older']);
+    });
+
+    test('inserts newer events at the head, keeping newest-first', () async {
+      final timeline = _PagingTimeline(
+        [_Ev('old')],
+        chunk: TimelineChunk(events: []),
+      )..newerPages.add([_Ev('n1'), _Ev('n2')]);
+      timeline.chunk.nextBatch = 'tok';
+      timeline.allowNewEvent = false;
+
+      final segment = _pagingSegment(timeline);
+      expect(await segment.pageNewer(), 2);
+      expect(_ids(segment.events), ['n2', 'n1', 'old']);
+    });
+
+    test('does not call the server for an exhausted segment', () async {
+      // Cheap to skip and expensive to miss: an unchecked page at an
+      // exhausted window is a round trip per scroll event.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+
+      expect(await _pagingSegment(timeline).pageOlder(), 0);
+      expect(timeline.calls, isEmpty);
+    });
+
+    test('returns 0 and does not throw when the request fails', () async {
+      // Paging is a background fill. Four call sites would otherwise each
+      // need the same try/catch, and a throw from one of them lands in a
+      // scroll listener where it is invisible.
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..failWith = Exception('network down');
+      timeline.chunk.prevBatch = 'tok';
+
+      expect(await _pagingSegment(timeline).pageOlder(), 0);
+      expect(timeline.calls, ['b']);
+    });
+
+    test('returns 0 when the server sends nothing', () async {
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []));
+      timeline.chunk.prevBatch = 'tok';
+      expect(await _pagingSegment(timeline).pageOlder(), 0);
+    });
+  });
+
+  group('store paging', () {
+    test('bumps version once after a page that landed', () async {
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..olderPages.add([_Ev('older')]);
+      timeline.chunk.prevBatch = 'tok';
+
+      final store = TimelineStore(live: _live(['tail']))
+        ..addHistory(_pagingSegment(timeline));
+      final before = store.version;
+
+      expect(await store.pageOlder('w'), 1);
+      // Once, not once per event. `getRoomEvents` fires onInsert per event
+      // while it is still appending to chunk.events, so anything that
+      // rebuilt from inside that callback would read a half-appended list.
+      expect(store.version, before + 1);
+      expect(_ids(store.flatten()), ['w', 'older', 'tail']);
+    });
+
+    test('does not bump when a page added nothing', () async {
+      final timeline = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..failWith = Exception('nope');
+      timeline.chunk.prevBatch = 'tok';
+
+      final store = TimelineStore(live: _live(['tail']))
+        ..addHistory(_pagingSegment(timeline));
+      final before = store.version;
+
+      expect(await store.pageOlder('w'), 0);
+      expect(store.version, before);
+    });
+
+    test('pages the live tail by id', () async {
+      final timeline = _PagingTimeline(
+        [_Ev('t')],
+        chunk: TimelineChunk(events: []),
+      )..olderPages.add([_Ev('older')]);
+      timeline.chunk.prevBatch = 'tok';
+      timeline.setDbNotFullyRead(true);
+
+      final store = TimelineStore(live: _pagingSegment(timeline, id: 'live', isLive: true));
+      expect(await store.pageOlder('live'), 1);
+      expect(_ids(store.flatten()), ['t', 'older']);
+    });
+
+    test('an unknown segment id pages nothing', () async {
+      final store = TimelineStore(live: _live(['tail']));
+      expect(await store.pageOlder('ghost'), 0);
+      expect(await store.pageNewer('ghost'), 0);
     });
   });
 }

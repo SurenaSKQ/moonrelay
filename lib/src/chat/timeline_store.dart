@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 
 /// One contiguous run of events, backed by a [Timeline].
@@ -34,6 +35,7 @@ class TimelineSegment {
     required this.timeline,
     required this.isLive,
     this.anchorEventId,
+    this.logger,
   });
 
   /// Stable identity for this segment, used to evict it later.
@@ -61,6 +63,9 @@ class TimelineSegment {
   /// window was displayed.
   final String? anchorEventId;
 
+  /// Optional logger for failed pages.
+  final Logger? logger;
+
   /// Events in this segment, newest first, matching SDK order.
   List<Event> get events => timeline.events;
 
@@ -72,6 +77,115 @@ class TimelineSegment {
   void cancel() {
     if (isLive) return;
     timeline.cancelSubscriptions();
+  }
+
+  // -- Paging ----------------------------------------------------
+
+  /// True when [pageOlder] has somewhere to go.
+  ///
+  /// The rule is `Timeline.canRequestHistory` *or* a non-empty
+  /// `chunk.prevBatch`, and both halves are load-bearing:
+  ///
+  /// - `canRequestHistory` consults `room.prev_batch`, which is the room's
+  ///   live sync token and has nothing to do with this segment's own
+  ///   pagination. On a fully synced room it is `null`, so a `/context`
+  ///   window carrying a perfectly good `start` token reports itself
+  ///   exhausted and silently refuses to page.
+  /// - `chunk.prevBatch` alone is not sufficient either, because the live
+  ///   tail reads its initial page from the database and its chunk anchors
+  ///   are empty until the first server page.
+  ///
+  /// Exhausted is an **empty string**, not `null`: `getRoomEvents` assigns
+  /// `chunk.prevBatch = newPrevBatch ?? ''` for `Direction.b`
+  /// (timeline.dart:296).
+  ///
+  /// This is the second time this rule has been needed. `HistoryPager`
+  /// carries an identical `_canPageOlder`, and a store is exactly where the
+  /// bug would otherwise come back.
+  bool get canPageOlder {
+    if (timeline.canRequestHistory) return true;
+    return timeline.chunk.prevBatch.isNotEmpty;
+  }
+
+  /// True when [pageNewer] has somewhere to go.
+  ///
+  /// Always false for the live tail. `canRequestFuture` is `!allowNewEvent`,
+  /// permanently false on a live segment, and that asymmetry is the whole
+  /// reason the live tail needed substituting in the first place. A live
+  /// segment does not page forward; it receives new events from sync.
+  ///
+  /// For a window, the gate is its own `chunk.nextBatch` and nothing else.
+  /// A `/context` window is constructed as a *fragmented* timeline, so the
+  /// SDK flips `allowNewEvent` to false when `chunk.nextBatch` is non-empty
+  /// (timeline.dart:365-370) and `canRequestFuture` is therefore true from
+  /// birth. It also clears that flag itself once a page reaches the end
+  /// (timeline.dart:269-275), but leaning on an SDK-internal flag for
+  /// exhaustion is how the previous round of this bug happened: the
+  /// authoritative signal for a segment is its own pagination anchor, so
+  /// that is what is checked. `pageNewer` would otherwise fire a request
+  /// with `from: ''`.
+  bool get canPageNewer => !isLive && timeline.chunk.nextBatch.isNotEmpty;
+
+  /// Requests one page of older events into this segment.
+  ///
+  /// Returns the number of events the server sent, which is `0` when the
+  /// segment is exhausted or the request failed.
+  ///
+  /// Uses `getRoomEvents` rather than `requestHistory`. This is not a
+  /// preference: `requestHistory` routes through `room.prev_batch` via
+  /// `Room.requestHistory`, while `getRoomEvents` pages off this segment's
+  /// own `chunk.prevBatch`/`chunk.nextBatch` (timeline.dart:231-237). Only
+  /// the latter is correct for a detached window.
+  Future<int> pageOlder({
+    int count = Room.defaultHistoryCount,
+    StateFilter? filter,
+    Duration timeout = kSegmentPageTimeout,
+  }) =>
+      _page(Direction.b, count: count, filter: filter, timeout: timeout);
+
+  /// Requests one page of newer events into this segment.
+  ///
+  /// Only meaningful for a detached window, which is the only kind that can
+  /// page forward. See [canPageNewer].
+  Future<int> pageNewer({
+    int count = Room.defaultHistoryCount,
+    StateFilter? filter,
+    Duration timeout = kSegmentPageTimeout,
+  }) =>
+      _page(Direction.f, count: count, filter: filter, timeout: timeout);
+
+  /// Default per-request ceiling for [pageOlder] and [pageNewer].
+  static const Duration kSegmentPageTimeout = Duration(seconds: 20);
+
+  Future<int> _page(
+    Direction direction, {
+    required int count,
+    StateFilter? filter,
+    required Duration timeout,
+  }) async {
+    // Checked here rather than trusted to the caller: a page fired at an
+    // exhausted segment wastes a round trip and, on the live tail,
+    // `requestHistory` would consult the room's own token and page the
+    // wrong segment entirely.
+    final canPage =
+        direction == Direction.b ? canPageOlder : canPageNewer;
+    if (!canPage) return 0;
+
+    try {
+      return await timeline
+          .getRoomEvents(
+            historyCount: count,
+            direction: direction,
+            filter: filter,
+          )
+          .timeout(timeout);
+    } catch (e) {
+      // A failed page must not propagate: paging is a background fill, and
+      // the caller wants "nothing new" rather than an exception it would
+      // have to catch identically at four call sites.
+      logger?.w('Segment $id failed to page ${direction.name}', error: e);
+      return 0;
+    }
   }
 }
 
@@ -179,6 +293,51 @@ class TimelineStore {
   /// Every segment in display order: history windows newest first, then the
   /// live tail.
   List<TimelineSegment> get _segmentsNewestFirst => [..._history, live];
+
+  /// Pages [segmentId] one step older and bumps [version] if it landed.
+  ///
+  /// The store owns the version bump rather than the segment, because
+  /// `getRoomEvents` fires `onInsert` once per event *while* it is
+  /// appending to `chunk.events` (timeline.dart:302-304). A listener that
+  /// rebuilt from inside that callback would read a half-appended list. The
+  /// page therefore returns before anything here runs, and the bump happens
+  /// once, after the list is whole.
+  ///
+  /// Returns the number of events loaded, `0` when nothing was added.
+  Future<int> pageOlder(
+    String segmentId, {
+    int count = Room.defaultHistoryCount,
+    StateFilter? filter,
+  }) async {
+    final segment = _segmentById(segmentId);
+    if (segment == null) return 0;
+    final added = await segment.pageOlder(count: count, filter: filter);
+    if (added > 0) _version++;
+    return added;
+  }
+
+  /// Pages [segmentId] one step newer. See [pageOlder] for why the bump
+  /// belongs here.
+  Future<int> pageNewer(
+    String segmentId, {
+    int count = Room.defaultHistoryCount,
+    StateFilter? filter,
+  }) async {
+    final segment = _segmentById(segmentId);
+    if (segment == null) return 0;
+    final added = await segment.pageNewer(count: count, filter: filter);
+    if (added > 0) _version++;
+    return added;
+  }
+
+  /// The segment with [segmentId], live tail included, or `null`.
+  TimelineSegment? _segmentById(String segmentId) {
+    if (live.id == segmentId) return live;
+    for (final segment in _history) {
+      if (segment.id == segmentId) return segment;
+    }
+    return null;
+  }
 
   /// Adds a history window.
   ///
