@@ -208,6 +208,38 @@ void main() {
       expect(nested - flat, 16);
     });
 
+    testWidgets('a selected row is marked by a bar, not only by its tint',
+        (tester) async {
+      // The tint alone is not enough to find the current room in a list of
+      // two hundred: a row that is merely near the tint, or hovered, or
+      // mid-transition, all read the same. A bar on the leading edge is a
+      // position rather than a colour.
+      await pump(
+        tester,
+        child: const SidebarRow(title: 'Current room', selected: true),
+      );
+      expect(find.byKey(sidebarRowAccentBarKey), findsOneWidget);
+
+      await pump(tester, child: const SidebarRow(title: 'Other room'));
+      expect(find.byKey(sidebarRowAccentBarKey), findsNothing);
+    });
+
+    testWidgets('the bar does not move the label', (tester) async {
+      // Adding width on the leading side, rather than taking it from the
+      // right, so the text does not shift when the selection moves and the
+      // list does not reflow under the pointer.
+      await pump(tester, child: const SidebarRow(title: 'Plain'));
+      final plain = tester.getTopLeft(find.text('Plain')).dx;
+
+      await pump(
+        tester,
+        child: const SidebarRow(title: 'Selected', selected: true),
+      );
+      final selected = tester.getTopLeft(find.text('Selected')).dx;
+
+      expect(selected - plain, 3);
+    });
+
     testWidgets('taps and long presses reach their callbacks', (tester) async {
       var taps = 0;
       var longs = 0;

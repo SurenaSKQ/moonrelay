@@ -90,6 +90,15 @@ class SidebarRowMetrics {
   final double subtitleSize;
 }
 
+/// Identifies the accent bar [SidebarRow] draws on its leading edge when
+/// selected.
+///
+/// Exposed so a test can ask whether the bar is there, rather than
+/// inferring it from the row's tint: a selected row and a hovered one are
+/// both "coloured", and a test that cannot tell them apart is testing the
+/// wrong thing.
+const Key sidebarRowAccentBarKey = ValueKey('sidebar-row-accent-bar');
+
 /// One row in a sidebar list.
 ///
 /// Used by the navigation destinations, the space tree, space groups and
@@ -224,33 +233,58 @@ class SidebarRow extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         borderRadius: radius,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: m.minHeight),
-          child: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(
-              m.padH + indent,
-              m.padV,
-              m.padH,
-              m.padV,
+        child: Stack(
+          children: [
+            // The accent bar. The tint alone is not enough to find the
+            // current room in a list of two hundred, because a row that is
+            // merely *near* the tint, or hovered, or mid-transition, all
+            // read the same. A bar on the leading edge is a position, not a
+            // colour, so the eye can find it without comparing shades.
+            //
+            // Width rather than opacity, so it does not shift the label.
+            if (selected)
+              PositionedDirectional(
+                key: sidebarRowAccentBarKey,
+                start: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 3,
+                  color: scheme.primary,
+                ),
+              ),
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: m.minHeight),
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  // The bar's own width is added here rather than to the
+                  // right, so the text lines up with unselected rows and
+                  // the list does not reflow when the selection moves.
+                  m.padH + indent + (selected ? 3 : 0),
+                  m.padV,
+                  m.padH,
+                  m.padV,
+                ),
+                child: Row(
+                  children: [
+                    if (leading != null) ...[
+                      SizedBox(
+                        width: m.leadingSize,
+                        height: m.leadingSize,
+                        child: Center(child: leading),
+                      ),
+                      SizedBox(width: m.gap),
+                    ],
+                    Expanded(child: text()),
+                    if (trailing != null) ...[
+                      SizedBox(width: t.spaceSm),
+                      trailing!,
+                    ],
+                  ],
+                ),
+              ),
             ),
-            child: Row(
-              children: [
-                if (leading != null) ...[
-                  SizedBox(
-                    width: m.leadingSize,
-                    height: m.leadingSize,
-                    child: Center(child: leading),
-                  ),
-                  SizedBox(width: m.gap),
-                ],
-                Expanded(child: text()),
-                if (trailing != null) ...[
-                  SizedBox(width: t.spaceSm),
-                  trailing!,
-                ],
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
