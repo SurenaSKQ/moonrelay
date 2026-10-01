@@ -28,15 +28,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
+import 'package:matrix/src/models/timeline_chunk.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 import '../helpers/widget_test_utils.dart';
 
-/// A timeline mock that counts [requestHistory] invocations and lets
+/// A timeline mock that counts [getRoomEvents] invocations and lets
 /// the test gate the in-flight future. The widget's [_isLoadingHistory]
 /// flag is what we really care about; the count is for diagnostics.
+///
+/// Pages through `getRoomEvents` rather than `requestHistory`, because that is
+/// the primitive `TimelineSegment.pageOlder` uses. `requestHistory` routes via
+/// `room.prev_batch` and is the wrong call for a detached window, which is the
+/// bug this file's own history is about.
 class _CountingTimeline extends Mock implements Timeline {
   _CountingTimeline();
 
@@ -44,12 +50,12 @@ class _CountingTimeline extends Mock implements Timeline {
   final Completer<void> _current = Completer<void>();
   bool _throwOnNext = false;
 
-  /// Sets the throw flag so the next requestHistory throws.
+  /// Sets the throw flag so the next page throws.
   void scheduleFailure() {
     _throwOnNext = true;
   }
 
-  /// Resolves the in-flight requestHistory so its caller can finish.
+  /// Resolves the in-flight page so its caller can finish.
   void release() {
     if (!_current.isCompleted) _current.complete();
   }
@@ -73,8 +79,12 @@ class _CountingTimeline extends Mock implements Timeline {
   bool get canRequestHistory => true;
 
   @override
-  Future<void> requestHistory({
+  TimelineChunk get chunk => TimelineChunk(events: <Event>[]);
+
+  @override
+  Future<int> getRoomEvents({
     int historyCount = Room.defaultHistoryCount,
+    dynamic direction = Direction.b,
     StateFilter? filter,
   }) async {
     requestCount++;
@@ -83,10 +93,14 @@ class _CountingTimeline extends Mock implements Timeline {
       throw StateError('simulated network failure');
     }
     await _current.future;
+    // `pageOlder` treats 0 as "nothing was added", which is how a failed or
+    // exhausted page is reported. Returning 1 keeps the success path honest
+    // so the tests measure single-flight rather than the exhausted case.
+    return 1;
   }
 
   @override
-  Future<void> requestFuture({
+  Future<void> requestHistory({
     int historyCount = Room.defaultHistoryCount,
     StateFilter? filter,
   }) async {}
@@ -202,7 +216,7 @@ void main() {
   );
 
   testWidgets(
-    'failed requestHistory surfaces a logged warning and clears the '
+    'a failed page clears the in-flight flag'
     'in-flight flag',
     (tester) async {
       final timeline = _CountingTimeline();
@@ -221,7 +235,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       expect(state.isLoadingHistoryForTest, isFalse);
 
-      // Configure the timeline to throw on the next requestHistory.
+      // Configure the timeline to throw on the next page.
       timeline.scheduleFailure();
 
       // First call throws. The widget's catch block must reset the
