@@ -194,6 +194,7 @@ class MoonRouter {
                   builder: (context, state) => RoomResolver(
                     roomId: _param(state, 'roomid'),
                     threadRootEventId: state.uri.queryParameters['threadRoot'],
+                    focusEventId: state.uri.queryParameters['event'],
                   ),
                   routes: [
                     GoRoute(

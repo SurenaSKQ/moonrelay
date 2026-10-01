@@ -24,6 +24,7 @@ import 'package:moonrelay/src/chat/edit_history_dialog.dart';
 import 'package:moonrelay/src/chat/edit_message_dialog.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
+import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 import 'package:provider/provider.dart';
@@ -449,6 +450,7 @@ class MessageActionRunner {
 
   /// Builds a `https://matrix.to/#/roomId/eventId` permalink for the event.
   static String _permalinkFor(Event event, Room room) {
-    return 'https://matrix.to/#/${room.id}/${event.eventId}';
-  }
-}
+    // Goes through the parser's builder so the link we hand out and the
+    // link we can resolve are the same shape by construction.
+    return MatrixUriParser.buildEventPermalink(room.id, event.eventId);
+  }}

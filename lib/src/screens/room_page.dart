@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/chat/in_room_search_panel/in_room_search_panel.dart';
@@ -29,7 +31,17 @@ import 'package:provider/provider.dart';
 class RoomPage extends StatefulWidget {
   final Room room;
   final String? threadRootEventId;
-  const RoomPage({super.key, required this.room, this.threadRootEventId});
+
+  /// Event to focus on open, from an event permalink.  Consumed once:
+  /// the timeline clears it so a later rebuild does not re-jump.
+  final String? focusEventId;
+
+  const RoomPage({
+    super.key,
+    required this.room,
+    this.threadRootEventId,
+    this.focusEventId,
+  });
   @override
   State<RoomPage> createState() => _RoomPageState();
 }
@@ -65,15 +77,19 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     return ids.contains(event.eventId);
   }
 
-  /// Scrolls the timeline to the event with [eventId] when the user
-  /// taps a search result.  Closes the search panel first so the
-  /// timeline is visible.
+  /// Brings the event with [eventId] into view when the user taps a
+  /// search result.  Closes the search panel first so the timeline is
+  /// visible.  The timeline may need to fetch a history window when the
+  /// match is older than the local cache, hence the await.
   void _jumpFromSearch(String eventId) {
     setState(() => _showInRoomSearch = false);
     final gen = beginAsync();
+    // `addPostFrameCallback` wants a void callback, so the async jump
+    // is fired and forgotten here.  It is already guarded by `mounted`
+    // and the generation check inside `ChatTimeline.jumpToEvent`.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || isStale(gen)) return;
-      _timelineKey.currentState?.jumpToEvent(eventId);
+      unawaited(_timelineKey.currentState?.jumpToEvent(eventId));
     });
   }
 
@@ -94,8 +110,31 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || isStale(gen)) return;
       context.read<CurrentRoom>().setRoom(widget.room);
+      _focusPermalinkEvent();
     });
   }
+
+  /// Hands a permalinked event to the timeline once the room is mounted.
+  ///
+  /// Deferred by a frame because the timeline has not built its first
+  /// list yet, and the jump may need to fetch a history window, which
+  /// the timeline owns.
+  void _focusPermalinkEvent() {
+    final target = widget.focusEventId;
+    if (target == null || target.isEmpty) return;
+    // Consumed: a later rebuild must not re-jump the user back to a
+    // message they have already scrolled away from.
+    _pendingFocus = target;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final timeline = _timelineKey.currentState;
+      if (timeline == null) return;
+      unawaited(timeline.jumpToEvent(_pendingFocus));
+    });
+  }
+
+  /// The permalink target still waiting to be handed to the timeline.
+  String? _pendingFocus;
 
   @override
   void didUpdateWidget(RoomPage oldWidget) {

@@ -234,6 +234,43 @@ Future<void> navigateToMatrixUri(
   final log = context.read<Logger>();
 
   switch (result.entityType) {
+    case MatrixUriEntity.event:
+      // An event permalink.  The room has to be open before the event
+      // can be focused, so navigate first and hand the id to the room
+      // page through the route, which lets the timeline load a history
+      // window if the event is older than the local cache.
+      final eventRoom = result.roomId;
+      if (eventRoom == null || !eventRoom.startsWith('!')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid Matrix room id in link')),
+          );
+        }
+        return;
+      }
+      if (client.getRoomById(eventRoom) == null) {
+        if (settings.deepLinkAutoJoin) {
+          await _autoJoinRoom(
+            context,
+            client,
+            MatrixUriResult(
+              entityType: MatrixUriEntity.room,
+              entityId: eventRoom,
+              viaServers: result.viaServers,
+            ),
+            log,
+          );
+        } else {
+          context.go(
+            '/main/room_preview/${Uri.encodeComponent(eventRoom)}',
+          );
+        }
+        return;
+      }
+      context.go(MoonRoutePaths.roomChatPath(
+        eventRoom,
+        query: {'event': result.entityId},
+      ));
     case MatrixUriEntity.room:
     case MatrixUriEntity.roomAlias:
       // Check if already joined.

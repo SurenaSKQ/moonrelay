@@ -44,6 +44,7 @@ class RoomResolver extends StatefulWidget {
     super.key,
     required this.roomId,
     this.threadRootEventId,
+    this.focusEventId,
   });
 
   /// The room to resolve. Never empty for a route that matched `:roomid`.
@@ -52,6 +53,12 @@ class RoomResolver extends StatefulWidget {
   /// Optional `m.thread` root to wire the composer against, from the
   /// `?threadRoot=` query parameter.
   final String? threadRootEventId;
+
+  /// Optional event to focus once the room is on screen, from the
+  /// `?event=` query parameter.  Set by event permalinks
+  /// (`matrix.to/#/!room/$event`).  The timeline loads a history window
+  /// if the event is older than the local cache.
+  final String? focusEventId;
 
   @override
   State<RoomResolver> createState() => _RoomResolverState();
@@ -125,7 +132,11 @@ class _RoomResolverState extends State<RoomResolver> {
 
     final Room? room = client.getRoomById(widget.roomId);
     if (room != null) {
-      return RoomPage(room: room, threadRootEventId: widget.threadRootEventId);
+      return RoomPage(
+        room: room,
+        threadRootEventId: widget.threadRootEventId,
+        focusEventId: widget.focusEventId,
+      );
     }
 
     // Nothing has arrived yet. Distinguish "the sync cache is still empty"
