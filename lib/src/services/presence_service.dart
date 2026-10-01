@@ -67,7 +67,11 @@ class PresenceService with WindowListener {
     required this.settings,
     required this.log,
     this.clock = DateTime.now,
-  });
+    void Function(WindowListener listener)? addWindowListener,
+    void Function(WindowListener listener)? removeWindowListener,
+  })  : _addWindowListener = addWindowListener ?? _defaultAddWindowListener,
+        _removeWindowListener =
+            removeWindowListener ?? _defaultRemoveWindowListener;
 
   /// Live settings, read on every activity and on every timer tick so a
   /// change to the toggle or the idle window takes effect immediately.
@@ -77,6 +81,23 @@ class PresenceService with WindowListener {
   /// Injectable wall clock, so tests can advance idle time without
   /// waiting in real seconds.
   final DateTime Function() clock;
+
+  /// Injectable window-listener registration, for the same reason as
+  /// [clock] and with the same shape.
+  ///
+  /// `windowManager` is a global singleton that throws when there is no
+  /// platform window, which is precisely the environment a unit test runs in,
+  /// so the registration path would otherwise be unreachable from a test and
+  /// the leak it had could never be caught. Injecting it keeps the real
+  /// global as the default and makes the bookkeeping assertable.
+  final void Function(WindowListener listener) _addWindowListener;
+  final void Function(WindowListener listener) _removeWindowListener;
+
+  static void _defaultAddWindowListener(WindowListener listener) =>
+      windowManager.addListener(listener);
+
+  static void _defaultRemoveWindowListener(WindowListener listener) =>
+      windowManager.removeListener(listener);
 
   Client? _client;
   Timer? _idleTimer;
@@ -125,8 +146,19 @@ class PresenceService with WindowListener {
     // the idle feature is on. The try/catch is for environments with no
     // window manager (tests, and any non-desktop target), where the
     // pointer and keyboard paths still work.
+    //
+    // Remove before add, not just add. `windowManager` keeps listeners in a
+    // plain list and `removeListener` removes one entry, so adding without
+    // removing accumulates a copy per bind. `bind` is documented as
+    // replacing a previous binding and does return early for the same
+    // client, but an account switch brings a new one every time; two
+    // registrations then survive a `dispose` and keep creating timers on a
+    // dead service. Removing first makes registration idempotent no matter
+    // how often bind is called. `removeListener` is a no-op when absent, so
+    // this is also the right call on a first bind.
     try {
-      windowManager.addListener(this);
+      _removeWindowListener(this);
+      _addWindowListener(this);
     } on Object catch (_) {
       // No platform window manager; activity is still tracked from the
       // in-app input hooks.
@@ -245,7 +277,7 @@ class PresenceService with WindowListener {
     _disposed = true;
     _cancelIdleTimer();
     try {
-      windowManager.removeListener(this);
+      _removeWindowListener(this);
     } on Object catch (_) {
       // Never registered; see bind.
     }
@@ -257,7 +289,7 @@ class PresenceService with WindowListener {
   @visibleForTesting
   void detachWindowListener() {
     try {
-      windowManager.removeListener(this);
+      _removeWindowListener(this);
     } on Object catch (_) {
       // Never registered; see bind.
     }
@@ -272,9 +304,18 @@ class PresenceService with WindowListener {
 
   /// Decides what the presence should be and applies it.
   ///
-  /// Called on resume and on a settings change. Not called on a timer:
-  /// the deadline is a timer, but the decision is made when the timer
+  /// Called on bind, on resume, and on a settings change. Not called on a
+  /// timer: the deadline is a timer, but the decision is made when the timer
   /// fires, which keeps a suspended machine from drifting.
+  ///
+  /// The invariant this owns is "enabled, and nothing chosen by hand, implies
+  /// an armed deadline". It is the reason the arming lives here rather than in
+  /// the callers. Every caller resets `_lastActivity` before arriving, because
+  /// each of them genuinely is a fresh moment, so each of them lands in the
+  /// `idleFor < window` branch; a version of this method that only armed on
+  /// the `>=` branch therefore armed nothing at all for all three, and the
+  /// countdown silently never started. Arming with the *remaining* time here
+  /// makes the invariant true by construction for current and future callers.
   Future<void> _evaluate() async {
     if (_disposed) return;
     if (_client == null) return;
@@ -291,6 +332,7 @@ class PresenceService with WindowListener {
       if (_published == PresenceType.offline) {
         await _publish(PresenceType.online);
       }
+      _startIdleTimer(window - idleFor);
     } else {
       _startIdleTimer(Duration.zero);
     }
