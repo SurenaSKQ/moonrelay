@@ -211,9 +211,23 @@ class TimelineSegment {
     // exhausted segment wastes a round trip and, on the live tail,
     // `requestHistory` would consult the room's own token and page the
     // wrong segment entirely.
+    //
+    // Logged, because a caller cannot otherwise tell "this request succeeded
+    // and there was nothing more to send" from "this segment has run out and
+    // no request was even attempted". For a gap closer the first means the
+    // hole closed and the second means it can never close, and on screen the
+    // two look identical: no new events, no version bump, no marker change.
+    // Without a line here a hole that quietly became permanent would be
+    // indistinguishable from a reader who simply stopped scrolling.
     final canPage =
         direction == Direction.b ? canPageOlder : canPageNewer;
-    if (!canPage) return 0;
+    if (!canPage) {
+      logger?.w(
+        'Segment $id cannot page ${direction.name}, so nothing can fill it '
+        'from this side',
+      );
+      return 0;
+    }
 
     try {
       return await timeline
