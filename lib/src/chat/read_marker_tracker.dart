@@ -25,9 +25,12 @@ import 'package:moonrelay/src/helpers/debouncer.dart';
 /// Owns the read-receipt plumbing for the chat timeline.
 ///
 /// Responsibilities:
-/// - Resolve the newest *synced* event from [Timeline.events] and POST
-///   a `setReadMarker` to the homeserver when the user scrolls or lands
-///   on the bottom (gated on [sendReceipts]).
+/// - Resolve the *read position* (the oldest event still on screen) and
+///   POST a `setReadMarker` for it when the user stops scrolling, or for
+///   the newest synced event when the viewport is parked at the live
+///   edge (gated on [sendReceipts]).
+/// - Never move the marker backwards. A receipt is a floor, not a
+///   cursor: scrolling back up must not resurrect the unread pill.
 /// - Debounce scroll-driven marks so a single drag fires at most one
 ///   request.
 /// - Mirror locally-tracked markers into a [NotificationMirror] so a
@@ -65,16 +68,25 @@ class ReadMarkerTracker {
   /// pill-dismissed bookkeeping.
   final ValueChanged<String> onLastSeenChanged;
 
-  static const Duration _scrollDebounce = Duration(milliseconds: 250);
+  /// Trailing debounce on the scroll-driven path.  Long enough to be a
+  /// dwell rather than a tick, so a fling that ends mid-history does not
+  /// leave a receipt behind for a screen the user only flew past.
+  static const Duration _scrollDebounce = Duration(milliseconds: 400);
   static const Duration _lastSeenRefreshDebounce =
       Duration(milliseconds: 250);
   static const int _maxDedupeEntries = 64;
 
-  /// Highest event ID we've already pushed a read-marker for in this
-  /// session.  Used to dedupe a few back-to-back identical POSTs during
-  /// a single drag (the SDK also dedupes, but a local guard keeps the
-  /// network quiet).
+  /// Event ids we have already posted a read marker for in this session.
+  /// The primary dedupe is [_lastSentTs], which orders correctly; this
+  /// set is the fallback for candidates whose timestamp we could not
+  /// read, and it keeps a settled viewport from re-POSTing on every
+  /// scroll tick.
   final Set<String> _markReadSent = <String>{};
+
+  /// Server timestamp of the newest marker we have posted.  This is the
+  /// monotonic floor described in the class docs: a candidate whose
+  /// timestamp is not strictly newer is dropped.
+  int _lastSentTs = 0;
 
   /// Cached last-seen event id from [Room.fullyRead].  Sampled via the
   /// [_lastSeenDebouncer] so a burst of build()s only causes one
@@ -91,6 +103,7 @@ class ReadMarkerTracker {
   void bindRoom(Room room) {
     _room = room;
     _markReadSent.clear();
+    _lastSentTs = 0;
   }
 
   /// The last [Room.fullyRead] value we observed.  Used by the parent
@@ -99,49 +112,51 @@ class ReadMarkerTracker {
 
   /// Schedules a debounced mark-read triggered by a scroll event.
   ///
-  /// The caller passes a [TimelineSnapshot] -- a tiny value object
-  /// holding just the data the tracker needs (length + newest synced
-  /// event id).  This avoids retaining the full [Timeline.events]
-  /// list as a closure capture on every scroll tick, which is the
-  /// dominant allocation cost during rapid scrolling.
+  /// [snapshot] must carry a real read position (see
+  /// [TimelineSnapshot.atReadPosition]).  A snapshot without one is
+  /// ignored rather than defaulted to the newest event: guessing
+  /// "newest" is what made merely opening a room mark it read.
   void scheduleOnScroll(TimelineSnapshot snapshot) {
-    if (snapshot.isEmpty) return;
+    if (!snapshot.hasReadPosition) return;
     _markReadDebouncer(() => markRoomReadFromSnapshot(snapshot));
   }
 
-  /// Posts a read marker using just the data captured in [snapshot].
-  /// Splits the scroll-driven path from the snapshotless path so
-  /// callers don't need to assemble an event list for the common case.
+  /// Posts a read marker for the read position carried by [snapshot].
+  ///
+  /// There is deliberately no "mark everything read" overload.  The
+  /// read position is always the oldest event on screen, so the whole
+  /// conversation has a single rule attached to it: the receipt names
+  /// what the user can see, never the newest event in the cache.
   void markRoomReadFromSnapshot(TimelineSnapshot snapshot,
       {bool force = false}) {
-    if (snapshot.isEmpty) return;
-    final latestId = snapshot.latestSyncedId ?? snapshot.firstId;
-    if (latestId.isEmpty) return;
+    final readId = snapshot.readId;
+    if (readId == null || readId.isEmpty) return;
 
-    final alreadySent = !force && _markReadSent.contains(latestId);
-    if (!alreadySent) {
-      _markReadSent.add(latestId);
-      _trimDedupeCache();
-      // Mirror locally so a sync tick right after we marked read
-      // doesn't re-emit a stale notification.  Done regardless of
-      // [sendReceipts]; the user visibly reached the latest message
-      // and we shouldn't nag them about it.
-      notificationService?.onRoomRead(_room.id, latestId);
+    // A receipt is a floor, not a cursor.  Once we have told the server
+    // the user read up to N, scrolling back up must not retract it.
+    // The timestamp is the reliable ordering key; when it is unknown,
+    // fall back to remembering the ids we have already sent so a
+    // settled viewport does not re-POST on every scroll tick.
+    final ts = snapshot.readTs;
+    if (!force) {
+      if (ts > 0) {
+        if (ts <= _lastSentTs) return;
+      } else if (_markReadSent.contains(readId)) {
+        return;
+      }
     }
 
-    if (!sendReceipts || alreadySent) return;
-    unawaited(_sendReadMarker(latestId));
-  }
+    _markReadSent.add(readId);
+    if (ts > 0) _lastSentTs = ts;
+    _trimDedupeCache();
 
-  /// Posts a read marker for the newest synced event in [events].
-  ///
-  /// [force] bypasses the local "already sent" cache so the caller can
-  /// force a marker after navigating to the latest message via the
-  /// jump-to-unread affordance.
-  void markRoomRead(List<Event> events, {bool force = false}) {
-    if (events.isEmpty) return;
-    markRoomReadFromSnapshot(TimelineSnapshot.fromEvents(events),
-        force: force);
+    // Mirror locally so a sync tick right after we marked read doesn't
+    // re-emit a stale notification.  Done regardless of [sendReceipts];
+    // the user visibly reached this event and we shouldn't nag them.
+    notificationService?.onRoomRead(_room.id, readId);
+
+    if (!sendReceipts) return;
+    unawaited(_sendReadMarker(readId));
   }
 
   /// Triggers a debounced refresh of [_lastSeenEventId] from the room's
@@ -210,22 +225,35 @@ class NoopNotificationMirror implements NotificationMirror {
 }
 
 /// Lightweight projection of the [Timeline.events] list, holding just
-/// the data that [ReadMarkerTracker] needs to decide whether to post a
-/// read marker.
+/// the data that [ReadMarkerTracker] needs to decide whether to post
+/// a read marker.
 ///
 /// Pass this (instead of the full event list) to
 /// [ReadMarkerTracker.scheduleOnScroll] to avoid retaining the entire
-/// events list as a closure capture on every scroll tick.  Capturing
-/// the full list means the list can't be GC'd while the debounce is
-/// pending, which adds up over a long-lived chat session with rapid
-/// scrolling.
+/// events list as a closure capture on every scroll tick.
+///
+/// [readId] is the important field: it is the event the user has
+/// actually reached, which is the oldest event still on screen and not
+/// the newest event in the cache.  A snapshot with no read position is
+/// deliberately inert, because "assume the newest" is
+/// indistinguishable from "the user read everything" and silently
+/// retires the unread affordance.
 class TimelineSnapshot {
   /// Creates a snapshot from a fully-materialized [events] list.  Walks
   /// the list once to pick the newest synced event id, falling back to
   /// the first event id when no synced event is present.
+  ///
+  /// The result carries no read position; use [atReadPosition] for a
+  /// snapshot the tracker will act on.
   factory TimelineSnapshot.fromEvents(List<Event> events) {
     if (events.isEmpty) {
-      return const TimelineSnapshot._(length: 0, firstId: '', latestSyncedId: null);
+      return const TimelineSnapshot._(
+        length: 0,
+        firstId: '',
+        latestSyncedId: null,
+        readId: null,
+        readTs: 0,
+      );
     }
     String? synced;
     for (final ev in events) {
@@ -238,26 +266,80 @@ class TimelineSnapshot {
       length: events.length,
       firstId: events.first.eventId,
       latestSyncedId: synced,
+      readId: null,
+      readTs: 0,
     );
+  }
+
+  /// Snapshot for a viewport that has settled at [readId], the oldest
+  /// event still visible.  [readTs] is that event's `originServerTs` and
+  /// drives the tracker's monotonic guard; pass 0 to have it looked up
+  /// in [events], and if that also fails the tracker falls back to
+  /// id-based dedupe.
+  factory TimelineSnapshot.atReadPosition(
+    List<Event> events, {
+    required String readId,
+    int readTs = 0,
+  }) {
+    final base = TimelineSnapshot.fromEvents(events);
+    return TimelineSnapshot._(
+      length: base.length,
+      firstId: base.firstId,
+      latestSyncedId: base.latestSyncedId,
+      readId: readId,
+      readTs: readTs != 0 ? readTs : _timestampOf(events, readId),
+    );
+  }
+
+  /// Origin timestamp of [id] within [events], or 0 when absent.
+  ///
+  /// Best-effort by design: the timestamp only feeds the monotonic
+  /// dedupe guard, so failing to read one must degrade to id-based
+  /// dedupe rather than block the receipt.  An exception escaping here
+  /// would propagate into the scroll and jump handlers that triggered
+  /// it, which is how a read receipt ends up breaking navigation.
+  static int _timestampOf(List<Event> events, String id) {
+    try {
+      for (final ev in events) {
+        if (ev.eventId == id) return ev.originServerTs.millisecondsSinceEpoch;
+      }
+    } catch (_) {
+      // Expected only from partially-stubbed events in tests; a real
+      // Event always answers.  0 is the documented "unknown" value.
+    }
+    return 0;
   }
 
   const TimelineSnapshot._({
     required this.length,
     required this.firstId,
     required this.latestSyncedId,
+    required this.readId,
+    required this.readTs,
   });
 
   /// Convenience constructor for the empty case.
   const TimelineSnapshot.empty()
       : length = 0,
         firstId = '',
-        latestSyncedId = null;
+        latestSyncedId = null,
+        readId = null,
+        readTs = 0;
 
   final int length;
   final String firstId;
   final String? latestSyncedId;
 
+  /// Event the user has read up to, or null when unknown.
+  final String? readId;
+
+  /// `originServerTs` of [readId], or 0 when unknown.
+  final int readTs;
+
   bool get isEmpty => length == 0;
+
+  /// True when there is a concrete event to post a receipt for.
+  bool get hasReadPosition => readId != null && readId!.isNotEmpty;
 
   @override
   bool operator ==(Object other) {
@@ -265,9 +347,12 @@ class TimelineSnapshot {
     return other is TimelineSnapshot &&
         other.length == length &&
         other.firstId == firstId &&
-        other.latestSyncedId == latestSyncedId;
+        other.latestSyncedId == latestSyncedId &&
+        other.readId == readId &&
+        other.readTs == readTs;
   }
 
   @override
-  int get hashCode => Object.hash(length, firstId, latestSyncedId);
+  int get hashCode =>
+      Object.hash(length, firstId, latestSyncedId, readId, readTs);
 }

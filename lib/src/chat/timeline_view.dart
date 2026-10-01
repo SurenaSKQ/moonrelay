@@ -146,6 +146,12 @@ class TimelineViewState extends State<TimelineView> {
   /// [BuildContext] for any event currently on screen.
   final Map<String, GlobalKey> _eventKeys = <String, GlobalKey>{};
 
+  /// Key on the scrollable itself, used to find the viewport's
+  /// [RenderBox] when resolving the read position.  The per-event keys
+  /// above only exist for *built* children, so something that covers
+  /// the whole viewport is needed as the coordinate space.
+  final GlobalKey _listKey = GlobalKey(debugLabel: 'chat_timeline_list');
+
   // ---------------------------------------------------------------------------
   // Cached computed values
   // ---------------------------------------------------------------------------
@@ -154,6 +160,13 @@ class TimelineViewState extends State<TimelineView> {
   /// or any display-affecting prop changes.  This prevents O(n) rebuilds of
   /// the entire visible item list on every sync tick.
   List<Widget>? _cachedItems;
+
+  /// Event id per index of [_cachedItems], or null for items that are
+  /// not events (date separators, state batches, the undecryptable
+  /// banner).  Kept in step with [_cachedItems] so the read-position
+  /// walk can map a rendered index back to an event without re-running
+  /// the model.
+  List<String?>? _cachedItemEventIds;
 
   /// Cached event-id-to-item-index map for jump-to-event.
   Map<String, int>? _cachedEventIdToItemIndex;
@@ -164,13 +177,24 @@ class TimelineViewState extends State<TimelineView> {
   /// again when font size, display type, state-event visibility, or filter
   /// changes.
   ///
+  /// The room and timeline identities are part of the key.  Both
+  /// [ChatTimeline] and this widget hold stable `GlobalKey`s, so neither
+  /// `State` dies on a room switch, and `_timelineVersion` is only ever
+  /// incremented.  Without the identity components a new room could
+  /// render the previous room's cached events until its first sync
+  /// callback landed.  Identity rather than `room.id` because the question
+  /// is "is this the same room object", and `identityHashCode` is the
+  /// signal `chat_event.dart` already uses for its subtree cache.
+  ///
   /// `highlightedEventId` is intentionally NOT part of the key: the
   /// highlight is applied per-item via [TimelineItem.highlightedEventId]
   /// and a highlight toggle doesn't require rebuilding the entire item
   /// list.
   String get _cacheKey {
     final version = widget.timelineVersion?.value ?? 0;
-    return '$version'
+    return '${identityHashCode(widget.room)}'
+        '_${identityHashCode(widget.timeline)}'
+        '_$version'
         '_${widget.fontSize}'
         '_${widget.displayType.index}'
         '_${widget.showStateEvents}'
@@ -183,6 +207,7 @@ class TimelineViewState extends State<TimelineView> {
   /// Invalidates all cached values so they are recomputed on the next build.
   void _invalidateCache() {
     _cachedItems = null;
+    _cachedItemEventIds = null;
     _cachedEventIdToItemIndex = null;
   }
 
@@ -227,6 +252,62 @@ class TimelineViewState extends State<TimelineView> {
   }
 
   // ---------------------------------------------------------------------------
+  // Read position
+  // ---------------------------------------------------------------------------
+
+  /// The id of the oldest event that is still at least partly visible in
+  /// the viewport, or null when nothing measurable is on screen.
+  ///
+  /// This is the read position.  A read receipt has to name the event
+  /// the user has actually reached, not the newest event in the cache:
+  /// the previous implementation always sent the newest cached event,
+  /// so opening a room or flicking upwards through history marked
+  /// everything read (see WORK_NEEDED.md 8.2).
+  ///
+  /// Item heights are variable, so the position cannot be derived from
+  /// the scroll offset arithmetically.  Instead this walks the built
+  /// children in list order, which under `reverse: true` runs from the
+  /// bottom of the screen upwards, and keeps the last entry that still
+  /// intersects the viewport.
+  String? get oldestVisibleEventId {
+    final items = _cachedItems;
+    final ids = _cachedItemEventIds;
+    if (items == null || ids == null || items.isEmpty) return null;
+
+    final listContext = _listKey.currentContext;
+    if (listContext == null) return null;
+    final viewportBox = listContext.findRenderObject();
+    if (viewportBox is! RenderBox || !viewportBox.hasSize) return null;
+
+    final limit = viewportBox.size.height;
+    String? oldest;
+
+    for (var i = 0; i < items.length && i < ids.length; i++) {
+      final id = ids[i];
+      if (id == null) continue;
+      final key = items[i].key;
+      if (key is! GlobalKey) continue;
+      // Only *built* children have a context; unbuilt ones are off
+      // screen in either direction, so skipping them is correct.
+      final box = key.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) continue;
+
+      final top = box.localToGlobal(Offset.zero, ancestor: viewportBox).dy;
+      if (top >= limit) {
+        // Entirely below the fold.  Index order runs from the bottom of
+        // the screen upward, so nothing further along can be visible.
+        break;
+      }
+      final bottom =
+          box.localToGlobal(Offset(0, box.size.height), ancestor: viewportBox).dy;
+      if (bottom <= 0) break; // Scrolled past the top.
+      oldest = id;
+    }
+
+    return oldest;
+  }
+
+  // ---------------------------------------------------------------------------
   // Build the flat item list (delegates ordering/logic to the model)
   // ---------------------------------------------------------------------------
 
@@ -252,6 +333,7 @@ class TimelineViewState extends State<TimelineView> {
     );
 
     final items = <Widget>[];
+    final itemEventIds = <String?>[];
     final liveIds = <String>{};
 
     for (final entry in result.items) {
@@ -259,6 +341,7 @@ class TimelineViewState extends State<TimelineView> {
         case TimelineItemKind.event:
           final ev = entry.event!;
           liveIds.add(ev.eventId);
+          itemEventIds.add(ev.eventId);
           items.add(RepaintBoundary(
             key: _keyFor(ev.eventId),
             child: TimelineItem(
@@ -283,17 +366,21 @@ class TimelineViewState extends State<TimelineView> {
           ));
 
         case TimelineItemKind.dateSeparator:
+          itemEventIds.add(null);
           items.add(DateSeparator(dateTime: entry.date!));
 
         case TimelineItemKind.stateEventBatch:
+          itemEventIds.add(null);
           items.add(StateEventTile(events: entry.stateEvents!));
 
         case TimelineItemKind.undecryptableBanner:
+          itemEventIds.add(null);
           items.add(const UndecryptableBanner());
       }
     }
 
     _cachedItems = items;
+    _cachedItemEventIds = itemEventIds;
     _cachedEventIdToItemIndex = result.eventIdToItemIndex;
     _lastCacheKey = _cacheKey;
 
@@ -342,6 +429,7 @@ class TimelineViewState extends State<TimelineView> {
     const skeletonKey = ValueKey<String>('tl_skeleton');
 
     return ListView.custom(
+      key: _listKey,
       controller: widget.scrollController,
       reverse: true,
       childrenDelegate: SliverChildBuilderDelegate(
