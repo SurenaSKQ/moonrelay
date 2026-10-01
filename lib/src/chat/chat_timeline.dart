@@ -133,14 +133,38 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   @visibleForTesting
   bool get isLoadingHistoryForTest => _historyPager?.isLoading ?? false;
 
+  /// Wall-clock ceiling the jump pager is configured with.
+  ///
+  /// Exposed so a test can pin the shipped default. The pager's own budget
+  /// is a constructor parameter precisely so a test can lower it, which
+  /// means a future edit could quietly shorten the real one and every test
+  /// would still pass; this is the assertion that notices.
+  Duration? get paginationBudgetForTest => _jumpCoordinator?.paginationBudget;
+
+  /// Test accessor for the paginate-until-marker primitive, with an
+  /// injectable [budget].
+  ///
+  /// Delegates to [JumpCoordinator.paginateUntilMarkerForTest] rather than
+  /// reaching for a pager of its own. It used to call the whole
+  /// `jumpToLastRead()` and then re-scan the event list for the marker,
+  /// which is a test-only shim standing in for a primitive that now
+  /// exists: it could scroll the user, it ignored [budget], and it reported
+  /// whatever the cache happened to hold rather than what the pager found.
   @visibleForTesting
-  Future<bool> paginateUntilMarkerForTest(String markerId) async {
+  Future<bool> paginateUntilMarkerForTest(
+    String markerId, {
+    Duration? budget,
+  }) {
     final timeline = _timeline;
-    if (timeline == null) return false;
-    final marker = _jumpCoordinator!;
-    // The JumpCoordinator wraps JumpToUnreadPager internally; expose
-    // the pager's primitive so the existing test can stay unchanged.
-    return _paginateUntilMarkerViaCoordinator(marker, markerId, timeline);
+    final coordinator = _jumpCoordinator;
+    if (timeline == null || coordinator == null) return Future.value(false);
+    // The coordinator owns the pager, so its own test seam is the one
+    // thing allowed to call another. Reaching in here is deliberate: the
+    // wrapper exists so the test can ask the widget rather than reaching
+    // into its collaborators, and duplicating the null checks here is what
+    // that indirection buys.
+    // ignore: invalid_use_of_visible_for_testing_member
+    return coordinator.paginateUntilMarkerForTest(markerId, budget: budget);
   }
 
   /// Test accessor matching the prior public API for
@@ -393,22 +417,6 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   }
 
   // -- Helpers --------------------------------------------------
-
-  Future<bool> _paginateUntilMarkerViaCoordinator(
-    JumpCoordinator coordinator,
-    String markerId,
-    Timeline timeline,
-  ) async {
-    // The coordinator's jumpToLastRead wraps the pager with the full
-    // event-resolution flow.  The existing test just needs the raw
-    // paginate-until-marker primitive, so we run the coordinator's
-    // internal _paginateUntilMarker via a synthesized JumpToUnreadPager
-    // when needed.  For simplicity here, delegate to the coordinator
-    // and surface the same boolean.
-    await coordinator.jumpToLastRead();
-    final events = _timeline?.events ?? const [];
-    return events.any((e) => e.eventId == markerId);
-  }
 
   /// Number of events in the cached timeline that are newer than
   /// [Room.fullyRead].  Drives the unread pill.

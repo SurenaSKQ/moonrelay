@@ -51,6 +51,7 @@ class JumpCoordinator {
     required this.onAfterJump,
     required this.scrollToBottom,
     this.logger,
+    this.paginationBudget = JumpToUnreadPager.defaultBudget,
   });
 
   /// Owning [BuildContext].  Used to look up [Logger] for warnings;
@@ -97,6 +98,15 @@ class JumpCoordinator {
 
   final Logger? logger;
 
+  /// Wall-clock ceiling the pager gets while searching for the unread
+  /// target, passed through to [JumpToUnreadPager].
+  ///
+  /// A constructor parameter rather than a constant in the pager so that
+  /// lowering it is possible from the outside. The constant is still the
+  /// default and nothing in the app changes it; the only caller that does is
+  /// the test, which is the point.
+  final Duration paginationBudget;
+
   static const Duration _highlightDuration = Duration(seconds: 2);
 
   bool _isJumping = false;
@@ -115,6 +125,28 @@ class JumpCoordinator {
   /// pill visibility.  Provided for test access.
   @visibleForTesting
   bool get isJumpingForTest => _isJumping;
+
+  /// Paginate until [markerId] is in the cache, with an injectable
+  /// [budget].
+  ///
+  /// This is the primitive [jumpToLastRead] is built from, exposed because
+  /// the budget is only observable here and a test asserting the real
+  /// thirty-second cap has to wait thirty seconds, and then assert an upper
+  /// bound that a loaded machine can miss. With [budget] supplied the test
+  /// waits milliseconds and asserts the exact ceiling.
+  @visibleForTesting
+  Future<bool> paginateUntilMarkerForTest(
+    String markerId, {
+    Duration? budget,
+  }) {
+    final timeline = getTimeline();
+    if (timeline == null) return Future.value(false);
+    return _paginateUntilMarker(
+      markerId,
+      timeline,
+      budget: budget ?? paginationBudget,
+    );
+  }
 
   /// Scrolls the timeline to the first unread event after the read
   /// marker.  Robust to "not yet loaded" targets: when the marker
@@ -247,9 +279,14 @@ class JumpCoordinator {
   /// Calls into [JumpToUnreadPager] with a narrow callback surface
   /// pulled from the parent's state.  Returns `true` if the marker
   /// surfaced.
-  Future<bool> _paginateUntilMarker(String markerId, Timeline timeline) {
+  Future<bool> _paginateUntilMarker(
+    String markerId,
+    Timeline timeline, {
+    Duration? budget,
+  }) {
     return JumpToUnreadPager(
       timeline: timeline,
+      budget: budget ?? paginationBudget,
       context: JumpToUnreadContext(
         canRun: () => true,
         runWithTimeout: (body) => body(),
