@@ -32,6 +32,7 @@ import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../helpers/mocks.dart';
 
@@ -59,10 +60,16 @@ void main() {
   late Map<PresenceType, int> published;
 
   /// Builds a service bound to [client] with the given settings.
-  PresenceService build() => PresenceService(
+  PresenceService build({
+    void Function(WindowListener listener)? onAdd,
+    void Function(WindowListener listener)? onRemove,
+  }) =>
+      PresenceService(
         settings: settings,
         log: MockLogger(),
         clock: clock.call,
+        addWindowListener: onAdd,
+        removeWindowListener: onRemove,
       );
 
   setUp(() {
@@ -179,9 +186,96 @@ void main() {
       service.onResumed();
       await pumpEventQueue();
 
-      verifyNever(() => client.setPresence(any(), any(),
+verifyNever(() => client.setPresence(any(), any(),
           statusMsg: any(named: 'statusMsg')));
-      expect(service.hasPendingIdleTransition, isFalse);
+      expect(service.hasPendingIdleTransition, isTrue,
+          reason: 'armed at bind, with one minute of the window left');
+    });
+
+    test('binding arms the countdown, not just onResumed', () async {
+      // Regression. `_evaluate` used to arm the timer only on its
+      // `idleFor >= window` branch, and `bind` resets `_lastActivity` before
+      // calling it, so a bind always landed on the branch that arms nothing.
+      // Enabling the setting therefore looked like it did nothing at all,
+      // because the only entry points the old tests exercised (`onResumed`
+      // and `noteActivity`) armed the timer themselves.
+      settings.updateAutoOfflinePresenceEnabled(true);
+      await settings.updateAutoOfflinePresenceMinutes(5);
+
+      final service = build()..bind(client);
+      await pumpEventQueue();
+
+      expect(service.hasPendingIdleTransition, isTrue,
+          reason: 'binding is where the deadline is established');
+    });
+
+    test('a settings change does not disarm the countdown', () async {
+      // The same regression by the other route, and the route a real user
+      // hits: `app.dart` registers `onSettingsChanged` on the whole
+      // `SettingsController`, which fires on every setter, so changing an
+      // unrelated preference such as the theme killed a running countdown.
+      settings.updateAutoOfflinePresenceEnabled(true);
+      await settings.updateAutoOfflinePresenceMinutes(5);
+
+      final service = build()..bind(client);
+      await pumpEventQueue();
+      expect(service.hasPendingIdleTransition, isTrue);
+
+      // Something unrelated to presence, which is all the listener can see.
+      settings.setLeftSidebarWidth(310);
+      service.onSettingsChanged();
+      await pumpEventQueue();
+
+      expect(service.hasPendingIdleTransition, isTrue,
+          reason: 'an unrelated setting must not stop the countdown');
+    });
+
+test('a settings change keeps the time already served', () async {
+      // Not a fresh window. Dragging the minutes slider must not push the
+      // deadline out, so elapsed idle time still counts and only the window
+      // changes. Four of the five minutes are already spent, so one remains.
+      //
+      // Driven through `onResumed` rather than the timer, because the tests
+      // use an injected clock with a real `Timer`, and advancing one does not
+      // fire the other. `onResumed` recomputes the same decision from
+      // `_lastActivity`, which is precisely the state under test here: kept,
+      // the deadline stays at five minutes from the bind; reset, it slides to
+      // nine. The two therefore give different answers at T+5:10.
+      settings.updateAutoOfflinePresenceEnabled(true);
+      await settings.updateAutoOfflinePresenceMinutes(5);
+
+      final service = build()..bind(client);
+      await pumpEventQueue();
+
+      clock.advance(const Duration(minutes: 4));
+      // An unrelated setting, which is what the real listener receives.
+      settings.setLeftSidebarWidth(310);
+      service.onSettingsChanged();
+      await pumpEventQueue();
+
+      clock.advance(const Duration(minutes: 1, seconds: 10));
+      service.onResumed();
+      await pumpEventQueue();
+
+      expect(published[PresenceType.offline], 1,
+          reason: 'five minutes from the bind, not nine from the change');
+    });
+
+    test('turning the feature on arms the countdown', () async {
+      // The user-visible form of the bug: switching the setting on in the
+      // preferences pane went through `onSettingsChanged` and produced no
+      // armed timer, so the account stayed online however long they waited.
+      await settings.updateAutoOfflinePresenceMinutes(5);
+      final service = build()..bind(client);
+      await pumpEventQueue();
+      expect(service.hasPendingIdleTransition, isFalse,
+          reason: 'off by default, so nothing pending');
+
+      settings.updateAutoOfflinePresenceEnabled(true);
+      service.onSettingsChanged();
+      await pumpEventQueue();
+
+      expect(service.hasPendingIdleTransition, isTrue);
     });
 
     test('goes offline once the window elapses', () async {
@@ -355,6 +449,52 @@ void main() {
   });
 
   group('rebinding', () {
+    test('rebinding does not accumulate window listeners', () async {
+      // Regression. `windowManager` keeps listeners in a plain list and its
+      // `removeListener` removes one entry, so registering on every bind
+      // without removing first added a copy per account switch. Two copies
+      // then survived `dispose` and kept creating timers on a dead service.
+      //
+      // This needs the registration to be observable, which it is not through
+      // the real `windowManager`: that global throws without a platform
+      // window, so the production path is a no-op in a unit test and the leak
+      // would be permanently invisible. Hence the injected registrar.
+      final live = <Object>[];
+      final other = MockClient();
+      when(() => other.userID).thenReturn('@other:example.com');
+      when(() => other.isLogged()).thenReturn(true);
+
+      final service = build(
+        onAdd: live.add,
+        onRemove: live.remove,
+      );
+
+      // Three accounts in a row, which is two switches.
+      service.bind(client);
+      service.bind(other);
+      service.bind(client);
+
+      expect(live, hasLength(1),
+          reason: 'one registration regardless of how often bind is called');
+      expect(live.single, same(service));
+
+      service.dispose();
+      expect(live, isEmpty,
+          reason: 'dispose then balances the single registration');
+    });
+
+    test('rebinding the same client is still a no-op', () async {
+      // The early return for an identical client predates the fix and is
+      // still correct; this pins it so the remove-then-add change cannot
+      // quietly turn a redundant call into a re-registration.
+final live = <Object>[];
+      build(onAdd: live.add, onRemove: live.remove)
+        ..bind(client)
+        ..bind(client);
+
+      expect(live, hasLength(1));
+    });
+
     test('a new client resets the manual choice', () async {
       settings.updateAutoOfflinePresenceEnabled(true);
       await settings.updateAutoOfflinePresenceMinutes(5);
