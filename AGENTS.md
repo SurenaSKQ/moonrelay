@@ -300,14 +300,18 @@ explaining the *why*, never a bare list of file names.
 
 Match the repository's established commit style (see `git log`):
 
-- Subject line in **imperative mood, capitalized, no conventional
-  prefixes** (no `fix:`, `feat:`, `chore:`). Examples from history:
-  "Add feature catalogue to WORK_NEEDED", "Rework layout shell into a
-  shared sticky state machine", "Fix integration test boot helper:
-  provide DeepLinkService".
-- Subject line under 72 characters, describing the outcome for a
-  reader, not the internal details ("Add integration test for logging
-  out from the dashboard", not "Add logout_test.dart").
+- **Conventional Commits**: `type(scope): subject`, where type is one
+  of `feat`, `fix`, `refactor`, `docs`, `test`, `style`, `perf`,
+  `chore`, `build`, `ci`, `revert`, and scope is the area touched
+  (`timeline`, `presence`, `router`, `settings`, `theme`, `chat`,
+  `login`, ...). Omit the scope when nothing fits.
+- Subject line in **imperative mood, lowercase after the colon**, no
+  trailing period. Describe the outcome for a reader, not the internal
+  details ("feat(timeline): let a jump add a window", not
+  "feat(chat): edit timeline_view.dart").
+- Subject line under 72 characters including the type and scope.
+- A `!` before the scope plus a `BREAKING CHANGE:` footer marks a
+  breaking change.
 - Body is optional; use it when the subject cannot carry the *why*.
   Multi-part changes get short bullets. Wrap body lines at ~72 columns.
 - Never use the em dash character (U+2014, see the rule at the top)
