@@ -28,6 +28,7 @@ import 'package:moonrelay/src/chat/thread_indicator.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
@@ -594,6 +595,10 @@ class _TimelineItemState extends State<TimelineItem> {
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
+    // Own messages read slightly heavier than everyone else's. That is how a
+    // left-aligned conversation tells you which side of it you are on,
+    // without mirroring the bubbles to do it.
+    final isOwn = widget.event.senderId == widget.room.client.userID;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -669,14 +674,26 @@ class _TimelineItemState extends State<TimelineItem> {
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          color:
-                              cs.primaryContainer.withValues(alpha: 0.3),
+                          // A fill and a lift, not an outline.
+                          //
+                          // This was a 30% primary fill behind a 0.7px
+                          // 50% primary border, which is the visual
+                          // signature of a wireframe: it draws a box
+                          // around the text rather than putting a surface
+                          // under it, so a screen full of them looks like
+                          // a diagram of messages instead of messages.
+                          //
+                          // Opaque enough to be a surface, with the
+                          // shadowLow pair doing the work the border was
+                          // standing in for. The two layers matter: one
+                          // would read as a glow.
+                          color: cs.primaryContainer
+                              .withValues(alpha: isOwn ? 0.55 : 0.4),
                           borderRadius:
                               BorderRadius.circular(widget.bubbleRadius),
-                          border: Border.all(
-                            color: cs.primary.withValues(alpha: 0.5),
-                            width: 0.7,
-                          ),
+                          boxShadow: MoonrelayThemeExtension.of(context)
+                              .tokens
+                              .shadowLow,
                         ),
                         padding: const EdgeInsets.all(10),
                         child: Column(
