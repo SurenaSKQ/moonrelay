@@ -152,7 +152,7 @@ class HistoryPager {
     final atEnd = pos.pixels >= pos.maxScrollExtent - _triggerDistance;
 
     if (atEnd) {
-      if (room.prev_batch != null) {
+      if (_canPageOlder(getTimeline())) {
         _transition(HistoryFillState.loadingMore);
       }
       _requestMoreHistory();
@@ -277,10 +277,27 @@ class HistoryPager {
     }
   }
 
+  /// True when the *loaded window* can still be paged older.
+  ///
+  /// `Timeline.canRequestHistory` consults `room.prev_batch`, which is
+  /// the room's live sync token and has nothing to do with a
+  /// `/context` window's own `chunk.prevBatch`.  On a fully synced room
+  /// `room.prev_batch` is null, so a history window carrying a perfectly
+  /// good `start` token would report itself exhausted and silently
+  /// refuse to page.  Gate on the token the pagination will actually
+  /// use, and fall back to the SDK's own answer for the live tail.
+  bool _canPageOlder(Timeline? timeline) {
+    if (timeline == null) return false;
+    // Ask the SDK first: it is authoritative for the live tail, and the
+    // short-circuit keeps the common path off the `chunk` lookup.
+    if (timeline.canRequestHistory) return true;
+    return timeline.chunk.prevBatch.isNotEmpty;
+  }
+
   /// True when the trailing [stateDrainWindow] events are all state
   /// events AND the server still has more history to give us.
   bool _shouldDrainStateEvents(Timeline timeline) {
-    if (room.prev_batch == null) return false;
+    if (!_canPageOlder(timeline)) return false;
     final events = timeline.events;
     if (events.isEmpty) return false;
     final start = events.length > _stateDrainWindow

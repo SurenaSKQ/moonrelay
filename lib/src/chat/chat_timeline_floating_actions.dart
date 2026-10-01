@@ -43,6 +43,8 @@ class ChatTimelineFloatingActions extends StatelessWidget {
     required this.onScrollToBottom,
     required this.onDismissUnread,
     required this.isJumping,
+    this.onBackToLive,
+    this.loadingContext = false,
   });
 
   final int unreadCount;
@@ -62,11 +64,23 @@ class ChatTimelineFloatingActions extends StatelessWidget {
   /// the user has feedback that the tap was registered.
   final bool isJumping;
 
+  /// When set, the timeline is showing a history window around a
+  /// specific event rather than the live tail, and the bottom pill
+  /// becomes "back to latest".  Without it the bottom pill is the
+  /// ordinary "scroll to bottom".
+  final VoidCallback? onBackToLive;
+
+  /// True while a jump is fetching a `/context` window for an event
+  /// that is not in the local cache.  Occupies the unread pill's slot
+  /// so the user gets feedback that the tap registered.
+  final bool loadingContext;
+
   @override
   Widget build(BuildContext context) {
     final motion = Motion.of(context);
     final animDuration = motion.duration(const Duration(milliseconds: 180));
     final animCurve = motion.curve();
+    final backToLive = onBackToLive;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -78,15 +92,19 @@ class ChatTimelineFloatingActions extends StatelessWidget {
             duration: animDuration,
             switchInCurve: animCurve,
             switchOutCurve: animCurve,
-            child: unreadVisible
-                ? JumpToUnreadPill(
-                    key: const ValueKey('jump-to-unread'),
-                    count: unreadCount,
-                    isLoading: isJumping,
-                    onTap: onJumpToUnread,
-                    onDismiss: onDismissUnread,
-                  )
-                : const SizedBox.shrink(key: ValueKey('jump-to-unread-empty')),
+            child: loadingContext
+                ? const ContextLoadingPill(key: ValueKey('context-loading'))
+                : unreadVisible
+                    ? JumpToUnreadPill(
+                        key: const ValueKey('jump-to-unread'),
+                        count: unreadCount,
+                        isLoading: isJumping,
+                        onTap: onJumpToUnread,
+                        onDismiss: onDismissUnread,
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('jump-to-unread-empty'),
+                      ),
           ),
         ),
         AnimatedSize(
@@ -97,10 +115,11 @@ class ChatTimelineFloatingActions extends StatelessWidget {
             duration: animDuration,
             switchInCurve: animCurve,
             switchOutCurve: animCurve,
-            child: isScrolledUp
+            child: isScrolledUp || backToLive != null
                 ? ScrollToBottomPill(
                     key: const ValueKey('scroll-to-bottom'),
-                    onTap: onScrollToBottom,
+                    onTap: backToLive ?? onScrollToBottom,
+                    backToLatest: backToLive != null,
                   )
                 : const SizedBox(
                     key: ValueKey('scroll-to-bottom-empty'),
@@ -112,13 +131,66 @@ class ChatTimelineFloatingActions extends StatelessWidget {
   }
 }
 
-/// "Scroll to bottom" floating action button.  Shown when the user
-/// has scrolled away from the bottom of the timeline.  Tapping
-/// animates the scroll back to the newest message.
+/// Transient "fetching the surrounding history" pill, shown while a
+/// jump to an event outside the local cache is in flight.  It is not
+/// interactive: there is nothing to cancel, and a second tap would
+/// only queue a duplicate `/context` request.
+class ContextLoadingPill extends StatelessWidget {
+  const ContextLoadingPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: scheme.secondaryContainer,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.onSecondaryContainer,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l10n.loadingEventContext,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating action button shown when the user is away from the newest
+/// messages.  Normally "scroll to bottom", which animates within the
+/// current window; when [backToLatest] is set the timeline is anchored
+/// on a specific event and the pill reloads the live tail instead.
 class ScrollToBottomPill extends StatelessWidget {
-  const ScrollToBottomPill({super.key, required this.onTap});
+  const ScrollToBottomPill({
+    super.key,
+    required this.onTap,
+    this.backToLatest = false,
+  });
 
   final VoidCallback onTap;
+  final bool backToLatest;
 
   @override
   Widget build(BuildContext context) {
@@ -139,13 +211,13 @@ class ScrollToBottomPill extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  LucideIcons.arrowDown,
+                  backToLatest ? LucideIcons.cornerUpLeft : LucideIcons.arrowDown,
                   size: 14,
                   color: scheme.onSecondaryContainer,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  l10n.scrollToBottom,
+                  backToLatest ? l10n.backToLatest : l10n.scrollToBottom,
                   style: TextStyle(
                     color: scheme.onSecondaryContainer,
                     fontSize: 13,

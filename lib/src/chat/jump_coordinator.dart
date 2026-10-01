@@ -50,7 +50,6 @@ class JumpCoordinator {
     required this.onStateChanged,
     required this.onAfterJump,
     required this.scrollToBottom,
-    required this.markRoomReadForce,
     this.logger,
   });
 
@@ -89,12 +88,12 @@ class JumpCoordinator {
   final VoidCallback onAfterJump;
 
   /// Scrolls to the bottom of the timeline (used when there's no
-  /// marker to land on).
+  /// marker to land on).  This also settles the read marker, because
+  /// the implementation returns the viewport to the newest message and
+  /// everything on screen is then read.  There is deliberately no
+  /// separate "mark read" seam: two of them meant two POSTs for one
+  /// user action.
   final VoidCallback scrollToBottom;
-
-  /// Marks the room read unconditionally (used as a fallback when the
-  /// marker is missing or out of reach).
-  final void Function() markRoomReadForce;
 
   final Logger? logger;
 
@@ -135,8 +134,8 @@ class JumpCoordinator {
     if (markerId.isEmpty) {
       // No marker at all -- the user has never read this room.  Drop
       // them at the bottom so the newest messages are on screen.
+      // scrollToBottom settles the read marker with it.
       scrollToBottom();
-      markRoomReadForce();
       return;
     }
 
@@ -146,6 +145,15 @@ class JumpCoordinator {
       timeline.events,
       markerId,
     );
+    // `initialIdx == 0` means the marker is the newest cached event, so
+    // the room is fully read and there is nothing to jump to.  Treat
+    // that as a successful no-op: entering the paginating branch here
+    // used to burn the whole 30s budget discovering what we already
+    // knew, which is what made the pill feel broken.
+    if (initialIdx == 0) {
+      scrollToBottom();
+      return;
+    }
     if (initialIdx > 0) {
       final unreadIdx = JumpToUnreadPager.findFirstUnreadMessageIndex(
         timeline.events,
@@ -173,7 +181,6 @@ class JumpCoordinator {
     final eventsAfter = fresh.events;
     if (!loaded) {
       if (eventsAfter.isNotEmpty) scrollToBottom();
-      markRoomReadForce();
       _exitLoading();
       return;
     }

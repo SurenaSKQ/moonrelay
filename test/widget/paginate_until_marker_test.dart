@@ -130,9 +130,17 @@ class _GatedTimeline extends Mock implements Timeline {
   }
 }
 
+/// Minimal [Event] implementation. The read-receipt pipeline reads
+/// `originServerTs` to build its monotonic guard, so that has to be
+/// stubbed too -- an unstubbed mocktail getter throws, and the throw
+/// used to escape into the jump handler that posted the receipt.
 class _IdEvent extends Mock implements Event {
   _IdEvent(String id) {
     when(() => eventId).thenReturn(id);
+    when(() => originServerTs).thenReturn(
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+    when(() => status).thenReturn(EventStatus.synced);
   }
 }
 
