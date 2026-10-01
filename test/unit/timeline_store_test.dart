@@ -189,21 +189,26 @@ void main() {
       expect(store.flatten(), isEmpty);
     });
 
-    test('history comes before the live tail', () {
-      // Newest-first, matching the order the `reverse: true` ListView
-      // expects. The window is older than the tail, so its events have
-      // higher indices and render above.
+    test('the live tail comes before the history windows', () {
+      // Index 0 is the newest event, because `reverse: true` puts index 0 at
+      // the bottom of the scroll view. The tail is the newest run, so it
+      // leads.
+      //
+      // These assertions were the other way round for the first three stages
+      // and the gap work is what exposed it. The old order rendered the
+      // oldest messages at the bottom and the newest at the top: a room
+      // upside down. Nothing failed, because the list was internally
+      // consistent; it was only consistent about the wrong axis.
       final store = TimelineStore(live: _live(['tail1', 'tail2']))
         ..addHistory(_history(['h1', 'h2'], id: 'h1'));
-      expect(_ids(store.flatten()), ['h1', 'h2', 'tail1', 'tail2']);
+      expect(_ids(store.flatten()), ['tail1', 'tail2', 'h1', 'h2']);
     });
 
-    test('the most recently added window is flattened first', () {
+    test('the most recently added window sits closest to the tail', () {
       final store = TimelineStore(live: _live(['tail']))
         ..addHistory(_history(['older'], id: 'h_old'))
         ..addHistory(_history(['newer'], id: 'h_new'));
-      // Newer window first, so newest-first order survives two windows.
-      expect(_ids(store.flatten()), ['newer', 'older', 'tail']);
+      expect(_ids(store.flatten()), ['tail', 'newer', 'older']);
     });
 
     test('overlapping events appear once, not twice', () {
@@ -211,21 +216,20 @@ void main() {
       // events that are also in the live tail, because both come from the
       // same room and the window is built around an event that may be
       // inside the tail. Without the dedupe the same message renders twice.
-      final store = TimelineStore(live: _live(['shared', 'tail1', 'tail2']))
+      final store = TimelineStore(live: _live(['tail1', 'shared', 'tail2']))
         ..addHistory(_history(['win1', 'shared'], id: 'w'));
 
-      expect(_ids(store.flatten()), ['win1', 'shared', 'tail1', 'tail2']);
+      expect(_ids(store.flatten()), ['tail1', 'shared', 'tail2', 'win1']);
       expect(
         _ids(store.flatten()).where((id) => id == 'shared').length,
         1,
       );
     });
 
-    test('the window wins an overlap, not the tail', () {
-      // Later segments overwrite earlier ones in the dedupe, and the
-      // history segments are flattened first, so a window's copy of an
-      // overlapping event survives. A window's events are decrypted in a
-      // context that can be richer than the tail's cache.
+    test('the tail wins an overlap, not the window', () {
+      // The tail is walked first, so its instance survives. That is the one
+      // the app keeps updating as sync brings in reactions and edits; a
+      // window's copy is a `/context` snapshot and does not.
       final tailEvent = _Ev('shared');
       final windowEvent = _Ev('shared');
       final store = TimelineStore(
@@ -233,16 +237,16 @@ void main() {
       )..addHistory(_history(['shared'], id: 'w', timeline: _T([windowEvent])));
 
       expect(store.flatten().single.eventId, 'shared');
-      expect(identical(store.flatten().single, windowEvent), isTrue);
+      expect(identical(store.flatten().single, tailEvent), isTrue);
     });
 
     test('dedupe does not reorder the survivors', () {
       final store = TimelineStore(
         live: _live(['a', 'b', 'c', 'd']),
       )..addHistory(_history(['x', 'b', 'y'], id: 'w'));
-      // b keeps its window position, and the tail's copy is dropped rather
-      // than shifting the tail's other events.
-      expect(_ids(store.flatten()), ['x', 'b', 'y', 'a', 'c', 'd']);
+      // The tail keeps its order and drops the duplicated b; the window's
+      // surviving events follow it.
+      expect(_ids(store.flatten()), ['a', 'b', 'c', 'd', 'x', 'y']);
     });
   });
 
@@ -265,8 +269,8 @@ void main() {
     test('finds an event in a window, not just the tail', () {
       final store = TimelineStore(live: _live(['tail']))
         ..addHistory(_history(['w1', 'w2'], id: 'w'));
-      expect(store.indexOf('w2'), 1);
-      expect(store.indexOf('tail'), 2);
+      expect(store.indexOf('tail'), 0);
+      expect(store.indexOf('w2'), 2);
     });
   });
 
@@ -413,7 +417,7 @@ void main() {
         ..addHistory(_history(['w2'], id: 'w2'));
 
       expect(store.removeHistory('w1'), isTrue);
-      expect(_ids(store.flatten()), ['w2', 'tail']);
+      expect(_ids(store.flatten()), ['tail', 'w2']);
       expect(store.live.events, hasLength(1));
     });
 
@@ -721,7 +725,7 @@ void main() {
       // while it is still appending to chunk.events, so anything that
       // rebuilt from inside that callback would read a half-appended list.
       expect(store.version, before + 1);
-      expect(_ids(store.flatten()), ['w', 'older', 'tail']);
+      expect(_ids(store.flatten()), ['tail', 'w', 'older']);
     });
 
     test('does not bump when a page added nothing', () async {
