@@ -273,6 +273,9 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _jumpCoordinator = JumpCoordinator(
       context: context,
       getTimeline: () => _timeline,
+      // Lookups span every loaded window; pagination goes through the tail
+      // alone, since only the tail can reach newer events.
+      getRenderEvents: () => _renderEvents,
       getFullyReadMarker: () => widget.room.fullyRead,
       scrollController: _scrollController,
       timelineViewKey: _timelineViewKey,
@@ -306,6 +309,9 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _jumpCoordinator = JumpCoordinator(
       context: context,
       getTimeline: () => _timeline,
+      // Lookups span every loaded window; pagination goes through the tail
+      // alone, since only the tail can reach newer events.
+      getRenderEvents: () => _renderEvents,
       getFullyReadMarker: () => widget.room.fullyRead,
       scrollController: _scrollController,
       timelineViewKey: _timelineViewKey,
@@ -523,9 +529,9 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     // assuming they have read everything in the cache.  Posting the
     // newest cached event on every scroll tick is what made the
     // timeline mark itself read (WORK_NEEDED.md 8.2).
-    final events = _timeline?.events;
+    final events = _renderEvents;
     final readId = _timelineViewKey.currentState?.oldestVisibleEventId;
-    if (events != null && readId != null) {
+    if (events.isNotEmpty && readId != null) {
       _readMarkerTracker?.scheduleOnScroll(
         TimelineSnapshot.atReadPosition(events, readId: readId),
       );
@@ -542,21 +548,39 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   // -- Helpers --------------------------------------------------
 
-  /// Number of events in the cached timeline that are newer than
-  /// [Room.fullyRead].  Drives the unread pill.
+  /// Events the timeline is currently showing: the live tail plus every
+  /// loaded history window, newest first.
+  ///
+  /// Read paths must use this rather than `_timeline.events`. The read
+  /// position is now chosen by a walk over the rendered list, so it can name
+  /// an event from a window, and a count or a timestamp lookup taken against
+  /// the tail alone would miss it. That degrades quietly rather than throwing:
+  /// the receipt posts with an unknown timestamp and falls back to id-based
+  /// dedupe, and the unread pill under-counts by whatever is in the window.
+  List<Event> get _renderEvents => _store?.flatten() ?? const <Event>[];
+
+  /// Number of events the user can see that are newer than [Room.fullyRead].
+  ///
+  /// Drives the unread pill.  The whole render list, because the read marker
+  /// can sit in a window: counting the tail alone would report nothing unread
+  /// while the user is looking at unread messages.
   int get _unreadInWindow {
-    final timeline = _timeline;
-    if (timeline == null) return 0;
+    final events = _renderEvents;
+    if (events.isEmpty) return 0;
     // Read the fullyRead marker from the room (always present via the
     // owning widget) rather than the timeline's room reference, which
     // can be null in test fakes.
-    return countUnreadInWindow(timeline.events, widget.room.fullyRead);
+    return countUnreadInWindow(events, widget.room.fullyRead);
   }
 
-  /// Newest event id in the cache, used to scope pill dismissal.
+  /// Newest event id in the render list, used to scope pill dismissal.
+  ///
+  /// The tail holds the newest event in the room, so this is its first id
+  /// in every case where the tail is non-empty. It reads the render list
+  /// anyway so the two cannot drift apart if the ordering ever changes.
   String? get _newestEventId {
-    final events = _timeline?.events;
-    if (events == null || events.isEmpty) return null;
+    final events = _renderEvents;
+    if (events.isEmpty) return null;
     return events.first.eventId;
   }
 
@@ -612,9 +636,9 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// made the timeline retire unread it had not shown yet
   /// (WORK_NEEDED.md 8.2).
   void _settleReadPosition({int attemptsLeft = 3}) {
-    final events = _timeline?.events;
+    final events = _renderEvents;
     final readId = _timelineViewKey.currentState?.oldestVisibleEventId;
-    if (events == null || readId == null) {
+    if (events.isEmpty || readId == null) {
       // The view has not built its items yet, or nothing measurable is
       // on screen.  A few frames is enough for the first layout and for
       // HistoryPager's own deferred auto-fill.
@@ -861,6 +885,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       // list identity.
       events: renderEvents,
       eventGroups: renderGroups,
+      segmentTimelines: store?.segmentTimelines(),
       gapBoundaries: renderGaps,
       onGapApproach: _closeGap,
       timeline: _timeline!,
@@ -976,6 +1001,21 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// number of requests. The store is what actually holds the windows.
   @visibleForTesting
   TimelineStore? get storeForTest => _store;
+
+  /// The list every read path reads from.
+  ///
+  /// Exposed because the read paths are the ones that must not use the tail,
+  /// and the only way to see which list they were given is to ask.
+  @visibleForTesting
+  List<Event> get renderEventsForTest => _renderEvents;
+
+  /// The timeline view's state, for tests that read the read position.
+  ///
+  /// The read position is chosen by a walk over the rendered list, so the
+  /// only way to observe it is through the view.
+  @visibleForTesting
+  TimelineViewState? get debugTimelineViewForTest =>
+      _timelineViewKey.currentState;
 
   /// True while a jump is fetching a history window.
   bool get isLoadingContext => _loadingContext;

@@ -43,6 +43,7 @@ class JumpCoordinator {
   JumpCoordinator({
     required this.context,
     required this.getTimeline,
+    this.getRenderEvents,
     required this.getFullyReadMarker,
     required this.scrollController,
     required this.timelineViewKey,
@@ -62,6 +63,25 @@ class JumpCoordinator {
   /// Resolves the currently-tracked [Timeline], or `null` while the
   /// parent's async init is still pending.
   final Timeline? Function() getTimeline;
+
+  /// The events the timeline is showing: the live tail plus every loaded
+  /// history window, newest first.
+  ///
+  /// **Lookups go here; pagination goes through [getTimeline].** The two are
+  /// different questions. A read marker or a jump target can be sitting in a
+  /// window, and searching only the tail would paginate for something already
+  /// on screen and then give up. Paging is the opposite: only the tail can
+  /// reach newer events, because a window's forward axis ends where the window
+  /// does.
+  final List<Event> Function()? getRenderEvents;
+
+  /// The render list, or the tail alone when no store is wired.
+  List<Event> _renderEvents() {
+    final render = getRenderEvents?.call();
+    final timeline = getTimeline();
+    if (render != null) return render;
+    return timeline?.events ?? const [];
+  }
 
   /// Resolves the read marker for the room currently displayed.
   /// Kept as a separate provider (rather than reading `timeline.room`)
@@ -171,13 +191,19 @@ class JumpCoordinator {
       return;
     }
 
-    // Fast path: the marker is in the cache.  The first unread event
+    // The whole render list, because the marker can be sitting in a
+    // loaded window. Searching only the tail would miss it, fall into
+    // the paginating branch, and burn the budget looking for something
+    // already on screen.
+    final events = _renderEvents();
+
+    // Fast path: the marker is in the render list.  The first unread event
     // is the closest message-like event newer than the marker.
     final initialIdx = JumpToUnreadPager.findMarkerIndex(
-      timeline.events,
+      events,
       markerId,
     );
-    // `initialIdx == 0` means the marker is the newest cached event, so
+    // `initialIdx == 0` means the marker is the newest event on screen, so
     // the room is fully read and there is nothing to jump to.  Treat
     // that as a successful no-op: entering the paginating branch here
     // used to burn the whole 30s budget discovering what we already
@@ -188,11 +214,11 @@ class JumpCoordinator {
     }
     if (initialIdx > 0) {
       final unreadIdx = JumpToUnreadPager.findFirstUnreadMessageIndex(
-        timeline.events,
+        events,
         initialIdx - 1,
       );
       if (unreadIdx >= 0) {
-        _landOn(timeline.events[unreadIdx].eventId);
+        _landOn(events[unreadIdx].eventId);
         return;
       }
     }
@@ -210,7 +236,9 @@ class JumpCoordinator {
     final loaded = await _paginateUntilMarker(markerId, timeline);
     final fresh = getTimeline();
     if (fresh == null) return;
-    final eventsAfter = fresh.events;
+    // Re-read the render list, not the tail: pagination may have extended a
+    // segment other than the live one, and the marker can be in either.
+    final eventsAfter = _renderEvents();
     if (!loaded) {
       if (eventsAfter.isNotEmpty) scrollToBottom();
       _exitLoading();
@@ -239,12 +267,14 @@ class JumpCoordinator {
   /// Delegates to [TimelineView.scrollToEventId] when the view is
   /// mounted and falls back to a fraction estimate otherwise.
   void jumpToEvent(String? eventId) {
-    final timeline = getTimeline();
-    if (timeline == null || eventId == null) return;
+    if (getTimeline() == null || eventId == null) return;
     if (!scrollController.hasClients) return;
     if (!scrollController.position.haveDimensions) return;
-    if (timeline.events.isEmpty) return;
-    if (!timeline.events.any((e) => e.eventId == eventId)) return;
+    // The render list: the target may be in a loaded window, and this used
+    // to search the tail alone and give up on anything else.
+    final events = _renderEvents();
+    if (events.isEmpty) return;
+    if (!events.any((e) => e.eventId == eventId)) return;
 
     final view = timelineViewKey.currentState;
     if (view != null && view is TimelineViewState) {
@@ -252,7 +282,6 @@ class JumpCoordinator {
       return;
     }
 
-    final events = timeline.events;
     final idx = events.indexWhere((e) => e.eventId == eventId);
     TimelineScrollTarget.scrollToFraction(scrollController, idx, events.length,
         skipIfClose: false);
@@ -320,11 +349,10 @@ class JumpCoordinator {
   }
 
   void _scrollToEvent(String eventId) {
-    final timeline = getTimeline();
-    if (timeline == null) return;
+    if (getTimeline() == null) return;
     if (!scrollController.hasClients) return;
 
-    final events = timeline.events;
+    final events = _renderEvents();
     if (events.isEmpty) return;
     if (!events.any((e) => e.eventId == eventId)) return;
 

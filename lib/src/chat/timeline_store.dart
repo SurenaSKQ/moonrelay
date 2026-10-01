@@ -419,6 +419,17 @@ class TimelineStore {
           if (segment.events.isNotEmpty) segment.id,
       ];
 
+  /// The timeline behind each group, aligned with [eventGroups].
+  ///
+  /// The renderer hands each item the timeline of the group it came from, not
+  /// the live tail. Reactions, edits and reply resolution all read
+  /// `timeline.aggregatedEvents`, which is per-timeline, so an item from a
+  /// history window handed the tail finds no aggregates for any event in it.
+  List<Timeline> segmentTimelines() => [
+        for (final segment in _segmentsNewestFirst)
+          if (segment.events.isNotEmpty) segment.timeline,
+      ];
+
   /// Pages the oldest segment one step older.
   Future<int> pageOldest({int count = Room.defaultHistoryCount}) =>
       pageOlder(oldestSegment.id, count: count);

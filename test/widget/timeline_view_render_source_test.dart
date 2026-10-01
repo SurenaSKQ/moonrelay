@@ -29,6 +29,7 @@ import 'package:matrix/src/models/timeline_chunk.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:moonrelay/src/chat/events/timeline_gap_marker.dart';
+import 'package:moonrelay/src/chat/timeline_item.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 
@@ -102,6 +103,7 @@ void main() {
     List<List<Event>>? groups,
     Set<int> gapsAfter = const {},
     void Function(int groupIndex)? onGapApproach,
+    List<Timeline>? segmentTimelines,
   }) async {
     await tester.pumpWidget(
       wrapWithProviders(
@@ -115,6 +117,7 @@ void main() {
               eventGroups: groups,
               gapBoundaries: gapsAfter,
               onGapApproach: onGapApproach,
+              segmentTimelines: segmentTimelines,
               timeline: timeline,
               room: room,
               displayType: DisplayType.modern,
@@ -272,6 +275,56 @@ group('gaps', () {
         groups: [events],
       );
       expect(find.byType(TimelineGapMarker), findsNothing);
+    });
+
+    testWidgets('each item gets the timeline of its own segment', (tester) async {
+      // Reactions, edits and reply resolution all read
+      // `timeline.aggregatedEvents`, which is per-timeline. Handing a
+      // history-window item the live tail means it finds no aggregates for
+      // any event in the window, and the message renders with no reactions
+      // and no edit history.
+      final tail = tailOf(3);
+      final window = windowOf(30);
+      final version = ValueNotifier<int>(0);
+      addTearDown(version.dispose);
+
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: _T(tail),
+        groups: [tail, window],
+        version: version,
+        segmentTimelines: [_T(tail), _T(window)],
+      );
+
+      final items = tester
+          .widgetList<TimelineItem>(find.byType(TimelineItem))
+          .toList();
+      expect(items, isNotEmpty);
+
+      // A tail item resolves against the tail's timeline, a window item
+      // against the window's. Counted rather than matched by event, because
+      // which item lands where depends on the viewport.
+      final tailTimeline = _T(tail);
+      final windowTimeline = _T(window);
+      await pumpView(
+        tester,
+        events: [...tail, ...window],
+        timeline: tailTimeline,
+        groups: [tail, window],
+        version: version,
+        segmentTimelines: [tailTimeline, windowTimeline],
+      );
+
+      final resolved = tester
+          .widgetList<TimelineItem>(find.byType(TimelineItem))
+          .map((i) => i.timeline)
+          .toSet();
+      expect(
+        resolved,
+        containsAll(<Object>[tailTimeline, windowTimeline]),
+        reason: 'both segments must be represented among the built items',
+      );
     });
 
     testWidgets('a gap within reach reports the group to grow', (tester) async {

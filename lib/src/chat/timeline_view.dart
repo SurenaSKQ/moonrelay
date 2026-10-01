@@ -60,6 +60,7 @@ class TimelineView extends StatefulWidget {
     required this.events,
     this.eventGroups,
     this.gapBoundaries,
+    this.segmentTimelines,
     this.onGapApproach,
     required this.timeline,
     required this.room,
@@ -118,6 +119,18 @@ class TimelineView extends StatefulWidget {
   /// does not compute contiguity itself, because only the store knows which
   /// events came from which segment and why.
   final Set<int>? gapBoundaries;
+
+  /// The timeline behind each group in [eventGroups].
+  ///
+  /// Each item is handed the timeline of the group it came from. Reactions,
+  /// edits and reply resolution read `timeline.aggregatedEvents`, which is
+  /// per-timeline, so handing a history-window item the live tail means it
+  /// finds no aggregates for any event in the window and renders a message
+  /// with no reactions and no edit history.
+  ///
+  /// Null falls back to the live [timeline] for every item, which is the
+  /// single-segment case and the one direct widget tests exercise.
+  final List<Timeline>? segmentTimelines;
 
   /// Called when the nearest gap above the fold comes within
   /// [gapPrefetchDistance] of the viewport, with the group index it follows.
@@ -382,6 +395,17 @@ class TimelineViewState extends State<TimelineView> {
   // Index helpers
   // ---------------------------------------------------------------------------
 
+  /// The timeline for items from [groupIndex], falling back to the live tail.
+  ///
+  /// Null when there is only one segment, which is every direct widget test
+  /// and the live-tail-only case.
+  Timeline _timelineForGroup(int? groupIndex) {
+    final segments = widget.segmentTimelines;
+    if (segments == null || groupIndex == null) return widget.timeline;
+    if (groupIndex < 0 || groupIndex >= segments.length) return widget.timeline;
+    return segments[groupIndex];
+  }
+
   /// Returns (and lazily creates) the stable [GlobalKey] for [eventId].
   GlobalKey _keyFor(String eventId) {
     return _eventKeys.putIfAbsent(
@@ -542,11 +566,13 @@ class TimelineViewState extends State<TimelineView> {
               displayType: widget.displayType,
               isGroupStart: entry.isGroupStart,
               isGroupContinuation: entry.isGroupContinuation,
-              timeline: widget.timeline,
               fontSize: widget.fontSize,
               bubbleRadius: widget.bubbleRadius,
               threadReplyCount: entry.replyCount,
               itemKey: _eventKeys[ev.eventId],
+              // The group this event came from, so aggregate lookups hit
+              // the timeline that actually holds them.
+              timeline: _timelineForGroup(entry.groupIndex),
               onAction: (action, e) => _handleItemAction(action, e),
               onEdit: widget.onEdit != null
                   ? () => widget.onEdit!(ev)
