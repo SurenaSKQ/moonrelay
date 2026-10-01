@@ -32,6 +32,7 @@ class JumpToUnreadPager {
   JumpToUnreadPager({
     required this.timeline,
     required this.context,
+    this.budget = defaultBudget,
   });
 
   final Timeline timeline;
@@ -43,7 +44,16 @@ class JumpToUnreadPager {
   /// Shared timeout across both pagination directions.  Increased from 8s
   /// to 30s so large rooms with sparse sync intervals don't leave the user
   /// on the loading pill unnecessarily.
-  static const Duration _globalTimeout = Duration(seconds: 30);
+  static const Duration defaultBudget = Duration(seconds: 30);
+
+  /// Wall-clock ceiling for both directions combined.
+  ///
+  /// Injectable so a test can prove the cap is honoured in milliseconds
+  /// rather than by waiting out the real thirty. A test that measures the
+  /// production budget has to assert an *upper* bound, and an upper bound
+  /// is the one assertion that gets slower the busier the machine is: it
+  /// failed intermittently under load before this became a parameter.
+  final Duration budget;
 
   /// Pages the timeline in the appropriate direction until the event
   /// with id [markerId] is loaded, or until the server stops returning
@@ -63,7 +73,7 @@ class JumpToUnreadPager {
 
     final stopwatch = Stopwatch()..start();
     final winner = Completer<bool>();
-    bool budgetExceeded() => stopwatch.elapsed >= _globalTimeout;
+    bool budgetExceeded() => stopwatch.elapsed >= budget;
 
     Future<bool> paginateOlder() async {
       while (context.canRun() && !budgetExceeded()) {
@@ -121,7 +131,7 @@ class JumpToUnreadPager {
     unawaited(raceOne(paginateOlder));
     unawaited(raceOne(paginateNewer));
 
-    final outerTimer = Timer(_globalTimeout, () {
+    final outerTimer = Timer(budget, () {
       if (!winner.isCompleted) winner.complete(false);
     });
     try {

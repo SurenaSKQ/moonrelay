@@ -21,11 +21,17 @@
 // 8 s global timeouts (one per direction), which could trap the
 // user on the loading pill for up to 16 s. The new implementation
 // runs both directions in parallel and short-circuits on the first
-// success, so the worst case is bounded by the global cap (~31 s
-// with one headroom second). The per-direction iteration cap was
-// removed in favour of "exhaust the direction completely", so the
-// pager only stops when the marker surfaces or both directions
-// report no more history.
+// success, so the worst case is bounded by the global cap. The
+// per-direction iteration cap was removed in favour of "exhaust the
+// direction completely", so the pager only stops when the marker
+// surfaces or both directions report no more history.
+//
+// These tests pass an explicit short [budget] rather than measuring the
+// production thirty. The original version waited out the real cap and
+// asserted "under 31 s", which is the one shape of assertion that gets
+// harder to satisfy the busier the machine is: it failed once in five
+// full-suite runs under load while passing on reruns, which is a flaky
+// test rather than a regression. See WORK_NEEDED.md 1.3.
 
 import 'dart:async';
 
@@ -35,6 +41,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
+import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
 import '../helpers/widget_test_utils.dart';
@@ -203,8 +210,7 @@ Widget _wrapTimeline(Room room) {
 
 void main() {
   testWidgets(
-    'returns false and stays under the global timeout when the server '
-    'hangs indefinitely',
+    'gives up at the budget when the server hangs indefinitely',
     (tester) async {
       final timeline = _GatedTimeline()..hang = true;
       final room = _FakeRoom(timeline);
@@ -217,25 +223,50 @@ void main() {
       final state =
           tester.state<ChatTimelineState>(find.byType(ChatTimeline));
 
-      // Run inside runAsync so the real-time stopwatch can advance.
+      // Run inside runAsync so the real-time stopwatch can advance. A
+      // 300ms budget proves the same thing the 30s wait used to, in 1% of
+      // the time.
+      const budget = Duration(milliseconds: 300);
       final stopwatch = Stopwatch()..start();
       final result = await tester.runAsync(() async {
-        return state.paginateUntilMarkerForTest('\$marker');
+        return state.paginateUntilMarkerForTest('\$marker', budget: budget);
       });
       stopwatch.stop();
 
       expect(result, isFalse);
-      // Global cap is 30 s; allow a 1 s headroom for CI noise.
-      expect(
-        stopwatch.elapsed,
-        lessThan(const Duration(seconds: 31)),
-        reason: 'global stopwatch should cap the wait',
-      );
+      // The pager gave up on its own rather than because the server
+      // answered: both directions are still blocked on the hang.
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 5)));
+      // And it did wait, rather than returning immediately: a pager that
+      // bailed on the first iteration would satisfy the bound above too.
+      expect(stopwatch.elapsed, greaterThanOrEqualTo(budget));
 
       // Free the completer so the test doesn't hang.
       timeline.unhang();
     },
-    timeout: const Timeout(Duration(seconds: 60)),
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
+
+  testWidgets('the production budget is still thirty seconds',
+      (tester) async {
+    // The injectable default has to stay the shipped number. If someone
+    // lowers defaultBudget to make a test fast, the app silently stops
+    // paginating in big rooms, and nothing else would notice.
+      final timeline = _GatedTimeline();
+      final room = _FakeRoom(timeline);
+
+      await tester.pumpWidget(_wrapTimeline(room));
+      await tester.pump();
+
+      final state =
+          tester.state<ChatTimelineState>(find.byType(ChatTimeline));
+
+      expect(state.paginationBudgetForTest,
+          JumpToUnreadPager.defaultBudget);
+      expect(JumpToUnreadPager.defaultBudget,
+          const Duration(seconds: 30));
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
   );
 
   testWidgets(
