@@ -261,7 +261,10 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _historyPager = HistoryPager(
       room: widget.room,
       scrollController: _scrollController,
-      getTimeline: () => _timeline,
+      // The oldest loaded segment, not the live tail. With a window on
+      // screen the top of the render list is above that window, so paging
+      // the tail would extend the wrong end and the window would never grow.
+      getSegmentToPage: () => _store?.oldestSegment,
       onStateChanged: () {
         if (mounted) setState(() {});
       },
@@ -294,7 +297,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _historyPager = HistoryPager(
       room: widget.room,
       scrollController: _scrollController,
-      getTimeline: () => _timeline,
+      getSegmentToPage: () => _store?.oldestSegment,
       onStateChanged: () {
         if (mounted) setState(() {});
       },
@@ -453,6 +456,32 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     });
   }
 
+  /// Grows the segment above [groupIndex] towards the tail, closing the gap.
+  ///
+  /// Called by the view when a gap marker comes within reach of the fold.
+  /// A `/context` window can page forward (`TimelineSegment.canPageNewer`), so
+  /// pulling the two windows together is the same mechanism as pulling more
+  /// history, just in the other direction.
+  ///
+  /// Single-flight per segment: a scroll fires this on many consecutive
+  /// frames and the store's `version` only bumps on a page that actually
+  /// landed, so the guard is the caller's.
+  Future<void> _closeGap(int groupIndex) async {
+    final store = _store;
+    if (store == null || _closingGaps.contains(groupIndex)) return;
+    final gen = beginAsync();
+    _closingGaps.add(groupIndex);
+    try {
+      await store.closeGapAfterGroup(groupIndex);
+      if (isStale(gen) || !mounted) return;
+      _bumpStoreVersion();
+    } finally {
+      _closingGaps.remove(groupIndex);
+    }
+  }
+
+  final Set<int> _closingGaps = <int>{};
+
   /// Invalidates the view's item cache after a store mutation.
   ///
   /// `TimelineStore.version` is the store's own counter, but the view reads a
@@ -478,6 +507,11 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
+
+    // Close a gap the user is about to scroll into, by growing the segment
+    // above it towards the tail. Nothing else loads downward between two
+    // windows, so this is the only thing that makes a drawn gap temporary.
+    _timelineViewKey.currentState?.reportGapApproach();
 
     final pos = _scrollController.position;
     final scrolledUp = pos.pixels > _scrollUpThreshold;
@@ -828,6 +862,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
       events: renderEvents,
       eventGroups: renderGroups,
       gapBoundaries: renderGaps,
+      onGapApproach: _closeGap,
       timeline: _timeline!,
       room: widget.room,
       displayType: settings.displayType,

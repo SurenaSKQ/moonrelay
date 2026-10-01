@@ -403,6 +403,50 @@ class TimelineStore {
     return null;
   }
 
+  /// The segment the scroll-to-load path should extend.
+  ///
+  /// The oldest one, because that is the end of the render list a scroll
+  /// reaches by dragging up. When no windows are loaded this is the live
+  /// tail, which is the pre-store behaviour.
+  TimelineSegment get oldestSegment =>
+      _history.isEmpty ? live : _history.last;
+
+  /// The segment id for each group index produced by [eventGroups].
+  ///
+  /// The model places gap markers by group index, so this is how a gap on
+  /// screen is turned back into the segment that can close it. Groups skip
+  /// empty segments, so the indices line up with [eventGroups] and not with
+  /// [history].
+  List<String> groupSegmentIds() => [
+        for (final segment in _segmentsNewestFirst)
+          if (segment.events.isNotEmpty) segment.id,
+      ];
+
+  /// Pages the oldest segment one step older.
+  Future<int> pageOldest({int count = Room.defaultHistoryCount}) =>
+      pageOlder(oldestSegment.id, count: count);
+
+  /// Pages the segment that ends group [groupIndex] one step older, which is
+  /// how a gap closes.
+  ///
+  /// Group *i* holds the newer side of the boundary and the gap follows its
+  /// last event, so the events that close the hole are *older* than that
+  /// event. Paging the group forward is the opposite direction and would
+  /// never meet group *i+1*.
+  ///
+  /// This is also the only direction the live tail can take: it is anchored
+  /// at the newest event in the room and its `chunk.nextBatch` is empty, so
+  /// `pageNewer` on it is permanently impossible. Paging it older is exactly
+  /// what the scroll-to-load path already does.
+  Future<int> closeGapAfterGroup(
+    int groupIndex, {
+    int count = Room.defaultHistoryCount,
+  }) {
+    final ids = groupSegmentIds();
+    if (groupIndex < 0 || groupIndex >= ids.length) return Future.value(0);
+    return pageOlder(ids[groupIndex], count: count);
+  }
+
   /// Every segment in display order: the live tail first, then history
   /// windows newest first.
   ///

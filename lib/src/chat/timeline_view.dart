@@ -60,6 +60,7 @@ class TimelineView extends StatefulWidget {
     required this.events,
     this.eventGroups,
     this.gapBoundaries,
+    this.onGapApproach,
     required this.timeline,
     required this.room,
     required this.displayType,
@@ -118,6 +119,21 @@ class TimelineView extends StatefulWidget {
   /// does not compute contiguity itself, because only the store knows which
   /// events came from which segment and why.
   final Set<int>? gapBoundaries;
+
+  /// Called when the nearest gap above the fold comes within
+  /// [gapPrefetchDistance] of the viewport, with the group index it follows.
+  ///
+  /// The timeline answers it by paging that group's segment forward, which is
+  /// the only thing that grows a window towards the tail. Nothing else loads
+  /// downward between two windows, so without this a drawn gap is permanent.
+  final void Function(int groupIndex)? onGapApproach;
+
+  /// How far above the fold a gap must come before [onGapApproach] fires.
+  ///
+  /// Roughly two messages. Close enough that the fetch has landed by the time
+  /// the user scrolls into it, far enough that it does not fire the moment a
+  /// window is added.
+  static const double gapPrefetchDistance = 240;
 
   final Room room;
   final DisplayType displayType;
@@ -230,6 +246,23 @@ class TimelineViewState extends State<TimelineView> {
   /// the failure the whole read-position work exists to prevent.
   final Set<int> _cachedGapIndices = <int>{};
 
+  /// Gap entries by their index in [_cachedItems].
+  ///
+  /// Paired with [_cachedGapIndices] because the index says *where* the
+  /// marker is and the entry says which group boundary it stands for.
+  final Map<int, TimelineItemEntry> _cachedGapEntries =
+      <int, TimelineItemEntry>{};
+
+  /// Global keys for gap markers, by the group they follow.
+  ///
+  /// Keyed by group rather than by item index because the index shifts as
+  /// either side of the boundary grows, and a key that changes when nothing
+  /// about the marker has changed rebuilds it for nothing. A GlobalKey is
+  /// required rather than a ValueKey because [nearestGap] needs to reach
+  /// the marker's RenderBox to measure it, and only a GlobalKey can go
+  /// from a key to a live context.
+  final Map<int, GlobalKey> _gapKeys = <int, GlobalKey>{};
+
   /// Cached event-id-to-item-index map for jump-to-event.
   Map<String, int>? _cachedEventIdToItemIndex;
 
@@ -278,6 +311,7 @@ class TimelineViewState extends State<TimelineView> {
     _cachedItems = null;
     _cachedItemEventIds = null;
     _cachedGapIndices.clear();
+    _cachedGapEntries.clear();
     _cachedEventIdToItemIndex = null;
   }
 
@@ -300,8 +334,33 @@ class TimelineViewState extends State<TimelineView> {
     setState(_invalidateCache);
   }
 
+  /// Reports a gap that has come close enough to the fold to be worth
+  /// fetching. Called from [ChatTimeline]'s scroll handler rather than from
+  /// here, so the fetch is owned by the timeline and the store, not the view.
+  ///
+  /// Fires at most once per gap identity so a long scroll does not queue one
+  /// request per frame while the marker sits near the fold.
+  void reportGapApproach() {
+    final handler = widget.onGapApproach;
+    if (handler == null) return;
+    final gap = nearestGap;
+    if (gap == null) return;
+    if (gap.distance > TimelineView.gapPrefetchDistance) return;
+    final token = '${gap.groupIndex}:${gap.distance.round()}';
+    if (_reportedGaps.contains(token)) return;
+    _reportedGaps.add(token);
+    handler(gap.groupIndex);
+  }
+
+  final Set<String> _reportedGaps = <String>{};
+
   @override
   void didUpdateWidget(TimelineView oldWidget) {
+    if (oldWidget.gapBoundaries != widget.gapBoundaries) {
+      // The boundaries themselves changed, so a gap already reported for may
+      // be gone. Clearing lets a genuinely new one fire.
+      _reportedGaps.clear();
+    }
     super.didUpdateWidget(oldWidget);
     if (oldWidget.timelineVersion != widget.timelineVersion) {
       oldWidget.timelineVersion?.removeListener(_onVersionChanged);
@@ -398,6 +457,47 @@ class TimelineViewState extends State<TimelineView> {
     return oldest;
   }
 
+  /// The gap marker nearest the viewport, and the group boundary it stands for.
+  ///
+  /// Reported so the timeline can close the hole by paging that group's
+  /// segment older. `distance` is how far outside the viewport the marker
+  /// sits, and `0` when it is on screen, so a caller can prefetch before the
+  /// user scrolls into it.
+  ///
+  /// Distance is absolute rather than signed because either side is
+  /// reachable. The first version measured only upwards, on the reasoning
+  /// that `reverse: true` puts older events higher up, which is true and
+  /// irrelevant: a gap sitting just above the live edge is the one a user is
+  /// closest to, and it was the case being missed.
+  ({int groupIndex, double distance})? get nearestGap {
+    final items = _cachedItems;
+    if (items == null || items.isEmpty) return null;
+    final listContext = _listKey.currentContext;
+    if (listContext == null) return null;
+    final viewportBox = listContext.findRenderObject();
+    if (viewportBox is! RenderBox || !viewportBox.hasSize) return null;
+
+    ({int groupIndex, double distance})? best;
+    for (final index in _cachedGapIndices) {
+      final groupIndex = _cachedGapEntries[index]?.afterGroup;
+      if (groupIndex == null) continue;
+      if (index >= items.length) continue;
+      final key = _gapKeys[groupIndex];
+      final box = key?.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) continue;
+      final top = box.localToGlobal(Offset.zero, ancestor: viewportBox).dy;
+      final limit = viewportBox.size.height;
+      final distance = top < 0
+          ? -top
+          : (top > limit ? top - limit : 0.0);
+      final candidate = (groupIndex: groupIndex, distance: distance);
+      if (best == null || candidate.distance < best.distance) {
+        best = candidate;
+      }
+    }
+    return best;
+  }
+
   // ---------------------------------------------------------------------------
   // Build the flat item list (delegates ordering/logic to the model)
   // ---------------------------------------------------------------------------
@@ -428,7 +528,8 @@ class TimelineViewState extends State<TimelineView> {
     final itemEventIds = <String?>[];
     final liveIds = <String>{};
 
-    for (final entry in result.items) {
+    for (var indexOf = 0; indexOf < result.items.length; indexOf++) {
+      final entry = result.items[indexOf];
       switch (entry.kind) {
         case TimelineItemKind.event:
           final ev = entry.event!;
@@ -471,9 +572,35 @@ class TimelineViewState extends State<TimelineView> {
         case TimelineItemKind.gap:
           itemEventIds.add(null);
           _cachedGapIndices.add(items.length);
-          items.add(const TimelineGapMarker());
+          // Keep the entry, not just the index: the group it follows is
+          // what a caller pages to close the hole, and it is not
+          // recoverable from a rendered index.
+          _cachedGapEntries[items.length] = entry;
+          // Keyed by the group it follows, so [nearestGap] can reach a
+          // RenderBox and measure the marker. An unkeyed child has nowhere
+          // to hang a GlobalKey, and measuring the marker's distance to the
+          // viewport is the whole point of it.
+          final afterGroup = entry.afterGroup;
+          items.add(
+            TimelineGapMarker(
+              key: afterGroup == null
+                  ? null
+                  : _gapKeys.putIfAbsent(
+                      afterGroup,
+                      () => GlobalKey(debugLabel: 'tl_gap_$afterGroup'),
+                    ),
+            ),
+          );
       }
     }
+
+    _cachedGapEntries.removeWhere(
+      (index, _) => !_cachedGapIndices.contains(index),
+    );
+    _gapKeys.removeWhere(
+      (group, _) => !_cachedGapEntries.values
+          .any((e) => e.afterGroup == group),
+    );
 
     _cachedItems = items;
     _cachedItemEventIds = itemEventIds;

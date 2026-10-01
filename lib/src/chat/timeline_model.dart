@@ -205,6 +205,7 @@ class TimelineItemEntry {
     this.replyCount = 0,
     this.date,
     this.undecryptableCount = 0,
+    this.afterGroup,
   });
 
   /// Which kind of entry this is (see [TimelineItemKind]).
@@ -232,6 +233,12 @@ class TimelineItemEntry {
   /// Number of undecryptable encrypted events, for
   /// [TimelineItemKind.undecryptableBanner].
   final int undecryptableCount;
+
+  /// For [TimelineItemKind.gap], the index of the group the marker follows.
+  ///
+  /// The group is the newer side of the boundary, so paging *it* forward is
+  /// what closes the hole. Null for every other kind.
+  final int? afterGroup;
 
   /// Convenience constructor for regular message events.
   static TimelineItemEntry forEvent({
@@ -269,9 +276,15 @@ class TimelineItemEntry {
       );
 
   /// Convenience constructor for a non-contiguous segment boundary.
-  static TimelineItemEntry forGap(DateTime olderThan) => TimelineItemEntry(
+  ///
+  /// [afterGroup] is the index of the group the marker follows, so a caller
+  /// that wants to close the hole knows which segment to grow without having
+  /// to re-derive the boundary from a rendered index.
+  static TimelineItemEntry forGap(DateTime olderThan, {int? afterGroup}) =>
+      TimelineItemEntry(
         kind: TimelineItemKind.gap,
         date: olderThan,
+        afterGroup: afterGroup,
       );
 }
 
@@ -463,7 +476,10 @@ TimelineItemsResult buildTimelineItemsFromGroups(
         g < groups.length - 1 &&
         gapsAfter.contains(g) &&
         !_groupHasLaterVisible(indices, groupOf, eventIndex, g)) {
-      items.add(TimelineItemEntry.forGap(event.originServerTs));
+      items.add(TimelineItemEntry.forGap(
+        event.originServerTs,
+        afterGroup: g,
+      ));
     }
   }
 

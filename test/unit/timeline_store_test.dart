@@ -34,8 +34,9 @@ import 'package:moonrelay/src/chat/timeline_store.dart';
 // -- Test doubles --
 
 class _Ev extends Mock implements Event {
-  _Ev(this.id);
+  _Ev(this.id, [this.ts]);
   final String id;
+  final DateTime? ts;
   @override
   String get eventId => id;
   @override
@@ -43,7 +44,7 @@ class _Ev extends Mock implements Event {
   @override
   String get senderId => '@alice:dom';
   @override
-  DateTime get originServerTs => DateTime(2024, 6, 15, 10, 0, 0);
+  DateTime get originServerTs => ts ?? DateTime(2024, 6, 15, 10, 0, 0);
 }
 
 class _T extends Mock implements Timeline {
@@ -463,6 +464,114 @@ void main() {
   });
 
   // -- Stage 2: segment paging --
+
+  group('segment selection for loading', () {
+    test('the oldest segment is the live tail with no windows', () {
+      final store = TimelineStore(live: _live(['tail']));
+      expect(store.oldestSegment.id, 'live');
+      expect(store.oldestSegment.isLive, isTrue);
+    });
+
+    test('the oldest segment is the last window once one is added', () {
+      // The scroll-to-load path must extend this one. Paging the tail
+      // instead would grow the wrong end and the window would never
+      // get taller.
+      final store = TimelineStore(live: _live(['tail']))
+        ..addHistory(_history(['w'], id: 'w'));
+      expect(store.oldestSegment.id, 'w');
+    });
+
+    test('with several windows the oldest is the one added first', () {
+      // `addHistory` treats the newest addition as the newest segment, so
+      // the oldest is the last one in the list.
+      final store = TimelineStore(live: _live(['tail']))
+        ..addHistory(_history(['old'], id: 'old'))
+        ..addHistory(_history(['new'], id: 'new'));
+      expect(store.oldestSegment.id, 'old');
+    });
+
+    test('group ids line up with the non-empty groups', () {
+      final store = TimelineStore(live: _live(['t1', 't2']))
+        ..addHistory(_history([], id: 'empty'))
+        ..addHistory(_history(['w'], id: 'w'));
+      // Render order is [live, w]; the empty window is skipped from both
+      // `eventGroups` and the id list, so the indices stay aligned.
+      expect(store.groupSegmentIds(), ['live', 'w']);
+      expect(store.eventGroups().length, 2);
+    });
+
+    test('closing a gap pages the group above it older', () async {
+      // Group 0 is the live tail. A gap after it means events are missing
+      // between the tail's oldest and the window's newest, and those are
+      // *older* than the tail's oldest. So the tail pages backwards, which
+      // is the only direction it can take: it is anchored at the newest
+      // event in the room and `pageNewer` on it is permanently impossible.
+      final tail = _PagingTimeline([_Ev('t1')], chunk: TimelineChunk(events: []))
+        ..olderPages.add([_Ev('older')]);
+      tail.chunk.prevBatch = 'tok';
+
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      )..addHistory(_history(['w1'], id: 'w'));
+
+      expect(await store.closeGapAfterGroup(0), 1);
+      expect(tail.calls, ['b'], reason: 'Direction.b, older, to close');
+      expect(_ids(store.flatten()), ['t1', 'older', 'w1']);
+    });
+
+    test('a closed gap disappears from the boundaries', () async {
+      // The point of closing one. One page is not always enough, which is
+      // true of real rooms too: a gap can be hours wide and the tolerance
+      // is ten minutes, so it takes a page per ten minutes of hole.
+      final tail = _PagingTimeline(
+        [_Ev('t1', DateTime(2025, 6, 15, 10))],
+        chunk: TimelineChunk(events: []),
+      )..olderPages.add([_Ev('t2', DateTime(2025, 6, 15, 9, 30))])
+        ..olderPages.add([_Ev('t3', DateTime(2025, 6, 15, 9, 5))]);
+      tail.chunk.prevBatch = 'tok';
+
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      )..addHistory(
+          _history(['w1'], id: 'w', timeline: _T([
+            _Ev('w1', DateTime(2025, 6, 15, 9)),
+          ])),
+        );
+
+      expect(store.gapBoundaries(), hasLength(1), reason: 'drawn while the hole is wide');
+
+      await store.closeGapAfterGroup(0);
+      expect(store.gapBoundaries(), hasLength(1),
+          reason: 'half an hour apart is still a gap');
+
+      await store.closeGapAfterGroup(0);
+      expect(store.gapBoundaries(), isEmpty,
+          reason: 'and gone once the two are within the ten-minute tolerance');
+    });
+
+    test('closing a gap beyond the last group does nothing', () async {
+      final tail = _PagingTimeline([_Ev('t1')], chunk: TimelineChunk(events: []));
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      );
+      expect(await store.closeGapAfterGroup(9), 0);
+      expect(tail.calls, isEmpty);
+      expect(await store.closeGapAfterGroup(-1), 0);
+    });
+
+    test('pageOldest targets the oldest segment', () async {
+      final window = _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+        ..olderPages.add([_Ev('older')]);
+      window.chunk.prevBatch = 'tok';
+
+      final store = TimelineStore(live: _live(['tail']))
+        ..addHistory(_pagingSegment(window, id: 'w'));
+
+      expect(await store.pageOldest(), 1);
+      expect(window.calls, ['b']);
+      expect(_ids(store.flatten()), ['tail', 'w', 'older']);
+    });
+  });
 
   group('fromEventContext guard', () {
     test('accepts a window that can page', () {
