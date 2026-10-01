@@ -301,6 +301,18 @@
   "@scrollToBottom": {
     "description": "Floating button shown when the user has scrolled up away from the newest messages. Tapping it animates the timeline back to the bottom."
   },
+  "backToLatest": "Back to latest",
+  "@backToLatest": {
+    "description": "Floating button shown when the timeline is displaying a history window around a specific event rather than the live tail. Tapping it returns to the newest messages."
+  },
+  "loadingEventContext": "Loading message…",
+  "@loadingEventContext": {
+    "description": "Transient label shown while the timeline fetches the surrounding history for an event that is not in the local cache."
+  },
+  "eventNotFound": "That message is no longer available",
+  "@eventNotFound": {
+    "description": "Shown when a jump to a specific event fails because the server could not return it, for example an event outside the user's access or one that has been redacted and purged."
+  },
   "unreadPillDismissTooltip": "Dismiss",
   "@unreadPillDismissTooltip": {
     "description": "Tooltip on the small × button next to the jump-to-first-unread pill. Tapping it hides the pill without changing the user's read state."
