@@ -65,22 +65,4 @@ class TimelineScrollTarget {
       curve: Curves.easeInOut,
     );
   }
-
-  /// Animates [controller] so that [eventId], when found in [eventIds],
-  /// is scrolled to one-third from the top.  This is the convenience
-  /// wrapper used by callers that have the event ids as a list.
-  static void scrollToEvent(
-    ScrollController controller,
-    String eventId,
-    List<String> eventIds,
-  ) {
-    if (!controller.hasClients) return;
-    if (!controller.position.haveDimensions) return;
-    if (eventIds.isEmpty) return;
-
-    final idx = eventIds.indexOf(eventId);
-    if (idx < 0) return;
-
-    scrollToFraction(controller, idx, eventIds.length, skipIfClose: false);
-  }
 }
