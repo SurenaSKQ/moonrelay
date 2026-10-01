@@ -472,21 +472,31 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// Single-flight per segment: a scroll fires this on many consecutive
   /// frames and the store's `version` only bumps on a page that actually
   /// landed, so the guard is the caller's.
-  Future<void> _closeGap(int groupIndex) async {
+  ///
+  /// Keyed by side as well as group, because the same boundary can be
+  /// approached from both ends: a reader who crosses it on the way down is
+  /// loading a different page than one crossing it on the way up, and
+  /// suppressing the second would strand the hole they just filled.
+  Future<void> _closeGap(int groupIndex, bool viewerOnNewerSide) async {
     final store = _store;
-    if (store == null || _closingGaps.contains(groupIndex)) return;
+    if (store == null) return;
+    final key = '$groupIndex:$viewerOnNewerSide';
+    if (_closingGaps.contains(key)) return;
     final gen = beginAsync();
-    _closingGaps.add(groupIndex);
+    _closingGaps.add(key);
     try {
-      await store.closeGapAfterGroup(groupIndex);
+      await store.closeGapAfterGroup(
+        groupIndex,
+        viewerOnNewerSide: viewerOnNewerSide,
+      );
       if (isStale(gen) || !mounted) return;
       _bumpStoreVersion();
     } finally {
-      _closingGaps.remove(groupIndex);
+      _closingGaps.remove(key);
     }
   }
 
-  final Set<int> _closingGaps = <int>{};
+  final Set<String> _closingGaps = <String>{};
 
   /// Invalidates the view's item cache after a store mutation.
   ///

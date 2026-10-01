@@ -133,13 +133,18 @@ class TimelineView extends StatefulWidget {
   /// single-segment case and the one direct widget tests exercise.
   final List<Timeline>? segmentTimelines;
 
-  /// Called when the nearest gap above the fold comes within
-  /// [gapPrefetchDistance] of the viewport, with the group index it follows.
+  /// Called when the nearest gap comes within [gapPrefetchDistance] of the
+  /// viewport, with the group index it follows and whether the viewer is on
+  /// the newer side of that boundary.
   ///
-  /// The timeline answers it by paging that group's segment forward, which is
-  /// the only thing that grows a window towards the tail. Nothing else loads
-  /// downward between two windows, so without this a drawn gap is permanent.
-  final void Function(int groupIndex)? onGapApproach;
+  /// The timeline answers it by paging whichever of the two sides is towards
+  /// the user, which is the only thing that fills the hole between a window
+  /// and its neighbour. Nothing else loads into that space, so without this a
+  /// drawn gap is permanent. Both directions are reachable: a viewer below the
+  /// marker pages the newer side older, a viewer above it pages the older side
+  /// newer, and the latter is what makes a jump to an old event, such as a
+  /// search result, able to walk back down to the live tail.
+  final void Function(int groupIndex, bool viewerOnNewerSide)? onGapApproach;
 
   /// How far above the fold a gap must come before [onGapApproach] fires.
   ///
@@ -359,10 +364,11 @@ class TimelineViewState extends State<TimelineView> {
     final gap = nearestGap;
     if (gap == null) return;
     if (gap.distance > TimelineView.gapPrefetchDistance) return;
-    final token = '${gap.groupIndex}:${gap.distance.round()}';
+    final token =
+        '${gap.groupIndex}:${gap.distance.round()}:${gap.viewerOnNewerSide}';
     if (_reportedGaps.contains(token)) return;
     _reportedGaps.add(token);
-    handler(gap.groupIndex);
+    handler(gap.groupIndex, gap.viewerOnNewerSide);
   }
 
   final Set<String> _reportedGaps = <String>{};
@@ -493,7 +499,19 @@ class TimelineViewState extends State<TimelineView> {
   /// that `reverse: true` puts older events higher up, which is true and
   /// irrelevant: a gap sitting just above the live edge is the one a user is
   /// closest to, and it was the case being missed.
-  ({int groupIndex, double distance})? get nearestGap {
+  ///
+  /// [viewerOnNewerSide] says which side of the marker the viewport centre
+  /// sits on, so the caller can grow the segment the user is actually
+  /// looking at. `reverse: true` means higher indices sit higher on screen,
+  /// so content above the marker is the older group. A marker above the
+  /// centre therefore leaves the reader sitting in the newer group below it,
+  /// and a marker below the centre leaves them in the older group.
+  ///
+  /// The centre, not the nearest edge, because the viewport is usually
+  /// mostly window after a jump to an old event and barely any tail; asking
+  /// which side is *closest* would answer "window" for a reader who is in
+  /// fact parked at the live edge.
+  ({int groupIndex, double distance, bool viewerOnNewerSide})? get nearestGap {
     final items = _cachedItems;
     if (items == null || items.isEmpty) return null;
     final listContext = _listKey.currentContext;
@@ -501,7 +519,7 @@ class TimelineViewState extends State<TimelineView> {
     final viewportBox = listContext.findRenderObject();
     if (viewportBox is! RenderBox || !viewportBox.hasSize) return null;
 
-    ({int groupIndex, double distance})? best;
+    ({int groupIndex, double distance, bool viewerOnNewerSide})? best;
     for (final index in _cachedGapIndices) {
       final groupIndex = _cachedGapEntries[index]?.afterGroup;
       if (groupIndex == null) continue;
@@ -514,7 +532,11 @@ class TimelineViewState extends State<TimelineView> {
       final distance = top < 0
           ? -top
           : (top > limit ? top - limit : 0.0);
-      final candidate = (groupIndex: groupIndex, distance: distance);
+      final candidate = (
+        groupIndex: groupIndex,
+        distance: distance,
+        viewerOnNewerSide: top < limit / 2,
+      );
       if (best == null || candidate.distance < best.distance) {
         best = candidate;
       }

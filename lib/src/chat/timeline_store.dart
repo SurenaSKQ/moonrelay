@@ -437,25 +437,44 @@ class TimelineStore {
   Future<int> pageOldest({int count = Room.defaultHistoryCount}) =>
       pageOlder(oldestSegment.id, count: count);
 
-  /// Pages the segment that ends group [groupIndex] one step older, which is
-  /// how a gap closes.
+  /// Pages one side of the boundary that follows group [groupIndex] towards
+  /// the other, which is how a gap closes.
   ///
-  /// Group *i* holds the newer side of the boundary and the gap follows its
-  /// last event, so the events that close the hole are *older* than that
-  /// event. Paging the group forward is the opposite direction and would
-  /// never meet group *i+1*.
+  /// Group *i* holds the newer side and group *i+1* the older side, and the
+  /// events that close the hole sit between them. Both sides can reach those
+  /// events, from opposite ends, so the caller has to say which one to grow:
   ///
-  /// This is also the only direction the live tail can take: it is anchored
-  /// at the newest event in the room and its `chunk.nextBatch` is empty, so
-  /// `pageNewer` on it is permanently impossible. Paging it older is exactly
-  /// what the scroll-to-load path already does.
+  /// * [viewerOnNewerSide] true, the viewer is below the marker in group *i*
+  ///   and scrolling up, so page group *i* **older**.
+  /// * false, the viewer is above the marker in group *i+1* and scrolling
+  ///   down, so page group *i+1* **newer**.
+  ///
+  /// Growing from the viewer's side is the whole point. A user who jumps to a
+  /// search result from months ago lands in a history window and scrolls down
+  /// towards the live tail. The events they need are newer than their window's
+  /// newest, so only `pageNewer` on the window can produce them. Paging the
+  /// tail older would also close the hole eventually, but the tail is the
+  /// wrong segment to grow: the user is not looking at it, and if the target
+  /// is far back the tail has a long way to walk.
+  ///
+  /// The earlier version always paged the newer side older. That is the only
+  /// direction the live tail can take, since it is anchored at the newest
+  /// event and its `chunk.nextBatch` is empty, so it reads as the safe
+  /// default. It was safe and wrong: feasibility for one particular segment
+  /// was standing in for correctness, and it left the jump-to-old-event case
+  /// with no way to load anything at all.
   Future<int> closeGapAfterGroup(
     int groupIndex, {
+    required bool viewerOnNewerSide,
     int count = Room.defaultHistoryCount,
   }) {
     final ids = groupSegmentIds();
     if (groupIndex < 0 || groupIndex >= ids.length) return Future.value(0);
-    return pageOlder(ids[groupIndex], count: count);
+    if (viewerOnNewerSide) return pageOlder(ids[groupIndex], count: count);
+    // The older side is the segment after the boundary; a gap only ever has
+    // two sides, so running off the end means the caller passed a stale index.
+    if (groupIndex + 1 >= ids.length) return Future.value(0);
+    return pageNewer(ids[groupIndex + 1], count: count);
   }
 
   /// Every segment in display order: the live tail first, then history
