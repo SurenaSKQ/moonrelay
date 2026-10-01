@@ -129,14 +129,19 @@ class TimelineView extends StatefulWidget {
   /// Corner radius for the message bubble in bubbles display mode.
   final double bubbleRadius;
 
-  /// A [ValueNotifier] that the parent bumps on every SDK sync callback
-  /// (onChange/onInsert/onRemove/onUpdate).  When non-null, [TimelineView]
-  /// rebuilds only the list subtree via [ValueListenableBuilder] instead
-  /// of waiting for the parent to rebuild the entire chat surface.
+  /// A [ValueListenable] that the parent bumps on every SDK sync callback
+  /// (onChange/onInsert/onRemove/onUpdate) and on every history-window
+  /// mutation.  When non-null, [TimelineView] rebuilds only the list
+  /// subtree via [ValueListenableBuilder] instead of waiting for the
+  /// parent to rebuild the entire chat surface.
+  ///
+  /// A merged notifier is accepted, which is what `ChatTimeline` passes:
+  /// live sync bumps and store mutations are separate signals and either one
+  /// changes what is rendered.
   ///
   /// When null (e.g. in widget tests that mount [TimelineView] directly),
   /// the list is built once per [build] call with no external listener.
-  final ValueNotifier<int>? timelineVersion;
+  final Listenable? timelineVersion;
 
   /// Called when the user replies to a specific event.
   final void Function(Event event)? onReply;
@@ -254,7 +259,7 @@ class TimelineViewState extends State<TimelineView> {
   /// and a highlight toggle doesn't require rebuilding the entire item
   /// list.
   String get _cacheKey {
-    final version = widget.timelineVersion?.value ?? 0;
+    final version = _cacheVersion;
     return '${identityHashCode(widget.room)}'
         '_${identityHashCode(widget.events)}'
         '_$version'
@@ -275,17 +280,32 @@ class TimelineViewState extends State<TimelineView> {
     _cachedEventIdToItemIndex = null;
   }
 
+  /// Monotonic counter used in [_cacheKey] so a change in the parent
+  /// notifier always invalidates, even though `timelineVersion` is a plain
+  /// [Listenable] with no readable value.
+  int _cacheVersion = 0;
+
   @override
   void initState() {
     super.initState();
     _lastCacheKey = _cacheKey;
+    widget.timelineVersion?.addListener(_onVersionChanged);
     _undecryptableCount.value =
         countUndecryptable(widget.events, widget.filterEvents);
+  }
+
+  void _onVersionChanged() {
+    _cacheVersion++;
+    setState(_invalidateCache);
   }
 
   @override
   void didUpdateWidget(TimelineView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.timelineVersion != widget.timelineVersion) {
+      oldWidget.timelineVersion?.removeListener(_onVersionChanged);
+      widget.timelineVersion?.addListener(_onVersionChanged);
+    }
     final newKey = _cacheKey;
     if (newKey != _lastCacheKey) {
       _invalidateCache();
@@ -294,6 +314,7 @@ class TimelineViewState extends State<TimelineView> {
 
   @override
   void dispose() {
+    widget.timelineVersion?.removeListener(_onVersionChanged);
     _undecryptableCount.dispose();
     super.dispose();
   }
@@ -480,10 +501,10 @@ class TimelineViewState extends State<TimelineView> {
     if (versionNotifier == null) {
       list = _buildListView(context);
     } else {
-      list = ValueListenableBuilder<int>(
-        valueListenable: versionNotifier,
-        builder: (context, _, __) => _buildListView(context),
-      );
+list = AnimatedBuilder(
+      animation: versionNotifier,
+      builder: (context, _) => _buildListView(context),
+    );
     }
     return list;
   }

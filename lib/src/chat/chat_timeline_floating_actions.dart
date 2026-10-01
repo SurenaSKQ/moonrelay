@@ -23,13 +23,20 @@ import 'package:moonrelay/src/settings/motion.dart';
 /// composer.  Hides the entire column when the user is parked at the
 /// bottom of the timeline *and* the room has no unread messages.
 ///
-/// Two pills are supported:
-///   1. Jump-to-unread: shown when the room has unread messages
-///      below the current viewport.  Takes visual priority when both
-///      pills are visible.
-///   2. Scroll-to-bottom: shown when the user has scrolled up away
-///      from the newest messages.  Lets them jump back without
-///      dragging all the way down.
+/// Two pills, and both can be on screen at once:
+///
+///   1. Jump-to-unread: shown when the room has unread messages below the
+///      current viewport.  Jumps to the first unread message in time,
+///      loading a history window if that point is not in the cache.
+///   2. Jump-to-bottom: shown when the user has scrolled up away from the
+///      newest messages.  Scrolls to the live head, which is in the same
+///      render list as any history windows, so it is the same action
+///      whether or not windows are loaded.
+///
+/// They answer different questions ("where is the unread", "where is the
+/// new") and a room with unreads while scrolled up has both. An earlier
+/// version of this class documented a priority between them; that was wrong,
+/// and so was the code, because it only ever rendered one at a time.
 ///
 /// Each pill animates in and out independently so a single state
 /// change does not cause the whole column to pop.
@@ -40,10 +47,9 @@ class ChatTimelineFloatingActions extends StatelessWidget {
     required this.isScrolledUp,
     required this.unreadVisible,
     required this.onJumpToUnread,
-    required this.onScrollToBottom,
+    required this.onJumpToBottom,
     required this.onDismissUnread,
     required this.isJumping,
-    this.onBackToLive,
     this.loadingContext = false,
   });
 
@@ -51,7 +57,15 @@ class ChatTimelineFloatingActions extends StatelessWidget {
   final bool isScrolledUp;
   final bool unreadVisible;
   final Future<void> Function() onJumpToUnread;
-  final VoidCallback onScrollToBottom;
+
+  /// Scrolls to the newest message.
+  ///
+  /// Not a "back to latest" mode. That existed because the timeline used to
+  /// be *substituted* with a history window, so returning to the live head
+  /// meant rebuilding the timeline and discarding the window. With the
+  /// windows in the same list as the tail, jumping to the bottom is a scroll
+  /// like any other and the two cases collapse into one.
+  final VoidCallback onJumpToBottom;
 
   /// Tapping the close icon on the jump-to-unread pill invokes this.
   /// The pill is dismissed but the unread events themselves remain
@@ -64,12 +78,6 @@ class ChatTimelineFloatingActions extends StatelessWidget {
   /// the user has feedback that the tap was registered.
   final bool isJumping;
 
-  /// When set, the timeline is showing a history window around a
-  /// specific event rather than the live tail, and the bottom pill
-  /// becomes "back to latest".  Without it the bottom pill is the
-  /// ordinary "scroll to bottom".
-  final VoidCallback? onBackToLive;
-
   /// True while a jump is fetching a `/context` window for an event
   /// that is not in the local cache.  Occupies the unread pill's slot
   /// so the user gets feedback that the tap registered.
@@ -80,7 +88,6 @@ class ChatTimelineFloatingActions extends StatelessWidget {
     final motion = Motion.of(context);
     final animDuration = motion.duration(const Duration(milliseconds: 180));
     final animCurve = motion.curve();
-    final backToLive = onBackToLive;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -115,11 +122,10 @@ class ChatTimelineFloatingActions extends StatelessWidget {
             duration: animDuration,
             switchInCurve: animCurve,
             switchOutCurve: animCurve,
-            child: isScrolledUp || backToLive != null
+            child: isScrolledUp
                 ? ScrollToBottomPill(
                     key: const ValueKey('scroll-to-bottom'),
-                    onTap: backToLive ?? onScrollToBottom,
-                    backToLatest: backToLive != null,
+                    onTap: onJumpToBottom,
                   )
                 : const SizedBox(
                     key: ValueKey('scroll-to-bottom-empty'),
@@ -179,18 +185,12 @@ class ContextLoadingPill extends StatelessWidget {
 }
 
 /// Floating action button shown when the user is away from the newest
-/// messages.  Normally "scroll to bottom", which animates within the
-/// current window; when [backToLatest] is set the timeline is anchored
-/// on a specific event and the pill reloads the live tail instead.
+/// messages.  Always "jump to bottom", which animates to the live head
+/// within the current render list.
 class ScrollToBottomPill extends StatelessWidget {
-  const ScrollToBottomPill({
-    super.key,
-    required this.onTap,
-    this.backToLatest = false,
-  });
+  const ScrollToBottomPill({super.key, required this.onTap});
 
   final VoidCallback onTap;
-  final bool backToLatest;
 
   @override
   Widget build(BuildContext context) {
@@ -211,13 +211,13 @@ class ScrollToBottomPill extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  backToLatest ? LucideIcons.cornerUpLeft : LucideIcons.arrowDown,
+                  LucideIcons.arrowDown,
                   size: 14,
                   color: scheme.onSecondaryContainer,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  backToLatest ? l10n.backToLatest : l10n.scrollToBottom,
+                  l10n.scrollToBottom,
                   style: TextStyle(
                     color: scheme.onSecondaryContainer,
                     fontSize: 13,

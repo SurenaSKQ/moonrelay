@@ -28,6 +28,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';
 import 'package:matrix/src/models/timeline_chunk.dart';
+import 'package:matrix/src/utils/cached_stream_controller.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/chat_timeline.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -117,17 +118,30 @@ class RenderableRoom extends Mock implements Room {
 
   final RenderableTimeline live;
 
-  /// Timeline returned for a `getTimeline(eventContextId:)` call.
-  RenderableTimeline? context;
+  /// Events a `/context` request should return, newest-first.
+  List<Event> contextEvents = [];
 
-  /// Every `eventContextId` this room was asked to build a window for.
+  /// Per-target windows, so a test can make two jumps land in two
+  /// different places and prove the first one survives.
+  ///
+  /// Falls back to [contextEvents] when the target is not listed.
+  final Map<String, List<Event>> contextsByTarget = {};
+
+  /// Pagination tokens handed back with a `/context` window.
+  ///
+  /// Both empty is a window anchored to nothing, which renders as a dead
+  /// end and is refused rather than shown.
+  String contextPrevBatch = 'tok';
+  String contextNextBatch = 'tok';
+
+  /// Every event id this room was asked to build a window for.
   final List<String> contextRequests = [];
 
   /// Event ids passed to `setReadMarker`, in call order.
   final List<String?> posted = [];
 
-  /// When set, [getTimeline] throws for a context request, simulating a
-  /// purged or inaccessible event.
+  /// When set, [getEventContext] throws, simulating a purged or
+  /// inaccessible event.
   bool failContextRequests = false;
 
   String fullyReadId = '';
@@ -146,6 +160,14 @@ class RenderableRoom extends Mock implements Room {
 
   @override
   Membership get membership => Membership.join;
+
+  /// The `Timeline` constructor subscribes to this one, so a real
+  /// `Timeline` built for a history window needs it.
+  @override
+  CachedStreamController<String> get onSessionKeyReceived =>
+      _sessionKeyController;
+  final CachedStreamController<String> _sessionKeyController =
+      CachedStreamController<String>();
 
   @override
   // ignore: non_constant_identifier_names
@@ -172,13 +194,28 @@ class RenderableRoom extends Mock implements Room {
   }) async {
     _onUpdate = onUpdate;
     _onInsert = onInsert;
+    return live;
+  }
 
-    if (eventContextId == null) return live;
-    contextRequests.add(eventContextId);
+  /// The real path for a history window, and the one stage 5 uses.
+  ///
+  /// Returns a `TimelineChunk` rather than a whole `Timeline`, because the
+  /// window becomes a segment inside a `TimelineStore` instead of
+  /// replacing the live tail.
+  @override
+  Future<TimelineChunk?> getEventContext(String eventId) async {
+    contextRequests.add(eventId);
     if (failContextRequests) {
-      throw Exception('no access to $eventContextId');
+      throw Exception('no access to $eventId');
     }
-    return context ?? live;
+    final events =
+        contextsByTarget[eventId] ?? (contextEvents.isEmpty ? null : contextEvents);
+    if (events == null) return null;
+    return TimelineChunk(
+      events: List.of(events),
+      prevBatch: contextPrevBatch,
+      nextBatch: contextNextBatch,
+    );
   }
 
   /// Simulates a sync landing a new message at the head of the room.
@@ -209,6 +246,17 @@ class RenderableRoom extends Mock implements Room {
 Client _makeClient() {
   final client = MockClient();
   when(() => client.userID).thenReturn('@me:example.com');
+  // Constructing a real `Timeline` for a history window subscribes it to
+  // these five streams in its constructor, so all of them have to be real
+  // stream controllers rather than mocktail's default of throwing.
+  when(() => client.onTimelineEvent)
+      .thenAnswer((_) => CachedStreamController<Event>());
+  when(() => client.onHistoryEvent)
+      .thenAnswer((_) => CachedStreamController<Event>());
+  when(() => client.onSync)
+      .thenAnswer((_) => CachedStreamController<SyncUpdate>());
+  when(() => client.onCancelSendEvent)
+      .thenAnswer((_) => CachedStreamController<String>());
   return client;
 }
 
