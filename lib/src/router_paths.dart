@@ -79,8 +79,19 @@ class MoonRoutePaths {
   /// room id that is put into a path here has to be encoded or the second
   /// pass mangles it. A literal `%` is legal in a Matrix room id, so this
   /// is not hypothetical.
-  static String roomChatPath(String roomId) =>
-      '$roomListTemplate/${Uri.encodeComponent(roomId)}';
+  ///
+  /// Pass [query] to attach query parameters, e.g. `event` to have the
+  /// timeline focus a permalinked message. Values are encoded here for the
+  /// same reason the room id is.
+  static String roomChatPath(String roomId, {Map<String, String>? query}) {
+    final path = '$roomListTemplate/${Uri.encodeComponent(roomId)}';
+    if (query == null || query.isEmpty) return path;
+    final encoded = query.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return '$path?$encoded';
+  }
 }
 
 /// The hub path for a section, optionally one of its sub-items.
