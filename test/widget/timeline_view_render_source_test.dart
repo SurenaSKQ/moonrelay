@@ -102,7 +102,7 @@ void main() {
     ScrollController? controller,
     List<List<Event>>? groups,
     Set<int> gapsAfter = const {},
-    void Function(int groupIndex)? onGapApproach,
+    void Function(int groupIndex, bool viewerOnNewerSide)? onGapApproach,
     List<Timeline>? segmentTimelines,
   }) async {
     await tester.pumpWidget(
@@ -330,7 +330,7 @@ group('gaps', () {
     testWidgets('a gap within reach reports the group to grow', (tester) async {
       // The only thing that makes a drawn gap temporary. Without this the
       // marker is permanent and the two windows never meet.
-      final reported = <int>[];
+      final reported = <(int, bool)>[];
       final tail = tailOf(4);
       final window = windowOf(40);
       final version = ValueNotifier<int>(0);
@@ -343,18 +343,18 @@ group('gaps', () {
         groups: [tail, window],
         gapsAfter: const {0},
         version: version,
-        onGapApproach: reported.add,
+        onGapApproach: (group, side) => reported.add((group, side)),
       );
 
       final view = tester.state<TimelineViewState>(find.byType(TimelineView));
       view.reportGapApproach();
 
-      expect(reported, [0],
-          reason: 'group 0 is the newer side, and the one to grow');
+      expect(reported.map((r) => r.$1), [0],
+          reason: 'group 0 is the newer side of the boundary');
     });
 
     testWidgets('no gap within reach reports nothing', (tester) async {
-      final reported = <int>[];
+      final reported = <(int, bool)>[];
       final tail = tailOf(4);
       final window = windowOf(40);
       final version = ValueNotifier<int>(0);
@@ -366,7 +366,7 @@ group('gaps', () {
         timeline: _T(tail),
         groups: [tail, window],
         version: version,
-        onGapApproach: reported.add,
+        onGapApproach: (group, side) => reported.add((group, side)),
       );
 
       final view = tester.state<TimelineViewState>(find.byType(TimelineView));
@@ -377,7 +377,7 @@ group('gaps', () {
     testWidgets('the same gap is not reported twice', (tester) async {
       // A scroll fires this on many consecutive frames while the marker sits
       // near the fold. One report per gap, not one per frame.
-      final reported = <int>[];
+      final reported = <(int, bool)>[];
       final tail = tailOf(4);
       final window = windowOf(40);
       final version = ValueNotifier<int>(0);
@@ -390,7 +390,7 @@ group('gaps', () {
         groups: [tail, window],
         gapsAfter: const {0},
         version: version,
-        onGapApproach: reported.add,
+        onGapApproach: (group, side) => reported.add((group, side)),
       );
 
       final view = tester.state<TimelineViewState>(find.byType(TimelineView));
@@ -398,7 +398,7 @@ group('gaps', () {
       view.reportGapApproach();
       view.reportGapApproach();
 
-      expect(reported, [0]);
+      expect(reported.map((r) => r.$1), [0]);
     });
 
     testWidgets('a gap outside the built range is left alone', (tester) async {
@@ -408,7 +408,7 @@ group('gaps', () {
       // assertions at the bottom; a behavioural test for it cannot work,
       // because a marker far enough to be out of range is never built in the
       // first place.)
-      final reported = <int>[];
+      final reported = <(int, bool)>[];
       final tail = tailOf(200);
       final window = windowOf(40);
       final version = ValueNotifier<int>(0);
@@ -421,7 +421,7 @@ group('gaps', () {
         groups: [tail, window],
         gapsAfter: const {0},
         version: version,
-        onGapApproach: reported.add,
+        onGapApproach: (group, side) => reported.add((group, side)),
       );
 
       final view = tester.state<TimelineViewState>(find.byType(TimelineView));
@@ -436,6 +436,43 @@ group('gaps', () {
       expect(TimelineView.gapPrefetchDistance, lessThan(600));
     });
 
+    testWidgets('the viewer side follows the marker across the viewport',
+        (tester) async {
+      // Which side of the hole the user stands on decides which segment
+      // grows, so it has to be read off the geometry rather than assumed.
+      // The only thing that varies is how much history sits below the marker,
+      // which is what moves it across the viewport centre.
+      Future<(int, bool)?> sideForTail(int tailCount) async {
+        final reported = <(int, bool)>[];
+        final controller = ScrollController();
+        addTearDown(controller.dispose);
+        final tail = tailOf(tailCount);
+        final window = windowOf(40);
+        await pumpView(
+          tester,
+          events: [...tail, ...window],
+          timeline: _T(tail),
+          groups: [tail, window],
+          gapsAfter: const {0},
+          controller: controller,
+          onGapApproach: (group, side) => reported.add((group, side)),
+        );
+        tester.state<TimelineViewState>(find.byType(TimelineView))
+            .reportGapApproach();
+        return reported.isEmpty ? null : reported.single;
+      }
+
+      // A long tail leaves the marker high on screen, so the viewport centre
+      // sits below it, in the tail. The reader is in the newer group and
+      // scrolling up towards history, so the tail is what must grow.
+      expect(await sideForTail(10), (0, true));
+
+      // A short tail leaves the marker low, so the centre sits above it, in
+      // the window. This is the shape a jump to an old event leaves behind:
+      // the reader is in the window and needs to walk back down to the live
+      // edge, so the window is what must grow.
+      expect(await sideForTail(4), (0, false));
+    });
     testWidgets('the read position stops at the gap', (tester) async {
       // The decision: a gap means the messages above are not contiguous with
       // the ones below, so the user has not reached them by scrolling.

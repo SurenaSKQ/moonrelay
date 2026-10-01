@@ -503,9 +503,10 @@ void main() {
     test('closing a gap pages the group above it older', () async {
       // Group 0 is the live tail. A gap after it means events are missing
       // between the tail's oldest and the window's newest, and those are
-      // *older* than the tail's oldest. So the tail pages backwards, which
-      // is the only direction it can take: it is anchored at the newest
-      // event in the room and `pageNewer` on it is permanently impossible.
+      // *older* than the tail's oldest. With the viewer below the marker,
+      // paging the newer side backwards is what reaches them, and it is the
+      // only direction the tail can take: it is anchored at the newest event
+      // in the room and `pageNewer` on it is permanently impossible.
       final tail = _PagingTimeline([_Ev('t1')], chunk: TimelineChunk(events: []))
         ..olderPages.add([_Ev('older')]);
       tail.chunk.prevBatch = 'tok';
@@ -514,7 +515,7 @@ void main() {
         live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
       )..addHistory(_history(['w1'], id: 'w'));
 
-      expect(await store.closeGapAfterGroup(0), 1);
+      expect(await store.closeGapAfterGroup(0, viewerOnNewerSide: true), 1);
       expect(tail.calls, ['b'], reason: 'Direction.b, older, to close');
       expect(_ids(store.flatten()), ['t1', 'older', 'w1']);
     });
@@ -540,11 +541,11 @@ void main() {
 
       expect(store.gapBoundaries(), hasLength(1), reason: 'drawn while the hole is wide');
 
-      await store.closeGapAfterGroup(0);
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: true);
       expect(store.gapBoundaries(), hasLength(1),
           reason: 'half an hour apart is still a gap');
 
-      await store.closeGapAfterGroup(0);
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: true);
       expect(store.gapBoundaries(), isEmpty,
           reason: 'and gone once the two are within the ten-minute tolerance');
     });
@@ -554,9 +555,17 @@ void main() {
       final store = TimelineStore(
         live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
       );
-      expect(await store.closeGapAfterGroup(9), 0);
+      expect(await store.closeGapAfterGroup(9, viewerOnNewerSide: true), 0);
       expect(tail.calls, isEmpty);
-      expect(await store.closeGapAfterGroup(-1), 0);
+      expect(await store.closeGapAfterGroup(-1, viewerOnNewerSide: true), 0);
+      expect(
+        // The last group has no older side, so asking to grow that way finds
+        // nothing rather than paging the group that does exist in the
+        // opposite direction.
+        await store.closeGapAfterGroup(0, viewerOnNewerSide: false),
+        0,
+      );
+      expect(tail.calls, isEmpty);
     });
 
     test('pageOldest targets the oldest segment', () async {
@@ -570,6 +579,132 @@ void main() {
       expect(await store.pageOldest(), 1);
       expect(window.calls, ['b']);
       expect(_ids(store.flatten()), ['tail', 'w', 'older']);
+    });
+
+    test('a viewer above the marker grows the older side newer', () async {
+      // The search case. A user jumps to a result from months ago, so the
+      // window is nowhere near the tail, and the hole between them is the
+      // distance the jump skipped. They scroll down towards the live edge,
+      // so they are in the window, above the marker, and the events they
+      // need are *newer* than their window's newest.
+      final window = _PagingTimeline([_Ev('w1')], chunk: TimelineChunk(events: []))
+        ..newerPages.add([_Ev('w0')]);
+      window.chunk.nextBatch = 'tok';
+      window.allowNewEvent = false;
+
+      final store = TimelineStore(live: _live(['t1']))
+        ..addHistory(_pagingSegment(window, id: 'w'));
+
+      expect(await store.closeGapAfterGroup(0, viewerOnNewerSide: false), 1);
+      expect(window.calls, ['f'], reason: 'Direction.f, newer, from the window');
+      expect(_ids(store.flatten()), ['t1', 'w0', 'w1']);
+    });
+
+    test('the tail is never paged newer, which is impossible anyway', () async {
+      // Guards the side selection itself. Whichever way the user approaches a
+      // boundary, the tail only ever sees `b`; asking it for `f` would throw
+      // from the SDK rather than return nothing.
+      final tail = _PagingTimeline([_Ev('t1')], chunk: TimelineChunk(events: []))
+        ..newerPages.add([_Ev('never')]);
+      tail.chunk.prevBatch = 'tok';
+
+      final window = _PagingTimeline([_Ev('w1')], chunk: TimelineChunk(events: []))
+        ..newerPages.add([_Ev('w0')]);
+      window.chunk.nextBatch = 'tok';
+      window.allowNewEvent = false;
+
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      )..addHistory(_pagingSegment(window, id: 'w'));
+
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: true);
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: false);
+      expect(tail.calls, ['b'], reason: 'only ever backwards');
+      expect(window.calls, ['f']);
+    });
+
+    test('walking down from a distant window reaches the live tail', () async {
+      // The whole point of the newer direction, end to end: a user in a
+      // window from months ago scrolls down and every page lands between the
+      // window and the tail, until there is no hole left and the two run
+      // together. Nothing here ever pages the tail.
+      final tail = _PagingTimeline(
+        [_Ev('t1', DateTime(2025, 6, 15, 12))],
+        chunk: TimelineChunk(events: []),
+      );
+      tail.chunk.prevBatch = 'tok';
+
+      final window = _PagingTimeline(
+        [_Ev('w9', DateTime(2025, 1, 2, 9))],
+        chunk: TimelineChunk(events: []),
+      )
+        ..newerPages.add([
+          _Ev('w8', DateTime(2025, 1, 2, 9, 1)),
+          _Ev('w7', DateTime(2025, 1, 2, 9, 2)),
+        ])
+        ..newerPages.add([
+          _Ev('w6', DateTime(2025, 1, 2, 9, 3)),
+          _Ev('w5', DateTime(2025, 1, 2, 9, 4)),
+        ])
+        ..newerPages.add([
+          _Ev('w4', DateTime(2025, 6, 15, 11)),
+          _Ev('w3', DateTime(2025, 6, 15, 11, 30)),
+          _Ev('w2', DateTime(2025, 6, 15, 11, 45)),
+        ])
+        ..newerPages.add([_Ev('w1', DateTime(2025, 6, 15, 11, 55))]);
+      window.chunk.nextBatch = 'tok';
+      window.allowNewEvent = false;
+
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      )..addHistory(_pagingSegment(window, id: 'w'));
+
+      expect(store.gapBoundaries(), hasLength(1),
+          reason: 'months apart is a gap');
+      expect(tail.calls, isEmpty);
+
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: false);
+      expect(store.gapBoundaries(), hasLength(1), reason: 'still months apart');
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: false);
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: false);
+      expect(store.gapBoundaries(), hasLength(1),
+          reason: 'within the hour but not the ten-minute tolerance');
+
+      await store.closeGapAfterGroup(0, viewerOnNewerSide: false);
+      expect(store.gapBoundaries(), isEmpty, reason: 'the hole is closed');
+      expect(tail.calls, isEmpty,
+          reason: 'the live tail was never asked to walk backwards');
+      expect(window.calls, ['f', 'f', 'f', 'f']);
+
+      // One continuous run now, and the live tail still leads so the newest
+      // event renders at the bottom.
+      expect(_ids(store.flatten()), [
+        't1',
+        'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9',
+      ]);
+    });
+
+    test('a window walked up to the tail stops asking', () async {
+      // Once the window is contiguous and the hole is gone there is nothing
+      // left to fetch downwards, so the exhausted `nextBatch` is what halts
+      // it. Without that the SDK sets `allowNewEvent` and starts feeding the
+      // room's own sending events into a window that is no longer historical.
+      final tail = _PagingTimeline([_Ev('t1')], chunk: TimelineChunk(events: []));
+      final window = _PagingTimeline([_Ev('w1')], chunk: TimelineChunk(events: []));
+      window.chunk.nextBatch = 'tok';
+      window.allowNewEvent = false;
+
+      final segment = _pagingSegment(window, id: 'w');
+      expect(segment.canPageNewer, isTrue);
+      // One page and the token is spent, which is the SDK's own exhaustion
+      // signal rather than anything this class invented.
+      await segment.pageNewer();
+      expect(segment.canPageNewer, isFalse);
+
+      final store = TimelineStore(
+        live: TimelineSegment(id: 'live', timeline: tail, isLive: true),
+      )..addHistory(segment);
+      expect(await store.closeGapAfterGroup(0, viewerOnNewerSide: false), 0);
     });
   });
 
