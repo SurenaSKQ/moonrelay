@@ -355,8 +355,7 @@ class TimelineViewState extends State<TimelineView> {
               bubbleRadius: widget.bubbleRadius,
               threadReplyCount: entry.replyCount,
               itemKey: _eventKeys[ev.eventId],
-              onAction: (action, e) =>
-                  _handleItemAction(action, e, result.eventIdToItemIndex),
+              onAction: (action, e) => _handleItemAction(action, e),
               onEdit: widget.onEdit != null
                   ? () => widget.onEdit!(ev)
                   : null,
@@ -549,19 +548,16 @@ class TimelineViewState extends State<TimelineView> {
     ScrollController controller,
     int targetIdx,
   ) {
-    // The model's index map is built before the undecryptable banner is
-    // prepended and counts only message events, so its indices can be off
-    // by one and it omits date separators and state batches.  Re-derive
-    // the rendered item index and total item count so the fallback
-    // fraction below lands accurately.
-    var idx = targetIdx;
-    final items = _cachedItems;
-    final key = _eventKeys[eventId];
-    if (items != null && items.isNotEmpty && key != null) {
-      final renderedIdx = items.indexWhere((w) => w.key == key);
-      if (renderedIdx >= 0) idx = renderedIdx;
-    }
-    final itemCount = items?.length ?? (idx + 1);
+    // The model's index map counts every rendered entry, the banner at
+    // index 0 included, so [targetIdx] is already the item index and
+    // [_cachedItems.length] is already the item count.
+    //
+    // This used to re-derive both by scanning [_cachedItems] for the
+    // event's key, because the map was off by one whenever a banner was
+    // present and omitted separators and state batches.  Two sources of
+    // truth that disagreed by one; the model is now the only one.
+    final idx = targetIdx;
+    final itemCount = _cachedItems?.length ?? (idx + 1);
 
     setState(() => _highlightedEventId = eventId);
     Future.delayed(const Duration(seconds: 2), () {
@@ -602,10 +598,13 @@ class TimelineViewState extends State<TimelineView> {
   /// Single dispatch for every [TimelineItemAction].  Centralises the
   /// routing so each [TimelineItem] can hand the view a single stable
   /// callback closure (keeping the Element tree reusable across rebuilds).
+  ///
+  /// This used to take the model's index map and never read it. Every
+  /// action routes off the [Event] it was handed, so the parameter was a
+  /// reminder that the map existed at a call site that did not need it.
   void _handleItemAction(
     TimelineItemAction action,
     Event event,
-    Map<String, int> eventIdToItemIndex,
   ) {
     switch (action) {
       case TimelineItemAction.reply:

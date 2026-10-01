@@ -253,9 +253,17 @@ class TimelineItemsResult {
 
   /// Maps each event id to its position in [items].
   ///
-  /// Used by jump-to-event and context-menu lookups.  Only regular
-  /// message events appear here -- state-event batches and separators
-  /// are not individually addressable.
+  /// Used by jump-to-event lookups.  The indices are exact: they count
+  /// every entry [items] contains, including the banner at index 0 and any
+  /// date separators or state batches, so a caller can index [items]
+  /// directly.  Only regular message events are *keys* -- a state-event
+  /// batch and a separator occupy positions but are not individually
+  /// addressable.
+  ///
+  /// This used to be off by one for every event, because the banner was
+  /// `insert`ed at index 0 after the indices were recorded.  A caller that
+  /// trusted it then re-derived the truth by scanning the rendered widget
+  /// list, and the two answers disagreed whenever a banner was present.
   final Map<String, int> eventIdToItemIndex;
 
   /// Number of undecryptable encrypted events in the visible list.
@@ -289,7 +297,13 @@ TimelineItemsResult buildTimelineItems(
   final indices = visibleIndices(events, filterEvents);
   final threadReplyCounts = ThreadUtils.buildThreadReplyCounts(timeline);
 
-  final items = <TimelineItemEntry>[];
+  // Index 0 is reserved for the undecryptable banner from the start, and
+  // the real entry replaces it at the end.  Reserving the slot rather than
+  // `insert(0, ...)` afterwards is what keeps [eventIdToItemIndex] correct:
+  // an `insert` shifts every recorded index by one, which is exactly the bug
+  // this arrangement avoids.  It also means the banner is present even for a
+  // timeline with nothing undecryptable, which the renderer relies on.
+  final items = <TimelineItemEntry>[TimelineItemEntry.forUndecryptable(0)];
   final eventIdToItemIndex = <String, int>{};
   Event? previousVisible;
   int undecryptableCount = 0;
@@ -359,8 +373,9 @@ TimelineItemsResult buildTimelineItems(
     }
   }
 
-  // Always insert the undecryptable banner at index 0.
-  items.insert(0, TimelineItemEntry.forUndecryptable(undecryptableCount));
+  // The banner's count is only known once every event has been walked, so it
+  // is filled in now.  Replacing index 0 leaves every other index untouched.
+  items[0] = TimelineItemEntry.forUndecryptable(undecryptableCount);
 
   return TimelineItemsResult(
     items: items,

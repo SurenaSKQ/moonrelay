@@ -392,7 +392,53 @@ void main() {
       expect(result.items[1].event!.eventId, 'msg');
       expect(result.items[1].isGroupStart, isTrue);
       expect(result.items[1].isGroupContinuation, isFalse);
-      expect(result.eventIdToItemIndex['msg'], 0);
+      // Index 1, not 0. This used to assert 0, which is the bug rather
+      // than the behaviour: the banner occupies index 0, and the map is
+      // documented as indexing [items] directly.
+      expect(result.eventIdToItemIndex['msg'], 1);
+    });
+
+    test('every event index points at that event in the item list', () {
+      // The invariant that makes the map usable for a jump without the
+      // caller re-deriving the truth. Deliberately mixes the entry kinds
+      // that were the sources of disagreement: the banner at index 0, a
+      // date separator, a state-event batch, and two messages.
+      final events = [
+        _TestEvent(
+          eventId: 'newest',
+          type: EventTypes.Message,
+          senderId: '@alice:dom',
+          originServerTs: DateTime(2024, 6, 16, 9, 0, 0),
+        ),
+        _TestEvent(
+          eventId: 'older',
+          type: EventTypes.Message,
+          senderId: '@alice:dom',
+          originServerTs: DateTime(2024, 6, 15, 9, 0, 0),
+        ),
+        _TestEvent(
+          eventId: 'member',
+          type: EventTypes.RoomMember,
+          senderId: '@bob:dom',
+          originServerTs: DateTime(2024, 6, 15, 8, 0, 0),
+        ),
+      ];
+      final result = buildTimelineItems(_StubTimeline(events));
+
+      expect(result.eventIdToItemIndex, isNotEmpty);
+      for (final entry in result.eventIdToItemIndex.entries) {
+        final index = entry.value;
+        expect(index, inInclusiveRange(0, result.items.length - 1),
+            reason: '${entry.key} at $index is outside the item list');
+        expect(result.items[index].event?.eventId, entry.key,
+            reason: 'index $index holds a different event than ${entry.key}');
+      }
+
+      // And the entries between are the ones the map has no key for, so a
+      // caller cannot assume "index + 1" is the next event.
+      final kinds = result.items.map((e) => e.kind).toList();
+      expect(kinds, contains(TimelineItemKind.dateSeparator));
+      expect(kinds, contains(TimelineItemKind.stateEventBatch));
     });
 
     test('groups consecutive same-sender events within 10 min', () {
