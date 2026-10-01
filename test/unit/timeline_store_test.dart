@@ -22,6 +22,7 @@
 // scan that silently disagreed with it.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart' as lg;
 import 'package:matrix/matrix.dart';
 // `TimelineChunk` is not exported by `package:matrix/matrix.dart`, only
 // imported by `src/timeline.dart`. A deep import is the established
@@ -135,17 +136,42 @@ class _PagingTimeline extends _T {
 }
 
 TimelineSegment _pagingSegment(
-  _PagingTimeline timeline, {
-  String id = 'w',
-  bool isLive = false,
-  String? anchor,
-}) =>
-    TimelineSegment(
-      id: id,
-      timeline: timeline,
-      isLive: isLive,
-      anchorEventId: anchor,
+    _PagingTimeline timeline, {
+    String id = 'w',
+    bool isLive = false,
+    String? anchor,
+    lg.Logger? logger,
+  }) =>
+      TimelineSegment(
+        id: id,
+        timeline: timeline,
+        isLive: isLive,
+        anchorEventId: anchor,
+        logger: logger,
+      );
+
+/// Collects the store's warnings so a test can assert a message was logged.
+///
+/// The store takes a `Logger`, so the alternative is a mock with no way to
+/// assert on text; capturing the formatted output keeps the assertion on what
+/// someone reading the log file would actually see. `logger` is aliased
+/// because `matrix` exports a `Level` of its own.
+lg.Logger _capturingLogger(List<String> into) => lg.Logger(
+      printer: _RecordingPrinter(into),
+      level: lg.Level.warning,
     );
+
+class _RecordingPrinter extends lg.LogPrinter {
+  _RecordingPrinter(this.lines);
+
+  final List<String> lines;
+
+  @override
+  List<String> log(lg.LogEvent event) {
+    lines.add('${event.level.name} ${event.message}');
+    return lines;
+  }
+}
 
 /// Builds a segment from event ids, which is what every case here cares
 /// about. Taking ids rather than events keeps the tests readable; the
@@ -933,6 +959,30 @@ void main() {
 
       expect(await _pagingSegment(timeline).pageOlder(), 0);
       expect(timeline.calls, isEmpty);
+    });
+
+    test('an exhausted page is logged, not silent', () async {
+      // A gap closer that cannot page must be distinguishable from one that
+      // paged successfully and got nothing back. Both return 0, neither
+      // bumps the version, and neither changes the marker, so without a log
+      // line a hole that has become permanent is invisible in the UI and in
+      // the tests. The store takes an optional logger for exactly this.
+      final warnings = <String>[];
+      final timeline =
+          _PagingTimeline([_Ev('w')], chunk: TimelineChunk(events: []))
+            ..roomPrevBatchIsNull = true;
+      timeline.chunk.prevBatch = '';
+
+      final segment = _pagingSegment(
+        timeline,
+        id: 'window',
+        logger: _capturingLogger(warnings),
+      );
+      expect(await segment.pageOlder(), 0);
+      expect(warnings, hasLength(1));
+      expect(warnings.single, contains('window'));
+      expect(warnings.single, contains('b'),
+          reason: 'names the direction it refused');
     });
 
     test('returns 0 and does not throw when the request fails', () async {
