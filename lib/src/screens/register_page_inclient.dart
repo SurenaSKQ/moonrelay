@@ -205,7 +205,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
                           onLast: _doRegister,
                         ),
                         decoration: InputDecoration(
-                          hintText: l10n.usernameHint,
+                          hintText: l10n.registerUsernameHint,
                           prefixIcon: const Icon(LucideIcons.user, size: 18),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(t.radiusMd),

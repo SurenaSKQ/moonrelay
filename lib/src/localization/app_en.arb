@@ -156,7 +156,7 @@
   "registerTitle": "Create Account",
   "registerHomeserverHint": "matrix.org",
   "usernameText": "Username",
-  "usernameHint": "Choose a username",
+  "registerUsernameHint": "Choose a username",
   "confirmPasswordLabel": "Confirm password",
   "agreeToTerms": "I agree to the Terms of Service of this homeserver",
   "creatingAccount": "Creating account…",
@@ -558,9 +558,7 @@
     }
   },
 
-  "messageDetails": "Message Details",
   "senderSection": "Sender",
-  "displayNameLabel": "Display name",
   "userIdLabel": "User ID",
   "timestampsSection": "Timestamps",
   "sentAt": "Sent at",
