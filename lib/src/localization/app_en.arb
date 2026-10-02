@@ -124,7 +124,7 @@
   "ssoAutomaticFailed": "Automatic SSO login failed. You can try manually below.",
   "ssoLocalServerError": "Could not start local server. Trying manual method.",
   "ssoWaitingForToken": "Waiting for the login token from your browser…",
-  "ssoTokenDetected": "Login token received! Completing sign-in…",
+  "ssoTokenDetected": "Login token received. Completing sign-in…",
   "ssoPasteManually": "Paste token manually",
   "ssoConfirmHomeserverTitle": "Continue with single sign-on?",
   "@ssoConfirmHomeserverTitle": {
@@ -676,7 +676,7 @@
     }
   },
   "profileLoadTimeout": "Could not load profile: The server did not respond in time.",
-  "noDisplayNameSet": "You have not set a display name!",
+  "noDisplayNameSet": "You have not set a display name.",
 
   "profilePageTitle": "Profile View",
   "userProfilePageBanner": "{username}'s Profile",
@@ -685,7 +685,7 @@
       "username": { "type": "String" }
     }
   },
-  "userNoDisplayNameSet": "The user has not set a display name!",
+  "userNoDisplayNameSet": "The user has not set a display name.",
 
   "encryptionSecurity": "Encryption & Security",
   "encryptionSetupTitle": "Encryption Setup",
@@ -849,8 +849,8 @@
   "encryptionWaitingForOther": "Waiting for the other device…",
   "encryptionVerificationWaitingDesc": "The verification request has been sent.",
   "encryptionWaitingForSas": "Waiting for the emoji/number comparison…",
-  "encryptionDone": "Encryption Setup Complete!",
-  "encryptionVerificationDone": "Verification Complete!",
+  "encryptionDone": "Encryption setup complete",
+  "encryptionVerificationDone": "Verification complete",
   "encryptionVerificationFailed": "Verification Failed",
 
   "encryptionVerified": "Verified",
@@ -1163,7 +1163,7 @@
 
   "roomNotFound": "Room not found",
   "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
-  "stillWaitingForServer": "Still waiting for the server...",
+  "stillWaitingForServer": "Still waiting for the server…",
   "noRoomSelected": "No room selected",
   "noRoomSelectedHint": "Pick a room from the sidebar to start reading or chatting.",
 
@@ -1979,7 +1979,7 @@
   "@aboutJoinSupportSpace": {
     "description": "Button to navigate to the Moonrelay support Matrix space home."
   },
-  "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
+  "aboutJoinedSupportSpace": "Joined Moonrelay Support space",
   "@aboutJoinedSupportSpace": {
     "description": "Snackbar confirmation after joining the support space."
   },
@@ -2952,7 +2952,7 @@
   "@deepLinkAutoJoin": {
     "description": "Toggle that controls whether matrix.to / matrix: links auto-join rooms."
   },
-  "deepLinkAutoJoinDescription": "When on, opening a matrix link joins the room.  When off, unknown rooms open as previews.",
+  "deepLinkAutoJoinDescription": "When on, opening a matrix link joins the room. When off, unknown rooms open as previews.",
   "@deepLinkAutoJoinDescription": {
     "description": "Subtitle for the deep-link auto-join toggle."
   },
