@@ -53,7 +53,7 @@ class MessageDetailsPage extends StatelessWidget {
           // --- Sender section ---
           _SectionHeader(title: l10n.senderSection, cs: cs),
           _InfoRow(
-              label: l10n.displayNameLabel, value: sender.calcDisplayname()),
+              label: l10n.displayName, value: sender.calcDisplayname()),
           _InfoRow(label: l10n.userIDLabel, value: sender.id, mono: true),
           const Divider(),
 

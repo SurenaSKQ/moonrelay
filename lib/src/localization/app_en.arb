@@ -28,7 +28,6 @@
   "cancel": "Cancel",
   "ok": "OK",
   "retry": "Retry",
-  "back": "Back",
   "error": "Error",
   "warning": "Warning",
   "unknown": "Unknown",
@@ -269,7 +268,6 @@
   "messageCopiedToClipboard": "Message copied to clipboard",
   "deleteMessage": "Delete message",
   "areYouSureDeleteMessage": "Are you sure you want to delete this message?",
-  "delete": "Delete",
   "failedToDelete": "Failed to delete: {error}",
   "@failedToDelete": {
     "placeholders": {
@@ -359,7 +357,6 @@
   "actionsSection": "Actions",
 
   "roleLabel": "Role",
-  "statusLabel": "Status",
   "reportUserReason": "Please describe why you are reporting this user.",
   "reportUserHint": "Reason for report…",
   "reportUserDefaultReason": "Reported via Moonrelay",
@@ -764,10 +761,6 @@
     "description": "Button label to re-launch the bootstrap wizard specifically to recreate key backup."
   },
   "encryptionSetupCrossSigningFirst": "Set up cross-signing first",
-  "encryptionBackupAlgorithm": "Algorithm",
-  "@encryptionBackupAlgorithm": {
-    "description": "Label for the backup-algorithm detail line in the encryption overview."
-  },
   "encryptionVerifiedUsers": "Verified Users",
   "encryptionUnverifiedOwn": "My unverified devices",
   "encryptionUnverifiedOther": "Unverified other users",
@@ -1001,7 +994,6 @@
   "paneMembers": "Members",
 
   "displayName": "Display Name",
-  "displayNameLabel": "Display name",
   "userIDLabel": "User ID",
 
   "logoutError": "Logout error: {error}",
@@ -1014,7 +1006,7 @@
   "privacyPolicyText": "Moonrelay does not transmit any information beyond what is necessary for the application's operation. We do not collect data, run telemetry, or serve advertisements. Any content shared through the Matrix network falls outside this privacy policy; it resides on Matrix homeservers and is subject to their respective policies.",
 
   "encryptedTooltip": "Encrypted",
-  "notEncryptedTooltip": "Not encrypted",
+  "notEncryptedTooltip": "Not Encrypted",
   "verifiedTooltip": "Verified",
   "unverifiedTooltip": "Unverified",
 

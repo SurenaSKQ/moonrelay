@@ -897,7 +897,6 @@
   "paneRoomInfo": "اطلاعات اتاق",
   "paneMembers": "اعضا",
   "displayName": "نام نمایشی",
-  "displayNameLabel": "نام نمایشی",
   "userIDLabel": "شناسه کاربر",
   "logoutError": "خطای خروج: {error}",
   "@logoutError": {

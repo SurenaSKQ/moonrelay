@@ -139,6 +139,55 @@ void main() {
         );
       },
     );
+
+/// Catches a key defined twice in one ARB file.
+///
+/// `jsonDecode` keeps the *last* occurrence and says nothing, so a duplicate
+/// key is a silent shadowed definition rather than an error. That is not
+/// hypothetical: `usernameHint` was defined once in the login block and again
+/// in the register block with a different value, the register copy won, and
+/// the login field labelled "Username or email" was showing "Choose a
+/// username" as its hint instead of the Matrix ID example. The Persian file,
+/// which only had the first definition, had silently diverged at the same
+/// time. Seven such duplicates were live at the time of writing.
+///
+/// This is deliberately narrow. It says nothing about capitalisation: the
+/// app uses Title Case for labels ("Display Name", "Room Info") and sentence
+/// case for values that read as part of a sentence ("End-to-end encrypted"),
+/// and no automated check can tell a deliberate role distinction from an
+/// oversight. That is a convention question, not a lint.
+    test('no key is defined twice in one ARB file', () async {
+      final arbDir = Directory(localizationDir);
+      final arbs = arbDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.arb'))
+          .toList();
+
+      for (final f in arbs) {
+        final locale = _localeFromPath(f.path);
+        final content = await f.readAsString();
+        // Key order survives in a plain string scan, and jsonDecode is
+        // exactly what hides the problem, so count on the raw text instead.
+        final counts = <String, int>{};
+        for (final line in const LineSplitter().convert(content)) {
+          final match = RegExp(r'^\s{2}"([^"]+)":').firstMatch(line);
+          if (match == null) continue;
+          final key = match.group(1)!;
+          if (key.startsWith('@')) continue;
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
+        final repeated =
+            counts.entries.where((e) => e.value > 1).map((e) => e.key).toList()
+              ..sort();
+        expect(
+          repeated,
+          isEmpty,
+          reason: '$locale defines these keys more than once; jsonDecode '
+              'silently keeps the last one: $repeated',
+        );
+      }
+    });
   });
 }
 
