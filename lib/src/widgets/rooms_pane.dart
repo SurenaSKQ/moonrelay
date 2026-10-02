@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption_badge.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:provider/provider.dart';
 
@@ -230,34 +231,37 @@ class _RoomsPaneState extends State<RoomsPane> {
 
     return Material(
       child: Builder(builder: (context) {
+        // -- Error state: the last sync failed and there is nothing to show
+        //
+        // This branch has to come before the loading branch, because a
+        // client that can never sync stays "not yet synced" forever and
+        // would otherwise spin indefinitely.
+        //
+        // The signal is the *current* sync status, not `client.syncError`.
+        // The SDK sets `syncError` on a failure and never clears it, so it
+        // means "a sync failed at some point" rather than "sync is failing
+        // now", and using it here would leave one transient blip showing a
+        // permanent error to a client that has been syncing fine since.
+        //
+        // There is no retry button. The SDK's sync loop already retries every
+        // few seconds and exposes no way to force one, so a button here would
+        // do nothing at all. Saying what is happening is the honest
+        // affordance.
+        if (filtered != null &&
+            filtered.isEmpty &&
+            !_hasReceivedSync(client) &&
+            _hasSyncError(client)) {
+          return EmptyState(
+            icon: LucideIcons.cloudOff,
+            title: l10n.syncFailedTitle,
+            message: l10n.syncFailedDescription,
+          );
+        }
+
         // -- Loading state: waiting for initial sync ----------------
         if (filtered == null ||
             (filtered.isEmpty && !_hasReceivedSync(client))) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(t.spaceXl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: t.spaceXl,
-                    height: t.spaceXl,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: scheme.primary,
-                    ),
-                  ),
-                  SizedBox(height: t.spaceLg),
-                  Text(
-                    l10n.loadingRooms,
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return PaneLoading(label: l10n.loadingRooms);
         }
 
         // -- Empty state: synced but no matching rooms ---------------
@@ -313,9 +317,41 @@ class _RoomsPaneState extends State<RoomsPane> {
   /// Returns true if the SDK has produced at least one sync tick.
   ///
   /// We don't have a direct flag for this, so we use `client.rooms.isNotEmpty`
-  /// as a proxy and fall back to the cached initial-state assumption.
-  bool _hasReceivedSync(Client client) =>
-      client.prevBatch != null || client.rooms.isNotEmpty;
+  /// and `client.prevBatch` as proxies and fall back to the cached
+  /// initial-state assumption.
+  ///
+  /// A completed sync counts, whichever way the other two fall. Without that,
+  /// an account with genuinely no rooms never satisfies either proxy, and the
+  /// pane sat on "Loading rooms..." forever instead of showing its empty
+  /// state. A finished sync *is* the answer, even when the answer is nothing.
+  bool _hasReceivedSync(Client client) {
+    if (client.prevBatch != null || client.rooms.isNotEmpty) return true;
+    try {
+      return client.onSyncStatus.value?.status == SyncStatus.finished;
+    } catch (_) {
+      // Not in tree, or the client is being torn down. Neither means a sync
+      // completed, so the conservative answer is "not yet".
+      return false;
+    }
+  }
+
+  /// Whether the client's most recent sync status was an error.
+  ///
+  /// Reads the cached status rather than subscribing: [RoomsPane] already
+  /// rebuilds on the debounced [SyncPulse], and a room arriving after a
+  /// successful sync moves this pane off the error branch anyway.
+  ///
+  /// The catch is for the logout window, where the client is already gone
+  /// and its status stream has nothing left to give.
+  static bool _hasSyncError(Client client) {
+    try {
+      return client.onSyncStatus.value?.status == SyncStatus.error;
+    } catch (_) {
+      // Not in tree, or the client is being torn down. Neither is an error
+      // the user needs told about, and both are indistinguishable here.
+      return false;
+    }
+  }
 }
 
 /// Joins the [room] (if not already a member) and navigates to it.

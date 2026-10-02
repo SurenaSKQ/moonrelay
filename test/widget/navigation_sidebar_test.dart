@@ -39,6 +39,7 @@ import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/room_list_filter.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
@@ -765,6 +766,60 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(sidebarRowAccentBarKey), findsNothing);
+    });
+  });
+  group('RoomPane first-load failure', () {
+    // A client that can never sync never becomes "synced", so the pane used
+    // to sit on its loading spinner forever and never say anything. This
+    // asserts it says something instead.
+    Future<void> pumpWithStatus(
+      WidgetTester tester,
+      SyncStatus? status,
+    ) async {
+      final client = MockClient();
+      when(() => client.rooms).thenReturn(<Room>[]);
+      when(() => client.prevBatch).thenReturn(null);
+      final statusController = CachedStreamController<SyncStatusUpdate>();
+      when(() => client.onSyncStatus).thenReturn(statusController);
+      if (status != null) {
+        statusController.add(SyncStatusUpdate(status));
+      }
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SyncPulse>.value(value: SyncPulse()),
+          ],
+          child: wrapWithProviders(
+            client: client,
+            encryptionService: MockEncryptionService(),
+            child: const Scaffold(
+              body: SizedBox(width: 320, child: RoomsPane()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('a failed sync is reported, not spun on', (tester) async {
+      await pumpWithStatus(tester, SyncStatus.error);
+      expect(find.text('Cannot reach your homeserver'), findsOneWidget);
+      expect(find.byType(PaneLoading), findsNothing);
+    });
+
+    testWidgets('a pending sync still waits', (tester) async {
+      await pumpWithStatus(tester, SyncStatus.waitingForResponse);
+      expect(find.text('Cannot reach your homeserver'), findsNothing);
+      expect(find.byType(PaneLoading), findsOneWidget);
+    });
+
+    testWidgets('a finished sync with no rooms is empty, not failed',
+        (tester) async {
+      await pumpWithStatus(tester, SyncStatus.finished);
+      expect(find.text('Cannot reach your homeserver'), findsNothing);
+      expect(find.text('No rooms yet'), findsOneWidget);
     });
   });
 }

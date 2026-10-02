@@ -600,6 +600,8 @@
   },
 
   "loadingRooms": "Loading rooms…",
+  "syncFailedTitle": "Cannot reach your homeserver",
+  "syncFailedDescription": "The last sync failed and Moonrelay is still retrying. Your messages will appear once the connection is back.",
   "noRoomsYet": "No rooms yet",
   "noMessages": "No messages",
   "couldNotJoinRoomTimeout": "Could not join room: The server did not respond in time.",
