@@ -627,6 +627,10 @@
   "accentColor": "Accent colour",
   "accentColorDesc": "Choose the accent colour used across the app.",
   "chatDisplayType": "Chat display type",
+  "fontSize": "Font size",
+  "messageFontSize": "Message font size",
+  "uiScale": "UI scale",
+  "interfaceScale": "Interface scale",
 
   "leftSidebar": "Left sidebar",
   "visible": "Visible",

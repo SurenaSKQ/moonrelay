@@ -162,11 +162,11 @@ class HubAppearanceSettings extends StatelessWidget {
 
               // Font size
               HubSettingsSection(
-                title: 'Font size',
+                title: l10n.fontSize,
                 children: [
                   ListTile(
                     leading: const Icon(LucideIcons.type),
-                    title: const Text('Message font size'),
+                    title: Text(l10n.messageFontSize),
                     subtitle: Text('${controller.fontSize.round()} px'),
                     trailing: SizedBox(
                       width: 160,
@@ -184,11 +184,11 @@ class HubAppearanceSettings extends StatelessWidget {
               ),
               // UI scale
               HubSettingsSection(
-                title: 'UI scale',
+                title: l10n.uiScale,
                 children: [
                   ListTile(
                     leading: const Icon(LucideIcons.zoomIn),
-                    title: const Text('Interface scale'),
+                    title: Text(l10n.interfaceScale),
                     subtitle: Text('${controller.uiScale.toStringAsFixed(1)}×'),
                     trailing: SizedBox(
                       width: 160,

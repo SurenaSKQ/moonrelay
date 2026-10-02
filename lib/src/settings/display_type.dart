@@ -14,21 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/// How a message row is laid out.
+///
+/// The ordinal is persisted (`SharedPreferences` stores the index), so the
+/// declaration order is part of the on-disk format. Inserting a value in
+/// the middle would silently reinterpret every user's saved choice.
+///
+/// User-facing names for these live in the ARB as `displayModern`,
+/// `displayIrc`, and `displayBubbles`, and the settings page reads them
+/// there. There used to be a `DisplayTypeExtension.label` returning the
+/// English strings directly; nothing referenced it, so a rename would have
+/// been a silent no-op on every language but English.
 enum DisplayType {
   modern,
   irc,
   bubbles,
-}
-
-extension DisplayTypeExtension on DisplayType {
-  String get label {
-    switch (this) {
-      case DisplayType.modern:
-        return "Modern";
-      case DisplayType.irc:
-        return "IRC";
-      case DisplayType.bubbles:
-        return "Bubbles";
-    }
-  }
 }

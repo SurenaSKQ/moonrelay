@@ -14,8 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+
+/// User-facing names for each display type, keyed by the ARB convention
+/// `display` + the PascalCase enum name.  Derived from the enum so adding a
+/// value without a label is a failing test rather than a blank radio button.
+String _labelKey(DisplayType type) {
+  final name = type.name;
+  return 'display${name[0].toUpperCase()}${name.substring(1)}';
+}
 
 void main() {
   group('DisplayType', () {
@@ -30,25 +41,43 @@ void main() {
       // When parsed from index 0, it should be modern
       expect(DisplayType.values[0], DisplayType.modern);
     });
+
+    test('the ordinal is stable, because it is the persisted format', () {
+      // SettingsService stores the enum *index*, not the name.  Inserting a
+      // value in the middle would silently reinterpret every saved choice.
+      expect(DisplayType.values, [
+        DisplayType.modern,
+        DisplayType.irc,
+        DisplayType.bubbles,
+      ]);
+    });
   });
 
-  group('DisplayTypeExtension', () {
-    test('modern label is "Modern"', () {
-      expect(DisplayType.modern.label, 'Modern');
+  group('DisplayType labels', () {
+    late Map<String, dynamic> arb;
+
+    setUpAll(() {
+      final file = File('lib/src/localization/app_en.arb');
+      arb = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     });
 
-    test('irc label is "IRC"', () {
-      expect(DisplayType.irc.label, 'IRC');
-    });
-
-    test('bubbles label is "Bubbles"', () {
-      expect(DisplayType.bubbles.label, 'Bubbles');
-    });
-
-    test('all labels are non-empty', () {
+    test('every display type has a non-empty label in the ARB', () {
       for (final type in DisplayType.values) {
-        expect(type.label.isNotEmpty, isTrue);
+        final value = arb[_labelKey(type)];
+        expect(
+          value,
+          isA<String>(),
+          reason: 'missing ARB key "${_labelKey(type)}" for $type',
+        );
+        expect((value! as String).trim(), isNotEmpty);
       }
     });
+
+    // Only the forward direction is asserted.  The reverse ("no unclaimed
+    // `display*` key") would need an exclusion list, because `displayName`,
+    // `displayNameHint`, and `displayNameUpdated` are profile strings that
+    // share the prefix, and that list would go stale the next time one is
+    // added.  A missing label is the failure a user can see; an extra key is
+    // not.
   });
 }
