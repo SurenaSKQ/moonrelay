@@ -154,10 +154,81 @@ class MoonrelayDesignTokens {
   /// The corner radius every rounded surface is derived from.
   static const double baseCornerRadius = 12.0;
 
+  /// Light-theme shadows: a tight contact shadow directly under a wider,
+  /// weaker ambient one.
+  ///
+  /// The split between the two layers matters more than either opacity. A
+  /// single soft shadow reads as a glow around an object; a contact shadow
+  /// directly beneath a broad ambient one reads as a surface sitting above
+  /// another. One layer cannot do both jobs at once.
+  static const ({
+    List<BoxShadow> low,
+    List<BoxShadow> medium,
+    List<BoxShadow> high,
+  }) _lightShadowScale = (
+    low: <BoxShadow>[
+      BoxShadow(color: Color(0x0D000000), blurRadius: 1, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x14000000), blurRadius: 3, offset: Offset(0, 1)),
+    ],
+    medium: <BoxShadow>[
+      BoxShadow(color: Color(0x0F000000), blurRadius: 2, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x1F000000), blurRadius: 8, offset: Offset(0, 3)),
+    ],
+    high: <BoxShadow>[
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 2)),
+      BoxShadow(color: Color(0x29000000), blurRadius: 18, offset: Offset(0, 8)),
+    ],
+  );
+
+  /// Dark-theme shadows: a faint light rim above a deeper black drop.
+  ///
+  /// The light numbers do not travel. A drop shadow is black, and the dark
+  /// surfaces these land on are themselves nearly black, so at 8% to 16%
+  /// black the shadow is arithmetically present and visually absent: the
+  /// message bubble, the room-filter pill and the profile pill all read as
+  /// flat fills in dark mode while lifting correctly in light mode.
+  ///
+  /// Dark needs the opposite cue. The drop is deepened well past anything
+  /// the light theme uses, because the contrast available to it is that much
+  /// lower, and a low-alpha white rim is added above the surface. The rim is
+  /// the part that actually reads: it is the lit top edge of a raised plane,
+  /// which is how depth survives on a dark background.
+  ///
+  /// The rim sits at a negative y offset so it does not stack on top of the
+  /// drop it belongs to.
+  static const ({
+    List<BoxShadow> low,
+    List<BoxShadow> medium,
+    List<BoxShadow> high,
+  }) _darkShadowScale = (
+    low: <BoxShadow>[
+      BoxShadow(color: Color(0x0DFFFFFF), blurRadius: 1, offset: Offset(0, -1)),
+      BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
+    ],
+    medium: <BoxShadow>[
+      BoxShadow(color: Color(0x12FFFFFF), blurRadius: 2, offset: Offset(0, -1)),
+      BoxShadow(color: Color(0x40000000), blurRadius: 8, offset: Offset(0, 3)),
+    ],
+    high: <BoxShadow>[
+      BoxShadow(color: Color(0x1AFFFFFF), blurRadius: 4, offset: Offset(0, -2)),
+      BoxShadow(color: Color(0x59000000), blurRadius: 18, offset: Offset(0, 8)),
+    ],
+  );
+
   /// The one and only token set: Material 3 defaults for spacing, opacity and
   /// animation, with the radius scale derived from [baseCornerRadius].
-  factory MoonrelayDesignTokens.standard() {
+  ///
+  /// [brightness] exists for the shadow scale and nothing else. Every other
+  /// token is brightness-independent, and the colour values themselves come
+  /// from the `ColorScheme`; a shadow is the exception because it is baked
+  /// from a fixed ink colour rather than read from the scheme.
+  factory MoonrelayDesignTokens.standard({
+    Brightness brightness = Brightness.light,
+  }) {
     final r = baseCornerRadius;
+    final shadows = brightness == Brightness.dark
+        ? _darkShadowScale
+        : _lightShadowScale;
     return MoonrelayDesignTokens(
       // Spacing (8-point grid)
       spaceXxs: 2,
@@ -177,60 +248,9 @@ class MoonrelayDesignTokens {
       elevationOverlay: 8,
 
       // Shadows
-      //
-      // Two layers each, and the split matters more than the opacity. A
-      // single soft shadow reads as a glow around an object; a tight
-      // contact shadow directly under a wider, weaker ambient one reads as
-      // a surface sitting above another. One layer cannot do both jobs at
-      // once, which is why the app looked flat: these were one layer at
-      // 10% black and blur 2, and nothing in the app read them anyway.
-      //
-      // Before this pass the tokens had zero readers outside this file, so
-      // every surface in Moonrelay was a flat colour fill and the only
-      // depth cue in the whole chat was a 0.7px border on a message bubble.
-      //
-      // These are the light-theme numbers. They are not re-derived for dark,
-      // where a black shadow on a near-black surface does almost nothing; a
-      // dark theme wants a lighter rim instead of a darker drop. See
-      // WORK_NEEDED.md for that, and for the fact that Material's own
-      // `elevation` still generates its shadows from the theme rather than
-      // from here, so the two systems are not yet one system.
-      shadowLow: const [
-        BoxShadow(
-          color: Color(0x0D000000),
-          blurRadius: 1,
-          offset: Offset(0, 1),
-        ),
-        BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 3,
-          offset: Offset(0, 1),
-        ),
-      ],
-      shadowMedium: const [
-        BoxShadow(
-          color: Color(0x0F000000),
-          blurRadius: 2,
-          offset: Offset(0, 1),
-        ),
-        BoxShadow(
-          color: Color(0x1F000000),
-          blurRadius: 8,
-          offset: Offset(0, 3),
-        ),
-      ],
-      shadowHigh: const [
-        BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 4,
-          offset: Offset(0, 2),
-        ),
-        BoxShadow(
-          color: Color(0x29000000),
-          blurRadius: 18,
-          offset: Offset(0, 8),
-        ),
-      ],
+      shadowLow: shadows.low,
+      shadowMedium: shadows.medium,
+      shadowHigh: shadows.high,
 
       // Opacity
       opacityDisabled: 0.38,
