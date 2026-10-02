@@ -638,7 +638,9 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
     int collapseThreshold,
   ) {
     final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
     final clean = body.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
     final display = clean.isNotEmpty ? clean : body.trim();
     final canExpand = display.length > collapseThreshold;
@@ -648,11 +650,11 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
       children: [
         // Vertical bar indicator
         Container(
-          width: 3,
+          width: chat.replyBarWidth,
           margin: EdgeInsets.only(right: t.spaceSm),
           decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(2),
+            color: scheme.primary.withValues(alpha: t.opacityFocusRing),
+            borderRadius: BorderRadius.circular(t.radiusXs),
           ),
           constraints: BoxConstraints(
             minHeight: 20,
@@ -668,7 +670,7 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
             display,
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurface.withValues(alpha: 0.55),
+              color: scheme.onSurface.withValues(alpha: t.opacitySubtle),
             ),
             maxLines: _expanded ? null : 1,
             overflow: _expanded
@@ -695,14 +697,17 @@ class _ReplyPreviewState extends State<_ReplyPreview> {
           barAndText,
         if (canExpand)
           Padding(
-            padding: EdgeInsets.only(left: 11, top: t.spaceXxs),
+            padding: EdgeInsets.only(
+              left: chat.replyBarWidth + t.spaceSm,
+              top: t.spaceXxs,
+            ),
             child: InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
               borderRadius: BorderRadius.circular(t.radiusXs),
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: t.spaceXs,
-                  vertical: 1,
+                  vertical: t.spaceXxs,
                 ),
                 child: Text(
                   _expanded
@@ -745,7 +750,7 @@ class _EditedMarker extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontStyle: FontStyle.italic,
-          color: cs.onSurface.withValues(alpha: 0.45),
+          color: cs.onSurface.withValues(alpha: t.opacitySubtle),
         ),
       ),
     );

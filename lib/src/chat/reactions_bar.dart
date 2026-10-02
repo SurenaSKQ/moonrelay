@@ -230,22 +230,31 @@ class _ReactionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    // Chips are pills.  `radiusMd` put a rounded rectangle inside the
+    // message bubble, which is itself a rounded rectangle: three concentric
+    // curves stacked on each other.  It is the same wireframe problem the
+    // bubble fix addressed, one level down.
+    final radius = BorderRadius.circular(ext.components.chat.reactionRadius);
     return Material(
       color: isOwn
           ? cs.primary.withValues(alpha: t.opacityFocus)
-          : cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(t.radiusMd),
+          : cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+      borderRadius: radius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(t.radiusMd),
+        borderRadius: radius,
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6, vertical: t.spaceXxs),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXs,
+            vertical: t.spaceXxs,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(emoji, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 3),
+              SizedBox(width: t.spaceXxs),
               Text(
                 '$count',
                 style: TextStyle(
@@ -276,19 +285,24 @@ class _AddReactionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final radius = BorderRadius.circular(ext.components.chat.reactionRadius);
     return Material(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(t.radiusMd),
+      color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+      borderRadius: radius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(t.radiusMd),
+        borderRadius: radius,
         onTap: () => showReactionPicker(context, onSelected: onSelected),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6, vertical: t.spaceXxs),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXs,
+            vertical: t.spaceXxs,
+          ),
           child: Icon(
             Icons.add,
             size: 14,
-            color: cs.onSurface.withValues(alpha: 0.6),
+            color: cs.onSurface.withValues(alpha: t.opacitySubtle),
           ),
         ),
       ),

@@ -40,7 +40,11 @@ class DateSeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final t = theme.moonrelay.tokens;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final chat = ext.components.chat;
+    final dividerThickness = ext.components.divider.thickness;
+    final dividerFontSize = chat.metadataFontSize(16);
     final now = DateTime.now();
     final isSameYear = now.year == dateTime.year;
 
@@ -60,12 +64,16 @@ class DateSeparator extends StatelessWidget {
     final textColor =
         theme.colorScheme.onSurface.withValues(alpha: t.opacitySubtle);
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: t.spaceSm),
+      padding: EdgeInsets.symmetric(vertical: chat.groupSpacing),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              height: t.borderWidthMedium,
+              // The divider token's thickness, not the border scale's. The
+              // rest of the app draws rules at half a pixel; a one-pixel
+              // rule here made the day divider the heaviest line on the
+              // screen, heavier than the bubble edges around it.
+              height: dividerThickness,
               color: lineColor,
             ),
           ),
@@ -74,7 +82,7 @@ class DateSeparator extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: dividerFontSize,
                 fontWeight: FontWeight.w600,
                 color: textColor,
               ),
@@ -82,7 +90,7 @@ class DateSeparator extends StatelessWidget {
           ),
           Expanded(
             child: Container(
-              height: t.borderWidthMedium,
+              height: dividerThickness,
               color: lineColor,
             ),
           ),
