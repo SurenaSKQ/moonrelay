@@ -185,7 +185,7 @@ void main() {
       router.dispose();
     });
 
-    testWidgets('/main/rooms with no room selected is an empty state',
+    testWidgets('/main/rooms with no room selected is a dashboard, not an error',
         (tester) async {
       final router = await pumpRouter(
         tester,
@@ -194,9 +194,17 @@ void main() {
 
       // The bug: this page used to build a RoomDelegate with a null room
       // id, which rendered "Room not found" in the middle of a perfectly
-      // healthy dashboard.
+      // healthy dashboard. It must never show an error here again.
       expect(find.text('Room not found'), findsNothing);
-      expect(find.text('No room selected'), findsOneWidget);
+
+      // What it shows now: a home dashboard with somewhere to go, because
+      // "pick a room from the sidebar" told a user who had just signed in to
+      // an account with a hundred rooms to use a control they had not been
+      // told about.
+      expect(find.text('Welcome to Moonrelay'), findsOneWidget);
+      expect(find.text('Create Room'), findsOneWidget);
+      expect(find.text('Join a room'), findsOneWidget);
+      expect(find.text('Explore spaces'), findsOneWidget);
 
       router.dispose();
     });

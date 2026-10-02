@@ -36,6 +36,7 @@ import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/screens/global_search_page.dart';
+import 'package:moonrelay/src/screens/home_dashboard.dart';
 import 'package:moonrelay/src/screens/hub_screen/hub_screen.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
 import 'package:moonrelay/src/screens/spaces_list_page.dart';
@@ -503,13 +504,21 @@ class RoomsListRoute extends StatelessWidget {
     // A descendant reading a resolved value needs no listener.
     final shell = context.read<LayoutShellController>();
     if (shell.isMobile) return const MobileRoomsListPage();
-    final l10n = AppLocalizations.of(context);
-    return EmptyState(
-      icon: Icons.forum_outlined,
-      title: l10n?.noRoomSelected ?? 'No room selected',
-      message: l10n?.noRoomSelectedHint ??
-          'Pick a room from the sidebar to start reading or chatting.',
-    );
+
+    // The dashboard needs the client to list recent rooms. It is optional in
+    // the tree during the logout transition, and a welcome panel with no
+    // rooms behind it beats an exception on the way out.
+    final client = context.read<Client?>();
+    if (client == null) {
+      final l10n = AppLocalizations.of(context);
+      return EmptyState(
+        icon: Icons.forum_outlined,
+        title: l10n?.noRoomSelected ?? 'No room selected',
+        message: l10n?.noRoomSelectedHint ??
+            'Pick a room from the sidebar to start reading or chatting.',
+      );
+    }
+    return HomeDashboard(client: client);
   }
 }
 

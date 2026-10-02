@@ -20,13 +20,15 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A centred, self-contained empty/error state for a content pane.
 ///
-/// Used for the two cases the route layer deliberately does not treat as
-/// errors: no room is selected yet (`RoomsListRoute`) and a route id that is
-/// genuinely invalid (`ProfileView`).
+/// Used for the cases the route layer deliberately does not treat as errors:
+/// a route id that is genuinely invalid (`ProfileView`), a filter that matched
+/// nothing, and the seven other sites listed below.
 ///
-/// The state is a plain message with an icon; pass [actionLabel] and
-/// [onAction] to offer a single recovery affordance (e.g. "Back" or
-/// "Preview room").
+/// The icon sits in a raised tile rather than floating bare. A 40px glyph
+/// against a full pane of flat surface has no edge and no weight, so it reads
+/// as an ornament rather than as the thing you are meant to look at; a tile
+/// gives it an edge, a fill a step above the pane, and somewhere for the
+/// shadow to land.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -35,9 +37,10 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.iconColor,
   });
 
-  /// Icon shown above the title.
+  /// Icon shown in the tile above the title.
   final IconData icon;
 
   /// Short, prominent heading.
@@ -52,47 +55,98 @@ class EmptyState extends StatelessWidget {
   /// Handler wired to [actionLabel].
   final VoidCallback? onAction;
 
+  /// Tile fill for the icon. Defaults to the pane's raised surface; pass a
+  /// semantic colour where the state has one, such as the no-match state.
+  final Color? iconColor;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final text = theme.textTheme;
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 40,
-              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
-            ),
-            SizedBox(height: t.spaceLg),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: t.spaceSm),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: t.spaceXl),
-              FilledButton.icon(
-                onPressed: onAction,
-                icon: const Icon(LucideIcons.arrowLeft, size: 16),
-                label: Text(actionLabel!),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(t.spaceXl),
+        child: ConstrainedBox(
+          // Caps the measure so the copy does not run the full width of an
+          // expanded pane, which at that size is a fifteen-hundred-pixel line
+          // of centred text.
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _EmptyIconTile(
+                icon: icon,
+                color: iconColor,
               ),
+              SizedBox(height: t.spaceXl),
+              Text(
+                title,
+                style: text.headlineSmall?.copyWith(color: scheme.onSurface),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: t.spaceSm),
+              Text(
+                message,
+                style: text.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                SizedBox(height: t.spaceXl),
+                FilledButton.icon(
+                  onPressed: onAction,
+                  icon: const Icon(LucideIcons.arrowLeft, size: 16),
+                  label: Text(actionLabel!),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// The raised tile an [EmptyState]'s icon sits in.
+class _EmptyIconTile extends StatelessWidget {
+  const _EmptyIconTile({
+    required this.icon,
+    required this.color,
+  });
+
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final fill = color ?? scheme.surfaceContainerHigh;
+
+    return Container(
+      width: t.spaceXxxl * 1.75,
+      height: t.spaceXxxl * 1.75,
+      decoration: BoxDecoration(
+        color: fill,
+        // Twenty-four on a seventy-two box. Enough to read as a rounded
+        // square rather than a circle, which keeps it from competing with the
+        // circular avatars elsewhere in the shell.
+        borderRadius: BorderRadius.circular(t.radiusXl),
+        boxShadow: t.shadowMedium,
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        size: t.spaceXxl,
+        color: color != null
+            ? scheme.onErrorContainer
+            : scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
       ),
     );
   }

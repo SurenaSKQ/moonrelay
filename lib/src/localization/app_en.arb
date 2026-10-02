@@ -650,6 +650,11 @@
   "rooms": "Rooms",
   "spaces": "Spaces",
   "addSpace": "Add Space",
+  "welcomeToMoonrelay": "Welcome to Moonrelay",
+  "homeDashboardSubtitle": "Pick up where you left off, or start somewhere new.",
+  "recentActivity": "Recent activity",
+  "joinRoom": "Join a room",
+  "exploreSpaces": "Explore spaces",
   "friends": "Friends",
   "allRooms": "All rooms",
   "@allRooms": {
