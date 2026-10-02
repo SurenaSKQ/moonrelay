@@ -25,6 +25,7 @@ import 'package:matrix/src/utils/cached_stream_controller.dart'
     show CachedStreamController;
 import 'package:matrix/src/utils/space_child.dart'
     show SpaceChild, SpaceParent;
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
@@ -638,6 +639,132 @@ void main() {
       final badge = tester.getCenter(find.text('1'));
       expect(shield.dx, lessThan(badge.dx));
       expect(name.dx, lessThan(shield.dx));
+    });
+  });
+
+  group('RoomPane marks the open room', () {
+    // The room row never passed `selected`, so opening a room left the
+    // sidebar looking exactly as it had before: nothing in it said which
+    // room you were in short of reading the message pane's own header.
+    // `sidebarRowAccentBarKey` is the handle here; a primary tint alone is
+    // too weak a signal to assert against.
+    MockRoom mockRoom(String id, String name) {
+      final room = MockRoom();
+      when(() => room.id).thenReturn(id);
+      when(() => room.isSpace).thenReturn(false);
+      when(() => room.isDirectChat).thenReturn(false);
+      when(() => room.getLocalizedDisplayname()).thenReturn(name);
+      when(() => room.avatar).thenReturn(null);
+      when(() => room.lastEvent).thenReturn(null);
+      when(() => room.notificationCount).thenReturn(0);
+      when(() => room.highlightCount).thenReturn(0);
+      when(() => room.hasNewMessages).thenReturn(false);
+      when(() => room.encrypted).thenReturn(false);
+      when(() => room.getState('m.room.pinned_events')).thenReturn(null);
+      return room;
+    }
+
+    /// Mounts a pane over [rooms], with [current] pre-selected if given.
+    Future<CurrentRoom> pumpRooms(
+      WidgetTester tester,
+      List<Room> rooms, {
+      Room? current,
+    }) async {
+      final client = MockClient();
+      when(() => client.rooms).thenReturn(rooms);
+      when(() => client.onSyncStatus)
+          .thenAnswer((_) => CachedStreamController<SyncStatusUpdate>());
+      when(() => client.userID).thenReturn('@me:matrix.org');
+
+      final currentRoom = CurrentRoom();
+      if (current != null) currentRoom.setRoom(current);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SyncPulse>.value(value: SyncPulse()),
+          ],
+          child: wrapWithProviders(
+            client: client,
+            currentRoom: currentRoom,
+            encryptionService: MockEncryptionService(),
+            child: const Scaffold(
+              body: SizedBox(width: 320, child: RoomsPane()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      return currentRoom;
+    }
+
+    testWidgets('no room selected means no selected row', (tester) async {
+      await pumpRooms(tester, [mockRoom('!a:matrix.org', 'Test Room')]);
+      expect(find.text('Test Room'), findsOneWidget);
+      expect(find.byKey(sidebarRowAccentBarKey), findsNothing);
+    });
+
+    testWidgets('the open room is the one marked', (tester) async {
+      final rooms = [
+        mockRoom('!a:matrix.org', 'Room A'),
+        mockRoom('!b:matrix.org', 'Room B'),
+      ];
+      await pumpRooms(tester, rooms, current: rooms[1]);
+
+      // One mark, not two: the wrong row lighting up would be worse than the
+      // original bug because it looks authoritative.
+      expect(find.byKey(sidebarRowAccentBarKey), findsOneWidget);
+      final markedRow = tester.widget<SidebarRow>(
+        find.ancestor(
+          of: find.byKey(sidebarRowAccentBarKey),
+          matching: find.byType(SidebarRow),
+        ),
+      );
+      expect(markedRow.title, 'Room B');
+    });
+
+    testWidgets('switching rooms moves the mark', (tester) async {
+      final rooms = [
+        mockRoom('!a:matrix.org', 'Room A'),
+        mockRoom('!b:matrix.org', 'Room B'),
+      ];
+      final currentRoom =
+          await pumpRooms(tester, rooms, current: rooms.first);
+      expect(
+        tester
+            .widget<SidebarRow>(find.ancestor(
+              of: find.byKey(sidebarRowAccentBarKey),
+              matching: find.byType(SidebarRow),
+            ))
+            .title,
+        'Room A',
+      );
+
+      currentRoom.setRoom(rooms[1]);
+      await tester.pump();
+
+      expect(find.byKey(sidebarRowAccentBarKey), findsOneWidget);
+      expect(
+        tester
+            .widget<SidebarRow>(find.ancestor(
+              of: find.byKey(sidebarRowAccentBarKey),
+              matching: find.byType(SidebarRow),
+            ))
+            .title,
+        'Room B',
+      );
+    });
+
+    testWidgets('closing the room clears the mark', (tester) async {
+      final rooms = [mockRoom('!a:matrix.org', 'Room A')];
+      final currentRoom = await pumpRooms(tester, rooms, current: rooms.first);
+      expect(find.byKey(sidebarRowAccentBarKey), findsOneWidget);
+
+      currentRoom.setRoom(null);
+      await tester.pump();
+
+      expect(find.byKey(sidebarRowAccentBarKey), findsNothing);
     });
   });
 }

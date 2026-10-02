@@ -21,6 +21,7 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -594,10 +595,19 @@ class _RoomRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Subscribe to the *id* of the open room rather than the notifier, so a
+    // room switch rebuilds exactly the two rows whose selected state flipped
+    // instead of the whole pane. Every other row stays subscribed but is not
+    // rebuilt, which matters at 200 rooms where this is the list's only
+    // per-item work.
+    final activeRoomId = context.select<CurrentRoom, String?>(
+      (current) => current.room?.id,
+    );
     return SidebarRow(
       title: displayname,
       subtitle: room.lastEvent?.body ?? l10n.noMessages,
       onTap: onTap,
+      selected: activeRoomId == room.id,
       titleSuffix: RoomEncryptionBadge(room: room),
       leading: _RoomAvatar(
         room: room,
