@@ -286,4 +286,129 @@ void main() {
       expect(widget.room.id, '!a:test');
     },
   );
+
+  group('timeline load failure offers a retry', () {
+    testWidgets('a failed first load offers a retry that recovers',
+        (tester) async {
+      final gate = Completer<Timeline>();
+      final room =
+          _FlakyRoom(id: '!a:test', failures: 1, gate: gate);
+
+      await tester.pumpWidget(_wrapTimeline(room));
+      await tester.pump();
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+
+      expect(find.text('Could not load messages'), findsOneWidget);
+      final retry = find.widgetWithText(FilledButton, 'Retry');
+      expect(retry, findsOneWidget,
+          reason: 'the error state must offer a way back');
+
+      final attemptsBefore = room.attempts;
+      await tester.tap(retry);
+      await tester.pump();
+
+      expect(room.attempts, greaterThan(attemptsBefore),
+          reason: 'the retry must issue another request');
+
+      gate.complete(_FakeTimeline(label: 'recovered'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+
+      expect(find.text('Could not load messages'), findsNothing,
+          reason: 'a recovered load must clear the error');
+    });
+
+    testWidgets('the retry is disabled while it is in flight', (tester) async {
+      final gate = Completer<Timeline>();
+      final room =
+          _FlakyRoom(id: '!a:test', failures: 1, gate: gate);
+
+      await tester.pumpWidget(_wrapTimeline(room));
+      await tester.pump();
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+      await tester.pump();
+
+      // While the retry runs the button swaps its icon for a spinner and
+      // stops accepting taps. A second tap must not stack a second request on
+      // top of the first, so it has to be genuinely dead rather than merely
+      // idempotent. Asserting on the spinner rather than on the label keeps
+      // this independent of the translation.
+      expect(
+        find.descendant(
+          of: find.byType(FilledButton),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+
+      gate.complete(_FakeTimeline(label: 'recovered'));
+      await tester.pump();
+    });
+  });
+}
+
+/// A room whose [Room.getTimeline] fails [failures] times before succeeding.
+///
+/// [withRetry] only retries *timeout* errors unless told otherwise, and
+/// `_initTimeline` does not opt in, so a plain exception ends the attempt
+/// after one try. [failures] is 1 in practice: fail the first call, let the
+/// retry succeed.
+///
+/// Once it stops failing, the successful call waits on [gate] if one was
+/// given. That is what makes the in-flight window observable: without it the
+/// retry resolves inside the same microtask chain and there is no moment at
+/// which a user could see that it was working.
+class _FlakyRoom extends Mock implements Room {
+  _FlakyRoom({required this.id, required this.failures, this.gate});
+
+  @override
+  final String id;
+
+  /// How many [Room.getTimeline] calls have been made.
+  int attempts = 0;
+
+  /// How many of them should throw before one succeeds.
+  final int failures;
+
+  /// Held by the test to release the first successful call.
+  final Completer<Timeline>? gate;
+
+  @override
+  Future<Timeline> getTimeline({
+    void Function(int index)? onChange,
+    void Function(int index)? onRemove,
+    void Function(int insertID)? onInsert,
+    void Function()? onNewEvent,
+    void Function()? onUpdate,
+    String? eventContextId,
+    int? limit,
+  }) async {
+    attempts++;
+    if (attempts <= failures) {
+      throw Exception('offline');
+    }
+    final g = gate;
+    if (g != null) await g.future;
+    return _FakeTimeline(label: 'recovered');
+  }
+
+  @override
+  Future<void> setReadMarker(String? eventId,
+      {String? mRead, bool? public}) async {}
+
+  @override
+  String get fullyRead => '';
+
+  @override
+  Membership get membership => Membership.join;
 }

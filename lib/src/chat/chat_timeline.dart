@@ -112,6 +112,12 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
 
+  /// True while a user-initiated retry of [_initTimeline] is in flight.
+  ///
+  /// Guards against a second tap stacking a second request, and keeps the
+  /// retry button disabled so the user can see it is already working.
+  bool _retryInFlight = false;
+
   /// Events explicitly fetched for the pinned filter (fetched by ID
   /// from the server when they aren't in the local timeline batch).
   List<Event>? _fetchedFilteredEvents;
@@ -328,6 +334,29 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     _readMarkerTracker?.bindRoom(widget.room);
   }
 
+  /// Re-attempts a failed first timeline load.
+  ///
+  /// The load is a plain `await` behind [LifecycleGeneration] rather than a
+  /// subscription, so retrying is just calling it again: the new call bumps
+  /// the generation, which makes any earlier in-flight attempt stale, and
+  /// [withRetry] inside it gives the request its own retry budget.
+  ///
+  /// The error is deliberately left on screen while the retry runs. Clearing
+  /// it would swap the message for the loading skeleton and then swap that
+  /// for messages, so a slow retry would show three states in a row for one
+  /// user action. Keeping it means the button can carry the wait, and the
+  /// pane only changes once there is something new to show. On success
+  /// `_timeline` is non-null, so the error branch stops being reached without
+  /// anything having to unset it.
+  ///
+  /// [LifecycleGeneration] also makes a room switch mid-retry safe: the late
+  /// continuation is stale and writes nothing.
+  void _retryTimelineLoad() {
+    if (_retryInFlight) return;
+    setState(() => _retryInFlight = true);
+    _initTimeline();
+  }
+
   Future<void> _initTimeline() async {
     final log = _tryReadLogger();
     final gen = beginAsync();
@@ -346,6 +375,10 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     );
 
     if (isStale(gen) || !mounted) return;
+
+    if (_retryInFlight && mounted) {
+      setState(() => _retryInFlight = false);
+    }
 
     switch (result) {
       case RetrySuccess(:final value):
@@ -948,6 +981,28 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: t.spaceLg),
+            // The retry sits above the encryption note, not below it. The
+            // note is a suggestion attached to "the server is unreachable",
+            // and burying the way out under it makes the pane read as advice
+            // rather than as something that can be fixed.
+            FilledButton.tonalIcon(
+              onPressed: _retryInFlight ? null : _retryTimelineLoad,
+              icon: _retryInFlight
+                  ? SizedBox(
+                      width: t.iconSizeSmall,
+                      height: t.iconSizeSmall,
+                      child: CircularProgressIndicator(
+                        strokeWidth: t.borderWidthMedium,
+                      ),
+                    )
+                  : Icon(LucideIcons.refreshCw, size: t.iconSizeSmall),
+              label: Text(
+                _retryInFlight
+                    ? AppLocalizations.of(context)!.loading
+                    : AppLocalizations.of(context)!.retry,
+              ),
+            ),
+            SizedBox(height: t.spaceXl),
             Icon(
               LucideIcons.shield,
               size: t.iconSizeLarge,
