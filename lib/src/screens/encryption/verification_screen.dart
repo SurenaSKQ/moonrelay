@@ -209,7 +209,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                     ),
                     child: Text(
                       '$d',

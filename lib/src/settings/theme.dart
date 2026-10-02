@@ -234,7 +234,7 @@ class MoonrelayTheme {
       focusColor: colorScheme.primary.withValues(alpha: tokens.opacityFocusRing),
 
       // Component themes derived from tokens
-      appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily),
+      appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily, layers),
       cardTheme: _cardTheme(colorScheme, components.card),
       dividerTheme: _dividerTheme(colorScheme, components.divider, layers),
       dialogTheme: _dialogTheme(colorScheme, components.dialog),
@@ -285,9 +285,15 @@ class MoonrelayTheme {
     ColorScheme cs,
     MoonrelayAppBarTokens t,
     String fontFamily,
+    MoonrelaySurfaceLayers layers,
   ) {
     return AppBarTheme(
-      backgroundColor: cs.surface,
+      // `surfaceContainer`, not `surface`.  Every screen's AppBar was the same
+      // value as the Scaffold behind it, so on every page in the app the top
+      // bar had no visual existence and was defined entirely by its shadow.
+      // One step down puts it behind the content, which is the same
+      // relationship the mobile shell's own top bar now has.
+      backgroundColor: cs.surfaceContainer,
       foregroundColor: cs.onSurface,
       elevation: t.elevation,
       scrolledUnderElevation: t.scrolledElevation,
@@ -299,6 +305,13 @@ class MoonrelayTheme {
             fontSize: 16,
             color: cs.onSurface,
           ),
+      // The shadow never showed on a dark surface: Material renders it from
+      // a hardcoded black map. The hairline is what actually separates the
+      // bar from the content in both brightnesses.
+      surfaceTintColor: Colors.transparent,
+      shape: Border(
+        bottom: BorderSide(color: layers.hairline),
+      ),
     );
   }
 

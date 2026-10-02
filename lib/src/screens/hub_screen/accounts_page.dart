@@ -20,6 +20,7 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
@@ -296,9 +297,9 @@ class HubAccountsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _shimmerLine(scheme, height: 22, width: 140),
+          _shimmerLine(scheme, t, height: 22, width: 140),
           const SizedBox(height: 4),
-          _shimmerLine(scheme, height: 13, width: 200),
+          _shimmerLine(scheme, t, height: 13, width: 200),
           SizedBox(height: t.spaceXl),
           Card(
             elevation: t.elevationNone,
@@ -324,9 +325,9 @@ class HubAccountsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _shimmerLine(scheme, height: 16, width: 180),
+                        _shimmerLine(scheme, t, height: 16, width: 180),
                         SizedBox(height: t.spaceSm),
-                        _shimmerLine(scheme, height: 12, width: 240),
+                        _shimmerLine(scheme, t, height: 12, width: 240),
                       ],
                     ),
                   ),
@@ -342,14 +343,24 @@ class HubAccountsPage extends StatelessWidget {
   /// Renders a single rounded grey "shimmer" line used to suggest
   /// placeholder text.  Kept static-feeling (no animation) so it
   /// does not fight the rest of the hub's motion budget.
-  Widget _shimmerLine(ColorScheme scheme,
-      {required double height, required double width}) {
+  ///
+  /// [tokens] is passed in because this helper has no `BuildContext` of its
+  /// own, and looking one up here would have meant either a context
+  /// parameter on a private helper or, worse, reaching for the extension
+  /// from a `Theme.of` call that a reader would mistake for the enclosing
+  /// widget's theme.
+  Widget _shimmerLine(
+    ColorScheme scheme,
+    MoonrelayDesignTokens tokens, {
+    required double height,
+    required double width,
+  }) {
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
     );
   }

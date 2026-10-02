@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 import 'right_sidebar_content.dart';
 
@@ -71,6 +72,13 @@ class SidebarPane extends StatelessWidget {
   final Widget? bottomBar;
   final ThemeData theme;
 
+  /// The pane's own fill.
+  ///
+  /// Optional because the pane previously had none and inherited whatever
+  /// was behind it, which is how the right detail pane ended up looking like
+  /// part of the conversation rather than like a panel beside it.
+  final Color? background;
+
   const SidebarPane({
     super.key,
     required this.width,
@@ -79,41 +87,52 @@ class SidebarPane extends StatelessWidget {
     required this.body,
     this.bottomBar,
     required this.theme,
+    this.background,
   });
 
   @override
   Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.fromTheme(theme);
+    final tokens = ext.tokens;
+    final layers = ext.layers;
+
     return SizedBox(
       width: width.clamp(minWidth, double.infinity),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: ColoredBox(
+        color: background ?? Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           // Simple header bar; skipped when there is no title so panes
           // that render their own header (e.g. the right sidebar's view
           // switcher) do not show a redundant empty strip.
           if (title.isNotEmpty) ...[
             Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              color: theme.colorScheme.surfaceContainer,
+              padding: EdgeInsets.symmetric(
+                horizontal: tokens.spaceMd,
+                vertical: tokens.spaceSm,
+              ),
               child: Text(
                 title,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: theme.colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: tokens.borderWidthThin, color: layers.hairline),
           ],
           Expanded(child: body),
           if (bottomBar != null) ...[
-            const Divider(height: 1),
+            Divider(height: tokens.borderWidthThin, color: layers.hairline),
             bottomBar!,
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -135,6 +154,11 @@ class RightPaneHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
+    // The detail pane is a step *below* the conversation, not on it.  It
+    // used to have no background at all and inherited the main pane's, so
+    // the only thing separating it from the messages was a one-pixel rule.
+    // That made the conversation and its own detail panel look like one wide
+    // surface with a line through it.
     return ListenableBuilder(
       listenable: widthNotifier,
       builder: (context, _) {
@@ -145,6 +169,7 @@ class RightPaneHost extends StatelessWidget {
           body: const RightSidebarContent(),
           bottomBar: null,
           theme: theme,
+          background: theme.colorScheme.surfaceContainer,
         );
       },
     );

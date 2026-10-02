@@ -159,12 +159,18 @@ class RightSidebarHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final layers = ext.layers;
     final l10n = AppLocalizations.of(context)!;
 
+    // One step *below* the pane's own fill, so the switcher reads as a strip
+    // attached to the top of the panel rather than as a fourth surface.  It
+    // was `surfaceContainerHighest`, which is the hover step, so the one
+    // always-visible bar in the detail pane was painted in the colour the app
+    // uses for "the pointer is over this".
     return Container(
-      color: scheme.surfaceContainerHighest,
+      color: layers.hover,
       padding: EdgeInsets.symmetric(
         horizontal: t.spaceSm,
         vertical: t.spaceXs,
@@ -180,7 +186,8 @@ class RightSidebarHeader extends StatelessWidget {
                 onTap: () => onChanged(choice),
               ),
             ),
-            if (choice != destinations.last) const SizedBox(width: 2),
+            if (choice != destinations.last)
+              SizedBox(width: t.borderWidthThin * 2),
           ],
         ],
       ),
@@ -208,48 +215,57 @@ class _PaneTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final t = ext.tokens;
 
     return Tooltip(
       message: label,
-      child: Material(
-        color: selected
-            ? scheme.secondaryContainer
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(t.radiusSm),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: t.spaceXs),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: t.iconSizeSmall + 2,
-                  color: selected
-                      ? scheme.onSecondaryContainer
-                      : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    height: 1.2,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w500,
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: Material(
+          // `surfaceContainerHighest`: one step above the switcher strip's
+          // `hover`, which puts the selected tab *above* the strip rather
+          // than beside it. It was `secondaryContainer`, which is a fourth
+          // use of a container role for a selection state.
+          color: selected
+              ? scheme.surfaceContainerHighest
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(t.radiusSm),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: t.spaceXs),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: t.iconSizeSmall + 2,
                     color: selected
-                        ? scheme.onSecondaryContainer
+                        ? scheme.primary
                         : scheme.onSurfaceVariant,
                   ),
-                ),
-              ],
+                  SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.2,
+                      fontWeight:
+                          selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

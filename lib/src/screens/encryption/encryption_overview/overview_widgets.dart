@@ -143,7 +143,7 @@ class FingerprintRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(t.radiusSm),
             ),
             child: SelectableText(
               fingerprint!,

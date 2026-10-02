@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A settings page that lets the user view the most recent log file
@@ -113,6 +114,7 @@ class _LogsPageState extends State<LogsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final logService = context.watch<LogService>();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -163,7 +165,7 @@ class _LogsPageState extends State<LogsPage> {
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: ListTile(
@@ -191,7 +193,7 @@ class _LogsPageState extends State<LogsPage> {
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               side: BorderSide(color: theme.dividerColor),
             ),
             child: ListTile(
@@ -244,7 +246,7 @@ class _LogsPageState extends State<LogsPage> {
                 fillColor:
                     scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusLg),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -279,13 +281,13 @@ class _LogsPageState extends State<LogsPage> {
               constraints: const BoxConstraints(maxHeight: 600),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(12),
                   child: SelectableText(

@@ -138,7 +138,8 @@ class _MobileTopBar extends StatelessWidget {
     final inRoom = MobileLayout.isRoomRoute(context);
     final destination = focusDestinationOf(context);
     final theme = Theme.of(context);
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
 
     // On a destination the bar names the destination rather than the app:
     // the navigation bar directly below already says where you are, and a
@@ -156,13 +157,13 @@ class _MobileTopBar extends StatelessWidget {
       key: kMobileShellTopBar,
       height: kToolbarHeight,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        // `surfaceContainer`, not `surface`. The mobile shell has no rail
+        // and no room pane, so the top bar and the content below it were the
+        // same value separated by a rule. One step down puts the bar behind
+        // the content, which is what a bar at the top of a screen is.
+        color: theme.colorScheme.surfaceContainer,
         border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(
-              alpha: t.opacityDisabled,
-            ),
-          ),
+          bottom: BorderSide(color: ext.layers.hairline),
         ),
       ),
       child: Row(

@@ -250,12 +250,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Widget _buildLoading(ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 220,
       height: 80,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: const Center(
         child: SizedBox(
@@ -268,12 +269,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Widget _buildUnavailable(ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 220,
       height: 80,
       decoration: BoxDecoration(
         color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: Center(
         child: Icon(
@@ -309,9 +311,10 @@ class _PollOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       child: Stack(
         children: [
           // -- Fill bar ---------------------------------------------
@@ -319,7 +322,7 @@ class _PollOptionTile extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: cs.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
             ),
           ),
@@ -331,7 +334,7 @@ class _PollOptionTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color:
                       voted ? cs.primary : cs.primary.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),

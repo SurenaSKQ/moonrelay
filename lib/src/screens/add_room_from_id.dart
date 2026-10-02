@@ -23,6 +23,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/screens/room_directory_search.dart';
 import 'package:moonrelay/src/widgets/create_room_form/create_room_form.dart';
 import 'package:moonrelay/src/widgets/user_search_widget.dart';
@@ -251,6 +252,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final client = Provider.of<Client>(context);
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
@@ -268,7 +270,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
                 child: Row(
                   children: [
@@ -307,7 +309,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
               filled: true,
               fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -346,7 +348,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
               filled: true,
               fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -393,7 +395,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(t.radiusLg),
                       ),
                     ),
                   ),
@@ -420,7 +422,7 @@ class _JoinByIdTabState extends State<_JoinByIdTab> {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusLg),
                 ),
               ),
             ),

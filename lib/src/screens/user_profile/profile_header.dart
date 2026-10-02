@@ -15,6 +15,7 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -53,6 +54,7 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final presenceLabel = switch (presence?.presence) {
       PresenceType.online => l10n.presenceOnline,
       PresenceType.offline => l10n.presenceOffline,
@@ -131,7 +133,7 @@ class ProfileHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: PresenceColors.tint(presenceColor, scheme),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

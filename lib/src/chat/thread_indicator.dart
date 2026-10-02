@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A clickable indicator shown below a message when it has thread replies.
 /// Shows the reply count and navigates to the thread view on tap.
@@ -32,21 +33,32 @@ class ThreadIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
+    // A pill, like every other small control in the chat. It was a six-pixel
+    // radius on both the ink and the box, which is neither of them: not the
+    // app's six, because it was written as a literal and would not have
+    // tracked a change to it, and not small enough to read as a pill next to
+    // the reaction chips sitting beside it.
+    final radius = BorderRadius.circular(t.radiusSm);
+
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: t.spaceXs),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: radius,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceSm,
+            vertical: t.spaceXs,
+          ),
           decoration: BoxDecoration(
             color: scheme.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: radius,
             border: Border.all(
               color: scheme.primary.withValues(alpha: 0.3),
-              width: 0.5,
+              width: t.borderWidthThin,
             ),
           ),
           child: Row(
@@ -54,10 +66,10 @@ class ThreadIndicator extends StatelessWidget {
             children: [
               Icon(
                 Icons.forum_rounded,
-                size: 14,
+                size: t.iconSizeSmall - 2,
                 color: scheme.primary,
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Text(
                 l10n.threadReplies(replyCount),
                 style: TextStyle(
@@ -66,10 +78,10 @@ class ThreadIndicator extends StatelessWidget {
                   color: scheme.primary,
                 ),
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Icon(
                 Icons.chevron_right,
-                size: 14,
+                size: t.iconSizeSmall - 2,
                 color: scheme.primary.withValues(alpha: 0.6),
               ),
             ],

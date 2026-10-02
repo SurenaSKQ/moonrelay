@@ -144,7 +144,7 @@ class FullMemberTileState extends State<FullMemberTile> {
                               decoration: BoxDecoration(
                                 color: widget.scheme.primaryContainer
                                     .withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(t.radiusSm),
                               ),
                               child: Text(
                                 widget.permissionLabel!,
@@ -196,7 +196,7 @@ class FullMemberTileState extends State<FullMemberTile> {
                     decoration: BoxDecoration(
                       color: widget.scheme.tertiaryContainer
                           .withValues(alpha: t.opacitySubtle),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(t.radiusSm),
                     ),
                     child: Text(
                       membershipLabel,

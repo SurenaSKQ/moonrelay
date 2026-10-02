@@ -275,7 +275,7 @@ class _ShortcutRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(t.radiusSm),
                   border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Text(

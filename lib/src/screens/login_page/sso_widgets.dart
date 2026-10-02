@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/form_field_label.dart';
 
 /// The SSO section's read-only display of where the browser was sent.
@@ -32,6 +33,7 @@ class SsoUrlDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -42,7 +44,7 @@ class SsoUrlDisplay extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(t.radiusMd),
           ),
           child: Text(
             url ?? l10n.ssoStartingHint,
@@ -65,6 +67,7 @@ class SsoAwaitingBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
     return Padding(
@@ -73,7 +76,7 @@ class SsoAwaitingBanner extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: colors.primaryContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(t.radiusLg),
           border: Border.all(
             color: colors.primary.withValues(alpha: 0.3),
           ),
@@ -141,6 +144,7 @@ class SsoSwitchToManualButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     return OutlinedButton.icon(
       onPressed: onPressed,
@@ -149,7 +153,7 @@ class SsoSwitchToManualButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(t.radiusLg),
         ),
       ),
     );

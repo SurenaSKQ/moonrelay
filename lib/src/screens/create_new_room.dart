@@ -27,6 +27,7 @@ import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A page for creating a new room with optional customisation.
@@ -200,6 +201,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     if (_error != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -221,7 +223,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -244,7 +246,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                 fillColor:
                     scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusLg),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -262,7 +264,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
             // detector gave it no hover, no press and no keyboard focus.
             InkWell(
               onTap: _avatarBytes == null ? _pickAvatar : null,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(t.radiusLg),
               child: Row(
                 children: [
                   CircleAvatar(
@@ -346,7 +348,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                 fillColor:
                     scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusLg),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -363,7 +365,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 side: BorderSide(color: scheme.outlineVariant),
               ),
               child: SwitchListTile(
@@ -394,7 +396,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 side: BorderSide(color: scheme.outlineVariant),
               ),
               child: SwitchListTile(
@@ -427,7 +429,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
                 side: BorderSide(color: scheme.outlineVariant),
               ),
               child: SwitchListTile(
@@ -474,7 +476,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                             fillColor: scheme.surfaceContainerHighest
                                 .withValues(alpha: 0.5),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(t.radiusLg),
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -504,7 +506,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                             fillColor: scheme.surfaceContainerHighest
                                 .withValues(alpha: 0.5),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(t.radiusLg),
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -520,7 +522,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
                           Card(
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(t.radiusLg),
                               side: BorderSide(
                                 color: scheme.outlineVariant,
                               ),
@@ -576,7 +578,7 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(t.radiusLg),
                 ),
               ),
             ),
