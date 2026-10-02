@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+
 import 'package:moonrelay/src/helpers/color_palette.dart';
 
 /// A swappable colour accent for the app.
@@ -25,9 +26,19 @@ import 'package:moonrelay/src/helpers/color_palette.dart';
 @immutable
 class MoonrelayAccent {
   /// Stable machine id persisted in settings.
+  ///
+  /// **Frozen.** These strings are written to `SharedPreferences` on the
+  /// user's machine, so renaming one silently resets their choice to the
+  /// default. Three of them also do not describe their own colour
+  /// ([MoonrelayAccents.midnight] is a green, [MoonrelayAccents.steel] is a
+  /// lime, [MoonrelayAccents.crimson] is a red). The labels were corrected to
+  /// name what the colours actually are instead; the ids were left alone
+  /// because the cost of fixing them is a user-visible reset and the cost of
+  /// leaving them is a misleading identifier nobody reads.
   final String id;
 
-  /// Human-readable name shown in the accent picker.
+  /// Human-readable name shown in the accent picker. This is the only part
+  /// of an accent a user ever sees.
   final String label;
 
   /// Seed colour fed to [ColorScheme.fromSeed].
@@ -76,24 +87,31 @@ class MoonrelayAccents {
     seedColor: MoonrelayColorPalette.ordinaryBlue,
   );
 
+  /// Racing green (#004225). The id is historical; see [MoonrelayAccent.id].
   static const MoonrelayAccent midnight = MoonrelayAccent(
     id: 'midnight',
     label: 'British Racing Green',
     seedColor: MoonrelayColorPalette.britishRacingGreen,
   );
 
+  /// Deep raspberry red (#C32148). The id is historical; see
+  /// [MoonrelayAccent.id].
   static const MoonrelayAccent crimson = MoonrelayAccent(
     id: 'crimson',
-    label: 'Bright Maroon',
+    label: 'Crimson',
     seedColor: MoonrelayColorPalette.brightMaroon,
   );
 
+  /// Material orange 500 (#FF9800). The id is close enough to read; see
+  /// [MoonrelayAccent.id].
   static const MoonrelayAccent amber = MoonrelayAccent(
     id: 'amber',
-    label: 'Amber',
+    label: 'Orange',
     seedColor: MoonrelayColorPalette.ordinaryOrange,
   );
 
+  /// Material lime 500 (#CDDC39). The id is historical; see
+  /// [MoonrelayAccent.id].
   static const MoonrelayAccent steel = MoonrelayAccent(
     id: 'steel',
     label: 'Lime Green',
