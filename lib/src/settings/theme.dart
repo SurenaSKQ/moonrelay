@@ -109,6 +109,21 @@ class MoonrelayTheme {
   /// App font used when no override is persisted.
   static const String fontFamilyFallback = 'Rubik';
 
+  /// Font used for the display and headline sizes when no override is
+  /// persisted.
+  ///
+  /// The body face does one job and cannot carry the display range as well:
+  /// at 36px and up, Rubik's generous counters and rounded terminals read
+  /// soft, and a page title set in the same face as a chat message gives
+  /// the hierarchy nowhere to go. Space Grotesk was already bundled in
+  /// `pubspec.yaml` and unused, and its wide apertures and flat terminals
+  /// give the large sizes something to do that the body face cannot.
+  ///
+  /// Deliberately confined to [TextTheme]'s display and headline roles.
+  /// `titleLarge` stays on the body face so that list titles, which sit next
+  /// to body text, do not break into a second family mid-scale.
+  static const String displayFontFamilyFallback = 'SpaceGrotesk';
+
   /// Monospace font fallback used when no override is persisted.
   static const String monoFontFamilyFallback = 'FiraCode';
 
@@ -123,6 +138,7 @@ class MoonrelayTheme {
     Color seed, {
     LayoutDensity? density,
     String? fontFamily,
+    String? displayFontFamily,
     String? monoFontFamily,
     bool enableAnimations = true,
   }) =>
@@ -131,6 +147,8 @@ class MoonrelayTheme {
         Brightness.light,
         density: density ?? LayoutDensity.comfortable,
         fontFamily: fontFamily ?? fontFamilyFallback,
+        displayFontFamily:
+            displayFontFamily ?? fontFamily ?? displayFontFamilyFallback,
         monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
         enableAnimations: enableAnimations,
       );
@@ -140,6 +158,7 @@ class MoonrelayTheme {
     Color seed, {
     LayoutDensity? density,
     String? fontFamily,
+    String? displayFontFamily,
     String? monoFontFamily,
     bool enableAnimations = true,
   }) =>
@@ -148,6 +167,8 @@ class MoonrelayTheme {
         Brightness.dark,
         density: density ?? LayoutDensity.comfortable,
         fontFamily: fontFamily ?? fontFamilyFallback,
+        displayFontFamily:
+            displayFontFamily ?? fontFamily ?? displayFontFamilyFallback,
         monoFontFamily: monoFontFamily ?? monoFontFamilyFallback,
         enableAnimations: enableAnimations,
       );
@@ -167,6 +188,7 @@ class MoonrelayTheme {
     Brightness brightness, {
     required LayoutDensity density,
     required String fontFamily,
+    required String displayFontFamily,
     required String monoFontFamily,
     required bool enableAnimations,
   }) {
@@ -182,7 +204,7 @@ class MoonrelayTheme {
       colorScheme: colorScheme,
       visualDensity: _visualDensity(density),
       fontFamily: fontFamily,
-      textTheme: _textTheme(fontFamily),
+      textTheme: _textTheme(fontFamily, displayFontFamily),
 
       // Component themes derived from tokens
       appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily),
@@ -456,47 +478,77 @@ class MoonrelayTheme {
     );
   }
 
-  static TextTheme _textTheme(String fontFamily) {
+  /// Builds the app's text scale.
+  ///
+  /// Three things here are load-bearing rather than decorative.
+  ///
+  /// **Tracking.** Every role used to be set at Flutter's default of zero.
+  /// That is fine at 14px and wrong at both ends of the scale: at 36px and up
+  /// the same gaps that look relaxed in body copy look like the words have
+  /// come apart, so the display and headline roles pull their tracking in as
+  /// they grow; at 11px the counters need help staying legible, so the label
+  /// roles push theirs out. The crossover sits between `titleMedium` and
+  /// `bodyLarge`, which is roughly where the role stops being a heading and
+  /// becomes a sentence.
+  ///
+  /// **Two families.** See [displayFontFamilyFallback].
+  ///
+  /// **Tabular figures.** The small label roles carry timestamps, unread
+  /// counts and room ids. With proportional figures those change width as
+  /// their digits change, so a column of them jitters as they tick and a row
+  /// of them will not line up. Rubik carries `tnum`, so this is a real
+  /// change rather than a no-op; the variation is ignored harmlessly by any
+  /// face that lacks it.
+  static TextTheme _textTheme(String fontFamily, String displayFontFamily) {
+    const tabular = <FontFeature>[FontFeature.tabularFigures()];
     return TextTheme(
       displayLarge: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 57,
+        letterSpacing: -1.4,
       ),
       displayMedium: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 45,
+        letterSpacing: -1.0,
       ),
       displaySmall: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.bold,
         fontSize: 36,
+        letterSpacing: -0.8,
       ),
       headlineLarge: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 32,
+        letterSpacing: -0.6,
       ),
       headlineMedium: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 28,
+        letterSpacing: -0.4,
       ),
       headlineSmall: TextStyle(
-        fontFamily: fontFamily,
+        fontFamily: displayFontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 24,
+        letterSpacing: -0.3,
       ),
       titleLarge: TextStyle(
         fontFamily: fontFamily,
         fontWeight: FontWeight.w600,
         fontSize: 22,
+        letterSpacing: -0.2,
       ),
       titleMedium: TextStyle(
         fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 16,
+        letterSpacing: -0.1,
       ),
       titleSmall: TextStyle(
         fontFamily: fontFamily,
@@ -512,26 +564,33 @@ class MoonrelayTheme {
         fontFamily: fontFamily,
         fontSize: 14,
         height: 1.4,
+        letterSpacing: 0.1,
       ),
       bodySmall: TextStyle(
         fontFamily: fontFamily,
         fontSize: 12,
         height: 1.3,
+        letterSpacing: 0.1,
       ),
       labelLarge: TextStyle(
         fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 14,
+        letterSpacing: 0.1,
       ),
       labelMedium: TextStyle(
         fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 12,
+        letterSpacing: 0.3,
+        fontFeatures: tabular,
       ),
       labelSmall: TextStyle(
         fontFamily: fontFamily,
         fontWeight: FontWeight.w500,
         fontSize: 11,
+        letterSpacing: 0.4,
+        fontFeatures: tabular,
       ),
     );
   }

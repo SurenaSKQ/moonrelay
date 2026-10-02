@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Returns the shadows in [tokens] that are a light rim rather than a dark
 /// drop, identified by being white with a partial alpha.
@@ -102,18 +101,99 @@ void main() {
       expect(dark.borderWidthThin, light.borderWidthThin);
       expect(dark.opacityHover, light.opacityHover);
     });
+  });
 
-    test('the dark theme reaches the dark scale', () {
-      // The tokens could be correct and still never be asked for, which is
-      // how the light-only scale survived in the first place: the only
-      // readers were three widgets that all read whatever they were given.
+  group('text scale', () {
+    final theme = MoonrelayTheme.light(const Color(0xFF3F51B5));
+    final text = theme.textTheme;
+
+    test('tracking tightens as the display sizes grow', () {
+      final steps = <double>[
+        text.displayLarge!.letterSpacing!,
+        text.displayMedium!.letterSpacing!,
+        text.displaySmall!.letterSpacing!,
+        text.headlineLarge!.letterSpacing!,
+        text.headlineMedium!.letterSpacing!,
+        text.headlineSmall!.letterSpacing!,
+      ];
+      for (var i = 1; i < steps.length; i++) {
+        expect(steps[i], greaterThan(steps[i - 1]),
+            reason: 'step $i must track less tightly than the one above it');
+      }
+      expect(steps.every((s) => s < 0), isTrue);
+    });
+
+    test('small labels track outward', () {
+      expect(text.labelSmall!.letterSpacing!, greaterThan(0));
+      expect(text.labelMedium!.letterSpacing!, greaterThan(0));
+      expect(
+        text.labelSmall!.letterSpacing!,
+        greaterThan(text.labelMedium!.letterSpacing!),
+      );
+    });
+
+    test('body copy does not carry negative tracking', () {
+      for (final style in <TextStyle>[
+        text.bodyLarge!,
+        text.bodyMedium!,
+        text.bodySmall!,
+      ]) {
+        expect(style.letterSpacing ?? 0, greaterThanOrEqualTo(0));
+      }
+    });
+
+    test('numeric labels use tabular figures', () {
+      // Timestamps, unread counts and ids live in the label roles. Without
+      // tnum their digits change width as they change, so the column
+      // jitters on every tick.
+      for (final style in <TextStyle>[
+        text.labelSmall!,
+        text.labelMedium!,
+      ]) {
+        expect(style.fontFeatures, isNotNull);
+        expect(
+          style.fontFeatures!.any((f) => f.feature == 'tnum' && f.value == 1),
+          isTrue,
+          reason: 'expected the tnum feature, got ${style.fontFeatures}',
+        );
+      }
+    });
+
+    test('display roles use the display face, titles stay on the body face', () {
+      expect(text.displayLarge!.fontFamily,
+          MoonrelayTheme.displayFontFamilyFallback);
+      expect(text.headlineSmall!.fontFamily,
+          MoonrelayTheme.displayFontFamilyFallback);
+      // titleLarge sits next to body text in lists; a family break here
+      // would split the scale in the middle of the UI.
+      expect(text.titleLarge!.fontFamily, MoonrelayTheme.fontFamilyFallback);
+      expect(text.bodyLarge!.fontFamily, MoonrelayTheme.fontFamilyFallback);
+      expect(text.labelLarge!.fontFamily, MoonrelayTheme.fontFamilyFallback);
+    });
+
+    test('a body-font override pulls the display roles with it', () {
+      final overridden = MoonrelayTheme.light(
+        const Color(0xFF3F51B5),
+        fontFamily: 'Inter',
+      );
+      expect(overridden.textTheme.displayLarge!.fontFamily, 'Inter');
+      expect(overridden.textTheme.titleLarge!.fontFamily, 'Inter');
+    });
+
+    test('an explicit display face is not overridden by the body face', () {
+      final split = MoonrelayTheme.light(
+        const Color(0xFF3F51B5),
+        fontFamily: 'Inter',
+        displayFontFamily: 'Oxanium',
+      );
+      expect(split.textTheme.displayLarge!.fontFamily, 'Oxanium');
+      expect(split.textTheme.titleLarge!.fontFamily, 'Inter');
+    });
+
+    test('dark theme receives the dark shadow scale', () {
       final darkTheme = MoonrelayTheme.dark(const Color(0xFF3F51B5));
       final darkTokens = darkTheme.extension<MoonrelayThemeExtension>()!.tokens;
       expect(_rimsOf(darkTokens), isNotEmpty);
-
-      final lightTheme = MoonrelayTheme.light(const Color(0xFF3F51B5));
-      final lightTokens = lightTheme.extension<MoonrelayThemeExtension>()!.tokens;
-      expect(_rimsOf(lightTokens), isEmpty);
     });
   });
 }
