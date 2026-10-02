@@ -24,6 +24,7 @@ import 'package:moonrelay/src/chat/chat_timeline_floating_actions.dart';
 import 'package:moonrelay/src/chat/chat_unread_utils.dart';
 import 'package:moonrelay/src/chat/forward_message_dialog.dart';
 import 'package:moonrelay/src/chat/history_pager.dart';
+import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
 import 'package:moonrelay/src/chat/jump_coordinator.dart';
 import 'package:moonrelay/src/chat/pinned_events_list.dart';
 import 'package:moonrelay/src/chat/read_marker_tracker.dart';
@@ -36,6 +37,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Orchestrates the chat timeline lifecycle.
@@ -753,7 +755,11 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
         final t = MoonrelayThemeExtension.of(context).tokens;
         if (_timeline == null) {
           if (_timelineLoadFailed) return _buildError(context);
-          return const SizedBox.shrink();
+          // A blank pane reads as a broken room, not as a room that is still
+          // loading. Shape-matched placeholders are the honest signal, and
+          // [HistorySkeletonTile] is already the app's vocabulary for "the
+          // timeline is not all here yet".
+          return _buildInitialLoadingSkeleton(t);
         }
 
         final child = _buildTimelineContent(context, settings);
@@ -957,6 +963,29 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Placeholder messages shown while the first `/sync` for this room is
+  /// still in flight.
+  ///
+  /// Bottom-aligned, because a chat pane fills from the bottom: placeholders
+  /// at the top of an empty column would sit exactly where the newest
+  /// messages land and then jump downwards once real events arrived. The
+  /// per-tile fractions vary so the stack reads as a conversation of mixed
+  /// message lengths rather than a repeated row.
+  Widget _buildInitialLoadingSkeleton(MoonrelayDesignTokens t) {
+    const fractions = <double>[0.72, 0.45, 0.80, 0.38, 0.60];
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final fraction in fractions)
+            HistorySkeletonTile(barFraction: fraction),
+          SizedBox(height: t.spaceSm),
+        ],
       ),
     );
   }
