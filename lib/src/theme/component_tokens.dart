@@ -636,35 +636,146 @@ class MoonrelayNavigationTokens {
 
 // -- Chat tokens -------------------------------------------------------
 
+/// Geometry and type scale for the message timeline.
+///
+/// The timeline is the most-read surface in the app and used to carry the
+/// most bare numbers in it: `EdgeInsets.all(10)` on the bubble, a hardcoded
+/// 48px avatar gutter, a 480px cap and a 64px gutter as file constants, and a
+/// timestamp at `bodySize * 0.6875` that grew past the body it labelled when
+/// the user raised their font size. None of that was on the 8-point grid and
+/// none of it was reachable from a settings change.
+///
+/// Everything that shapes a message row now lives here instead, derived from
+/// [MoonrelayDesignTokens] so the chat moves when the design scale moves. The
+/// single value the user owns is the bubble radius, which arrives as a setting
+/// and overrides [bubbleRadius] at the point of use.
 @immutable
 class MoonrelayChatTokens {
   const MoonrelayChatTokens({
     required this.bubbleRadius,
     required this.avatarSize,
-    required this.spacing,
+    required this.avatarGutter,
+    required this.rowSpacing,
+    required this.groupSpacing,
     required this.messagePaddingH,
     required this.messagePaddingV,
+    required this.bubbleMaxWidth,
+    required this.bubbleGutter,
+    required this.measureMaxWidth,
     required this.replyBarWidth,
     required this.reactionRadius,
     required this.composerMinHeight,
   });
 
+  /// Default bubble corner radius.  The user's `bubbleRadius` setting wins
+  /// over this; the token is only the fallback for tests and for surfaces
+  /// that render a bubble without a settings context.
   final double bubbleRadius;
+
+  /// Diameter of the sender avatar in the row gutter.
   final double avatarSize;
-  final double spacing;
+
+  /// Width of the column the avatar sits in.
+  ///
+  /// Derived rather than hardcoded because the 48 that used to sit in
+  /// `timeline_item.dart` was the avatar plus an unstated gap, and anyone
+  /// who changed the avatar size had no way to find the other number.
+  final double avatarGutter;
+
+  /// Vertical gap between two messages from the same sender.
+  ///
+  /// Deliberately tight.  Consecutive messages from one person read as a
+  /// paragraph, so they get hairline separation.
+  final double rowSpacing;
+
+  /// Vertical gap in front of a message that starts a new sender group.
+  ///
+  /// The gap between groups is the only thing that tells the eye where one
+  /// speaker stops and the next begins, since the avatar and name only
+  /// appear on the first message of a run.
+  final double groupSpacing;
+
+  /// Horizontal padding inside a message bubble.
   final double messagePaddingH;
+
+  /// Vertical padding inside a message bubble.
   final double messagePaddingV;
+
+  /// Hard ceiling on how wide a message may grow before it wraps.
+  final double bubbleMaxWidth;
+
+  /// Empty column reserved to the right of a bubble, so bubbles float
+  /// instead of forming a full-width slab.  A widget on a narrow pane
+  /// should scale this down rather than drop it.
+  final double bubbleGutter;
+
+  /// Hard ceiling on the line length of a message body in the flat
+  /// (non-bubble) display modes.
+  ///
+  /// Without this, a message in the expanded dashboard shell runs the full
+  /// width of the pane, which at that size is a fifteen-hundred-pixel line of
+  /// body text.  Sixty-odd characters is the readability ceiling.
+  final double measureMaxWidth;
+
+  /// Width of the accent bar that marks a quoted reply.
   final double replyBarWidth;
+
+  /// Corner radius for reaction chips, which are pills.
   final double reactionRadius;
+
+  /// Minimum height of the composer, so it stays a comfortable tap target.
   final double composerMinHeight;
+
+  /// Sender name is smaller than the body it labels.
+  ///
+  /// It used to render at exactly the body size in bold, which put two
+  /// sixteen-pixel runs a few pixels apart in a tie that weight alone had to
+  /// break.  Dropping the label below the content is what creates the
+  /// hierarchy.
+  static const double _senderScale = 0.8125;
+  static const double _senderSizeMin = 12.0;
+  static const double _senderSizeMax = 20.0;
+
+  /// Timestamps, the edited marker, and reaction counts are a fixed size.
+  ///
+  /// They are metadata.  Scaling them with the body meant that at the top of
+  /// the user's font-size range the timestamp rendered larger than a default
+  /// message body, which inverts the hierarchy the moment anyone used the
+  /// accessibility setting the slider exists to support.
+  static const double _metadataSize = 11.0;
+  static const double _metadataSizeMin = 10.0;
+
+  /// Ceiling on metadata relative to the body, so a very small body size
+  /// cannot push the timestamp down into illegibility.
+  static const double _metadataMaxBodyRatio = 0.7;
+
+  /// Font size for a sender name, given the user's chosen body size.
+  double senderFontSize(double bodySize) =>
+      (bodySize * _senderScale).clamp(_senderSizeMin, _senderSizeMax);
+
+  /// Font size for message metadata, given the user's chosen body size.
+  double metadataFontSize(double bodySize) {
+    final capped = bodySize * _metadataMaxBodyRatio;
+    return capped < _metadataSize ? capped.clamp(_metadataSizeMin, _metadataSize)
+        : _metadataSize;
+  }
 
   factory MoonrelayChatTokens.fromDesignTokens(MoonrelayDesignTokens t) {
     return MoonrelayChatTokens(
       bubbleRadius: MoonrelayDesignTokens.baseCornerRadius,
       avatarSize: t.iconSizeLarge * 1.5,
-      spacing: t.spaceSm,
-      messagePaddingH: t.spaceLg,
+      avatarGutter: t.iconSizeLarge * 1.5 + t.spaceMd,
+      rowSpacing: t.spaceXxs,
+      groupSpacing: t.spaceSm,
+      // Wider than tall. A bubble whose horizontal padding matches its
+      // vertical padding reads as a box drawn around the text rather than a
+      // surface the text sits on.
+      messagePaddingH: t.spaceMd,
       messagePaddingV: t.spaceSm,
+      // Roughly 66 characters of body text at the default size.
+      bubbleMaxWidth: 520,
+      bubbleGutter: t.spaceXxl * 2,
+      measureMaxWidth: 660,
       replyBarWidth: t.spaceXs,
       reactionRadius: t.radiusFull,
       composerMinHeight: t.minTapTarget,
@@ -677,9 +788,14 @@ class MoonrelayChatTokens {
     return other is MoonrelayChatTokens &&
         other.bubbleRadius == bubbleRadius &&
         other.avatarSize == avatarSize &&
-        other.spacing == spacing &&
+        other.avatarGutter == avatarGutter &&
+        other.rowSpacing == rowSpacing &&
+        other.groupSpacing == groupSpacing &&
         other.messagePaddingH == messagePaddingH &&
         other.messagePaddingV == messagePaddingV &&
+        other.bubbleMaxWidth == bubbleMaxWidth &&
+        other.bubbleGutter == bubbleGutter &&
+        other.measureMaxWidth == measureMaxWidth &&
         other.replyBarWidth == replyBarWidth &&
         other.reactionRadius == reactionRadius &&
         other.composerMinHeight == composerMinHeight;
@@ -689,9 +805,14 @@ class MoonrelayChatTokens {
   int get hashCode => Object.hashAll([
         bubbleRadius,
         avatarSize,
-        spacing,
+        avatarGutter,
+        rowSpacing,
+        groupSpacing,
         messagePaddingH,
         messagePaddingV,
+        bubbleMaxWidth,
+        bubbleGutter,
+        measureMaxWidth,
         replyBarWidth,
         reactionRadius,
         composerMinHeight,

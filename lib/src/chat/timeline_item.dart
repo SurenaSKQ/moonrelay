@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:moonrelay/src/chat/chat_event.dart';
 import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
@@ -28,23 +29,11 @@ import 'package:moonrelay/src/chat/thread_indicator.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
-
-/// Maximum width for a chat bubble so the bubble hugs its text instead
-/// of stretching to fill the chat column.  Width is capped at this
-/// constant; chat bubbles that exceed it grow vertically, never
-/// horizontally.  Keeps the visual rhythm of a real chat app and stops
-/// long messages from looking like enormous banners.
-const double _kMaxBubbleWidth = 480;
-
-/// Reserved right margin for every bubble row.  The bubble itself is
-/// also left-aligned, so the row ends up with a constant
-/// [_kBubbleRightMargin] gutter on the right of the chat column
-/// giving bubbles a "floating" feel instead of a full-width slab.
-const double _kBubbleRightMargin = 64;
 
 /// Tagged action identifier used by [TimelineItem.onAction].  Folding
 /// the four message actions into a single dispatch keeps the closure
@@ -275,16 +264,22 @@ class _TimelineItemState extends State<TimelineItem> {
   /// (e.g. IRC display mode or missing onAction callback).
   Widget? _buildActions(BuildContext context) {
     if (widget.onAction == null) return null;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(8),
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(t.radiusSm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
+        boxShadow: t.shadowMedium,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceXxs,
+        vertical: t.spaceXxs,
+      ),
       child: MessageActions(
         event: widget.event,
         room: widget.room,
@@ -398,30 +393,46 @@ class _TimelineItemState extends State<TimelineItem> {
   }
 
   /// Wraps [child] in a [MouseRegion] that tracks hover state via
-  /// [_isHovered] (a [ValueNotifier]), applying the highlight background
-  /// and optionally the inline hoverbar.
+  /// [_isHovered] (a [ValueNotifier]), applying the hover tint and
+  /// optionally the inline hoverbar.
   ///
   /// Only the hover-sensitive parts rebuild on enter/exit -- the
   /// [child] subtree is unaffected because it is not inside the
   /// [ValueListenableBuilder].
+  ///
+  /// Highlight and hover are deliberately different channels.  They used to
+  /// share one [BoxDecoration] slot, which meant the two-second flash after a
+  /// jump looked exactly like a mouse-over, and simply moving the pointer
+  /// during the flash cancelled it.  The highlight is now an inset ring on
+  /// the row, which survives the pointer, and which stays visible *above* a
+  /// bubble's own fill rather than underneath it.
   Widget _wrapWithHover({
     required BuildContext context,
     required Widget child,
     required bool isHighlighted,
     required Widget? actions,
   }) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final cs = Theme.of(context).colorScheme;
-    final bgColor = isHighlighted
-        ? cs.primary.withValues(alpha: 0.15)
-        : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => _isHovered.value = true,
       onExit: (_) => _isHovered.value = false,
-      child: Container(
+      child: AnimatedContainer(
+        // Colour and border only.  Animating a margin here would mean
+        // re-laying-out the row on every frame of the flash; the row's own
+        // vertical padding already leaves the ring room to read.
+        duration: t.durationFast,
+        curve: t.curveDecelerate,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: bgColor,
+          color: isHighlighted
+              ? cs.primary.withValues(alpha: t.opacityFocus)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(t.radiusSm),
+          border: isHighlighted
+              ? Border.all(color: cs.primary, width: t.borderWidthThick)
+              : null,
         ),
         child: Stack(
           clipBehavior: Clip.none,
@@ -433,8 +444,8 @@ class _TimelineItemState extends State<TimelineItem> {
                 builder: (context, isHovered, _) {
                   if (!isHovered) return const SizedBox.shrink();
                   return Positioned(
-                    top: 4,
-                    right: 8,
+                    top: t.spaceXs,
+                    right: t.spaceSm,
                     child: actions,
                   );
                 },
@@ -515,21 +526,37 @@ class _TimelineItemState extends State<TimelineItem> {
   // Modern display
   // ---------------------------------------------------------------------------
 
+  /// Vertical gap above this message.
+  ///
+  /// A run of messages from one sender and a series of unrelated messages
+  /// used to have byte-identical spacing, so the eye had nothing to find a
+  /// group boundary with: the avatar disappears on continuation messages and
+  /// the sender name only appears on the first one.  The gap is what carries
+  /// the structure, so it has to differ between the two cases.
+  double _verticalSpacing(MoonrelayChatTokens chat) =>
+      widget.isGroupStart ? chat.groupSpacing : chat.rowSpacing;
+
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
     final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceSm,
+        vertical: _verticalSpacing(chat),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar column
           SizedBox(
-            width: 48,
+            width: chat.avatarGutter,
             child: showAvatar
                 ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: EdgeInsets.only(top: t.spaceXs),
                     child: AvatarFromUriOrFallbackImage(
                       client: widget.room.client,
                       avatarUri: widget.event.senderFromMemoryOrFallback
@@ -539,48 +566,59 @@ class _TimelineItemState extends State<TimelineItem> {
                   )
                 : null,
           ),
-          const SizedBox(width: 8),
-          // Content column
+          SizedBox(width: t.spaceSm),
+          // Content column.  Capped at a readable measure: flat display
+          // modes used to run body text the full width of the pane, which
+          // in the expanded dashboard shell is a fifteen-hundred-pixel line.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Sender name + timestamp (only for group-start)
-                if (widget.isGroupStart)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            widget.event.senderFromMemoryOrFallback
-                                .calcDisplayname(),
-                            style: TextStyle(
-                              fontSize: widget.fontSize,
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: chat.measureMaxWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Sender name + timestamp (only for group-start)
+                    if (widget.isGroupStart)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: t.spaceXs),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.event.senderFromMemoryOrFallback
+                                    .calcDisplayname(),
+                                style: TextStyle(
+                                  fontSize:
+                                      chat.senderFontSize(widget.fontSize),
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            SizedBox(width: t.spaceSm),
+                            Text(
+                              widget.event.originServerTs
+                                  .localizedTimeShort(context),
+                              style: TextStyle(
+                                fontSize:
+                                    chat.metadataFontSize(widget.fontSize),
+                                fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: t.opacitySubtle),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.event.originServerTs
-                              .localizedTimeShort(context),
-                          style: TextStyle(
-                            fontSize: widget.fontSize * 0.6875,
-                            fontWeight: FontWeight.w500,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // No timestamp for continuation messages (time shown on group start)
-                _messageContent(context),
-              ],
+                      ),
+                    // No timestamp for continuation messages (time shown on
+                    // group start)
+                    _messageContent(context),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -594,124 +632,152 @@ class _TimelineItemState extends State<TimelineItem> {
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
     final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
-    // Own messages read slightly heavier than everyone else's. That is how a
-    // left-aligned conversation tells you which side of it you are on,
-    // without mirroring the bubbles to do it.
+    // Own messages read as *your side* of the conversation, not as a
+    // slightly darker version of everyone else's.  The old signal was a
+    // fifteen percent alpha difference on one shared hue, which is at or
+    // under the threshold of notice on a large filled area and vanishes
+    // entirely in dark mode, where `primaryContainer` is already a dark,
+    // low-chroma value.  Two different surface roles is a signal that
+    // survives the palette.
     final isOwn = widget.event.senderId == widget.room.client.userID;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar column
-          SizedBox(
-            width: 48,
-            child: showAvatar
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: AvatarFromUriOrFallbackImage(
-                      client: widget.room.client,
-                      avatarUri: widget.event.senderFromMemoryOrFallback
-                          .avatarUrl,
-                      onTap: () => _openProfile(context),
-                    ),
-                  )
-                : null,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Scale the width cap and the floating gutter with the pane.  The
+        // gutter used to be a flat 64px, which cost thirteen percent of a
+        // phone screen; the cap was a flat 480px, which on a phone is most
+        // of the pane anyway and reads better as a proportion.
+        final bubbleMax = math.min(
+          chat.bubbleMaxWidth,
+          constraints.maxWidth * 0.78,
+        );
+        final gutter = math.min(
+          chat.bubbleGutter,
+          constraints.maxWidth * 0.12,
+        );
+
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceSm,
+            vertical: _verticalSpacing(chat),
           ),
-          const SizedBox(width: 8),
-          // Bubble content.  The whole column is wrapped in an
-          // [Expanded] (filling the row) with a fixed right margin so
-          // the bubble never hugs the right edge of the chat column
-          // the bubble visibly floats to the left and the gap on the
-          // right gives the layout visual breathing room.
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(right: _kBubbleRightMargin),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (widget.isGroupStart)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4, left: 4),
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              widget.event.senderFromMemoryOrFallback
-                                  .calcDisplayname(),
-                              style: TextStyle(
-                                fontSize: widget.fontSize,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.event.originServerTs
-                                .localizedTimeShort(context),
-                            style: TextStyle(
-                              fontSize: widget.fontSize * 0.6875,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  // Hover actions + bubble.  The bubble's max-width is
-                  // capped so it hugs its content; an [Align] keeps
-                  // the bubble at the left edge of the row, leaving
-                  // empty space on the right to look like a real
-                  // chat conversation rather than a single full-width
-                  // panel.
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: _kMaxBubbleWidth,
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          // A fill and a lift, not an outline.
-                          //
-                          // This was a 30% primary fill behind a 0.7px
-                          // 50% primary border, which is the visual
-                          // signature of a wireframe: it draws a box
-                          // around the text rather than putting a surface
-                          // under it, so a screen full of them looks like
-                          // a diagram of messages instead of messages.
-                          //
-                          // Opaque enough to be a surface, with the
-                          // shadowLow pair doing the work the border was
-                          // standing in for. The two layers matter: one
-                          // would read as a glow.
-                          color: cs.primaryContainer
-                              .withValues(alpha: isOwn ? 0.55 : 0.4),
-                          borderRadius:
-                              BorderRadius.circular(widget.bubbleRadius),
-                          boxShadow: MoonrelayThemeExtension.of(context)
-                              .tokens
-                              .shadowLow,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar column
+              SizedBox(
+                width: chat.avatarGutter,
+                child: showAvatar
+                    ? Padding(
+                        padding: EdgeInsets.only(top: t.spaceXs),
+                        child: AvatarFromUriOrFallbackImage(
+                          client: widget.room.client,
+                          avatarUri: widget.event.senderFromMemoryOrFallback
+                              .avatarUrl,
+                          onTap: () => _openProfile(context),
                         ),
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _messageContent(context),
-                            // No timestamp for continuation messages
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                      )
+                    : null,
               ),
-            ),
+              SizedBox(width: t.spaceSm),
+              // Bubble content.  The whole column is wrapped in an
+              // [Expanded] (filling the row) with a gutter on the right so
+              // the bubble floats to the left and the gap on the right gives
+              // the layout visual breathing room.
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.isGroupStart)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: t.spaceXs,
+                            left: t.spaceXs,
+                          ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.event.senderFromMemoryOrFallback
+                                      .calcDisplayname(),
+                                  style: TextStyle(
+                                    fontSize:
+                                        chat.senderFontSize(widget.fontSize),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(width: t.spaceSm),
+                              Text(
+                                widget.event.originServerTs
+                                    .localizedTimeShort(context),
+                                style: TextStyle(
+                                  fontSize:
+                                      chat.metadataFontSize(widget.fontSize),
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface
+                                      .withValues(alpha: t.opacitySubtle),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // The bubble hugs its content rather than stretching
+                      // to fill the chat column, and hugs the leading edge
+                      // rather than centring, so a run of messages reads as
+                      // a left margin instead of a ragged centred stack.
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: bubbleMax),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              // A fill and a lift, not an outline.
+                              //
+                              // This was a 30% primary fill behind a 0.7px
+                              // 50% primary border, which is the visual
+                              // signature of a wireframe: it draws a box
+                              // around the text rather than putting a
+                              // surface under it, so a screen full of them
+                              // looks like a diagram of messages instead of
+                              // messages.
+                              //
+                              // A fill plus the shadowLow pair, because the
+                              // two shadow layers together do the work the
+                              // border was standing in for. One would read
+                              // as a glow.
+                              color: isOwn
+                                  ? cs.primaryContainer
+                                  : cs.surfaceContainerHighest
+                                      .withValues(alpha: t.opacityDisabled),
+                              borderRadius: BorderRadius.circular(
+                                widget.bubbleRadius,
+                              ),
+                              boxShadow: t.shadowLow,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: chat.messagePaddingH,
+                              vertical: chat.messagePaddingV,
+                            ),
+                            child: _messageContent(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -720,14 +786,17 @@ class _TimelineItemState extends State<TimelineItem> {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
+    final chat =
+        MoonrelayThemeExtension.of(context).components.chat;
+
     return IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
           '<${widget.event.senderFromMemoryOrFallback.calcDisplayname()}>',
           style: TextStyle(
-            fontSize: widget.fontSize,
-            fontWeight: FontWeight.w700,
+            fontSize: chat.senderFontSize(widget.fontSize),
+            fontWeight: FontWeight.w600,
           ),
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.right,
@@ -735,30 +804,17 @@ class _TimelineItemState extends State<TimelineItem> {
       ),
       timestamp: Text(
         widget.event.originServerTs.localizedTimeShort(context),
-        style: const TextStyle(
-          fontSize: 12,
+        style: TextStyle(
+          fontSize: chat.metadataFontSize(widget.fontSize),
           fontWeight: FontWeight.w500,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MessageEventHandler(
-            event: widget.event,
-            timeline: widget.timeline,
-            room: widget.room,
-            fontSize: widget.fontSize,
-            onJumpToEvent: _onJumpToEvent,
-          ),
-          if (widget.timeline != null)
-            ReactionsBar(
-              event: widget.event,
-              timeline: widget.timeline!,
-              room: widget.room,
-            ),
-        ],
-      ),
+      // `_messageContent`, not a hand-rolled column.  IRC mode used to
+      // rebuild the body itself with just the event handler and the reaction
+      // bar, which quietly dropped delivery state, read receipts, and thread
+      // counts: a user who switched display types stopped being able to see
+      // whether their own messages had actually been sent.
+      body: _messageContent(context),
     );
   }
 }
