@@ -103,10 +103,17 @@ void main() {
     });
 
     test('the theme states the pointer and the keyboard apart', () {
-      // Keyboard focus has to outrank hover. A keyboard user cannot hover,
-      // so the focus tint is their only cue, and Material's default puts it
-      // only a few points above its hover tint, which reads as the same
-      // state rather than a different one.
+      // Keyboard focus has to be distinguishable from hover. A keyboard user
+      // cannot hover, so the focus tint is their only cue, and it is the
+      // only state they cannot produce by accident.
+      //
+      // This used to assert that focus's *alpha* was higher than hover's,
+      // which only made sense while both were alpha washes of `primary`.
+      // Hover is now an opaque step from the surface ramp, because a purple
+      // wash read as a tint rather than as the row moving toward the light.
+      // The two states are now different in kind, not in amount, so the
+      // assertion is that they are different colours at all and that neither
+      // is transparent enough to vanish.
       for (final theme in <ThemeData>[
         MoonrelayTheme.light(const Color(0xFF3F51B5)),
         MoonrelayTheme.dark(const Color(0xFF3F51B5)),
@@ -114,15 +121,35 @@ void main() {
         expect(theme.hoverColor, isNotNull);
         expect(theme.highlightColor, isNotNull);
         expect(theme.focusColor, isNotNull);
+
         expect(
-          theme.focusColor.a,
-          greaterThan(theme.hoverColor.a),
+          theme.focusColor,
+          isNot(theme.hoverColor),
           reason: 'focus must be distinguishable from hover',
         );
         expect(
-          theme.focusColor.a,
-          greaterThan(theme.highlightColor.a),
+          theme.focusColor,
+          isNot(theme.highlightColor),
           reason: 'focus must be distinguishable from press',
+        );
+        expect(
+          theme.focusColor.a,
+          greaterThan(0),
+          reason: 'focus must be visible at all',
+        );
+        expect(
+          theme.hoverColor.a,
+          greaterThan(0),
+          reason: 'hover must be visible at all',
+        );
+
+        // Focus is an accent wash, hover is a neutral surface step. That is
+        // the actual mechanism keeping them apart, and it is worth pinning:
+        // if someone makes hover an accent wash again the two collapse into
+        // one state.
+        expect(
+          theme.focusColor.computeLuminance(),
+          isNot(theme.hoverColor.computeLuminance()),
         );
       }
     });

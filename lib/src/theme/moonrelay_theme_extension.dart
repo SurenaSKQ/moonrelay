@@ -17,13 +17,15 @@
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/surface_layers.dart';
 
 /// Custom design tokens that fall outside Material 3's [ColorScheme].
 ///
 /// Access via `Theme.of(context).extension<MoonrelayThemeExtension>()`.
 ///
 /// Carries the full token hierarchy: atomic [MoonrelayDesignTokens],
-/// per-component [MoonrelayComponentTokens], and the monospace font family.
+/// per-component [MoonrelayComponentTokens], the [MoonrelaySurfaceLayers]
+/// palette, and the monospace font family.
 @immutable
 class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
   /// Material-default tokens used when a host theme does not carry the
@@ -46,6 +48,8 @@ class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
       monoFontFamily: 'FiraCode',
       tokens: tokens,
       components: MoonrelayComponentTokens.fromDesignTokens(tokens),
+      layers:
+          MoonrelaySurfaceLayers.forBrightness(Brightness.light),
     );
   }
 
@@ -58,10 +62,15 @@ class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
   /// Per-component semantic tokens (button, input, card, chat, etc.).
   final MoonrelayComponentTokens components;
 
+  /// The layered surface ramp, plus the hover, selection, and hairline
+  /// values that a [ColorScheme] has no field for.
+  final MoonrelaySurfaceLayers layers;
+
   const MoonrelayThemeExtension({
     required this.monoFontFamily,
     required this.tokens,
     required this.components,
+    required this.layers,
   });
 
   @override
@@ -69,11 +78,13 @@ class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
     String? monoFontFamily,
     MoonrelayDesignTokens? tokens,
     MoonrelayComponentTokens? components,
+    MoonrelaySurfaceLayers? layers,
   }) {
     return MoonrelayThemeExtension(
       monoFontFamily: monoFontFamily ?? this.monoFontFamily,
       tokens: tokens ?? this.tokens,
       components: components ?? this.components,
+      layers: layers ?? this.layers,
     );
   }
 
@@ -87,6 +98,7 @@ class MoonrelayThemeExtension extends ThemeExtension<MoonrelayThemeExtension> {
       monoFontFamily: t < 0.5 ? monoFontFamily : other.monoFontFamily,
       tokens: tokens.lerp(other.tokens, t),
       components: t < 0.5 ? components : other.components,
+      layers: t < 0.5 ? layers : other.layers,
     );
   }
 }

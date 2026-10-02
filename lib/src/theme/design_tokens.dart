@@ -163,7 +163,28 @@ class MoonrelayDesignTokens {
   // -- Factory ---------------------------------------------------------
 
   /// The corner radius every rounded surface is derived from.
-  static const double baseCornerRadius = 12.0;
+  ///
+  /// Eight pixels, which is the app's standard for cards, buttons, and
+  /// inputs. It was twelve, and twelve is a softer, friendlier number for a
+  /// page of cards, but the layout this app has is panels and rows rather
+  /// than cards on a page, and at twelve the pane corners read as bubbles
+  /// around the content instead of as edges of a surface. Eight is also
+  /// small enough that a 36px room avatar still clears it visibly, which is
+  /// the whole "smoother rounded corners" goal of the current look.
+  static const double baseCornerRadius = 8.0;
+
+  /// Width of the icon-only spaces rail.
+  ///
+  /// Seventy-two, not the sixty-four a Discord server list uses, because this
+  /// rail also carries the account avatar at the bottom and a 48px space
+  /// icon plus twelve of gutter each side wants the extra room.
+  static const double navRailWidth = 72.0;
+
+  /// Diameter of a space icon in the rail.
+  static const double spaceIconSize = 48.0;
+
+  /// Inset of the active rail indicator from the rail's leading edge.
+  static const double railIndicatorInset = 12.0;
 
   /// Light-theme shadows: a tight contact shadow directly under a wider,
   /// weaker ambient one.
@@ -308,8 +329,13 @@ class MoonrelayDesignTokens {
       minTapTarget: 48,
 
       // Border radii (derived from the base corner radius)
-      radiusXs: (r - 8).clamp(0.0, r),
-      radiusSm: (r - 4).clamp(0.0, r),
+      //
+      // Offsets rather than a geometric series, because the bottom of the
+      // scale used to clamp: at a 12px base, `radiusXs` came out at zero,
+      // so the smallest step was not a small radius but a square corner. At
+      // a base of 8 the same offsets give 4, which is a real step.
+      radiusXs: r - 4,
+      radiusSm: r - 2,
       radiusMd: r,
       radiusLg: r + 4,
       radiusXl: r + 8,

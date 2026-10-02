@@ -19,6 +19,7 @@ import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/theme/surface_layers.dart';
 import 'package:flutter/material.dart';
 
 export 'package:moonrelay/src/theme/moonrelay_theme_extension.dart'
@@ -192,10 +193,18 @@ class MoonrelayTheme {
     required String monoFontFamily,
     required bool enableAnimations,
   }) {
-    final colorScheme = ColorScheme.fromSeed(
+    final seedScheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
     );
+    // The seed only decides the accent ramp. The surfaces are stated
+    // explicitly, because a tonal derivation cannot produce a layout where
+    // the rail, the room list, and the conversation are three depths of one
+    // wall. See [MoonrelaySurfaceLayers].
+    final layers =
+        MoonrelaySurfaceLayers.forBrightness(brightness);
+    final colorScheme =
+        MoonrelaySurfaceLayers.apply(seedScheme, brightness);
     final tokens = MoonrelayDesignTokens.standard(brightness: brightness);
     final components = MoonrelayComponentTokens.fromDesignTokens(tokens);
 
@@ -205,33 +214,29 @@ class MoonrelayTheme {
       visualDensity: _visualDensity(density),
       fontFamily: fontFamily,
       textTheme: _textTheme(fontFamily, displayFontFamily),
+      scaffoldBackgroundColor: colorScheme.surface,
 
-      // Interaction states, set once here rather than left to Material's
-      // defaults. The app is mostly Material components, so these four
-      // colours are the entire hover / press / keyboard-focus vocabulary for
-      // every button, list tile, chip and ink well in the build.
+      // Interaction states.
       //
-      // The one that matters is [focusColor]. Material's default is primary
-      // at 12%, which is barely above the 8% hover, so a keyboard user and a
-      // mouse user see almost the same thing and neither is sure which they
-      // are looking at. Keyboard focus has to outrank pointer hover, because
-      // a keyboard user cannot hover: the focus tint is their only cue, and
-      // it is the only state they cannot produce by accident.
-      //
-      // This is a tint, not a ring, so it does not by itself satisfy the
-      // WCAG 2.2 focus-appearance contrast minimum. Closing that properly
-      // means a real outline on the surfaces that matter most; see
+      // Material's defaults are alpha washes of `primary`, and on this
+      // palette that reads as a purple tint rather than as the row moving
+      // toward the light. Hover and selection are opaque steps from the
+      // surface ramp instead, which is what actually happens visually when a
+      // row lights up, and it keeps a hovered room row the same colour
+      // whether or not it is also selected.
+      hoverColor: layers.hover,
+      highlightColor: layers.active,
+      // Focus still outranks hover: a keyboard user cannot hover, so the
+      // focus tint is their only cue and the only state they cannot produce
+      // by accident. It is a tint rather than a ring, so it does not by
+      // itself satisfy the WCAG 2.2 focus-appearance contrast minimum; see
       // WORK_NEEDED.md.
-      hoverColor: colorScheme.primary.withValues(alpha: tokens.opacityHover),
-      highlightColor:
-          colorScheme.primary.withValues(alpha: tokens.opacityPressed),
-      focusColor:
-          colorScheme.primary.withValues(alpha: tokens.opacityFocusRing),
+      focusColor: colorScheme.primary.withValues(alpha: tokens.opacityFocusRing),
 
       // Component themes derived from tokens
       appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily),
       cardTheme: _cardTheme(colorScheme, components.card),
-      dividerTheme: _dividerTheme(colorScheme, components.divider),
+      dividerTheme: _dividerTheme(colorScheme, components.divider, layers),
       dialogTheme: _dialogTheme(colorScheme, components.dialog),
       filledButtonTheme: _filledButtonTheme(colorScheme, components.button),
       outlinedButtonTheme: _outlinedButtonTheme(colorScheme, components.button),
@@ -241,7 +246,7 @@ class MoonrelayTheme {
       listTileTheme: _listTileTheme(colorScheme, components.list),
       snackBarTheme: _snackBarTheme(colorScheme, components.snackBar),
       inputDecorationTheme:
-          _inputDecorationTheme(colorScheme, components.input),
+          _inputDecorationTheme(colorScheme, components.input, layers),
       progressIndicatorTheme:
           _progressIndicatorTheme(colorScheme, components.progress),
       chipTheme: _chipTheme(colorScheme, components.chip),
@@ -268,6 +273,7 @@ class MoonrelayTheme {
           monoFontFamily: monoFontFamily,
           tokens: tokens,
           components: components,
+          layers: layers,
         ),
       ],
     );
@@ -308,10 +314,16 @@ class MoonrelayTheme {
   static DividerThemeData _dividerTheme(
     ColorScheme cs,
     MoonrelayDividerTokens t,
+    MoonrelaySurfaceLayers layers,
   ) {
     return DividerThemeData(
-      color: cs.outlineVariant.withValues(alpha: 0.5),
+      // One hairline colour for every rule in the app.  The pane dividers
+      // are the only lines in the layout that are not part of a component,
+      // and letting each pick its own alpha is how a shell ends up with
+      // five slightly different greys running down the same edge.
+      color: layers.hairline,
       thickness: t.thickness,
+      space: t.thickness,
     );
   }
 
@@ -426,16 +438,44 @@ class MoonrelayTheme {
   static InputDecorationTheme _inputDecorationTheme(
     ColorScheme cs,
     MoonrelayInputTokens t,
+    MoonrelaySurfaceLayers layers,
   ) {
     final radius = BorderRadius.circular(t.cornerRadius);
-    final side = BorderSide(width: t.borderWidth, color: cs.outline);
+    // Filled, not outlined.
+    //
+    // An outlined field on this palette is a bright 1px rectangle around a
+    // hole, which fights the layered surfaces for attention. The mockup's
+    // search field is the better pattern: a recessed fill that reads as part
+    // of the panel, and a border that only appears to say "this is
+    // interactive" and thickens into the accent on focus.
+    final resting = BorderSide(
+      width: t.borderWidth,
+      color: layers.hairline,
+    );
+    final focused = BorderSide(
+      width: t.borderWidth + 0.5,
+      color: cs.primary,
+    );
+    OutlineInputBorder border(BorderSide side) =>
+        OutlineInputBorder(borderRadius: radius, borderSide: side);
+
     return InputDecorationTheme(
-      border: OutlineInputBorder(borderRadius: radius, borderSide: side),
-      enabledBorder: OutlineInputBorder(borderRadius: radius, borderSide: side),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: radius,
-        borderSide: BorderSide(width: t.borderWidth, color: cs.primary),
+      filled: true,
+      fillColor: cs.surfaceContainerLowest,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: t.contentPaddingH,
+        vertical: t.contentPaddingV,
       ),
+      border: border(resting),
+      enabledBorder: border(resting),
+      focusedBorder: border(focused),
+      errorBorder: border(
+        BorderSide(width: t.borderWidth, color: cs.error),
+      ),
+      focusedErrorBorder: border(
+        BorderSide(width: t.borderWidth + 0.5, color: cs.error),
+      ),
+      disabledBorder: border(resting),
     );
   }
 
