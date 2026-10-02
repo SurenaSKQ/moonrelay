@@ -16,7 +16,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moonrelay/src/helpers/color_palette.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -60,13 +59,60 @@ void main() {
       expect(seeds.toSet().length, MoonrelayAccents.all.length);
     });
 
+    test('every seed is fully opaque', () {
+      // The palette these came from carried a `corporateDarkColor` whose
+      // alpha byte was zero, so it rendered as nothing at all. Opaque is the
+      // floor for a seed: ColorScheme.fromSeed needs the alpha to build a
+      // scheme, and a transparent seed would produce a scheme with no colour
+      // in it. Worth asserting now that the seeds are inlined.
+      for (final accent in MoonrelayAccents.all) {
+        expect(accent.seedColor.a, 1.0,
+            reason: '${accent.id} has a non-opaque seed');
+      }
+    });
+
+    test('every label names its own colour', () {
+      // The ids are frozen because they are persisted, and three of them
+      // misdescribe their colour: `midnight` is a green, `steel` is a lime
+      // and `crimson` is a red. The label is the only part a user reads, so
+      // it has to be the honest one.
+      final expected = <String, String>{
+        'indigo': 'Indigo',
+        'ocean': 'Ocean Blue',
+        'midnight': 'British Racing Green',
+        'crimson': 'Crimson',
+        'amber': 'Orange',
+        'steel': 'Lime Green',
+        'sky': 'Sky',
+        'charcoal': 'Charcoal',
+        'vistaBlue': 'Vista Blue',
+      };
+      for (final accent in MoonrelayAccents.all) {
+        expect(accent.label, expected[accent.id],
+            reason: '${accent.id} has an unexpected label');
+      }
+      expect(expected.keys.toSet(),
+          MoonrelayAccents.all.map((a) => a.id).toSet(),
+          reason: 'a shipped accent is missing from this table');
+    });
+
+    test('the seeds are the colours they are named after', () {
+      expect(MoonrelayAccents.ocean.seedColor, const Color(0xFF0D47A1));
+      expect(MoonrelayAccents.midnight.seedColor, const Color(0xFF004225));
+      expect(MoonrelayAccents.crimson.seedColor, const Color(0xFFC32148));
+      expect(MoonrelayAccents.amber.seedColor, const Color(0xFFFF9800));
+      expect(MoonrelayAccents.steel.seedColor, const Color(0xFFCDDC39));
+      expect(MoonrelayAccents.sky.seedColor, const Color(0xFF58A6FF));
+      expect(MoonrelayAccents.charcoal.seedColor, const Color(0xFF212121));
+    });
+
     test('vistaBlue captures the air-force blue (#5C8AA6)', () {
       expect(MoonrelayAccents.vistaBlue.seedColor, const Color(0xFF5C8AA6));
     });
 
     test('charcoal is the neutral accent', () {
       expect(MoonrelayAccents.charcoal.seedColor,
-          MoonrelayColorPalette.ordinaryDarkGrey);
+          MoonrelayAccentSeeds.nearBlack);
     });
   });
 

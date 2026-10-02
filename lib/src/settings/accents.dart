@@ -16,7 +16,36 @@
 
 import 'package:flutter/material.dart';
 
-import 'package:moonrelay/src/helpers/color_palette.dart';
+/// The seed colours the shipped accents are built from.
+///
+/// These used to live in lib/src/helpers/color_palette.dart, a reference
+/// palette copied from elsewhere with eight unused swatches, four wrapper
+/// methods and two comments that grouped the wrong colours together. None of
+/// that was reachable: the palette's only consumer was this file, asking for
+/// seven constants. They are inlined here so each accent can state the colour
+/// it actually is, which is the only fact a user or a maintainer needs.
+abstract final class MoonrelayAccentSeeds {
+  /// Material blue 900.
+  static const Color oceanBlue = Color(0xFF0D47A1);
+
+  /// The green of British racing paint.
+  static const Color racingGreen = Color(0xFF004225);
+
+  /// A deep raspberry red.
+  static const Color raspberry = Color(0xFFC32148);
+
+  /// Material orange 500.
+  static const Color orange = Color(0xFFFF9800);
+
+  /// Material lime 500.
+  static const Color lime = Color(0xFFCDDC39);
+
+  /// Material blue 400.
+  static const Color skyBlue = Color(0xFF58A6FF);
+
+  /// Material grey 900.
+  static const Color nearBlack = Color(0xFF212121);
+}
 
 /// A swappable colour accent for the app.
 ///
@@ -84,14 +113,14 @@ class MoonrelayAccents {
   static const MoonrelayAccent ocean = MoonrelayAccent(
     id: 'ocean',
     label: 'Ocean Blue',
-    seedColor: MoonrelayColorPalette.ordinaryBlue,
+    seedColor: MoonrelayAccentSeeds.oceanBlue,
   );
 
   /// Racing green (#004225). The id is historical; see [MoonrelayAccent.id].
   static const MoonrelayAccent midnight = MoonrelayAccent(
     id: 'midnight',
     label: 'British Racing Green',
-    seedColor: MoonrelayColorPalette.britishRacingGreen,
+    seedColor: MoonrelayAccentSeeds.racingGreen,
   );
 
   /// Deep raspberry red (#C32148). The id is historical; see
@@ -99,7 +128,7 @@ class MoonrelayAccents {
   static const MoonrelayAccent crimson = MoonrelayAccent(
     id: 'crimson',
     label: 'Crimson',
-    seedColor: MoonrelayColorPalette.brightMaroon,
+    seedColor: MoonrelayAccentSeeds.raspberry,
   );
 
   /// Material orange 500 (#FF9800). The id is close enough to read; see
@@ -107,7 +136,7 @@ class MoonrelayAccents {
   static const MoonrelayAccent amber = MoonrelayAccent(
     id: 'amber',
     label: 'Orange',
-    seedColor: MoonrelayColorPalette.ordinaryOrange,
+    seedColor: MoonrelayAccentSeeds.orange,
   );
 
   /// Material lime 500 (#CDDC39). The id is historical; see
@@ -115,20 +144,20 @@ class MoonrelayAccents {
   static const MoonrelayAccent steel = MoonrelayAccent(
     id: 'steel',
     label: 'Lime Green',
-    seedColor: MoonrelayColorPalette.ordinaryLimeGreen,
+    seedColor: MoonrelayAccentSeeds.lime,
   );
 
   static const MoonrelayAccent sky = MoonrelayAccent(
     id: 'sky',
     label: 'Sky',
-    seedColor: MoonrelayColorPalette.accentColor,
+    seedColor: MoonrelayAccentSeeds.skyBlue,
   );
 
   /// Neutral accent for users who want the app to stay grey.
   static const MoonrelayAccent charcoal = MoonrelayAccent(
     id: 'charcoal',
     label: 'Charcoal',
-    seedColor: MoonrelayColorPalette.ordinaryDarkGrey,
+    seedColor: MoonrelayAccentSeeds.nearBlack,
   );
 
   /// A desaturated air-force blue (#5C8AA6).
