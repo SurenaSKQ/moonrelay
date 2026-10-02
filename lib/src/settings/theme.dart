@@ -206,6 +206,28 @@ class MoonrelayTheme {
       fontFamily: fontFamily,
       textTheme: _textTheme(fontFamily, displayFontFamily),
 
+      // Interaction states, set once here rather than left to Material's
+      // defaults. The app is mostly Material components, so these four
+      // colours are the entire hover / press / keyboard-focus vocabulary for
+      // every button, list tile, chip and ink well in the build.
+      //
+      // The one that matters is [focusColor]. Material's default is primary
+      // at 12%, which is barely above the 8% hover, so a keyboard user and a
+      // mouse user see almost the same thing and neither is sure which they
+      // are looking at. Keyboard focus has to outrank pointer hover, because
+      // a keyboard user cannot hover: the focus tint is their only cue, and
+      // it is the only state they cannot produce by accident.
+      //
+      // This is a tint, not a ring, so it does not by itself satisfy the
+      // WCAG 2.2 focus-appearance contrast minimum. Closing that properly
+      // means a real outline on the surfaces that matter most; see
+      // WORK_NEEDED.md.
+      hoverColor: colorScheme.primary.withValues(alpha: tokens.opacityHover),
+      highlightColor:
+          colorScheme.primary.withValues(alpha: tokens.opacityPressed),
+      focusColor:
+          colorScheme.primary.withValues(alpha: tokens.opacityFocusRing),
+
       // Component themes derived from tokens
       appBarTheme: _appBarTheme(colorScheme, components.appBar, fontFamily),
       cardTheme: _cardTheme(colorScheme, components.card),

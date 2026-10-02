@@ -101,6 +101,31 @@ void main() {
       expect(dark.borderWidthThin, light.borderWidthThin);
       expect(dark.opacityHover, light.opacityHover);
     });
+
+    test('the theme states the pointer and the keyboard apart', () {
+      // Keyboard focus has to outrank hover. A keyboard user cannot hover,
+      // so the focus tint is their only cue, and Material's default puts it
+      // only a few points above its hover tint, which reads as the same
+      // state rather than a different one.
+      for (final theme in <ThemeData>[
+        MoonrelayTheme.light(const Color(0xFF3F51B5)),
+        MoonrelayTheme.dark(const Color(0xFF3F51B5)),
+      ]) {
+        expect(theme.hoverColor, isNotNull);
+        expect(theme.highlightColor, isNotNull);
+        expect(theme.focusColor, isNotNull);
+        expect(
+          theme.focusColor!.a,
+          greaterThan(theme.hoverColor!.a),
+          reason: 'focus must be distinguishable from hover',
+        );
+        expect(
+          theme.focusColor!.a,
+          greaterThan(theme.highlightColor!.a),
+          reason: 'focus must be distinguishable from press',
+        );
+      }
+    });
   });
 
   group('text scale', () {

@@ -50,6 +50,7 @@ class MoonrelayDesignTokens {
     required this.opacityDisabled,
     required this.opacityHover,
     required this.opacityFocus,
+    required this.opacityFocusRing,
     required this.opacityPressed,
     required this.opacityDragged,
     required this.opacitySubtle,
@@ -110,6 +111,16 @@ class MoonrelayDesignTokens {
   final double opacityDisabled;
   final double opacityHover;
   final double opacityFocus;
+
+  /// Keyboard-focus tint, deliberately stronger than [opacityHover].
+  ///
+  /// The pointer and the keyboard need different treatment because only one
+  /// of them can hover. Material's default focus tint sits a few points
+  /// above its hover tint, which is too close to tell apart, so a keyboard
+  /// user gets roughly the same wash as a mouse user and neither can tell
+  /// which state they are in. This is the value the theme's `focusColor`
+  /// uses.
+  final double opacityFocusRing;
   final double opacityPressed;
   final double opacityDragged;
   final double opacitySubtle;
@@ -256,6 +267,7 @@ class MoonrelayDesignTokens {
       opacityDisabled: 0.38,
       opacityHover: 0.08,
       opacityFocus: 0.12,
+      opacityFocusRing: 0.20,
       opacityPressed: 0.12,
       opacityDragged: 0.16,
       opacitySubtle: 0.54,
@@ -314,6 +326,7 @@ class MoonrelayDesignTokens {
     double? opacityDisabled,
     double? opacityHover,
     double? opacityFocus,
+    double? opacityFocusRing,
     double? opacityPressed,
     double? opacityDragged,
     double? opacitySubtle,
@@ -358,6 +371,7 @@ class MoonrelayDesignTokens {
       opacityDisabled: opacityDisabled ?? this.opacityDisabled,
       opacityHover: opacityHover ?? this.opacityHover,
       opacityFocus: opacityFocus ?? this.opacityFocus,
+      opacityFocusRing: opacityFocusRing ?? this.opacityFocusRing,
       opacityPressed: opacityPressed ?? this.opacityPressed,
       opacityDragged: opacityDragged ?? this.opacityDragged,
       opacitySubtle: opacitySubtle ?? this.opacitySubtle,
@@ -413,6 +427,8 @@ class MoonrelayDesignTokens {
       opacityDisabled: lerpDouble(opacityDisabled, other.opacityDisabled, t)!,
       opacityHover: lerpDouble(opacityHover, other.opacityHover, t)!,
       opacityFocus: lerpDouble(opacityFocus, other.opacityFocus, t)!,
+      opacityFocusRing:
+          lerpDouble(opacityFocusRing, other.opacityFocusRing, t)!,
       opacityPressed: lerpDouble(opacityPressed, other.opacityPressed, t)!,
       opacityDragged: lerpDouble(opacityDragged, other.opacityDragged, t)!,
       opacitySubtle: lerpDouble(opacitySubtle, other.opacitySubtle, t)!,
@@ -463,6 +479,7 @@ class MoonrelayDesignTokens {
         other.opacityDisabled == opacityDisabled &&
         other.opacityHover == opacityHover &&
         other.opacityFocus == opacityFocus &&
+        other.opacityFocusRing == opacityFocusRing &&
         other.opacityPressed == opacityPressed &&
         other.opacityDragged == opacityDragged &&
         other.opacitySubtle == opacitySubtle &&
@@ -503,6 +520,7 @@ class MoonrelayDesignTokens {
         opacityDisabled,
         opacityHover,
         opacityFocus,
+        opacityFocusRing,
         opacityPressed,
         opacityDragged,
         opacitySubtle,
