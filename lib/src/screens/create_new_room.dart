@@ -231,9 +231,12 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
 
             const SizedBox(height: 16),
 
-            // Room avatar
-            GestureDetector(
+            // Room avatar. InkWell rather than GestureDetector: the row reads
+            // as a button, with a camera icon and a label, and a bare
+            // detector gave it no hover, no press and no keyboard focus.
+            InkWell(
               onTap: _avatarBytes == null ? _pickAvatar : null,
+              borderRadius: BorderRadius.circular(12),
               child: Row(
                 children: [
                   CircleAvatar(

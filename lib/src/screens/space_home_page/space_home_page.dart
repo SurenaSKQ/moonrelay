@@ -460,8 +460,13 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 color:
                     scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
               ),
-            GestureDetector(
+            // InkWell rather than GestureDetector: this chip is a link, and a
+            // bare detector gave it no hover, no press and no keyboard
+            // focus. The fill stays on the Container so the ink tints it
+            // rather than replacing it.
+            InkWell(
               onTap: () => context.push('/main/space/${parents[i].id}'),
+              borderRadius: BorderRadius.circular(6),
               child: Container(
                 padding: EdgeInsets.symmetric(
                     horizontal: t.spaceSm, vertical: t.spaceXs),

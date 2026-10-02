@@ -169,21 +169,27 @@ void _onTap() {
                 ? const VisualDensity(horizontal: -2, vertical: -2)
                 : VisualDensity.compact;
 
-            return GestureDetector(
-              onTap: _onTap,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                    horizontal: hPadding, vertical: tight ? 6 : 8),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainer,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: scheme.outlineVariant
-                          .withValues(alpha: t.opacitySubtle),
+            // The room header is the primary way out of the message pane in the
+            // single-pane shell, and it looked exactly like the surrounding
+            // fill. InkWell gives it the ink, hover and keyboard focus that a
+            // bare GestureDetector omitted; the fill moves to a Material so
+            // the splash has something to paint into.
+            return Material(
+              color: scheme.surfaceContainer,
+              child: InkWell(
+                onTap: _onTap,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: hPadding, vertical: tight ? 6 : 8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: scheme.outlineVariant
+                            .withValues(alpha: t.opacitySubtle),
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
+                  child: Row(
                   children: [
                     // Room avatar
                     AvatarFromUriOrFallbackImage(
@@ -299,7 +305,8 @@ void _onTap() {
                   ],
                 ),
               ),
-            );
+            ),
+          );
           },
         );
       },

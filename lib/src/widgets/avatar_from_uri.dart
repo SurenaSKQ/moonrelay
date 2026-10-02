@@ -100,13 +100,12 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     final uri = avatarUri;
 
     if (uri == null) {
-      return GestureDetector(onTap: onTap, child: _placeholder(theme));
+      return _tapTarget(_placeholder(theme));
     }
 
     final resolver = _getResolver(client, uri, displaySize);
-    return GestureDetector(
-      onTap: onTap,
-      child: ListenableBuilder(
+    return _tapTarget(
+      ListenableBuilder(
         listenable: resolver,
         builder: (context, _) {
           final resolved = resolver.value;
@@ -115,6 +114,29 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
           }
           return _placeholder(theme);
         },
+      ),
+    );
+  }
+
+  /// Wraps [child] in the tap target, or in nothing when there is no
+  /// [onTap].
+  ///
+  /// An [InkWell] rather than a [GestureDetector] because the gesture is the
+  /// whole affordance here: avatars open profiles from room lists, member
+  /// lists and headers, and with a bare detector a click gave no ink, no
+  /// hover and no keyboard focus at all. The circle clips the ink so the
+  /// splash reads as the avatar rather than as a square behind it.
+  Widget _tapTarget(Widget child) {
+    final tap = onTap;
+    if (tap == null) return child;
+    return Material(
+      type: MaterialType.transparency,
+      shape: CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: tap,
+        customBorder: const CircleBorder(),
+        child: child,
       ),
     );
   }

@@ -377,8 +377,12 @@ class _CreateRoomWidgetState extends State<CreateRoomWidget> {
           SizedBox(height: t.spaceLg),
 
           // -- Room avatar ------------------------------------------
-          GestureDetector(
+          // InkWell rather than GestureDetector, matching the same row in
+          // create_new_room.dart: it reads as a button and a bare detector
+          // gave it no hover, no press and no keyboard focus.
+          InkWell(
             onTap: _avatarBytes == null ? _pickAvatar : null,
+            borderRadius: BorderRadius.circular(t.radiusMd),
             child: Row(
               children: [
                 CircleAvatar(
