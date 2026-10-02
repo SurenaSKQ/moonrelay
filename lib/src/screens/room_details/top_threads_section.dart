@@ -151,19 +151,20 @@ class ThreadRootTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = MoonrelayThemeExtension.of(context).tokens;
-    return GestureDetector(
-      onTap: () => _openThread(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        margin: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(t.radiusMd),
-          color: Colors.transparent,
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(t.radiusMd),
-          onTap: () => _openThread(context),
-          child: Row(
+    // The InkWell below already handles this tap. The GestureDetector that used
+    // to wrap it registered the same handler a second time on the same
+    // gesture arena.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        color: Colors.transparent,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        onTap: () => _openThread(context),
+        child: Row(
             children: [
               // Avatar
               SizedBox(
@@ -211,7 +212,6 @@ class ThreadRootTile extends StatelessWidget {
                 ),
               ),
             ],
-          ),
         ),
       ),
     );

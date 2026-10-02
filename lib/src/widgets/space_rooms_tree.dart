@@ -293,25 +293,27 @@ class _SubspaceHeader extends StatelessWidget {
         .withLightness((0.4 + depth * 0.06).clamp(0.4, 0.7))
         .toColor();
 
-    return GestureDetector(
-      onDoubleTap: onDoubleTap,
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 8.0 + depth * 20.0,
-          right: 8,
-          top: 10,
-          bottom: 10,
+    // Double tap used to sit on a GestureDetector wrapped around the InkWell
+    // below. InkWell takes onDoubleTap itself, which drops the wrapper and
+    // gives the double tap the same gesture handling as the single tap.
+    return Container(
+      padding: EdgeInsets.only(
+        left: 8.0 + depth * 20.0,
+        right: 8,
+        top: 10,
+        bottom: 10,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: bgAlpha / 255.0),
+        border: Border(
+          left: BorderSide(color: leftBorderColor, width: 3),
         ),
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: bgAlpha / 255.0),
-          border: Border(
-            left: BorderSide(color: leftBorderColor, width: 3),
-          ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(t.radiusXs),
-          child: Row(
+      ),
+      child: InkWell(
+        onTap: onTap,
+        onDoubleTap: onDoubleTap,
+        borderRadius: BorderRadius.circular(t.radiusXs),
+        child: Row(
             children: [
               Icon(
                 isExpanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
@@ -357,7 +359,6 @@ class _SubspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

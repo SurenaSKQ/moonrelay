@@ -173,22 +173,24 @@ class MemberTileState extends State<MemberTile> {
   ) {
     final lastSeenText = _buildLastSeenText(context, presence);
 
-    return GestureDetector(
-      onLongPress: () => _showContextMenu(context),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          margin: const EdgeInsets.only(bottom: 2),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(t.radiusMd),
-            color: Colors.transparent,
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(t.radiusMd),
-            onTap: () => _showContextMenu(context),
-            onSecondaryTap: () => _showContextMenu(context),
-            child: Row(
+    // Long press used to sit on a GestureDetector wrapped around this InkWell,
+    // which meant the long press got no ink and the tile was not focusable
+    // as a whole. InkWell takes onLongPress itself.
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(t.radiusMd),
+          color: Colors.transparent,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(t.radiusMd),
+          onTap: () => _showContextMenu(context),
+          onSecondaryTap: () => _showContextMenu(context),
+          onLongPress: () => _showContextMenu(context),
+          child: Row(
               children: [
                 // Avatar
                 SizedBox(
@@ -294,7 +296,6 @@ class MemberTileState extends State<MemberTile> {
             ),
           ),
         ),
-      ),
     );
   }
 

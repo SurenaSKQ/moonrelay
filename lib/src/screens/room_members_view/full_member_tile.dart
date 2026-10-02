@@ -91,15 +91,17 @@ class FullMemberTileState extends State<FullMemberTile> {
     String? membershipLabel,
   ) {
     final lastSeenText = _buildLastSeenText(context, presence);
-    return GestureDetector(
-      onLongPress: () => _showContextMenu(context),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(t.radiusMd),
-          onTap: () => _showContextMenu(context),
-          onSecondaryTap: () => _showContextMenu(context),
-          child: Padding(
+    // Long press used to sit on a GestureDetector wrapped around this InkWell,
+    // which meant the long press got no ink and the tile was not focusable
+    // as a whole. InkWell takes onLongPress itself.
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        onTap: () => _showContextMenu(context),
+        onSecondaryTap: () => _showContextMenu(context),
+        onLongPress: () => _showContextMenu(context),
+        child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Row(
               children: [
@@ -208,7 +210,6 @@ class FullMemberTileState extends State<FullMemberTile> {
             ),
           ),
         ),
-      ),
     );
   }
 
