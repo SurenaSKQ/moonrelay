@@ -24,6 +24,7 @@ import 'package:moonrelay/src/chat/history_pager.dart';
 import 'package:moonrelay/src/chat/jump_to_unread_pager.dart';
 import 'package:moonrelay/src/chat/timeline_view.dart';
 import 'package:moonrelay/src/chat/timeline_scroll_target.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 
 /// Orchestrates the "jump to first unread" affordance.
 ///
@@ -127,6 +128,12 @@ class JumpCoordinator {
   final Duration paginationBudget;
 
   static const Duration _highlightDuration = Duration(seconds: 2);
+
+  /// How long a fallback jump takes to travel to its target.
+  ///
+  /// Gated through [Motion] at each call site, so a user who has turned
+  /// animations off lands on the message instead of gliding to it.
+  static const Duration _scrollDuration = Duration(milliseconds: 300);
 
   bool _isJumping = false;
   Timer? _highlightTimer;
@@ -282,8 +289,13 @@ class JumpCoordinator {
     }
 
     final idx = events.indexWhere((e) => e.eventId == eventId);
-    TimelineScrollTarget.scrollToFraction(scrollController, idx, events.length,
-        skipIfClose: false);
+    TimelineScrollTarget.scrollToFraction(
+      scrollController,
+      idx,
+      events.length,
+      skipIfClose: false,
+      duration: Motion.of(context).duration(_scrollDuration),
+    );
   }
 
   /// Resets in-flight state.  Called when the room id changes so the
@@ -362,12 +374,26 @@ class JumpCoordinator {
     }
 
     final idx = events.indexWhere((e) => e.eventId == eventId);
-    TimelineScrollTarget.scrollToFraction(scrollController, idx, events.length,
-        skipIfClose: false);
+    TimelineScrollTarget.scrollToFraction(
+      scrollController,
+      idx,
+      events.length,
+      skipIfClose: false,
+      duration: Motion.of(context).duration(_scrollDuration),
+    );
   }
 
   void _flashHighlight(String eventId) {
     _highlightTimer?.cancel();
+    // A flashing highlight is exactly what "reduce motion" is asking us not
+    // to do, and this is the most noticeable motion in the timeline: a jump
+    // can land thirty messages away. With animations off the user gets the
+    // scroll and nothing else; they asked for the destination, not for it to
+    // be pointed at afterwards.
+    if (!Motion.of(context).enableAnimations) {
+      _highlightedEventId = null;
+      return;
+    }
     _highlightedEventId = eventId;
     _highlightTimer = Timer(_highlightDuration, () {
       if (_highlightedEventId == eventId) {

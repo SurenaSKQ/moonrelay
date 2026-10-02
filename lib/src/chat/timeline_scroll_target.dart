@@ -39,11 +39,20 @@ class TimelineScrollTarget {
   /// target is already within 60% of the viewport from the current
   /// scroll position (this avoids a jarring snap when the user is
   /// already near the target).
+  ///
+  /// [duration] is passed in rather than read from a token because this is a
+  /// static helper with no [BuildContext], and the user's animation
+  /// preference lives behind one.  Callers pass `Motion.of(context).duration(..)`,
+  /// which is [Duration.zero] when the user has turned animations off, so
+  /// the timeline's jumps honour the preference instead of gliding past
+  /// thirty messages regardless of it.
   static void scrollToFraction(
     ScrollController controller,
     int targetIdx,
     int itemCount, {
     bool skipIfClose = true,
+    Duration duration = const Duration(milliseconds: 300),
+    Curve curve = Curves.easeInOutCubic,
   }) {
     final position = controller.position;
     final range = position.maxScrollExtent - position.minScrollExtent;
@@ -61,8 +70,8 @@ class TimelineScrollTarget {
 
     controller.animateTo(
       paddedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: duration,
+      curve: curve,
     );
   }
 }

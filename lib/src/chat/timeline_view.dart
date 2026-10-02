@@ -26,9 +26,16 @@ import 'package:moonrelay/src/chat/timeline_model.dart';
 import 'package:moonrelay/src/chat/timeline_scroll_target.dart';
 import 'package:moonrelay/src/chat/undecryptable_banner.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+
+/// How long the jumped-to message stays ringed.
+const Duration _kHighlightDuration = Duration(seconds: 2);
+
+/// How long a jump travels when the target widget is already built.
+const Duration _kJumpDuration = Duration(milliseconds: 280);
 
 /// Renders the list of timeline events with event-type filtering, sender
 /// grouping, and date separators.
@@ -829,17 +836,23 @@ list = AnimatedBuilder(
     // truth that disagreed by one; the model is now the only one.
     final idx = targetIdx;
     final itemCount = _cachedItems?.length ?? (idx + 1);
+    final motion = Motion.of(context);
 
-    setState(() => _highlightedEventId = eventId);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          if (_highlightedEventId == eventId) {
-            _highlightedEventId = null;
-          }
-        });
-      }
-    });
+    // Skip the flash entirely when animations are off.  A highlight that
+    // pulses is the definition of motion the user opted out of, and a jump
+    // here can land thirty messages away.
+    if (motion.enableAnimations) {
+      setState(() => _highlightedEventId = eventId);
+      Future.delayed(_kHighlightDuration, () {
+        if (mounted) {
+          setState(() {
+            if (_highlightedEventId == eventId) {
+              _highlightedEventId = null;
+            }
+          });
+        }
+      });
+    }
 
     final globalKey = _eventKeys[eventId];
     final ctx = globalKey?.currentContext;
@@ -847,8 +860,8 @@ list = AnimatedBuilder(
       Scrollable.ensureVisible(
         ctx,
         alignment: 0.33,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOut,
+        duration: motion.duration(_kJumpDuration),
+        curve: motion.curve(Curves.easeInOutCubic),
       );
       return;
     }
@@ -863,6 +876,8 @@ list = AnimatedBuilder(
       idx,
       itemCount,
       skipIfClose: false,
+      duration: motion.duration(_kJumpDuration),
+      curve: motion.curve(Curves.easeInOutCubic),
     );
   }
 

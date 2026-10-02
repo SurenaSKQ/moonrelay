@@ -38,6 +38,7 @@ import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Orchestrates the chat timeline lifecycle.
@@ -646,10 +647,15 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
     final t = MoonrelayThemeExtension.of(context).tokens;
+    final motion = Motion.of(context);
+    // Glided through however many messages separate the user from the live
+    // edge.  Gated, because the two most noticeable motions in the timeline
+    // are the jump and the return to live, and a user who turned animations
+    // off was getting both anyway.
     _scrollController.animateTo(
       0,
-      duration: t.durationFast,
-      curve: Curves.easeOut,
+      duration: motion.duration(t.durationFast),
+      curve: motion.curve(Curves.easeOutCubic),
     );
   }
 

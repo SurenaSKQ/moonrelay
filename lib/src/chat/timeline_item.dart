@@ -29,6 +29,7 @@ import 'package:moonrelay/src/chat/thread_indicator.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -414,6 +415,7 @@ class _TimelineItemState extends State<TimelineItem> {
   }) {
     final ext = MoonrelayThemeExtension.of(context);
     final t = ext.tokens;
+    final motion = Motion.of(context);
     final cs = Theme.of(context).colorScheme;
 
     return MouseRegion(
@@ -423,8 +425,8 @@ class _TimelineItemState extends State<TimelineItem> {
         // Colour and border only.  Animating a margin here would mean
         // re-laying-out the row on every frame of the flash; the row's own
         // vertical padding already leaves the ring room to read.
-        duration: t.durationFast,
-        curve: t.curveDecelerate,
+        duration: motion.duration(t.durationFast),
+        curve: motion.curve(t.curveDecelerate),
         decoration: BoxDecoration(
           color: isHighlighted
               ? cs.primary.withValues(alpha: t.opacityFocus)
