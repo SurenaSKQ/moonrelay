@@ -559,7 +559,6 @@
   },
 
   "senderSection": "Sender",
-  "userIdLabel": "User ID",
   "timestampsSection": "Timestamps",
   "sentAt": "Sent at",
   "eventInfo": "Event Info",
