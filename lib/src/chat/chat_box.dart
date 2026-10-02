@@ -590,6 +590,14 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _focusNode.requestFocus();
   }
 
+  /// Corner radius of the composer's pill.
+///
+/// A stadium, not a fixed radius: the pill grows to three lines when the
+/// composer is expanded, and a constant radius on a tall box reads as a
+/// rounded rectangle with the ends left square. `[double.infinity]` on both
+/// axes is what Flutter's own `FilledButton` uses for the same reason.
+static const double _pillRadius = 9999;
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -598,18 +606,34 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final t = theme.moonrelay.tokens;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final layers = ext.layers;
     final l10n = AppLocalizations.of(context)!;
 
+    // The composer is a pill.
+    //
+    // It was a full-width bar with a rectangular text field inset in it, so
+    // the thing you type into was a box inside a band inside a pane. The pill
+    // collapses those three levels into one: the controls sit on the pill's
+    // surface rather than beside a separate field, and the whole thing is one
+    // shape with the send button at the end of it.
+    //
+    // It sits on `surfaceContainerLow`, the same step the rail uses, which
+    // puts it below the message column and above the room list in the ramp.
+    // The two are not adjacent, so they can share a step without merging.
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         border: Border(
-          top: BorderSide(
-            color:
-                colorScheme.outlineVariant.withValues(alpha: t.opacitySubtle),
-          ),
+          top: BorderSide(color: layers.hairline),
         ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        t.spaceMd,
+        t.spaceSm,
+        t.spaceMd,
+        t.spaceMd,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -628,13 +652,17 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           // Edit-mode banner
           if (_editEvent != null) _buildEditBanner(colorScheme, l10n),
 
-          // Main input row
-          Padding(
-            padding: EdgeInsets.only(
-              left: t.spaceSm,
-              right: t.spaceXs + 2,
-              top: _isExpanded ? t.spaceXs + 2 : t.spaceMd - 2,
-              bottom: _isExpanded ? t.spaceXs + 2 : t.spaceMd - 2,
+          // Main input row: one pill, controls on it.
+          Container(
+            constraints: BoxConstraints(minHeight: t.minTapTarget),
+            padding: EdgeInsets.symmetric(
+              horizontal: t.spaceXs,
+              vertical: t.spaceXs,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(_pillRadius),
+              border: Border.all(color: layers.hairline),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -687,51 +715,53 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
 
                 SizedBox(width: t.spaceXxs),
 
-                // Text field
-                Expanded(
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxHeight: _isExpanded ? 200 : t.minTapTarget,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: t.opacitySubtle),
-                      borderRadius: BorderRadius.circular(t.radiusMd),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant
-                            .withValues(alpha: t.opacitySubtle),
+                // Text field: no box of its own.
+                  //
+                  // It used to be a bordered rectangle inside the band, so
+                  // the text sat in a box inside a bar inside a pane. Now it
+                  // is just the text on the pill, which is what makes the
+                  // thing you type into read as one surface.
+                  Expanded(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: _isExpanded ? 200 : t.minTapTarget,
                       ),
-                    ),
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      maxLines: _isExpanded ? null : 1,
-                      minLines: _isExpanded ? 3 : 1,
-                      textInputAction: _shouldEnterSend()
-                          ? TextInputAction.send
-                          : TextInputAction.newline,
-                      onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: colorScheme.onSurface,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: l10n.chatBoxSendMessage,
-                        hintStyle: TextStyle(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: _isExpanded ? null : 1,
+                        minLines: _isExpanded ? 3 : 1,
+                        textInputAction: _shouldEnterSend()
+                            ? TextInputAction.send
+                            : TextInputAction.newline,
+                        onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
+                        style: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface
-                              .withValues(alpha: t.opacityDisabled),
+                          color: colorScheme.onSurface,
                         ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: t.spaceLg - 2,
-                          vertical: t.spaceMd - 2,
+                        // Transparent, so the theme's new filled decoration
+                        // does not paint its own background and border under
+                        // the pill it now sits on.
+                        decoration: InputDecoration(
+                          hintText: l10n.chatBoxSendMessage,
+                          hintStyle: TextStyle(
+                            fontSize: 15,
+                            color: colorScheme.onSurface
+                                .withValues(alpha: t.opacitySubtle),
+                          ),
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: t.spaceSm,
+                            vertical: t.spaceSm,
+                          ),
                         ),
-                        isDense: true,
                       ),
                     ),
                   ),
-                ),
 
                 SizedBox(width: t.spaceXxs),
 

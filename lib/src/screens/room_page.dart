@@ -167,7 +167,13 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     final pinnedFilterActive = currentRoom.pinnedFilterActive;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      // `surfaceContainerHigh`, not `surface`. The conversation is the
+      // brightest of the three panes, which is what makes it the thing the
+      // eye lands on when it arrives at the window: the rail is darker, the
+      // room list is mid, and the conversation is the light one. On the old
+      // ramp the room pane and the app floor were the same value, so the
+      // middle pane had no reason to exist visually.
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       // The room surface fills the pane. It is deliberately not capped and
       // deliberately not centred.
       //

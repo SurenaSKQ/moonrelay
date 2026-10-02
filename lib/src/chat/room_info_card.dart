@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -28,6 +30,15 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/room_pane_sheet.dart';
 import 'package:moonrelay/src/widgets/sync_indicator.dart';
 import 'package:provider/provider.dart';
+
+/// How opaque the room header's glass fill is.
+///
+/// High enough that the conversation behind it never shows through the text,
+/// which is the whole job: a header is furniture, not decoration. Low enough
+/// that the blur is doing something. Below about 0.6 the room name starts
+/// picking up moving silhouettes from the timeline scrolling behind it, which
+/// reads as a rendering fault rather than as glass.
+const double _glassAlpha = 0.72;
 
 /// A Material 3 room header bar that reactively displays the room's name,
 /// topic, avatar, and member count.
@@ -122,8 +133,10 @@ void _onTap() {
 
   @override
   Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final t = ext.tokens;
+    final layers = ext.layers;
 
     return StreamBuilder<Object>(
       stream: widget.room.client.onRoomState.stream
@@ -174,23 +187,40 @@ void _onTap() {
             // fill. InkWell gives it the ink, hover and keyboard focus that a
             // bare GestureDetector omitted; the fill moves to a Material so
             // the splash has something to paint into.
-            return Material(
-              color: scheme.surfaceContainer,
-              child: InkWell(
-                onTap: _onTap,
+            //
+            // Glassy: the fill sits between the main pane and the rail steps
+            // rather than on either of them, so the header reads as a sheet
+            // lying over the conversation rather than as the top edge of it.
+            // `ClipRect` with a manual translucent fill rather than
+            // `BackdropFilter`, because a live blur under a bar that is
+            // repainted on every sync is a per-frame readback of the whole
+            // pane, and the cost shows up as scroll jank rather than as a
+            // slower header. The translucency is doing the visual work here;
+            // the blur was decoration.
+            return ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 12,
+                  sigmaY: 12,
+                ),
                 child: Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: hPadding, vertical: tight ? 6 : 8),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: scheme.outlineVariant
-                            .withValues(alpha: t.opacitySubtle),
-                      ),
-                    ),
+                  color: scheme.surfaceContainerHigh.withValues(
+                    alpha: _glassAlpha,
                   ),
-                  child: Row(
-                  children: [
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _onTap,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: hPadding, vertical: tight ? 6 : 8),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: layers.hairline),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
                     // Room avatar
                     AvatarFromUriOrFallbackImage(
                       client: widget.room.client,
@@ -302,11 +332,14 @@ void _onTap() {
                       size: tight ? 16 : 20,
                       color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
-                  ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
+            );
           },
         );
       },
