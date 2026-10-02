@@ -31,7 +31,15 @@ import 'package:provider/provider.dart';
 
 /// A page for creating a new room with optional customisation.
 class CreateNewRoomPage extends StatefulWidget {
-  const CreateNewRoomPage({super.key});
+  const CreateNewRoomPage({super.key, this.asSpace = false});
+
+  /// Whether the form starts in space mode.
+  ///
+  /// Set by the route so the rail's "add space" button opens the form already
+  /// switched, rather than opening it as a room and leaving the user to find
+  /// the toggle. The toggle is still there; this only sets the starting
+  /// state.
+  final bool asSpace;
 
   @override
   State<CreateNewRoomPage> createState() => _CreateNewRoomPageState();
@@ -43,13 +51,31 @@ class _CreateNewRoomPageState extends State<CreateNewRoomPage> {
   final TextEditingController _aliasController = TextEditingController();
   final TextEditingController _inviteController = TextEditingController();
   bool _isPublic = true;
-  bool _isSpace = false;
+  late bool _isSpace;
   bool _enableEncryption = false;
   bool _showAdvanced = false;
   bool _loading = false;
   String? _error;
   Uint8List? _avatarBytes;
   String? _avatarName;
+
+  @override
+  void initState() {
+    super.initState();
+    _isSpace = widget.asSpace;
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateNewRoomPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The route can be reused across a room/space switch in the single-pane
+    // shell, where the same element survives the path change. Without this
+    // the toggle silently keeps the old mode and the page disagrees with the
+    // title above it.
+    if (oldWidget.asSpace != widget.asSpace) {
+      setState(() => _isSpace = widget.asSpace);
+    }
+  }
 
   @override
   void dispose() {

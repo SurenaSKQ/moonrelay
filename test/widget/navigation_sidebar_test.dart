@@ -37,7 +37,9 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 import 'package:moonrelay/src/widgets/room_list_filter.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -288,8 +290,13 @@ void main() {
       expect(find.text('Rooms'), findsOneWidget);
     });
 
-    testWidgets('tapping the spaces header collapses the spaces section',
+    testWidgets('the spaces section is gone, and spaces live in the rail',
         (tester) async {
+      // Spaces used to be a labelled collapsible section in this pane. They
+      // are an icon rail beside it now, so the section header and its
+      // collapse behaviour are gone by design rather than by accident, and
+      // this pins that so a future change cannot quietly reintroduce a
+      // second place to reach a space from.
       final settings = createTestSettingsController();
       await tester.pumpWidget(_wrapSidebar(
         const NavigationSidebar(),
@@ -299,14 +306,10 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('Test Space'), findsOneWidget);
-
-      await tester.tap(find.text('Spaces'));
-      await tester.pump();
-      await tester.pump();
-
       expect(find.text('Test Space'), findsNothing);
-      expect(settings.collapsedSidebarSections, contains('spaces'));
+      expect(find.text('Spaces'), findsNothing);
+      // The rooms header is the only section header left.
+      expect(find.byType(NavSectionHeader), findsOneWidget);
     });
 
     testWidgets('a persisted collapsed section stays collapsed',
@@ -322,8 +325,12 @@ void main() {
       expect(find.text('Rooms'), findsOneWidget);
     });
 
-    testWidgets('tapping a space highlights it and opens its home page',
+    testWidgets('a space is no longer reachable from this pane',
         (tester) async {
+      // The counterpart to the test above: the rail owns space selection, so
+      // the room pane must not offer it. Asserted here as well as in the
+      // rail's own tests because the failure mode is a duplicate path, and a
+      // duplicate path is invisible from either side alone.
       final nav = NavigationState();
       await tester.pumpWidget(_wrapSidebar(
         const NavigationSidebar(),
@@ -333,15 +340,8 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      await tester.tap(find.text('Test Space'));
-      await tester.pump();
-      await tester.pump();
-
-      // A) the space is highlighted: the navigation state selects it.
-      expect(nav.isSpace, isTrue);
-      expect(nav.selectedId, '!space:matrix.org');
-      // B) the space home page is shown.
-      expect(find.text('SPACE_HOME'), findsOneWidget);
+      expect(find.text('Test Space'), findsNothing);
+      expect(nav.isSpace, isFalse);
     });
   });
 
@@ -457,8 +457,34 @@ void main() {
       expect(find.byType(NavigationSidebar), findsOneWidget);
       expect(find.byType(SidebarProfilePill), findsOneWidget);
       expect(find.byType(SidebarCommandPaletteButton), findsOneWidget);
-      expect(find.byType(NavSectionHeader), findsNWidgets(2));
-      expect(find.text('Test Space'), findsOneWidget);
+      expect(find.byType(NavSectionHeader), findsOneWidget);
+      expect(find.byType(RoomSearchField), findsOneWidget);
+      // Spaces are asserted absent because this pane used to carry them, and
+      // the narrow band is where a "reduced sidebar" was once a real,
+      // separate implementation.
+      expect(find.text('Test Space'), findsNothing);
+    });
+
+    testWidgets('the narrow band keeps the same rail as the wide one',
+        (tester) async {
+      // The rail is a fixed 72px in both bands. It is not a "reduced rail"
+      // at narrow widths, because the alternative is losing the only way to
+      // reach a space, and at 800px there is room for 72 more pixels.
+      final settings = createTestSettingsController();
+      await tester.pumpWidget(
+        wrapDashboard(
+          settings,
+          dashboardView(
+            settings: settings,
+            detailPaneFits: false,
+            width: 800,
+          ),
+          client: _clientWithSpace(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(SpacesRailHost), findsOneWidget);
     });
 
     testWidgets('the detail pane is the only thing the narrow band drops',

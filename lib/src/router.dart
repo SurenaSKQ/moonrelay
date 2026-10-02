@@ -25,6 +25,7 @@ import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page/login_page.dart';
 import 'package:moonrelay/src/screens/add_room_from_id.dart';
+import 'package:moonrelay/src/screens/create_new_room.dart';
 import 'package:moonrelay/src/screens/room_details/room_details_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
@@ -368,6 +369,15 @@ class MoonRouter {
               builder: (context, state) => RoomPreviewScreen(
                 roomId: _param(state, 'roomid'),
               ),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.createRoomPath,
+              builder: (context, state) => const CreateNewRoomPage(),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.createSpacePath,
+              builder: (context, state) =>
+                  const CreateNewRoomPage(asSpace: true),
             ),
             GoRoute(
               path: '/main/addroom',

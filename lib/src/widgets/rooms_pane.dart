@@ -24,6 +24,7 @@ import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption_badge.dart';
@@ -154,6 +155,12 @@ class _RoomsPaneState extends State<RoomsPane> {
     _ensureSubscription(client);
   }
 
+  @override
+  void initState() {
+    super.initState();
+    RoomSearchQuery.query.addListener(_onSearchChanged);
+  }
+
   void _ensureSubscription(Client client) {
     final id = identityHashCode(client);
     if (id == _subscribedClientId) return;
@@ -177,9 +184,28 @@ class _RoomsPaneState extends State<RoomsPane> {
   }
 
   static List<Room> _applyFilter(
-      bool Function(Room)? filter, List<Room> rooms) {
-    if (filter == null) return List<Room>.unmodifiable(rooms);
-    return List<Room>.unmodifiable(rooms.where(filter));
+    bool Function(Room)? filter,
+    List<Room> rooms,
+  ) {
+    final predicateOnly =
+        filter == null ? rooms : rooms.where(filter).toList();
+
+    // The text filter is applied here rather than in the list's builder so
+    // the empty and no-match states can tell each other apart. Matching only
+    // the name and alias is a deliberate limit: the sidebar shows a name and
+    // a topic, and a search that silently ignored the topic the user can see
+    // would be worse than one that does not pretend to search messages.
+    final query = RoomSearchQuery.query.value.trim().toLowerCase();
+    if (query.isEmpty) return List<Room>.unmodifiable(predicateOnly);
+
+    return List<Room>.unmodifiable(
+      predicateOnly.where((room) {
+        final name = room.getLocalizedDisplayname().toLowerCase();
+        if (name.contains(query)) return true;
+        final alias = room.canonicalAlias.toLowerCase();
+        return alias.contains(query);
+      }),
+    );
   }
 
   @override
@@ -195,7 +221,21 @@ class _RoomsPaneState extends State<RoomsPane> {
 
   @override
   void dispose() {
+    // A direct subscription rather than `context.select`: the search query is
+    // a process-wide `ValueNotifier`, not a provider, and a pane that
+    // outlives the shell's provider scope would throw looking one up. The
+    // listener is removed here, so the static notifier cannot keep a
+    // disposed pane alive.
+    RoomSearchQuery.query.removeListener(_onSearchChanged);
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (!mounted) return;
+    // The empty states branch on the query, so a keystroke that changes
+    // nothing else still has to rebuild. `setState` rather than a targeted
+    // notifier because the filter feeds both the list and the empty state.
+    setState(() {});
   }
 
   @override
@@ -266,6 +306,20 @@ class _RoomsPaneState extends State<RoomsPane> {
 
         // -- Empty state: synced but no matching rooms ---------------
         if (filtered.isEmpty) {
+          // Two different empty states, because "you have joined nothing"
+          // and "your filter matched nothing" call for opposite reactions.
+          // Collapsing them into one message is how a user ends up clearing
+          // a filter they did not set.
+          final query = RoomSearchQuery.query.value.trim();
+          if (query.isNotEmpty) {
+            return EmptyState(
+              icon: LucideIcons.searchX,
+              title: l10n.noRoomsMatch(query),
+              message: l10n.noRoomsMatchHint,
+              actionLabel: l10n.clearSearch,
+              onAction: RoomSearchQuery.clear,
+            );
+          }
           return Center(
             child: Padding(
               padding: EdgeInsets.all(t.spaceXl),

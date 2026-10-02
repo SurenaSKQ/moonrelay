@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
@@ -100,19 +101,26 @@ class DashboardView extends StatelessWidget {
     // "left" sidebar appears on the right side of the window.  The
     // collapse/expand gutters are row children too, so they land on
     // the same side as the sidebar they belong to.
+    //
+    // The rail is a row child for the same reason: in RTL it should sit on
+    // the right of the room list, and reversing the whole list is simpler and
+    // less error-prone than flipping each pane's internals.
     final paneChildren = <Widget>[
       if (showLeft) ...[
+        const SpacesRailHost(),
         SizedBox(
           width: sidebarWidth,
-          child: NavigationSidebar(),
+          child: const NavigationSidebar(),
         ),
         SidebarCollapseGutter(
           onCollapse: () => settings.setLeftSidebarVisible(false),
         ),
-      ] else
+      ] else ...[
         SidebarExpandGutter(
           onExpand: () => settings.setLeftSidebarVisible(true),
         ),
+        const SpacesRailHost(),
+      ],
       Expanded(
         child: GlobalShortcutListener(
           child: PostLoginSetupChecker(

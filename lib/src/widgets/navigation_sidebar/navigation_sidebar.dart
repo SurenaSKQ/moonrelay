@@ -15,9 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rows.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -32,9 +30,10 @@ import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/room_list_filter.dart';
-import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
+import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 
 /// The navigation sidebar of the full (wide) dashboard shell.
 ///
@@ -60,16 +59,22 @@ class NavigationSidebar extends StatefulWidget {
 class _NavigationSidebarState extends State<NavigationSidebar> {
   /// Section ids used to persist the collapsed state of the spaces and
   /// rooms regions via [SettingsController.collapsedSidebarSections].
-  static const String _spacesSectionId = 'spaces';
+  // The spaces section id is gone with the section.  It was persisted in
+  // `collapsedSidebarSections`, and the stale entry is harmless: the set is
+  // only ever read by key, so an id nothing looks up cannot affect anything.
+  // It is left in the user's saved settings rather than migrated, because
+  // rewriting saved state to remove a key is more risk than the bytes it
+  // saves.
   static const String _roomsSectionId = 'rooms';
 
   /// Space ids observed so far; used to detect newly-joined spaces for
   /// the auto-grouping pass.  Ported unchanged from the navigation rail.
   Set<String> _knownIds = {};
 
-  /// Space/group id currently hovered by a drag, highlighted as a drop
-  /// target.
-  String? _dragHoverId;
+  // The drag-hover field went with the space rows.  Reordering is still
+  // possible, on the rail icons; a 72px column has no room for the drop
+  // highlight the old rows drew, which is the one part of the move that costs
+  // something.  Recorded in WORK_NEEDED.md.
 
   /// Set when a new space arrived and the auto-group pass is still due.
   bool _pendingAutoGroup = false;
@@ -110,8 +115,11 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     if (rel.isNotEmpty) sp.mergeIntoGroups(rel);
   }
 
-  bool _inGroup(SpacePreferences sp, String id) =>
-      sp.spaceGroups.values.any((v) => v.contains(id));
+  // The auto-group bookkeeping below still runs even though this pane no longer
+  // draws spaces.  It owns `SpacePreferences.spaceOrder` and `spaceGroups`,
+  // which the rail's ordering reads and which the space context menu's group
+  // actions mutate, so moving the *rendering* out of this file did not make
+  // the data dead.
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +134,11 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
       return const SizedBox.shrink();
     }
     final l10n = AppLocalizations.of(context)!;
-    final spacePrefs = context.watch<SpacePreferences>();
+    final layers = MoonrelayThemeExtension.of(context).layers;
+    // Listened to so the auto-group pass below stays in step with a join.  The
+    // rail reads the same preference for ordering; this pane just needs to
+    // know when to recompute the groups.
+    context.watch<SpacePreferences>();
 
     final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _syncVersion) {
@@ -149,10 +161,14 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
 
     return Consumer<NavigationState>(
       builder: (context, nav, _) {
-        final items = buildNavItems(client.rooms,
-            collapsedGroupIds: spacePrefs.collapsedGroups,
-            spaceGroups: spacePrefs.spaceGroups,
-            order: spacePrefs.spaceOrder);
+        // Spaces are not built here any more. They live in the icon rail
+        // beside this pane, which is the whole point of moving them: a user
+        // with a dozen spaces was spending half this column on them before
+        // reaching a single room, and the room list is what they opened the
+        // app to read. The auto-group pass below still runs, because it feeds
+        // the rail's ordering and the context menu's group actions.
+        final (roomsTitle, roomsBody) =
+            _buildRoomsBody(context, nav, l10n);
 
         // Watch only the collapsed-sections set so unrelated settings
         // changes (theme, font size, ...) do not rebuild the sidebar.
@@ -160,45 +176,33 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
             .select<SettingsController, Set<String>>(
                 (s) => s.collapsedSidebarSections);
         final settings = context.read<SettingsController>();
-        final spacesCollapsed = collapsedSections.contains(_spacesSectionId);
         final roomsCollapsed = collapsedSections.contains(_roomsSectionId);
 
-        final (roomsTitle, roomsBody) =
-            _buildRoomsBody(context, nav, l10n);
-
         return Material(
-          color: scheme.surface,
+          color: scheme.surfaceContainer,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Search first, then the filter, then the rooms. The search
+              // field used to live on its own page behind a `Ctrl+K`, which
+              // means a user who does not know the shortcut has no way to
+              // filter the list they are looking at.
+              //
+              // The command palette button sits directly under it rather than
+              // above it, because search filters the list you are looking at
+              // and the palette jumps somewhere else entirely. The control
+              // that narrows the current view belongs nearer the top.
+              const RoomSearchField(),
+              Divider(height: 1, color: layers.hairline),
               _buildHeader(scheme),
-              const Divider(height: 1),
+              Divider(height: 1, color: layers.hairline),
               _buildNavRows(scheme),
-              if (items.isNotEmpty) ...[
-                const Divider(height: 1),
-                NavSectionHeader(
-                  label: l10n.spaces,
-                  collapsed: spacesCollapsed,
-                  onTap: () => settings.setSidebarSectionCollapsed(
-                      _spacesSectionId, !spacesCollapsed),
-                ),
-                if (!spacesCollapsed)
-                  Expanded(
-                    child: _buildSpacesList(
-                        context, items, nav, theme, spacePrefs, l10n),
-                  ),
-              ],
-              const Divider(height: 1),
+              Divider(height: 1, color: layers.hairline),
               NavSectionHeader(
                 label: roomsTitle,
                 collapsed: roomsCollapsed,
                 onTap: () => settings.setSidebarSectionCollapsed(
                     _roomsSectionId, !roomsCollapsed),
-                // "Add room" lives here rather than as a third navigation
-                // row. It creates something that appears in this section,
-                // so it belongs on this section's header, and a full row in
-                // a pane with about five rows of height to spend is not
-                // affordable.
                 action: _addRoomButton(l10n),
                 actionTooltip: l10n.addRoom,
               ),
@@ -207,7 +211,7 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
               // other client puts it and where a user's thumb expects it.
               // At the top it was the first thing the pane showed and the
               // last thing anyone looked at.
-              const Divider(height: 1),
+              Divider(height: 1, color: layers.hairline),
               const _SidebarFooter(),
             ],
           ),
@@ -234,223 +238,32 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     );
   }
 
-  // -- Header: command palette -------------------------------------------
-
-  Widget _buildHeader(ColorScheme scheme) {
-    return Container(
-      color: scheme.surfaceContainerLow,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // No layout-mode control here, and no account row either. It
-          // lives in the hub's Layout settings and nowhere else, and the
-          // account moved to the footer. Both used to be duplicated into
-          // the sidebar and the single-pane shell's "You" destination as
-          // escape hatches, because at the time the hub was a modal
-          // overlay the single-pane shell could not reach; now the hub is a
-          // route, so one home is enough and two copies only invite them to
-          // disagree.
-          SidebarCommandPaletteButton(),
-        ],
-      ),
-    );
-  }
-
-  // -- Destination controls -----------------------------------------------
-
+  /// The Friends / All-rooms filter.
+  ///
+  /// The only controls in this pane that are not rows.  These two are two
+  /// views of one list, and drawing them as rows in a list of places is what
+  /// made "Home" sound like somewhere to go rather than a narrower list.
   Widget _buildNavRows(ColorScheme scheme) {
     return ColoredBox(
       color: scheme.surfaceContainerLow,
-      // The only controls in this pane that are not rows. These two are two
-      // views of one list, and drawing them as rows in a list of places is
-      // what made "Home" sound like somewhere to go rather than a narrower
-      // list.
       child: const RoomListFilter(),
     );
   }
 
-  // -- Spaces region ------------------------------------------------------
-
-  Widget _buildSpacesList(
-    BuildContext ctx,
-    List<NavSpaceItem> items,
-    NavigationState nav,
-    ThemeData theme,
-    SpacePreferences spacePrefs,
-    AppLocalizations l10n,
-  ) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      children: items
-          .map((item) => switch (item) {
-                NavSpaceLeaf(:final space) =>
-                  _buildLeaf(ctx, space, nav, theme, spacePrefs, l10n),
-                NavSpaceGroup(
-                  :final groupId,
-                  :final children,
-                  :final isExpanded
-                ) =>
-                  _buildGroup(ctx, groupId, children, isExpanded, nav, theme,
-                      spacePrefs, l10n),
-              })
-          .toList(),
-    );
-  }
-
-  Widget _buildLeaf(BuildContext ctx, Room space, NavigationState nav,
-      ThemeData theme, SpacePreferences spacePrefs, AppLocalizations l10n) {
-    final sel = nav.isSpace && nav.selectedId == space.id;
-    final hover = _dragHoverId == space.id;
-    final inG = _inGroup(spacePrefs, space.id);
-    return SpaceDragTarget(
-      id: space.id,
-      hover: hover,
-      onEnter: (_) {
-        setState(() => _dragHoverId = space.id);
-        return true;
-      },
-      onLeave: () {
-        if (mounted) setState(() => _dragHoverId = null);
-      },
-      onDrop: (id) {
-        setState(() => _dragHoverId = null);
-        if (id == space.id) return; // prevent self-grouping
-        if (id.startsWith('_grp_')) {
-          // Group dropped on leaf = reorder group before this leaf.
-          final order = List<String>.of(spacePrefs.spaceOrder);
-          final srcIdx = order.indexOf(id);
-          final dstIdx = order.indexOf(space.id);
-          if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
-            order.removeAt(srcIdx);
-            final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
-            order.insert(adjustedDst, id);
-            spacePrefs.updateSpaceOrder(order);
-          }
-        } else {
-          spacePrefs.createGroup(
-              '_grp_${DateTime.now().millisecondsSinceEpoch}', [id, space.id]);
-        }
-      },
-      child: DraggableIcon(
-        data: space.id,
-        feedback: DragFeedback(
-            theme: theme,
-            label: space.getLocalizedDisplayname(),
-            uri: space.avatar),
-        ghost: Opacity(
-            opacity: 0.3,
-            child: SpaceRow(space: space, selected: sel, theme: theme)),
-        child: SpaceContextMenu(
-          ctx: ctx,
-          space: space,
-          inGroup: inG,
-          spacePrefs: spacePrefs,
-          l10n: l10n,
-          nav: nav,
-          child: SpaceRow(
-            space: space,
-            selected: sel,
-            theme: theme,
-            onTap: () {
-              // Selecting a space both highlights it in this list
-              // (via NavigationState) and opens its home page.
-              nav.selectSpace(space.id);
-              ctx.push('/main/space/${space.id}');
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGroup(
-    BuildContext ctx,
-    String gid,
-    List<NavSpaceLeaf> children,
-    bool expanded,
-    NavigationState nav,
-    ThemeData theme,
-    SpacePreferences spacePrefs,
-    AppLocalizations l10n,
-  ) {
-    final scheme = theme.colorScheme;
-    final t = MoonrelayThemeExtension.of(ctx).tokens;
-    final hover = _dragHoverId == gid;
-    return SpaceDragTarget(
-      id: gid,
-      hover: hover,
-      onEnter: (_) {
-        setState(() => _dragHoverId = gid);
-        return true;
-      },
-      onLeave: () {
-        if (mounted) setState(() => _dragHoverId = null);
-      },
-      onDrop: (id) {
-        setState(() => _dragHoverId = null);
-        if (id.startsWith('_grp_')) {
-          // Group-to-group drop = reorder: move dropped group before this one.
-          final order = List<String>.of(spacePrefs.spaceOrder);
-          final srcIdx = order.indexOf(id);
-          final dstIdx = order.indexOf(gid);
-          if (srcIdx >= 0 && dstIdx >= 0 && srcIdx != dstIdx) {
-            order.removeAt(srcIdx);
-            final adjustedDst = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
-            order.insert(adjustedDst, id);
-            spacePrefs.updateSpaceOrder(order);
-          }
-        } else {
-          spacePrefs.addToGroup(gid, id);
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: t.opacityFocus),
-            borderRadius: BorderRadius.circular(t.radiusMd),
-            border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SpaceContextMenu(
-                ctx: ctx,
-                spacePrefs: spacePrefs,
-                l10n: l10n,
-                nav: nav,
-                groupId: gid,
-                child: GroupRow(
-                  gid: gid,
-                  expanded: expanded,
-                  count: children.length,
-                  scheme: scheme,
-                  onTap: () => spacePrefs.toggleGroupCollapsed(gid),
-                  onDragEnd: () {
-                    if (mounted) setState(() => _dragHoverId = null);
-                  },
-                ),
-              ),
-              if (expanded)
-                ...children.map((c) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child:
-                          _buildLeaf(ctx, c.space, nav, theme, spacePrefs, l10n),
-                    )),
-              if (!expanded && children.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('${children.length}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 10, color: scheme.onSurfaceVariant)),
-                ),
-            ],
-          ),
-        ),
-      ),
+  /// The command palette row.
+  ///
+  /// No layout-mode control here, and no account row either. The layout mode
+  /// lives in the hub's Layout settings and nowhere else, and the account
+  /// moved to the footer. Both used to be duplicated into the sidebar and the
+  /// single-pane shell's "You" destination as escape hatches, because at the
+  /// time the hub was a modal overlay the single-pane shell could not reach;
+  /// now the hub is a route, so one home is enough and two copies only invite
+  /// them to disagree.
+  Widget _buildHeader(ColorScheme scheme) {
+    return Container(
+      color: scheme.surfaceContainerLow,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      child: const SidebarCommandPaletteButton(),
     );
   }
 

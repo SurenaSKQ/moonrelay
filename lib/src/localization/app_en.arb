@@ -649,6 +649,7 @@
   "widthLabel": "Width",
   "rooms": "Rooms",
   "spaces": "Spaces",
+  "addSpace": "Add Space",
   "friends": "Friends",
   "allRooms": "All rooms",
   "@allRooms": {
@@ -1813,6 +1814,10 @@
     "description": "Section header for user directory search results."
   },
   "searchRooms": "Rooms",
+  "filterRoomsPlaceholder": "Search rooms",
+  "clearSearch": "Clear search",
+  "noRoomsMatch": "No rooms match \"{query}\"",
+  "noRoomsMatchHint": "Try a different search, or clear the filter to see everything you have joined.",
   "@searchRooms": {
     "description": "Section header for room search results."
   },

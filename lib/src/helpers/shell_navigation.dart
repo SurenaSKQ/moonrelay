@@ -134,3 +134,12 @@ void backToRoomList(BuildContext context) =>
 /// escape a surface they did not think of as a stack in the first place.
 void closeToRoomList(BuildContext context) =>
     context.go(MoonRoutePaths.roomListTemplate);
+
+/// Opens the create-room form, optionally pre-set to create a space.
+///
+/// One route for both, with a flag rather than two paths: the page is the
+/// same form with a title and an icon that change, and two routes would mean
+/// two ways to be on that screen and therefore two back behaviours.
+void openCreateRoom(BuildContext context, {bool asSpace = false}) {
+  context.push(asSpace ? MoonRoutePaths.createSpacePath : MoonRoutePaths.createRoomPath);
+}

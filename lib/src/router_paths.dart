@@ -43,6 +43,19 @@ class MoonRoutePaths {
   /// Global search across rooms, spaces, messages and users.
   static const String searchTemplate = '/main/search';
 
+  /// The create-room form.
+  ///
+  /// This route did not exist until the create form was wired up. The page
+  /// itself has been in the tree for a while with no call site anywhere,
+  /// which meant the app could render a "create a room" affordance with
+  /// nowhere to send it. Two paths rather than one with a flag, because the
+  /// shell treats a space and a room as different destinations for the back
+  /// stack and a query parameter would have to be threaded through that.
+  static const String createRoomPath = '/main/newroom';
+
+  /// The create-space form.
+  static const String createSpacePath = '/main/newspace';
+
   /// The signed-in user's own profile and account settings.
   static const String youTemplate = '/main/me';
 
