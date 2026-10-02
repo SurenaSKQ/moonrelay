@@ -23,7 +23,6 @@
   "cancel": "لغو",
   "ok": "تأیید",
   "retry": "تلاش مجدد",
-  "back": "بازگشت",
   "error": "خطا",
   "warning": "هشدار",
   "unknown": "نامشخص",
@@ -241,7 +240,6 @@
   "messageCopiedToClipboard": "پیام در کلیپ‌بورد کپی شد",
   "deleteMessage": "حذف پیام",
   "areYouSureDeleteMessage": "آیا از حذف این پیام مطمئن هستید؟",
-  "delete": "حذف",
   "failedToDelete": "حذف ناموفق: {error}",
   "@failedToDelete": {
     "placeholders": {
@@ -501,10 +499,7 @@
       }
     }
   },
-  "messageDetails": "جزئیات پیام",
   "senderSection": "فرستنده",
-  "displayNameLabel": "نام نمایشی",
-  "userIdLabel": "شناسه کاربر",
   "timestampsSection": "زمان‌ها",
   "sentAt": "ارسال شده در",
   "eventInfo": "اطلاعات رویداد",
@@ -1982,8 +1977,6 @@
     "description": "Title of the message edit dialog."
   },
   "editedIndicator": "(ویرایش‌شده)",
-  "replyShowMore": "نمایش بیشتر",
-  "replyShowLess": "نمایش کمتر",
   "@editedIndicator": {
     "description": "Inline marker shown next to an edited message body."
   },
@@ -2089,8 +2082,6 @@
   "@fullscreenVideo": {
     "description": "Tooltip for the fullscreen video button."
   },
-  "videoLoadFailed": "بارگذاری ویدیو ممکن نشد",
-  "tapToRetry": "برای تلاش دوباره بزنید",
   "shareLocation": "ارسال موقعیت مکانی",
   "@shareLocation": {
     "description": "Tooltip on the chat-box location-share button."
