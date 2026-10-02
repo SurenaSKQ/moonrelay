@@ -227,8 +227,11 @@ class _NavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final theme = Theme.of(context);
+    final ext = theme.moonrelay;
+    final scheme = theme.colorScheme;
+    final t = ext.tokens;
+    final layers = ext.layers;
 
     return Semantics(
       // The previous tab entries had no semantics at all, so the only
@@ -240,21 +243,38 @@ class _NavRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          color: selected
-              ? scheme.primaryContainer.withValues(alpha: 0.45)
-              : null,
+          // The accent wash at 45% was a third use of the accent for
+          // "selected", after the container fill and the text colour. Now the
+          // row takes a step from the surface ramp like every other selected
+          // row in the app, and the accent is left to the icon and the label
+          // weight, which is what it is actually good at.
+          color: selected ? layers.active : null,
           padding: EdgeInsets.only(
-            left: indented ? t.spaceXl : t.spaceMd,
+            left: indented ? t.spaceXl : t.spaceSm,
             right: t.spaceSm,
-            top: 10,
-            bottom: 10,
+            top: t.spaceSm + 2,
+            bottom: t.spaceSm + 2,
           ),
           child: Row(
             children: [
+              // The rail's leading-edge indicator, reused so "selected" means
+              // the same thing on every list in the app.
+              if (selected)
+                Container(
+                  width: t.borderWidthThick * 2,
+                  height: 20,
+                  margin: EdgeInsets.only(right: t.spaceSm),
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(t.radiusMd),
+                  ),
+                )
+              else
+                SizedBox(width: t.borderWidthThick * 2 + t.spaceSm),
               if (entry.icon != null) ...[
                 Icon(
                   entry.icon,
-                  size: 18,
+                  size: t.iconSizeSmall + 2,
                   color: selected ? scheme.primary : scheme.onSurfaceVariant,
                 ),
                 SizedBox(width: t.spaceSm),
@@ -265,7 +285,7 @@ class _NavRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected ? scheme.primary : scheme.onSurface,
+                    color: selected ? scheme.onSurface : scheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

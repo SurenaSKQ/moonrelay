@@ -22,7 +22,19 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 // Settings section helper
 // -----------------------------------------------------------------------------
 
-/// A reusable card-like section for grouping related settings controls.
+/// A reusable section for grouping related settings controls.
+///
+/// The card is [surfaceContainer] on a pane at [surfaceContainerHigh], which
+/// puts it one step below its own surroundings rather than the same step with
+/// a hairline around it. A border on the same value as the background is a
+/// line that says "edge of something" without saying what is on either side;
+/// a step says it by itself. The hairline stays as a definition of the
+/// section's own extent, at the app's one hairline value rather than
+/// `theme.dividerColor`, which was the second grey in the app.
+///
+/// Every settings page uses this, so this is where the hub's look is actually
+/// decided. Thirteen pages each drawing their own card is thirteen chances to
+/// drift.
 class HubSettingsSection extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -38,16 +50,23 @@ class HubSettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final t = theme.moonrelay.tokens;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final scheme = theme.colorScheme;
+    final text = theme.textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: TextStyle(
-            fontSize: 16,
+          style: text.titleSmall?.copyWith(
+            // `labelMedium`, not `primary`. The accent on every section
+            // heading made the settings page read as a list of links rather
+            // than as a set of groups, and it was the single loudest thing on
+            // the page.
+            color: scheme.onSurface,
             fontWeight: FontWeight.w600,
-            color: theme.colorScheme.primary,
           ),
         ),
         if (subtitle != null)
@@ -55,18 +74,29 @@ class HubSettingsSection extends StatelessWidget {
             padding: EdgeInsets.only(top: t.spaceXxs),
             child: Text(
               subtitle!,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
+              style: text.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ),
         SizedBox(height: t.spaceSm),
+        // `Card`, not a `Container` with a decoration, and that is load
+        // bearing rather than incidental. These sections hold `ListTile`s, and
+        // a `ListTile` paints its background and its ink splashes on the
+        // nearest `Material` ancestor. A decorated `Container` is not a
+        // `Material`, so the card's fill would sit on top of every ripple and
+        // every selection wash, and Flutter asserts about it in debug. `Card`
+        // *is* a `Material`, which is why the original code used it here and
+        // why the container rewrite had to be undone.
         Card(
           elevation: t.elevationNone,
+          // One step below the pane, so the card reads as recessed rather
+          // than as a border drawn around the same value as its background.
+          color: scheme.surfaceContainer,
+          clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(t.radiusMd),
-            side: BorderSide(color: theme.dividerColor),
+            side: BorderSide(color: ext.layers.hairline),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

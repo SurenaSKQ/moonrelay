@@ -169,7 +169,8 @@ class SidebarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
 
     // `select` rather than `watch`: a room list can be a few hundred rows
     // and this way only a density change rebuilds them, not every unrelated
@@ -180,8 +181,13 @@ class SidebarRow extends StatelessWidget {
     final m = metrics ?? SidebarRowMetrics.forDensity(density);
 
     final radius = BorderRadius.circular(t.radiusSm);
-    final foreground = selected ? scheme.primary : scheme.onSurface;
-    final muted = selected ? scheme.primary : scheme.onSurfaceVariant;
+// The selected row's text stays `onSurface`, not the accent. The leading
+  // bar already says "this one"; making the label the accent too meant two
+  // signals competing, and it changed the row's colour with the accent seed,
+  // so switching to a blue accent recoloured the whole room list.
+  final foreground = scheme.onSurface;
+  final muted =
+      selected ? scheme.onSurfaceVariant : scheme.onSurfaceVariant;
 
     Widget titleLine() {
       final label = Text(
@@ -227,9 +233,12 @@ class SidebarRow extends StatelessWidget {
     }
 
     return Material(
-      color: selected
-          ? scheme.primaryContainer.withValues(alpha: t.opacityFocus)
-          : Colors.transparent,
+      // A step from the surface ramp, not an accent wash. The room list sits
+      // at `surfaceContainer`, so `active` is the next step up: the selected
+      // row reads as nearer to the user rather than as tinted, and it does not
+      // change colour with the accent, so a blue accent no longer turns the
+      // whole list blue.
+      color: selected ? ext.layers.active : Colors.transparent,
       borderRadius: radius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -238,11 +247,11 @@ class SidebarRow extends StatelessWidget {
         borderRadius: radius,
         child: Stack(
           children: [
-            // The accent bar. The tint alone is not enough to find the
+            // The accent bar. The fill alone is not enough to find the
             // current room in a list of two hundred, because a row that is
-            // merely *near* the tint, or hovered, or mid-transition, all
-            // read the same. A bar on the leading edge is a position, not a
-            // colour, so the eye can find it without comparing shades.
+            // merely *near* it, or hovered, or mid-transition, all read the
+            // same. A bar on the leading edge is a position, not a colour, so
+            // the eye can find it without comparing shades.
             //
             // Width rather than opacity, so it cannot wash out against the
             // row behind it.
@@ -253,7 +262,7 @@ class SidebarRow extends StatelessWidget {
                 top: 0,
                 bottom: 0,
                 child: Container(
-                  width: 3,
+                  width: t.borderWidthThick * 2,
                   color: scheme.primary,
                 ),
               ),

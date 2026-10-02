@@ -111,8 +111,10 @@ class HubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final layers = ext.layers;
     final double width = MediaQuery.sizeOf(context).width;
     final bool twoPanes = context.read<LayoutShellController>().fitsTwoPanes;
 
@@ -169,8 +171,13 @@ class HubScreen extends StatelessWidget {
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
+                  // The nav pane sits one step below the content, so the
+                  // content is the surface the user came to read and the nav
+                  // recedes. Same relationship as the dashboard's rail and
+                  // room list.
+                  Container(
                     width: kHubNavWidth,
+                    color: scheme.surfaceContainerLow,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -182,15 +189,12 @@ class HubScreen extends StatelessWidget {
                           onTap: () => _go(context, null, null),
                           selected: categoryKey == null,
                         ),
-                        Divider(height: 1, color: scheme.outlineVariant),
+                        Divider(height: 1, color: layers.hairline),
                         Expanded(child: nav),
                       ],
                     ),
                   ),
-                  VerticalDivider(
-                    width: 1,
-                    color: scheme.outlineVariant,
-                  ),
+                  VerticalDivider(width: 1, color: layers.hairline),
                   Expanded(child: content),
                 ],
               )
@@ -284,10 +288,12 @@ class _AccountHeader extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
+          // Same selected treatment as every row below, so "your profile" and
+          // "appearance" do not mark themselves differently.
           color: selected
-              ? scheme.primaryContainer.withValues(alpha: 0.45)
+              ? MoonrelayThemeExtension.of(context).layers.active
               : scheme.surfaceContainerLow,
-          padding: EdgeInsets.fromLTRB(t.spaceMd, t.spaceMd, t.spaceSm, t.spaceMd),
+          padding: EdgeInsets.fromLTRB(t.spaceSm, t.spaceMd, t.spaceSm, t.spaceMd),
           child: Row(
             children: [
               const _ClientAvatar(),
@@ -298,7 +304,7 @@ class _AccountHeader extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: selected ? scheme.primary : scheme.onSurface,
+                    color: scheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

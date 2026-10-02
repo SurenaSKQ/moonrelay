@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 // Sub-page header wrapper
@@ -47,21 +48,33 @@ class HubSubPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          color: theme.colorScheme.surfaceContainerHighest,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          // `surfaceContainerHigh`, the same step the content pane sits on.
+          // It was `surfaceContainerHighest`, which is the hover step: a
+          // title bar painted in the hover colour reads as a hovered element,
+          // and it was the only place in the app that used that value for
+          // something other than a hover.
+          color: theme.colorScheme.surfaceContainerHigh,
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceLg + t.spaceXs,
+            vertical: t.spaceSm + t.spaceXxs,
+          ),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    // `onSurface`, not `onSurfaceVariant`. This is the page's
+                    // own title, eleven pixels above the content it heads;
+                    // muted it read as a caption for the strip below.
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -69,7 +82,7 @@ class HubSubPageHeader extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1),
+        Divider(height: 1, color: ext.layers.hairline),
         Expanded(child: child),
       ],
     );
