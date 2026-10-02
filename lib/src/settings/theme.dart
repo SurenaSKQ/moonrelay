@@ -174,7 +174,7 @@ class MoonrelayTheme {
       seedColor: seed,
       brightness: brightness,
     );
-    final tokens = MoonrelayDesignTokens.standard();
+    final tokens = MoonrelayDesignTokens.standard(brightness: brightness);
     final components = MoonrelayComponentTokens.fromDesignTokens(tokens);
 
     return ThemeData(
