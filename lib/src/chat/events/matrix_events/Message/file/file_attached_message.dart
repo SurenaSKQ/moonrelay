@@ -17,6 +17,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/attachment_download_policy.dart';
@@ -88,12 +89,6 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
       : const {};
 
   int? get _fileSize => _infoMap['size'] as int?;
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
 
   /// Returns an appropriate icon based on file extension / MIME type.
   IconData _fileIcon() {
@@ -191,139 +186,94 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
             !snapshot.hasError;
         final matrixFile = snapshot.data;
 
-        return Container(
-          constraints:
-              BoxConstraints(maxWidth: MediaSizePrefs.of(context).fileMax),
-          decoration: BoxDecoration(
-            color: _lastError != null
-                ? cs.errorContainer.withValues(alpha: t.opacityDisabled)
-                : cs.surfaceContainerHighest
-                    .withValues(alpha: t.opacityDisabled),
-            borderRadius: BorderRadius.circular(t.radiusMd),
-            border: Border.all(
-              color: _lastError != null
-                  ? cs.error.withValues(alpha: t.opacitySubtle)
-                  : cs.outlineVariant.withValues(alpha: t.opacityDisabled),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // -- File type icon --------------------------------------
-                Container(
+        return AttachmentCard(
+          maxWidth: MediaSizePrefs.of(context).fileMax,
+          isError: _lastError != null,
+          child: Row(
+            children: [
+              // -- File type icon --------------------------------------
+              AttachmentLeadingIcon(
+                icon: _lastError != null
+                    ? Icons.error_outline_rounded
+                    : _fileIcon(),
+                isError: _lastError != null,
+              ),
+              SizedBox(width: t.spaceMd),
+
+              // -- File info -------------------------------------------
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _fileName ?? l10n.unknown,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    SizedBox(height: t.spaceXs),
+                    Row(
+                      children: [
+                        if (_extension != null)
+                          AttachmentBadge(label: _extension!),
+                        if (_fileSize != null) ...[
+                          if (_extension != null)
+                            SizedBox(width: t.spaceSm),
+                          Icon(
+                            Icons.archive_outlined,
+                            size: 12,
+                            color: cs.onSurfaceVariant
+                                .withValues(alpha: t.opacitySubtle),
+                          ),
+                          SizedBox(width: t.spaceXxs),
+                          Text(
+                            AttachmentDownloadPolicy.formatSize(
+                              context,
+                              _fileSize,
+                            )!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant
+                                  .withValues(alpha: t.opacitySubtle),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: t.spaceSm),
+
+              // -- Download button -------------------------------------
+              Semantics(
+                label: _lastError != null ? l10n.tapToRetry : l10n.downloadAudio,
+                button: true,
+                child: SizedBox(
                   width: 44,
                   height: 44,
-                  decoration: BoxDecoration(
-                    color: _lastError != null
-                        ? cs.error.withValues(alpha: t.opacityFocus)
-                        : cs.primary.withValues(alpha: t.opacityFocus),
-                    borderRadius: BorderRadius.circular(t.radiusMd),
-                  ),
-                  child: Icon(
-                    _lastError != null
-                        ? Icons.error_outline_rounded
-                        : _fileIcon(),
-                    size: 22,
-                    color: _lastError != null ? cs.error : cs.primary,
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // -- File info -------------------------------------------
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _fileName ?? l10n.unknown,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          // Extension badge
-                          if (_extension != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cs.tertiaryContainer
-                                    .withValues(alpha: t.opacitySubtle),
-                                borderRadius: BorderRadius.circular(t.radiusXs),
-                              ),
-                              child: Text(
-                                _extension!,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.onTertiaryContainer,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                  child: snapshot.connectionState == ConnectionState.waiting
+                      ? Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: cs.primary,
                             ),
-                          if (_fileSize != null) ...[
-                            if (_extension != null) SizedBox(width: t.spaceSm),
-                            Icon(Icons.archive_outlined,
-                                size: 12,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                            const SizedBox(width: 2),
-                            Text(
-                              _formatSize(_fileSize!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color:
-                                    cs.onSurfaceVariant.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: t.spaceSm),
-
-                // -- Download button -------------------------------------
-                Semantics(
-                  label:
-                      _lastError != null ? l10n.tapToRetry : l10n.downloadAudio,
-                  button: true,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: _lastError != null
-                          ? cs.error.withValues(alpha: t.opacityFocus)
-                          : cs.primary.withValues(alpha: t.opacityFocus),
-                      borderRadius: BorderRadius.circular(t.radiusMd),
-                    ),
-                    child: IconButton(
-                      icon: snapshot.connectionState == ConnectionState.waiting
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: cs.primary,
-                              ),
-                            )
-                          : Icon(
-                              _lastError != null
-                                  ? Icons.refresh_rounded
-                                  : Icons.download_rounded,
-                              size: t.iconSizeMedium,
-                            ),
-                      color: _lastError != null ? cs.error : cs.primary,
-                      onPressed:
-                          snapshot.connectionState == ConnectionState.waiting
+                          ),
+                        )
+                      : AttachmentLeadingIcon(
+                          icon: _lastError != null
+                              ? Icons.refresh_rounded
+                              : Icons.download_rounded,
+                          isError: _lastError != null,
+                          onTap: snapshot.connectionState ==
+                                  ConnectionState.waiting
                               ? null
                               : () async {
                                   if (isReady && matrixFile != null) {
@@ -332,11 +282,10 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                                     await _downloadOnDemand();
                                   }
                                 },
-                    ),
-                  ),
+                        ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

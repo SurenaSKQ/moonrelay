@@ -17,8 +17,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Renders MSC3381 / `m.poll.start` events as a card with the question,
 /// the answer options, and a button to vote. Aggregated vote counts are
@@ -147,25 +149,23 @@ class _PollMessageTypeState extends State<PollMessageType> {
           return _buildUnavailable(cs);
         }
         final state = snapshot.data!;
-        return _buildCard(state, cs, l10n);
+        return _buildCard(context, state, cs, l10n);
       },
     );
   }
 
-  Widget _buildCard(_PollState state, ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildCard(
+    BuildContext context,
+    _PollState state,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final maxCount =
         state.voteCounts.values.fold<int>(0, (m, v) => v > m ? v : m);
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 400),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
+    return AttachmentCard(
+      maxWidth: 400,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -173,8 +173,12 @@ class _PollMessageTypeState extends State<PollMessageType> {
           // -- Header -------------------------------------------------
           Row(
             children: [
-              Icon(LucideIcons.listChecks, size: 18, color: cs.primary),
-              const SizedBox(width: 8),
+              AttachmentLeadingIcon(
+                icon: LucideIcons.listChecks,
+                size: 36,
+                iconSize: 18,
+              ),
+              SizedBox(width: t.spaceSm),
               Expanded(
                 child: Text(
                   state.question,
@@ -186,13 +190,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
               ),
               if (state.ended)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceXs,
+                    vertical: t.spaceXxs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
+                    color: cs.error.withValues(alpha: t.opacityDragged),
+                    borderRadius: BorderRadius.circular(t.radiusXs),
                   ),
                   child: Text(
                     l10n.pollClosed,
@@ -206,7 +210,7 @@ class _PollMessageTypeState extends State<PollMessageType> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.spaceMd),
 
           // -- Options -----------------------------------------------
           ...state.answers.map((a) {

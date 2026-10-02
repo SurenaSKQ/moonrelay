@@ -24,6 +24,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -142,12 +143,6 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     final m = totalSeconds ~/ 60;
     final s = totalSeconds % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   /// Computes the height-and-width-clamped box for the video player.
@@ -344,201 +339,139 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     // the row.
     return Align(
       alignment: AlignmentDirectional.centerStart,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: prefs.videoMax),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color:
-              cs.surfaceContainerHighest.withValues(alpha: t.opacityDisabled),
-          borderRadius: BorderRadius.circular(t.radiusMd),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+      child: AttachmentCard(
+        maxWidth: prefs.videoMax,
+        footer: Row(
           children: [
-            SizedBox(
-              width: playerSize.width,
-              height: playerSize.height,
-              child: _buildPlayerArea(cs, l10n),
+            AttachmentLeadingIcon(
+              icon: LucideIcons.video,
+              size: 36,
+              iconSize: 18,
             ),
-            SizedBox(
-              width: playerSize.width,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: t.opacityFocus),
-                        borderRadius: BorderRadius.circular(t.radiusMd),
-                      ),
-                      child: Icon(
-                        LucideIcons.video,
-                        size: 18,
-                        color: cs.primary,
-                      ),
+            SizedBox(width: t.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _fileName ?? l10n.videoFileName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    SizedBox(width: t.spaceMd),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _fileName ?? l10n.videoFileName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  SizedBox(height: t.spaceXxs),
+                  // The metadata row is allowed to shrink: the
+                  // duration/size widgets can otherwise request more
+                  // horizontal space than the card has (a long file size
+                  // pushes us past the icon plus the trailing download
+                  // target and the row overflows on the right).
+                  Flexible(
+                    child: Row(
+                      children: [
+                        AttachmentBadge(label: _extension),
+                        if (_duration != null) ...[
+                          SizedBox(width: t.spaceSm),
+                          Icon(
+                            LucideIcons.clock,
+                            size: 12,
+                            color: cs.onSurfaceVariant
+                                .withValues(alpha: t.opacitySubtle),
                           ),
-                          SizedBox(height: t.spaceXxs),
-                          // The metadata row sits inside an [Expanded]
-                          // above and is itself allowed to shrink; the
-                          // duration/size widgets can otherwise request
-                          // more horizontal space than the bubble has
-                          // (a long file size pushes us past the 36-px
-                          // icon + 48-px trailing [IconButton] budget,
-                          // producing a 51 px right overflow).
+                          SizedBox(width: t.spaceXxs),
                           Flexible(
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: cs.tertiaryContainer
-                                        .withValues(alpha: t.opacitySubtle),
-                                    borderRadius:
-                                        BorderRadius.circular(t.radiusXs),
-                                  ),
-                                  child: Text(
-                                    _extension,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: cs.onTertiaryContainer,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                if (_duration != null) ...[
-                                  SizedBox(width: t.spaceSm),
-                                  Icon(
-                                    LucideIcons.clock,
-                                    size: 12,
-                                    color: cs.onSurfaceVariant
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Flexible(
-                                    child: Text(
-                                      _formatDuration(_duration!),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: cs.onSurfaceVariant
-                                            .withValues(alpha: 0.7),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (_fileSize != null) ...[
-                                  SizedBox(width: t.spaceSm),
-                                  Flexible(
-                                    child: Text(
-                                      _formatSize(_fileSize!),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: cs.onSurfaceVariant
-                                            .withValues(alpha: t.opacitySubtle),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                            child: Text(
+                              _formatDuration(_duration!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: t.opacitySubtle),
+                              ),
                             ),
                           ),
                         ],
-                      ),
+                        if (_fileSize != null) ...[
+                          SizedBox(width: t.spaceSm),
+                          Flexible(
+                            child: Text(
+                              AttachmentDownloadPolicy.formatSize(
+                                context,
+                                _fileSize,
+                              )!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: t.opacitySubtle),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
+                ],
+              ),
+            ),
 
-                    // Tight-size the trailing [IconButton] to match the
-                    // leading 36×36 icon container.  Without this wrap the
-                    // [IconButton] claims its default 48×48 Material tap
-                    // target and the row overflows on the right.
-                    SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Semantics(
-                        label: l10n.downloadVideo,
-                        button: true,
-                        child: FutureBuilder<MatrixFile>(
-                          future: _downloadFuture,
-                          builder: (context, snapshot) {
-                            final isReady = snapshot.connectionState ==
-                                    ConnectionState.done &&
-                                !snapshot.hasError;
-                            final isWaiting = snapshot.connectionState ==
-                                ConnectionState.waiting;
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: cs.primary
-                                    .withValues(alpha: t.opacityFocus),
-                                borderRadius: BorderRadius.circular(t.radiusMd),
-                              ),
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                iconSize: 18,
-                                constraints: const BoxConstraints(
-                                  minWidth: 36,
-                                  minHeight: 36,
-                                  maxWidth: 36,
-                                  maxHeight: 36,
-                                ),
-                                icon: isWaiting
-                                    ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: cs.primary,
-                                        ),
-                                      )
-                                    : Icon(
-                                        LucideIcons.download,
-                                        size: 18,
-                                        color: cs.primary,
-                                      ),
-                                onPressed: isWaiting
-                                    ? null
-                                    : () async {
-                                        if (isReady && snapshot.data != null) {
-                                          await _downloadFile(snapshot.data!);
-                                        } else {
-                                          await _downloadOnDemand();
-                                        }
-                                      },
-                              ),
-                            );
-                          },
+            // Pinned to the same box the audio and file rows use, so the
+            // three attachment rows line up down the timeline. It was 36
+            // here against 44 there, and the video row sat visibly shorter
+            // than the file row above it.
+            Semantics(
+              label: l10n.downloadVideo,
+              button: true,
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: FutureBuilder<MatrixFile>(
+                  future: _downloadFuture,
+                  builder: (context, snapshot) {
+                    final isReady = snapshot.connectionState ==
+                            ConnectionState.done &&
+                        !snapshot.hasError;
+                    final isWaiting = snapshot.connectionState ==
+                        ConnectionState.waiting;
+                    if (isWaiting) {
+                      return Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.primary,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                    return AttachmentLeadingIcon(
+                      icon: LucideIcons.download,
+                      size: 36,
+                      iconSize: 18,
+                      onTap: () async {
+                        if (isReady && snapshot.data != null) {
+                          await _downloadFile(snapshot.data!);
+                        } else {
+                          await _downloadOnDemand();
+                        }
+                      },
+                    );
+                  },
                 ),
               ),
             ),
           ],
+        ),
+        child: SizedBox(
+          width: playerSize.width,
+          height: playerSize.height,
+          child: _buildPlayerArea(cs, l10n),
         ),
       ),
     );

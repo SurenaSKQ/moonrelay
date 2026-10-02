@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/attachment_download_policy.dart';
@@ -132,12 +133,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   // ---- Actions ----
@@ -264,7 +259,13 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    // Read from the theme extension rather than the literal string. Four
+    // sites hardcoded 'JetBrainsMono', which means renaming the family in
+    // one place would have left the rest of the app on a font that is no
+    // longer bundled.
+    final mono = ext.monoFontFamily;
     final l10n = AppLocalizations.of(context)!;
 
     // Fast path: bytes are already in the shared cache, so we don't
@@ -303,191 +304,123 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                         final progress = displayDur == 0
                             ? 0.0
                             : (displayPos / displayDur).clamp(0.0, 1.0);
-                        return Container(
-                          constraints: BoxConstraints(
-                              maxWidth: MediaSizePrefs.of(context).audioMax),
-                          decoration: BoxDecoration(
-                            color: _lastError != null
-                                ? cs.errorContainer
-                                    .withValues(alpha: t.opacitySubtle)
-                                : cs.surfaceContainerHighest
-                                    .withValues(alpha: t.opacityDisabled),
-                            borderRadius: BorderRadius.circular(t.radiusMd),
-                            border: Border.all(
-                              color: _lastError != null
-                                  ? cs.error.withValues(alpha: t.opacitySubtle)
-                                  : cs.outlineVariant
-                                      .withValues(alpha: t.opacityDisabled),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(t.spaceMd),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: _lastError != null
-                                        ? cs.error
-                                            .withValues(alpha: t.opacityFocus)
-                                        : cs.primary
-                                            .withValues(alpha: t.opacityFocus),
-                                    borderRadius:
-                                        BorderRadius.circular(t.radiusMd),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      _lastError != null
-                                          ? Icons.refresh_rounded
-                                          : isPlaying
-                                              ? Icons.pause_rounded
-                                              : Icons.play_arrow_rounded,
-                                      color: _lastError != null
-                                          ? cs.error
-                                          : cs.primary,
-                                      size: 22,
-                                    ),
-                                    onPressed: downloaded && isReady
-                                        ? (_lastError != null
-                                            ? _retry
-                                            : _togglePlay)
-                                        : null,
-                                  ),
+                        return AttachmentCard(
+                          maxWidth: MediaSizePrefs.of(context).audioMax,
+                          isError: _lastError != null,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: AttachmentLeadingIcon(
+                                  icon: _lastError != null
+                                      ? Icons.refresh_rounded
+                                      : isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                  isError: _lastError != null,
+                                  onTap: downloaded && isReady
+                                      ? (_lastError != null ? _retry : _togglePlay)
+                                      : null,
                                 ),
-                                SizedBox(width: t.spaceMd),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _fileName ?? l10n.audioFileName,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
+                              ),
+                              SizedBox(width: t.spaceMd),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _fileName ?? l10n.audioFileName,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      const SizedBox(height: 6),
-                                      SliderTheme(
-                                        data: SliderTheme.of(context).copyWith(
-                                          trackHeight: 3,
-                                          thumbShape:
-                                              const RoundSliderThumbShape(
-                                            enabledThumbRadius: 6,
-                                          ),
-                                        ),
-                                        child: Slider(
-                                          value: progress,
-                                          onChanged:
-                                              downloaded ? _seekTo : null,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    SliderTheme(
+                                      data:
+                                          SliderTheme.of(context).copyWith(
+                                        trackHeight: 3,
+                                        thumbShape:
+                                            const RoundSliderThumbShape(
+                                          enabledThumbRadius: 6,
                                         ),
                                       ),
-                                      SizedBox(height: t.spaceXxs),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            _formatDuration(position),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: cs.onSurface,
-                                              fontFamily: 'JetBrainsMono',
-                                            ),
+                                      child: Slider(
+                                        value: progress,
+                                        onChanged:
+                                            downloaded ? _seekTo : null,
+                                      ),
+                                    ),
+                                    SizedBox(height: t.spaceXxs),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          _formatDuration(position),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: cs.onSurface,
+                                            fontFamily: mono,
                                           ),
+                                        ),
+                                        SizedBox(width: t.spaceXs),
+                                        Text(
+                                          '/',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: cs.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        SizedBox(width: t.spaceXs),
+                                        Text(
+                                          _formatDuration(resolvedDuration),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: cs.onSurfaceVariant,
+                                            fontFamily: mono,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        AttachmentBadge(label: _extension),
+                                        if (_fileSize != null) ...[
                                           SizedBox(width: t.spaceXs),
                                           Text(
-                                            '/',
+                                            AttachmentDownloadPolicy
+                                                .formatSize(context, _fileSize)!,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: cs.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          SizedBox(width: t.spaceXs),
-                                          Text(
-                                            _formatDuration(resolvedDuration),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: cs.onSurfaceVariant,
-                                              fontFamily: 'JetBrainsMono',
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: cs.tertiaryContainer
+                                              color: cs.onSurfaceVariant
                                                   .withValues(
                                                       alpha: t.opacitySubtle),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      t.radiusXs),
-                                            ),
-                                            child: Text(
-                                              _extension,
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w700,
-                                                color: cs.onTertiaryContainer,
-                                                letterSpacing: 0.5,
-                                              ),
                                             ),
                                           ),
-                                          if (_fileSize != null) ...[
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              _formatSize(_fileSize!),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: cs.onSurfaceVariant
-                                                    .withValues(alpha: 0.7),
-                                              ),
-                                            ),
-                                          ],
                                         ],
-                                      ),
-                                    ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: t.spaceXs),
+                              Semantics(
+                                label: l10n.downloadAudio,
+                                button: true,
+                                child: SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: AttachmentLeadingIcon(
+                                    icon: LucideIcons.download,
+                                    iconSize: 18,
+                                    onTap: downloaded
+                                        ? _downloadFile
+                                        : _downloadOnDemand,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Semantics(
-                                  label: l10n.downloadAudio,
-                                  button: true,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: cs.primary
-                                          .withValues(alpha: t.opacityFocus),
-                                      borderRadius:
-                                          BorderRadius.circular(t.radiusMd),
-                                    ),
-                                    child: IconButton(
-                                      icon: downloaded
-                                          ? Icon(
-                                              LucideIcons.download,
-                                              size: 18,
-                                              color: cs.primary,
-                                            )
-                                          : SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: cs.primary,
-                                              ),
-                                            ),
-                                      onPressed: downloaded
-                                          ? _downloadFile
-                                          : _downloadOnDemand,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         );
                       },

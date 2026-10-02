@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -31,7 +32,9 @@ class LocationMessageType extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final mono = ext.monoFontFamily;
     final l10n = AppLocalizations.of(context)!;
 
     final content = event.content;
@@ -61,106 +64,84 @@ class LocationMessageType extends StatelessWidget {
       return _buildUnavailable(context, cs);
     }
 
-    return Container(
-      constraints:
-          BoxConstraints(maxWidth: MediaSizePrefs.of(context).locationMax),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
-        borderRadius: BorderRadius.circular(t.radiusMd + 2),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: t.opacityDisabled),
-        ),
-      ),
+    return AttachmentCard(
+      maxWidth: MediaSizePrefs.of(context).locationMax,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           // -- Header ---------------------------------------------------
-          Padding(
-            padding:
-                EdgeInsets.fromLTRB(t.spaceMd + 2, t.spaceMd, t.spaceMd + 2, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: t.opacityFocus),
-                    borderRadius: BorderRadius.circular(t.radiusMd - 2),
-                  ),
-                  child: Icon(
-                    LucideIcons.mapPin,
-                    size: t.iconSizeMedium,
-                    color: cs.primary,
-                  ),
-                ),
-                SizedBox(width: t.spaceMd),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Lat: ${lat.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontFamily: 'JetBrainsMono',
-                        ),
+          Row(
+            children: [
+              AttachmentLeadingIcon(
+                icon: LucideIcons.mapPin,
+                size: 38,
+                iconSize: t.iconSizeMedium,
+              ),
+              SizedBox(width: t.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Lat: ${lat.toStringAsFixed(6)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: t.opacityDisabled),
+                        fontFamily: mono,
                       ),
-                      SizedBox(height: t.spaceXxs),
-                      Text(
-                        'Lon: ${lon.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontFamily: 'JetBrainsMono',
-                        ),
+                    ),
+                    SizedBox(height: t.spaceXxs),
+                    Text(
+                      'Lon: ${lon.toStringAsFixed(6)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: t.opacityDisabled),
+                        fontFamily: mono,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          SizedBox(height: t.spaceSm),
 
           // -- Body / metadata ------------------------------------------
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-                t.spaceMd + 2, t.spaceMd - 2, t.spaceMd + 2, t.spaceMd - 2),
-            child: Row(
-              children: [
-                if (accuracy != null) ...[
-                  Icon(
-                    LucideIcons.crosshair,
-                    size: 14,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+          Row(
+            children: [
+              if (accuracy != null) ...[
+                Icon(
+                  LucideIcons.crosshair,
+                  size: 14,
+                  color: cs.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
+                ),
+                SizedBox(width: t.spaceXs),
+                Text(
+                  l10n.locationAccuracyMeters(accuracy.round()),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
                   ),
-                  SizedBox(width: t.spaceXs),
-                  Text(
-                    l10n.locationAccuracyMeters(accuracy.round()),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const Spacer(),
-                ] else
-                  const Spacer(),
-                FilledButton.tonalIcon(
-                  icon: Icon(LucideIcons.externalLink, size: t.iconSizeSmall),
-                  label: Text(l10n.openInMaps),
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: t.spaceMd,
-                      vertical: t.spaceXs + 2,
-                    ),
-                    textStyle: const TextStyle(fontSize: 12),
-                  ),
-                  onPressed: () => _openInMaps(context, lat!, lon!),
                 ),
               ],
-            ),
+              const Spacer(),
+              FilledButton.tonalIcon(
+                icon: Icon(LucideIcons.externalLink, size: t.iconSizeSmall),
+                label: Text(l10n.openInMaps),
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceMd,
+                    vertical: t.spaceXs,
+                  ),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () => _openInMaps(context, lat!, lon!),
+              ),
+            ],
           ),
         ],
       ),
