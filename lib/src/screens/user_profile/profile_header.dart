@@ -114,19 +114,14 @@ class ProfileHeader extends StatelessWidget {
           const SizedBox(height: 4),
 
           // Matrix ID
-          GestureDetector(
-            onLongPress: () {
-              // TODO: copy to clipboard
-            },
-            child: Text(
-              userId,
-              style: TextStyle(
-                fontSize: 13,
-                color: scheme.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.center,
+          Text(
+            userId,
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurfaceVariant,
+              fontFamily: 'monospace',
             ),
+            textAlign: TextAlign.center,
           ),
 
           // Presence badge
