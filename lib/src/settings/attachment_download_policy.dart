@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -190,6 +191,7 @@ class ClickToDownloadTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final size = AttachmentDownloadPolicy.formatSize(
@@ -202,13 +204,13 @@ class ClickToDownloadTile extends StatelessWidget {
       label: l10n.clickToDownload,
       child: InkWell(
         onTap: onDownload,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusLg),
         child: Container(
           width: width,
           height: height,
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(t.radiusLg),
             border: Border.all(color: cs.outlineVariant),
           ),
           child: Column(

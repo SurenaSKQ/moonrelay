@@ -24,6 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
@@ -245,18 +246,18 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
           SizedBox(height: t.spaceXl),
 
           // -- Join button ----------------------------------------------
-          _buildJoinSection(cs, l10n),
+          _buildJoinSection(cs, t, l10n),
           SizedBox(height: t.spaceXl),
 
           // -- Recent messages ------------------------------------------
           if (!_eventsLoading && _events != null && _events!.isNotEmpty) ...[
             _SectionHeader(title: l10n.roomPreviewLastMessages, scheme: cs),
             SizedBox(height: t.spaceSm),
-            ..._events!.map((e) => _buildEventTile(cs, e)),
+            ..._events!.map((e) => _buildEventTile(cs, t, e)),
           ] else if (!_eventsLoading &&
               _events != null &&
               _events!.isEmpty) ...[
-            _buildEmptyMessages(cs, l10n),
+            _buildEmptyMessages(cs, t, l10n),
           ],
         ],
       ),
@@ -268,11 +269,12 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     TextTheme textTheme,
     AppLocalizations l10n,
   ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     if (_summaryLoading) {
-      return _buildLoadingCard(cs, l10n);
+      return _buildLoadingCard(cs, t, l10n);
     }
     if (_summaryError != null) {
-      return _buildErrorCard(cs, l10n);
+      return _buildErrorCard(cs, t, l10n);
     }
 
     final s = _summary!;
@@ -287,7 +289,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
       elevation: 0,
       color: cs.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Padding(
@@ -388,7 +390,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: cs.tertiaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 border: Border.all(
                   color: cs.tertiary.withValues(alpha: 0.2),
                 ),
@@ -418,12 +420,12 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     );
   }
 
-  Widget _buildLoadingCard(ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildLoadingCard(ColorScheme cs, MoonrelayDesignTokens t, AppLocalizations l10n) {
     return Card(
       elevation: 0,
       color: cs.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Container(
@@ -444,12 +446,12 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     );
   }
 
-  Widget _buildErrorCard(ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildErrorCard(ColorScheme cs, MoonrelayDesignTokens t, AppLocalizations l10n) {
     return Card(
       elevation: 0,
       color: cs.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(t.radiusLg),
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Container(
@@ -470,7 +472,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     );
   }
 
-  Widget _buildJoinSection(ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildJoinSection(ColorScheme cs, MoonrelayDesignTokens t, AppLocalizations l10n) {
     return Column(
       children: [
         if (_joinError != null)
@@ -480,7 +482,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: cs.errorContainer,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
               child: Row(
                 children: [
@@ -516,7 +518,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusLg),
               ),
             ),
           ),
@@ -525,7 +527,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     );
   }
 
-  Widget _buildEventTile(ColorScheme cs, _PreviewEvent event) {
+  Widget _buildEventTile(ColorScheme cs, MoonrelayDesignTokens t, _PreviewEvent event) {
     final senderName = event.senderId;
 
     return Padding(
@@ -595,7 +597,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     );
   }
 
-  Widget _buildEmptyMessages(ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildEmptyMessages(ColorScheme cs, MoonrelayDesignTokens t, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),

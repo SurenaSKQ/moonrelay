@@ -632,13 +632,14 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
       padding: const EdgeInsets.symmetric(horizontal: 7),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Text(
         count > 99 ? '99+' : '$count',

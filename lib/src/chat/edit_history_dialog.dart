@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
 /// Shows a scrollable history of prior versions of [event]'s body.
@@ -129,13 +130,14 @@ class _EditHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final body = _body(version.event);
     final time = version.event.originServerTs.localizedTimeShort(context);
     final name = version.event.senderFromMemoryOrFallback.calcDisplayname();
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       onTap: () {
         Navigator.of(context).pop();
         Navigator.of(context).push(
@@ -153,7 +155,7 @@ class _EditHistoryTile extends StatelessWidget {
           color: isLatest
               ? cs.primaryContainer.withValues(alpha: 0.5)
               : cs.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(t.radiusMd),
           border: Border.all(
             color: cs.outlineVariant.withValues(alpha: 0.4),
           ),
@@ -181,7 +183,7 @@ class _EditHistoryTile extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: cs.primary,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(t.radiusXs),
                     ),
                     child: Text(
                       'CURRENT',

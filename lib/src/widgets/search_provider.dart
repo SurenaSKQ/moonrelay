@@ -469,7 +469,7 @@ class SearchHomeserverTile extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(t.radiusSm),
         ),
         child: Icon(
           LucideIcons.globe,
