@@ -72,63 +72,72 @@ class _HistorySkeletonTileState extends State<HistorySkeletonTile>
     super.dispose();
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
     final base = scheme.surfaceContainerHighest;
-    final width = MediaQuery.of(context).size.width;
 
     return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: t.spaceSm, vertical: t.spaceXs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: t.spaceXs),
-            child: _pulse(
-                child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: base,
-                shape: BoxShape.circle,
+      // The bars are sized from the width this tile is actually given, not
+      // the window's. A timeline pane can be a few hundred pixels wide inside
+      // a 2500px window, and deriving the bar width from the window put a
+      // 900px placeholder inside a 400px column, which overflowed rather than
+      // merely looking wrong.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: t.spaceXs),
+                child: _pulse(
+                    child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: base,
+                    shape: BoxShape.circle,
+                  ),
+                )),
               ),
-            )),
-          ),
-          SizedBox(width: t.spaceSm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _pulse(
-                    child: _skeletonBar(
-                  width: width * 0.32,
-                  height: 13,
-                  color: base,
-                  t: t,
-                )),
-                const SizedBox(height: 6),
-                _pulse(
-                    child: _skeletonBar(
-                  width: double.infinity,
-                  height: 12,
-                  color: base,
-                  t: t,
-                )),
-                SizedBox(height: t.spaceXs),
-                _pulse(
-                    child: _skeletonBar(
-                  width: width * widget.barFraction,
-                  height: 12,
-                  color: base,
-                  t: t,
-                )),
-              ],
-            ),
-          ),
-        ],
+              SizedBox(width: t.spaceSm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _pulse(
+                        child: _skeletonBar(
+                      width: width * 0.32,
+                      height: 13,
+                      color: base,
+                      t: t,
+                    )),
+                    const SizedBox(height: 6),
+                    _pulse(
+                        child: _skeletonBar(
+                      width: double.infinity,
+                      height: 12,
+                      color: base,
+                      t: t,
+                    )),
+                    SizedBox(height: t.spaceXs),
+                    _pulse(
+                        child: _skeletonBar(
+                      width: width * widget.barFraction,
+                      height: 12,
+                      color: base,
+                      t: t,
+                    )),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
