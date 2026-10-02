@@ -15,6 +15,7 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A centred, self-contained empty/error state for a content pane.
@@ -82,14 +83,80 @@ class EmptyState extends StatelessWidget {
                   ),
               textAlign: TextAlign.center,
             ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 20),
+if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: t.spaceXl),
               FilledButton.icon(
                 onPressed: onAction,
-                icon: Icon(Icons.arrow_back, size: t.iconSizeSmall),
+                icon: const Icon(LucideIcons.arrowLeft, size: 16),
                 label: Text(actionLabel!),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A centred loading state for a content pane, optionally labelled.
+///
+/// The counterpart to [EmptyState], and it exists because there was no
+/// shared equivalent. Every pane hand-rolled its own
+/// `Center(child: CircularProgressIndicator())`, which is why the loading
+/// experience was ad hoc: roughly half the sites paired the spinner with a
+/// line of text and the rest did not, so some panes announced themselves and
+/// some just sat there spinning.
+///
+/// A spinner on its own is not wrong, but a pane whose whole content is a
+/// bare circle gives the eye nothing to hold while it waits. Pass [label]
+/// wherever the pane is wide enough for one.
+class PaneLoading extends StatelessWidget {
+  const PaneLoading({super.key, this.label});
+
+  /// Optional line of text under the spinner, naming what is loading.
+  ///
+  /// Should already be localised by the caller.
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final text = label;
+    if (text == null) {
+      return Center(
+        child: SizedBox(
+          width: t.spaceXl,
+          height: t.spaceXl,
+          child: CircularProgressIndicator(
+            strokeWidth: t.borderWidthThick,
+            color: scheme.primary,
+          ),
+        ),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(t.spaceXl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: t.spaceXl,
+              height: t.spaceXl,
+              child: CircularProgressIndicator(
+                strokeWidth: t.borderWidthThick,
+                color: scheme.primary,
+              ),
+            ),
+            SizedBox(height: t.spaceLg),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

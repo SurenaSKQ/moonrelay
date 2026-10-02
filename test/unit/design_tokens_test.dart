@@ -115,13 +115,13 @@ void main() {
         expect(theme.highlightColor, isNotNull);
         expect(theme.focusColor, isNotNull);
         expect(
-          theme.focusColor!.a,
-          greaterThan(theme.hoverColor!.a),
+          theme.focusColor.a,
+          greaterThan(theme.hoverColor.a),
           reason: 'focus must be distinguishable from hover',
         );
         expect(
-          theme.focusColor!.a,
-          greaterThan(theme.highlightColor!.a),
+          theme.focusColor.a,
+          greaterThan(theme.highlightColor.a),
           reason: 'focus must be distinguishable from press',
         );
       }

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -149,7 +150,7 @@ class _ThreadViewPageState extends State<ThreadViewPage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? PaneLoading(label: AppLocalizations.of(context)!.loading)
           : _rootEvent == null
               ? Center(
                   child: Text(

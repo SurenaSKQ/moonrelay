@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -187,6 +188,6 @@ class _RoomResolverState extends State<RoomResolver> {
         ),
       );
     }
-    return const Center(child: CircularProgressIndicator());
+    return PaneLoading(label: AppLocalizations.of(context)!.loading);
   }
 }

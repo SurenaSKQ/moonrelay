@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -136,7 +137,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
         listenable: _provider,
         builder: (context, _) {
           if (_provider.isLoading && _provider.threadRoots.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return PaneLoading(label: AppLocalizations.of(context)!.loading);
           }
 
           if (_provider.threadRoots.isEmpty) {
