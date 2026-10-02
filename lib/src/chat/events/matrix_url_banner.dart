@@ -20,6 +20,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A banner shown below a chat message that contains a Matrix URL (room,
@@ -56,6 +57,7 @@ class MatrixUrlBanner extends StatelessWidget {
   /// Banner for user entity URIs.
   Widget _buildUserBanner(BuildContext context, ThemeData theme) {
     final t = theme.moonrelay;
+    final l10n = AppLocalizations.of(context)!;
     final tokens = t.tokens;
     return Padding(
       padding: EdgeInsets.only(top: tokens.spaceSm),
@@ -65,7 +67,8 @@ class MatrixUrlBanner extends StatelessWidget {
               .withValues(alpha: tokens.opacityDisabled),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withAlpha(80),
+            color: theme.colorScheme.outlineVariant
+                .withValues(alpha: tokens.opacityDisabled),
           ),
         ),
         child: Padding(
@@ -88,7 +91,7 @@ class MatrixUrlBanner extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Matrix User',
+                      l10n.matrixUserBannerLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -97,7 +100,11 @@ class MatrixUrlBanner extends StatelessWidget {
                     Text(
                       result.entityId,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
+                        // From the token, not the literal 'monospace'.
+                        // 'monospace' resolves to whatever the platform
+                        // picks, so the user id rendered in a different face
+                        // from the extension badges two messages up.
+                        fontFamily: t.monoFontFamily,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -109,7 +116,7 @@ class MatrixUrlBanner extends StatelessWidget {
                 onPressed: () => _openUser(context),
                 icon:
                     Icon(LucideIcons.externalLink, size: tokens.iconSizeSmall),
-                label: const Text('Open Profile'),
+                label: Text(l10n.matrixBannerOpenProfile),
               ),
             ],
           ),
@@ -132,6 +139,7 @@ class MatrixUrlBanner extends StatelessWidget {
     final avatarUri = isJoined ? room.avatar : null;
     final ext = theme.moonrelay;
     final t = ext.tokens;
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: EdgeInsets.only(top: t.spaceSm),
@@ -141,7 +149,8 @@ class MatrixUrlBanner extends StatelessWidget {
               .withValues(alpha: t.opacityDisabled),
           borderRadius: BorderRadius.circular(t.radiusSm),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withAlpha(80),
+            color: theme.colorScheme.outlineVariant
+                .withValues(alpha: t.opacityDisabled),
           ),
         ),
         child: Padding(
@@ -156,7 +165,9 @@ class MatrixUrlBanner extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isJoined ? 'Room' : 'Room Preview',
+                      isJoined
+                          ? l10n.matrixRoomBannerLabel
+                          : l10n.matrixRoomPreviewBannerLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -175,7 +186,7 @@ class MatrixUrlBanner extends StatelessWidget {
                         result.entityId,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                          fontFamily: 'monospace',
+                          fontFamily: ext.monoFontFamily,
                           fontSize: 11,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -191,7 +202,11 @@ class MatrixUrlBanner extends StatelessWidget {
                   isJoined ? LucideIcons.messageSquare : LucideIcons.eye,
                   size: t.iconSizeSmall,
                 ),
-                label: Text(isJoined ? 'Go to Room' : 'Preview Room'),
+                label: Text(
+                  isJoined
+                      ? l10n.matrixBannerGoToRoom
+                      : l10n.matrixBannerPreviewRoom,
+                ),
               ),
             ],
           ),
@@ -253,7 +268,12 @@ class MatrixUrlBanner extends StatelessWidget {
       }
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to open room: $e')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!
+                .matrixBannerFailedToOpenRoom('$e'),
+          ),
+        ),
       );
     }
   }
