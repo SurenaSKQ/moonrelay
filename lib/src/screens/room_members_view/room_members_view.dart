@@ -357,7 +357,7 @@ class _FullRoomMembersListState extends State<FullRoomMembersList> {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.couldNotLoadMessages,
+              l10n.couldNotLoadMembers,
               style: TextStyle(color: scheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),

@@ -348,7 +348,7 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
         children: [
           Icon(LucideIcons.alertCircle, size: 40, color: scheme.error),
           const SizedBox(height: 12),
-          Text(l10n.couldNotLoadMessages,
+          Text(l10n.couldNotLoadMembers,
               style: TextStyle(color: scheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(

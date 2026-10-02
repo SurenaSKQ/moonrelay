@@ -354,7 +354,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
               Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
               const SizedBox(height: 16),
               Text(
-                l10n.couldNotLoadMessages,
+                l10n.couldNotLoadRooms,
                 style: TextStyle(color: scheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),

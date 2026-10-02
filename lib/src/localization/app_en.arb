@@ -285,6 +285,8 @@
   },
 
   "couldNotLoadMessages": "Could not load messages",
+  "couldNotLoadMembers": "Could not load members",
+  "couldNotLoadRooms": "Could not load rooms",
   "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
   "jumpToFirstUnread": "Jump to first unread",
   "@jumpToFirstUnread": {
