@@ -207,6 +207,19 @@ class MoonrelayDesignTokens {
   ///
   /// The rim sits at a negative y offset so it does not stack on top of the
   /// drop it belongs to.
+  ///
+  /// **Material's `elevation` is not part of this scale and cannot be made
+  /// part of it.** A widget given `elevation: 4` does not consult these
+  /// lists; it renders `kElevationToShadow[4]`, a hardcoded three-layer map
+  /// of pure black in `material/shadows.dart`. `ThemeData.shadowColor` does
+  /// not reach it. That is why the popup menus (`elevationOverlay`), the
+  /// timeline FABs (`elevationHigh`) and the profile overlay are still flat
+  /// in dark mode while the message bubble and the two pills are raised.
+  ///
+  /// Closing that means stopping at `elevation:` for anything that needs
+  /// depth and passing `shadowLow` / `shadowMedium` / `shadowHigh` directly.
+  /// There are roughly seventy `elevation:` call sites and most of them ask
+  /// for zero, so the change is mechanical but wide. See WORK_NEEDED.md.
   static const ({
     List<BoxShadow> low,
     List<BoxShadow> medium,
