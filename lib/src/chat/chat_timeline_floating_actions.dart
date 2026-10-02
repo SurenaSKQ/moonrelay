@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Vertical column of floating action buttons anchored above the chat
 /// composer.  Hides the entire column when the user is parked at the
@@ -137,6 +138,72 @@ class ChatTimelineFloatingActions extends StatelessWidget {
   }
 }
 
+/// The chrome shared by the three floating pills above the composer.
+///
+/// All three asked for `elevation: 4`, which does not do what it looks
+/// like it does: Material renders `kElevationToShadow[4]`, a hardcoded
+/// three-layer map of pure black in `material/shadows.dart`, and no
+/// `ThemeData` field reaches it. In dark mode the message bubble lifted
+/// properly (it takes `shadowLow` directly) while these three pills did
+/// not, so they read as pasted onto the surface instead of floating above
+/// it. The shadow is now passed explicitly, like the bubble's.
+///
+/// The corner radius is `radiusFull`, so the pill is a stadium whatever its
+/// height. It was a literal 20, which happened to match `radiusXl` but was
+/// only coincidentally a pill: at 20px radius a shorter pill would have
+/// shown square shoulders.
+class FloatingPill extends StatelessWidget {
+  const FloatingPill({
+    super.key,
+    required this.child,
+    required this.background,
+    required this.foreground,
+    this.onTap,
+    this.leadingSpace = 0,
+  });
+
+  final Widget child;
+  final Color background;
+  final Color foreground;
+  final VoidCallback? onTap;
+
+  /// Extra gap above the pill, so a stacked column of two has breathing
+  /// room between them.
+  final double leadingSpace;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final radius = BorderRadius.circular(t.radiusFull);
+
+    return Padding(
+      padding: EdgeInsets.only(top: leadingSpace),
+      child: Container(
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: radius,
+          boxShadow: t.shadowMedium,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: radius,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: t.spaceMd + 2,
+                vertical: t.spaceSm,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Transient "fetching the surrounding history" pill, shown while a
 /// jump to an event outside the local cache is in flight.  It is not
 /// interactive: there is nothing to cancel, and a second tap would
@@ -146,39 +213,34 @@ class ContextLoadingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: scheme.secondaryContainer,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: scheme.onSecondaryContainer,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.loadingEventContext,
-                style: TextStyle(
-                  color: scheme.onSecondaryContainer,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+
+    return FloatingPill(
+      background: scheme.secondaryContainer,
+      foreground: scheme.onSecondaryContainer,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: t.iconSizeSmall,
+            height: t.iconSizeSmall,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: scheme.onSecondaryContainer,
+            ),
           ),
-        ),
+          SizedBox(width: t.spaceSm),
+          Text(
+            l10n.loadingEventContext,
+            style: TextStyle(
+              color: scheme.onSecondaryContainer,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -194,40 +256,29 @@ class ScrollToBottomPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Material(
-        color: scheme.secondaryContainer,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.arrowDown,
-                  size: 14,
-                  color: scheme.onSecondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.scrollToBottom,
-                  style: TextStyle(
-                    color: scheme.onSecondaryContainer,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+
+    return FloatingPill(
+      onTap: onTap,
+      leadingSpace: t.spaceSm,
+      background: scheme.secondaryContainer,
+      foreground: scheme.onSecondaryContainer,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.arrowDown, size: t.iconSizeSmall, color: scheme.onSecondaryContainer),
+          SizedBox(width: t.spaceXs),
+          Text(
+            l10n.scrollToBottom,
+            style: TextStyle(
+              color: scheme.onSecondaryContainer,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -257,6 +308,7 @@ class JumpToUnreadPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final label = isLoading
         ? l10n.jumpToUnreadLoading
@@ -264,64 +316,44 @@ class JumpToUnreadPill extends StatelessWidget {
             ? l10n.jumpToFirstUnread
             : l10n.jumpToFirstUnreadMany(count));
 
-    return Material(
-      color: scheme.primary,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: isLoading
-                  ? null
-                  : () {
-                      // ignore: discarded_futures
-                      onTap();
-                    },
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isLoading)
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.6,
-                          valueColor: AlwaysStoppedAnimation(scheme.onPrimary),
-                        ),
-                      )
-                    else
-                      Icon(
-                        LucideIcons.arrowUp,
-                        size: 14,
-                        color: scheme.onPrimary,
-                      ),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: scheme.onPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+    return FloatingPill(
+      onTap: isLoading ? null : () => onTap(),
+      background: scheme.primary,
+      foreground: scheme.onPrimary,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLoading)
+            SizedBox(
+              width: t.iconSizeSmall,
+              height: t.iconSizeSmall,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                valueColor: AlwaysStoppedAnimation(scheme.onPrimary),
               ),
-            ),
-            const SizedBox(width: 4),
-            _DismissButton(
-              tooltip: l10n.unreadPillDismissTooltip,
-              onTap: isLoading ? () {} : onDismiss,
+            )
+          else
+            Icon(
+              LucideIcons.arrowUp,
+              size: t.iconSizeSmall,
               color: scheme.onPrimary,
             ),
-          ],
-        ),
+          SizedBox(width: t.spaceXs),
+          Text(
+            label,
+            style: TextStyle(
+              color: scheme.onPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(width: t.spaceXs),
+          _DismissButton(
+            tooltip: l10n.unreadPillDismissTooltip,
+            onTap: isLoading ? () {} : onDismiss,
+            color: scheme.onPrimary,
+          ),
+        ],
       ),
     );
   }
@@ -341,6 +373,7 @@ class _DismissButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     // [Semantics] instead of [Tooltip]: this button is rendered inside
     // the dashboard's [LayoutBuilder] shell. A Tooltip mounts an
     // internal [OverlayPortal] that activates on mount and would mark
@@ -356,10 +389,10 @@ class _DismissButton extends StatelessWidget {
         onTap: onTap,
         radius: 14,
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: EdgeInsets.all(t.spaceXs),
           child: Icon(
             LucideIcons.x,
-            size: 12,
+            size: t.iconSizeSmall,
             color: color,
           ),
         ),
