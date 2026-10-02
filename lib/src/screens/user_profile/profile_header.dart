@@ -54,6 +54,7 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mono = MoonrelayThemeExtension.of(context).monoFontFamily;
     final t = MoonrelayThemeExtension.of(context).tokens;
     final presenceLabel = switch (presence?.presence) {
       PresenceType.online => l10n.presenceOnline,
@@ -121,7 +122,7 @@ class ProfileHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               color: scheme.onSurfaceVariant,
-              fontFamily: 'monospace',
+              fontFamily: mono,
             ),
             textAlign: TextAlign.center,
           ),

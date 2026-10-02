@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 // -- Power levels editor -----------------------------------------------------
@@ -160,6 +161,7 @@ class _LevelSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mono = MoonrelayThemeExtension.of(context).monoFontFamily;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -168,7 +170,7 @@ class _LevelSlider extends StatelessWidget {
             Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
             Text(
               '$value',
-              style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
+              style: TextStyle(fontFamily: mono, fontSize: 12),
             ),
           ],
         ),

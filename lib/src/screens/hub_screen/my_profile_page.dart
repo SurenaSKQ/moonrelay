@@ -368,6 +368,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final mono = MoonrelayThemeExtension.of(context).monoFontFamily;
     // Read the debounced sync pulse so we run a silent refresh on every
     // Read the debounced sync pulse so we can refresh on a coalesced tick
     // rather than every raw sync event. The hub is always mounted inside
@@ -591,7 +592,7 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
               profile?.userId ?? '',
               style: TextStyle(
                 fontSize: 14,
-                fontFamily: 'JetBrainsMono',
+                fontFamily: mono,
                 color: cs.onSurfaceVariant,
               ),
             ),

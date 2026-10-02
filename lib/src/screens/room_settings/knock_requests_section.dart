@@ -103,7 +103,7 @@ class KnockRequestsSectionState extends State<KnockRequestsSection> {
             Text(
               userId,
               style: TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: MoonrelayThemeExtension.of(ctx).monoFontFamily,
                 fontSize: 12,
                 color: Theme.of(ctx).colorScheme.onSurfaceVariant,
               ),
@@ -179,6 +179,7 @@ class KnockRequestsSectionState extends State<KnockRequestsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final mono = MoonrelayThemeExtension.of(context).monoFontFamily;
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
@@ -243,8 +244,8 @@ class KnockRequestsSectionState extends State<KnockRequestsSection> {
               child: ListTile(
                 title: Text(user.calcDisplayname()),
                 subtitle: Text(user.id,
-                    style: const TextStyle(
-                        fontFamily: 'JetBrainsMono', fontSize: 11)),
+                    style: TextStyle(
+                        fontFamily: mono, fontSize: 11)),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

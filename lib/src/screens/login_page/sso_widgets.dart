@@ -49,7 +49,11 @@ class SsoUrlDisplay extends StatelessWidget {
           child: Text(
             url ?? l10n.ssoStartingHint,
             style: TextStyle(
-              fontFamily: 'SpaceMono',
+              // The app's mono family, not a hardcoded 'SpaceMono'. That
+              // family is bundled and declared, but nothing reads it from one
+              // place, so a user who changed the mono family in settings
+              // would still get SpaceMono here and nowhere else.
+              fontFamily: MoonrelayThemeExtension.of(context).monoFontFamily,
               fontSize: 12,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

@@ -141,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
+    final layers = MoonrelayThemeExtension.of(context).layers;
 
     // -- Full-screen syncing state after successful login --------------
     if (_syncing) {
@@ -171,13 +172,28 @@ class _LoginPageState extends State<LoginPage> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
-              child: Card(
-                elevation: t.elevationMedium,
-                shape: RoundedRectangleBorder(
+              // A raised card with a hard shadow, on the app floor.
+              //
+              // This is the one place in the app where a shadow is the right
+              // answer rather than a leftover: there is nothing else on
+              // screen. The window is the page, so something has to say
+              // "this is the form and that is the background", and on a flat
+              // surface ramp a fill alone does not say it.
+              //
+              // It takes the shadow directly rather than `elevation:`,
+              // because Material renders `elevation:` from a hardcoded black
+              // map that no theme field reaches, and on a dark surface that
+              // map is invisible. `shadowHigh` has a light rim, which does
+              // show.
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainer,
                   borderRadius: BorderRadius.circular(t.radiusLg),
+                  border: Border.all(color: layers.hairline),
+                  boxShadow: t.shadowHigh,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(32),
+                  padding: EdgeInsets.all(t.spaceXxl),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -197,9 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                                 : _mode == LoginMode.token
                                     ? l10n.tokenLoginTitle
                                     : l10n.signInTitle,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
+                            style: theme.textTheme.titleLarge?.copyWith(
                               color: colors.onSurface,
                             ),
                           ),
@@ -210,12 +224,13 @@ class _LoginPageState extends State<LoginPage> {
                       // Error banner
                       if (_error != null)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
+                          padding: EdgeInsets.only(bottom: t.spaceLg),
                           child: Container(
                             padding: EdgeInsets.all(t.spaceMd),
                             decoration: BoxDecoration(
                               color: colors.errorContainer,
-                              borderRadius: BorderRadius.circular(t.radiusSm),
+                              borderRadius:
+                                  BorderRadius.circular(t.radiusMd),
                             ),
                             child: Row(
                               children: [
