@@ -41,7 +41,6 @@ import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
-import 'package:moonrelay/src/widgets/sidebar_actions.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
 import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:provider/provider.dart';
@@ -171,17 +170,12 @@ void main() {
   });
 
   group('NavigationSidebar', () {
-    testWidgets('renders the account, the destination title, and both actions',
-        (tester) async {
+    testWidgets('renders the account and the destination title', (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
       expect(find.byType(SidebarProfilePill), findsOneWidget);
-      // The palette is an icon on the title bar now, not a row of its own: it
-      // is an action rather than a destination, and it used to occupy a row
-      // between the filter and the list.
-      expect(find.byType(SidebarCommandPaletteButton), findsNothing);
-      expect(find.byTooltip('Command palette'), findsOneWidget);
+      // Add-room is a room action, so it belongs on the pane that lists rooms.
       expect(find.byTooltip('Add Room'), findsOneWidget);
 
       // The pane names the destination the rail has selected. The Home/All
@@ -194,6 +188,16 @@ void main() {
       expect(find.text('Spaces'), findsNothing);
     });
 
+    testWidgets('the command palette is not in this pane', (tester) async {
+      // It is a window-level action, not a destination and not a filter over
+      // this list, so it lives in the title bar. A search control sitting above
+      // the room list implied it filtered that list, and it spent a row of
+      // height in the pane with least to spare.
+      await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
+      await tester.pump();
+
+      expect(find.byTooltip('Command palette'), findsNothing);
+    });
     testWidgets('the account is pinned below both list sections',
         (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
@@ -242,19 +246,6 @@ void main() {
       expect(find.text('ADD_ROOM'), findsOneWidget);
     });
 
-    testWidgets('the command palette control on the title bar opens the palette',
-        (tester) async {
-      await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
-      await tester.pump();
-
-      await tester.tap(find.byTooltip('Command palette'));
-      await tester.pump();
-      await tester.pump();
-
-      // The palette is a transparent overlay route; its search field
-      // appears once the route is mounted.
-      expect(find.byType(TextField), findsWidgets);
-    });
 
 
     testWidgets('there is no section header, and the list cannot be collapsed',
@@ -499,7 +490,6 @@ testWidgets('a space is no longer reachable from this pane',
       // title bar and the room filter.
       expect(find.byType(NavigationSidebar), findsOneWidget);
       expect(find.byType(SidebarProfilePill), findsOneWidget);
-      expect(find.byTooltip('Command palette'), findsOneWidget);
       expect(find.byType(RoomSearchField), findsOneWidget);
       // Spaces are asserted absent because this pane used to carry them, and
       // the narrow band is where a "reduced sidebar" was once a real,
@@ -891,6 +881,8 @@ testWidgets('a space is no longer reachable from this pane',
     });
   });
 }
+
+
 
 
 

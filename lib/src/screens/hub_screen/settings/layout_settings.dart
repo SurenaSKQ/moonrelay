@@ -176,23 +176,6 @@ class HubLayoutSettings extends StatelessWidget {
                   ],
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // Window header
-              HubSettingsSection(
-                title: l10n.windowHeader,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.useOsTitleBar),
-                    subtitle: Text(
-                      l10n.useOsTitleBarDescription,
-                    ),
-                    value: controller.useOsTitleBar,
-                    onChanged: (v) => controller.updateUseOsTitleBar(v),
-                    secondary: const Icon(LucideIcons.monitor),
-                  ),
-                ],
-              ),
             ],
           ),
         );
@@ -200,3 +183,4 @@ class HubLayoutSettings extends StatelessWidget {
     );
   }
 }
+

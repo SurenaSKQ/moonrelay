@@ -28,7 +28,6 @@ import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
-import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 
@@ -195,8 +194,6 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
   /// content, and reading it as furniture is what tells the eye the list below
   /// is the part that scrolls.
   Widget _buildTitleBar(ColorScheme scheme, AppLocalizations l10n) {
-    final ext = Theme.of(context).moonrelay;
-    final t = ext.tokens;
     final nav = context.watch<NavigationState>();
     final title = _destinationTitle(nav, l10n);
 
@@ -221,32 +218,11 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Icon-sized rather than a full-width row, so the bar stays a bar.
-          // `tooltip` is still the accessible name, which is why this is not
-          // simply an `IconButton` around the old widget.
-          Tooltip(
-            message: l10n.commandPalette,
-            excludeFromSemantics: true,
-            child: Semantics(
-              container: true,
-              button: true,
-              label: l10n.commandPalette,
-              child: InkResponse(
-                onTap: () => showCommandPalette(context),
-                radius: 18,
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Icon(
-                    LucideIcons.search,
-                    size: t.iconSizeMedium,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: t.spaceXxs),
+          // No palette control here. It is a window-level action, not a
+          // destination and not something that filters this pane, so it lives
+          // in the title bar where it is reachable from every screen rather
+          // than only from the one that happens to have a sidebar. See
+          // [WindowTitleBar].
           _addRoomButton(l10n),
         ],
       ),
@@ -355,6 +331,8 @@ class _SidebarFooter extends StatelessWidget {
 // Context menu: long-press / right-click opens the menu; the row itself
 // owns the plain tap (see [_SpaceRow]).
 // ===========================================================================
+
+
 
 
 

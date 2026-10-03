@@ -15,18 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/app_shutdown.dart';
-import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/helpers/window_chrome.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/window_buttons.dart';
+import 'package:moonrelay/src/layouts/window_title_bar.dart';
 
 /// Start screen frame shown before authentication.
 ///
@@ -47,94 +42,32 @@ class StartscreenFrame extends StatefulWidget {
 
 class _StartscreenFrameState extends State<StartscreenFrame>
     with WindowListener {
-  SettingsController? _settings;
-
   @override
   void initState() {
     windowManager.addListener(this);
-    _settings = context.read<SettingsController>();
-    _settings!.addListener(_applyChrome);
-    _applyChrome();
+    applyWindowChrome();
     super.initState();
-  }
-
-  void _applyChrome() {
-    final settings = _settings;
-    if (settings != null) applyWindowChrome(settings);
   }
 
   @override
   void dispose() {
-    _settings?.removeListener(_applyChrome);
     windowManager.removeListener(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final showHeader = !settings.useOsTitleBar;
-
     return Scaffold(
-      appBar: showHeader ? _buildAppBar(context) : null,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(WindowTitleBar.height),
+        // No search: there is nothing to search before the user is signed in,
+        // and a search field that opens an empty palette is a dead control
+        // with a real-looking border.
+        child: const WindowTitleBar(),
+      ),
       body: widget.child,
     );
   }
-
-  /// Build the slim custom header bar.
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context)!;
-    final ThemeData theme = Theme.of(context);
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final bool showButtons = isDesktop;
-
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(kToolbarHeight),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (event) {
-          if (event.kind == PointerDeviceKind.mouse &&
-              (event.buttons & 0x02) != 0) {
-            _showContextMenu(context, event.position);
-          }
-        },
-        child: Container(
-          height: kToolbarHeight,
-          color: theme.colorScheme.surface,
-          child: Row(
-            children: <Widget>[
-              // -- Draggable title area --------------------------
-              Expanded(
-                child: DragToMoveArea(
-                  child: SizedBox(
-                    height: double.infinity,
-                    child: Center(
-                      child: Text(
-                        l10n.appTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // -- Trailing slot: window controls ----------------
-              if (showButtons)
-                const WindowButtons()
-              else
-                SizedBox(width: t.spaceXs),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void onWindowClose() async {
     final bool isPreventClose = await windowManager.isPreventClose();
@@ -176,101 +109,4 @@ class _StartscreenFrameState extends State<StartscreenFrame>
     }
   }
 
-  /// Show a custom context menu when the user right-clicks the header.
-  Future<void> _showContextMenu(
-    BuildContext context,
-    Offset globalPosition,
-  ) async {
-    final l10n = AppLocalizations.of(context)!;
-    final bool isMaxed = await windowManager.isMaximized();
-    if (!context.mounted) return;
-
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
-      PopupMenuItem<String>(
-        value: 'minimize',
-        child: _MenuRow(
-          icon: Icons.minimize,
-          label: l10n.minimize,
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'maximize',
-        child: _MenuRow(
-          icon: isMaxed ? Icons.filter_none : Icons.check_box_outline_blank,
-          label: isMaxed ? l10n.restore : l10n.maximize,
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'close',
-        child: _MenuRow(
-          icon: Icons.close,
-          label: l10n.closeWindow,
-        ),
-      ),
-      const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'system',
-        child: _MenuRow(
-          icon: Icons.more_horiz,
-          label: l10n.showSystemMenu,
-        ),
-      ),
-    ];
-
-    if (!context.mounted) return;
-    final String? result = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx + 1,
-        globalPosition.dy + 1,
-      ),
-      items: items,
-    );
-
-    if (result == null || !mounted) return;
-
-    switch (result) {
-      case 'minimize':
-        await windowManager.minimize();
-      case 'maximize':
-        if (await windowManager.isMaximized()) {
-          await windowManager.unmaximize();
-        } else {
-          await windowManager.maximize();
-        }
-      case 'close':
-        await windowManager.close();
-      case 'system':
-        try {
-          await windowManager.popUpWindowMenu();
-        } catch (_) {
-          // popUpWindowMenu may not be available on all platforms.
-        }
-    }
-  }
-}
-
-/// A single row in the context menu with an icon and a label.
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MenuRow({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Row(
-      children: <Widget>[
-        Icon(icon, size: 18),
-        SizedBox(width: t.spaceMd),
-        Text(label),
-      ],
-    );
-  }
 }

@@ -44,9 +44,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   double _rightSidebarWidth = 280.0;
   RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
 
-  /// When true the OS provides the window title bar and caption buttons;
-  /// when false Moonrelay renders its own slim header bar instead.
-  bool _useOsTitleBar = true;
   bool _showStateEvents = true;
   bool _showTrayIcon = true;
   bool _closeToTray = false;
@@ -146,7 +143,6 @@ class SettingsController with ChangeNotifier, WindowListener {
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
   RightPaneChoice get rightPaneChoice => _rightPaneChoice;
-  bool get useOsTitleBar => _useOsTitleBar;
   bool get showStateEvents => _showStateEvents;
   bool get showTrayIcon => _showTrayIcon;
   bool get closeToTray => _closeToTray;
@@ -238,7 +234,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
     _rightPaneChoice = snapshot.rightPaneChoice;
-    _useOsTitleBar = snapshot.useOsTitleBar;
     _showStateEvents = snapshot.showStateEvents;
     _showTrayIcon = snapshot.showTrayIcon;
     _closeToTray = snapshot.closeToTray;
@@ -407,14 +402,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   /// Collapses or expands the navigation sidebar section [id].
   ///
-  Future<void> updateUseOsTitleBar(bool value) async {
-    if (value != _useOsTitleBar) {
-      _useOsTitleBar = value;
-      notifyListeners();
-      await _settingsService.updateUseOsTitleBar(value);
-    }
-  }
-
   Future<void> updateShowStateEvents(bool value) async {
     if (value != _showStateEvents) {
       _showStateEvents = value;
@@ -922,6 +909,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateLocale(locale);
   }
 }
+
 
 
 

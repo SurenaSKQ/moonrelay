@@ -15,28 +15,23 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:moonrelay/src/helpers/app_shutdown.dart';
-import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/helpers/window_chrome.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/window_buttons.dart';
+import 'package:moonrelay/src/layouts/window_title_bar.dart';
 
 /// Main application frame shown after authentication.
 ///
-/// The header is optional: when the user opts into OS window decorations
-/// (the default) the frame renders no header at all and the OS title bar
-/// takes over.  When the user opts into the in-app header, a slim bar
-/// with a draggable title area, platform-style window buttons, and a
-/// right-click system menu is rendered instead.  All other chrome
-/// (profile pill, command palette) lives in the navigation sidebar.
+/// Always renders [WindowTitleBar] rather than the OS title bar. The frame owns
+/// a draggable title area, the global search control, the caption buttons and
+/// the right-click system menu; nothing about the window's chrome is left to
+/// the platform, which is what frees the top of the layout for app content.
 class AppFrame extends StatefulWidget {
   const AppFrame({
     super.key,
@@ -49,27 +44,15 @@ class AppFrame extends StatefulWidget {
 }
 
 class _AppFrameState extends State<AppFrame> with WindowListener {
-  SettingsController? _settings;
-
   @override
   void initState() {
     windowManager.addListener(this);
-    // React to the OS-decorations toggle at runtime so the native title
-    // bar appears/disappears immediately when the user flips the switch.
-    _settings = context.read<SettingsController>();
-    _settings!.addListener(_applyChrome);
-    _applyChrome();
+    applyWindowChrome();
     super.initState();
-  }
-
-  void _applyChrome() {
-    final settings = _settings;
-    if (settings != null) applyWindowChrome(settings);
   }
 
   @override
   void dispose() {
-    _settings?.removeListener(_applyChrome);
     windowManager.removeListener(this);
     super.dispose();
   }
@@ -77,149 +60,24 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final showHeader = !settings.useOsTitleBar;
-
     return Scaffold(
-      appBar: showHeader ? _buildAppBar(context) : null,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(WindowTitleBar.height),
+        child: WindowTitleBar(
+          showSearch: true,
+          // Close honours the tray, which is an account preference and so is
+          // not something the shared bar can decide. See [WindowTitleBar].
+          closeWindow: () async {
+            if (settings.closeToTray && TrayService.instance != null) {
+              await TrayService.instance!.hideWindow();
+            } else {
+              await windowManager.close();
+            }
+          },
+        ),
+      ),
       body: widget.child,
     );
-  }
-
-  /// Build the slim custom header bar.
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context)!;
-    final ThemeData theme = Theme.of(context);
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final bool showButtons = isDesktop;
-
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(kToolbarHeight),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (event) {
-          if (event.kind == PointerDeviceKind.mouse &&
-              (event.buttons & 0x02) != 0) {
-            _showContextMenu(context, event.position);
-          }
-        },
-        child: Container(
-          height: kToolbarHeight,
-          color: theme.colorScheme.surface,
-          child: Row(
-            children: <Widget>[
-              // -- Draggable title area --------------------------
-              Expanded(
-                child: DragToMoveArea(
-                  child: SizedBox(
-                    height: double.infinity,
-                    child: Center(
-                      child: Text(
-                        l10n.appTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // -- Trailing slot: window controls ----------------
-              if (showButtons)
-                const WindowButtons()
-              else
-                SizedBox(width: t.spaceXs),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Show a custom context menu when the user right-clicks the header.
-  Future<void> _showContextMenu(
-    BuildContext context,
-    Offset globalPosition,
-  ) async {
-    final l10n = AppLocalizations.of(context)!;
-    final settings = context.read<SettingsController>();
-    final bool isMaxed = await windowManager.isMaximized();
-
-    final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
-      PopupMenuItem<String>(
-        value: 'minimize',
-        child: _MenuRow(
-          icon: Icons.minimize,
-          label: l10n.minimize,
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'maximize',
-        child: _MenuRow(
-          icon: isMaxed ? Icons.filter_none : Icons.check_box_outline_blank,
-          label: isMaxed ? l10n.restore : l10n.maximize,
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'close',
-        child: _MenuRow(
-          icon: Icons.close,
-          label: l10n.closeWindow,
-        ),
-      ),
-      const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'system',
-        child: _MenuRow(
-          icon: Icons.more_horiz,
-          label: l10n.showSystemMenu,
-        ),
-      ),
-    ];
-
-    if (!context.mounted) return;
-    final String? result = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx + 1,
-        globalPosition.dy + 1,
-      ),
-      items: items,
-    );
-
-    if (result == null || !mounted) return;
-
-    switch (result) {
-      case 'minimize':
-        if (settings.minimizeToTray && TrayService.instance != null) {
-          await TrayService.instance!.hideWindow();
-        } else {
-          await windowManager.minimize();
-        }
-      case 'maximize':
-        if (await windowManager.isMaximized()) {
-          await windowManager.unmaximize();
-        } else {
-          await windowManager.maximize();
-        }
-      case 'close':
-        if (settings.closeToTray && TrayService.instance != null) {
-          await TrayService.instance!.hideWindow();
-        } else {
-          await windowManager.close();
-        }
-      case 'system':
-        try {
-          await windowManager.popUpWindowMenu();
-        } catch (_) {
-          // popUpWindowMenu may not be available on all platforms.
-        }
-    }
   }
 
   @override
@@ -273,22 +131,3 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
   }
 }
 
-/// A single row in the context menu with an icon and a label.
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MenuRow({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Row(
-      children: <Widget>[
-        Icon(icon, size: 18),
-        SizedBox(width: t.spaceMd),
-        Text(label),
-      ],
-    );
-  }
-}

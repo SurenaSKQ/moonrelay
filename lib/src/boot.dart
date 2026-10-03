@@ -212,7 +212,7 @@ Future<BootContext> runBootPipeline({
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
-    await applyWindowChrome(settingsController);
+    await applyWindowChrome();
     await windowManager.setMinimumSize(
       Size(settingsController.windowMinWidth,
           settingsController.windowMinHeight),
@@ -411,3 +411,5 @@ Future<BootContext> runBootPipeline({
     autoUpdateService: autoUpdateService,
   );
 }
+
+

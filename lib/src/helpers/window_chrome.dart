@@ -16,23 +16,26 @@
 
 import 'package:window_manager/window_manager.dart';
 
-import 'package:moonrelay/src/settings/settings_controller.dart';
 
-/// Applies the window title bar style matching [settings.useOsTitleBar].
+/// Hides the OS title bar and caption buttons so Moonrelay can draw its own.
 ///
-/// When the user opts into OS decorations the native title bar and caption
-/// buttons are restored; otherwise the frame hides them so Moonrelay can
-/// render its own slim header.  The call is safe to repeat (e.g. at boot
-/// and again when the setting flips at runtime); the plugin is a no-op
-/// when the window is not ready or the platform does not support it.
-Future<void> applyWindowChrome(SettingsController settings) async {
+/// Called once per frame at boot rather than on a settings change, because
+/// there is no longer a setting: the app's title bar is not optional. The OS
+/// bar and the in-app one draw the same thirty pixels, so drawing both would
+/// either waste a strip or leave the window with two of them.
+///
+/// Safe to repeat and safe to call before the window exists; the plugin is a
+/// no-op on mobile, where there is no title bar to hide.
+Future<void> applyWindowChrome() async {
   try {
     await windowManager.setTitleBarStyle(
-      settings.useOsTitleBar ? TitleBarStyle.normal : TitleBarStyle.hidden,
-      windowButtonVisibility: settings.useOsTitleBar,
+      TitleBarStyle.hidden,
+      windowButtonVisibility: false,
     );
   } catch (_) {
     // The window manager plugin is not available on every platform
     // (e.g. mobile); the setting only matters on desktop.
   }
 }
+
+

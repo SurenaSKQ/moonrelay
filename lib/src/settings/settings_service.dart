@@ -40,7 +40,6 @@ class SettingsSnapshot {
 
   /// Whether the OS draws the window title bar (true) or Moonrelay draws
   /// its own slim header (false).
-  final bool useOsTitleBar;
   final bool showStateEvents;
   final bool showTrayIcon;
   final bool closeToTray;
@@ -119,7 +118,6 @@ class SettingsSnapshot {
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
     this.rightPaneChoice = RightPaneChoice.roomInfo,
-    this.useOsTitleBar = true,
     this.showStateEvents = true,
     this.showTrayIcon = true,
     this.closeToTray = false,
@@ -198,7 +196,6 @@ class SettingsService {
   static const _rightSidebarVisibleKey = 'right_sidebar_visible';
   static const _rightSidebarWidthKey = 'right_sidebar_width';
   static const _rightPaneChoiceKey = 'right_pane_choice';
-  static const _useOsTitleBarKey = 'use_os_title_bar';
   static const _showStateEventsKey = 'show_state_events';
   static const _showTrayIconKey = 'show_tray_icon';
   static const _closeToTrayKey = 'close_to_tray';
@@ -350,7 +347,6 @@ class SettingsService {
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
       rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
       rightPaneChoice: _readRightPaneChoice(prefs),
-      useOsTitleBar: prefs.getBool(_useOsTitleBarKey) ?? true,
       showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
       showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
       closeToTray: prefs.getBool(_closeToTrayKey) ?? false,
@@ -605,16 +601,6 @@ class SettingsService {
   Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_rightPaneChoiceKey, choice.index);
-  }
-
-  Future<bool> useOsTitleBar() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_useOsTitleBarKey) ?? true;
-  }
-
-  Future<void> updateUseOsTitleBar(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useOsTitleBarKey, value);
   }
 
   Future<bool> showStateEvents() async {
@@ -1342,4 +1328,5 @@ class SettingsService {
     await prefs.setBool(_checkForUpdatesKey, value);
   }
 }
+
 

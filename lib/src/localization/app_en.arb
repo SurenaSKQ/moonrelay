@@ -642,9 +642,6 @@
   "leftSidebar": "Left sidebar",
   "visible": "Visible",
   "showOrHideLeftSidebar": "Show or hide the left sidebar",
-  "windowHeader": "Window header",
-  "useOsTitleBar": "Use OS window decorations",
-  "useOsTitleBarDescription": "Rely on the operating system title bar; when off, Moonrelay draws a slim in-app header",
   "content": "Content",
   "widthLabel": "Width",
   "rooms": "Rooms",
@@ -3551,3 +3548,4 @@
     "description": "Confirmation shown when discarding a stuck failed-send event."
   }
 }
+
