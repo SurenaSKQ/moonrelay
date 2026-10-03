@@ -32,7 +32,7 @@ import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_box.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
 import 'package:provider/provider.dart';
 
@@ -284,56 +284,62 @@ class _SpacesRailState extends State<SpacesRail> {
     );
   }
 
-  /// A group: its header, then its children inside a spine.
-  ///
-  /// The spine is a border on the block rather than a drawn line, which is
-  /// what keeps it the height of its contents without measuring anything. The
-  /// block's insets are chosen so the child icons land on exactly the same
-  /// pixels as a standalone icon: the rail is 72 wide, the block starts 2 in,
-  /// its rule is 2 wide, and its padding is 8, so the children start at 12,
-  /// which is where an ungrouped icon starts.
-  Widget _groupBlock(NavSpaceGroup group, Client client) {
+  /// A group: its box, holding its children at a smaller size.
+///
+/// The children's size is the whole trick. Forty pixels instead of forty-eight
+/// is what pays for the box's four pixels of padding on each side, which is
+/// what makes a group a shape rather than a rule.
+Widget _groupBlock(NavSpaceGroup group, Client client) {
     final t = Theme.of(context).moonrelay.tokens;
-    final hairline = Theme.of(context).moonrelay.layers.hairline;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        RailGroupHeader(
-          groupId: group.id,
-          label: group.parentSpaceName ?? AppLocalizations.of(context)!.spaceGroup,
-          count: group.children.length,
-          expanded: group.isExpanded,
-          dropHovered: _hoverId != null && _hoverId == group.id,
-          onToggleCollapsed: () =>
-              context.read<SpacePreferences>().toggleGroupCollapsed(group.id),
-          onHoverChanged: (id) => setState(() => _hoverId = id),
-          onDrop: (dragged) => _dropOn(group.id, dragged),
-          onContextMenu: () {},
+    final children = <Widget>[
+      for (final child in group.children)
+        _leaf(
+          child.space,
+          grouped: true,
+          client: client,
+          size: RailGroupBox.childSize,
         ),
-        if (group.isExpanded)
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: t.spaceXxs),
-            padding: EdgeInsetsDirectional.only(start: t.spaceSm),
-            decoration: BoxDecoration(
-              border: BorderDirectional(
-                start: BorderSide(color: hairline, width: 2),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final child in group.children)
-                  _leaf(child.space, grouped: true, client: client),
-              ],
-            ),
-          ),
-      ],
+    ];
+
+    // Collapsed, the group shows its first space rather than nothing. An empty
+    // row is indistinguishable from a group that failed to load.
+    final preview = group.children.isEmpty
+        ? const SizedBox.shrink()
+        : _leaf(
+            group.children.first.space,
+            grouped: true,
+            client: client,
+            size: RailGroupBox.childSize,
+            previewOnly: true,
+          );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.spaceXxs),
+      child: RailGroupBox(
+        groupId: group.id,
+        label: group.parentSpaceName ?? AppLocalizations.of(context)!.spaceGroup,
+        count: group.children.length,
+        expanded: group.isExpanded,
+        dropHovered: _hoverId != null && _hoverId == group.id,
+        onToggleCollapsed: () =>
+            context.read<SpacePreferences>().toggleGroupCollapsed(group.id),
+        onHoverChanged: (id) => setState(() => _hoverId = id),
+        onDrop: (dragged) => _dropOn(group.id, dragged),
+        onContextMenu: () {},
+        collapsedPreview: preview,
+        children: children,
+      ),
     );
   }
 
-  /// A standalone space icon, or one nested inside a group block.
-  Widget _leaf(Room space, {required bool grouped, required Client client}) {
+  /// A standalone space icon, or one nested inside a group box.
+  Widget _leaf(
+    Room space, {
+    required bool grouped,
+    required Client client,
+    double size = MoonrelayDesignTokens.spaceIconSize,
+    bool previewOnly = false,
+  }) {
     final theme = Theme.of(context);
     final t = theme.moonrelay.tokens;
     final selected = widget.isSpaceSelected && widget.selectedId == space.id;
@@ -342,12 +348,19 @@ class _SpacesRailState extends State<SpacesRail> {
       client: client,
       space: space,
       selected: selected,
-      onTap: () => widget.onSelect(space),
+      onTap: () { if (!previewOnly) widget.onSelect(space); },
       tooltip: _tooltipFor(space),
       motion: Motion.of(context),
       railActive: theme.moonrelay.layers.railActive,
-      size: MoonrelayDesignTokens.spaceIconSize,
+      size: size,
     );
+
+    // The collapsed preview is not a destination and must not read as one, so
+    // it skips the drag and drop target that make the tile interactive. Its
+    // semantics are dropped too: the box already publishes the group's name and
+    // count, and a screen reader announcing both the group and its first member
+    // is two answers to one question.
+    if (previewOnly) return ExcludeSemantics(child: icon);
 
     icon = DraggableIcon(
       data: space.id,
@@ -382,12 +395,12 @@ class _SpacesRailState extends State<SpacesRail> {
       inGroup: grouped,
       onOpen: () {},
       child: Padding(
-        // A grouped icon needs no horizontal inset: the block's own padding
-        // already put it on the right column. An ungrouped one is centred by
-        // hand, because the rail's children are stretch-aligned.
+        // A grouped icon needs no horizontal inset: the box's own padding has
+        // already centred it. An ungrouped one is centred by hand, because the
+        // rail's children are stretch-aligned.
         padding: EdgeInsets.symmetric(
           horizontal: grouped ? 0 : 12,
-          vertical: t.spaceXxs,
+          vertical: grouped ? 2 : t.spaceXxs,
         ),
         child: icon,
       ),
@@ -878,5 +891,8 @@ class _DashedCirclePainter extends CustomPainter {
   bool shouldRepaint(_DashedCirclePainter old) =>
       old.colour != colour || old.stroke != stroke || old.radius != radius;
 }
+
+
+
 
 

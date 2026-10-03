@@ -29,7 +29,7 @@ import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_box.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -85,7 +85,22 @@ MockRoom _space(String id, {String name = 'Test Space'}) {
 /// the collapse, the ungroup, or the reorder do anything. Going through the
 /// host is also the only way to catch a host that stopped watching
 /// [SpacePreferences], which is how grouping became invisible once already.
-  /// The rail's accent fill, for asserting that a state is lit.
+  /// How many space icons the group's box is currently drawing.
+///
+/// Counted rather than read from the labels, because the collapsed state draws
+/// the first child with its semantics excluded: the box already publishes the
+/// group's name and count, and naming both the group and its first member gives
+/// a screen reader two answers to one question.
+int _spaceTilesInGroup(WidgetTester tester) => tester
+    .widgetList<AvatarFromUriOrFallbackImage>(
+      find.descendant(
+        of: find.byType(RailGroupBox),
+        matching: find.byType(AvatarFromUriOrFallbackImage),
+      ),
+    )
+    .length;
+
+/// The rail's accent fill, for asserting that a state is lit.
 Color _railActive(WidgetTester tester) =>
   Theme.of(tester.element(find.byType(SpacesRail).first))
       .moonrelay
@@ -307,7 +322,8 @@ void main() {
       expect(_labelsOf(tester), contains('Also inside'));
     });
 
-    testWidgets('a group header is drawn, with its count', (tester) async {
+    testWidgets('a group box is drawn, and its name carries the count',
+        (tester) async {
       final prefs = SpacePreferences(SettingsService());
       await prefs.createGroup('_grp_!root:matrix.org', [
         '!a:matrix.org',
@@ -320,14 +336,16 @@ void main() {
       ));
       await tester.pump();
 
-      // The count is the header's whole job: at 72px there is no room for
-      // the group's name, so "how much is behind this" has to be visible or
-      // the header is just an unexplained bar.
-      expect(find.text('2'), findsOneWidget);
-      expect(find.byType(RailGroupHeader), findsOneWidget);
+      // The count is the box's whole job. A 72px column still has nowhere to
+      // print a group's name, so "how much is behind this" has to be reachable
+      // or the box is an unexplained shape.
+      expect(find.byType(RailGroupBox), findsOneWidget);
+      expect(_labelsOf(tester), contains('2 spaces in Group'));
     });
 
-    testWidgets('a collapsed group hides its children', (tester) async {
+    testWidgets('a collapsed group shows one space, not none', (tester) async {
+      // An empty box is indistinguishable from a group that failed to load, so
+      // the collapsed state keeps its first member's icon and hides the rest.
       final prefs = SpacePreferences(SettingsService());
       await prefs.createGroup('_grp_!root:matrix.org', [
         '!a:matrix.org',
@@ -337,48 +355,68 @@ void main() {
 
       await tester.pumpWidget(_rail(
         spaces: [
-          _space('!a:matrix.org', name: 'Hidden'),
-          _space('!b:matrix.org', name: 'Also hidden'),
+          _space('!a:matrix.org', name: 'First'),
+          _space('!b:matrix.org', name: 'Second'),
         ],
         spacePreferences: prefs,
       ));
       await tester.pump();
 
-      expect(find.byType(RailGroupHeader), findsOneWidget);
-      expect(_labelsOf(tester), isNot(contains('Hidden')));
-      expect(_labelsOf(tester), isNot(contains('Also hidden')));
-      // The count survives the collapse. A collapsed group that hides its
-      // count is indistinguishable from an empty one.
-      expect(find.text('2'), findsOneWidget);
+      expect(find.byType(RailGroupBox), findsOneWidget);
+      expect(_spaceTilesInGroup(tester), 1);
+      // The name stays with the box, so the group is still identifiable while
+      // collapsed: "2 spaces in Group" rather than a lone unexplained icon.
+      expect(_labelsOf(tester), contains('2 spaces in Group'));
     });
 
-    testWidgets('tapping the header collapses and expands the group',
+    testWidgets('the collapse control appears on hover and works',
         (tester) async {
       final prefs = SpacePreferences(SettingsService());
-      await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
+      await prefs.createGroup('_grp_!root:matrix.org', [
+        '!a:matrix.org',
+        '!b:matrix.org',
+      ]);
 
       await tester.pumpWidget(_rail(
-        spaces: [_space('!a:matrix.org', name: 'Visible')],
+        spaces: [_space('!a:matrix.org'), _space('!b:matrix.org')],
         spacePreferences: prefs,
       ));
       await tester.pump();
-      expect(_labelsOf(tester), contains('Visible'));
+      expect(_spaceTilesInGroup(tester), 2);
 
-      await tester.tap(find.byType(RailGroupHeader));
-      await tester.pumpAndSettle();
-      expect(_labelsOf(tester), isNot(contains('Visible')));
+      // Hidden at rest on purpose: a permanent chevron in the corner of every
+      // group would be eight more marks in a column that is already all marks.
+      expect(find.bySemanticsLabel('Collapse group'), findsNothing);
 
-      await tester.tap(find.byType(RailGroupHeader));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: tester.getCenter(find.byType(RailGroupBox)));
+      await tester.pump();
+      await tester.pump(MoonrelayDesignTokens.standard().durationFast);
+
+      await tester.tap(find.bySemanticsLabel('Collapse group'));
       await tester.pumpAndSettle();
-      expect(_labelsOf(tester), contains('Visible'));
+      expect(_spaceTilesInGroup(tester), 1);
+
+      // Collapsing shrinks the box, so the pointer the user was holding over
+      // the tall version is now over empty rail and the chevron un-hovers.
+      // That is the behaviour, not an accident: the control belongs to the box,
+      // and the box just moved. Re-hovering the smaller box brings it back.
+      await mouse.moveTo(tester.getCenter(find.byType(RailGroupBox)));
+      await tester.pump();
+      await tester.pump(MoonrelayDesignTokens.standard().durationFast);
+
+      await tester.tap(find.bySemanticsLabel('Expand group'));
+      await tester.pumpAndSettle();
+      expect(_spaceTilesInGroup(tester), 2);
+      await mouse.removePointer();
     });
 
-    testWidgets('grouped and ungrouped icons share one column',
+    testWidgets('a grouped space is smaller than a loose one, and both are centred',
         (tester) async {
-      // The geometry claim in the rail's doc comment: a group block's
-      // padding is chosen so its children land on the same pixels as a
-      // standalone icon. If this drifts, the rail looks like it has two
-      // different widths of icon in it.
+      // The box pays for its own padding by shrinking its children: forty-eight
+      // becomes forty, and the eight pixels of difference are the box's four
+      // pixels of padding on each side. What must not drift is the centre line,
+      // or the rail reads as two different widths of icon.
       final prefs = SpacePreferences(SettingsService());
       await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
 
@@ -391,24 +429,69 @@ void main() {
       ));
       await tester.pump();
 
-      final grouped = tester.getTopLeft(
-        find.byWidgetPredicate(
-          (w) => w is Semantics && w.properties.label == 'Grouped',
-        ),
+      final grouped = _tileBox('Grouped');
+      final loose = _tileBox('Loose');
+      expect(
+        tester.getSize(grouped).width,
+        RailGroupBox.childSize,
       );
-      final loose = tester.getTopLeft(
-        find.byWidgetPredicate(
-          (w) => w is Semantics && w.properties.label == 'Loose',
-        ),
+      expect(
+        tester.getSize(loose).width,
+        MoonrelayDesignTokens.spaceIconSize,
       );
-      expect(grouped.dx, closeTo(loose.dx, 0.5));
+
+      final railCentre =
+          tester.getRect(find.byType(SpacesRail).first).center.dx;
+      expect(tester.getCenter(grouped).dx, closeTo(railCentre, 0.5));
+      expect(tester.getCenter(loose).dx, closeTo(railCentre, 0.5));
     });
 
-    testWidgets('a group header is reachable as a right-click target',
+    testWidgets('the group box is a translucent rounded container',
+        (tester) async {
+      final theme = testMoonrelayTheme();
+      final resting =
+          RailGroupBox.decorationFor(theme: theme, hovered: false, dropHovered: false);
+      final hovered =
+          RailGroupBox.decorationFor(theme: theme, hovered: true, dropHovered: false);
+
+      // A wash rather than an outline, because an outline here would close a
+      // shape whose children are already rounded squares and the box would
+      // read as a card inside a card.
+      expect(resting.fill.a, lessThan(0.2));
+      expect(resting.fill.a, greaterThan(0));
+      expect(hovered.fill.a, greaterThan(resting.fill.a));
+
+      // The radius grows on hover, which is what gives the box its "being
+      // handled" moment; a constant radius would leave hover as a brightness
+      // change only.
+      expect(resting.radius, BorderRadius.circular(RailGroupBox.radius));
+      expect(hovered.radius, BorderRadius.circular(RailGroupBox.hoveredRadius));
+    });
+
+    testWidgets('the group box fits the rail', (tester) async {
+      // Asserted on the values rather than on the rendered tree: the box's
+      // drag target and context menu both stretch to the full column width, so
+      // "the widest thing inside RailGroupBox" is the rail and measuring
+      // whichever container comes first in the tree asserts nothing.
+      expect(RailGroupBox.boxWidth, RailGroupBox.childSize + 8);
+      expect(
+        RailGroupBox.boxWidth,
+        lessThan(MoonrelayDesignTokens.navRailWidth),
+      );
+      // A gutter of at least eight each side reads as an inset rather than as a
+      // crowded edge, the same rule the ungrouped icons rely on.
+      expect(
+        (MoonrelayDesignTokens.navRailWidth - RailGroupBox.boxWidth) / 2,
+        greaterThanOrEqualTo(8),
+      );
+    });
+
+    testWidgets('a group box is reachable as a right-click target',
         (tester) async {
       // The menu is how "ungroup all" and "sort into groups" are reached, and
-      // for a while it had no call site at all. Asserting the gesture exists
-      // is what stops it becoming dead code again.
+      // for a while it had no call site at all. Asserting the gesture exists is
+      // what stops it becoming dead code again. Each child has a menu too, so
+      // this is a lower bound rather than an exact count.
       final prefs = SpacePreferences(SettingsService());
       await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
 
@@ -420,10 +503,10 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.byType(RailGroupHeader),
+          of: find.byType(RailGroupBox),
           matching: find.byType(SpaceContextMenu),
         ),
-        findsOneWidget,
+        findsAtLeastNWidgets(1),
       );
     });
   });
@@ -572,6 +655,7 @@ void main() {
     });
   });
 }
+
 
 
 

@@ -662,6 +662,14 @@
       "group": { "type": "String" }
     }
   },
+  "collapseGroup": "Collapse group",
+  "@collapseGroup": {
+    "description": "Tooltip and accessible name for the control that hides a group's spaces in the rail."
+  },
+  "expandGroup": "Expand group",
+  "@expandGroup": {
+    "description": "Tooltip and accessible name for the control that shows a collapsed group's spaces in the rail."
+  },
   "moveSpaceUp": "Move Up",
   "moveSpaceDown": "Move Down",
   "moveGroupUp": "Move Group Up",
