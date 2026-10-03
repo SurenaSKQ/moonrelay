@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -25,7 +24,6 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
@@ -56,16 +54,6 @@ class NavigationSidebar extends StatefulWidget {
 }
 
 class _NavigationSidebarState extends State<NavigationSidebar> {
-  /// Section ids used to persist the collapsed state of the spaces and
-  /// rooms regions via [SettingsController.collapsedSidebarSections].
-  // The spaces section id is gone with the section.  It was persisted in
-  // `collapsedSidebarSections`, and the stale entry is harmless: the set is
-  // only ever read by key, so an id nothing looks up cannot affect anything.
-  // It is left in the user's saved settings rather than migrated, because
-  // rewriting saved state to remove a key is more risk than the bytes it
-  // saves.
-  static const String _roomsSectionId = 'rooms';
-
   /// Space ids observed so far; used to detect newly-joined spaces for
   /// the auto-grouping pass.  Ported unchanged from the navigation rail.
   Set<String> _knownIds = {};
@@ -166,44 +154,26 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
         // reaching a single room, and the room list is what they opened the
         // app to read. The auto-group pass below still runs, because it feeds
         // the rail's ordering and the context menu's group actions.
-        final (roomsTitle, roomsBody) =
-            _buildRoomsBody(context, nav, l10n);
-
-        // Watch only the collapsed-sections set so unrelated settings
-        // changes (theme, font size, ...) do not rebuild the sidebar.
-        final collapsedSections = context
-            .select<SettingsController, Set<String>>(
-                (s) => s.collapsedSidebarSections);
-        final settings = context.read<SettingsController>();
-        final roomsCollapsed = collapsedSections.contains(_roomsSectionId);
+        final roomsBody = _buildRoomsBody(context, nav);
 
         return Material(
           color: scheme.surfaceContainer,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Title bar, then filter, then the rooms.
+              // Title bar, filter, rooms.
               //
-              // The title bar names the destination the rail has selected. The
-              // room pane used to carry a two-way Home/All toggle of its own,
-              // which is now gone: the rail owns those two destinations, and
-              // two controls for one piece of state is how they end up
-              // disagreeing about which one is current.
-              //
-              // The command palette used to be a full-width row of its own
-              // here. It is an action rather than a destination, so it belongs
-              // on the title bar with the other actions instead of occupying a
-              // row between the filter and the list.
+              // There is no section header between the filter and the list.
+              // It used to carry the region name and a collapse toggle, and it
+              // was saying the thing the title bar directly above it already
+              // says: both named the destination the rail has selected, so the
+              // pane opened with the same word twice and a chevron that hid
+              // the list the user came to read. Collapsing a room list is not a
+              // thing anyone wants; hiding it behind a control to bring it back
+              // is a worse way to spend a row than not having one.
               _buildTitleBar(scheme, l10n),
               const RoomSearchField(),
-              Divider(height: 1, color: layers.hairline),
-              NavSectionHeader(
-                label: roomsTitle,
-                collapsed: roomsCollapsed,
-                onTap: () => settings.setSidebarSectionCollapsed(
-                    _roomsSectionId, !roomsCollapsed),
-              ),
-              if (!roomsCollapsed) Expanded(child: roomsBody),
+              Expanded(child: roomsBody),
               // The account is at the bottom, pinned, which is where every
               // other client puts it and where a user's thumb expects it.
               // At the top it was the first thing the pane showed and the
@@ -217,8 +187,8 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     );
   }
 
-  /// The pane's title bar: what is being listed, and the two things you can do
-  /// that are not rooms.
+  /// The pane's title bar: what is being listed, and the one thing you can do
+  /// that is not a room.
   ///
   /// On the darker rail step with a hairline under it, which is the mockup's
   /// arrangement and the reason it works: the bar is furniture rather than
@@ -323,40 +293,31 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
 
   // -- Rooms region -------------------------------------------------------
 
-  /// Computes the rooms region title and body for the active navigation
-  /// destination.  The title drives the section header; the body is
+  /// Computes the rooms body for the active navigation destination.
+  ///
   /// [SpaceRoomsPane] for a selected space and a filtered [RoomsPane]
-  /// otherwise.
-  (String, Widget) _buildRoomsBody(
-    BuildContext context,
-    NavigationState nav,
-    AppLocalizations l10n,
-  ) {
+  /// otherwise. It no longer returns a title: the section header that consumed
+  /// it is gone, and the title bar above reports the same thing from the same
+  /// [NavigationState].
+  Widget _buildRoomsBody(BuildContext context, NavigationState nav) {
     final Client client;
     try {
       client = Provider.of<Client>(context, listen: false);
     } catch (_) {
-      // Client may be absent during logout transition; keep the header
-      // up and render nothing below it.
-      return (l10n.rooms, const SizedBox.shrink());
+      // Client may be absent during the logout transition. An empty body is
+      // the honest answer: there are no rooms to show because there is no
+      // client to ask for them.
+      return const SizedBox.shrink();
     }
 
     if (nav.isSpace) {
       final Room? space = client.getRoomById(nav.selectedId);
-      if (space == null) {
-        return (l10n.spaces, const SizedBox.shrink());
-      }
-      return (
-        space.getLocalizedDisplayname(),
-        SpaceRoomsPane(space: space, client: client),
-      );
+      if (space == null) return const SizedBox.shrink();
+      return SpaceRoomsPane(space: space, client: client);
     }
 
-    return (
-      nav.isHome ? l10n.friends : l10n.rooms,
-      RoomsPane(
-        roomFilter: nav.isHome ? roomIsDirectChat : roomIsChat,
-      ),
+    return RoomsPane(
+      roomFilter: nav.isHome ? roomIsDirectChat : roomIsChat,
     );
   }
 }
@@ -394,4 +355,7 @@ class _SidebarFooter extends StatelessWidget {
 // Context menu: long-press / right-click opens the menu; the row itself
 // owns the plain tap (see [_SpaceRow]).
 // ===========================================================================
+
+
+
 

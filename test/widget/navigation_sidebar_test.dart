@@ -36,7 +36,6 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
@@ -58,12 +57,6 @@ import '../helpers/widget_test_utils.dart';
 ///
 /// `createTestSettingsController` hands back the default, so a test that
 /// needs a non-default density has to set it, and `updateDensity` is async.
-SettingsController _settingsAt(LayoutDensity density) {
-  final settings = createTestSettingsController();
-  settings.updateDensity(density);
-  return settings;
-}
-
 MockClient _clientWithNoRooms() {
   final client = MockClient();
   when(() => client.rooms).thenReturn(<Room>[]);
@@ -212,15 +205,10 @@ void main() {
       // expects it, and here it has to sit below both the spaces and the
       // rooms sections to stay put when either collapses.
       final pill = tester.getCenter(find.byType(SidebarProfilePill));
-      final roomsHeader = tester.getCenter(
-        find.descendant(
-          of: find.byType(NavSectionHeader),
-          matching: find.byType(Text),
-        ),
-      );
       final titleBar = tester.getCenter(find.byType(RoomSearchField));
-      expect(pill.dy, greaterThan(roomsHeader.dy));
+      final list = tester.getCenter(find.byType(RoomsPane));
       expect(pill.dy, greaterThan(titleBar.dy));
+      expect(pill.dy, greaterThan(list.dy));
     });
 
     testWidgets('add room is a control on the rooms header, not a nav row',
@@ -268,67 +256,37 @@ void main() {
       expect(find.byType(TextField), findsWidgets);
     });
 
-    testWidgets('the section header labels react to density', (tester) async {
-      // They were a hard-coded 12pt that ignored the setting, so the
-      // wayfinding sat at a fixed size between rows that moved. A label
-      // that does not change with the rows it heads is the clearest sign
-      // that a pane was assembled rather than designed.
-      Future<double> headerSizeAt(LayoutDensity density) async {
-        await tester.pumpWidget(
-          _wrapSidebar(
-            const NavigationSidebar(),
-            settings: _settingsAt(density),
-          ),
-        );
-        await tester.pump();
-        return tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byType(NavSectionHeader),
-                matching: find.byType(Text),
-              ),
-            )
-            .style!
-            .fontSize!;
-      }
 
-      final comfortable = await headerSizeAt(LayoutDensity.comfortable);
-      final compact = await headerSizeAt(LayoutDensity.compact);
-
-      expect(compact, lessThan(comfortable));
-      // Sized from the same setting as the rows, one step below them.
-      final metrics = SidebarRowMetrics.forDensity(LayoutDensity.comfortable);
-      // A caption, not a row. It used to be sized one step below the row
-      // title because it was the same kind of label; it is now uppercase and
-      // tracked out, which is a different kind of label, and being smaller than
-      // the row title is what stops it reading as an entry in the list.
-      expect(comfortable, lessThan(metrics.titleSize));
-    });
-
-    testWidgets('tapping the rooms header collapses the rooms section',
+    testWidgets('there is no section header, and the list cannot be collapsed',
         (tester) async {
-      final settings = createTestSettingsController();
-      await tester.pumpWidget(
-        _wrapSidebar(const NavigationSidebar(), settings: settings),
-      );
+      // The header carried the region name and a collapse toggle, and it was
+      // saying the thing the title bar directly above it already says: the pane
+      // opened with the same word twice. Collapsing a room list is not something
+      // a user wants; a control that hides the list they came to read, in order
+      // to bring it back, is a worse use of a row than not having one.
+      //
+      // The pane is now three things top to bottom: the title bar, the room
+      // filter, the list, then the pinned account footer. Nothing between the
+      // filter and the list, so there is nothing to tap.
+      await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
+      await tester.pump();
       await tester.pump();
 
-      // RoomsPane renders the loading spinner before the first sync.
       expect(find.byType(RoomsPane), findsOneWidget);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NavSectionHeader),
-          matching: find.byType(Text),
-        ),
-      );
+      // Tapping where the header used to be must not remove the list.
+      final listCentre = tester.getCenter(find.byType(RoomsPane));
+      final gesture =
+          await tester.startGesture(listCentre - const Offset(0, 60));
+      await gesture.up();
       await tester.pump();
       await tester.pump();
 
-      expect(find.byType(RoomsPane), findsNothing);
-      expect(settings.collapsedSidebarSections, contains('rooms'));
-      // The header itself stays visible.
-      expect(find.byType(NavSectionHeader), findsOneWidget);
+      expect(
+        find.byType(RoomsPane),
+        findsOneWidget,
+        reason: 'the room list must not be collapsible',
+      );
     });
 
     testWidgets('the spaces section is gone, and spaces live in the rail',
@@ -349,21 +307,8 @@ void main() {
 
       expect(find.text('Test Space'), findsNothing);
       expect(find.text('Spaces'), findsNothing);
-      // The rooms header is the only section header left.
-      expect(find.byType(NavSectionHeader), findsOneWidget);
-    });
-
-    testWidgets('a persisted collapsed section stays collapsed',
-        (tester) async {
-      final settings = createTestSettingsController();
-      await settings.setSidebarSectionCollapsed('rooms', true);
-      await tester.pumpWidget(
-        _wrapSidebar(const NavigationSidebar(), settings: settings),
-      );
-      await tester.pump();
-
-      expect(find.byType(RoomsPane), findsNothing);
-      expect(find.text('Rooms'), findsOneWidget);
+      // No section header anywhere in the pane. See the collapse test.
+      expect(find.byType(Text), findsWidgets);
     });
 
 testWidgets('a space is no longer reachable from this pane',
@@ -551,11 +496,10 @@ testWidgets('a space is no longer reachable from this pane',
       await tester.pump();
 
 // The very same widget, with its full structure: the profile pill, the
-      // title bar, and both collapsible section headers.
+      // title bar and the room filter.
       expect(find.byType(NavigationSidebar), findsOneWidget);
       expect(find.byType(SidebarProfilePill), findsOneWidget);
       expect(find.byTooltip('Command palette'), findsOneWidget);
-      expect(find.byType(NavSectionHeader), findsOneWidget);
       expect(find.byType(RoomSearchField), findsOneWidget);
       // Spaces are asserted absent because this pane used to carry them, and
       // the narrow band is where a "reduced sidebar" was once a real,
@@ -947,6 +891,9 @@ testWidgets('a space is no longer reachable from this pane',
     });
   });
 }
+
+
+
 
 
 

@@ -17,89 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/motion.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
-
-class NavSectionHeader extends StatelessWidget {
-  const NavSectionHeader({
-    super.key,
-    required this.label,
-    required this.collapsed,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool collapsed;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-    // Section headers were a hard-coded 12pt that ignored the density
-    // setting entirely, so the labels sat at a fixed size between rows that
-    // moved. They are the pane's wayfinding, so they get the same setting
-    // as the rows they head, one step below them rather than a constant.
-    //
-    // Uppercase and tracked out, at a smaller size than the rows. It reads as
-    // a caption on the list rather than as another entry in it, which is the
-    // whole job: the room rows are the content and this is the label for a
-    // run of them.
-    final density = context.select<SettingsController, LayoutDensity>(
-      (s) => s.density,
-    );
-    final comfortable = density == LayoutDensity.comfortable;
-    final labelSize = comfortable ? 12.0 : 11.0;
-    return Container(
-      // No fill. This used to be a lighter band, which on the restated ramp is
-      // a full step above the pane and read as a section *divider* rather than
-      // as a caption on the list. The mockup's category is text alone, and it
-      // is right: one plane with a label in it is easier to scan than a stack
-      // of bands, and the rows' own hover and selection are the only fills the
-      // list needs.
-      color: Colors.transparent,
-      padding: EdgeInsets.symmetric(
-        horizontal: comfortable ? 14 : 12,
-        vertical: comfortable ? 8 : 5,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: onTap,
-              child: Text(
-                label.toUpperCase(),
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: labelSize,
-                  letterSpacing: 0.5,
-                  color: scheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onTap,
-            child: Icon(
-              collapsed
-                  ? (isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronRight)
-                  : LucideIcons.chevronDown,
-              size: 14,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class DraggableIcon extends StatelessWidget {
   const DraggableIcon({
     super.key,
@@ -226,3 +146,4 @@ class DragFeedback extends StatelessWidget {
       );
   }
 }
+
