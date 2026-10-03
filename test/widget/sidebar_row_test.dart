@@ -88,14 +88,34 @@ void main() {
       }
     });
 
-    test('a title and its preview line fit inside the row height', () {
+test('a title and its preview line fit inside the row height', () {
       // Otherwise a two-line row silently overflows at the compact
-      // density, where the floor is only 32px.
+      // density, where the floor is only 40px.
       for (final d in LayoutDensity.values) {
         final m = SidebarRowMetrics.forDensity(d);
         final needed = m.padV * 2 + m.titleSize * 1.2 + m.subtitleSize * 1.2;
         expect(needed, lessThan(m.minHeight + m.padV * 2), reason: '$d');
       }
+    });
+
+    test('every row is followed by a gap', () {
+      // Nothing else in the pane says where one room ends and the next
+      // begins: the pane's background is one step from the row's own fill, and
+      // the fill only appears on hover and on selection. With the fills flush, a
+      // selected row is one tall block with a rounded top and a square bottom,
+      // which reads as a band rather than as a row.
+      for (final d in LayoutDensity.values) {
+        expect(SidebarRowMetrics.forDensity(d).rowGap, greaterThan(0));
+      }
+    });
+
+    test('the gap survives a density change', () {
+      // It is not a comfortable-only luxury. Compact still has to tell two
+      // rooms apart, and compact is exactly where there are the most of them.
+      expect(
+        SidebarRowMetrics.forDensity(LayoutDensity.compact).rowGap,
+        greaterThanOrEqualTo(2),
+      );
     });
   });
 
@@ -118,7 +138,10 @@ void main() {
       // Otherwise a room row and a space row in the same list do not line
       // up, which is the specific thing that made the pane look assembled.
       await pump(tester, child: const SidebarRow(title: 'One line'));
-      final oneLine = tester.getSize(find.byType(SidebarRow)).height;
+      // The filled box, not the widget. `SidebarRow` also carries the gap to
+      // its neighbour, and the floor this test is about is the height of the
+      // thing that fills.
+      final oneLine = tester.getSize(find.byType(Material)).height;
 
       await pump(
         tester,
@@ -144,8 +167,7 @@ void main() {
           leading: SizedBox.expand(),
         ),
       );
-      final compact =
-          tester.getSize(find.byType(SidebarRow)).height;
+      final compact = tester.getSize(find.byType(Material)).height;
       expect(compact, SidebarRowMetrics.forDensity(LayoutDensity.compact).minHeight);
     });
 
@@ -281,14 +303,17 @@ void main() {
         tester,
         child: const SidebarRow(title: 'Selected', selected: true),
       );
-      final row = tester.getRect(find.byType(SidebarRow));
+final row = tester.getRect(find.byType(Material));
       final bar = tester.getRect(find.byKey(sidebarRowAccentBarKey));
       final padH =
           SidebarRowMetrics.forDensity(LayoutDensity.comfortable).padH;
 
       expect(bar.left, row.left);
       expect(bar.right, lessThanOrEqualTo(row.left + padH));
-      // Full height, so it reads as a position rather than a dot.
+      // Full height of the filled box, so it reads as a position rather than a
+      // dot. Measured against the Material, not against `SidebarRow`: the row
+      // widget also carries the gap to its neighbour, and a bar that ran to the
+      // bottom of that gap would hang one pixel into the space between rows.
       expect(bar.top, row.top);
       expect(bar.bottom, row.bottom);
     });
@@ -313,3 +338,4 @@ void main() {
     });
   });
 }
+

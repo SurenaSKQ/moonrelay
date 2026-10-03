@@ -116,15 +116,15 @@ void main() {
 
     test('clamps down when the requested width exceeds available', () {
       // viewport=500, sidebar=800, main=300, other=0
-      // available = (500-300-0).clamp(200,600) = 200
-      // clamped = 800.clamp(200, 200) = 200
+      // available = (500-300-0).clamp(240,600) = 240
+      // clamped = 800.clamp(240, 240) = 240
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 800,
         viewportWidth: 500,
         mainMinWidth: 300,
         otherPanesWidth: 0,
       );
-      expect(result, 200);
+      expect(result, 240);
     });
 
     test('respects min sidebar width', () {

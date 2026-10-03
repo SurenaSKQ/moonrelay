@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
@@ -38,7 +39,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Layout state
   LayoutMode _layoutMode = LayoutMode.auto;
   bool _leftSidebarVisible = true;
-  double _leftSidebarWidth = 320.0;
+  double _leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth;
   bool _rightSidebarVisible = true;
   double _rightSidebarWidth = 280.0;
   RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
@@ -921,4 +922,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateLocale(locale);
   }
 }
+
+
+
 

@@ -30,12 +30,29 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 /// the pane read as four widgets stacked rather than as one list.
 ///
 /// [forDensity] is the only place these numbers are written down.
+///
+/// ## Separation between rows
+///
+/// A row used to be 44 tall with 7 of padding and a 2px gap to its
+/// neighbour, so consecutive rows' fills were six pixels apart. Two
+/// backgrounds that close read as one surface with a line drawn on it, which
+/// is exactly what a list of rooms is not: the fill only appears on hover and
+/// on selection, so the *gap* is what tells a reader where one row ends and
+/// the next begins, and a six-pixel gap is not enough to do it on a pane whose
+/// background is only one step from the row's.
+///
+/// The vertical padding is therefore doing the separation rather than a
+/// margin. Padding keeps the hover and selection fills touching, so a
+/// selected row is one solid block rather than two, and it puts the
+/// separation in the one place that is measured from the row rather than
+/// accumulated between rows.
 @immutable
 class SidebarRowMetrics {
   const SidebarRowMetrics({
     required this.minHeight,
     required this.padH,
     required this.padV,
+    required this.rowGap,
     required this.gap,
     required this.leadingSize,
     required this.titleSize,
@@ -53,20 +70,22 @@ class SidebarRowMetrics {
   factory SidebarRowMetrics.forDensity(LayoutDensity density) =>
       switch (density) {
         LayoutDensity.comfortable => const SidebarRowMetrics(
-            minHeight: 44,
+            minHeight: 52,
             padH: 14,
-            padV: 7,
+            padV: 9,
+            rowGap: 3,
             gap: 12,
-            leadingSize: 34,
+            leadingSize: 36,
             titleSize: 15,
             subtitleSize: 12.5,
           ),
         LayoutDensity.compact => const SidebarRowMetrics(
-            minHeight: 34,
+            minHeight: 40,
             padH: 12,
-            padV: 4,
+            padV: 5,
+            rowGap: 2,
             gap: 10,
-            leadingSize: 26,
+            leadingSize: 28,
             titleSize: 13,
             subtitleSize: 11,
           ),
@@ -78,6 +97,16 @@ class SidebarRowMetrics {
 
   final double padH;
   final double padV;
+
+  /// Vertical space below the row, between it and the next one.
+  ///
+  /// The rows are the only thing in the pane that says where one room ends
+  /// and the next begins, because nothing else does: the pane's background is
+  /// one step from the row's own fill, and the row's fill only appears on
+  /// hover and on selection. With the fills flush, a selected row is a
+  /// fifty-pixel block with a rounded top and a square bottom, which reads as
+  /// a band rather than as a row.
+  final double rowGap;
 
   /// Space between the leading slot and the text.
   final double gap;
@@ -182,12 +211,11 @@ class SidebarRow extends StatelessWidget {
 
     final radius = BorderRadius.circular(t.radiusSm);
 // The selected row's text stays `onSurface`, not the accent. The leading
-  // bar already says "this one"; making the label the accent too meant two
-  // signals competing, and it changed the row's colour with the accent seed,
-  // so switching to a blue accent recoloured the whole room list.
-  final foreground = scheme.onSurface;
-  final muted =
-      selected ? scheme.onSurfaceVariant : scheme.onSurfaceVariant;
+    // bar already says "this one"; making the label the accent too meant two
+    // signals competing, and it changed the row's colour with the accent seed,
+    // so switching to a blue accent recoloured the whole room list.
+    final foreground = scheme.onSurface;
+    final muted = selected ? scheme.onSurfaceVariant : scheme.onSurfaceVariant;
 
     Widget titleLine() {
       final label = Text(
@@ -232,80 +260,87 @@ class SidebarRow extends StatelessWidget {
       );
     }
 
-    return Material(
-      // A step from the surface ramp, not an accent wash. The room list sits
-      // at `surfaceContainer`, so `active` is the next step up: the selected
-      // row reads as nearer to the user rather than as tinted, and it does not
-      // change colour with the accent, so a blue accent no longer turns the
-      // whole list blue.
-      color: selected ? ext.layers.active : Colors.transparent,
-      borderRadius: radius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
+    // The gap lives outside the filled box, so a selected or hovered row stays
+    // one solid block with its own rounded corners instead of bleeding into its
+    // neighbour. Putting it inside, as padding, would leave two selected rows
+    // reading as one tall selection.
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.rowGap),
+      child: Material(
+        // A step from the surface ramp, not an accent wash. The room list sits
+        // at `surfaceContainer`, so `active` is the next step up: the selected
+        // row reads as nearer to the user rather than as tinted, and it does not
+        // change colour with the accent, so a blue accent no longer turns the
+        // whole list blue.
+        color: selected ? ext.layers.active : Colors.transparent,
         borderRadius: radius,
-        child: Stack(
-          children: [
-            // The accent bar. The fill alone is not enough to find the
-            // current room in a list of two hundred, because a row that is
-            // merely *near* it, or hovered, or mid-transition, all read the
-            // same. A bar on the leading edge is a position, not a colour, so
-            // the eye can find it without comparing shades.
-            //
-            // Width rather than opacity, so it cannot wash out against the
-            // row behind it.
-            if (selected)
-              PositionedDirectional(
-                key: sidebarRowAccentBarKey,
-                start: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: t.borderWidthThick * 2,
-                  color: scheme.primary,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: radius,
+          child: Stack(
+            children: [
+              // The accent bar. The fill alone is not enough to find the
+              // current room in a list of two hundred, because a row that is
+              // merely *near* it, or hovered, or mid-transition, all read the
+              // same. A bar on the leading edge is a position, not a colour, so
+              // the eye can find it without comparing shades.
+              //
+              // Width rather than opacity, so it cannot wash out against the
+              // row behind it.
+              if (selected)
+                PositionedDirectional(
+                  key: sidebarRowAccentBarKey,
+                  start: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: t.borderWidthThick * 2,
+                    color: scheme.primary,
+                  ),
+                ),
+              ConstrainedBox(
+                constraints: BoxConstraints(minHeight: m.minHeight),
+                child: Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    // Nothing here accounts for the bar. The bar is 3px wide
+                    // and sits at start: 0 of the Stack, so it draws over the
+                    // row's own leading gutter: padH is 12 or 14, always wider
+                    // than the bar, and the label never reaches it.
+                    //
+                    // Adding the bar's width to this padding, which is what
+                    // used to happen, shifted the label and the avatar 3px
+                    // right on every selected row, so moving the selection
+                    // reflowed the list under the pointer. Worse, it was the
+                    // kind of shift that reads as intentional until you
+                    // click a second row and watch the first one jump back.
+                    m.padH + indent,
+                    m.padV,
+                    m.padH,
+                    m.padV,
+                  ),
+                  child: Row(
+                    children: [
+                      if (leading != null) ...[
+                        SizedBox(
+                          width: m.leadingSize,
+                          height: m.leadingSize,
+                          child: Center(child: leading),
+                        ),
+                        SizedBox(width: m.gap),
+                      ],
+                      Expanded(child: text()),
+                      if (trailing != null) ...[
+                        SizedBox(width: t.spaceSm),
+                        trailing!,
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ConstrainedBox(
-              constraints: BoxConstraints(minHeight: m.minHeight),
-              child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(
-                  // Nothing here accounts for the bar. The bar is 3px wide
-                  // and sits at start: 0 of the Stack, so it draws over the
-                  // row's own leading gutter: padH is 12 or 14, always wider
-                  // than the bar, and the label never reaches it.
-                  //
-                  // Adding the bar's width to this padding, which is what
-                  // used to happen, shifted the label and the avatar 3px
-                  // right on every selected row, so moving the selection
-                  // reflowed the list under the pointer. Worse, it was the
-                  // kind of shift that reads as intentional until you
-                  // click a second row and watch the first one jump back.
-                  m.padH + indent,
-                  m.padV,
-                  m.padH,
-                  m.padV,
-                ),
-                child: Row(
-                  children: [
-                    if (leading != null) ...[
-                      SizedBox(
-                        width: m.leadingSize,
-                        height: m.leadingSize,
-                        child: Center(child: leading),
-                      ),
-                      SizedBox(width: m.gap),
-                    ],
-                    Expanded(child: text()),
-                    if (trailing != null) ...[
-                      SizedBox(width: t.spaceSm),
-                      trailing!,
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

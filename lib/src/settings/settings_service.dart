@@ -23,6 +23,8 @@ import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:moonrelay/src/helpers/responsive.dart';
+
 /// All persisted settings loaded in one batch.  Individual getters remain
 /// available for granular reads after the initial load.
 class SettingsSnapshot {
@@ -113,7 +115,7 @@ class SettingsSnapshot {
     this.displayType = DisplayType.modern,
     this.layoutMode = LayoutMode.auto,
     this.leftSidebarVisible = true,
-    this.leftSidebarWidth = 320.0,
+    this.leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth,
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
     this.rightPaneChoice = RightPaneChoice.roomInfo,
@@ -343,7 +345,8 @@ class SettingsService {
       displayType: _readDisplayType(prefs),
       layoutMode: _readLayoutMode(prefs),
       leftSidebarVisible: prefs.getBool(_leftSidebarVisibleKey) ?? true,
-      leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ?? 320.0,
+      leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ??
+          LayoutBreakpoints.defaultLeftSidebarWidth,
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
       rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
       rightPaneChoice: _readRightPaneChoice(prefs),
@@ -570,7 +573,8 @@ class SettingsService {
 
   Future<double> leftSidebarWidth() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_leftSidebarWidthKey) ?? 320.0;
+    return prefs.getDouble(_leftSidebarWidthKey) ??
+        LayoutBreakpoints.defaultLeftSidebarWidth;
   }
 
   Future<void> updateLeftSidebarWidth(double width) async {
@@ -1338,3 +1342,4 @@ class SettingsService {
     await prefs.setBool(_checkForUpdatesKey, value);
   }
 }
+

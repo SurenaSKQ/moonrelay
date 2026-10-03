@@ -94,8 +94,12 @@ class DashboardView extends StatelessWidget {
     // One clamp, one range. The two dashboards used to disagree here
     // (200..360 against 220..360), so a width the user had chosen in one
     // shell was silently rewritten in the other.
-    final sidebarWidth =
-        settings.leftSidebarWidth.clamp(200.0, 360.0).toDouble();
+    final sidebarWidth = settings.leftSidebarWidth
+        .clamp(
+          LayoutBreakpoints.minSidebarWidth,
+          LayoutBreakpoints.maxSidebarWidth,
+        )
+        .toDouble();
 
     // In RTL mode the sidebar order must be reversed so that the
     // "left" sidebar appears on the right side of the window.  The
@@ -246,4 +250,6 @@ class SidebarExpandGutter extends StatelessWidget {
     );
   }
 }
+
+
 

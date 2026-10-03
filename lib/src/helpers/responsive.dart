@@ -84,10 +84,15 @@ class LayoutBreakpoints {
   static const double expandedMax = 1100;
 
   /// Minimum width allowed for any pinned pane.
-  static const double minSidebarWidth = 200;
+  static const double minSidebarWidth = 240;
 
   /// Default width of the left sidebar.
-  static const double defaultLeftSidebarWidth = 320;
+  ///
+  /// 360 rather than 320. The room list is the densest reading surface in
+  /// the app and it was losing its room names to the right, which is the one
+  /// thing a wider pane can fix and the one thing a user cannot: there is no
+  /// setting that makes a truncated name longer.
+  static const double defaultLeftSidebarWidth = 360;
 
   /// Default width of the right sidebar.
   static const double defaultRightSidebarWidth = 280;
