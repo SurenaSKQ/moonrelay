@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -30,15 +28,6 @@ import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/room_pane_sheet.dart';
 import 'package:moonrelay/src/widgets/sync_indicator.dart';
 import 'package:provider/provider.dart';
-
-/// How opaque the room header's glass fill is.
-///
-/// High enough that the conversation behind it never shows through the text,
-/// which is the whole job: a header is furniture, not decoration. Low enough
-/// that the blur is doing something. Below about 0.6 the room name starts
-/// picking up moving silhouettes from the timeline scrolling behind it, which
-/// reads as a rendering fault rather than as glass.
-const double _glassAlpha = 0.72;
 
 /// A Material 3 room header bar that reactively displays the room's name,
 /// topic, avatar, and member count.
@@ -174,8 +163,8 @@ void _onTap() {
             // `_AdaptiveMainLayout`'s build, which is an ancestor and has
             // already run, so the value is fresh without a subscription.
             final isSinglePane = context.read<LayoutShellController>().isMobile;
-            final avatarRadius = tight ? 16.0 : 20.0;
-            final nameFontSize = tight ? 14.0 : 16.0;
+            final avatarRadius = tight ? 14.0 : 16.0;
+            final nameFontSize = tight ? 14.0 : 15.0;
             final hPadding = tight ? t.spaceSm : t.spaceMd;
             final iconSize = tight ? 16.0 : 18.0;
             final density = tight
@@ -191,63 +180,78 @@ void _onTap() {
             // Glassy: the fill sits between the main pane and the rail steps
             // rather than on either of them, so the header reads as a sheet
             // lying over the conversation rather than as the top edge of it.
-            // `ClipRect` with a manual translucent fill rather than
-            // `BackdropFilter`, because a live blur under a bar that is
-            // repainted on every sync is a per-frame readback of the whole
-            // pane, and the cost shows up as scroll jank rather than as a
-            // slower header. The translucency is doing the visual work here;
-            // the blur was decoration.
-            return ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 12,
-                  sigmaY: 12,
-                ),
-                child: Container(
-                  color: scheme.surfaceContainerHigh.withValues(
-                    alpha: _glassAlpha,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _onTap,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: hPadding, vertical: tight ? 6 : 8),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: layers.hairline),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                    // Room avatar
-                    AvatarFromUriOrFallbackImage(
-                      client: widget.room.client,
-                      avatarUri: widget.room.avatar,
-                      radius: avatarRadius,
+            //
+            // There is no `BackdropFilter` any more. It was there to sell the
+            // translucency, and it cost a per-frame readback of the whole pane
+            // underneath on a bar that repaints on every sync: the jank showed
+            // up as scroll stutter in the timeline rather than as a slow
+            // header, which is a bad place to pay for decoration. A flat fill at
+            // the conversation's own step does the same job, because there is
+            // nothing behind the header to blur except more header.
+            return Container(
+              color: scheme.surfaceContainerHigh,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _onTap,
+                  child: Container(
+                    // A fixed height rather than one derived from the avatar,
+                    // so the bar is 48 pixels whether or not a topic is
+                    // showing. A header that grows when a room has a topic
+                    // moves the top of the conversation, which is the one
+                    // place in a chat client where content must not shift.
+                    height: tight ? 44 : 48,
+                    padding: EdgeInsets.symmetric(horizontal: hPadding),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: layers.hairline),
+                      ),
                     ),
-                    SizedBox(width: tight ? t.spaceSm : t.spaceMd),
+                    child: Row(
+                      children: [
+                        // Room avatar
+                        AvatarFromUriOrFallbackImage(
+                          client: widget.room.client,
+                          avatarUri: widget.room.avatar,
+                          radius: avatarRadius,
+                        ),
+                        SizedBox(width: hPadding),
 
-                    // Name + Topic
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayName,
-                            style: TextStyle(
-                              fontSize: nameFontSize,
-                              fontWeight: FontWeight.w600,
-                              color: scheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        // Name, then the topic on the same line.
+                        //
+                        // The topic used to sit under the name, which made the
+                        // bar two lines tall and put the room's subject directly
+                        // above the first message instead of beside the name it
+                        // belongs to. One line with a rule between them is what
+                        // lets the bar stay 48 pixels, and it lets the topic
+                        // take all the width the actions do not need.
+                        Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: nameFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
                           ),
-                          if (showTopic) ...[
-                            SizedBox(height: t.spaceXxs),
-                            Text(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (showTopic) ...[
+                          SizedBox(width: t.spaceSm),
+                          // The one vertical rule in the chat. It is a
+                          // `Divider` rather than a `Container` because it is
+                          // the only rule here and giving it the token's own
+                          // hairline keeps it from becoming a second one.
+                          SizedBox(
+                            height: nameFontSize + 4,
+                            child: VerticalDivider(
+                              width: t.borderWidthMedium,
+                              thickness: t.borderWidthThin,
+                              color: layers.hairline,
+                            ),
+                          ),
+                          SizedBox(width: t.spaceSm),
+                          Flexible(
+                            child: Text(
                               topic,
                               style: TextStyle(
                                 fontSize: 13,
@@ -256,85 +260,80 @@ void _onTap() {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ],
+                          ),
                         ],
-                      ),
-                    ),
-                    SizedBox(width: tight ? t.spaceXs : t.spaceSm),
+                        SizedBox(width: tight ? t.spaceXs : t.spaceSm),
 
-                    // Sync status. Silent unless something is actually
-                    // wrong or unusually slow; see SyncIndicator for why a
-                    // long-poll in flight is not worth reporting. It
-                    // collapses to nothing when quiet, so it is never
-                    // gated on width.
-                    SyncIndicator(client: widget.room.client),
+                        // Sync status. Silent unless something is actually
+                        // wrong or unusually slow; see SyncIndicator for why a
+                        // long-poll in flight is not worth reporting. It
+                        // collapses to nothing when quiet, so it is never
+                        // gated on width.
+                        SyncIndicator(client: widget.room.client),
 
-                    // Pinned messages toggle. Also self-hiding when the
-                    // room has no pinned messages, and an action rather
-                    // than furniture, so it stays reachable at every width.
-                    _PinnedFilterButton(room: widget.room),
+                        // Pinned messages toggle. Also self-hiding when the
+                        // room has no pinned messages, and an action rather
+                        // than furniture, so it stays reachable at every width.
+                        _PinnedFilterButton(room: widget.room),
 
-                    // In the single-pane shell the four detail panes have
-                    // no sidebar to live in, so they are reachable only
-                    // from here. Without this, pinned messages in
-                    // particular were unreachable below 600px.
-                    if (isSinglePane)
-                      IconButton(
-                        icon: Icon(
-                          LucideIcons.panelsTopLeft,
-                          size: iconSize,
+                        // In the single-pane shell the four detail panes have
+                        // no sidebar to live in, so they are reachable only
+                        // from here. Without this, pinned messages in
+                        // particular were unreachable below 600px.
+                        if (isSinglePane)
+                          IconButton(
+                            icon: Icon(
+                              LucideIcons.panelsTopLeft,
+                              size: iconSize,
+                            ),
+                            tooltip: AppLocalizations.of(context)!.roomInfo,
+                            visualDensity: density,
+                            onPressed: () =>
+                                showRoomPaneSheet(context, room: widget.room),
+                            color: scheme.onSurfaceVariant,
+                          ),
+
+                        if (showMemberCount) ...[
+                          _MemberCountBadge(count: _memberCount, scheme: scheme),
+                          SizedBox(width: t.spaceXs),
+                        ],
+
+                        // In-room search toggle
+                        IconButton(
+                          icon: Icon(
+                            widget.isSearchActive
+                                ? LucideIcons.searchX
+                                : LucideIcons.search,
+                            size: iconSize,
+                          ),
+                          onPressed: widget.onSearchToggle,
+                          tooltip: AppLocalizations.of(context)!.searchInRoom,
+                          visualDensity: density,
+                          color: widget.isSearchActive
+                              ? scheme.primary
+                              : scheme.onSurfaceVariant,
                         ),
-                        tooltip: AppLocalizations.of(context)!.roomInfo,
-                        visualDensity: density,
-                        onPressed: () =>
-                            showRoomPaneSheet(context, room: widget.room),
-                        color: scheme.onSurfaceVariant
-                            .withValues(alpha: 0.6),
-                      ),
 
-                    if (showMemberCount) ...[
-                      _MemberCountBadge(count: _memberCount, scheme: scheme),
-                      SizedBox(width: t.spaceXs),
-                    ],
-
-                    // In-room search toggle
-                    IconButton(
-                      icon: Icon(
-                        widget.isSearchActive
-                            ? LucideIcons.searchX
-                            : LucideIcons.search,
-                        size: iconSize,
-                      ),
-                      onPressed: widget.onSearchToggle,
-                      tooltip: AppLocalizations.of(context)!.searchInRoom,
-                      visualDensity: density,
-                      color: widget.isSearchActive
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-
-                    // Settings gear: navigate to room settings
-                    IconButton(
-                      icon: Icon(
-                        LucideIcons.settings,
-                        size: iconSize,
-                      ),
-                      onPressed: () => openRoomSubpage(
-                          context, widget.room.id, 'settings'),
-                      tooltip: AppLocalizations.of(context)!.roomSettings,
-                      visualDensity: density,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-
-                    // Chevron indicating tappable
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: tight ? 16 : 20,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                          ],
+                        // Settings gear: navigate to room settings
+                        IconButton(
+                          icon: Icon(
+                            LucideIcons.settings,
+                            size: iconSize,
+                          ),
+                          onPressed: () => openRoomSubpage(
+                              context, widget.room.id, 'settings'),
+                          tooltip: AppLocalizations.of(context)!.roomSettings,
+                          visualDensity: density,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      ),
+
+                        // Chevron indicating tappable
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: tight ? 16 : 20,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -429,3 +428,5 @@ class _PinnedFilterButton extends StatelessWidget {
     );
   }
 }
+
+
