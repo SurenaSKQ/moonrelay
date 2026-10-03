@@ -18,6 +18,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
@@ -230,6 +231,161 @@ void main() {
     }
   });
 
+  group('the rail accent carries a white glyph', () {
+    for (final brightness in Brightness.values) {
+      final label = brightness.name;
+
+      test('$label: the active tile clears AA against white', () {
+        // The mockup's accent `#7C5DFA` is 4.37:1 against white, which is
+        // under the 4.5 that the selected space's icon has to clear. This is
+        // the assertion that would have caught it: the tile is a fill and the
+        // thing on it is white in both brightnesses, so this is deliberately
+        // not the scheme's own `primary`/`onPrimary` question.
+        final layers = MoonrelaySurfaceLayers.forBrightness(
+          brightness,
+          accent: const Color(0xFF7C5DFA),
+        );
+        expect(
+          contrastRatio(Colors.white, layers.railActive),
+          greaterThanOrEqualTo(4.5),
+          reason: '$label: white on ${layers.railActive}',
+        );
+      });
+
+      test('$label: the active tile follows the accent the user picked', () {
+        // The rail hardcoded a purple, so choosing a green accent changed the
+        // app and left the one place where selection is most visible still
+        // purple. Green is the awkward case: it is a mid-lightness hue, so
+        // both directions of the white pairing are close to the limit and it
+        // is the accent that exposes a clamp which only works one way.
+        final purple = MoonrelaySurfaceLayers.forBrightness(
+          brightness,
+          accent: const Color(0xFF7C5DFA),
+        );
+        final green = MoonrelaySurfaceLayers.forBrightness(
+          brightness,
+          accent: const Color(0xFF23A559),
+        );
+        expect(purple.railActive, isNot(green.railActive));
+        expect(
+          contrastRatio(Colors.white, green.railActive),
+          greaterThanOrEqualTo(4.5),
+          reason: '$label: white on ${green.railActive}',
+        );
+      });
+
+      test('$label: the tile hover step is lighter than its rest state', () {
+        final layers = MoonrelaySurfaceLayers.forBrightness(
+          brightness,
+          accent: const Color(0xFF7C5DFA),
+        );
+        expect(
+          layers.accentHover.computeLuminance(),
+          greaterThan(layers.railActive.computeLuminance()),
+        );
+      });
+    }
+  });
+
+  group('the accent clamp converges', () {
+    // Every accent the picker offers, in both brightnesses, on both accent
+    // pairings the app draws.
+    for (final brightness in Brightness.values) {
+      final label = brightness.name;
+
+test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
+        // Honest about what this does and does not catch. The loop stepped
+        // from the seed rather than from the candidate, so it applied 2%
+        // exactly once and gave up. For `primary` that was invisible, because
+        // `fromSeed` already returns a pair between 6.4:1 and 7.8:1 for every
+        // accent here, so this assertion passes with or without the fix. It is
+        // kept because it is the contract, not because it once failed.
+        //
+        // The assertion that does catch it is the rail tile one below, which
+        // asks the same loop a different question and needs ten steps to
+        // answer.
+        for (final accent in MoonrelayAccents.all) {
+          final scheme = MoonrelaySurfaceLayers.apply(
+            ColorScheme.fromSeed(
+              seedColor: accent.seedColor,
+              brightness: brightness,
+            ),
+            brightness,
+          );
+          expect(
+            contrastRatio(scheme.onPrimary, scheme.primary),
+            greaterThanOrEqualTo(4.5),
+            reason: '$label: ${accent.id} came out as ${scheme.primary} '
+                'under ${scheme.onPrimary}',
+          );
+        }
+      });
+
+      test('$label: the rail tile clears 4.5:1 for every accent', () {
+        // The failing-first test for the clamp. White against a mid-lightness
+        // seed needs up to ten steps, and the loop used to manage one, so
+        // every one of these accents came out short: the mockup's own purple
+        // at 4.37:1 and the picker's green at 3.30:1.
+        for (final accent in MoonrelayAccents.all) {
+          final layers = MoonrelaySurfaceLayers.forBrightness(
+            brightness,
+            accent: accent.seedColor,
+          );
+          expect(
+            contrastRatio(Colors.white, layers.railActive),
+            greaterThanOrEqualTo(4.5),
+            reason: '$label: ${accent.id} came out as ${layers.railActive}',
+          );
+        }
+      });
+
+      test('$label: a clamped accent is a whole ARGB value', () {
+        // `Color.from` keeps floats, so a float clamp yields a colour with no
+        // integer representation. It then differs by platform and cannot be
+        // persisted or compared, which is a strange thing for a theme value to
+        // be.
+        for (final accent in MoonrelayAccents.all) {
+          final scheme = MoonrelaySurfaceLayers.apply(
+            ColorScheme.fromSeed(
+              seedColor: accent.seedColor,
+              brightness: brightness,
+            ),
+            brightness,
+          );
+          final roundTripped = Color(scheme.primary.toARGB32());
+          expect(roundTripped, scheme.primary, reason: '$label: ${accent.id}');
+        }
+      });
+    }
+  });
+
+  group('secondary text', () {
+    test('dark: the mockup own grey fails and ours does not', () {
+      // Recorded because the next person to "match the palette to the
+      // mockup" will reach for `#949BA4` again. On the composer step it is
+      // 4.05:1, and the composer's hint is the one string in the app that is
+      // permanently sitting on that step.
+      expect(
+        contrastRatio(const Color(0xFF949BA4), const Color(0xFF383A40)),
+        lessThan(4.5),
+        reason: 'if this ever fails, the mockup grey became usable and the '
+            'comment in surface_layers.dart can go',
+      );
+
+      final scheme = MoonrelaySurfaceLayers.apply(
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7C5DFA),
+          brightness: Brightness.dark,
+        ),
+        Brightness.dark,
+      );
+      expect(
+        contrastRatio(scheme.onSurfaceVariant, scheme.surfaceContainerHighest),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
+  });
+
   group('hover and selection are states, not accent tints', () {
     for (final brightness in Brightness.values) {
       final layers =
@@ -302,9 +458,9 @@ void main() {
       expect(theme.scaffoldBackgroundColor, theme.colorScheme.surface);
       expect(
         theme.extension<MoonrelayThemeExtension>()!.layers.hover,
-        const Color(0xFF2A2A35),
+        const Color(0xFF35373C),
       );
-      expect(theme.hoverColor, const Color(0xFF2A2A35));
+      expect(theme.hoverColor, const Color(0xFF35373C));
     });
 
     test('light theme uses the light surface floor', () {

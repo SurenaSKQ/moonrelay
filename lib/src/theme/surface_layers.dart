@@ -41,16 +41,29 @@ import 'package:flutter/material.dart';
 /// | Role | Step |
 /// |---|---|
 /// | titlebar, app floor | `#0F0F14` |
-/// | inset wells, code blocks | `#0A0A0E` |
-/// | navigation rail | `#16161C` |
-/// | room list, side panes | `#1E1E26` |
-/// | main content | `#24242E` |
-/// | hover wash | `#2A2A35` |
-/// | selected row | `#32323E` |
+/// | inset wells | `#0A0A0E` |
+/// | navigation rail | `#1E1F22` |
+/// | room list, side panes | `#2B2D31` |
+/// | main content | `#313338` |
+/// | composer, raised fields | `#383A40` |
+/// | hover wash | `#35373C` |
+/// | selected row | `#404249` |
 ///
 /// The rail sits *below* the room list and the room list *below* the
 /// conversation, so the reading order runs bright-to-dim left to right and
 /// the eye lands on the message column first.
+///
+/// Note that `hover` and `selected` are *not* steps in the same sequence: a
+/// hovered row is one step off its own pane, not a fixed value, so on the
+/// conversation plane `#35373C` sits between the plane and its own composer.
+/// That is why they are states and not ramp positions, and why they live
+/// here rather than in the `ColorScheme`.
+///
+/// ## The light ramp
+///
+/// The same relationships, inverted. Each step is the light ramp's answer to
+/// the dark ramp's role, so a widget that reads a ramp step works in both
+/// brightnesses without a branch.
 ///
 /// ## What has no Material role
 ///
@@ -59,7 +72,7 @@ import 'package:flutter/material.dart';
 /// alpha washes of `primary`, which on this palette read as a purple tint
 /// rather than as the row getting closer to the light. So they are stated
 /// here as opaque steps from the same ramp, which is what actually happens
-/// visually when a Discord-style row lights up.
+/// visually when a row lights up.
 class MoonrelaySurfaceLayers {
   const MoonrelaySurfaceLayers({
     required this.hover,
@@ -90,22 +103,40 @@ class MoonrelaySurfaceLayers {
   final Color accentHover;
 
   /// Builds the layer palette for [brightness].
-  factory MoonrelaySurfaceLayers.forBrightness(Brightness brightness) {
+  ///
+  /// [accent] is the user's chosen seed. The two accent-derived values are
+  /// computed from it rather than hardcoded, because a rail that stays purple
+  /// while the rest of the app follows the accent picker is the kind of thing
+  /// that reads as a bug in one of the two places, and never in the palette.
+  factory MoonrelaySurfaceLayers.forBrightness(
+    Brightness brightness, {
+    Color? accent,
+  }) {
+    // The rail's active tile is a *fill* carrying a white glyph, so it is
+    // clamped against white. The scheme's `primary` is clamped against its own
+    // `onPrimary` instead, which in dark mode is near-black, so the two
+    // accents are deliberately not the same colour: one is a background for
+    // white text and the other is text on a background. See [_legibleOn].
+    final rail = _legibleOn(
+      accent ?? const Color(0xFF7C5DFA),
+      Colors.white,
+    );
+
     if (brightness == Brightness.dark) {
-      return const MoonrelaySurfaceLayers(
-        hover: Color(0xFF2A2A35),
-        active: Color(0xFF32323E),
-        railActive: Color(0xFF7255F5),
-        hairline: Color(0x0FFFFFFF),
-        accentHover: Color(0xFF8368FF),
+      return MoonrelaySurfaceLayers(
+        hover: const Color(0xFF35373C),
+        active: const Color(0xFF404249),
+        railActive: rail.fill,
+        hairline: const Color(0x0FFFFFFF),
+        accentHover: rail.hover,
       );
     }
-    return const MoonrelaySurfaceLayers(
-      hover: Color(0xFFEDEEF3),
-      active: Color(0xFFDCDCE6),
-      railActive: Color(0xFF6144E8),
-      hairline: Color(0x1A000000),
-      accentHover: Color(0xFF6144E8),
+    return MoonrelaySurfaceLayers(
+      hover: const Color(0xFFE0E0E9),
+      active: const Color(0xFFCFCFD9),
+      railActive: rail.fill,
+      hairline: const Color(0x1A000000),
+      accentHover: rail.hover,
     );
   }
 
@@ -122,19 +153,28 @@ class MoonrelaySurfaceLayers {
       return base.copyWith(
         surface: const Color(0xFF0F0F14),
         surfaceContainerLowest: const Color(0xFF0A0A0E),
-        surfaceContainerLow: const Color(0xFF16161C),
-        surfaceContainer: const Color(0xFF1E1E26),
-        surfaceContainerHigh: const Color(0xFF24242E),
-        surfaceContainerHighest: const Color(0xFF2A2A35),
+        surfaceContainerLow: const Color(0xFF1E1F22),
+        surfaceContainer: const Color(0xFF2B2D31),
+        surfaceContainerHigh: const Color(0xFF313338),
+        surfaceContainerHighest: const Color(0xFF383A40),
         surfaceTint: Colors.transparent,
-        onSurface: const Color(0xFFE2E2E9),
-        onSurfaceVariant: const Color(0xFF9C9CAC),
+        // `#F2F3F5` is the mockup's primary text and clears AA on every
+        // step with room to spare.
+        onSurface: const Color(0xFFF2F3F5),
+        // The mockup's secondary is `#949BA4`, and on its own composer step
+        // `#383A40` that is 4.05:1: below the 4.5 that body-sized text has
+        // to clear. It is lifted two points to `#9EA5AE`, which is 4.57:1 on
+        // the composer and still reads as a cool grey beside the primary
+        // rather than as a fourth surface colour. Taking the mockup's value
+        // literally would have shipped unreadable placeholder text in the one
+        // place it appears most, which is the composer's hint.
+        onSurfaceVariant: const Color(0xFF9EA5AE),
         outline: const Color(0xFF6A6A7C),
         outlineVariant: const Color(0xFF3A3A48),
         primary: accent.primary,
         onPrimary: accent.onPrimary,
-        secondaryContainer: const Color(0xFF2A2A38),
-        onSecondaryContainer: const Color(0xFFDDD6FF),
+        secondaryContainer: const Color(0xFF383A40),
+        onSecondaryContainer: const Color(0xFFE4E4EC),
       );
     }
 
@@ -152,23 +192,59 @@ class MoonrelaySurfaceLayers {
       outlineVariant: const Color(0xFFDADAE4),
       primary: accent.primary,
       onPrimary: accent.onPrimary,
-      secondaryContainer: const Color(0xFFE7E7F0),
+      secondaryContainer: const Color(0xFFE3E3EC),
       onSecondaryContainer: const Color(0xFF1F1F2B),
     );
   }
 
-/// Darkens [seed] until [onSeed] text on it clears WCAG AA at 4.5:1.
+  /// Darkens [seed] until [on] text on it clears WCAG AA at 4.5:1, and reports
+  /// the slightly lighter step a filled tile takes on hover.
+  ///
+  /// The step is applied to the *candidate*. It used to be applied to [seed],
+  /// which made every pass recompute the same colour from the same original:
+  /// the loop spun up to 64 times without the candidate moving, and returned
+  /// whatever a single 2% step produced. It looked like a working clamp and
+  /// was not one.
+  ///
+  /// It was latent for `primary`, because `ColorScheme.fromSeed` already hands
+  /// back a `primary` and an `onPrimary` between 6.4:1 and 7.8:1 for every
+  /// accent in the picker, so the threshold was cleared before the loop
+  /// mattered. That is luck, not a property of the loop: the new white pairing
+  /// below is a different question and a mid-lightness seed needs ten steps to
+  /// answer it, so the same bug would have shipped a rail tile at 3.3:1.
+  ///
+  /// The result is quantised to 8 bits per channel. `Color.from` takes floats
+  /// and keeps them, so a float clamp produces a colour no longer
+  /// representable as an ARGB integer, which then differs depending on which
+  /// platform computed it and cannot be compared or persisted.
+  static ({Color fill, Color hover}) _legibleOn(Color seed, Color on) {
+    var candidate = seed;
+    for (var i = 0; i < 64 && _contrast(candidate, on) < 4.5; i++) {
+      candidate = Color.fromARGB(
+        (seed.a * 255).round(),
+        (candidate.r * 0.98 * 255).round(),
+        (candidate.g * 0.98 * 255).round(),
+        (candidate.b * 0.98 * 255).round(),
+      );
+    }
+    return (
+      fill: candidate,
+      hover: Color.lerp(candidate, on, 0.10)!,
+    );
+  }
+
+  /// [primary] and [onPrimary], darkened together until the pair clears AA.
   ///
   /// The accent stays a user choice. A hardcoded `primary` would have made
   /// the accent picker dead, which the appearance settings test caught.
   ///
-  /// The pair is clamped together, and against `onPrimary` rather than
-  /// against white, because Material's tonal palettes do not agree with each
-  /// other about which end is light. A dark scheme's `primary` is a *light*
-  /// tint meant to be read as text on a dark surface, with a dark
-  /// `onPrimary`; forcing white onto that would have dropped the pair to
-  /// about 1.8:1. So the scheme's own `onPrimary` is kept and only the fill
-  /// moves, which preserves both the tonal convention and the user's hue.
+  /// The pair is clamped against `onPrimary` rather than against white,
+  /// because Material's tonal palettes do not agree with each other about
+  /// which end is light. A dark scheme's `primary` is a *light* tint meant to
+  /// be read as text on a dark surface, with a dark `onPrimary`; forcing white
+  /// onto that would have dropped the pair to about 1.8:1. So the scheme's own
+  /// `onPrimary` is kept and only the fill moves, which preserves both the
+  /// tonal convention and the user's hue.
   ///
   /// The compromise is one-directional: a very light seed comes out deeper
   /// than the user picked, and in dark mode that costs some of the vibrancy
@@ -179,16 +255,7 @@ class MoonrelaySurfaceLayers {
     Color seed,
     Color onSeed,
   ) {
-    var candidate = seed;
-    for (var i = 0; i < 64 && _contrast(candidate, onSeed) < 4.5; i++) {
-      candidate = Color.from(
-        alpha: seed.a,
-        red: seed.r * 0.98,
-        green: seed.g * 0.98,
-        blue: seed.b * 0.98,
-      );
-    }
-    return (primary: candidate, onPrimary: onSeed);
+    return (primary: _legibleOn(seed, onSeed).fill, onPrimary: onSeed);
   }
 
   /// WCAG 2.2 relative-luminance contrast ratio.

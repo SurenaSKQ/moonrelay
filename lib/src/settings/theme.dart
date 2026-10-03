@@ -201,8 +201,10 @@ class MoonrelayTheme {
     // explicitly, because a tonal derivation cannot produce a layout where
     // the rail, the room list, and the conversation are three depths of one
     // wall. See [MoonrelaySurfaceLayers].
-    final layers =
-        MoonrelaySurfaceLayers.forBrightness(brightness);
+    final layers = MoonrelaySurfaceLayers.forBrightness(
+      brightness,
+      accent: seed,
+    );
     final colorScheme =
         MoonrelaySurfaceLayers.apply(seedScheme, brightness);
     final tokens = MoonrelayDesignTokens.standard(brightness: brightness);
@@ -474,7 +476,15 @@ class MoonrelayTheme {
 
     return InputDecorationTheme(
       filled: true,
-      fillColor: cs.surfaceContainerLowest,
+      // One step below its own pane, not the bottom of the ramp.
+      //
+      // The mockup's search field is filled with the app's darkest surface,
+      // which is the rail step, sitting inside the room list one step above
+      // it. Filling from `surfaceContainerLowest` instead made it a four-step
+      // hole, which on a five-step ramp is closer to the rail's depth than to
+      // the sidebar's and so read as a gap in the pane rather than as a
+      // control in it.
+      fillColor: cs.surfaceContainerLow,
       contentPadding: EdgeInsets.symmetric(
         horizontal: t.contentPaddingH,
         vertical: t.contentPaddingV,
