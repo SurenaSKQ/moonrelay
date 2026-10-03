@@ -257,6 +257,7 @@ class MoonrelayTheme {
       navigationBarTheme:
           _navigationBarTheme(colorScheme, components.navigation),
       textSelectionTheme: _textSelectionTheme(colorScheme),
+      scrollbarTheme: _scrollbarTheme(colorScheme, tokens, layers),
 
       // Route transitions are a theme concern, not a router concern.
       // See [MoonrelayPageTransitionsBuilder].
@@ -499,6 +500,55 @@ class MoonrelayTheme {
         BorderSide(width: t.borderWidth + 0.5, color: cs.error),
       ),
       disabledBorder: border(resting),
+    );
+  }
+
+  /// The scrollbar.
+  ///
+  /// There was no `scrollbarTheme` at all, so every scroll view in the app
+  /// used Material's default: a wide, rounded, `primary`-tinted bar that
+  /// appears over the content it is describing. On this palette that reads as
+  /// an accent-coloured object lying on top of a room, which is the one thing
+  /// a scrollbar must never look like.
+  ///
+  /// The thumb is the rail step, so it reads as part of the furniture behind
+  /// the content rather than as a mark on it, and it darkens on hover instead
+  /// of tinting. Thickness is the desktop convention rather than Material's
+  /// touch-sized default, and it stays hidden until the pointer is over the
+  /// view: the mockup draws a permanent thumb, which on a room list that is
+  /// always full would mean paying eight pixels of the width for the whole
+  /// session to advertise something the user did not ask about.
+  static ScrollbarThemeData _scrollbarTheme(
+    ColorScheme cs,
+    MoonrelayDesignTokens t,
+    MoonrelaySurfaceLayers layers,
+  ) {
+    // Eight, stated rather than derived. The token scale is a border scale;
+    // stretching `borderWidthThick` by a factor to reach eight would be
+    // arithmetic dressed up as a system, and the number would be unrepresentable
+    // to anyone reading it later.
+    const thickness = 8.0;
+    final resting = cs.surfaceContainerLow;
+    return ScrollbarThemeData(
+      thickness: const WidgetStatePropertyAll(thickness),
+      radius: Radius.circular(t.radiusSm),
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.dragged)) {
+          return cs.onSurfaceVariant;
+        }
+        if (states.contains(WidgetState.hovered)) {
+          // Darker, not lighter: on hover the bar is already the most
+          // contrasty thing in the gutter, and a brighter step would be
+          // brighter than anything it is describing.
+          return Color.lerp(resting, cs.surfaceContainerLowest, 0.6);
+        }
+        return resting;
+      }),
+      trackColor: const WidgetStatePropertyAll(Colors.transparent),
+      trackVisibility: const WidgetStatePropertyAll(false),
+      // Hover-to-reveal, not always-on. See above.
+      thumbVisibility: const WidgetStatePropertyAll(false),
+      interactive: true,
     );
   }
 
