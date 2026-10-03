@@ -40,7 +40,6 @@ import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
-import 'package:moonrelay/src/widgets/room_list_filter.dart';
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_actions.dart';
@@ -83,6 +82,20 @@ MockClient _clientWithSpace() {
   when(() => space.spaceParents).thenReturn(<SpaceParent>[]);
   when(() => space.spaceChildren).thenReturn(<SpaceChild>[]);
   when(() => client.rooms).thenReturn(<Room>[space]);
+  return client;
+}
+
+/// Like [_clientWithSpace], but the client can also resolve a room by id.
+///
+/// [Client.getRoomById] is an unstubbed mock method, so it answers `null`
+/// unless it is given a `when`. The pane asks for the selected space twice,
+/// once for its heading and once for its body, so the heading test needs the
+/// lookup to work while the tests that assert the *absence* of a space leave
+/// it broken on purpose.
+MockClient _clientWithResolvableSpace() {
+  final client = _clientWithSpace();
+  final space = client.rooms.first;
+  when(() => client.getRoomById(any())).thenReturn(space);
   return client;
 }
 
@@ -165,20 +178,25 @@ void main() {
   });
 
   group('NavigationSidebar', () {
-    testWidgets('renders the account card, command palette, and the filter',
+    testWidgets('renders the account, the destination title, and both actions',
         (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
       expect(find.byType(SidebarProfilePill), findsOneWidget);
-      expect(find.byType(SidebarCommandPaletteButton), findsOneWidget);
-      // The filter replaced two rows labelled "Home" and "All", which were
-      // navigation words for what is a filter over one list.
-      expect(find.byType(RoomListFilter), findsOneWidget);
-      expect(find.text('Friends'), findsOneWidget);
-      expect(find.text('All rooms'), findsOneWidget);
-      expect(find.text('Home'), findsNothing);
+      // The palette is an icon on the title bar now, not a row of its own: it
+      // is an action rather than a destination, and it used to occupy a row
+      // between the filter and the list.
+      expect(find.byType(SidebarCommandPaletteButton), findsNothing);
+      expect(find.byTooltip('Command palette'), findsOneWidget);
+      expect(find.byTooltip('Add Room'), findsOneWidget);
+
+      // The pane names the destination the rail has selected. The Home/All
+      // toggle that used to live here is gone: the rail owns those, and two
+      // controls for one piece of state is how they end up disagreeing.
       expect(find.text('Rooms'), findsOneWidget);
+      expect(find.text('Friends'), findsNothing);
+      expect(find.text('All rooms'), findsNothing);
       // No spaces in the mock client, so the spaces section is skipped.
       expect(find.text('Spaces'), findsNothing);
     });
@@ -194,10 +212,15 @@ void main() {
       // expects it, and here it has to sit below both the spaces and the
       // rooms sections to stay put when either collapses.
       final pill = tester.getCenter(find.byType(SidebarProfilePill));
-      final roomsHeader = tester.getCenter(find.text('Rooms'));
-      final palette = tester.getCenter(find.byType(SidebarCommandPaletteButton));
+      final roomsHeader = tester.getCenter(
+        find.descendant(
+          of: find.byType(NavSectionHeader),
+          matching: find.byType(Text),
+        ),
+      );
+      final titleBar = tester.getCenter(find.byType(RoomSearchField));
       expect(pill.dy, greaterThan(roomsHeader.dy));
-      expect(pill.dy, greaterThan(palette.dy));
+      expect(pill.dy, greaterThan(titleBar.dy));
     });
 
     testWidgets('add room is a control on the rooms header, not a nav row',
@@ -205,14 +228,16 @@ void main() {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
-      // It creates something that appears in the rooms section, so it
-      // belongs on that section's header. As a third navigation row it cost
-      // a full row of vertical space in a pane that has about five rows of
-      // height to give.
+      // It is on the title bar, beside the palette, and it is the only one.
+      // It used to sit on the rooms section header as well, which put two
+      // identical plus icons within 200 pixels of each other: one that adds a
+      // room and one that looks like it might add something to the category
+      // above it. As a third navigation row it also cost a full row of height
+      // in a pane that has about five rows to give.
       expect(find.byIcon(LucideIcons.plus), findsOneWidget);
       final plus = tester.getCenter(find.byIcon(LucideIcons.plus));
-      final roomsHeader = tester.getCenter(find.text('Rooms'));
-      expect(plus.dy, closeTo(roomsHeader.dy, 1.0));
+      final search = tester.getCenter(find.byType(RoomSearchField));
+      expect(plus.dy, lessThan(search.dy));
       // It is an icon with a tooltip now, so the label is not a Text node.
       expect(find.text('Add Room'), findsNothing);
     });
@@ -229,12 +254,12 @@ void main() {
       expect(find.text('ADD_ROOM'), findsOneWidget);
     });
 
-    testWidgets('opening the command palette row pushes a palette route',
+    testWidgets('the command palette control on the title bar opens the palette',
         (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
-      await tester.tap(find.byType(SidebarCommandPaletteButton));
+      await tester.tap(find.byTooltip('Command palette'));
       await tester.pump();
       await tester.pump();
 
@@ -256,7 +281,15 @@ void main() {
           ),
         );
         await tester.pump();
-        return tester.widget<Text>(find.text('Rooms')).style!.fontSize!;
+        return tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byType(NavSectionHeader),
+                matching: find.byType(Text),
+              ),
+            )
+            .style!
+            .fontSize!;
       }
 
       final comfortable = await headerSizeAt(LayoutDensity.comfortable);
@@ -265,8 +298,11 @@ void main() {
       expect(compact, lessThan(comfortable));
       // Sized from the same setting as the rows, one step below them.
       final metrics = SidebarRowMetrics.forDensity(LayoutDensity.comfortable);
+      // A caption, not a row. It used to be sized one step below the row
+      // title because it was the same kind of label; it is now uppercase and
+      // tracked out, which is a different kind of label, and being smaller than
+      // the row title is what stops it reading as an entry in the list.
       expect(comfortable, lessThan(metrics.titleSize));
-      expect(comfortable, greaterThanOrEqualTo(metrics.titleSize - 2));
     });
 
     testWidgets('tapping the rooms header collapses the rooms section',
@@ -280,14 +316,19 @@ void main() {
       // RoomsPane renders the loading spinner before the first sync.
       expect(find.byType(RoomsPane), findsOneWidget);
 
-      await tester.tap(find.text('Rooms'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavSectionHeader),
+          matching: find.byType(Text),
+        ),
+      );
       await tester.pump();
       await tester.pump();
 
       expect(find.byType(RoomsPane), findsNothing);
       expect(settings.collapsedSidebarSections, contains('rooms'));
       // The header itself stays visible.
-      expect(find.text('Rooms'), findsOneWidget);
+      expect(find.byType(NavSectionHeader), findsOneWidget);
     });
 
     testWidgets('the spaces section is gone, and spaces live in the rail',
@@ -325,7 +366,7 @@ void main() {
       expect(find.text('Rooms'), findsOneWidget);
     });
 
-    testWidgets('a space is no longer reachable from this pane',
+testWidgets('a space is no longer reachable from this pane',
         (tester) async {
       // The counterpart to the test above: the rail owns space selection, so
       // the room pane must not offer it. Asserted here as well as in the
@@ -342,6 +383,63 @@ void main() {
 
       expect(find.text('Test Space'), findsNothing);
       expect(nav.isSpace, isFalse);
+    });
+
+    group('the title bar names the destination', () {
+      testWidgets('it says "Rooms" on the default destination', (tester) async {
+        await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
+        await tester.pump();
+
+        expect(find.text('Rooms'), findsOneWidget);
+      });
+
+      testWidgets('it says "Friends" when direct chats are selected',
+          (tester) async {
+        // The pane used to carry its own Home/All toggle and had no title at
+        // all, so it never said what it was listing. The rail now owns the
+        // choice and this bar reports it, which means the pane and the rail
+        // cannot disagree about the current destination.
+        final nav = NavigationState()..selectHome();
+        await tester.pumpWidget(_wrapSidebar(
+          const NavigationSidebar(),
+          navigationState: nav,
+        ));
+        await tester.pump();
+
+        expect(find.text('Friends'), findsOneWidget);
+        expect(find.text('Rooms'), findsNothing);
+      });
+
+      testWidgets('it says the space name when a space is selected',
+          (tester) async {
+        final nav = NavigationState()..selectSpace('!space:matrix.org');
+        await tester.pumpWidget(_wrapSidebar(
+          const NavigationSidebar(),
+          client: _clientWithResolvableSpace(),
+          navigationState: nav,
+        ));
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Test Space'), findsOneWidget);
+      });
+
+      testWidgets('it falls back to a generic name for a missing space',
+          (tester) async {
+        // A space id the client cannot resolve is a deep link to a room that
+        // was never joined, or a sync that has not landed yet. Printing an
+        // empty heading would be worse than printing a generic one.
+        final nav = NavigationState()..selectSpace('!gone:matrix.org');
+        await tester.pumpWidget(_wrapSidebar(
+          const NavigationSidebar(),
+          client: _clientWithSpace(),
+          navigationState: nav,
+        ));
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Spaces'), findsOneWidget);
+      });
     });
   });
 
@@ -452,11 +550,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // The very same widget, with its full structure: the profile pill,
-      // the command palette, and both collapsible section headers.
+// The very same widget, with its full structure: the profile pill, the
+      // title bar, and both collapsible section headers.
       expect(find.byType(NavigationSidebar), findsOneWidget);
       expect(find.byType(SidebarProfilePill), findsOneWidget);
-      expect(find.byType(SidebarCommandPaletteButton), findsOneWidget);
+      expect(find.byTooltip('Command palette'), findsOneWidget);
       expect(find.byType(NavSectionHeader), findsOneWidget);
       expect(find.byType(RoomSearchField), findsOneWidget);
       // Spaces are asserted absent because this pane used to carry them, and
@@ -849,3 +947,9 @@ void main() {
     });
   });
 }
+
+
+
+
+
+

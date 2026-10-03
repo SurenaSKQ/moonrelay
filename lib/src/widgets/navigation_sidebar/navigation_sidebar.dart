@@ -29,9 +29,8 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
-import 'package:moonrelay/src/widgets/room_list_filter.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
-import 'package:moonrelay/src/widgets/sidebar_actions.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 
@@ -183,28 +182,26 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Search first, then the filter, then the rooms. The search
-              // field used to live on its own page behind a `Ctrl+K`, which
-              // means a user who does not know the shortcut has no way to
-              // filter the list they are looking at.
+              // Title bar, then filter, then the rooms.
               //
-              // The command palette button sits directly under it rather than
-              // above it, because search filters the list you are looking at
-              // and the palette jumps somewhere else entirely. The control
-              // that narrows the current view belongs nearer the top.
+              // The title bar names the destination the rail has selected. The
+              // room pane used to carry a two-way Home/All toggle of its own,
+              // which is now gone: the rail owns those two destinations, and
+              // two controls for one piece of state is how they end up
+              // disagreeing about which one is current.
+              //
+              // The command palette used to be a full-width row of its own
+              // here. It is an action rather than a destination, so it belongs
+              // on the title bar with the other actions instead of occupying a
+              // row between the filter and the list.
+              _buildTitleBar(scheme, l10n),
               const RoomSearchField(),
-              Divider(height: 1, color: layers.hairline),
-              _buildHeader(scheme),
-              Divider(height: 1, color: layers.hairline),
-              _buildNavRows(scheme),
               Divider(height: 1, color: layers.hairline),
               NavSectionHeader(
                 label: roomsTitle,
                 collapsed: roomsCollapsed,
                 onTap: () => settings.setSidebarSectionCollapsed(
                     _roomsSectionId, !roomsCollapsed),
-                action: _addRoomButton(l10n),
-                actionTooltip: l10n.addRoom,
               ),
               if (!roomsCollapsed) Expanded(child: roomsBody),
               // The account is at the bottom, pinned, which is where every
@@ -218,6 +215,92 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
         );
       },
     );
+  }
+
+  /// The pane's title bar: what is being listed, and the two things you can do
+  /// that are not rooms.
+  ///
+  /// On the darker rail step with a hairline under it, which is the mockup's
+  /// arrangement and the reason it works: the bar is furniture rather than
+  /// content, and reading it as furniture is what tells the eye the list below
+  /// is the part that scrolls.
+  Widget _buildTitleBar(ColorScheme scheme, AppLocalizations l10n) {
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final nav = context.watch<NavigationState>();
+    final title = _destinationTitle(nav, l10n);
+
+    return Container(
+      color: scheme.surfaceContainerLow,
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                // The largest text in this pane. It names the thing the whole
+                // column is about, so it is set at header weight rather than
+                // at row weight.
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+                color: scheme.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Icon-sized rather than a full-width row, so the bar stays a bar.
+          // `tooltip` is still the accessible name, which is why this is not
+          // simply an `IconButton` around the old widget.
+          Tooltip(
+            message: l10n.commandPalette,
+            excludeFromSemantics: true,
+            child: Semantics(
+              container: true,
+              button: true,
+              label: l10n.commandPalette,
+              child: InkResponse(
+                onTap: () => showCommandPalette(context),
+                radius: 18,
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Icon(
+                    LucideIcons.search,
+                    size: t.iconSizeMedium,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: t.spaceXxs),
+          _addRoomButton(l10n),
+        ],
+      ),
+    );
+  }
+
+  /// What the pane is currently listing.
+  ///
+  /// A space's own name when one is selected, so the bar is the same shape of
+  /// statement whichever destination is active.
+  String _destinationTitle(NavigationState nav, AppLocalizations l10n) {
+    if (!nav.isSpace) {
+      return nav.isHome ? l10n.friends : l10n.rooms;
+    }
+    try {
+      final client = Provider.of<Client>(context, listen: false);
+      final space = client.getRoomById(nav.selectedId);
+      if (space != null) return space.getLocalizedDisplayname();
+    } catch (_) {
+      // No client during the logout transition. The generic title is the
+      // honest answer: there is no space name to show because there is no
+      // client to ask.
+    }
+    return l10n.spaces;
   }
 
   /// The `+` on the rooms section header.
@@ -235,35 +318,6 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
         constraints: const BoxConstraints.tightFor(width: 22, height: 22),
         onPressed: () => context.push('/main/addroom'),
       ),
-    );
-  }
-
-  /// The Friends / All-rooms filter.
-  ///
-  /// The only controls in this pane that are not rows.  These two are two
-  /// views of one list, and drawing them as rows in a list of places is what
-  /// made "Home" sound like somewhere to go rather than a narrower list.
-  Widget _buildNavRows(ColorScheme scheme) {
-    return ColoredBox(
-      color: scheme.surfaceContainerLow,
-      child: const RoomListFilter(),
-    );
-  }
-
-  /// The command palette row.
-  ///
-  /// No layout-mode control here, and no account row either. The layout mode
-  /// lives in the hub's Layout settings and nowhere else, and the account
-  /// moved to the footer. Both used to be duplicated into the sidebar and the
-  /// single-pane shell's "You" destination as escape hatches, because at the
-  /// time the hub was a modal overlay the single-pane shell could not reach;
-  /// now the hub is a route, so one home is enough and two copies only invite
-  /// them to disagree.
-  Widget _buildHeader(ColorScheme scheme) {
-    return Container(
-      color: scheme.surfaceContainerLow,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      child: const SidebarCommandPaletteButton(),
     );
   }
 
@@ -340,3 +394,4 @@ class _SidebarFooter extends StatelessWidget {
 // Context menu: long-press / right-click opens the menu; the row itself
 // owns the plain tap (see [_SpaceRow]).
 // ===========================================================================
+

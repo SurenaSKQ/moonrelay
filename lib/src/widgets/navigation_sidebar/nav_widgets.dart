@@ -29,24 +29,11 @@ class NavSectionHeader extends StatelessWidget {
     required this.label,
     required this.collapsed,
     required this.onTap,
-    this.action,
-    this.actionTooltip,
   });
 
   final String label;
   final bool collapsed;
   final VoidCallback onTap;
-
-  /// Optional control at the trailing end, before the collapse chevron.
-  ///
-  /// Exists so a section can own its own "add" affordance. "Add room" used
-  /// to be a full-width navigation row above the sections, which cost a
-  /// row's worth of vertical space in a pane that has roughly five of them
-  /// to give, and put an action that creates a room in the same list as the
-  /// two places you go to find rooms.
-  final Widget? action;
-
-  final String? actionTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -57,13 +44,24 @@ class NavSectionHeader extends StatelessWidget {
     // setting entirely, so the labels sat at a fixed size between rows that
     // moved. They are the pane's wayfinding, so they get the same setting
     // as the rows they head, one step below them rather than a constant.
+    //
+    // Uppercase and tracked out, at a smaller size than the rows. It reads as
+    // a caption on the list rather than as another entry in it, which is the
+    // whole job: the room rows are the content and this is the label for a
+    // run of them.
     final density = context.select<SettingsController, LayoutDensity>(
       (s) => s.density,
     );
     final comfortable = density == LayoutDensity.comfortable;
-    final labelSize = comfortable ? 13.0 : 11.5;
+    final labelSize = comfortable ? 12.0 : 11.0;
     return Container(
-      color: scheme.surfaceContainerHighest,
+      // No fill. This used to be a lighter band, which on the restated ramp is
+      // a full step above the pane and read as a section *divider* rather than
+      // as a caption on the list. The mockup's category is text alone, and it
+      // is right: one plane with a label in it is easier to scan than a stack
+      // of bands, and the rows' own hover and selection are the only fills the
+      // list needs.
+      color: Colors.transparent,
       padding: EdgeInsets.symmetric(
         horizontal: comfortable ? 14 : 12,
         vertical: comfortable ? 8 : 5,
@@ -74,10 +72,11 @@ class NavSectionHeader extends StatelessWidget {
             child: InkWell(
               onTap: onTap,
               child: Text(
-                label,
+                label.toUpperCase(),
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: labelSize,
+                  letterSpacing: 0.5,
                   color: scheme.onSurfaceVariant,
                 ),
                 maxLines: 1,
@@ -85,13 +84,6 @@ class NavSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (action != null) ...[
-            if (actionTooltip != null)
-              Tooltip(message: actionTooltip!, child: action!)
-            else
-              action!,
-            const SizedBox(width: 4),
-          ],
           InkWell(
             onTap: onTap,
             child: Icon(
