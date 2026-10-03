@@ -28,10 +28,6 @@ import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/theme/presence_colors.dart';
 
-/// How long the hover lift takes. Short enough to feel like the pointer
-/// arriving and not like an animation being performed.
-const Duration _kHoverDuration = Duration(milliseconds: 140);
-
 /// The signed-in account, pinned to the foot of the navigation sidebar.
 ///
 /// Two lines: the display name and a presence status.
@@ -60,17 +56,19 @@ class SidebarProfilePill extends StatefulWidget {
 class _SidebarProfilePillState extends State<SidebarProfilePill> {
   Profile? _profile;
   bool _loading = true;
-  bool _hovered = false;
 
   /// The account's own presence, as last reported by [PresenceBus].
   CachedPresence? _presence;
   ValueListenable<CachedPresence?>? _presenceListen;
   VoidCallback? _presenceCallback;
 
-  /// Avatar diameter. A multiple of the 2px ring, so the ring lands on whole
-  /// pixels: on an odd diameter it straddles a half pixel and goes soft on
-  /// one side, which is the whole reason the ring exists.
-  static const double _kAvatarDiameter = 36;
+  /// Avatar diameter.
+  static const double _kAvatarDiameter = 32;
+
+  /// The presence dot's diameter, and the width of the ring that separates it
+  /// from the avatar.
+  static const double _kDotDiameter = 12;
+  static const double _kDotRing = 2;
 
   @override
   void initState() {
@@ -192,81 +190,87 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
     return Semantics(
       button: true,
       label: l10n.myProfile,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Material(
-          color: scheme.surface,
-          child: InkWell(
-            // `push`, so the hub covers the window and the chat it was
-            // opened from is still underneath when the hub's back button
-            // is used. This replaces a modal overlay that existed for
-            // exactly that reason.
-            onTap: () => context.push(hubPath()),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: t.spaceSm,
-                vertical: t.spaceSm,
-              ),
-              child: Row(
-                children: [
-                  _AccountAvatar(
-                    diameter: _kAvatarDiameter,
-                    loading: _loading,
-                    profile: _profile,
-                    presenceTint: _presenceTint(scheme),
-                  ),
-                  SizedBox(width: t.spaceSm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            // One step above a sidebar row's title. This is
-                            // the app's own name for you, and it is the
-                            // largest text in this pane.
-                            fontSize: 15,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.1,
-                            color: scheme.onSurface,
-                          ),
+      child: Material(
+        // The rail step, not the app floor.
+        //
+        // The band sits at the bottom of a pane that is one step lighter, so
+        // making it darker again read as a separate surface dropped in rather
+        // than as the base the list stands on. The rail step is also what the
+        // search field is filled with, which is what makes the footer's
+        // presence dot ringable in a colour that is already in the pane.
+        color: scheme.surfaceContainerLow,
+        child: InkWell(
+          // `push`, so the hub covers the window and the chat it was
+          // opened from is still underneath when the hub's back button
+          // is used. This replaces a modal overlay that existed for
+          // exactly that reason.
+          onTap: () => context.push(hubPath()),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: t.spaceSm,
+              vertical: t.spaceSm,
+            ),
+            child: Row(
+              children: [
+                _AccountAvatar(
+                  diameter: _kAvatarDiameter,
+                  loading: _loading,
+                  profile: _profile,
+                  presenceTint: _presenceTint(scheme),
+                  bandColour: scheme.surfaceContainerLow,
+                  dotDiameter: _kDotDiameter,
+                  dotRing: _kDotRing,
+                ),
+                SizedBox(width: t.spaceSm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          // One step above the status line, and a step below
+                          // the title bar's heading. This is the app's own
+                          // name for you and it is not the subject of the
+                          // pane, so it does not get the heading's weight.
+                          fontSize: 13,
+                          height: 1.2,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          presenceLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            height: 1.3,
-                            fontWeight: FontWeight.w400,
-                            color: _presenceTextColor(scheme),
-                          ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        presenceLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          fontWeight: FontWeight.w400,
+                          color: _presenceTextColor(scheme),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: t.spaceXs),
-                  // Says where this goes without spending a row on it, and
-                  // answers the pointer so the whole row looks live.
-                  AnimatedOpacity(
-                    opacity: _hovered ? 1.0 : t.opacitySubtle,
-                    duration: _kHoverDuration,
-                    child: Icon(
-                      LucideIcons.settings,
-                      size: t.iconSizeSmall,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(width: t.spaceXs),
+                // Always visible rather than revealed on hover.
+                //
+                // The row is clickable, so a control that only exists while
+                // the pointer is over it is a control that appears to be
+                // missing from the row it belongs to. It is also the only
+                // route to the hub from here, and the hub is a route rather
+                // than a menu, so there is nothing to be surprised by.
+                Icon(
+                  LucideIcons.settings,
+                  size: 20,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ],
             ),
           ),
         ),
@@ -312,27 +316,48 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
   }
 }
 
-/// The avatar, ringed in the footer's own colour so it reads as inset, with
-/// a presence dot.
+/// The avatar, with a presence dot at its lower right.
 ///
-/// Without the ring the avatar and the band behind it share an edge and the
-/// two merge into one flat rectangle, which is the specific problem with a
-/// flat design language: nothing states which element is on top of which.
+/// ## A dot, not a ring
+///
+/// This used to tint a two-pixel ring *around* the whole avatar with the
+/// presence colour. A ring that large stops being a marker and becomes part of
+/// the avatar: at thirty-six pixels it is a fifth of the diameter, so a
+/// thirty-two pixel avatar inside a coloured ring reads as a badge with a person
+/// in it rather than as a person's avatar. It also announced presence twice,
+/// once as the ring colour and once as the status line, with nothing tying the
+/// two together.
+///
+/// A small dot at the corner is the convention every other client uses and it
+/// survives being small: it says "this account, and this is its state" without
+/// competing with the picture. The dot's fill and the status line's colour both
+/// come from [PresenceColors], so they cannot disagree.
 class _AccountAvatar extends StatelessWidget {
   const _AccountAvatar({
     required this.diameter,
     required this.loading,
     required this.profile,
     required this.presenceTint,
+    required this.bandColour,
+    required this.dotDiameter,
+    required this.dotRing,
   });
 
   final double diameter;
   final bool loading;
   final Profile? profile;
 
-  /// Ring colour. Doubles as the presence signal: the ring is tinted with the
-  /// account's presence colour, so the dot and the ring cannot disagree.
+  /// Dot fill, taken from the account's presence.
   final Color presenceTint;
+
+  /// The footer's own background.
+  ///
+  /// The dot is ringed in it so the dot reads as sitting on top of the avatar
+  /// rather than as being clipped by the avatar's own edge.
+  final Color bandColour;
+
+  final double dotDiameter;
+  final double dotRing;
 
   @override
   Widget build(BuildContext context) {
@@ -350,14 +375,38 @@ class _AccountAvatar extends StatelessWidget {
       inner = _initialsAvatar(context, scheme);
     }
 
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: presenceTint, width: 2),
+    // One ring of extra room on the trailing and bottom edges, so the dot can
+    // overhang without the avatar being pushed off the row's padding.
+    return SizedBox(
+      width: diameter + dotRing,
+      height: diameter + dotRing,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          PositionedDirectional(
+            start: 0,
+            top: 0,
+            child: SizedBox(
+              width: diameter,
+              height: diameter,
+              child: ClipOval(child: inner),
+            ),
+          ),
+          PositionedDirectional(
+            bottom: 0,
+            end: 0,
+            child: Container(
+              width: dotDiameter,
+              height: dotDiameter,
+              decoration: BoxDecoration(
+                color: presenceTint,
+                shape: BoxShape.circle,
+                border: Border.all(color: bandColour, width: dotRing),
+              ),
+            ),
+          ),
+        ],
       ),
-      child: ClipOval(child: inner),
     );
   }
 

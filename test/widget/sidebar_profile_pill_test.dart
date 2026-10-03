@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -132,10 +133,13 @@ void main() {
       );
     });
 
-    testWidgets('sits on the app floor, darker than the pane above it',
+    testWidgets('sits on the rail step, darker than the pane above it',
         (tester) async {
-      // The depth step that replaced the shadow: the footer is `surface` and
-      // the room list above it is `surfaceContainer`.
+      // The depth step that replaced the shadow. It used to be the app floor,
+      // which is darker again and read as a separate surface dropped in
+      // rather than as the base the room list stands on. The rail step is also
+      // what the search field is filled with, which is what gives the presence
+      // dot a ring colour that is already in the pane.
       await pump(tester, clientWith('@alice:example.org'));
       final scheme = Theme.of(
         tester.element(find.byType(SidebarProfilePill)),
@@ -145,7 +149,68 @@ void main() {
           .map((m) => m.color)
           .whereType<Color>()
           .toList();
-      expect(material, contains(scheme.surface));
+      expect(material, contains(scheme.surfaceContainerLow));
+    });
+
+    testWidgets('presence is a dot, not a ring around the avatar',
+        (tester) async {
+      // A two-pixel ring around a thirty-two pixel avatar is a fifth of its
+      // diameter, so the avatar reads as a badge with a person in it rather
+      // than as a person's avatar, and presence is announced twice with nothing
+      // tying the ring to the status line.
+      await pump(tester, clientWith('@alice:example.org'));
+
+final circles = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(SidebarProfilePill),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.shape == BoxShape.circle);
+
+      // Filtered on the border, because `CircleAvatar` builds its own circular
+      // `Container` and would otherwise be counted. The border is exactly what
+      // distinguishes the dot: an avatar's ring was one too, so counting
+      // bordered circles is counting the two states this test is about.
+      final rings = circles.where((d) => d.border != null);
+      expect(rings, hasLength(1), reason: 'a ring around the avatar would make two');
+
+      final dot = rings.single;
+      expect(dot.color, isNotNull, reason: 'the dot carries the presence');
+      // And that ring is the band's own colour, which is what makes the dot
+      // read as sitting on top of the avatar instead of clipped by it.
+      expect(
+        dot.border!.top.color,
+        Theme.of(tester.element(find.byType(SidebarProfilePill)))
+            .colorScheme
+            .surfaceContainerLow,
+      );
+    });
+
+    testWidgets('the settings affordance is visible without hovering',
+        (tester) async {
+      // It used to fade in on hover, which made a control that is the only
+      // route to the hub appear to be missing from the row it belongs to.
+      await pump(tester, clientWith('@alice:example.org'));
+      expect(
+        find.descendant(
+          of: find.byType(SidebarProfilePill),
+          matching: find.byIcon(LucideIcons.settings),
+        ),
+        findsOneWidget,
+      );
+      // No AnimatedOpacity wrapping it any more, which is the direct evidence
+      // that nothing is gating it on a hover.
+      expect(
+        find.descendant(
+          of: find.byType(SidebarProfilePill),
+          matching: find.byType(AnimatedOpacity),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('tapping it opens the hub', (tester) async {
