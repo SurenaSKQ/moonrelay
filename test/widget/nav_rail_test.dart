@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:matrix/src/utils/space_child.dart'
     show SpaceChild, SpaceParent;
@@ -24,6 +26,7 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
@@ -40,6 +43,22 @@ import '../helpers/widget_test_utils.dart';
 /// `find.bySemanticsLabel`, because that finder reads the composed semantics
 /// tree and merges a [Tooltip]'s own node with the label below it. What
 /// matters is the label the widget was told to publish.
+/// The tile publishing [label].
+///
+/// Matches the [Semantics] *widget* rather than using
+/// `find.bySemanticsLabel`, which reads the composed tree and misses a node
+/// that has merged upward. Same reason as [_labelsOf].
+Finder _tileLabelled(String label) =>
+    find.byWidgetPredicate((w) => w is Semantics && w.properties.label == label);
+
+/// The tile's filled box, found by walking out from its label.
+///
+/// Descendant, not ancestor: the label's [Semantics] wraps the `InkResponse`
+/// that wraps the animated box, so the box is below it.
+Finder _tileBox(String label) => find
+    .descendant(of: _tileLabelled(label), matching: find.byType(AnimatedContainer))
+    .first;
+
 Set<String> _labelsOf(WidgetTester tester) => tester
     .widgetList<Semantics>(find.byType(Semantics))
     .map((s) => s.properties.label)
@@ -66,6 +85,28 @@ MockRoom _space(String id, {String name = 'Test Space'}) {
 /// the collapse, the ungroup, or the reorder do anything. Going through the
 /// host is also the only way to catch a host that stopped watching
 /// [SpacePreferences], which is how grouping became invisible once already.
+  /// The rail's accent fill, for asserting that a state is lit.
+Color _railActive(WidgetTester tester) =>
+  Theme.of(tester.element(find.byType(SpacesRail).first))
+      .moonrelay
+      .layers
+      .railActive;
+
+/// The fill of the tile carrying [label].
+///
+/// Reads the nearest enclosing `AnimatedContainer`'s decoration, which is
+/// where the fill lives, rather than asserting on pixels. The tile is
+/// private, so this is the closest a test can get without exporting it.
+Color _tileFill(WidgetTester tester, String label) {
+    final box = tester.widget<AnimatedContainer>(_tileBox(label));
+    return (box.decoration! as BoxDecoration).color!;
+  }
+Client _clientWith(List<Room> spaces) {
+  final client = MockClient();
+  when(() => client.rooms).thenReturn(spaces);
+  return client;
+}
+
 Widget _rail({
   required List<Room> spaces,
   String? selectedId,
@@ -73,8 +114,7 @@ Widget _rail({
   SpacePreferences? spacePreferences,
   Client? client,
 }) {
-  final activeClient = client ?? MockClient();
-  when(() => activeClient.rooms).thenReturn(spaces);
+  final activeClient = client ?? _clientWith(spaces);
   final nav = NavigationState();
   if (isSpaceSelected && selectedId != null) nav.selectSpace(selectedId);
   return wrapWithProviders(
@@ -129,6 +169,11 @@ void main() {
       // `selectedId` and `isSpaceSelected` are separate on purpose: the id is
       // null both when nothing is selected and when the selection is a chat,
       // and the rail must not light up a space in the second case.
+      //
+      // Asserted against the space's own name rather than against "nothing is
+      // selected". The rail now carries the two built-in destinations above a
+      // divider, and one of them is always selected, so the old form of this
+      // assertion passed only because the rail did not exist yet.
       await tester.pumpWidget(
         _rail(
           spaces: [_space('!s1:matrix.org')],
@@ -138,12 +183,12 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        tester
-            .widgetList<Semantics>(find.byType(Semantics))
-            .where((s) => s.properties.selected == true),
-        isEmpty,
-      );
+      final selected = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((s) => s.properties.selected == true)
+          .map((s) => s.properties.label)
+          .toList();
+      expect(selected, isNot(contains('Test Space')));
     });
 
     testWidgets('renders one icon per space', (tester) async {
@@ -383,6 +428,137 @@ void main() {
     });
   });
 
+  group('the built-in destinations', () {
+    testWidgets('Home and All Rooms are in the rail and named', (tester) async {
+      await tester.pumpWidget(_rail(spaces: [_space('!s1:matrix.org')]));
+      await tester.pump();
+
+      // They used to be reachable only from a two-way toggle inside the room
+      // pane. They are the two things a user opens the app to choose between,
+      // and a rail that lists spaces without them makes both of them feel like
+      // settings.
+      final labels = _labelsOf(tester);
+      expect(labels, contains('Friends'));
+      expect(labels, contains('Rooms'));
+    });
+
+    testWidgets('they sit above the spaces, not among them', (tester) async {
+      // A destination below the user's own spaces reads as another space, and
+      // scrolls away with them.
+      await tester.pumpWidget(_rail(spaces: [_space('!s1:matrix.org')]));
+      await tester.pump();
+
+      final friends = tester.getTopLeft(_tileLabelled('Friends')).dy;
+      final space = tester.getTopLeft(_tileLabelled('Test Space')).dy;
+      expect(friends, lessThan(space));
+    });
+
+    testWidgets('exactly one destination is lit at a time', (tester) async {
+      await tester.pumpWidget(
+        _rail(
+          spaces: [_space('!s1:matrix.org')],
+          selectedId: '!s1:matrix.org',
+          isSpaceSelected: true,
+        ),
+      );
+      await tester.pump();
+
+      // Picking a space has to clear the built-in destinations. If it did not,
+      // the rail would show three selected tiles and mean nothing.
+      final selected = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((s) => s.properties.selected == true)
+          .map((s) => s.properties.label)
+          .toList();
+      expect(selected, ['Test Space']);
+    });
+
+    testWidgets('the default destination is All Rooms, and it is lit',
+        (tester) async {
+      await tester.pumpWidget(_rail(spaces: [_space('!s1:matrix.org')]));
+      await tester.pump();
+
+      // `NavigationState` opens on "every room", so the rail has to say so. A
+      // rail that showed nothing lit on a cold start left the user unable to
+      // tell which of the three lists they were looking at.
+      final selected = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((s) => s.properties.selected == true)
+          .map((s) => s.properties.label)
+          .toList();
+      expect(selected, ['Rooms']);
+    });
+
+    testWidgets('tapping Home switches the destination and leaves any space',
+        (tester) async {
+      final nav = NavigationState();
+
+      // A real router, because the tile navigates as well as switching. It has
+      // to: switching the destination while a space home page is on screen
+      // would change the filter behind a page the user cannot see.
+      final router = GoRouter(
+        initialLocation: '/main/rooms',
+        routes: [
+          GoRoute(
+            path: '/main/rooms',
+            builder: (_, __) => const Scaffold(body: SpacesRailHost()),
+          ),
+          GoRoute(
+            path: '/main/space/:id',
+            builder: (_, __) => const Scaffold(body: SpacesRailHost()),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) => wrapWithProviders(
+            client: _clientWith([_space('!s1:matrix.org')]),
+            child: child!,
+            navigationState: nav,
+            spacePreferences: SpacePreferences(SettingsService()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(nav.isAll, isTrue);
+
+      await tester.tap(_tileLabelled('Friends'));
+      await tester.pump();
+
+      expect(nav.isHome, isTrue);
+      expect(nav.isAll, isFalse);
+    });
+  });
+
+  group('hover is the accent, not a grey wash', () {
+    testWidgets('a hovered tile fills with the rail accent', (tester) async {
+      await tester.pumpWidget(_rail(spaces: [_space('!s1:matrix.org')]));
+      await tester.pump();
+
+      final rail = _railActive(tester);
+      expect(_tileFill(tester, 'Test Space'), isNot(rail));
+
+      // A mouse gesture rather than a bare event: a `PointerHoverEvent` sent to
+      // the binding is never hit-tested, so nothing dispatches an enter to the
+      // `MouseRegion` and the test would pass against a widget that does not
+      // react to hover at all.
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(
+        location: tester.getCenter(_tileLabelled('Test Space')),
+      );
+      await tester.pump();
+      await tester.pump(MoonrelayDesignTokens.standard().durationFast);
+
+      // The old behaviour was a neutral wash one step off the resting fill, so
+      // hovering told the user nothing about whether the tile was reachable.
+      expect(_tileFill(tester, 'Test Space'), rail);
+      await mouse.removePointer();
+    });
+  });
+
   group('RoomSearchQuery', () {
     test('clear empties both the notifier and the controller', () {
       // The two have to agree. A field that still shows text while the list
@@ -396,3 +572,6 @@ void main() {
     });
   });
 }
+
+
+

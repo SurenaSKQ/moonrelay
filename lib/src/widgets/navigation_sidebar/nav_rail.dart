@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -23,6 +25,7 @@ import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
@@ -76,6 +79,16 @@ class SpacesRailHost extends StatelessWidget {
       items: items,
       selectedId: nav.isSpace ? nav.selectedId : null,
       isSpaceSelected: nav.isSpace,
+      isHomeSelected: nav.isHome,
+      isAllSelected: nav.isAll,
+      onSelectHome: () {
+        nav.selectHome();
+        context.go(MoonRoutePaths.roomListTemplate);
+      },
+      onSelectAll: () {
+        nav.selectAll();
+        context.go(MoonRoutePaths.roomListTemplate);
+      },
       onSelect: (space) {
         // Selecting a space both marks it in the rail and opens its home
         // page. `push` rather than `go` so returning from a space lands back
@@ -103,14 +116,15 @@ class SpacesRailHost extends StatelessWidget {
 /// room list the mid tone, so reading order runs dark to light left to right
 /// and the eye lands on the conversation.
 ///
-/// ## Groups
+/// ## Where "Home" and "All Rooms" live
 ///
-/// Groups are drawn, not flattened. The first version of this rail flattened
-/// them, on the reasoning that a 72px column has no room for a group box.
-/// That was half right: there is no room for the *box*, and there is room
-/// for what the box was doing. A group's membership is a vertical rule beside
-/// its icons and a header above them, which together cost two pixels of width
-/// and no horizontal space at all. [RailGroupHeader] has the reasoning.
+/// The mockup puts them at the top of the rail, above a divider, and so does
+/// this. They used to be reachable only from a two-way toggle inside the room
+/// pane, which is the wrong place for them twice over: they choose *what the
+/// room pane lists*, so they belong beside the things that change the room
+/// pane rather than inside it, and a toggle cannot show which of the three
+/// destinations is current while the list below it is showing a space's
+/// rooms. In the rail they are peers of the spaces, which is what they are.
 ///
 /// ## The morph
 ///
@@ -126,6 +140,10 @@ class SpacesRail extends StatefulWidget {
     required this.items,
     required this.selectedId,
     required this.isSpaceSelected,
+    required this.isHomeSelected,
+    required this.isAllSelected,
+    required this.onSelectHome,
+    required this.onSelectAll,
     required this.onSelect,
     required this.onCreateSpace,
   });
@@ -145,6 +163,14 @@ class SpacesRail extends StatefulWidget {
   /// rail needs to tell those apart to decide whether to show an indicator.
   final bool isSpaceSelected;
 
+  /// Whether the room pane is listing direct chats.
+  final bool isHomeSelected;
+
+  /// Whether the room pane is listing every room.
+  final bool isAllSelected;
+
+  final VoidCallback onSelectHome;
+  final VoidCallback onSelectAll;
   final void Function(Room space) onSelect;
   final VoidCallback onCreateSpace;
 
@@ -166,6 +192,7 @@ class _SpacesRailState extends State<SpacesRail> {
     final ext = theme.moonrelay;
     final t = ext.tokens;
     final layers = ext.layers;
+    final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final motion = Motion.of(context);
 
@@ -185,6 +212,46 @@ class _SpacesRailState extends State<SpacesRail> {
         width: MoonrelayDesignTokens.navRailWidth,
         child: Column(
           children: [
+            Padding(
+              padding: EdgeInsets.only(top: t.spaceSm),
+              child: Column(
+                children: [
+                  _RailDestinationIcon(
+                    icon: LucideIcons.house,
+                    tooltip: l10n.friends,
+                    selected: widget.isHomeSelected,
+                    onTap: widget.onSelectHome,
+                    motion: motion,
+                    railActive: layers.railActive,
+                  ),
+                  _RailDestinationIcon(
+                    icon: LucideIcons.messagesSquare,
+                    tooltip: l10n.rooms,
+                    selected: widget.isAllSelected,
+                    onTap: widget.onSelectAll,
+                    motion: motion,
+                    railActive: layers.railActive,
+                  ),
+                  // The one rule in the rail. It separates the two built-in
+                  // destinations, which exist on every account, from the
+                  // user's own spaces, which are the part that varies and the
+                  // part that scrolls. Without it the two read as one list
+                  // that happens to start with two fixed entries.
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: t.spaceXs),
+                    child: Container(
+                      width: MoonrelayDesignTokens.spaceIconSize * 0.66,
+                      height: t.borderWidthMedium * 2,
+                      decoration: BoxDecoration(
+                        color: scheme.onSurface
+                            .withValues(alpha: t.opacitySubtle),
+                        borderRadius: BorderRadius.circular(t.radiusFull),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: ListView.builder(
                 padding: EdgeInsets.symmetric(vertical: t.spaceSm),
@@ -279,6 +346,7 @@ class _SpacesRailState extends State<SpacesRail> {
       tooltip: _tooltipFor(space),
       motion: Motion.of(context),
       railActive: theme.moonrelay.layers.railActive,
+      size: MoonrelayDesignTokens.spaceIconSize,
     );
 
     icon = DraggableIcon(
@@ -383,61 +451,93 @@ class _SpacesRailState extends State<SpacesRail> {
   }
 }
 
-/// One space in the rail: an avatar that morphs between a circle and a
-/// rounded square, plus the leading indicator for the selected one.
-class _RailSpaceIcon extends StatefulWidget {
-  const _RailSpaceIcon({
-    required this.client,
-    required this.space,
+/// The behaviour every tile in the rail shares: hover, selection, the morph,
+/// and the leading indicator.
+///
+/// This was inline in [_RailSpaceIcon] and is now here because the rail grew a
+/// second kind of tile. Home and All Rooms have to look and feel like the
+/// spaces next to them or the column reads as two widgets that happen to be
+/// adjacent, and the cheapest way to guarantee that is to make it impossible
+/// for them to differ.
+///
+/// ## Hover is the accent, not a grey wash
+///
+/// Hovering fills the tile with the accent and turns the glyph white, the same
+/// as selection. It used to be the neutral hover step instead, on the theory
+/// that a neutral preview is calmer. The result is that hovering told you
+/// nothing about whether the thing was reachable: it looked like the same
+/// slightly-lighter disc that an unselected tile already was, forty-eight
+/// pixels of affordance spent on no information. Filling with the accent also
+/// means the selected state is a *continuation* of hover rather than a
+/// different kind of state, which is what makes the pair learnable.
+class _RailTile extends StatefulWidget {
+  const _RailTile({
     required this.selected,
     required this.onTap,
     required this.tooltip,
     required this.motion,
     required this.railActive,
+    required this.size,
+    required this.child,
   });
 
-  final Client client;
-  final Room space;
   final bool selected;
   final VoidCallback onTap;
   final String tooltip;
   final Motion motion;
+
+  /// The accent this tile's rail is currently using. Passed in rather than
+  /// read from the theme extension because the drag feedback and the grouped
+  /// variants need to agree with the tile they are overlaying.
   final Color railActive;
 
+  /// Tile edge length. Grouped spaces are smaller than standalone ones, and
+  /// the indicator has to scale with the tile rather than sit at a fixed
+  /// height, or it looks detached from a 40px icon.
+  final double size;
+
+  final Widget child;
+
   @override
-  State<_RailSpaceIcon> createState() => _RailSpaceIconState();
+  State<_RailTile> createState() => _RailTileState();
 }
 
-class _RailSpaceIconState extends State<_RailSpaceIcon> {
+class _RailTileState extends State<_RailTile> {
   bool _hovered = false;
 
-  /// At rest a circle; hovered or selected, a rounded square.
+  /// Whether the tile is drawn in its accent state.
   ///
-  /// Sixteen is half of the icon, which makes it a disc, and a touch under
-  /// half is what makes the corners read. The transition is the micro-
-  /// interaction the shape change is there to justify.
+  /// Selection wins over hover, matching the mockup: hovering the tile you are
+  /// already on should not flicker it to a preview state.
+  bool get _lit => widget.selected || _hovered;
+
+  /// At rest a circle; lit, a rounded square.
+  ///
+  /// A third of the tile for selection and a quarter for hover. The gap is
+  /// deliberate: the shape is the signal that says *this is the current
+  /// destination*, and a hover that reaches the same radius would be claiming
+  /// the same thing.
   BorderRadius get _radius {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    if (widget.selected) {
-      return BorderRadius.circular(MoonrelayDesignTokens.spaceIconSize * 0.33);
-    }
-    if (_hovered) {
-      return BorderRadius.circular(MoonrelayDesignTokens.spaceIconSize * 0.25);
-    }
-    return BorderRadius.circular(t.radiusFull);
+    final fraction = widget.selected ? 0.33 : 0.25;
+    return BorderRadius.circular(widget.size * fraction);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ext = theme.moonrelay;
-    final t = ext.tokens;
-    final layers = ext.layers;
+    final t = theme.moonrelay.tokens;
     final scheme = theme.colorScheme;
 
-    // The indicator sits outside the icon's own box, hanging off the rail's
-    // leading edge. Putting it inside would need the icon to shrink, and the
-    // icon is already the only thing identifying the space.
+    // The indicator sits outside the tile's own box, hanging off the rail's
+    // leading edge. Putting it inside would need the tile to shrink, and the
+    // tile is already the only thing identifying the space.
+    //
+    // Height carries the same signal as fill and radius, so all three agree:
+    // full height for selection, half for hover, none otherwise.
+    final indicatorHeight = widget.selected
+        ? widget.size * 0.83
+        : (_hovered ? widget.size * 0.42 : 0.0);
+
     return Tooltip(
       message: widget.tooltip,
       // The label below is the single source of the accessible name. A
@@ -451,13 +551,15 @@ class _RailSpaceIconState extends State<_RailSpaceIcon> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            if (widget.selected)
+            if (indicatorHeight > 0)
               PositionedDirectional(
                 start: -MoonrelayDesignTokens.railIndicatorInset,
-                top: (MoonrelayDesignTokens.spaceIconSize * 0.5) - 12,
-                child: Container(
+                top: (widget.size - indicatorHeight) / 2,
+                child: AnimatedContainer(
+                  duration: widget.motion.duration(t.durationFast),
+                  curve: widget.motion.curve(t.curveDecelerate),
                   width: t.borderWidthThick * 2,
-                  height: 24,
+                  height: indicatorHeight,
                   decoration: BoxDecoration(
                     color: scheme.onSurface,
                     borderRadius: BorderRadius.horizontal(
@@ -471,32 +573,123 @@ class _RailSpaceIconState extends State<_RailSpaceIcon> {
               button: true,
               selected: widget.selected,
               label: widget.tooltip,
+              // Its own node, not merged into a neighbour's.
+              //
+              // The rail is a stack of icon-only tiles and nothing else, so
+              // without this each tile's label merges into the next and a
+              // screen reader announces a run of spaces as one button with a
+              // pile of names. It also means "selected" can be read per tile,
+              // which is the one thing this column exists to communicate.
+              container: true,
               child: InkResponse(
                 onTap: widget.onTap,
-                radius: MoonrelayDesignTokens.spaceIconSize * 0.6,
+                radius: widget.size * 0.6,
                 child: AnimatedContainer(
                   duration: widget.motion.duration(t.durationFast),
                   curve: widget.motion.curve(t.curveDecelerate),
-                  width: MoonrelayDesignTokens.spaceIconSize,
-                  height: MoonrelayDesignTokens.spaceIconSize,
+                  width: widget.size,
+                  height: widget.size,
                   decoration: BoxDecoration(
-                    color: widget.selected
-                        ? widget.railActive
-                        : _hovered
-                            ? layers.hover
-                            : scheme.surfaceContainerHigh,
+                    // At rest, the room list's step rather than the
+                    // conversation's. The tile sits on the rail, which is two
+                    // steps darker than the conversation, and using the
+                    // conversation's step made an unselected space the
+                    // brightest thing in the column, which is the wrong tile
+                    // to be drawing the eye.
+                    color: _lit ? widget.railActive : scheme.surfaceContainer,
                     borderRadius: _radius,
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: _SpaceIconImage(
-      client: widget.client,
-      space: widget.space,
-      selected: widget.selected,
-    ),
+                  child: widget.child,
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One space in the rail: an avatar inside a [_RailTile].
+class _RailSpaceIcon extends StatelessWidget {
+  const _RailSpaceIcon({
+    required this.client,
+    required this.space,
+    required this.selected,
+    required this.onTap,
+    required this.tooltip,
+    required this.motion,
+    required this.railActive,
+    required this.size,
+  });
+
+  final Client client;
+  final Room space;
+  final bool selected;
+  final VoidCallback onTap;
+  final String tooltip;
+  final Motion motion;
+  final Color railActive;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return _RailTile(
+      selected: selected,
+      onTap: onTap,
+      tooltip: tooltip,
+      motion: motion,
+      railActive: railActive,
+      size: size,
+      child: _SpaceIconImage(client: client, space: space, size: size),
+    );
+  }
+}
+
+/// One of the two built-in destinations, above the rail's divider.
+///
+/// Identical to a space tile in every respect but its content, which is the
+/// point: they sit in the same column and are selected the same way, so they
+/// are the same widget.
+class _RailDestinationIcon extends StatelessWidget {
+  const _RailDestinationIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.selected,
+    required this.onTap,
+    required this.motion,
+    required this.railActive,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback onTap;
+  final Motion motion;
+  final Color railActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).moonrelay.tokens;
+    return _RailTile(
+      selected: selected,
+      onTap: onTap,
+      tooltip: tooltip,
+      motion: motion,
+      railActive: railActive,
+      size: MoonrelayDesignTokens.spaceIconSize,
+      child: Center(
+        child: Icon(
+          icon,
+          size: t.iconSizeLarge,
+          // The glyph turns white with the fill rather than staying put. On a
+          // tile that is already the accent, a `onSurfaceVariant` glyph is the
+          // only thing that keeps the icon legible at all, and it is a
+          // different grey from the white the space avatars use beside it.
+          color: selected
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -524,12 +717,12 @@ class _SpaceIconImage extends StatelessWidget {
   const _SpaceIconImage({
     required this.client,
     required this.space,
-    required this.selected,
+    required this.size,
   });
 
   final Client client;
   final Room space;
-  final bool selected;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -541,34 +734,38 @@ class _SpaceIconImage extends StatelessWidget {
     // so it is what shows both before the avatar arrives and if it never
     // does. The parent clips this to the morphing radius, so the shared
     // widget's own circle does not fight the shape change.
-    final letter = _initials(scheme, selected);
-
     return AvatarFromUriOrFallbackImage(
       client: client,
       avatarUri: uri,
-      radius: MoonrelayDesignTokens.spaceIconSize / 2,
-      placeholder: letter,
+      radius: size / 2,
+      placeholder: _initials(theme, scheme),
     );
   }
 
-  Widget _initials(ColorScheme scheme, bool selected) {
+  Widget _initials(ThemeData theme, ColorScheme scheme) {
     final label = space.getLocalizedDisplayname().trim();
     final initial = label.isEmpty ? '?' : label.characters.first.toUpperCase();
     return Center(
       child: Text(
         initial,
         style: TextStyle(
-          fontSize: 18,
+          fontSize: theme.moonrelay.tokens.iconSizeLarge,
           fontWeight: FontWeight.w600,
-          color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+          color: scheme.onSurfaceVariant,
         ),
       ),
     );
   }
 }
 
-/// The rail's create button, which shares the icon's metrics so it lines up
-/// with the spaces above it.
+/// The rail's create button: a dashed ring, so it cannot be mistaken for a
+/// destination.
+///
+/// It used to be a filled rounded square in the accent, which is a tile like
+/// any other and invited exactly the click it does not honour: it is not a
+/// place, it is an action. The dashed outline says "not a destination" without
+/// needing a different icon or a label, and the green is the one colour in the
+/// rail that is not the selection colour, so it never reads as "you are here".
 class _RailActionIcon extends StatelessWidget {
   const _RailActionIcon({
     required this.icon,
@@ -582,12 +779,19 @@ class _RailActionIcon extends StatelessWidget {
   final VoidCallback onTap;
   final Motion motion;
 
+  /// The ring and the glyph. Green is borrowed from the presence palette's
+  /// "online" step rather than invented, so it is a colour the app already
+  /// means something by.
+  static const Color _addColour = Color(0xFF23A559);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final t = theme.moonrelay.tokens;
-    final layers = theme.moonrelay.layers;
-    final scheme = theme.colorScheme;
+    final size = MoonrelayDesignTokens.spaceIconSize * 0.6;
+    // Inset from the tile edge so the ring is not flush with the glyph, which
+    // at this size would touch it.
+    const stroke = 2.0;
 
     return Tooltip(
       message: tooltip,
@@ -599,15 +803,28 @@ class _RailActionIcon extends StatelessWidget {
           label: tooltip,
           child: InkResponse(
             onTap: onTap,
-            radius: MoonrelayDesignTokens.spaceIconSize * 0.6,
-            child: Container(
-              width: MoonrelayDesignTokens.spaceIconSize * 0.6,
-              height: MoonrelayDesignTokens.spaceIconSize * 0.6,
-              decoration: BoxDecoration(
-                color: layers.hover,
-                borderRadius: BorderRadius.circular(t.radiusMd),
+            radius: size * 0.6,
+            child: SizedBox(
+              width: MoonrelayDesignTokens.spaceIconSize,
+              height: MoonrelayDesignTokens.spaceIconSize,
+              child: Center(
+                child: CustomPaint(
+                  painter: _DashedCirclePainter(
+                    colour: _addColour,
+                    stroke: stroke,
+                    radius: (size - stroke) / 2,
+                  ),
+                  child: SizedBox(
+                    width: size,
+                    height: size,
+                    child: Icon(
+                      icon,
+                      size: t.iconSizeLarge,
+                      color: _addColour,
+                    ),
+                  ),
+                ),
               ),
-              child: Icon(icon, size: t.iconSizeLarge, color: scheme.primary),
             ),
           ),
         ),
@@ -615,3 +832,51 @@ class _RailActionIcon extends StatelessWidget {
     );
   }
 }
+
+/// A dashed circle.
+///
+/// Flutter has no dashed border, and a solid ring would be the tile treatment
+/// again. The dashes are drawn by walking the circumference in arc length so
+/// they are evenly spaced regardless of the radius, and the seam is hidden by
+/// starting at twelve o'clock, where a dash boundary is least visible on a
+/// shape this small.
+class _DashedCirclePainter extends CustomPainter {
+  const _DashedCirclePainter({
+    required this.colour,
+    required this.stroke,
+    required this.radius,
+  });
+
+  final Color colour;
+  final double stroke;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = colour
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+
+    final centre = Offset(size.width / 2, size.height / 2);
+    // Dash and gap in arc length. Six dashes reads as a dashed line rather
+    // than as a dotted one at this size; four reads as a beaded ring.
+    const dashes = 6;
+    final circumference = 2 * math.pi * radius;
+    final step = circumference / dashes;
+    final dash = step * 0.55;
+
+    final rect = Rect.fromCircle(center: centre, radius: radius);
+    for (var i = 0; i < dashes; i++) {
+      final start = -math.pi / 2 + i * step;
+      canvas.drawArc(rect, start, dash / radius, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedCirclePainter old) =>
+      old.colour != colour || old.stroke != stroke || old.radius != radius;
+}
+
+
