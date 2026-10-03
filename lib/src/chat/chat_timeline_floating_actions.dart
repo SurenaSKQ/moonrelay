@@ -160,6 +160,7 @@ class FloatingPill extends StatelessWidget {
     required this.foreground,
     this.onTap,
     this.leadingSpace = 0,
+    this.glow,
   });
 
   final Widget child;
@@ -171,10 +172,20 @@ class FloatingPill extends StatelessWidget {
   /// room between them.
   final double leadingSpace;
 
+  /// Colour of the shadow the pill casts, when it should cast a coloured one.
+  ///
+  /// A neutral shadow says "this floats above the page". A shadow in the
+  /// pill's own fill says the opposite and more useful thing, which is "this is
+  /// the accent, and it is the only accent-coloured thing you can act on right
+  /// now". It is also why the pill needs to be on the conversation rather than
+  /// in a corner: the glow is only legible against something.
+  final Color? glow;
+
   @override
   Widget build(BuildContext context) {
     final t = MoonrelayThemeExtension.of(context).tokens;
     final radius = BorderRadius.circular(t.radiusFull);
+    final glowColour = glow;
 
     return Padding(
       padding: EdgeInsets.only(top: leadingSpace),
@@ -182,7 +193,15 @@ class FloatingPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: background,
           borderRadius: radius,
-          boxShadow: t.shadowMedium,
+          boxShadow: glowColour == null
+              ? t.shadowMedium
+              : <BoxShadow>[
+                  BoxShadow(
+                    color: glowColour.withValues(alpha: 0.30),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Material(
           color: Colors.transparent,
@@ -320,6 +339,10 @@ class JumpToUnreadPill extends StatelessWidget {
       onTap: isLoading ? null : () => onTap(),
       background: scheme.primary,
       foreground: scheme.onPrimary,
+      // In its own colour. This is the one pill in the app that is filled with
+      // the accent, so it gets the one shadow in the app that is tinted with
+      // it, and the two say the same thing from different directions.
+      glow: scheme.primary,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
