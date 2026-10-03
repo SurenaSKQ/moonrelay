@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
@@ -131,6 +132,16 @@ class DraggableIcon extends StatelessWidget {
       );
 }
 
+/// The drop highlight for a draggable space or group.
+///
+/// A border rather than a fill alone, because in the icon rail the only
+/// thing that changes during a drag is the tile itself: a fill the same size
+/// as the icon reads as the icon changing colour, while a ring reads as
+/// "something is being aimed at here".
+///
+/// [margin] is a parameter because the rail and the room list want different
+/// insets around the same target. The old hardcoded 4 was the sidebar row's
+/// inset and there is no reason for it to also be the rail icon's.
 class SpaceDragTarget extends StatelessWidget {
   const SpaceDragTarget({
     super.key,
@@ -140,6 +151,7 @@ class SpaceDragTarget extends StatelessWidget {
     required this.onLeave,
     required this.onDrop,
     required this.child,
+    this.margin = const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
   });
 
   final String id;
@@ -149,16 +161,22 @@ class SpaceDragTarget extends StatelessWidget {
   final void Function(String) onDrop;
   final Widget child;
 
+  /// Inset around [child], so the hover ring is not flush against the
+  /// neighbouring tile.
+  final EdgeInsets margin;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
+    final motion = Motion.of(context);
     return DragTarget<String>(
       onWillAcceptWithDetails: (d) => onEnter(d.data),
       onLeave: (_) => onLeave(),
       onAcceptWithDetails: (d) => onDrop(d.data),
       builder: (context, _, __) => AnimatedContainer(
-        duration: t.durationFast,
+        duration: motion.duration(t.durationFast),
+        curve: motion.curve(t.curveStandard),
         decoration: hover
             ? BoxDecoration(
                 borderRadius: BorderRadius.circular(t.radiusMd),
@@ -166,7 +184,7 @@ class SpaceDragTarget extends StatelessWidget {
                 color: scheme.primary.withValues(alpha: t.opacityFocus),
               )
             : null,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        margin: margin,
         child: child,
       ),
     );

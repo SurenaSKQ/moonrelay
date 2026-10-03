@@ -25,127 +25,182 @@ import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rows.dart';
 import 'package:provider/provider.dart';
 
+/// Right-click and long-press menu for a space or a space group.
+///
+/// Reads [SpacePreferences], [Client], and [NavigationState] from the context
+/// rather than taking them as fields. The previous version was handed a
+/// `BuildContext` *as a field*, alongside the very providers it was going to
+/// read from it, which meant a caller had to keep three objects in sync with
+/// the tree they were built in, and holding a `BuildContext` past the frame
+/// that created it is the thing that produces "looked up a deactivated
+/// widget's ancestor" crashes.
+///
+/// This class used to be dead code. The rail that replaced the sidebar's
+/// space list left it with no call site, which meant the whole of space
+/// grouping was unreachable in the shipped app while the commit that removed
+/// the list described the menu as still working. It is called from both the
+/// rail's space icons and its group headers now.
 class SpaceContextMenu extends StatefulWidget {
-  const SpaceContextMenu({
-    super.key,
-    required this.ctx,
-    required this.spacePrefs,
-    required this.l10n,
-    required this.nav,
+  const SpaceContextMenu._({
+    required this.onOpen,
+    required this.child,
     this.space,
     this.inGroup = false,
     this.groupId,
-    required this.child,
   });
 
-  final BuildContext ctx;
-  final SpacePreferences spacePrefs;
-  final AppLocalizations l10n;
-  final NavigationState nav;
+  /// Menu for a space icon. [inGroup] is true for an icon drawn inside a
+  /// group's block, which is the only thing that makes "remove from group"
+  /// apply; a standalone leaf is in no group by construction.
+  factory SpaceContextMenu.forSpace({
+    required Widget child,
+    required Room space,
+    required VoidCallback onOpen,
+    bool inGroup = false,
+  }) =>
+      SpaceContextMenu._(space: space, inGroup: inGroup, onOpen: onOpen, child: child);
+
+  /// Menu for a group's header.
+  factory SpaceContextMenu.forGroup({
+    required Widget child,
+    required String groupId,
+    required VoidCallback onOpen,
+  }) =>
+      SpaceContextMenu._(groupId: groupId, onOpen: onOpen, child: child);
+
   final Room? space;
   final bool inGroup;
   final String? groupId;
   final Widget child;
 
+  /// Invoked when the menu opens, so the caller can move the caret to the
+  /// widget that was actually touched. Long press carries a position and
+  /// right click on some platforms does not, so the caller remembers the last
+  /// pointer position it saw.
+  final VoidCallback onOpen;
+
   @override
-  State<SpaceContextMenu> createState() => SpaceContextMenuState();
+  State<SpaceContextMenu> createState() => _SpaceContextMenuState();
 }
 
-class SpaceContextMenuState extends State<SpaceContextMenu> {
+class _SpaceContextMenuState extends State<SpaceContextMenu> {
+  /// Where the menu opens, in global coordinates.
   Offset _tapPosition = Offset.zero;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.deferToChild,
         onLongPressStart: (details) {
           _tapPosition = details.globalPosition;
+          widget.onOpen();
           _show(context);
         },
-        onSecondaryTapDown: (details) {
-          _tapPosition = details.globalPosition;
+        // Fires on desktop right click. Records the position without opening
+        // the menu, because `onSecondaryTap` carries none and the menu would
+        // otherwise open at wherever the pointer last was.
+        onSecondaryTapDown: (details) => _tapPosition = details.globalPosition,
+        onSecondaryTap: () {
+          widget.onOpen();
+          _show(context);
         },
-        onSecondaryTap: () => _show(context),
         child: widget.child,
       );
 
-  void _show(BuildContext context) {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    showMenu<String>(
+  Future<void> _show(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final prefs = context.read<SpacePreferences>();
+    final isGroup = widget.groupId != null;
+    final space = widget.space;
+
+    // The menu is positioned against the overlay, which is the whole screen
+    // rather than the rail, so a group header near the bottom of a short
+    // window would otherwise place its menu off the edge.
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    final selection = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
         Rect.fromLTWH(_tapPosition.dx, _tapPosition.dy, 1, 1),
         Offset.zero & overlay.size,
       ),
       items: [
-        if (widget.space != null)
+        if (space != null)
           PopupMenuItem(
-              value: 'open',
-              child: NavListRow(LucideIcons.externalLink, widget.l10n.openSpace)),
-        if (widget.space != null && !widget.inGroup)
+            value: 'open',
+            child: NavListRow(LucideIcons.externalLink, l10n.openSpace),
+          ),
+        if (space != null && !widget.inGroup) ...[
+          const PopupMenuDivider(),
           PopupMenuItem(
-              value: 'up', child: NavListRow(LucideIcons.arrowUp, 'Move Up')),
-        if (widget.space != null && !widget.inGroup)
+            value: 'up',
+            child: NavListRow(LucideIcons.arrowUp, l10n.moveSpaceUp),
+          ),
           PopupMenuItem(
-              value: 'dn', child: NavListRow(LucideIcons.arrowDown, 'Move Down')),
-        if (widget.groupId != null)
+            value: 'dn',
+            child: NavListRow(LucideIcons.arrowDown, l10n.moveSpaceDown),
+          ),
+        ],
+        if (isGroup) ...[
+          const PopupMenuDivider(),
           PopupMenuItem(
-              value: 'gup', child: NavListRow(LucideIcons.arrowUp, 'Move Group Up')),
-        if (widget.groupId != null)
+            value: 'gup',
+            child: NavListRow(LucideIcons.arrowUp, l10n.moveGroupUp),
+          ),
           PopupMenuItem(
-              value: 'gdn',
-              child: NavListRow(LucideIcons.arrowDown, 'Move Group Down')),
-        const PopupMenuDivider(),
+            value: 'gdn',
+            child: NavListRow(LucideIcons.arrowDown, l10n.moveGroupDown),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'ug_all',
+            child: NavListRow(LucideIcons.ungroup, l10n.ungroupAllSpaces),
+          ),
+        ],
         if (widget.inGroup)
           PopupMenuItem(
-              value: 'ungroup',
-              child: NavListRow(LucideIcons.ungroup, 'Remove from group')),
-        if (widget.groupId != null)
-          PopupMenuItem(
-              value: 'ug_all', child: NavListRow(LucideIcons.ungroup, 'Ungroup all')),
+            value: 'ungroup',
+            child: NavListRow(LucideIcons.ungroup, l10n.removeFromGroup),
+          ),
         const PopupMenuDivider(),
         PopupMenuItem(
-            value: 'sort',
-            child: NavListRow(LucideIcons.folders, 'Sort into groups')),
+          value: 'sort',
+          child: NavListRow(LucideIcons.folders, l10n.sortSpacesIntoGroups),
+        ),
         PopupMenuItem(
-            value: 'reset',
-            child: NavListRow(LucideIcons.rotateCcw, 'Reset space layout')),
+          value: 'reset',
+          child: NavListRow(LucideIcons.rotateCcw, l10n.resetSpaceLayout),
+        ),
       ],
-    ).then((v) {
-      if (v == null || !widget.ctx.mounted) return;
-      switch (v) {
-        case 'open':
-          if (widget.space != null) {
-            widget.nav.selectSpace(widget.space!.id);
-            widget.ctx.push('/main/space/${widget.space!.id}');
-          }
-        case 'up':
-          if (widget.space != null) widget.spacePrefs.moveUp(widget.space!.id);
-        case 'dn':
-          if (widget.space != null) {
-            widget.spacePrefs.moveDown(widget.space!.id);
-          }
-        case 'gup':
-          if (widget.groupId != null) widget.spacePrefs.moveUp(widget.groupId!);
-        case 'gdn':
-          if (widget.groupId != null) {
-            widget.spacePrefs.moveDown(widget.groupId!);
-          }
-        case 'ungroup':
-          if (widget.space != null) {
-            widget.spacePrefs.removeFromGroup(widget.space!.id);
-          }
-        case 'ug_all':
-          if (widget.groupId != null) {
-            for (final c in List.of(
-                widget.spacePrefs.spaceGroups[widget.groupId] ?? [])) {
-              widget.spacePrefs.removeFromGroup(c);
-            }
-          }
-        case 'sort':
-          final c = Provider.of<Client>(widget.ctx, listen: false);
-          widget.spacePrefs.sortIntoGroups(computeAutoGroups(c.rooms));
-        case 'reset':
-          widget.spacePrefs.resetSpaceLayout();
-      }
-    });
+    );
+
+    if (selection == null || !context.mounted) return;
+    final groupId = widget.groupId;
+    final target = space;
+
+    switch (selection) {
+      case 'open':
+        if (target == null) return;
+        context.read<NavigationState>().selectSpace(target.id);
+        context.push('/main/space/${target.id}');
+      case 'up':
+        if (target != null) await prefs.moveUp(target.id);
+      case 'dn':
+        if (target != null) await prefs.moveDown(target.id);
+      case 'gup':
+        if (groupId != null) await prefs.moveUp(groupId);
+      case 'gdn':
+        if (groupId != null) await prefs.moveDown(groupId);
+      case 'ungroup':
+        if (target != null) await prefs.removeFromGroup(target.id);
+      case 'ug_all':
+        if (groupId != null) await prefs.ungroupAll(groupId);
+      case 'sort':
+        await prefs.sortIntoGroups(
+          computeAutoGroups(Provider.of<Client>(context, listen: false).rooms),
+        );
+      case 'reset':
+        await prefs.resetSpaceLayout();
+    }
   }
 }

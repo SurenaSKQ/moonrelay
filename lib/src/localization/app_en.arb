@@ -650,6 +650,26 @@
   "rooms": "Rooms",
   "spaces": "Spaces",
   "addSpace": "Add Space",
+  "spaceGroup": "Group",
+  "@spaceGroup": {
+    "description": "Fallback name for a space group the user made by dragging spaces together, which has no parent space to take a name from."
+  },
+  "spaceGroupCount": "{count, plural, =1{1 space} other{{count} spaces}} in {group}",
+  "@spaceGroupCount": {
+    "description": "Tooltip and accessible name for a group header in the spaces rail. Plural because the count is the only thing a collapsed group shows.",
+    "placeholders": {
+      "count": { "type": "int" },
+      "group": { "type": "String" }
+    }
+  },
+  "moveSpaceUp": "Move Up",
+  "moveSpaceDown": "Move Down",
+  "moveGroupUp": "Move Group Up",
+  "moveGroupDown": "Move Group Down",
+  "removeFromGroup": "Remove from Group",
+  "ungroupAllSpaces": "Ungroup All",
+  "sortSpacesIntoGroups": "Sort into Groups",
+  "resetSpaceLayout": "Reset Space Layout",
   "welcomeToMoonrelay": "Welcome to Moonrelay",
   "homeDashboardSubtitle": "Pick up where you left off, or start somewhere new.",
   "recentActivity": "Recent activity",

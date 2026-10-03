@@ -15,12 +15,10 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/sidebar_row.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:provider/provider.dart';
 
 class NavRow extends StatelessWidget {
@@ -79,69 +77,14 @@ class SpaceRow extends StatelessWidget {
   }
 }
 
-class GroupRow extends StatelessWidget {
-  const GroupRow({
-    super.key,
-    required this.gid,
-    required this.expanded,
-    required this.count,
-    required this.scheme,
-    required this.onTap,
-    required this.onDragEnd,
-  });
-
-  final String gid;
-  final bool expanded;
-  final int count;
-  final ColorScheme scheme;
-  final VoidCallback onTap;
-  final VoidCallback onDragEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final row = SidebarRow(
-      title: 'Group',
-      onTap: onTap,
-      leading: Icon(LucideIcons.folder, size: t.iconSizeSmall, color: scheme.primary),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (count > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                color: scheme.outlineVariant
-                    .withValues(alpha: t.opacityDisabled),
-                borderRadius: BorderRadius.circular(t.radiusSm),
-              ),
-              child: Text(
-                '$count',
-                style:
-                    TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-              ),
-            ),
-          SizedBox(width: t.spaceSm),
-          Icon(
-            expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
-            size: 14,
-            color: scheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-    );
-    if (expanded) return row;
-    return DraggableIcon(
-      data: gid,
-      feedback:
-          DragFeedback(theme: Theme.of(context), label: 'Group', uri: null),
-      ghost: Opacity(opacity: 0.3, child: row),
-      onDragEnd: onDragEnd,
-      child: row,
-    );
-  }
-}
-
+/// `GroupRow` used to live here and was deleted with the sidebar's space list.
+///
+/// The rail's group header is [RailGroupHeader] in `rail_group_header.dart`,
+/// and it is not a variant of this row: a 72px column cannot hold a title, a
+/// count badge, and a chevron on one line, so the header reorders them around
+/// a folder glyph and the count becomes the only text in the rail. Keeping a
+/// full-width sidebar row around "in case" is how the previous pass ended up
+/// describing a group box as still being drawn when nothing drew it.
 class NavRowShell extends StatelessWidget {
   const NavRowShell({
     super.key,

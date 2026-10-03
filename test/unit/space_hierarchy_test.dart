@@ -138,6 +138,89 @@ void main() {
       expect(computeAutoGroups([root]), isEmpty);
     });
   });
+
+  group('buildNavItems ordering', () {
+    test('spaces missing from the order keep their natural order', () {
+      // This is the case that was broken. Every unranked id compared equal at
+      // 9999, and `List.sort` is not stable, so past Dart's insertion-sort
+      // threshold a user with enough unranked spaces could watch them
+      // reshuffle between two rebuilds of an identical list. Nothing they
+      // did, twice a second.
+      final rooms = [
+        for (var i = 0; i < 64; i++) _r('!s$i:test', 'S$i'),
+      ];
+      final order = ['!s63:test'];
+
+      List<String> idsOf() => buildNavItems(rooms,
+              collapsedGroupIds: const {}, order: order)
+          .map((e) => e.id)
+          .toList();
+
+      expect(idsOf().first, '!s63:test');
+      final once = idsOf();
+      for (var run = 0; run < 25; run++) {
+        expect(idsOf(), once, reason: 'unranked spaces reordered on run $run');
+      }
+    });
+
+    test('a ranked space still beats an unranked one', () {
+      final rooms = [_r('!a:test', 'A'), _r('!b:test', 'B')];
+      final items = buildNavItems(rooms,
+          collapsedGroupIds: const {}, order: ['!b:test']);
+      expect(items.map((e) => e.id), ['!b:test', '!a:test']);
+    });
+
+    test('an order naming an unjoined space does not break the list', () {
+      final items = buildNavItems([_r('!a:test', 'A')],
+          collapsedGroupIds: const {}, order: ['!gone:test', '!a:test']);
+      expect(items.map((e) => e.id), ['!a:test']);
+    });
+
+    test('non-space rooms are excluded', () {
+      final items = buildNavItems([_r('!a:test', 'A', isSpace: false)],
+          collapsedGroupIds: const {}, order: const []);
+      expect(items, isEmpty);
+    });
+  });
+
+  group('group labelling', () {
+    test('a group derived from a space is named after it', () {
+      // The old sidebar hardcoded the header to "Group", so a user with four
+      // groups had four identical headers in a column of icons.
+      final root = _r('!root:test', 'Acme');
+      stubP(root, []);
+      stubC(root, []);
+      final kids = [
+        _r('!k1:test', 'K1'),
+        _r('!k2:test', 'K2'),
+      ];
+      final items = buildNavItems(
+        [root, ...kids],
+        collapsedGroupIds: const {},
+        spaceGroups: {'_grp_!root:test': ['!k1:test', '!k2:test']},
+      );
+      final group = items.whereType<NavSpaceGroup>().single;
+      expect(group.parentSpaceName, 'Acme');
+    });
+
+    test('a group made by dragging has no name to take', () {
+      final items = buildNavItems(
+        [_r('!a:test', 'A'), _r('!b:test', 'B')],
+        collapsedGroupIds: const {},
+        spaceGroups: {'_grp_1750000000000': ['!a:test', '!b:test']},
+      );
+      final group = items.whereType<NavSpaceGroup>().single;
+      // Null, so the UI can say "Group" instead of showing a timestamp.
+      expect(group.parentSpaceName, isNull);
+    });
+
+    test('isGroupId separates groups from room ids', () {
+      expect(isGroupId('_grp_!a:test'), isTrue);
+      expect(isGroupId('_grp_1750000000000'), isTrue);
+      expect(isGroupId('!a:test'), isFalse);
+      expect(isGroupId('!grp_:test'), isFalse);
+    });
+  });
 }
 
 // concise test helpers

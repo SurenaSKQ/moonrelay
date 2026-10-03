@@ -21,10 +21,14 @@ import 'package:matrix/src/utils/space_child.dart'
     show SpaceChild, SpaceParent;
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mocks.dart';
 import '../helpers/widget_test_utils.dart';
@@ -52,84 +56,39 @@ MockRoom _space(String id, {String name = 'Test Space'}) {
   return room;
 }
 
-MockRoom _chat(String id, {String name = 'Test Room'}) {
-  final room = MockRoom();
-  when(() => room.id).thenReturn(id);
-  when(() => room.isSpace).thenReturn(false);
-  when(() => room.getLocalizedDisplayname()).thenReturn(name);
-  return room;
-}
-
+/// Drives the real composition: [SpacesRailHost] over a [MockClient] and a
+/// real [SpacePreferences].
+///
+/// The host rather than [SpacesRail] directly, because the thing worth
+/// testing is that grouping *reacts*. The rail receives an already-built item
+/// list, so a test that hands it one has frozen the grouping and cannot see
+/// the collapse, the ungroup, or the reorder do anything. Going through the
+/// host is also the only way to catch a host that stopped watching
+/// [SpacePreferences], which is how grouping became invisible once already.
 Widget _rail({
   required List<Room> spaces,
   String? selectedId,
   bool isSpaceSelected = false,
+  SpacePreferences? spacePreferences,
 }) {
+  final client = MockClient();
+  when(() => client.rooms).thenReturn(spaces);
+  final nav = NavigationState();
+  if (isSpaceSelected && selectedId != null) nav.selectSpace(selectedId);
   return wrapWithProviders(
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: SpacesRail(
-          spaces: spaces,
-          selectedId: selectedId,
-          isSpaceSelected: isSpaceSelected,
-          onSelect: (_) {},
-          onCreateSpace: () {},
-        ),
-      ),
-    ),
-    navigationState: NavigationState(),
+    client: client,
+    child: const Scaffold(body: SpacesRailHost()),
+    navigationState: nav,
+    spacePreferences: spacePreferences ?? SpacePreferences(SettingsService()),
   );
 }
 
 void main() {
+  // `SpacePreferences` writes through `SharedPreferences` on every mutation,
+  // and without a mock the plugin channel never answers, so an `await` on a
+  // collapse hangs the test rather than failing it.
+  SharedPreferences.setMockInitialValues({});
   setUp(RoomSearchQuery.clear);
-
-  group('buildSpaceOrder', () {
-    test('respects the saved order', () {
-      final ordered = buildSpaceOrder(
-        [_space('!a:matrix.org'), _space('!b:matrix.org')],
-        order: ['!b:matrix.org', '!a:matrix.org'],
-      );
-      expect(ordered.map((r) => r.id), ['!b:matrix.org', '!a:matrix.org']);
-    });
-
-    test('a space the user has not ordered lands at the end, not nowhere', () {
-      // A newly joined space has no entry in the saved order yet. Dropping it
-      // would make a space the user just joined silently absent from the
-      // only control that can reach it.
-      final ordered = buildSpaceOrder(
-        [_space('!a:matrix.org'), _space('!b:matrix.org')],
-        order: ['!b:matrix.org'],
-      );
-      expect(ordered.map((r) => r.id), ['!b:matrix.org', '!a:matrix.org']);
-    });
-
-    test('an order naming an unjoined space does not break the list', () {
-      final ordered = buildSpaceOrder(
-        [_space('!a:matrix.org')],
-        order: ['!gone:matrix.org', '!a:matrix.org'],
-      );
-      expect(ordered.map((r) => r.id), ['!a:matrix.org']);
-    });
-
-    test('an empty order leaves the natural order alone', () {
-      final ordered = buildSpaceOrder(
-        [_space('!a:matrix.org'), _space('!b:matrix.org')],
-        order: const [],
-      );
-      expect(ordered.map((r) => r.id), ['!a:matrix.org', '!b:matrix.org']);
-    });
-
-    test('non-space rooms are excluded', () {
-      final ordered = buildSpaceOrder(
-        [_chat('!room:matrix.org')],
-        order: const [],
-      );
-      expect(ordered, isEmpty);
-    });
-  });
 
   group('SpacesRail', () {
     testWidgets('labels each icon for assistive technology', (tester) async {
@@ -236,6 +195,150 @@ void main() {
       // The button's centre should be in the bottom third of the rail.
       final y = tester.getCenter(create).dy;
       expect(y, greaterThan(railHeight * 0.66));
+    });
+
+    testWidgets('a grouped space still renders, inside its group',
+        (tester) async {
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', [
+        '!a:matrix.org',
+        '!b:matrix.org',
+      ]);
+
+      await tester.pumpWidget(_rail(
+        spaces: [
+          _space('!a:matrix.org', name: 'Inside'),
+          _space('!b:matrix.org', name: 'Also inside'),
+        ],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+
+      // The regression this guards is the one that shipped: flattening
+      // groups left the icons but dropped everything else, so a user's
+      // grouping became invisible with no way to undo it.
+      expect(_labelsOf(tester), contains('Inside'));
+      expect(_labelsOf(tester), contains('Also inside'));
+    });
+
+    testWidgets('a group header is drawn, with its count', (tester) async {
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', [
+        '!a:matrix.org',
+        '!b:matrix.org',
+      ]);
+
+      await tester.pumpWidget(_rail(
+        spaces: [_space('!a:matrix.org'), _space('!b:matrix.org')],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+
+      // The count is the header's whole job: at 72px there is no room for
+      // the group's name, so "how much is behind this" has to be visible or
+      // the header is just an unexplained bar.
+      expect(find.text('2'), findsOneWidget);
+      expect(find.byType(RailGroupHeader), findsOneWidget);
+    });
+
+    testWidgets('a collapsed group hides its children', (tester) async {
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', [
+        '!a:matrix.org',
+        '!b:matrix.org',
+      ]);
+      await prefs.toggleGroupCollapsed('_grp_!root:matrix.org');
+
+      await tester.pumpWidget(_rail(
+        spaces: [
+          _space('!a:matrix.org', name: 'Hidden'),
+          _space('!b:matrix.org', name: 'Also hidden'),
+        ],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+
+      expect(find.byType(RailGroupHeader), findsOneWidget);
+      expect(_labelsOf(tester), isNot(contains('Hidden')));
+      expect(_labelsOf(tester), isNot(contains('Also hidden')));
+      // The count survives the collapse. A collapsed group that hides its
+      // count is indistinguishable from an empty one.
+      expect(find.text('2'), findsOneWidget);
+    });
+
+    testWidgets('tapping the header collapses and expands the group',
+        (tester) async {
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
+
+      await tester.pumpWidget(_rail(
+        spaces: [_space('!a:matrix.org', name: 'Visible')],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+      expect(_labelsOf(tester), contains('Visible'));
+
+      await tester.tap(find.byType(RailGroupHeader));
+      await tester.pumpAndSettle();
+      expect(_labelsOf(tester), isNot(contains('Visible')));
+
+      await tester.tap(find.byType(RailGroupHeader));
+      await tester.pumpAndSettle();
+      expect(_labelsOf(tester), contains('Visible'));
+    });
+
+    testWidgets('grouped and ungrouped icons share one column',
+        (tester) async {
+      // The geometry claim in the rail's doc comment: a group block's
+      // padding is chosen so its children land on the same pixels as a
+      // standalone icon. If this drifts, the rail looks like it has two
+      // different widths of icon in it.
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
+
+      await tester.pumpWidget(_rail(
+        spaces: [
+          _space('!a:matrix.org', name: 'Grouped'),
+          _space('!z:matrix.org', name: 'Loose'),
+        ],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+
+      final grouped = tester.getTopLeft(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Grouped',
+        ),
+      );
+      final loose = tester.getTopLeft(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Loose',
+        ),
+      );
+      expect(grouped.dx, closeTo(loose.dx, 0.5));
+    });
+
+    testWidgets('a group header is reachable as a right-click target',
+        (tester) async {
+      // The menu is how "ungroup all" and "sort into groups" are reached, and
+      // for a while it had no call site at all. Asserting the gesture exists
+      // is what stops it becoming dead code again.
+      final prefs = SpacePreferences(SettingsService());
+      await prefs.createGroup('_grp_!root:matrix.org', ['!a:matrix.org']);
+
+      await tester.pumpWidget(_rail(
+        spaces: [_space('!a:matrix.org')],
+        spacePreferences: prefs,
+      ));
+      await tester.pump();
+
+      expect(
+        find.descendant(
+          of: find.byType(RailGroupHeader),
+          matching: find.byType(SpaceContextMenu),
+        ),
+        findsOneWidget,
+      );
     });
   });
 

@@ -20,11 +20,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
+import 'package:moonrelay/src/helpers/space_hierarchy.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
+import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
 import 'package:provider/provider.dart';
 
 /// Resolves the space list and wires selection and navigation, so
@@ -48,19 +53,26 @@ class SpacesRailHost extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // Read, do not watch. Subscribing to the client would rebuild the rail
-    // on every sync event, every verification update, and every room
-    // mutation, all of which the room pane already handles.
+    // `client.rooms` is read without listening, so subscribing to the client
+    // would rebuild the rail on every sync tick, every verification update
+    // and every room mutation. The pulse is the one thing worth rebuilding
+    // for, because it is the only signal that a space was joined, and the
+    // rail is the only place a space appears. The value is discarded on
+    // purpose: the rebuild is the side effect.
+    context.select<SyncPulse, int>((p) => p.version);
+
     final spacePrefs = context.watch<SpacePreferences>();
-    final spaces = buildSpaceOrder(
+    final items = buildNavItems(
       client.rooms,
+      collapsedGroupIds: spacePrefs.collapsedGroups,
+      spaceGroups: spacePrefs.spaceGroups,
       order: spacePrefs.spaceOrder,
     );
 
     final nav = context.watch<NavigationState>();
 
     return SpacesRail(
-      spaces: spaces,
+      items: items,
       selectedId: nav.isSpace ? nav.selectedId : null,
       isSpaceSelected: nav.isSpace,
       onSelect: (space) {
@@ -74,30 +86,6 @@ class SpacesRailHost extends StatelessWidget {
       onCreateSpace: () => openCreateRoom(context, asSpace: true),
     );
   }
-}
-
-/// Joined spaces in the user's chosen order, ungrouped.
-///
-/// A rail has no room for group boxes, so grouped spaces flatten into the
-/// rail and their ordering is respected via the same [order] list the
-/// sidebar used. Group membership itself is untouched: it still governs what
-/// `computeAutoGroups` produces and what the context menu's "ungroup all"
-/// and "sort into groups" act on. What is lost is the group box as a
-/// *visual*, which is recorded in WORK_NEEDED.md.
-List<Room> buildSpaceOrder(Iterable<Room> rooms, {required List<String> order}) {
-  final spaces = rooms.where((r) => r.isSpace).toList();
-  if (order.isEmpty) return spaces;
-
-  final byId = {for (final s in spaces) s.id: s};
-  final ordered = <Room>[];
-  for (final id in order) {
-    final room = byId.remove(id);
-    if (room != null) ordered.add(room);
-  }
-  // Anything the user has not ordered yet keeps its natural order and lands
-  // at the end, so a newly joined space appears rather than disappearing.
-  ordered.addAll(byId.values);
-  return ordered;
 }
 
 /// The slim, icon-only column of spaces down the left edge of the shell.
@@ -114,18 +102,14 @@ List<Room> buildSpaceOrder(Iterable<Room> rooms, {required List<String> order}) 
 /// room list the mid tone, so reading order runs dark to light left to right
 /// and the eye lands on the conversation.
 ///
-/// ## What a rail cannot do
+/// ## Groups
 ///
-/// A 72px column has room for an icon and a tooltip. It does not have room
-/// for a space's name next to its icon, for the group boxes the sidebar used
-/// to draw, or for a drag handle. So:
-///
-/// - The name comes back on hover, in a tooltip that also carries the room
-///   count, which is more than the old row showed anyway.
-/// - Group management stays in the space context menu, which already
-///   carried "ungroup all", "sort into groups", and "reset layout", and
-///   which is reachable from every icon here.
-/// - Reordering is by drag, which still works on the icons themselves.
+/// Groups are drawn, not flattened. The first version of this rail flattened
+/// them, on the reasoning that a 72px column has no room for a group box.
+/// That was half right: there is no room for the *box*, and there is room
+/// for what the box was doing. A group's membership is a vertical rule beside
+/// its icons and a header above them, which together cost two pixels of width
+/// and no horizontal space at all. [RailGroupHeader] has the reasoning.
 ///
 /// ## The morph
 ///
@@ -135,18 +119,19 @@ List<Room> buildSpaceOrder(Iterable<Room> rooms, {required List<String> order}) 
 /// being told it is the selected one by geometry rather than by a colour
 /// swatch, which means the colour is free to be the accent without also
 /// being the only signal.
-class SpacesRail extends StatelessWidget {
+class SpacesRail extends StatefulWidget {
   const SpacesRail({
     super.key,
-    required this.spaces,
+    required this.items,
     required this.selectedId,
     required this.isSpaceSelected,
     required this.onSelect,
     required this.onCreateSpace,
   });
 
-  /// Joined spaces, already in the user's chosen order.
-  final List<Room> spaces;
+  /// Groups and standalone spaces, already grouped, labelled and ordered by
+  /// [buildNavItems].
+  final List<NavSpaceItem> items;
 
   /// Room id of the space currently open, or `null` when the user is looking
   /// at rooms or direct chats rather than at a space.
@@ -163,6 +148,18 @@ class SpacesRail extends StatelessWidget {
   final VoidCallback onCreateSpace;
 
   @override
+  State<SpacesRail> createState() => _SpacesRailState();
+}
+
+class _SpacesRailState extends State<SpacesRail> {
+  /// The id of the thing a dragged space or group is currently over.
+  ///
+  /// Local rather than in [SpacePreferences] because it is transient by
+  /// nature: it is empty the moment the drag ends, and persisting it would
+  /// mean writing to `SharedPreferences` twice per drag.
+  String? _hoverId;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ext = theme.moonrelay;
@@ -171,7 +168,7 @@ class SpacesRail extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final motion = Motion.of(context);
 
-return Material(
+    return Material(
       color: theme.colorScheme.surfaceContainerLow,
       child: SizedBox(
         width: MoonrelayDesignTokens.navRailWidth,
@@ -180,25 +177,13 @@ return Material(
             Expanded(
               child: ListView.builder(
                 padding: EdgeInsets.symmetric(vertical: t.spaceSm),
-                itemCount: spaces.length,
+                itemCount: widget.items.length,
                 itemBuilder: (context, index) {
-                  final space = spaces[index];
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: t.spaceXxs,
-                      horizontal: (MoonrelayDesignTokens.navRailWidth -
-                              MoonrelayDesignTokens.spaceIconSize) /
-                          2,
-                    ),
-                    child: _RailSpaceIcon(
-                      space: space,
-                      selected: isSpaceSelected && selectedId == space.id,
-                      onTap: () => onSelect(space),
-                      tooltip: _tooltipFor(space),
-                      motion: motion,
-                      railActive: layers.railActive,
-                    ),
-                  );
+                  final item = widget.items[index];
+                  return switch (item) {
+                    NavSpaceGroup() => _groupBlock(item),
+                    NavSpaceLeaf() => _leaf(item.space, grouped: false),
+                  };
                 },
               ),
             ),
@@ -211,7 +196,7 @@ return Material(
               child: _RailActionIcon(
                 icon: LucideIcons.plus,
                 tooltip: l10n.addSpace,
-                onTap: onCreateSpace,
+                onTap: widget.onCreateSpace,
                 motion: motion,
               ),
             ),
@@ -219,6 +204,159 @@ return Material(
         ),
       ),
     );
+  }
+
+  /// A group: its header, then its children inside a spine.
+  ///
+  /// The spine is a border on the block rather than a drawn line, which is
+  /// what keeps it the height of its contents without measuring anything. The
+  /// block's insets are chosen so the child icons land on exactly the same
+  /// pixels as a standalone icon: the rail is 72 wide, the block starts 2 in,
+  /// its rule is 2 wide, and its padding is 8, so the children start at 12,
+  /// which is where an ungrouped icon starts.
+  Widget _groupBlock(NavSpaceGroup group) {
+    final t = Theme.of(context).moonrelay.tokens;
+    final hairline = Theme.of(context).moonrelay.layers.hairline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RailGroupHeader(
+          groupId: group.id,
+          label: group.parentSpaceName ?? AppLocalizations.of(context)!.spaceGroup,
+          count: group.children.length,
+          expanded: group.isExpanded,
+          dropHovered: _hoverId != null && _hoverId == group.id,
+          onToggleCollapsed: () =>
+              context.read<SpacePreferences>().toggleGroupCollapsed(group.id),
+          onHoverChanged: (id) => setState(() => _hoverId = id),
+          onDrop: (dragged) => _dropOn(group.id, dragged),
+          onContextMenu: () {},
+        ),
+        if (group.isExpanded)
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: t.spaceXxs),
+            padding: EdgeInsetsDirectional.only(start: t.spaceSm),
+            decoration: BoxDecoration(
+              border: BorderDirectional(
+                start: BorderSide(color: hairline, width: 2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final child in group.children)
+                  _leaf(child.space, grouped: true),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// A standalone space icon, or one nested inside a group block.
+  Widget _leaf(Room space, {required bool grouped}) {
+    final theme = Theme.of(context);
+    final t = theme.moonrelay.tokens;
+    final selected = widget.isSpaceSelected && widget.selectedId == space.id;
+
+    Widget icon = _RailSpaceIcon(
+      space: space,
+      selected: selected,
+      onTap: () => widget.onSelect(space),
+      tooltip: _tooltipFor(space),
+      motion: Motion.of(context),
+      railActive: theme.moonrelay.layers.railActive,
+    );
+
+    icon = DraggableIcon(
+      data: space.id,
+      feedback: DragFeedback(
+        theme: theme,
+        label: space.getLocalizedDisplayname(),
+        uri: space.avatar,
+      ),
+      ghost: Opacity(opacity: 0.3, child: icon),
+      onDragEnd: () => setState(() => _hoverId = null),
+      child: icon,
+    );
+
+    icon = SpaceDragTarget(
+      id: space.id,
+      hover: _hoverId == space.id,
+      onEnter: (data) {
+        if (data == space.id) return false;
+        setState(() => _hoverId = space.id);
+        return true;
+      },
+      onLeave: () {
+        if (mounted) setState(() => _hoverId = null);
+      },
+      onDrop: (dragged) => _dropOn(space.id, dragged),
+      margin: EdgeInsets.zero,
+      child: icon,
+    );
+
+    return SpaceContextMenu.forSpace(
+      space: space,
+      inGroup: grouped,
+      onOpen: () {},
+      child: Padding(
+        // A grouped icon needs no horizontal inset: the block's own padding
+        // already put it on the right column. An ungrouped one is centred by
+        // hand, because the rail's children are stretch-aligned.
+        padding: EdgeInsets.symmetric(
+          horizontal: grouped ? 0 : 12,
+          vertical: t.spaceXxs,
+        ),
+        child: icon,
+      ),
+    );
+  }
+
+  /// Resolves a drop, which means one of four different things depending on
+  /// what was dropped onto what.
+  ///
+  /// Grouped onto a group means "join it"; group onto a space means "move
+  /// above this space", because there is no box to drop into; two spaces
+  /// means "make a group of the two". The old sidebar's three cases are the
+  /// same and were correct, the only change being that the rail has to derive
+  /// the intent from the payload prefix instead of from which builder it was
+  /// in.
+  void _dropOn(String targetId, String draggedId) {
+    if (targetId == draggedId) return;
+    final prefs = context.read<SpacePreferences>();
+    setState(() => _hoverId = null);
+
+    final draggedIsGroup = isGroupId(draggedId);
+    final targetIsGroup = isGroupId(targetId);
+
+    if (draggedIsGroup && targetIsGroup) {
+      _moveGroupAbove(prefs, draggedId, targetId);
+    } else if (draggedIsGroup) {
+      _moveGroupAbove(prefs, draggedId, targetId);
+    } else if (targetIsGroup) {
+      prefs.addToGroup(targetId, draggedId);
+    } else {
+      prefs.createGroup(
+        '_grp_${DateTime.now().millisecondsSinceEpoch}',
+        [draggedId, targetId],
+      );
+    }
+  }
+
+  /// Moves group [groupId] so it sits immediately before [targetId].
+  void _moveGroupAbove(SpacePreferences prefs, String groupId, String targetId) {
+    final order = List<String>.of(prefs.spaceOrder);
+    final from = order.indexOf(groupId);
+    final to = order.indexOf(targetId);
+    if (from < 0 || to < 0 || from == to) return;
+    order.removeAt(from);
+    // Removing the source first shifts every later index down by one, so a
+    // forward move needs its destination adjusted or the group lands after
+    // the row it was dropped on.
+    order.insert(to > from ? to - 1 : to, groupId);
+    prefs.updateSpaceOrder(order);
   }
 
   /// The hover label: name, and how much is in it.

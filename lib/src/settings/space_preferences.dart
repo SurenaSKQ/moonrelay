@@ -209,6 +209,32 @@ class SpacePreferences extends ChangeNotifier {
     await _save();
   }
 
+  /// Empties [groupId], returning every member to the flat list.
+  ///
+  /// One pass and one save, rather than a loop of [removeFromGroup] calls.
+  /// That loop was correct and it was in the old menu: for a twelve space
+  /// group it rewrote all four preference keys twelve times, and each rewrite
+  /// went through `SharedPreferences` while a toast was waiting on the
+  /// result.
+  Future<void> ungroupAll(String groupId) async {
+    final members = _spaceGroups[groupId];
+    if (members == null || members.isEmpty) {
+      _spaceGroups.remove(groupId);
+      _spaceOrder.remove(groupId);
+      _scheduleNotify();
+      await _save();
+      return;
+    }
+    final ids = List.of(members);
+    _spaceGroups.remove(groupId);
+    _spaceOrder.remove(groupId);
+    for (final id in ids) {
+      if (!_spaceOrder.contains(id)) _spaceOrder.add(id);
+    }
+    _scheduleNotify();
+    await _save();
+  }
+
   /// Runs auto-grouping from the Matrix hierarchy.
   Future<void> sortIntoGroups(Map<String, List<String>> groups) async {
     _spaceGroups = Map.of(groups);

@@ -22,11 +22,13 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
+import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/settings/theme.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +51,7 @@ SettingsController createTestSettingsController() {
 /// A test wrapper that provides the full set of Providers needed by most
 /// widgets in the app: [Client], [Logger], [SettingsController],
 /// [AccountManager], [EncryptionService], [CurrentRoom], [NavigationState],
-/// and [DeepLinkService].
+/// [SpacePreferences], [SyncPulse], and [DeepLinkService].
 Widget wrapWithProviders({
   required Widget child,
   Client? client,
@@ -59,6 +61,7 @@ Widget wrapWithProviders({
   EncryptionService? encryptionService,
   CurrentRoom? currentRoom,
   NavigationState? navigationState,
+  SpacePreferences? spacePreferences,
   DeepLinkService? deepLinkService,
 }) {
   return MultiProvider(
@@ -80,6 +83,13 @@ Widget wrapWithProviders({
       ChangeNotifierProvider<NavigationState>.value(
         value: navigationState ?? NavigationState(),
       ),
+      // A real [SpacePreferences] over an in-memory [SettingsService], so a
+      // test can drive grouping and then assert on what it actually persisted
+      // rather than on a mock's call log.
+      ChangeNotifierProvider<SpacePreferences>.value(
+        value: spacePreferences ?? SpacePreferences(SettingsService()),
+      ),
+      ChangeNotifierProvider<SyncPulse>(create: (_) => SyncPulse()),
       Provider<DeepLinkService>.value(
         value: deepLinkService ?? MockDeepLinkService(),
       ),
