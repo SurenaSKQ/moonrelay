@@ -113,10 +113,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
     _controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
     widget.replyTarget?.addListener(_onReplyTargetChanged);
     widget.editTarget?.addListener(_onEditTargetChanged);
     // Load persisted draft after init so the listener is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft());
+  }
+
+  /// Rebuilds when the field gains or loses focus.
+  ///
+  /// The pill's border reads `_focusNode.hasFocus`, and a `FocusNode` is a
+  /// `ChangeNotifier`, not something `build` re-runs on. Reading the flag
+  /// without listening meant the accent border was computed once at mount and
+  /// never again, so the composer advertised "this border means you are typing"
+  /// and then never changed colour.
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Loads the persisted draft for the current room, if drafts are enabled.
@@ -164,6 +176,10 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     widget.editTarget?.removeListener(_onEditTargetChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
+    // The listener goes before the node, and in that order: removing from a
+    // disposed notifier is the kind of thing that throws only on the second
+    // room you open.
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _expandController.dispose();
     _typingNotifier.dispose();
@@ -611,24 +627,22 @@ static const double _pillRadius = 9999;
     final layers = ext.layers;
     final l10n = AppLocalizations.of(context)!;
 
-    // The composer is a pill.
+    // The composer is one raised shape on the conversation.
     //
-    // It was a full-width bar with a rectangular text field inset in it, so
-    // the thing you type into was a box inside a band inside a pane. The pill
-    // collapses those three levels into one: the controls sit on the pill's
-    // surface rather than beside a separate field, and the whole thing is one
-    // shape with the send button at the end of it.
+    // It used to be a full-width bar with a rectangular text field inset in
+    // it, and then a pill on a band one step *darker* than the conversation.
+    // Both put the thing you type into below the message column, which is the
+    // wrong way round: a control you use more than anything else in the window
+    // should not be the least prominent thing in it.
     //
-    // It sits on `surfaceContainerLow`, the same step the rail uses, which
-    // puts it below the message column and above the room list in the ramp.
-    // The two are not adjacent, so they can share a step without merging.
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(
-          top: BorderSide(color: layers.hairline),
-        ),
-      ),
+    // Now there is no band. The pill sits directly on the conversation and is
+    // one step *lighter* than it, which is the mockup's arrangement and the
+    // reason it reads: the eye finds the raised shape without a border or a
+    // separator having to announce it. The reply preview, the edit banner and
+    // the formatting toolbar live in the same region above it, on the
+    // conversation's own surface, and each is its own card where it needs to
+    // be.
+    return Padding(
       padding: EdgeInsets.fromLTRB(
         t.spaceMd,
         t.spaceSm,
@@ -653,16 +667,30 @@ static const double _pillRadius = 9999;
           if (_editEvent != null) _buildEditBanner(colorScheme, l10n),
 
           // Main input row: one pill, controls on it.
-          Container(
+          AnimatedContainer(
+            duration: t.durationFast,
+            curve: t.curveStandard,
             constraints: BoxConstraints(minHeight: t.minTapTarget),
             padding: EdgeInsets.symmetric(
               horizontal: t.spaceXs,
               vertical: t.spaceXs,
             ),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainer,
+              // The raised step, one above the conversation. This is the
+              // composer's whole visual argument and it is why the pill does
+              // not need a band to sit on.
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(_pillRadius),
-              border: Border.all(color: layers.hairline),
+              // The hairline only appears while focused, and then in the
+              // accent: an unfocused field with a permanent outline is a
+              // rectangle drawn around a hole, and the fill already says
+              // "this is a control". Focusing is the one moment the user has
+              // said they are about to type.
+              border: Border.all(
+                color: _focusNode.hasFocus
+                    ? colorScheme.primary
+                    : layers.hairline,
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
