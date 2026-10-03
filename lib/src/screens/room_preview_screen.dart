@@ -304,7 +304,10 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
                 radius: 40,
                 backgroundColor: cs.primaryContainer,
                 backgroundImage: avatarUri != null
-                    ? NetworkImage(avatarUri.toString())
+                    ? NetworkImage(
+                        avatarUri.toString(),
+                        headers: authHeaders(context.read<Client>()),
+                      )
                     : null,
                 onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
                 child: avatarUri == null

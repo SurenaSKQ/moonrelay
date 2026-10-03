@@ -17,6 +17,7 @@
 import 'dart:async';
 
 import 'package:logger/logger.dart';
+import 'package:matrix/matrix.dart';
 
 /// Default timeout for Matrix network operations.
 ///
@@ -103,7 +104,6 @@ Future<RetryResult<T>> withRetry<T>(
   return RetryFailed(lastError!, attempts);
 }
 
-/// Runs [fn] with a timeout, catches the error, and returns a user-friendly
 /// fallback.  This is useful for non-critical UI data that can degrade
 /// gracefully.
 Future<T> withTimeoutOrFallback<T>(
@@ -123,3 +123,21 @@ Future<T> withTimeoutOrFallback<T>(
     return fallback;
   }
 }
+
+/// The headers every authenticated Matrix media request needs.
+///
+/// Matrix homeservers serve avatars and thumbnails over authenticated HTTP, so
+/// an image loaded without this answers `401` on any server that does not
+/// also serve its own media anonymously. The result is not a broken image
+/// icon: it is a silent fall back to whatever the widget shows when the load
+/// fails, which in a chat client is usually a letter, so nobody notices that
+/// the avatar ever worked. That is why this is one function rather than seven
+/// copies of a map literal, and why
+/// `test/unit/authenticated_media_test.dart` fails the build when a widget
+/// loads media without it.
+///
+/// Takes the [client] rather than reading a global because during an account
+/// switch two clients are briefly alive, and the wrong token is exactly as
+/// silent as no token.
+Map<String, String> authHeaders(Client client) =>
+    {'authorization': 'Bearer ${client.accessToken}'};

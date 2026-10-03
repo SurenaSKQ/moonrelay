@@ -501,6 +501,7 @@ class _PublicRoomTile extends StatelessWidget {
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
+                        headers: authHeaders(context.read<Client>()),
                         errorBuilder: (_, __, ___) => Icon(
                           LucideIcons.hash,
                           color: scheme.onPrimaryContainer,

@@ -120,12 +120,22 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
     if (callback != null && _presenceListen != null) {
       _presenceListen!.removeListener(callback);
     }
-    listen.addListener(() {
+    // The closure is kept, not discarded.
+    //
+    // This stored `() {}` after adding an *anonymous* closure, so
+    // `dispose()` removed a listener that was never added and the real one
+    // stayed attached to the bus's `ValueNotifier` for the life of the bus.
+    // The bus outlives the sidebar (it is app-wide), so every account switch
+    // leaked a `State` object that still had a mounted-check closure on it,
+    // and the leak kept the whole sidebar subtree reachable.
+    void listener() {
       if (!mounted) return;
       setState(() => _presence = listen.value);
-    });
+    }
+
+    listen.addListener(listener);
     _presenceListen = listen;
-    _presenceCallback = () {};
+    _presenceCallback = listener;
     _presence = listen.value;
   }
 

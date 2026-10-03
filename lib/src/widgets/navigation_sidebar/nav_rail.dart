@@ -27,6 +27,7 @@ import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_widgets.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/space_context_menu.dart';
@@ -168,6 +169,16 @@ class _SpacesRailState extends State<SpacesRail> {
     final l10n = AppLocalizations.of(context)!;
     final motion = Motion.of(context);
 
+    // The active client, read once and passed down.
+    //
+    // The icons used to reach through `space.client` instead. That couples a
+    // view to whichever client its room happens to belong to rather than the
+    // one the app is logged in as, which is the wrong one to resolve a
+    // thumbnail against during an account switch: the avatar 401s and the
+    // rail quietly falls back to letters, which is exactly the bug this
+    // change is fixing one level down.
+    final client = Provider.of<Client>(context, listen: false);
+
     return Material(
       color: theme.colorScheme.surfaceContainerLow,
       child: SizedBox(
@@ -181,8 +192,8 @@ class _SpacesRailState extends State<SpacesRail> {
                 itemBuilder: (context, index) {
                   final item = widget.items[index];
                   return switch (item) {
-                    NavSpaceGroup() => _groupBlock(item),
-                    NavSpaceLeaf() => _leaf(item.space, grouped: false),
+                    NavSpaceGroup() => _groupBlock(item, client),
+                    NavSpaceLeaf() => _leaf(item.space, grouped: false, client: client),
                   };
                 },
               ),
@@ -214,7 +225,7 @@ class _SpacesRailState extends State<SpacesRail> {
   /// pixels as a standalone icon: the rail is 72 wide, the block starts 2 in,
   /// its rule is 2 wide, and its padding is 8, so the children start at 12,
   /// which is where an ungrouped icon starts.
-  Widget _groupBlock(NavSpaceGroup group) {
+  Widget _groupBlock(NavSpaceGroup group, Client client) {
     final t = Theme.of(context).moonrelay.tokens;
     final hairline = Theme.of(context).moonrelay.layers.hairline;
 
@@ -246,7 +257,7 @@ class _SpacesRailState extends State<SpacesRail> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final child in group.children)
-                  _leaf(child.space, grouped: true),
+                  _leaf(child.space, grouped: true, client: client),
               ],
             ),
           ),
@@ -255,12 +266,13 @@ class _SpacesRailState extends State<SpacesRail> {
   }
 
   /// A standalone space icon, or one nested inside a group block.
-  Widget _leaf(Room space, {required bool grouped}) {
+  Widget _leaf(Room space, {required bool grouped, required Client client}) {
     final theme = Theme.of(context);
     final t = theme.moonrelay.tokens;
     final selected = widget.isSpaceSelected && widget.selectedId == space.id;
 
     Widget icon = _RailSpaceIcon(
+      client: client,
       space: space,
       selected: selected,
       onTap: () => widget.onSelect(space),
@@ -375,6 +387,7 @@ class _SpacesRailState extends State<SpacesRail> {
 /// rounded square, plus the leading indicator for the selected one.
 class _RailSpaceIcon extends StatefulWidget {
   const _RailSpaceIcon({
+    required this.client,
     required this.space,
     required this.selected,
     required this.onTap,
@@ -383,6 +396,7 @@ class _RailSpaceIcon extends StatefulWidget {
     required this.railActive,
   });
 
+  final Client client;
   final Room space;
   final bool selected;
   final VoidCallback onTap;
@@ -474,7 +488,11 @@ class _RailSpaceIconState extends State<_RailSpaceIcon> {
                     borderRadius: _radius,
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: _SpaceIconImage(space: widget.space, selected: widget.selected),
+                  child: _SpaceIconImage(
+      client: widget.client,
+      space: widget.space,
+      selected: widget.selected,
+    ),
                 ),
               ),
             ),
@@ -491,9 +509,25 @@ class _RailSpaceIconState extends State<_RailSpaceIcon> {
 /// without that, the image would stay circular inside a square frame while
 /// the empty state changed shape, and the two states would look like
 /// different components.
+///
+/// The image goes through [AvatarFromUriOrFallbackImage] rather than a bare
+/// `Image.network`. It used to be a bare `Image.network`, which sent no
+/// `Authorization` header, so every space whose avatar the homeserver does
+/// not serve publicly answered 401 and the rail fell back to its letter. The
+/// sidebar's space rows had always passed the bearer token, so moving spaces
+/// into the rail silently removed the pictures from them: the same spaces,
+/// the same avatars, and a column of initials where images used to be. The
+/// shared widget also resolves a thumbnail URI, memoizes it per
+/// `(client, uri, size)`, and shares one round trip between every icon asking
+/// for the same avatar, none of which a bare `Image.network` did.
 class _SpaceIconImage extends StatelessWidget {
-  const _SpaceIconImage({required this.space, required this.selected});
+  const _SpaceIconImage({
+    required this.client,
+    required this.space,
+    required this.selected,
+  });
 
+  final Client client;
   final Room space;
   final bool selected;
 
@@ -503,14 +537,18 @@ class _SpaceIconImage extends StatelessWidget {
     final scheme = theme.colorScheme;
     final uri = space.avatar;
 
-    if (uri != null) {
-      return Image.network(
-        uri.toString(),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _initials(scheme, selected),
-      );
-    }
-    return _initials(scheme, selected);
+    // The letter is passed as the placeholder rather than as an error path,
+    // so it is what shows both before the avatar arrives and if it never
+    // does. The parent clips this to the morphing radius, so the shared
+    // widget's own circle does not fight the shape change.
+    final letter = _initials(scheme, selected);
+
+    return AvatarFromUriOrFallbackImage(
+      client: client,
+      avatarUri: uri,
+      radius: MoonrelayDesignTokens.spaceIconSize / 2,
+      placeholder: letter,
+    );
   }
 
   Widget _initials(ColorScheme scheme, bool selected) {

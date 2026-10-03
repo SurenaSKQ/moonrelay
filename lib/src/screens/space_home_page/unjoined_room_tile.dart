@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
@@ -96,8 +97,12 @@ class UnjoinedRoomTileState extends State<UnjoinedRoomTile> {
           radius: ext.components.avatar.sizeMedium / 2,
           backgroundColor:
               widget.scheme.primaryContainer.withValues(alpha: t.opacitySubtle),
-          backgroundImage:
-              avatarUri != null ? NetworkImage(avatarUri.toString()) : null,
+          backgroundImage: avatarUri != null
+              ? NetworkImage(
+                  avatarUri.toString(),
+                  headers: authHeaders(widget.client),
+                )
+              : null,
           onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
           child: avatarUri == null
               ? Icon(

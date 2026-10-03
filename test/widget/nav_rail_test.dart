@@ -24,6 +24,7 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/rail_group_header.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
@@ -70,13 +71,14 @@ Widget _rail({
   String? selectedId,
   bool isSpaceSelected = false,
   SpacePreferences? spacePreferences,
+  Client? client,
 }) {
-  final client = MockClient();
-  when(() => client.rooms).thenReturn(spaces);
+  final activeClient = client ?? MockClient();
+  when(() => activeClient.rooms).thenReturn(spaces);
   final nav = NavigationState();
   if (isSpaceSelected && selectedId != null) nav.selectSpace(selectedId);
   return wrapWithProviders(
-    client: client,
+    client: activeClient,
     child: const Scaffold(body: SpacesRailHost()),
     navigationState: nav,
     spacePreferences: spacePreferences ?? SpacePreferences(SettingsService()),
@@ -179,6 +181,45 @@ void main() {
       // No avatar on the mock, so the initial path is what runs. Asserted
       // because the rail has no label to fall back on: an empty 48px box is
       // the failure mode.
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('a space avatar goes through the shared authenticated widget',
+        (tester) async {
+      // The rail used to load space avatars with a bare `Image.network`, which
+      // sends no Authorization header. Every homeserver that does not serve
+      // media publicly answered 401 and the rail fell back to its letter, so
+      // moving spaces out of the sidebar quietly turned a column of avatars
+      // into a column of initials.
+      //
+      // The header itself is not observable from a widget test: Flutter's
+      // `NetworkImage` opens its own HTTP connection rather than going
+      // through the Matrix client's, and `flutter_test` replaces it wholesale.
+      // `test/unit/authenticated_media_test.dart` guards the header as a
+      // source invariant instead; this asserts that the rail is using the
+      // widget that carries it, rather than re-implementing the load.
+      final uri = Uri.parse('mxc://matrix.org/spaceavatar');
+      final space = _space('!s1:matrix.org');
+      when(() => space.avatar).thenReturn(uri);
+
+      await tester.pumpWidget(_rail(spaces: [space]));
+      await tester.pump();
+
+      final avatar = tester.widget<AvatarFromUriOrFallbackImage>(
+        find.byType(AvatarFromUriOrFallbackImage),
+      );
+      expect(avatar.avatarUri, uri);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('a space with no avatar falls back to its letter',
+        (tester) async {
+      await tester.pumpWidget(_rail(spaces: [_space('!s1:matrix.org')]));
+      await tester.pump();
+
+      // The letter is the placeholder now, not the person silhouette the
+      // shared widget defaults to: a grey person in a column of space icons
+      // is a picture of nothing.
       expect(find.text('T'), findsOneWidget);
     });
 

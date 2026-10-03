@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/helpers/threads_provider.dart';
@@ -176,7 +177,8 @@ class _ThreadListTile extends StatelessWidget {
         backgroundImage: event.senderFromMemoryOrFallback.avatarUrl != null
             ? NetworkImage(
                 event.senderFromMemoryOrFallback.avatarUrl.toString(),
-              )
+                headers: authHeaders(room.client),
+                )
             : null,
         child: event.senderFromMemoryOrFallback.avatarUrl == null
             ? Icon(Icons.person, size: 14, color: scheme.onSurfaceVariant)

@@ -16,6 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A card widget for displaying a space's basic info in a grid or list.
@@ -30,6 +32,7 @@ class SpaceCard extends StatelessWidget {
     this.thumbnailURL,
     this.subtitle,
     this.onTap,
+    this.client,
   });
 
   /// The display name of the space.
@@ -44,8 +47,19 @@ class SpaceCard extends StatelessWidget {
   /// Called when the card is tapped.
   final VoidCallback? onTap;
 
-  /// Whether a valid thumbnail URL was provided.
-  bool get _hasThumbnail => thumbnailURL != null && thumbnailURL!.isNotEmpty;
+  /// The client whose token the thumbnail is fetched with.
+  ///
+  /// Explicit rather than read from a provider, because this widget has no
+  /// callers and a card is a pure view: making it depend on an ambient
+  /// client means the first person to use it has to discover the missing
+  /// provider from a `ProviderNotFoundException` at runtime. Without a
+  /// client the card shows its folder icon instead of attempting a request
+  /// that would answer 401.
+  final Client? client;
+
+  /// Whether a valid thumbnail URL was provided and we can actually fetch it.
+  bool get _hasThumbnail =>
+      client != null && thumbnailURL != null && thumbnailURL!.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +83,12 @@ class SpaceCard extends StatelessWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: scheme.primaryContainer,
-                backgroundImage:
-                    _hasThumbnail ? NetworkImage(thumbnailURL!) : null,
+                backgroundImage: _hasThumbnail
+                    ? NetworkImage(
+                        thumbnailURL!,
+                        headers: authHeaders(client!),
+                      )
+                    : null,
                 onBackgroundImageError: _hasThumbnail ? (_, __) {} : null,
                 child: _hasThumbnail
                     ? null

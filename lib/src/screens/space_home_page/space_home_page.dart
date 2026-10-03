@@ -275,7 +275,10 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
                 radius: 40,
                 backgroundColor: scheme.primaryContainer,
                 backgroundImage: space.avatar != null
-                    ? NetworkImage(space.avatar.toString())
+                    ? NetworkImage(
+                        space.avatar.toString(),
+                        headers: authHeaders(context.read<Client>()),
+                      )
                     : null,
                 onBackgroundImageError:
                     space.avatar != null ? (_, __) {} : null,
@@ -387,8 +390,12 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
         leading: CircleAvatar(
           radius: ext.components.avatar.sizeMedium / 2,
           backgroundColor: scheme.primaryContainer,
-          backgroundImage:
-              avatar != null ? NetworkImage(avatar.toString()) : null,
+          backgroundImage: avatar != null
+              ? NetworkImage(
+                  avatar.toString(),
+                  headers: authHeaders(context.read<Client>()),
+                )
+              : null,
           onBackgroundImageError: avatar != null ? (_, __) {} : null,
           child: avatar == null
               ? Icon(

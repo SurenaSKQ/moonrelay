@@ -41,12 +41,22 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     this.avatarUri,
     this.onTap,
     this.radius,
+    this.placeholder,
   });
 
   final Client client;
   final Uri? avatarUri;
   final VoidCallback? onTap;
   final double? radius;
+
+  /// Shown while the thumbnail URL resolves and when [avatarUri] is null.
+  ///
+  /// Defaults to a person icon, which is right for a human and wrong for
+  /// anything else: the spaces rail shows a space's initial here, because a
+  /// grey person silhouette in a column of space icons is a picture of
+  /// nothing. The rail also has to keep its letter fallback, since its
+  /// morphing shape and that letter are the same design decision.
+  final Widget? placeholder;
 
   // -- Memoization ---------------------------------------------------------
   // Each (client, uri, size) triple resolves to a single ValueNotifier
@@ -98,9 +108,10 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
     final theme = Theme.of(context);
     final displaySize = ((radius ?? 20) * 2).round();
     final uri = avatarUri;
+    final fallback = placeholder;
 
     if (uri == null) {
-      return _tapTarget(_placeholder(theme));
+      return _tapTarget(fallback ?? _placeholder(theme));
     }
 
     final resolver = _getResolver(client, uri, displaySize);
@@ -112,7 +123,7 @@ class AvatarFromUriOrFallbackImage extends StatelessWidget {
           if (resolved != null) {
             return _avatarWithErrorHandling(context, theme, resolved);
           }
-          return _placeholder(theme);
+          return fallback ?? _placeholder(theme);
         },
       ),
     );
