@@ -19,7 +19,9 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
+import 'package:moonrelay/src/helpers/room_avatar.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/motion.dart';
@@ -248,6 +250,10 @@ class _RecentRoomTile extends StatelessWidget {
     final t = ext.tokens;
     final scheme = theme.colorScheme;
     final radius = BorderRadius.circular(t.radiusMd);
+    // Same rule as the sidebar's room rows: a direct chat shows the other
+    // person's avatar, not the room's, or a DM you started shows your face.
+    final avatar = avatarForRoomList(room);
+    final initial = room.getLocalizedDisplayname().characters.first.toUpperCase();
 
     return Material(
       color: scheme.surfaceContainer,
@@ -265,23 +271,16 @@ class _RecentRoomTile extends StatelessWidget {
               CircleAvatar(
                 radius: t.spaceLg,
                 backgroundColor: scheme.surfaceContainerHighest,
-                foregroundImage: room.avatar == null
+                foregroundImage: avatar == null
                     ? null
                     : NetworkImage(
-                        room.avatar.toString(),
-                        headers: {
-                          'authorization':
-                              'Bearer ${room.client.accessToken}',
-                        },
+                        avatar.toString(),
+                        headers: authHeaders(room.client),
                       ),
                 onForegroundImageError: (_, __) {},
-                child: room.avatar == null
+                child: avatar == null
                     ? Text(
-                        room
-                            .getLocalizedDisplayname()
-                            .characters
-                            .first
-                            .toUpperCase(),
+                        initial,
                         style: TextStyle(
                           fontSize: t.spaceMd,
                           fontWeight: FontWeight.w600,

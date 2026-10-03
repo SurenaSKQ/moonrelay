@@ -22,6 +22,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/room_avatar.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
@@ -62,6 +63,24 @@ class _ClientThumbnailCache {
       final oldest = _lruOrder.removeAt(0);
       _cache.remove(oldest);
     }
+
+    // A failure is not a resolution.
+    //
+    // The entry was being kept whatever came back, so one thumbnail that
+    // timed out on a bad connection was cached as a completed `null` and the
+    // row showed its letter from then on: no retry, no recovery, until the
+    // app was restarted or 256 other rooms pushed the entry out of the LRU.
+    // A transient network blip turned avatars off permanently, which reads
+    // as "this room has no picture" rather than as "we asked once and failed".
+    unawaited(
+      fresh.then((uri) {
+        if (uri == null && identical(_cache[key], fresh)) {
+          _cache.remove(key);
+          _lruOrder.remove(key);
+        }
+      }),
+    );
+
     return fresh;
   }
 
@@ -510,25 +529,37 @@ class _RoomAvatar extends StatelessWidget {
     final rawName = room.getLocalizedDisplayname().trim();
     final displayname = rawName.isEmpty ? '?' : rawName;
     final initials = _initialsForDisplayname(displayname);
-    if (room.avatar == null) {
+
+    // Not `room.avatar`. For a direct chat that is the room's own
+    // `m.room.avatar`, which a client sets to the avatar of whoever started
+    // the conversation, so every DM you opened yourself shows your own face
+    // next to the other person's name. See [avatarForRoomList] for the whole
+    // argument; the short version is that the room avatar is the right
+    // picture for a room and the wrong one for a person.
+    final avatar = avatarForRoomList(room);
+    if (avatar == null) {
       return CircleAvatar(
         child: Text(initials),
       );
     }
 
-    final cacheKey = '${room.id}::${room.avatar!.toString()}::56x56';
+    final cacheKey = '${room.id}::$avatar::56x56';
     return FutureBuilder<Uri?>(
       future: _RoomsPaneState.cachedThumbnail(
         client,
         cacheKey,
         () => withTimeoutOrFallback(
-          () => room.avatar!.getThumbnailUri(
+          () => avatar.getThumbnailUri(
             client,
             method: ThumbnailMethod.scale,
             height: 56,
             width: 56,
           ),
           timeout: kDefaultTimeout,
+          // `null` rather than the original URI: a server that cannot make a
+          // thumbnail will not serve the original either, and caching the
+          // original as if it had resolved would pin a permanent broken image
+          // in place of the letter this is supposed to fall back to.
           fallback: null,
         ),
       ),
@@ -538,9 +569,7 @@ class _RoomAvatar extends StatelessWidget {
           return CircleAvatar(
             backgroundImage: NetworkImage(
               uri.toString(),
-              headers: {
-                'authorization': 'Bearer ${client.accessToken}',
-              },
+              headers: authHeaders(client),
             ),
             onBackgroundImageError: (_, __) {},
           );
