@@ -54,25 +54,48 @@ List<({int start, int end, String userId})> findUserMentions(String text) {
   return results;
 }
 
+/// The href prefixes that resolve to a Matrix user, longest first.
+///
+/// `http://` is here for the same reason it is in `_hrefUserPattern`, and that
+/// is the point: that regex is what decides which anchors become pills, and it
+/// accepts http. Recognising only the https spelling here meant an http user
+/// permalink rendered a pill *and* the `MatrixUrlBanner` the pill exists to
+/// replace. matrix.to redirects to https, so an http link in a message body is
+/// ordinary rather than malformed.
+const _userHrefPrefixes = <String>[
+  'https://matrix.to/#/',
+  'http://matrix.to/#/',
+  'matrix:u/',
+];
+
 /// Returns `true` if [href] targets a Matrix user (so the inline
 /// renderer can suppress the extra `MatrixUrlBanner` that would
 /// otherwise appear alongside the pill).
+///
+/// Derived from [userIdFromHref] rather than repeating its prefix list, so the
+/// two cannot disagree about which links are user links.
 bool isUserPermalink(String href) {
-  final lower = href.toLowerCase();
-  if (lower.startsWith('matrix:u/')) return true;
-  if (!lower.startsWith('https://matrix.to/#/')) return false;
-  final fragment = href.substring('https://matrix.to/#/'.length);
-  return fragment.startsWith('@');
+  final resolved = userIdFromHref(href);
+  return resolved != null && resolved.startsWith('@');
 }
 
 /// Resolves a `matrix:u/...` or `matrix.to/#/@...` href to a userid.
 String? userIdFromHref(String href) {
   final lower = href.toLowerCase();
-  if (lower.startsWith('matrix:u/')) {
-    return href.substring('matrix:u/'.length);
-  }
-  if (lower.startsWith('https://matrix.to/#/')) {
-    return href.substring('https://matrix.to/#/'.length);
+  for (final prefix in _userHrefPrefixes) {
+    if (!lower.startsWith(prefix)) continue;
+    final raw = href.substring(prefix.length);
+    // The spec percent-encodes the `matrix:u/` path, because a userid may
+    // contain a `/` in its domain. Handing the encoded form on asks the profile
+    // screen for a user that does not exist.
+    try {
+      return Uri.decodeFull(raw);
+    } on FormatException {
+      // A stray or truncated `%` in a link someone typed. Not worth
+      // discarding the whole href over: the raw tail is the best guess
+      // available, and a malformed id simply fails to resolve later.
+      return raw;
+    }
   }
   return null;
 }
