@@ -100,23 +100,6 @@ class HubLayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Left sidebar
-              HubSettingsSection(
-                title: l10n.leftSidebar,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.visible),
-                    subtitle: Text(
-                      l10n.showOrHideLeftSidebar,
-                    ),
-                    value: controller.leftSidebarVisible,
-                    onChanged: (v) => controller.setLeftSidebarVisible(v),
-                    secondary: const Icon(LucideIcons.panelLeft),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
               // Right sidebar
               HubSettingsSection(
                 title: 'Right sidebar (experimental)',

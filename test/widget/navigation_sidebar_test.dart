@@ -426,8 +426,8 @@ testWidgets('a space is no longer reachable from this pane',
       );
     }
 
-    testWidgets('the wide shell shows the navigation sidebar and a '
-        'collapse gutter', (tester) async {
+    testWidgets('the wide shell always shows the navigation sidebar',
+        (tester) async {
       final settings = createTestSettingsController();
       await tester.pumpWidget(
         wrapDashboard(
@@ -438,27 +438,6 @@ testWidgets('a space is no longer reachable from this pane',
       await tester.pump();
 
       expect(find.byType(NavigationSidebar), findsOneWidget);
-      expect(find.byType(SidebarCollapseGutter), findsOneWidget);
-      expect(find.byType(SidebarExpandGutter), findsNothing);
-    });
-
-    testWidgets('collapsing the sidebar swaps the gutter for the expand '
-        'gutter', (tester) async {
-      final settings = createTestSettingsController();
-      await tester.pumpWidget(
-        wrapDashboard(
-          settings,
-          dashboardView(settings: settings, detailPaneFits: true),
-        ),
-      );
-      await tester.pump();
-
-      await settings.toggleLeftSidebar();
-      await tester.pump();
-
-      expect(find.byType(NavigationSidebar), findsNothing);
-      expect(find.byType(SidebarCollapseGutter), findsNothing);
-      expect(find.byType(SidebarExpandGutter), findsOneWidget);
     });
 
     // The regression this guards: the narrow dashboard used to be a

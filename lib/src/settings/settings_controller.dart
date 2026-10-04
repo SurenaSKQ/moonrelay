@@ -38,7 +38,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   // Layout state
   LayoutMode _layoutMode = LayoutMode.auto;
-  bool _leftSidebarVisible = true;
   double _leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth;
   bool _rightSidebarVisible = true;
   double _rightSidebarWidth = 280.0;
@@ -138,7 +137,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
   // Layout getters
   LayoutMode get layoutMode => _layoutMode;
-  bool get leftSidebarVisible => _leftSidebarVisible;
   double get leftSidebarWidth => _leftSidebarWidth;
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
@@ -229,7 +227,6 @@ class SettingsController with ChangeNotifier, WindowListener {
 
     // Layout settings
     _layoutMode = snapshot.layoutMode;
-    _leftSidebarVisible = snapshot.leftSidebarVisible;
     _leftSidebarWidth = snapshot.leftSidebarWidth;
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
@@ -342,14 +339,6 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateLayoutMode(mode);
   }
 
-  Future<void> setLeftSidebarVisible(bool visible) async {
-    if (visible != _leftSidebarVisible) {
-      _leftSidebarVisible = visible;
-      notifyListeners();
-      await _settingsService.updateLeftSidebarVisible(visible);
-    }
-  }
-
   Future<void> setLeftSidebarWidth(double width) async {
     width = width.clamp(200.0, 600.0);
     if (width != _leftSidebarWidth) {
@@ -357,10 +346,6 @@ class SettingsController with ChangeNotifier, WindowListener {
       notifyListeners();
       await _settingsService.updateLeftSidebarWidth(width);
     }
-  }
-
-  Future<void> toggleLeftSidebar() async {
-    await setLeftSidebarVisible(!_leftSidebarVisible);
   }
 
   Future<void> setRightSidebarVisible(bool visible) async {

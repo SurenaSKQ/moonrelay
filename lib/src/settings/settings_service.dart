@@ -32,7 +32,6 @@ class SettingsSnapshot {
   final String selectedAccentId;
   final DisplayType displayType;
   final LayoutMode layoutMode;
-  final bool leftSidebarVisible;
   final double leftSidebarWidth;
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
@@ -113,7 +112,6 @@ class SettingsSnapshot {
     this.selectedAccentId = MoonrelayAccents.defaultAccentId,
     this.displayType = DisplayType.modern,
     this.layoutMode = LayoutMode.auto,
-    this.leftSidebarVisible = true,
     this.leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth,
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
@@ -191,7 +189,6 @@ class SettingsService {
   static const _layoutModeKey = 'layout_mode';
 
   // Layout keys
-  static const _leftSidebarVisibleKey = 'left_sidebar_visible';
   static const _leftSidebarWidthKey = 'left_sidebar_width';
   static const _rightSidebarVisibleKey = 'right_sidebar_visible';
   static const _rightSidebarWidthKey = 'right_sidebar_width';
@@ -341,7 +338,6 @@ class SettingsService {
       themeMode: _readThemeMode(prefs),
       displayType: _readDisplayType(prefs),
       layoutMode: _readLayoutMode(prefs),
-      leftSidebarVisible: prefs.getBool(_leftSidebarVisibleKey) ?? true,
       leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ??
           LayoutBreakpoints.defaultLeftSidebarWidth,
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
@@ -556,16 +552,6 @@ class SettingsService {
   }
 
   // -- Layout settings --------------------------------------------------
-
-  Future<bool> leftSidebarVisible() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_leftSidebarVisibleKey) ?? true;
-  }
-
-  Future<void> updateLeftSidebarVisible(bool visible) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_leftSidebarVisibleKey, visible);
-  }
 
   Future<double> leftSidebarWidth() async {
     final prefs = await SharedPreferences.getInstance();

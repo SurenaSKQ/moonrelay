@@ -153,17 +153,5 @@ void main() {
       await reloaded.loadSettings();
       expect(reloaded.layoutMode, LayoutMode.mobile);
     });
-
-
-    test('left sidebar visibility toggles and persists', () async {
-      expect(controller.leftSidebarVisible, isTrue);
-
-      await controller.toggleLeftSidebar();
-      expect(controller.leftSidebarVisible, isFalse);
-      expect(await service.leftSidebarVisible(), isFalse);
-
-      await controller.toggleLeftSidebar();
-      expect(controller.leftSidebarVisible, isTrue);
-    });
   });
 }

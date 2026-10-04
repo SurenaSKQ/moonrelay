@@ -39,8 +39,6 @@
   "areYouSureExit": "Are you sure you want to exit the application?",
   "yesOrAffirmitive": "Yes",
   "noOrCancellation": "No",
-  "collapseSidebar": "Collapse sidebar",
-  "expandSidebar": "Expand sidebar",
   "minimize": "Minimize",
   "maximize": "Maximize",
   "restore": "Restore",
@@ -639,9 +637,7 @@
   "uiScale": "UI scale",
   "interfaceScale": "Interface scale",
 
-  "leftSidebar": "Left sidebar",
   "visible": "Visible",
-  "showOrHideLeftSidebar": "Show or hide the left sidebar",
   "content": "Content",
   "widthLabel": "Width",
   "rooms": "Rooms",
@@ -2836,7 +2832,6 @@
   "@commandPaletteOpenLogs": {
     "description": "Command palette action that opens the logs hub page."
   },
-  "commandPaletteToggleSidebar": "Toggle Left Sidebar",
   "@commandPaletteToggleSidebar": {
     "description": "Command palette action that toggles the dashboard left sidebar."
   },

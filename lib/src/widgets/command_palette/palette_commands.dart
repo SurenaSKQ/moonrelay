@@ -102,16 +102,6 @@ List<CommandAction> buildPaletteActions(BuildContext context, AppLocalizations l
       },
     ),
     CommandAction(
-      key: 'toggle_left_sidebar',
-      label: loc.commandPaletteToggleSidebar,
-      icon: LucideIcons.panelLeft,
-      callback: (ctx) {
-        if (settings != null) {
-          settings.setLeftSidebarVisible(!settings.leftSidebarVisible);
-        }
-      },
-    ),
-    CommandAction(
       key: 'toggle_right_sidebar',
       label: loc.commandPaletteToggleRightSidebar,
       icon: LucideIcons.panelRight,

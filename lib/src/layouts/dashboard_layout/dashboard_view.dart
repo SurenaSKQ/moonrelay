@@ -15,11 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/responsive.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
@@ -89,7 +87,6 @@ class DashboardView extends StatelessWidget {
     final theme = Theme.of(context);
 
     // -- One composition, every width -------------------------------
-    final showLeft = settings.leftSidebarVisible;
     final showRight = settings.rightSidebarVisible && detailPaneFits;
     // One clamp, one range. The two dashboards used to disagree here
     // (200..360 against 220..360), so a width the user had chosen in one
@@ -102,29 +99,17 @@ class DashboardView extends StatelessWidget {
         .toDouble();
 
     // In RTL mode the sidebar order must be reversed so that the
-    // "left" sidebar appears on the right side of the window.  The
-    // collapse/expand gutters are row children too, so they land on
-    // the same side as the sidebar they belong to.
+    // "left" sidebar appears on the right side of the window.
     //
     // The rail is a row child for the same reason: in RTL it should sit on
     // the right of the room list, and reversing the whole list is simpler and
     // less error-prone than flipping each pane's internals.
     final paneChildren = <Widget>[
-      if (showLeft) ...[
-        const SpacesRailHost(),
-        SizedBox(
-          width: sidebarWidth,
-          child: const NavigationSidebar(),
-        ),
-        SidebarCollapseGutter(
-          onCollapse: () => settings.setLeftSidebarVisible(false),
-        ),
-      ] else ...[
-        SidebarExpandGutter(
-          onExpand: () => settings.setLeftSidebarVisible(true),
-        ),
-        const SpacesRailHost(),
-      ],
+      const SpacesRailHost(),
+      SizedBox(
+        width: sidebarWidth,
+        child: const NavigationSidebar(),
+      ),
       Expanded(
         child: GlobalShortcutListener(
           child: PostLoginSetupChecker(
@@ -158,98 +143,4 @@ class DashboardView extends StatelessWidget {
     );
   }
 }
-
-// --- Sidebar collapse / expand gutters --------------------------------------
-
-/// Thin strip between the navigation sidebar and the main content.
-///
-/// On hover it reveals a button that collapses the sidebar; the strip
-/// is a row child so it stays on the same side as the sidebar in RTL
-/// windows.
-class SidebarCollapseGutter extends StatefulWidget {
-  const SidebarCollapseGutter({super.key, required this.onCollapse});
-
-  final VoidCallback onCollapse;
-
-  @override
-  State<SidebarCollapseGutter> createState() => _SidebarCollapseGutterState();
-}
-
-class _SidebarCollapseGutterState extends State<SidebarCollapseGutter> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      cursor: SystemMouseCursors.click,
-      child: Container(
-        width: 18,
-        color: Colors.transparent,
-        alignment: Alignment.center,
-        child: AnimatedOpacity(
-          opacity: _hover ? 1.0 : 0.3,
-          duration: const Duration(milliseconds: 120),
-          child: IconButton(
-            icon: Icon(
-              isRtl ? LucideIcons.chevronsRight : LucideIcons.chevronsLeft,
-              size: 14,
-            ),
-            tooltip: l10n.collapseSidebar,
-            onPressed: widget.onCollapse,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 22,
-              height: 22,
-            ),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.surfaceContainerHighest,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Thin strip shown at the side of the screen while the navigation
-/// sidebar is collapsed, offering the expand button.
-class SidebarExpandGutter extends StatelessWidget {
-  const SidebarExpandGutter({super.key, required this.onExpand});
-
-  final VoidCallback onExpand;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-
-    return Container(
-      width: 18,
-      color: Colors.transparent,
-      alignment: Alignment.center,
-      child: IconButton(
-        icon: Icon(
-          isRtl ? LucideIcons.chevronsLeft : LucideIcons.chevronsRight,
-          size: 14,
-        ),
-        tooltip: l10n.expandSidebar,
-        onPressed: onExpand,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 22, height: 22),
-        style: IconButton.styleFrom(
-          backgroundColor: scheme.surfaceContainerHighest,
-        ),
-      ),
-    );
-  }
-}
-
-
 
