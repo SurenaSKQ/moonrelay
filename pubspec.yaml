@@ -60,6 +60,12 @@ dev_dependencies:
   mocktail: ^1.0.4
   integration_test:
     sdk: flutter
+  # Both already arrive transitively through video_player. They are named
+  # explicitly because test/helpers/fake_video_player_platform.dart imports
+  # them directly to stand in for the plugin's platform side, and importing a
+  # transitive package is a dependency declaration you forgot to write down.
+  plugin_platform_interface: ^2.1.8
+  video_player_platform_interface: ^6.9.0
 
 flutter:
   uses-material-design: true

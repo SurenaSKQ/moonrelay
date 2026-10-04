@@ -2269,9 +2269,37 @@
   "@playVideo": {
     "description": "Tooltip for the video message play button."
   },
-  "pauseVideo": "Pause",
+"pauseVideo": "Pause",
   "@pauseVideo": {
     "description": "Tooltip for the video message pause button."
+  },
+  "videoSkipBack": "Back {seconds}s",
+  "@videoSkipBack": {
+    "description": "Tooltip for the full-screen video player's rewind control. The argument is the number of seconds, plural in every locale that has this key so far.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "10"
+      }
+    }
+  },
+  "videoSkipForward": "Forward {seconds}s",
+  "@videoSkipForward": {
+    "description": "Tooltip for the full-screen video player's fast-forward control. The argument is the number of seconds, plural in every locale that has this key so far.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "videoMute": "Mute",
+  "@videoMute": {
+    "description": "Tooltip for the full-screen video player's mute control."
+  },
+  "videoUnmute": "Unmute",
+  "@videoUnmute": {
+    "description": "Tooltip for the full-screen video player's unmute control."
   },
   "fullscreenVideo": "Fullscreen",
   "@fullscreenVideo": {
