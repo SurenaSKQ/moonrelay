@@ -80,6 +80,7 @@ class MoonrelaySurfaceLayers {
     required this.railActive,
     required this.hairline,
     required this.accentHover,
+    required this.mediaBackdrop,
   });
 
   /// Fill for a row, card, or button under the pointer.
@@ -101,6 +102,25 @@ class MoonrelaySurfaceLayers {
 
   /// Accent at rest on hover, for filled accent buttons.
   final Color accentHover;
+
+  /// The backdrop behind a full-screen photo or video.
+  ///
+  /// The one surface that is *not* taken from the brightness. A viewer is a hole
+  /// in the app: the reader is looking at a picture and the picture must not
+  /// sit on a light grey rectangle in light mode, because every photograph has
+  /// a border invented for it and none of them are that grey.
+  ///
+  /// It is the app floor rather than pure black. Pure black next to a
+  /// photograph with real blacks in it reads as a glowing edge, and pure black
+  /// is also the one value a display cannot dim, so a full-screen near-black
+  /// panel at maximum brightness is uncomfortable on a laptop at night.
+  ///
+  /// Stated here rather than written as `Colors.black` at each call site because
+  /// both full-screen media surfaces have to agree, and they had not: the image
+  /// viewer painted `0xCC000000` over a black scaffold and the video player
+  /// painted `Colors.black`, which is a visible seam when one opens from the
+  /// other.
+  final Color mediaBackdrop;
 
   /// Builds the layer palette for [brightness].
   ///
@@ -129,6 +149,7 @@ class MoonrelaySurfaceLayers {
         railActive: rail.fill,
         hairline: const Color(0x0FFFFFFF),
         accentHover: rail.hover,
+        mediaBackdrop: const Color(0xFF0B0B0D),
       );
     }
     return MoonrelaySurfaceLayers(
@@ -137,6 +158,8 @@ class MoonrelaySurfaceLayers {
       railActive: rail.fill,
       hairline: const Color(0x1A000000),
       accentHover: rail.hover,
+      // The same value in both brightnesses. See [mediaBackdrop].
+      mediaBackdrop: const Color(0xFF0B0B0D),
     );
   }
 
@@ -284,9 +307,17 @@ class MoonrelaySurfaceLayers {
           other.active == active &&
           other.railActive == railActive &&
           other.hairline == hairline &&
-          other.accentHover == accentHover;
+          other.accentHover == accentHover &&
+          other.mediaBackdrop == mediaBackdrop;
 
   @override
   int get hashCode =>
-      Object.hash(hover, active, railActive, hairline, accentHover);
+      Object.hash(
+        hover,
+        active,
+        railActive,
+        hairline,
+        accentHover,
+        mediaBackdrop,
+      );
 }

@@ -922,7 +922,11 @@
   "selectDownloadTarget": "Select download target",
   "saveImage": "Save image",
   "downloadImage": "Download image",
-  "imageViewerHint": "Drag to move · pinch to zoom · long-press to save",
+  "imageViewerHint": "Drag to move, pinch or use the zoom controls to scale, double-tap to toggle, Escape to close",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "actualSize": "Actual size",
+  "fitToScreen": "Fit to screen",
   "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
   "@fileInfo": {
     "description": "Information about an attached file.",
