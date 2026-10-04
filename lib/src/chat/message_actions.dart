@@ -17,9 +17,11 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
 
 /// A floating toolbar of action buttons for "React", "Reply", "Copy",
 /// "Details", "Forward", "Delete" (if permitted), and "Moderation"
@@ -86,14 +88,14 @@ class MessageActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionIcon(
-          icon: Icons.add_reaction_rounded,
+          icon: LucideIcons.smilePlus,
           tooltip: l10n.reactTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _react(context),
         ),
         SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.reply_rounded,
+          icon: LucideIcons.reply,
           tooltip: l10n.replyTooltip,
           color: cs.onSurfaceVariant,
           onTap: onReply,
@@ -101,7 +103,7 @@ class MessageActions extends StatelessWidget {
         SizedBox(width: t.spaceXs),
         if (onForward != null)
           _ActionIcon(
-            icon: Icons.shortcut_rounded,
+            icon: LucideIcons.forward,
             tooltip: l10n.forwardTooltip,
             color: cs.onSurfaceVariant,
             onTap: onForward!,
@@ -109,21 +111,21 @@ class MessageActions extends StatelessWidget {
         SizedBox(width: t.spaceXs),
         if (onThread != null)
           _ActionIcon(
-            icon: Icons.forum_rounded,
+            icon: LucideIcons.messagesSquare,
             tooltip: l10n.openThread,
             color: cs.onSurfaceVariant,
             onTap: onThread!,
           ),
         SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.copy_rounded,
+          icon: LucideIcons.copy,
           tooltip: l10n.copyTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _copyMessage(context),
         ),
         SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.info_outline_rounded,
+          icon: LucideIcons.info,
           tooltip: l10n.detailsTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
@@ -131,7 +133,7 @@ class MessageActions extends StatelessWidget {
         if (canEdit) ...[
           SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: Icons.edit_outlined,
+            icon: LucideIcons.pencil,
             tooltip: l10n.editTooltip,
             color: cs.onSurfaceVariant,
             onTap: () => _editMessage(context),
@@ -141,7 +143,7 @@ class MessageActions extends StatelessWidget {
           SizedBox(width: t.spaceXs),
           if (showEditHistory)
             _ActionIcon(
-              icon: Icons.history_rounded,
+              icon: LucideIcons.history,
               tooltip: l10n.viewEditHistory,
               color: cs.onSurfaceVariant,
               onTap: () => _showEditHistory(context),
@@ -150,7 +152,7 @@ class MessageActions extends StatelessWidget {
         if (canPin) ...[
           SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+            icon: isPinned ? LucideIcons.pinOff : LucideIcons.pin,
             tooltip: isPinned ? l10n.unpinMessage : l10n.pinMessage,
             color: isPinned ? cs.primary : cs.onSurfaceVariant,
             onTap: () => _togglePin(context),
@@ -159,14 +161,17 @@ class MessageActions extends StatelessWidget {
         if (canDelete) ...[
           SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: Icons.delete_outline_rounded,
+            icon: LucideIcons.trash2,
             tooltip: l10n.deleteTooltip,
             color: cs.error,
             onTap: () => _confirmDelete(context),
           ),
         ],
         // -- Moderation actions -------------------------------------------
-        if (!isOwnMessage && (canModerate || canBanUser)) ...[
+        // Not gated on power: reporting goes to your own homeserver and needs
+        // no room power level, and this gate meant an ordinary member could
+        // not report anybody from the hoverbar.
+        if (!isOwnMessage) ...[
           SizedBox(width: t.spaceXs),
           _ModerationMenu(
             event: event,
@@ -272,8 +277,17 @@ class _ActionIcon extends StatelessWidget {
 // Moderation popup menu
 // ---------------------------------------------------------------------------
 
-/// A popup menu button that shows moderation actions (kick, ban, report)
-/// for users with sufficient permissions in the room.
+/// A popup menu button offering moderation actions for one message's sender.
+///
+/// This used to be a second, hand-written copy of the moderation section in
+/// `MessageContextMenu`, with the entries as `Row(Icon, SizedBox, Text)`, and
+/// it was gated the same wrong way: the *widget* only appeared when the user
+/// could kick or ban, while the report row inside it was written
+/// unconditionally. So the report row could never be reached, and a user with
+/// no power in a room had no way to report anybody from the hoverbar either.
+///
+/// It now shares [MoonrelayMenuItem] with the context menu so the two cannot
+/// drift, and its gating matches.
 class _ModerationMenu extends StatelessWidget {
   const _ModerationMenu({
     required this.event,
@@ -296,7 +310,7 @@ class _ModerationMenu extends StatelessWidget {
     final t = MoonrelayThemeExtension.of(context).tokens;
     return PopupMenuButton<String>(
       tooltip: l10n.moderationTooltip,
-      icon: Icon(Icons.more_vert_rounded,
+      icon: Icon(LucideIcons.moreHorizontal,
           size: t.iconSizeMedium, color: cs.onSurfaceVariant),
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(t.radiusMd)),
@@ -313,38 +327,22 @@ class _ModerationMenu extends StatelessWidget {
       },
       itemBuilder: (_) => <PopupMenuEntry<String>>[
         if (canKick)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'kick',
-            child: Row(
-              children: [
-                Icon(Icons.person_remove_outlined,
-                    size: t.iconSizeSmall, color: cs.tertiary),
-                SizedBox(width: t.spaceSm),
-                Text(l10n.actionKick),
-              ],
-            ),
+            icon: LucideIcons.userMinus,
+            label: l10n.actionKick,
           ),
         if (canBan)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'ban',
-            child: Row(
-              children: [
-                Icon(Icons.block_outlined,
-                    size: t.iconSizeSmall, color: cs.error),
-                SizedBox(width: t.spaceSm),
-                Text(l10n.actionBan),
-              ],
-            ),
+            icon: LucideIcons.ban,
+            label: l10n.actionBan,
+            color: cs.error,
           ),
-        PopupMenuItem(
+        MoonrelayMenuItem<String>(
           value: 'report',
-          child: Row(
-            children: [
-              Icon(Icons.flag_outlined, size: t.iconSizeSmall, color: cs.error),
-              SizedBox(width: t.spaceSm),
-              Text(l10n.actionReport),
-            ],
-          ),
+          icon: LucideIcons.flag,
+          label: l10n.actionReport,
         ),
       ],
     );

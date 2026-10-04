@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
@@ -38,8 +39,7 @@ void main() {
     when(() => client.userID).thenReturn('@me:matrix.org');
     // Return a mock user that has no moderation permissions to avoid
     // showing the moderation button in unrelated tests.
-    when(() => room.unsafeGetUserFromMemoryOrFallback(any()))
-        .thenAnswer((_) {
+    when(() => room.unsafeGetUserFromMemoryOrFallback(any())).thenAnswer((_) {
       final user = MockUser();
       when(() => user.canKick).thenReturn(false);
       when(() => user.canBan).thenReturn(false);
@@ -67,10 +67,10 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.add_reaction_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.reply_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.info_outline_rounded), findsOneWidget);
+      expect(find.byIcon(LucideIcons.smilePlus), findsOneWidget);
+      expect(find.byIcon(LucideIcons.reply), findsOneWidget);
+      expect(find.byIcon(LucideIcons.copy), findsOneWidget);
+      expect(find.byIcon(LucideIcons.info), findsOneWidget);
     });
 
     testWidgets('renders forward button when onForward provided',
@@ -90,11 +90,10 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.shortcut_rounded), findsOneWidget);
+      expect(find.byIcon(LucideIcons.forward), findsOneWidget);
     });
 
-    testWidgets('renders delete button when canRedact is true',
-        (tester) async {
+    testWidgets('renders delete button when canRedact is true', (tester) async {
       when(() => event.canRedact).thenReturn(true);
 
       await tester.pumpWidget(
@@ -111,7 +110,7 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+      expect(find.byIcon(LucideIcons.trash2), findsOneWidget);
     });
 
     testWidgets('calls onReply when reply button tapped', (tester) async {
@@ -131,7 +130,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.reply_rounded));
+      await tester.tap(find.byIcon(LucideIcons.reply));
       expect(replied, isTrue);
     });
   });

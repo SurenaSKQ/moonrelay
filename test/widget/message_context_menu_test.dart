@@ -172,10 +172,14 @@ void main() {
       expect(values, isNot(contains(MessageContextAction.forward)));
       expect(values, isNot(contains(MessageContextAction.thread)));
       expect(values, contains(MessageContextAction.react));
-      expect(values, isNot(contains(MessageContextAction.copy)));
-      expect(values, isNot(contains(MessageContextAction.copyEventId)));
-      expect(values, isNot(contains(MessageContextAction.copyLink)));
-      expect(values, isNot(contains(MessageContextAction.copyRawJson)));
+      // The copy actions moved into `buildEntries` from `showForEvent`, which
+      // used to prepend them and so made this method a partial list despite
+      // its name and its documentation. See message_context_menu_open_test.dart
+      // for the tests that open the menu.
+      expect(values, contains(MessageContextAction.copy));
+      expect(values, contains(MessageContextAction.copyEventId));
+      expect(values, contains(MessageContextAction.copyLink));
+      expect(values, contains(MessageContextAction.copyRawJson));
       expect(values, contains(MessageContextAction.details));
       expect(values, contains(MessageContextAction.openProfile));
     });

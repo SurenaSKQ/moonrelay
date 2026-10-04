@@ -17,12 +17,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 
 import 'package:moonrelay/src/chat/message_action_runner.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/theme/design_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
 
 // -----------------------------------------------------------------------------
 //  Enum
@@ -59,32 +60,39 @@ enum MessageContextAction {
 //  Menu builder & dispatcher
 // -----------------------------------------------------------------------------
 
-/// A rich, keyboard- and pointer-friendly context menu for chat messages.
+/// The message context menu: right-click or long-press on a message.
 ///
-/// The menu exposes every action offered by the hoverbar (react, reply,
-/// forward, thread, copy, details, edit, edit history, pin/unpin, delete,
-/// kick, ban, report) plus a few extras that don't fit on a compact bar:
+/// This class is the single source of truth for the menu's contents. It used
+/// not to be, and the two halves had drifted:
 ///
-/// - Open sender's profile
-/// - Copy event ID
-/// - Copy message permalink (`matrix.to` URL)
-/// - Copy raw event JSON
+/// - [buildEntries] did not contain the four copy actions. They were prepended
+///   by [showForEvent] after the call, so the method's own documentation and
+///   its name ("the canonical menu entry list") were both wrong, and any other
+///   caller of [buildEntries] got a different menu from the one users see.
+/// - The order put those four above react and reply, so the two most-used
+///   actions on a message started four rows down. The class comment claimed a
+///   quick-actions row kept them one tap away; the implementation had removed
+///   the row and left the entries where the row used to be.
+/// - Reporting was gated behind `canKick || canBan`. Reporting a user is a
+///   report to your own homeserver and needs no room power level at all, so
+///   this hid it from exactly the people who most need it: a user with no
+///   power in a room cannot report anybody in it. The hoverbar's separate
+///   moderation popup gated the whole widget the same way, and its inner
+///   report row was written unconditionally, so it was unreachable.
 ///
-/// Use [showForEvent] from a `GestureDetector.onSecondaryTapDown` /
-/// `onLongPress` handler, or build the menu directly via [buildEntries] to
-/// surface it through any host widget.
-///
-/// The menu is rendered as a custom overlay positioned exactly at the pointer,
-/// with a quick-actions row of icon buttons above the full list, so frequent
-/// tasks (react, reply, copy) are one tap away even from the context menu.
+/// Ordering is now by frequency: the things you do with almost every message,
+/// then the things you do with messages you wrote, then power actions, then
+/// the destructive ones, then reference material. Destructive actions sit
+/// below a divider rather than in the flow, because "delete" three rows above
+/// "copy event id" is how you redact something you meant to quote.
 class MessageContextMenu {
   const MessageContextMenu._();
 
   /// Returns the canonical menu entry list, computed from the runtime
   /// permissions of the current user.
   ///
-  /// Sections are visually separated using [PopupMenuDivider] so the menu
-  /// reads as a grouped list rather than a flat one.
+  /// This is the whole menu. There is no post-processing: whatever
+  /// [showForEvent] renders is exactly what this returns, in this order.
   static List<PopupMenuEntry<MessageContextAction>> buildEntries({
     required BuildContext context,
     required Event event,
@@ -96,10 +104,10 @@ class MessageContextMenu {
   }) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final tokens = MoonrelayThemeExtension.of(context).tokens;
     final client = room.client;
+
     final canDelete = event.canRedact;
-    final canModerate = MessageActionRunner.canModerate(room, event);
+    final canKick = MessageActionRunner.canModerate(room, event);
     final canBanUser = MessageActionRunner.canBan(room, event);
     final isOwnMessage = event.senderId == client.userID;
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
@@ -110,140 +118,142 @@ class MessageContextMenu {
         tl != null && event.hasAggregatedEvents(tl, RelationshipTypes.edit);
 
     final isFailed = event.status.isError;
+    // Destructive "remove this" appears in both failure states and must not
+    // also be offered as a redaction of an event the server never received.
+    final showDelete = canDelete && !isFailed;
 
-    return <PopupMenuEntry<MessageContextAction>>[
-      // --- Failed-send group (only for events stuck in error state) ---
-      if (isFailed) ...[
-        _menuItem(
-          value: MessageContextAction.retry,
-          icon: Icons.refresh_rounded,
-          label: l10n.retry,
-          color: cs.tertiary,
-          tokens: tokens,
-        ),
-        _menuItem(
-          value: MessageContextAction.cancelSend,
-          icon: Icons.close_rounded,
-          label: l10n.cancel,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
-        const PopupMenuDivider(),
-      ],
-      // --- Compose group ----------------------------------------------
-      _menuItem(
-        value: MessageContextAction.react,
-        icon: Icons.add_reaction_rounded,
-        label: l10n.reactTooltip,
-        color: cs.onSurfaceVariant,
-        tokens: tokens,
-      ),
+    // -- Everyday actions -------------------------------------------------
+    final everyday = <PopupMenuEntry<MessageContextAction>>[
+      _item(
+          MessageContextAction.react, LucideIcons.smilePlus, l10n.reactTooltip),
       if (hasOnReply)
-        _menuItem(
-          value: MessageContextAction.reply,
-          icon: Icons.reply_rounded,
-          label: l10n.replyTooltip,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
+        _item(MessageContextAction.reply, LucideIcons.reply, l10n.replyTooltip),
       if (hasOnForward)
-        _menuItem(
-          value: MessageContextAction.forward,
-          icon: Icons.shortcut_rounded,
-          label: l10n.forwardTooltip,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
+        _item(MessageContextAction.forward, LucideIcons.forward,
+            l10n.forwardTooltip),
       if (hasOnThread)
-        _menuItem(
-          value: MessageContextAction.thread,
-          icon: Icons.forum_rounded,
-          label: l10n.openThread,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
-      if (canEdit) ...[
-        const PopupMenuDivider(),
-        _menuItem(
-          value: MessageContextAction.edit,
-          icon: Icons.edit_outlined,
-          label: l10n.editTooltip,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
-      ],
+        _item(MessageContextAction.thread, LucideIcons.messagesSquare,
+            l10n.openThread),
+      if (canEdit)
+        _item(MessageContextAction.edit, LucideIcons.pencil, l10n.editTooltip),
       if (showEditHistory)
-        _menuItem(
-          value: MessageContextAction.viewEditHistory,
-          icon: Icons.history_rounded,
-          label: l10n.viewEditHistory,
-          color: cs.onSurfaceVariant,
-          tokens: tokens,
+        _item(MessageContextAction.viewEditHistory, LucideIcons.history,
+            l10n.viewEditHistory),
+      if (canPin)
+        _item(
+          isPinned ? MessageContextAction.unpin : MessageContextAction.pin,
+          isPinned ? LucideIcons.pinOff : LucideIcons.pin,
+          isPinned ? l10n.unpinMessage : l10n.pinMessage,
+          color: isPinned ? cs.primary : null,
         ),
-      if (canPin) ...[
-        _menuItem(
-          value:
-              isPinned ? MessageContextAction.unpin : MessageContextAction.pin,
-          icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-          label: isPinned ? l10n.unpinMessage : l10n.pinMessage,
-          color: isPinned ? cs.primary : cs.onSurfaceVariant,
-          tokens: tokens,
-        ),
-      ],
-      if (canDelete) ...[
-        const PopupMenuDivider(),
-        _menuItem(
-          value: MessageContextAction.delete,
-          icon: Icons.delete_outline_rounded,
-          label: l10n.deleteMessage,
-          color: cs.error,
-          tokens: tokens,
-        ),
-      ],
-      // --- Sender group -----------------------------------------------
-      const PopupMenuDivider(),
-      _menuItem(
-        value: MessageContextAction.openProfile,
-        icon: Icons.person_outline_rounded,
-        label: l10n.openSenderProfile,
-        color: cs.onSurfaceVariant,
-        tokens: tokens,
-      ),
-      if (!isOwnMessage && (canModerate || canBanUser)) ...[
-        if (canModerate)
-          _menuItem(
-            value: MessageContextAction.kick,
-            icon: Icons.person_remove_outlined,
-            label: l10n.actionKick,
-            color: cs.tertiary,
-            tokens: tokens,
-          ),
-        if (canBanUser)
-          _menuItem(
-            value: MessageContextAction.ban,
-            icon: Icons.block_outlined,
-            label: l10n.actionBan,
-            color: cs.error,
-            tokens: tokens,
-          ),
-        _menuItem(
-          value: MessageContextAction.report,
-          icon: Icons.flag_outlined,
-          label: l10n.actionReport,
-          color: cs.error,
-          tokens: tokens,
-        ),
-      ],
-      // --- Details group ----------------------------------------------
-      const PopupMenuDivider(),
-      _menuItem(
-        value: MessageContextAction.details,
-        icon: Icons.info_outline_rounded,
-        label: l10n.messageDetails,
-        color: cs.onSurfaceVariant,
-        tokens: tokens,
-      ),
     ];
+
+    // -- Copy -------------------------------------------------------------
+    final copy = <PopupMenuEntry<MessageContextAction>>[
+      _item(MessageContextAction.copy, LucideIcons.copy, l10n.copyTooltip),
+      _item(MessageContextAction.copyLink, LucideIcons.link,
+          l10n.copyMessageLink),
+      _item(
+          MessageContextAction.copyEventId, LucideIcons.key, l10n.copyEventId),
+      _item(MessageContextAction.copyRawJson, LucideIcons.braces,
+          l10n.copyRawJson),
+    ];
+
+    // -- Sender and moderation -------------------------------------------
+    final sender = <PopupMenuEntry<MessageContextAction>>[
+      _item(MessageContextAction.openProfile, LucideIcons.user,
+          l10n.openSenderProfile),
+      // Report is not a room power action. Anyone may report a user to their
+      // own homeserver, so it is offered on every message from someone else
+      // whether or not they can be kicked. Gating it on power level, as this
+      // did, hid it from exactly the users who report abuse.
+      if (!isOwnMessage) ...[
+        if (canKick)
+          _item(MessageContextAction.kick, LucideIcons.userMinus,
+              l10n.actionKick),
+        if (canBanUser)
+          _item(MessageContextAction.ban, LucideIcons.ban, l10n.actionBan),
+        _item(
+          MessageContextAction.report,
+          LucideIcons.flag,
+          l10n.actionReport,
+          color: cs.error,
+        ),
+      ],
+    ];
+
+    // -- Reference --------------------------------------------------------
+    final reference = <PopupMenuEntry<MessageContextAction>>[
+      _item(
+          MessageContextAction.details, LucideIcons.info, l10n.messageDetails),
+    ];
+
+    // -- Failure recovery -------------------------------------------------
+    // Its own group at the top rather than two rows wedged into the compose
+    // group, because a message stuck in [EventStatus.error] has exactly two
+    // things to do about it and leading with "Retry" above "React" makes a
+    // dead message look like a live one.
+    final recovery = <PopupMenuEntry<MessageContextAction>>[
+      if (isFailed) ...[
+        _item(MessageContextAction.retry, LucideIcons.rotateCw, l10n.retry,
+            color: cs.tertiary),
+        _item(MessageContextAction.cancelSend, LucideIcons.x, l10n.cancel),
+      ],
+    ];
+
+    // -- Destructive ------------------------------------------------------
+    // A redaction, not the failure path. It is deliberately mutually exclusive
+    // with [recovery]: a stuck local echo's id is a transaction id the
+    // homeserver has never seen, so a redact request against it cannot work,
+    // and offering both offered the user one button that always fails.
+    final destructive = <PopupMenuEntry<MessageContextAction>>[
+      if (showDelete)
+        _item(
+            MessageContextAction.delete, LucideIcons.trash2, l10n.deleteMessage,
+            color: cs.error),
+    ];
+
+    return _sections(<List<PopupMenuEntry<MessageContextAction>>>[
+      recovery,
+      everyday,
+      copy,
+      sender,
+      reference,
+      destructive,
+    ]);
+  }
+
+  /// Joins non-empty groups with a single divider between them.
+  ///
+  /// Written as a join rather than as dividers sprinkled through the builders
+  /// because the sprinkled version is what produced two dividers in a row: the
+  /// sender group opened with an unconditional divider, so a message with
+  /// nothing to show in that group left two rules with nothing between them.
+  /// A group is either there or it is not, and this cannot disagree.
+  static List<PopupMenuEntry<MessageContextAction>> _sections(
+    List<List<PopupMenuEntry<MessageContextAction>>> groups,
+  ) {
+    final out = <PopupMenuEntry<MessageContextAction>>[];
+    for (final group in groups) {
+      if (group.isEmpty) continue;
+      if (out.isNotEmpty) out.add(MoonrelayMenuDivider());
+      out.addAll(group);
+    }
+    return out;
+  }
+
+  static PopupMenuEntry<MessageContextAction> _item(
+    MessageContextAction value,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) {
+    return MoonrelayMenuItem<MessageContextAction>(
+      value: value,
+      icon: icon,
+      label: label,
+      color: color,
+    );
   }
 
   /// Dispatches the selected action to [MessageActionRunner] / the caller
@@ -309,37 +319,13 @@ class MessageContextMenu {
     }
   }
 
-  // --- Build a single PopupMenuItem ---------------------------------------
-
-  static PopupMenuItem<MessageContextAction> _menuItem({
-    required MessageContextAction value,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required MoonrelayDesignTokens tokens,
-  }) {
-    return PopupMenuItem<MessageContextAction>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: tokens.iconSizeSmall, color: color),
-          SizedBox(width: tokens.spaceMd),
-          Text(label),
-        ],
-      ),
-    );
-  }
-
   // --- Show menu -----------------------------------------------------------
 
-  /// Shows the context menu anchored at [position] (in global coordinates).
+  /// Shows the menu at [position] (in global coordinates).
   ///
-  /// Uses Flutter's standard [showMenu] API instead of a custom overlay.
-  /// The menu items come from [buildEntries], with copy shortcuts prepended
-  /// (they were previously in a separate quick-actions row in the overlay).
-  ///
-  /// Pass `null` for [onReply] / [onForward] / [onThread] / [onOpenProfile]
-  /// to hide those entries from the menu.
+  /// Returns once the user has chosen something and the resulting action has
+  /// run. It therefore stays pending for as long as the menu is open, so do
+  /// not `await` it from a gesture callback expecting it to settle.
   static Future<void> showForEvent({
     required BuildContext context,
     required Offset position,
@@ -352,10 +338,6 @@ class MessageContextMenu {
     VoidCallback? onOpenProfile,
     VoidCallback? onEdit,
   }) async {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final menuTokens = MoonrelayThemeExtension.of(context).tokens;
-
     final entries = buildEntries(
       context: context,
       event: event,
@@ -366,44 +348,14 @@ class MessageContextMenu {
       hasOnThread: onThread != null,
     );
 
-    // Prepend copy shortcuts so they are one tap away even from the
-    // context menu (they were previously in the quick-actions row).
-    final allEntries = <PopupMenuEntry<MessageContextAction>>[
-      _menuItem(
-        value: MessageContextAction.copy,
-        icon: Icons.copy_rounded,
-        label: l10n.copyTooltip,
-        color: cs.onSurfaceVariant,
-        tokens: menuTokens,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyEventId,
-        icon: Icons.key_rounded,
-        label: l10n.copyEventId,
-        color: cs.onSurfaceVariant,
-        tokens: menuTokens,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyLink,
-        icon: Icons.link_rounded,
-        label: l10n.copyMessageLink,
-        color: cs.onSurfaceVariant,
-        tokens: menuTokens,
-      ),
-      _menuItem(
-        value: MessageContextAction.copyRawJson,
-        icon: Icons.code_rounded,
-        label: l10n.copyRawJson,
-        color: cs.onSurfaceVariant,
-        tokens: menuTokens,
-      ),
-      const PopupMenuDivider(),
-      ...entries,
-    ];
-
-    // Position at the tap point in overlay coordinates.
+    // Position at the tap point in overlay coordinates. `showMenu` takes a
+    // rect relative to the root overlay and anchors the menu's top-left to it,
+    // then clamps the menu to fit on screen, so a zero-size rect at the pointer
+    // is the thing to pass. Anything larger and the menu centres itself on
+    // the pointer's rect, which puts a click in the middle of a tall menu
+    // several hundred pixels below the cursor.
     final overlay = Overlay.of(context, rootOverlay: true);
-    final overlayBox = overlay.context.findRenderObject() as RenderBox;
+    final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final localPosition = overlayBox.globalToLocal(position);
 
     final selected = await showMenu<MessageContextAction>(
@@ -412,22 +364,26 @@ class MessageContextMenu {
         Rect.fromPoints(localPosition, localPosition),
         Offset.zero & overlayBox.size,
       ),
-      items: allEntries,
-      color: cs.surface,
+      items: entries,
+      constraints: moonrelayMenuConstraints(),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(menuTokens.radiusMd),
+        borderRadius: BorderRadius.circular(
+          MoonrelayThemeExtension.of(context).components.dialog.cornerRadius,
+        ),
         side: BorderSide(
-          color:
-              cs.outlineVariant.withValues(alpha: menuTokens.opacityDisabled),
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                alpha:
+                    MoonrelayThemeExtension.of(context).tokens.opacityDisabled,
+              ),
         ),
       ),
-      elevation: menuTokens.elevationOverlay,
     );
 
     if (selected == null) return;
+    if (!context.mounted) return;
 
     await handleSelection(
-      // ignore: use_build_context_synchronously
       context: context,
       action: selected,
       event: event,
