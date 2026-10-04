@@ -306,16 +306,32 @@ Widget build(BuildContext context) {
                             children: [
                               // Prominent: this is the row. Play is the reason
                               // an audio attachment exists.
-                              AttachmentLeadingIcon(
-                                icon: _lastError != null
-                                    ? LucideIcons.rotateCw
+                              //
+                              // Labelled, because the download control beside
+                              // it is and this is the more important of the
+                              // two: an unlabelled play button is a button a
+                              // screen reader announces only as "button", which
+                              // is no use in a list of forty of them.
+                              Semantics(
+                                label: _lastError != null
+                                    ? l10n.tapToRetry
                                     : isPlaying
-                                        ? LucideIcons.pause
-                                        : LucideIcons.play,
-                                isError: _lastError != null,
-                                onTap: downloaded && isReady
-                                    ? (_lastError != null ? _retry : _togglePlay)
-                                    : null,
+                                        ? l10n.pauseAudio
+                                        : l10n.playAudio,
+                                button: true,
+                                child: AttachmentLeadingIcon(
+                                  icon: _lastError != null
+                                      ? LucideIcons.rotateCw
+                                      : isPlaying
+                                          ? LucideIcons.pause
+                                          : LucideIcons.play,
+                                  isError: _lastError != null,
+                                  onTap: downloaded && isReady
+                                      ? (_lastError != null
+                                            ? _retry
+                                            : _togglePlay)
+                                      : null,
+                                ),
                               ),
                               SizedBox(width: t.spaceMd),
                               Expanded(
