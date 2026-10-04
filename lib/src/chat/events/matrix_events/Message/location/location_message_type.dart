@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/attachment_card.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -88,7 +89,7 @@ class LocationMessageType extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Lat: ${lat.toStringAsFixed(6)}',
+                      '${l10n.latitudeLabel} ${_formatCoordinate(lat)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurfaceVariant
@@ -98,7 +99,7 @@ class LocationMessageType extends StatelessWidget {
                     ),
                     SizedBox(height: t.spaceXxs),
                     Text(
-                      'Lon: ${lon.toStringAsFixed(6)}',
+                      '${l10n.longitudeLabel} ${_formatCoordinate(lon)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurfaceVariant
@@ -156,11 +157,24 @@ class LocationMessageType extends StatelessWidget {
     double lat,
     double lon,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
     final url = Uri.parse(
-      'geo:$lat,$lon?q=$lat,$lon(${AppLocalizations.of(context)!.shareLocation})',
+      'geo:$lat,$lon?q=$lat,$lon(${l10n.shareLocation})',
     );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    // `launchUrl` returns false rather than throwing when nothing on the
+    // machine handles the scheme, which is the normal case on a desktop with
+    // no maps app installed. The return value used to be discarded, so the
+    // button did nothing at all and looked broken.
+    final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      context.showMessage(l10n.openInMapsFailed, isError: true);
+    }
   }
+
+  /// Six decimals is about 11 cm, which is more than a phone GPS resolves,
+  /// and the trailing zeros keep the two lines the same width so the card does
+  /// not reflow as the coordinates change.
+  String _formatCoordinate(double value) => value.toStringAsFixed(6);
 
   Widget _buildUnavailable(BuildContext context, ColorScheme cs) {
     final t = MoonrelayThemeExtension.of(context).tokens;

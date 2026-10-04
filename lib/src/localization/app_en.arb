@@ -2334,7 +2334,18 @@
   "@openInMaps": {
     "description": "Button on a location message to open the coordinates in a maps app."
   },
-  "locationAccuracyMeters": "±{m} m",
+  "latitudeLabel": "Lat",
+  "@latitudeLabel": {
+    "description": "Abbreviation for latitude, shown beside a coordinate in a location message."
+  },
+  "longitudeLabel": "Lon",
+  "@longitudeLabel": {
+    "description": "Abbreviation for longitude, shown beside a coordinate in a location message."
+  },
+  "openInMapsFailed": "No app on this system can open maps",
+  "@openInMapsFailed": {
+    "description": "Shown when the location message's map button is pressed and no installed app handles a geo: URI."
+  },  "locationAccuracyMeters": "±{m} m",
   "@locationAccuracyMeters": {
     "description": "Accuracy indicator for a shared location.",
     "placeholders": {
@@ -2374,7 +2385,10 @@
   "@pollVote": {
     "description": "Action label on a poll option the user has not voted for."
   },
-  "pollVotedFor": "Voted",
+  "pollVoteFailed": "Vote could not be sent",
+  "@pollVoteFailed": {
+    "description": "Shown when sending a poll response fails. Without it a failed tap is indistinguishable from a tap that landed."
+  },  "pollVotedFor": "Voted",
   "@pollVotedFor": {
     "description": "Action label on a poll option the user has voted for."
   },
