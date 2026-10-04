@@ -15,6 +15,7 @@
 // License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:video_player/video_player.dart';
 
@@ -124,7 +125,12 @@ class FullscreenVideoPlayerState extends State<FullscreenVideoPlayer>
       animation: c,
       builder: (context, _) {
         return Scaffold(
-          backgroundColor: Colors.black,
+          // The same backdrop the image viewer uses. It was `Colors.black`
+          // here and `0xCC000000` over a black scaffold there, which is a
+          // visible seam when a user opens a video full screen and then opens a
+          // still from the same conversation, and one of the two is wrong in
+          // light mode.
+          backgroundColor: Theme.of(context).moonrelay.layers.mediaBackdrop,
           body: Stack(
             children: [
               Positioned.fill(
@@ -159,7 +165,11 @@ class FullscreenVideoPlayerState extends State<FullscreenVideoPlayer>
                           ),
                         ),
                         child: const Icon(
-                          Icons.play_arrow_rounded,
+                          // Lucide, like every other play control in the app.
+                          // The Material glyph here was the last one, and next
+                          // to the audio row's Lucide play it read as two icon
+                          // sets rather than as one drawing.
+                          LucideIcons.play,
                           color: Colors.white,
                           size: 52,
                         ),
