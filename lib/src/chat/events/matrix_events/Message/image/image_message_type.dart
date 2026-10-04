@@ -19,6 +19,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
@@ -211,23 +212,23 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
       return _buildThumbnail(cs, cached);
     }
     if (_downloadFuture == null) {
-      return _buildPlaceholder(cs);
+      return _buildPlaceholder(context, cs);
     }
 
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _buildLoading(cs);
+          return _buildLoading(context, cs);
         }
 
         if (snapshot.hasError) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         final bytes = snapshot.data?.bytes;
         if (bytes == null || bytes.isEmpty) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         // Bytes live in the shared cache; release this State's
@@ -238,32 +239,46 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     );
   }
 
-  Widget _buildPlaceholder(ColorScheme cs) {
+  Widget _buildPlaceholder(BuildContext context, ColorScheme cs) {
+    // Sized from the same source as the thumbnail it stands in for.
+    //
+    // This was a fixed hundred and twenty square, the loading and error tiles
+    // were a hundred and eighty by a hundred and forty, and the image itself is
+    // drawn at up to 360 on its long side. One picture therefore changed size
+    // three times on its way down the timeline, and everything below it moved
+    // each time. The states a picture passes through should be the same shape.
+    final size = _imageSize(_resolveMaxThumbnailDimension());
+    final t = MoonrelayThemeExtension.of(context).tokens;
     // Withheld for size: offer the download instead of a dead icon.
     if (_policy.requiresExplicitClick) {
       return ClickToDownloadTile(
         policy: _policy,
         onDownload: _downloadOnTap,
-        icon: Icons.image_outlined,
-        width: 120,
-        height: 120,
+        icon: LucideIcons.image,
+        width: size.width,
+        height: size.height,
       );
     }
     return Container(
-      width: 120,
-      height: 120,
+      width: size.width,
+      height: size.height,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
-      child: Icon(Icons.image_outlined, size: 40, color: cs.onSurfaceVariant),
+      child: Icon(
+        LucideIcons.image,
+        size: t.iconSizeLarge,
+        color: cs.onSurfaceVariant,
+      ),
     );
   }
 
-  Widget _buildLoading(ColorScheme cs) {
+  Widget _buildLoading(BuildContext context, ColorScheme cs) {
+    final size = _imageSize(_resolveMaxThumbnailDimension());
     return Container(
-      width: 180,
-      height: 140,
+      width: size.width,
+      height: size.height,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
@@ -315,15 +330,16 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     });
   }
 
-  Widget _buildError(ColorScheme cs) {
+  Widget _buildError(BuildContext context, ColorScheme cs) {
+    final size = _imageSize(_resolveMaxThumbnailDimension());
     return Semantics(
       label: AppLocalizations.of(context)!.failedToLoadImage,
       button: true,
       child: GestureDetector(
         onTap: _retryDownload,
         child: Container(
-          width: 180,
-          height: 140,
+          width: size.width,
+          height: size.height,
           decoration: BoxDecoration(
             color: cs.errorContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),

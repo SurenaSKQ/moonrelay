@@ -41,7 +41,10 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+      // The placeholder glyph. It is Lucide like the rest of the app now;
+      // this assertion used to name `Icons.image_outlined` and was the only
+      // thing that noticed the change.
+      expect(find.byIcon(LucideIcons.image), findsOneWidget);
     });
 
     testWidgets('renders without error with basic event data', (tester) async {
