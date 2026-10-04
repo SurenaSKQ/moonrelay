@@ -17,6 +17,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/number_coercion.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
@@ -141,23 +142,23 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     }
 
     if (_downloadFuture == null) {
-      return _buildPlaceholder(cs);
+      return _buildPlaceholder(context, cs);
     }
 
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _buildLoading(cs);
+          return _buildLoading(context, cs);
         }
 
         if (snapshot.hasError) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         final bytes = snapshot.data?.bytes;
         if (bytes == null || bytes.isEmpty) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         return _buildSticker(cs, bytes, context);
@@ -165,38 +166,56 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
     );
   }
 
-  Widget _buildPlaceholder(ColorScheme cs) {
+  Widget _buildPlaceholder(BuildContext context, ColorScheme cs) {
     // Reached when the image policy says "never". The size threshold does
     // not apply here, so this is a real click-to-download affordance
     // rather than a dead icon.
+    //
+    // Sized from the same source as the sticker itself. It used to be a fixed
+    // hundred by hundred while the sticker that replaced it was drawn at
+    // `stickerMax`, so the bubble visibly jumped the moment the download
+    // finished.
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
     return ClickToDownloadTile(
       policy: _policy,
       onDownload: _downloadOnTap,
-      icon: Icons.sticky_note_2_outlined,
-      width: 100,
-      height: 100,
+      icon: LucideIcons.stickyNote,
+      width: size.width,
+      height: size.height,
     );
   }
 
-  Widget _buildLoading(ColorScheme cs) {
+  Widget _buildLoading(BuildContext context, ColorScheme cs) {
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
     return SizedBox(
-      width: 100,
-      height: 100,
+      width: size.width,
+      height: size.height,
       child: Center(
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: cs.primary),
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: cs.primary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildError(ColorScheme cs) {
+  Widget _buildError(BuildContext context, ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
     return SizedBox(
-      width: 80,
-      height: 80,
-      child: Icon(Icons.broken_image_outlined, size: 32, color: cs.error),
+      width: size.width,
+      height: size.height,
+      child: Center(
+        child: Icon(
+          LucideIcons.imageOff,
+          size: t.iconSizeLarge,
+          color: cs.error,
+        ),
+      ),
     );
   }
 
@@ -222,8 +241,8 @@ class _StickerMessageTypeState extends State<StickerMessageType> {
         child: Container(
           color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
           child: Icon(
-            Icons.broken_image_outlined,
-            size: 32,
+            LucideIcons.imageOff,
+            size: t.iconSizeLarge,
             color: cs.onSurfaceVariant,
           ),
         ),
