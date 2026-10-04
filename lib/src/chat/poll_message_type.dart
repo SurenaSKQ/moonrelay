@@ -174,9 +174,10 @@ class _PollMessageTypeState extends State<PollMessageType> {
           Row(
             children: [
               AttachmentLeadingIcon(
+                // No size override, for the same reason the video row's is
+                // gone: three attachment types were drawing three different
+                // squares down one timeline.
                 icon: LucideIcons.listChecks,
-                size: 36,
-                iconSize: 18,
               ),
               SizedBox(width: t.spaceSm),
               Expanded(

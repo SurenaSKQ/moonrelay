@@ -74,9 +74,12 @@ class LocationMessageType extends StatelessWidget {
           Row(
             children: [
               AttachmentLeadingIcon(
+                // No size override. The location, video and poll rows all used
+                // to pass a smaller square than audio and file, which is the
+                // exact drift this component exists to prevent: four
+                // attachment types at three different heights down the same
+                // timeline.
                 icon: LucideIcons.mapPin,
-                size: 38,
-                iconSize: t.iconSizeMedium,
               ),
               SizedBox(width: t.spaceMd),
               Expanded(

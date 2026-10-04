@@ -31,6 +31,7 @@ import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:provider/provider.dart';
 
 /// Displays an audio message with an in-app `just_audio` player.
@@ -257,15 +258,9 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+Widget build(BuildContext context) {
     final ext = MoonrelayThemeExtension.of(context);
     final t = ext.tokens;
-    // Read from the theme extension rather than the literal string. Four
-    // sites hardcoded 'JetBrainsMono', which means renaming the family in
-    // one place would have left the rest of the app on a font that is no
-    // longer bundled.
-    final mono = ext.monoFontFamily;
     final l10n = AppLocalizations.of(context)!;
 
     // Fast path: bytes are already in the shared cache, so we don't
@@ -309,20 +304,18 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                           isError: _lastError != null,
                           child: Row(
                             children: [
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: AttachmentLeadingIcon(
-                                  icon: _lastError != null
-                                      ? Icons.refresh_rounded
-                                      : isPlaying
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                  isError: _lastError != null,
-                                  onTap: downloaded && isReady
-                                      ? (_lastError != null ? _retry : _togglePlay)
-                                      : null,
-                                ),
+                              // Prominent: this is the row. Play is the reason
+                              // an audio attachment exists.
+                              AttachmentLeadingIcon(
+                                icon: _lastError != null
+                                    ? LucideIcons.rotateCw
+                                    : isPlaying
+                                        ? LucideIcons.pause
+                                        : LucideIcons.play,
+                                isError: _lastError != null,
+                                onTap: downloaded && isReady
+                                    ? (_lastError != null ? _retry : _togglePlay)
+                                    : null,
                               ),
                               SizedBox(width: t.spaceMd),
                               Expanded(
@@ -333,8 +326,9 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                   children: [
                                     Text(
                                       _fileName ?? l10n.audioFileName,
-                                      style: const TextStyle(
-                                        fontSize: 14,
+                                      style: TextStyle(
+                                        fontSize: sidebarMetricsFor(context)
+                                            .titleSize,
                                         fontWeight: FontWeight.w600,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -357,48 +351,22 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                                       ),
                                     ),
                                     SizedBox(height: t.spaceXxs),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          _formatDuration(position),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: cs.onSurface,
-                                            fontFamily: mono,
-                                          ),
-                                        ),
-                                        SizedBox(width: t.spaceXs),
-                                        Text(
-                                          '/',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: cs.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        SizedBox(width: t.spaceXs),
-                                        Text(
-                                          _formatDuration(resolvedDuration),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: cs.onSurfaceVariant,
-                                            fontFamily: mono,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        AttachmentBadge(label: _extension),
-                                        if (_fileSize != null) ...[
-                                          SizedBox(width: t.spaceXs),
-                                          Text(
-                                            AttachmentDownloadPolicy
-                                                .formatSize(context, _fileSize)!,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: cs.onSurfaceVariant
-                                                  .withValues(
-                                                      alpha: t.opacitySubtle),
-                                            ),
-                                          ),
-                                        ],
+                                    // Elapsed and total in the mono face, then
+                                    // the extension and size, all through the
+                                    // shared row so the file attachment above
+                                    // this one puts its facts in the same place.
+                                    AttachmentMetaRow(
+                                      leading: AttachmentBadge(
+                                        label: _extension,
+                                      ),
+                                      elapsedOf: _formatDuration(position),
+                                      totalOf: _formatDuration(resolvedDuration),
+                                      parts: [
+                                        if (_fileSize != null)
+                                          AttachmentDownloadPolicy.formatSize(
+                                            context,
+                                            _fileSize,
+                                          )!,
                                       ],
                                     ),
                                   ],
@@ -408,17 +376,16 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
                               Semantics(
                                 label: l10n.downloadAudio,
                                 button: true,
-                                child: SizedBox(
-                                  width: 44,
-                                  height: 44,
-                                  child: AttachmentLeadingIcon(
-                                    icon: LucideIcons.download,
-                                    iconSize: 18,
-                                    onTap: downloaded
-                                        ? _downloadFile
-                                        : _downloadOnDemand,
+                                child: AttachmentLeadingIcon(
+                                  // Quiet. It sits beside the play control and
+                                  // used to be drawn identically to it, so the
+                                  // two competed for the same attention.
+                                  emphasis: AttachmentEmphasis.quiet,
+                                  icon: LucideIcons.download,
+                                  onTap: downloaded
+                                      ? _downloadFile
+                                      : _downloadOnDemand,
                                   ),
-                                ),
                               ),
                             ],
                           ),
@@ -435,3 +402,4 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     );
   }
 }
+

@@ -200,3 +200,4 @@ testWidgets('the metadata row reports type and size before the decode lands',
 }
 
 
+

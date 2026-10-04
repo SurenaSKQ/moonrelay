@@ -915,6 +915,7 @@
   "saveAudio": "Save audio",
   "audioFileName": "audio_file",
   "downloadAudio": "Download audio",
+  "downloadFile": "Download file",
   "saveVideo": "Save video",
   "videoFileName": "video_file",
   "unknownType": "Unknown type",

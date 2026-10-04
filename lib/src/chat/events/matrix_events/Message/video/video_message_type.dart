@@ -344,9 +344,10 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
         footer: Row(
           children: [
             AttachmentLeadingIcon(
+              // No size override. This row used to ask for a 36px square
+              // against the audio and file rows' 44, which is the exact drift
+              // this component exists to prevent.
               icon: LucideIcons.video,
-              size: 36,
-              iconSize: 18,
             ),
             SizedBox(width: t.spaceMd),
             Expanded(
@@ -451,9 +452,13 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
                       );
                     }
                     return AttachmentLeadingIcon(
+                      // Quiet, like the audio and file rows' trailing
+                      // download. It is available rather than the thing you
+                      // came for, and it used to be drawn identically to the
+                      // leading glyph, so the row had two identical accent
+                      // squares and no way to say which was primary.
+                      emphasis: AttachmentEmphasis.quiet,
                       icon: LucideIcons.download,
-                      size: 36,
-                      iconSize: 18,
                       onTap: () async {
                         if (isReady && snapshot.data != null) {
                           await _downloadFile(snapshot.data!);

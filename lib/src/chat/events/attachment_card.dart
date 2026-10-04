@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
 
 /// The surface every control-bearing attachment sits on.
 ///
@@ -124,49 +125,81 @@ class AttachmentLeadingIcon extends StatelessWidget {
     super.key,
     required this.icon,
     this.isError = false,
-    this.size = 44,
-    this.iconSize = 22,
+    this.emphasis = AttachmentEmphasis.prominent,
     this.onTap,
   });
 
   final IconData icon;
   final bool isError;
-  final double size;
-  final double iconSize;
+
+/// Whether this square is the row's primary action or a quiet affordance
+  /// sitting beside it.
+  ///
+  /// Play and download used to be drawn identically: the same tinted square,
+  /// the same size, the same accent, side by side. Two identical primary
+  /// controls in one row is not two controls, it is one control and a
+  /// duplicate, and the reader has to work out which of them is the one that
+  /// starts the thing they came to do. The leading square stays prominent
+  /// because that is the action; the trailing one goes quiet.
+  final AttachmentEmphasis emphasis;
+
+  /// Fires the square's action. `null` renders it as a plain indicator, which
+  /// is what a file row's leading glyph is: it names the type, it is not a
+  /// button, and giving it a tap target would only offer something to press.
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = MoonrelayThemeExtension.of(context).tokens;
     final cs = Theme.of(context).colorScheme;
-    final tint =
-        isError ? cs.error : cs.primary;
-    final radius = t.radiusMd;
+    final radius = BorderRadius.circular(t.radiusMd);
+    final size = t.minTapTarget;
+
+    final Color fill;
+    final Color glyph;
+    if (isError) {
+      fill = cs.error.withValues(alpha: t.opacityFocus);
+      glyph = cs.error;
+    } else if (emphasis == AttachmentEmphasis.quiet) {
+      // One step off the card rather than the accent, so it reads as available
+      // rather than as the row's headline.
+      fill = cs.onSurface.withValues(alpha: t.opacitySubtle);
+      glyph = cs.onSurfaceVariant;
+    } else {
+      fill = cs.primary.withValues(alpha: t.opacityFocus);
+      glyph = cs.primary;
+    }
 
     final box = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: t.opacityFocus),
-        borderRadius: BorderRadius.circular(radius),
-      ),
+      decoration: BoxDecoration(color: fill, borderRadius: radius),
       alignment: Alignment.center,
-      child: Icon(icon, size: iconSize, color: tint),
+      child: Icon(icon, size: t.iconSizeLarge, color: glyph),
     );
 
     if (onTap == null) return box;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: radius,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(radius),
+          borderRadius: radius,
           child: box,
         ),
       ),
     );
   }
+}
+
+/// How loudly an attachment's action square speaks.
+enum AttachmentEmphasis {
+  /// The row's reason for existing: play, retry.
+  prominent,
+
+  /// Available, and not the thing you came for: download, save.
+  quiet,
 }
 
 /// Small uppercase tag for a file extension or MIME subtype.
@@ -204,3 +237,84 @@ class AttachmentBadge extends StatelessWidget {
     );
   }
 }
+/// The small facts under an attachment's name: extension, size, and whatever
+/// else the row knows.
+///
+/// The audio and file rows each built this out of a `Row` of `Text` and an
+/// `AttachmentBadge` with hardcoded 11s and their own idea of spacing, and the
+/// two drifted within a screen: one had the badge first, the other had it
+/// last, and only one of them had the size.
+///
+/// Type comes from the sidebar row metrics rather than being stated here. An
+/// attachment is a message's content, so its name belongs at the size the
+/// message body is set at and moves with the density setting; hardcoding 14
+/// meant an attachment read a point smaller than the sentence above it and did
+/// not move when the user changed the setting.
+class AttachmentMetaRow extends StatelessWidget {
+  const AttachmentMetaRow({
+    super.key,
+    required this.parts,
+    this.leading,
+    this.elapsedOf,
+    this.totalOf,
+  });
+
+  /// The facts, in reading order. Strings are already localised and formatted.
+  final List<String> parts;
+
+  /// An optional tag pinned to the leading end, such as a file extension.
+  ///
+  /// [parts] starts after it. The split exists because the badge is a shape
+  /// and the numbers are not: putting an extension in the same run as a file
+  /// size gives two different visual weights pretending to be one label.
+  final Widget? leading;
+
+  /// Elapsed and total playback time, when the row has a scrubber.
+  ///
+  /// Separate from [parts] because they are not the same kind of fact. Time
+  /// is a position and it moves while you watch; a file size does not. They are
+  /// set in the mono face with lining figures so the digits do not shuffle
+  /// sideways as the seconds tick, and the total is muted because it is the
+  /// fixed half of a pair whose other half is the interesting one.
+  final String? elapsedOf;
+  final String? totalOf;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final cs = Theme.of(context).colorScheme;
+    final m = sidebarMetricsFor(context);
+    final mono = Theme.of(context).moonrelay.monoFontFamily;
+
+    final muted = TextStyle(
+      fontSize: m.subtitleSize,
+      color: cs.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
+    );
+    final elapsed = elapsedOf;
+
+    return Row(
+      children: [
+        if (leading != null) ...[
+          leading!,
+          if (elapsed != null || parts.isNotEmpty)
+            SizedBox(width: t.spaceXs),
+        ],
+        // Expanded rather than a Wrap: these are one line and must not reflow
+        // into two, because a row that grows taller between an idle and a
+        // loaded attachment makes the whole timeline jump.
+        Expanded(
+          child: Text(
+            [
+              if (elapsed != null) '$elapsed / ${totalOf ?? ''}',
+              ...parts,
+            ].join('   '),
+            style: elapsed == null ? muted : muted.copyWith(fontFamily: mono),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+

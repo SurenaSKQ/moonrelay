@@ -16,6 +16,7 @@
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/room_media_cache.dart';
@@ -24,6 +25,7 @@ import 'package:moonrelay/src/settings/attachment_download_policy.dart';
 import 'package:moonrelay/src/settings/media_size_prefs.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
 import 'package:provider/provider.dart';
 
 /// Displays a file attachment with a polished card showing file type icon,
@@ -91,18 +93,23 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
   int? get _fileSize => _infoMap['size'] as int?;
 
   /// Returns an appropriate icon based on file extension / MIME type.
+  ///
+  /// Lucide rather than Material, because the rest of the app is Lucide and a
+  /// Material glyph next to a Lucide one reads as two icon sets rather than as
+  /// one drawing. The archive box for a PDF was the worst of it: a PDF is not
+  /// a picture, and the icon it used was `picture_as_pdf`, a picture.
   IconData _fileIcon() {
     final ext = _extension ?? '';
     final mime = _mimeType ?? '';
     if (ext.contains('PDF') || mime.contains('pdf')) {
-      return Icons.picture_as_pdf_rounded;
+      return LucideIcons.fileText;
     }
     if (ext.contains('ZIP') ||
         ext.contains('RAR') ||
         ext.contains('TAR') ||
         ext.contains('GZ') ||
         ext.contains('7Z')) {
-      return Icons.folder_zip_rounded;
+      return LucideIcons.archive;
     }
     if (ext.contains('DOC') ||
         ext.contains('DOCX') ||
@@ -110,15 +117,15 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
         ext.contains('XLSX') ||
         ext.contains('PPT') ||
         ext.contains('PPTX')) {
-      return Icons.description_rounded;
+      return LucideIcons.fileSpreadsheet;
     }
     if (ext.contains('TXT') || mime.contains('text')) {
-      return Icons.article_outlined;
+      return LucideIcons.alignLeft;
     }
-    if (mime.startsWith('image/')) return Icons.image_outlined;
-    if (mime.startsWith('audio/')) return Icons.music_note_rounded;
-    if (mime.startsWith('video/')) return Icons.videocam_rounded;
-    return Icons.insert_drive_file_outlined;
+    if (mime.startsWith('image/')) return LucideIcons.image;
+    if (mime.startsWith('audio/')) return LucideIcons.music;
+    if (mime.startsWith('video/')) return LucideIcons.video;
+    return LucideIcons.file;
   }
 
   // ---- Actions ----
@@ -192,9 +199,11 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
           child: Row(
             children: [
               // -- File type icon --------------------------------------
+              // No tap target: it names the type of the thing, and offering a
+              // button that does nothing is worse than offering nothing.
               AttachmentLeadingIcon(
                 icon: _lastError != null
-                    ? Icons.error_outline_rounded
+                    ? LucideIcons.triangleAlert
                     : _fileIcon(),
                 isError: _lastError != null,
               ),
@@ -208,40 +217,28 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                   children: [
                     Text(
                       _fileName ?? l10n.unknown,
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: sidebarMetricsFor(context).titleSize,
                         fontWeight: FontWeight.w600,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    SizedBox(height: t.spaceXs),
-                    Row(
-                      children: [
-                        if (_extension != null)
-                          AttachmentBadge(label: _extension!),
-                        if (_fileSize != null) ...[
-                          if (_extension != null)
-                            SizedBox(width: t.spaceSm),
-                          Icon(
-                            Icons.archive_outlined,
-                            size: 12,
-                            color: cs.onSurfaceVariant
-                                .withValues(alpha: t.opacitySubtle),
-                          ),
-                          SizedBox(width: t.spaceXxs),
-                          Text(
-                            AttachmentDownloadPolicy.formatSize(
-                              context,
-                              _fileSize,
-                            )!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant
-                                  .withValues(alpha: t.opacitySubtle),
-                            ),
-                          ),
-                        ],
+                    SizedBox(height: t.spaceXxs),
+                    // One row, shared with the audio and video rows, so the
+                    // extension and the size land in the same place on every
+                    // attachment. They had each built their own and drifted:
+                    // one led with the badge and one trailed with it.
+                    AttachmentMetaRow(
+                      leading: _extension == null
+                          ? null
+                          : AttachmentBadge(label: _extension!),
+                      parts: [
+                        if (_fileSize != null)
+                          AttachmentDownloadPolicy.formatSize(
+                            context,
+                            _fileSize,
+                          )!,
                       ],
                     ),
                   ],
@@ -251,31 +248,33 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
 
               // -- Download button -------------------------------------
               Semantics(
-                label: _lastError != null ? l10n.tapToRetry : l10n.downloadAudio,
+                label: _lastError != null ? l10n.tapToRetry : l10n.downloadFile,
                 button: true,
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: snapshot.connectionState == ConnectionState.waiting
-                      ? Center(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: cs.primary,
-                            ),
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? Center(
+                        child: SizedBox(
+                          width: t.iconSizeMedium,
+                          height: t.iconSizeMedium,
+                          child: CircularProgressIndicator(
+                            strokeWidth: t.borderWidthMedium * 2,
+                            color: cs.primary,
                           ),
-                        )
-                      : AttachmentLeadingIcon(
-                          icon: _lastError != null
-                              ? Icons.refresh_rounded
-                              : Icons.download_rounded,
-                          isError: _lastError != null,
-                          onTap: snapshot.connectionState ==
-                                  ConnectionState.waiting
-                              ? null
-                              : () async {
+                        ),
+                      )
+                    : AttachmentLeadingIcon(
+                        // Quiet. This is not the thing the row is for; the
+                        // file's name and type are, and a second accent square
+                        // competed with the leading glyph for the same
+                        // attention.
+                        emphasis: AttachmentEmphasis.quiet,
+                        icon: _lastError != null
+                            ? LucideIcons.rotateCw
+                            : LucideIcons.download,
+                        isError: _lastError != null,
+                        onTap: snapshot.connectionState ==
+                                ConnectionState.waiting
+                            ? null
+                            : () async {
                                   if (isReady && matrixFile != null) {
                                     await _downloadFile(matrixFile);
                                   } else {
@@ -283,7 +282,6 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
                                   }
                                 },
                         ),
-                ),
               ),
             ],
           ),
@@ -292,3 +290,4 @@ class _FileAttachedMessageState extends State<FileAttachedMessage> {
     );
   }
 }
+
