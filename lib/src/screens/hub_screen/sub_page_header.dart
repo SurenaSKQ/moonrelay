@@ -62,7 +62,6 @@ class HubSubPageHeader extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerHigh,
           padding: EdgeInsets.symmetric(
             horizontal: t.spaceLg + t.spaceXs,
-            vertical: t.spaceSm + t.spaceXxs,
           ),
           child: Row(
             children: [

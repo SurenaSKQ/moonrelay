@@ -64,9 +64,20 @@ class WindowTitleBar extends StatelessWidget {
     this.closeWindow,
   });
 
-  /// Height of the bar. Matches Material's own toolbar so it does not read as
-  /// a strip someone added to a window that already had one.
-  static const double height = kToolbarHeight;
+  /// Height of the bar.
+  ///
+  /// It was kToolbarHeight (56) to match Material's toolbar, on the argument
+  /// that a bar matching the platform's does not read as a strip someone added
+  /// to a window that already had one. That argument is now made by the whole
+  /// shell agreeing on one number instead: the navigation header, the room
+  /// header and the composer all read [MoonrelayDesignTokens.paneBarHeight], so
+  /// a window whose title bar is a different height from the panes under it
+  /// would read as the strip, and a window where they all agree does not.
+  ///
+  /// A static getter rather than a constant, because the value now lives in the
+  /// theme. Every caller is inside a uild with a context, so this is free.
+  static double height(BuildContext context) =>
+      MoonrelayThemeExtension.of(context).tokens.paneBarHeight;
 
   /// Whether to render the global search control.
   ///
@@ -101,7 +112,7 @@ class WindowTitleBar extends StatelessWidget {
         }
       },
       child: Container(
-        height: height,
+        height: height(context),
         color: theme.colorScheme.surface,
         child: Row(
           children: [

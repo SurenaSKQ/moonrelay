@@ -195,12 +195,20 @@ void _onTap() {
                 child: InkWell(
                   onTap: _onTap,
                   child: Container(
-                    // A fixed height rather than one derived from the avatar,
-                    // so the bar is 48 pixels whether or not a topic is
+                    // A fixed height rather than one derived from the avatar, so the
+                    // bar is the same height whether or not a topic is
                     // showing. A header that grows when a room has a topic
                     // moves the top of the conversation, which is the one
                     // place in a chat client where content must not shift.
-                    height: tight ? 44 : 48,
+                    //
+                    // It reads paneBarHeight so it matches the bar at the
+                    // bottom of the same pane. It was a bare 48, and the
+                    // composer was a bare 52, which is the whole reason the
+                    // conversation had no frame.
+                    //
+                    // 	ight narrows the horizontal padding and drops the
+                    // topic, so the bar needs no extra height for it.
+                    height: tight ? t.paneBarHeight - 4 : t.paneBarHeight,
                     padding: EdgeInsets.symmetric(horizontal: hPadding),
                     decoration: BoxDecoration(
                       border: Border(

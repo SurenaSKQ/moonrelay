@@ -20,7 +20,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/layouts/window_title_bar.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-
+import 'package:moonrelay/src/theme/design_tokens.dart';
 
 Widget host(Widget child) => MaterialApp(
       localizationsDelegates: const [
@@ -30,22 +30,31 @@ Widget host(Widget child) => MaterialApp(
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(WindowTitleBar.height),
-          child: child,
+      // The bar's height comes from the theme, so the `PreferredSize` has to be
+      // built below the `MaterialApp`. A `Builder` for the height and one for
+      // the child, because the child is built in a different subtree than the
+      // scaffold that sizes it.
+      home: Builder(
+        builder: (context) => Scaffold(
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(WindowTitleBar.height(context)),
+            child: child,
+          ),
+          body: const SizedBox.shrink(),
         ),
-        body: const SizedBox.shrink(),
       ),
     );
 
 void main() {
   group('WindowTitleBar', () {
-    testWidgets('is one toolbar tall', (tester) async {
+    testWidgets('is one pane bar tall', (tester) async {
       await tester.pumpWidget(host(const WindowTitleBar()));
       expect(
         tester.getSize(find.byType(WindowTitleBar)).height,
-        WindowTitleBar.height,
+        // Not the constant it used to be. It reads the theme now, so the
+        // assertion that matters is that the rendered bar matches what the
+        // token says, not that it matches a literal in this file.
+        MoonrelayDesignTokens.standard().paneBarHeight,
       );
     });
 
@@ -117,11 +126,11 @@ void main() {
       // One step below the bar, so it reads as a field sitting on the chrome
       // rather than as part of the chrome.
       expect(
-        fills.map((d) => d.color).contains(theme.colorScheme.surfaceContainerLow),
+        fills
+            .map((d) => d.color)
+            .contains(theme.colorScheme.surfaceContainerLow),
         isTrue,
       );
     });
   });
 }
-
-

@@ -155,7 +155,11 @@ class _MobileTopBar extends StatelessWidget {
 
     return Container(
       key: kMobileShellTopBar,
-      height: kToolbarHeight,
+      // Reads the same token as every other pane bar. It was a bare
+      // kToolbarHeight, an independent second copy of a number that
+      // [WindowTitleBar] also derived from kToolbarHeight, so the two
+      // disagreed the moment either one changed.
+      height: ext.tokens.paneBarHeight,
       decoration: BoxDecoration(
         // `surfaceContainer`, not `surface`. The mobile shell has no rail
         // and no room pane, so the top bar and the content below it were the

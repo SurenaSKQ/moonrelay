@@ -59,7 +59,7 @@ class _StartscreenFrameState extends State<StartscreenFrame>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(WindowTitleBar.height),
+        preferredSize: Size.fromHeight(WindowTitleBar.height(context)),
         // No search: there is nothing to search before the user is signed in,
         // and a search field that opens an empty palette is a dead control
         // with a real-looking border.

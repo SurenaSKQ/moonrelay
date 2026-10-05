@@ -62,7 +62,7 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     final settings = context.watch<SettingsController>();
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(WindowTitleBar.height),
+        preferredSize: Size.fromHeight(WindowTitleBar.height(context)),
         child: WindowTitleBar(
           showSearch: true,
           // Close honours the tray, which is an account preference and so is

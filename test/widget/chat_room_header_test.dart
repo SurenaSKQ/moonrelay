@@ -26,6 +26,7 @@ import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
 
 import '../helpers/mocks.dart';
 import '../helpers/widget_test_utils.dart';
@@ -142,7 +143,7 @@ Finder _theBar(WidgetTester tester) => find.descendant(
 
 void main() {
   group('ChatRoomHeader', () {
-    testWidgets('is 48 pixels tall whether or not the room has a topic',
+    testWidgets('is one pane bar tall whether or not the room has a topic',
         (tester) async {
       // The invariant the one-line layout exists to protect. A header that
       // grows when a topic appears moves the top of the conversation, which is
@@ -155,7 +156,10 @@ void main() {
       final withoutTopic = tester.getSize(_theBar(tester)).height;
 
       expect(withTopic, withoutTopic);
-      expect(withTopic, 48);
+      // The same token the composer at the other end of this pane reads. It was
+      // a bare 48 against the composer's 52, which is what stopped the
+      // conversation reading as framed.
+      expect(withTopic, MoonrelayDesignTokens.standard().paneBarHeight);
     });
 
     testWidgets('the topic shares the line with the name, after a rule',
@@ -173,11 +177,12 @@ void main() {
 
       // And the rule between them is what says they are two fields rather than
       // one run-on label.
-      expect(find.descendant(
-        of: find.byType(ChatRoomHeader),
-        matching: find.byType(VerticalDivider),
-      ),
-      findsOneWidget);
+      expect(
+          find.descendant(
+            of: find.byType(ChatRoomHeader),
+            matching: find.byType(VerticalDivider),
+          ),
+          findsOneWidget);
     });
 
     testWidgets('a narrow pane drops the topic and its rule together',
@@ -200,13 +205,17 @@ void main() {
       );
     });
 
-    testWidgets('a room with no topic keeps the bar at 48', (tester) async {
+    testWidgets('a room with no topic keeps the pane bar height',
+        (tester) async {
       // The header shows a placeholder rather than an empty slot, because a
       // gap between the name and the actions reads as a half-rendered bar.
       await pumpHeader(tester, (c) => _room(c, topic: ''));
 
       expect(find.text('General'), findsOneWidget);
-      expect(tester.getSize(_theBar(tester)).height, 48);
+      expect(
+        tester.getSize(_theBar(tester)).height,
+        MoonrelayDesignTokens.standard().paneBarHeight,
+      );
     });
 
     testWidgets('a long topic does not push the actions off the bar',
@@ -240,16 +249,18 @@ void main() {
 
       // And the topic really is sharing space rather than getting everything.
       expect(
-        tester.getRect(
-          find
-              .descendant(
-                of: find.byType(ChatRoomHeader),
-                matching: find.text(
-                  'A topic long enough to overflow the bar',
-                ),
-              )
-              .first,
-        ).right,
+        tester
+            .getRect(
+              find
+                  .descendant(
+                    of: find.byType(ChatRoomHeader),
+                    matching: find.text(
+                      'A topic long enough to overflow the bar',
+                    ),
+                  )
+                  .first,
+            )
+            .right,
         lessThan(bar.right),
       );
       expect(tester.takeException(), isNull);
@@ -288,6 +299,3 @@ void main() {
     });
   });
 }
-
-
-

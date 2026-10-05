@@ -342,7 +342,11 @@ class MoonrelayAppBarTokens {
       elevation: t.elevationNone,
       scrolledElevation: t.elevationLow,
       iconSize: t.iconSizeMedium,
-      toolbarHeight: t.minTapTarget,
+      // The bar at the top of a page is the same bar as the bar at the top of a
+      // pane, so it reads the same token. It used to read minTapTarget (48)
+      // while the navigation header read paneBarHeight (52), which meant the
+      // shell had two ideas of a toolbar and the title bar had a third.
+      toolbarHeight: t.paneBarHeight,
     );
   }
 
@@ -664,7 +668,6 @@ class MoonrelayChatTokens {
     required this.measureMaxWidth,
     required this.replyBarWidth,
     required this.reactionRadius,
-    required this.composerMinHeight,
   });
 
   /// Default bubble corner radius.  The user's `bubbleRadius` setting wins
@@ -724,7 +727,6 @@ class MoonrelayChatTokens {
   final double reactionRadius;
 
   /// Minimum height of the composer, so it stays a comfortable tap target.
-  final double composerMinHeight;
 
   /// Sender name is smaller than the body it labels.
   ///
@@ -756,7 +758,8 @@ class MoonrelayChatTokens {
   /// Font size for message metadata, given the user's chosen body size.
   double metadataFontSize(double bodySize) {
     final capped = bodySize * _metadataMaxBodyRatio;
-    return capped < _metadataSize ? capped.clamp(_metadataSizeMin, _metadataSize)
+    return capped < _metadataSize
+        ? capped.clamp(_metadataSizeMin, _metadataSize)
         : _metadataSize;
   }
 
@@ -778,7 +781,6 @@ class MoonrelayChatTokens {
       measureMaxWidth: 660,
       replyBarWidth: t.spaceXs,
       reactionRadius: t.radiusFull,
-      composerMinHeight: t.minTapTarget,
     );
   }
 
@@ -797,8 +799,7 @@ class MoonrelayChatTokens {
         other.bubbleGutter == bubbleGutter &&
         other.measureMaxWidth == measureMaxWidth &&
         other.replyBarWidth == replyBarWidth &&
-        other.reactionRadius == reactionRadius &&
-        other.composerMinHeight == composerMinHeight;
+        other.reactionRadius == reactionRadius;
   }
 
   @override
@@ -815,7 +816,6 @@ class MoonrelayChatTokens {
         measureMaxWidth,
         replyBarWidth,
         reactionRadius,
-        composerMinHeight,
       ]);
 }
 

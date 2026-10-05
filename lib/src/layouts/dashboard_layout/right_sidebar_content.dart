@@ -169,12 +169,18 @@ class RightSidebarHeader extends StatelessWidget {
     // was `surfaceContainerHighest`, which is the hover step, so the one
     // always-visible bar in the detail pane was painted in the colour the app
     // uses for "the pointer is over this".
+    // The pane bar height, not the sum of this padding and the tab's own.
+    //
+    // Its content measures 48: an 18px icon, a 2px gap, a 10px label at 1.2
+    // line height, 4px of padding inside the tab and 4px outside it. That fits
+    // inside 52 with room to spare, so this bar can be a real pane bar rather
+    // than the one exception. It reads as an exception only because it stacks
+    // an icon over a label, and stacking is not the same as being tall.
     return Container(
       color: layers.hover,
-      padding: EdgeInsets.symmetric(
-        horizontal: t.spaceSm,
-        vertical: t.spaceXs,
-      ),
+      height: t.paneBarHeight,
+      alignment: AlignmentDirectional.center,
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
       child: Row(
         children: [
           for (final choice in destinations) ...[

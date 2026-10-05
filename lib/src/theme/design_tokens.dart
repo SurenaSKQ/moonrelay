@@ -152,17 +152,30 @@ class MoonrelayDesignTokens {
 
   final double minTapTarget;
 
-  /// Height of the bar that frames the conversation: the navigation pane's
-  /// header at the top and the composer at the bottom.
+  /// Height of every single-line bar that sits at the edge of a pane: the
+  /// window title bar, the navigation pane's header, the room header, the
+  /// hub's sub-page header, the single-pane shell's top bar, and the composer
+  /// at the bottom of the conversation.
   ///
-  /// Two bars of the same height are what makes the message list look framed
+  /// The conversation is framed by two of these, one above and one below, and
+  /// they being the same height is what makes the message list read as framed
   /// rather than stranded between two unrelated strips. They were derived
   /// independently, from a header's own padding and from the composer's
-  /// minTapTarget, so they drifted a few pixels apart and the pane lost its
-  /// top and bottom edges.
+  /// [minTapTarget], and had drifted a few pixels apart.
   ///
-  /// Not a Material value: no component has one of these. Both readers are
-  /// in [NavigationSidebar] and [ChatBox].
+  /// This is the single source of truth for "how tall is a bar at the edge of a
+  /// pane". It supersedes both `kToolbarHeight` and
+  /// [MoonrelayAppBarTokens.toolbarHeight], which claimed the same role at 56
+  /// and 48 respectively. Three names for one idea is one more name than a
+  /// reader can hold, and every extra one is a place for the panes to drift
+  /// apart again.
+  ///
+  /// The right sidebar's tab switcher was the one bar I expected to have to
+  /// exempt, because it stacks an icon over a label and I assumed that meant
+  /// two lines of height. It does not: its content measures 48 (an 18px icon,
+  /// a 2px gap, a 10px label at 1.2 line height, and 8px of padding) which fits
+  /// inside 52. Stacking and being tall are different properties, and only one
+  /// of them is a reason to leave a bar off the token.
   final double paneBarHeight;
 
   // -- Border radii ----------------------------------------------------
@@ -285,9 +298,8 @@ class MoonrelayDesignTokens {
     Brightness brightness = Brightness.light,
   }) {
     final r = baseCornerRadius;
-    final shadows = brightness == Brightness.dark
-        ? _darkShadowScale
-        : _lightShadowScale;
+    final shadows =
+        brightness == Brightness.dark ? _darkShadowScale : _lightShadowScale;
     return MoonrelayDesignTokens(
       // Spacing (8-point grid)
       spaceXxs: 2,
@@ -341,7 +353,9 @@ class MoonrelayDesignTokens {
 
       // Touch targets
       minTapTarget: 48,
-    paneBarHeight: 52,
+
+      // Pane furniture
+      paneBarHeight: 52,
 
       // Border radii (derived from the base corner radius)
       //
@@ -361,7 +375,6 @@ class MoonrelayDesignTokens {
   // -- copyWith --------------------------------------------------------
 
   MoonrelayDesignTokens copyWith({
-    double? paneBarHeight,
     double? spaceXxs,
     double? spaceXs,
     double? spaceSm,
@@ -389,6 +402,7 @@ class MoonrelayDesignTokens {
     double? borderWidthThin,
     double? borderWidthMedium,
     double? borderWidthThick,
+    double? paneBarHeight,
     Duration? durationFast,
     Duration? durationMedium,
     Duration? durationSlow,
@@ -551,6 +565,7 @@ class MoonrelayDesignTokens {
         other.iconSizeMedium == iconSizeMedium &&
         other.iconSizeLarge == iconSizeLarge &&
         other.minTapTarget == minTapTarget &&
+        other.paneBarHeight == paneBarHeight &&
         other.radiusXs == radiusXs &&
         other.radiusSm == radiusSm &&
         other.radiusMd == radiusMd &&
@@ -592,6 +607,7 @@ class MoonrelayDesignTokens {
         iconSizeMedium,
         iconSizeLarge,
         minTapTarget,
+        paneBarHeight,
         radiusXs,
         radiusSm,
         radiusMd,
