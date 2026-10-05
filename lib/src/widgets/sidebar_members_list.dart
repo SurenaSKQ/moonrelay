@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/member_context_menu.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -303,8 +304,8 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
                     )
                   : null,
               filled: true,
-              fillColor:
-                  scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+              fillColor: scheme.surfaceContainerHighest
+                  .withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
@@ -462,153 +463,128 @@ class SidebarMemberTile extends StatelessWidget {
       Membership.leave => l10n.leftBadge,
     };
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(t.radiusSm),
-      onTap: () => _showContextMenu(context),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: AvatarFromUriOrFallbackImage(
-                client: member.room.client,
-                avatarUri: member.avatarUrl,
+    return MemberContextMenu(
+      member: member,
+      onOpenProfile: () => showProfileOverlay(
+        context,
+        userId: member.id,
+        room: member.room,
+      ),
+      onSendMessage: () => _sendMessage(context),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(t.radiusSm),
+        // A plain click opens the profile. It used to open the two-item
+        // popup, so the sidebar's member list had no primary action.
+        onTap: () => showProfileOverlay(
+          context,
+          userId: member.id,
+          room: member.room,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: AvatarFromUriOrFallbackImage(
+                  client: member.room.client,
+                  avatarUri: member.avatarUrl,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (permissionLabel != null) ...[
-                        SizedBox(width: t.spaceXs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                scheme.primaryContainer.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(t.radiusXs),
-                          ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
                           child: Text(
-                            permissionLabel!,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: scheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w600,
+                            displayName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (permissionLabel != null) ...[
+                          SizedBox(width: t.spaceXs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer
+                                  .withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(t.radiusXs),
+                            ),
+                            child: Text(
+                              permissionLabel!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (membershipLabel != null)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 1,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      scheme.tertiaryContainer.withValues(alpha: t.opacitySubtle),
-                  borderRadius: BorderRadius.circular(t.radiusXs),
-                ),
-                child: Text(
-                  membershipLabel,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: scheme.onTertiaryContainer,
-                  ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+              if (membershipLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.tertiaryContainer
+                        .withValues(alpha: t.opacitySubtle),
+                    borderRadius: BorderRadius.circular(t.radiusXs),
+                  ),
+                  child: Text(
+                    membershipLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showContextMenu(BuildContext context) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx + 160,
-        offset.dy,
-        offset.dx + 320,
-        offset.dy + 60,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'profile',
-          child: ListTile(
-            leading: const Icon(Icons.person_rounded),
-            title: Text(AppLocalizations.of(context)!.viewProfile),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        PopupMenuItem(
-          value: 'message',
-          child: ListTile(
-            leading: const Icon(Icons.chat_rounded),
-            title: Text(AppLocalizations.of(context)!.sendMessage),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    ).then((v) {
-      if (v == null || !context.mounted) return;
-      switch (v) {
-        case 'profile':
-          showProfileOverlay(
+  /// Starts a direct chat with this member, or opens the existing one.
+  void _sendMessage(BuildContext context) {
+    final log = context.read<Logger>();
+    final l10n = AppLocalizations.of(context)!;
+    withRetry(
+      () => member.startDirectChat(),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'startDirectChat',
+    ).then((result) {
+      if (!context.mounted) return;
+      switch (result) {
+        case RetrySuccess(:final value):
+          openRoom(context, value);
+        case RetryFailed(:final error):
+          showFloatingSnackBar(
             context,
-            userId: member.id,
-            room: member.room,
+            error is TimeoutException
+                ? l10n.couldNotStartChatTimeout
+                : l10n.couldNotStartChat('$error'),
           );
-        case 'message':
-          final log = context.read<Logger>();
-          final l10n = AppLocalizations.of(context)!;
-          withRetry(
-            () => member.startDirectChat(),
-            maxRetries: 1,
-            timeout: kDefaultTimeout,
-            log: log,
-            label: 'startDirectChat',
-          ).then((result) {
-            if (!context.mounted) return;
-            switch (result) {
-              case RetrySuccess(:final value):
-                openRoom(context, value);
-              case RetryFailed(:final error):
-                final message = error is TimeoutException
-                    ? l10n.couldNotStartChatTimeout
-                    : l10n.couldNotStartChat('$error');
-                showFloatingSnackBar(context, message);
-            }
-          });
       }
     });
   }

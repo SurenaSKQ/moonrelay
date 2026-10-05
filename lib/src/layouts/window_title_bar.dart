@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
 /// The window's own title bar: drag area, app name, global search, caption
@@ -90,7 +91,8 @@ class WindowTitleBar extends StatelessWidget {
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) {
-        if (event.kind == PointerDeviceKind.mouse && (event.buttons & 0x02) != 0) {
+        if (event.kind == PointerDeviceKind.mouse &&
+            (event.buttons & 0x02) != 0) {
           showWindowContextMenu(
             context,
             event.position,
@@ -246,37 +248,41 @@ Future<void> showWindowContextMenu(
   if (!context.mounted) return;
 
   final items = <PopupMenuEntry<String>>[
-    PopupMenuItem<String>(
+    MoonrelayMenuItem<String>(
       value: 'minimize',
-      child: _MenuRow(icon: Icons.minimize, label: l10n.minimize),
+      icon: LucideIcons.minus,
+      label: l10n.minimize,
     ),
-    PopupMenuItem<String>(
+    MoonrelayMenuItem<String>(
       value: 'maximize',
-      child: _MenuRow(
-        icon: isMaxed ? Icons.filter_none : Icons.check_box_outline_blank,
-        label: isMaxed ? l10n.restore : l10n.maximize,
-      ),
+      // Restore and maximize are the same action on different windows, so
+      // the label already distinguishes them. The icon used to be
+      // `Icons.check_box_outline_blank`, which reads as an unchecked
+      // checkbox and is not a window glyph in any desktop convention.
+      icon: LucideIcons.copy,
+      label: isMaxed ? l10n.restore : l10n.maximize,
     ),
-    PopupMenuItem<String>(
+    MoonrelayMenuItem<String>(
       value: 'close',
-      child: _MenuRow(icon: Icons.close, label: l10n.closeWindow),
+      icon: LucideIcons.x,
+      label: l10n.closeWindow,
     ),
-    const PopupMenuDivider(),
-    PopupMenuItem<String>(
+    const MoonrelayMenuDivider(),
+    MoonrelayMenuItem<String>(
       value: 'system',
-      child: _MenuRow(icon: Icons.more_horiz, label: l10n.showSystemMenu),
+      icon: LucideIcons.moreHorizontal,
+      label: l10n.showSystemMenu,
     ),
   ];
 
   if (!context.mounted) return;
   final result = await showMenu<String>(
     context: context,
-    position: RelativeRect.fromLTRB(
-      globalPosition.dx,
-      globalPosition.dy,
-      globalPosition.dx + 1,
-      globalPosition.dy + 1,
+    position: RelativeRect.fromRect(
+      Rect.fromPoints(globalPosition, globalPosition),
+      Offset.zero & MediaQuery.sizeOf(context),
     ),
+    constraints: moonrelayMenuConstraints(),
     items: items,
   );
 
@@ -317,21 +323,3 @@ Future<void> onWindowMenuAction(
 }
 
 /// A single row in the system menu.
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Row(
-      children: [
-        Icon(icon, size: 18),
-        SizedBox(width: t.spaceMd),
-        Text(label),
-      ],
-    );
-  }
-}

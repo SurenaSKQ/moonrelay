@@ -22,7 +22,7 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
-import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rows.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
 import 'package:provider/provider.dart';
 
 /// Right-click and long-press menu for a space or a space group.
@@ -58,7 +58,8 @@ class SpaceContextMenu extends StatefulWidget {
     required VoidCallback onOpen,
     bool inGroup = false,
   }) =>
-      SpaceContextMenu._(space: space, inGroup: inGroup, onOpen: onOpen, child: child);
+      SpaceContextMenu._(
+          space: space, inGroup: inGroup, onOpen: onOpen, child: child);
 
   /// Menu for a group's header.
   factory SpaceContextMenu.forGroup({
@@ -86,6 +87,19 @@ class SpaceContextMenu extends StatefulWidget {
 class _SpaceContextMenuState extends State<SpaceContextMenu> {
   /// Where the menu opens, in global coordinates.
   Offset _tapPosition = Offset.zero;
+
+  /// Wraps a set of related entries with a leading divider, but only if
+  /// something has already been added.
+  ///
+  /// Dropping this into the builder is what removed the leading rule on a
+  /// group's menu. It cannot produce two rules in a row for the same reason
+  /// the message menu's does not.
+  static List<PopupMenuEntry<String>> _grouped(
+    List<PopupMenuEntry<String>> entries,
+  ) {
+    if (entries.isEmpty) return entries;
+    return [const MoonrelayMenuDivider(), ...entries];
+  }
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -115,62 +129,81 @@ class _SpaceContextMenuState extends State<SpaceContextMenu> {
     // The menu is positioned against the overlay, which is the whole screen
     // rather than the rail, so a group header near the bottom of a short
     // window would otherwise place its menu off the edge.
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context, rootOverlay: true)
+        .context
+        .findRenderObject()! as RenderBox;
 
     final selection = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
-        Rect.fromLTWH(_tapPosition.dx, _tapPosition.dy, 1, 1),
+        Rect.fromPoints(_tapPosition, _tapPosition),
         Offset.zero & overlay.size,
       ),
+      // The rail is 72px wide, so this menu is the one place in the app whose
+      // labels are known to be long ("Sort spaces into groups") against a
+      // popup that clamps itself to 280.
+      constraints: moonrelayMenuConstraints(),
       items: [
         if (space != null)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'open',
-            child: NavListRow(LucideIcons.externalLink, l10n.openSpace),
+            icon: LucideIcons.externalLink,
+            label: l10n.openSpace,
           ),
-        if (space != null && !widget.inGroup) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: 'up',
-            child: NavListRow(LucideIcons.arrowUp, l10n.moveSpaceUp),
-          ),
-          PopupMenuItem(
-            value: 'dn',
-            child: NavListRow(LucideIcons.arrowDown, l10n.moveSpaceDown),
-          ),
-        ],
-        if (isGroup) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: 'gup',
-            child: NavListRow(LucideIcons.arrowUp, l10n.moveGroupUp),
-          ),
-          PopupMenuItem(
-            value: 'gdn',
-            child: NavListRow(LucideIcons.arrowDown, l10n.moveGroupDown),
-          ),
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: 'ug_all',
-            child: NavListRow(LucideIcons.ungroup, l10n.ungroupAllSpaces),
-          ),
-        ],
+        // Built as groups rather than with dividers sprinkled between the
+        // `if`s. The group case used to open with an unconditional
+        // `PopupMenuDivider`, because `space` is null for a group and the
+        // first block is therefore skipped, so a group header's menu began
+        // with a rule and nothing above it.
+        if (space != null && !widget.inGroup)
+          ..._grouped([
+            MoonrelayMenuItem<String>(
+              value: 'up',
+              icon: LucideIcons.arrowUp,
+              label: l10n.moveSpaceUp,
+            ),
+            MoonrelayMenuItem<String>(
+              value: 'dn',
+              icon: LucideIcons.arrowDown,
+              label: l10n.moveSpaceDown,
+            ),
+          ]),
+        if (isGroup)
+          ..._grouped([
+            MoonrelayMenuItem<String>(
+              value: 'gup',
+              icon: LucideIcons.arrowUp,
+              label: l10n.moveGroupUp,
+            ),
+            MoonrelayMenuItem<String>(
+              value: 'gdn',
+              icon: LucideIcons.arrowDown,
+              label: l10n.moveGroupDown,
+            ),
+            MoonrelayMenuItem<String>(
+              value: 'ug_all',
+              icon: LucideIcons.ungroup,
+              label: l10n.ungroupAllSpaces,
+            ),
+          ]),
         if (widget.inGroup)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'ungroup',
-            child: NavListRow(LucideIcons.ungroup, l10n.removeFromGroup),
+            icon: LucideIcons.ungroup,
+            label: l10n.removeFromGroup,
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'sort',
-          child: NavListRow(LucideIcons.folders, l10n.sortSpacesIntoGroups),
-        ),
-        PopupMenuItem(
-          value: 'reset',
-          child: NavListRow(LucideIcons.rotateCcw, l10n.resetSpaceLayout),
-        ),
+        ..._grouped([
+          MoonrelayMenuItem<String>(
+            value: 'sort',
+            icon: LucideIcons.folders,
+            label: l10n.sortSpacesIntoGroups,
+          ),
+          MoonrelayMenuItem<String>(
+            value: 'reset',
+            icon: LucideIcons.rotateCcw,
+            label: l10n.resetSpaceLayout,
+          ),
+        ]),
       ],
     );
 

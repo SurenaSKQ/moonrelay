@@ -182,20 +182,6 @@ class SpaceAvatar extends StatelessWidget {
   }
 }
 
-class NavListRow extends StatelessWidget {
-  const NavListRow(this.icon, this.label, {super.key});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Row(
-        children: [Icon(icon, size: 18), SizedBox(width: t.spaceMd), Text(label)]);
-  }
-}
-
 /// Returns the initials from [name], suitable for avatar fallbacks.
 String initials(String name) {
   if (name.isEmpty) return '#';

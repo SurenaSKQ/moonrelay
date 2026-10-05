@@ -21,6 +21,7 @@ import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/helpers/presence_bus.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/member_context_menu.dart';
 import 'package:moonrelay/src/screens/room_members_view/room_members_view.dart';
 import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
@@ -185,12 +186,15 @@ class MemberTileState extends State<MemberTile> {
           borderRadius: BorderRadius.circular(t.radiusMd),
           color: Colors.transparent,
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(t.radiusMd),
-          onTap: () => _showContextMenu(context),
-          onSecondaryTap: () => _showContextMenu(context),
-          onLongPress: () => _showContextMenu(context),
-          child: Row(
+        child: MemberContextMenu(
+          member: widget.member,
+          onOpenProfile: () => _openProfile(context),
+          onSendMessage: () => _sendMessage(context),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(t.radiusMd),
+            // A plain click opens the profile; it used to open the popup.
+            onTap: () => _openProfile(context),
+            child: Row(
               children: [
                 // Avatar
                 SizedBox(
@@ -296,51 +300,8 @@ class MemberTileState extends State<MemberTile> {
             ),
           ),
         ),
-    );
-  }
-
-  /// Shows a context menu with actions for this member.
-  void _showContextMenu(BuildContext context) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx + 200, // roughly the tile width
-        offset.dy,
-        offset.dx + 400,
-        offset.dy + 60,
       ),
-      items: [
-        PopupMenuItem(
-          value: 'profile',
-          child: ListTile(
-            leading: Icon(Icons.person_rounded),
-            title: Text(AppLocalizations.of(context)!.viewProfile),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        PopupMenuItem(
-          value: 'message',
-          child: ListTile(
-            leading: Icon(Icons.chat_rounded),
-            title: Text(AppLocalizations.of(context)!.sendMessage),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value == null || !context.mounted) return;
-      switch (value) {
-        case 'profile':
-          _openProfile(context);
-        case 'message':
-          _sendMessage(context);
-      }
-    });
+    );
   }
 
   void _openProfile(BuildContext context) {
