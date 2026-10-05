@@ -209,9 +209,15 @@ class RoomSearchController extends ChangeNotifier {
     notifyListeners();
 
     _debounceTimer?.cancel();
-    if (_keywords.isEmpty && _sender.isEmpty) {
+    if (_keywords.isEmpty && _sender.isEmpty && _msgType.isEmpty) {
       // Nothing to ask for. Refusing here rather than sending an empty search
       // is deliberate: an empty search term returns the whole room.
+      //
+      // The type filter counts as something to ask for, and that is the point
+      // of moving off the old pager. That API needed a search term in order to
+      // paginate, so "every image in this room" was inexpressible and its type
+      // chips were only ever narrowers on a keyword query. The full-text
+      // endpoint filters without a term.
       return;
     }
     _debounceTimer = Timer(debounce, () => _run(token));
