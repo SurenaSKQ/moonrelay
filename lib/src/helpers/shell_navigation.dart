@@ -140,6 +140,14 @@ void closeToRoomList(BuildContext context) =>
 /// One route for both, with a flag rather than two paths: the page is the
 /// same form with a title and an icon that change, and two routes would mean
 /// two ways to be on that screen and therefore two back behaviours.
+/// Sends the user to the one page for making or finding a room or a space.
+///
+/// The sSpace flag went away with the page it used to choose between. A
+/// room and a space are the same create call with one flag and the form on the
+/// destination already toggles between them, so a second route could only
+/// ever be a second URL for the same question.
 void openCreateRoom(BuildContext context, {bool asSpace = false}) {
-  context.push(asSpace ? MoonRoutePaths.createSpacePath : MoonRoutePaths.createRoomPath);
+  context.push(
+    asSpace ? MoonRoutePaths.createSpacePath : MoonRoutePaths.createRoomPath,
+  );
 }

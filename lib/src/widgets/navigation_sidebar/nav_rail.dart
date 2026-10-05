@@ -21,7 +21,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
-import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -97,7 +96,10 @@ class SpacesRailHost extends StatelessWidget {
         nav.selectSpace(space.id);
         context.push('/main/space/${space.id}');
       },
-      onCreateSpace: () => openCreateRoom(context, asSpace: true),
+      // The rail's + used to create a space and the room list's + created
+      // a room, so the same gesture in two adjacent columns did two different
+      // things. Both go to the one page now.
+      onCreateSpace: () => context.push(MoonRoutePaths.exploreCreatePath),
     );
   }
 }

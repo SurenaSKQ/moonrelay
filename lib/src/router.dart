@@ -24,8 +24,7 @@ import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page/login_page.dart';
-import 'package:moonrelay/src/screens/add_room_from_id.dart';
-import 'package:moonrelay/src/screens/create_new_room.dart';
+import 'package:moonrelay/src/screens/explore/explore_page.dart';
 import 'package:moonrelay/src/screens/room_details/room_details_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
@@ -371,18 +370,27 @@ class MoonRouter {
                 roomId: _param(state, 'roomid'),
               ),
             ),
-            GoRoute(
+            // One page for making or finding a room or a space.
+//
+// The three routes below all redirect into it rather than each building a
+// page. Redirect rather than an alias because a redirect also fixes the URL,
+// so the back button and a copied link both behave, and because three routes
+// pointing at one builder is three places to forget to update when it changes.
+GoRoute(
+              path: MoonRoutePaths.explorePath,
+              builder: (context, state) => const ExplorePage(),
+            ),
+GoRoute(
               path: MoonRoutePaths.createRoomPath,
-              builder: (context, state) => const CreateNewRoomPage(),
+              redirect: (_, __) => MoonRoutePaths.exploreCreatePath,
             ),
             GoRoute(
               path: MoonRoutePaths.createSpacePath,
-              builder: (context, state) =>
-                  const CreateNewRoomPage(asSpace: true),
+              redirect: (_, __) => MoonRoutePaths.exploreCreatePath,
             ),
             GoRoute(
               path: '/main/addroom',
-              builder: (context, state) => const AddRoomPage(),
+              redirect: (_, __) => MoonRoutePaths.explorePath,
             ),
           ],
         ),

@@ -23,8 +23,7 @@ import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:matrix/src/utils/cached_stream_controller.dart'
     show CachedStreamController;
-import 'package:matrix/src/utils/space_child.dart'
-    show SpaceChild, SpaceParent;
+import 'package:matrix/src/utils/space_child.dart' show SpaceChild, SpaceParent;
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
@@ -170,13 +169,12 @@ void main() {
   });
 
   group('NavigationSidebar', () {
-    testWidgets('renders the account and the destination title', (tester) async {
+    testWidgets('renders the account, and the header is a control',
+        (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
       expect(find.byType(SidebarProfilePill), findsOneWidget);
-      // Add-room is a room action, so it belongs on the pane that lists rooms.
-      expect(find.byTooltip('Add Room'), findsOneWidget);
 
       // The pane names the destination the rail has selected. The Home/All
       // toggle that used to live here is gone: the rail owns those, and two
@@ -186,67 +184,42 @@ void main() {
       expect(find.text('All rooms'), findsNothing);
       // No spaces in the mock client, so the spaces section is skipped.
       expect(find.text('Spaces'), findsNothing);
-    });
 
-    testWidgets('the command palette is not in this pane', (tester) async {
-      // It is a window-level action, not a destination and not a filter over
-      // this list, so it lives in the title bar. A search control sitting above
-      // the room list implied it filtered that list, and it spent a row of
-      // height in the pane with least to spare.
+      // The header is the pane's control, so it says so: a chevron rather
+      // than an ellipsis, because "this opens something" and "there is more
+      // here" are different claims.
+      expect(find.byIcon(LucideIcons.chevronDown), findsOneWidget);
+    });
+    testWidgets('the header is the control, not a bare label', (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
-      expect(find.byTooltip('Command palette'), findsNothing);
+      // There is no `+` in the header any more. It used to sit here on its own
+      // and it could only create a room, while the rail's `+` next to it could
+      // only create a space: the same gesture in two adjacent columns doing
+      // two different things, neither of which could reach the other.
+      expect(find.byIcon(LucideIcons.plus), findsNothing);
+      expect(find.byTooltip('Add Room'), findsNothing);
+
+      // What is left is the whole bar, which opens the destination's actions.
+      expect(find.byIcon(LucideIcons.chevronDown), findsOneWidget);
     });
-    testWidgets('the account is pinned below both list sections',
+
+    testWidgets('tapping the header opens the destination menu',
         (tester) async {
       await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
       await tester.pump();
 
-      // It used to be the first thing the pane showed, directly under the
-      // window's title bar, and the last thing anyone looked at. Every
-      // other client puts it at the bottom, which is also where a thumb
-      // expects it, and here it has to sit below both the spaces and the
-      // rooms sections to stay put when either collapses.
-      final pill = tester.getCenter(find.byType(SidebarProfilePill));
-      final titleBar = tester.getCenter(find.byType(RoomSearchField));
-      final list = tester.getCenter(find.byType(RoomsPane));
-      expect(pill.dy, greaterThan(titleBar.dy));
-      expect(pill.dy, greaterThan(list.dy));
+      await tester.tap(find.text('Rooms'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // With no space selected the menu offers what applies to the room list
+      // itself, which is the pair that replaced the `+`.
+      expect(find.text('Create a room or space'), findsOneWidget);
+      expect(find.text('Find rooms and spaces'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
-
-    testWidgets('add room is a control on the rooms header, not a nav row',
-        (tester) async {
-      await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
-      await tester.pump();
-
-      // It is on the title bar, beside the palette, and it is the only one.
-      // It used to sit on the rooms section header as well, which put two
-      // identical plus icons within 200 pixels of each other: one that adds a
-      // room and one that looks like it might add something to the category
-      // above it. As a third navigation row it also cost a full row of height
-      // in a pane that has about five rows to give.
-      expect(find.byIcon(LucideIcons.plus), findsOneWidget);
-      final plus = tester.getCenter(find.byIcon(LucideIcons.plus));
-      final search = tester.getCenter(find.byType(RoomSearchField));
-      expect(plus.dy, lessThan(search.dy));
-      // It is an icon with a tooltip now, so the label is not a Text node.
-      expect(find.text('Add Room'), findsNothing);
-    });
-
-    testWidgets('tapping the add-room control pushes the add room route',
-        (tester) async {
-      await tester.pumpWidget(_wrapSidebar(const NavigationSidebar()));
-      await tester.pump();
-
-      await tester.tap(find.byIcon(LucideIcons.plus));
-      await tester.pump();
-      await tester.pump();
-
-      expect(find.text('ADD_ROOM'), findsOneWidget);
-    });
-
-
 
     testWidgets('there is no section header, and the list cannot be collapsed',
         (tester) async {
@@ -302,7 +275,7 @@ void main() {
       expect(find.byType(Text), findsWidgets);
     });
 
-testWidgets('a space is no longer reachable from this pane',
+    testWidgets('a space is no longer reachable from this pane',
         (tester) async {
       // The counterpart to the test above: the rail owns space selection, so
       // the room pane must not offer it. Asserted here as well as in the
@@ -445,7 +418,8 @@ testWidgets('a space is no longer reachable from this pane',
     // 600-1100px band silently lost space grouping, drag-to-reorder, the
     // space context menu and the per-space room tree. There is now one
     // composition, so the sidebar has to be the same widget in both bands.
-    testWidgets('the narrow band keeps the same navigation sidebar, not a '
+    testWidgets(
+        'the narrow band keeps the same navigation sidebar, not a '
         'reduced one', (tester) async {
       final settings = createTestSettingsController();
       await tester.pumpWidget(
@@ -598,10 +572,8 @@ testWidgets('a space is no longer reachable from this pane',
       await tester.pump();
     }
 
-    double fontSizeOf(WidgetTester tester, String text) => tester
-        .widget<Text>(find.text(text))
-        .style!
-        .fontSize!;
+    double fontSizeOf(WidgetTester tester, String text) =>
+        tester.widget<Text>(find.text(text)).style!.fontSize!;
 
     // Density comes from the user's Interface density setting, not from
     // how wide the pane happens to be.
@@ -620,7 +592,8 @@ testWidgets('a space is no longer reachable from this pane',
       await pumpAt(tester, 600);
       final wide = fontSizeOf(tester, 'Test Room');
       expect(wide, narrow);
-      expect(narrow, SidebarRowMetrics.forDensity(LayoutDensity.comfortable).titleSize);
+      expect(narrow,
+          SidebarRowMetrics.forDensity(LayoutDensity.comfortable).titleSize);
     });
 
     testWidgets('the room preview line is smaller than the name',
@@ -635,16 +608,17 @@ testWidgets('a space is no longer reachable from this pane',
       expect(m.subtitleSize, lessThan(m.titleSize));
     });
 
-    testWidgets('the compact setting actually shrinks the row',
-        (tester) async {
+    testWidgets('the compact setting actually shrinks the row', (tester) async {
       // The behaviour the density control promised and did not deliver.
       await pumpAt(tester, 600, density: LayoutDensity.comfortable);
       final comfortable = fontSizeOf(tester, 'Test Room');
       await pumpAt(tester, 600, density: LayoutDensity.compact);
       final compact = fontSizeOf(tester, 'Test Room');
       expect(compact, lessThan(comfortable));
-      expect(comfortable, SidebarRowMetrics.forDensity(LayoutDensity.comfortable).titleSize);
-      expect(compact, SidebarRowMetrics.forDensity(LayoutDensity.compact).titleSize);
+      expect(comfortable,
+          SidebarRowMetrics.forDensity(LayoutDensity.comfortable).titleSize);
+      expect(compact,
+          SidebarRowMetrics.forDensity(LayoutDensity.compact).titleSize);
     });
 
     testWidgets('the row keeps its badges at every width', (tester) async {
@@ -767,8 +741,7 @@ testWidgets('a space is no longer reachable from this pane',
         mockRoom('!a:matrix.org', 'Room A'),
         mockRoom('!b:matrix.org', 'Room B'),
       ];
-      final currentRoom =
-          await pumpRooms(tester, rooms, current: rooms.first);
+      final currentRoom = await pumpRooms(tester, rooms, current: rooms.first);
       expect(
         tester
             .widget<SidebarRow>(find.ancestor(
@@ -860,14 +833,3 @@ testWidgets('a space is no longer reachable from this pane',
     });
   });
 }
-
-
-
-
-
-
-
-
-
-
-

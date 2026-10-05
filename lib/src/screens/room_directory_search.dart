@@ -34,13 +34,50 @@ import 'package:provider/provider.dart';
 /// - Paginated browsing (load more on scroll)
 /// - Joining a room directly from the result list
 /// - Joining by room ID / alias as a fallback option
+/// What a directory search is looking for.
+///
+/// The public directory serves rooms and spaces from the same endpoint and the
+/// spec has no server-side filter for room type, so this is applied to the
+/// returned chunk. Spaces are rooms with `roomType == 'm.space'`, which is
+/// also how the app already tells them apart everywhere else.
+enum DirectoryKindFilter {
+  rooms,
+  spaces,
+  all;
+
+  bool accepts(PublishedRoomsChunk chunk) => switch (this) {
+        DirectoryKindFilter.all => true,
+        DirectoryKindFilter.rooms => !isSpaceChunk(chunk),
+        DirectoryKindFilter.spaces => isSpaceChunk(chunk),
+      };
+}
+
+/// Whether a directory entry is a space.
+///
+/// A space is a room whose `room_type` is `m.space`. Anything else, including
+/// a server that omits the field, is a room: guessing "space" from a null
+/// would put ordinary rooms in the spaces tab, which is worse than the reverse.
+bool isSpaceChunk(PublishedRoomsChunk chunk) => chunk.roomType == 'm.space';
+
 class RoomDirectorySearch extends StatefulWidget {
   /// When `true`, the widget renders without its own [Scaffold] / [AppBar]
   /// so it can be embedded inside another page (e.g. as a tab in
   /// [AddRoomPage]) without duplicating the chrome.
   final bool embedded;
 
-  const RoomDirectorySearch({super.key, this.embedded = false});
+  /// Which entries to show. Defaults to [DirectoryKindFilter.all] so the
+  /// standalone use of this widget keeps its current behaviour.
+  final DirectoryKindFilter kindFilter;
+
+  /// Emitted whenever a successful join or knock resolves, with the room id.
+  final ValueChanged<String>? onJoined;
+
+  const RoomDirectorySearch({
+    super.key,
+    this.embedded = false,
+    this.kindFilter = DirectoryKindFilter.all,
+    this.onJoined,
+  });
 
   @override
   State<RoomDirectorySearch> createState() => _RoomDirectorySearchState();
@@ -131,8 +168,12 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
       );
 
       if (!mounted) return;
-
-      final chunk = response.chunk;
+// Filtered here rather than server-side: the directory endpoint
+      // has no room-type filter, and a space is a room whose
+      // room_type is m.space.
+      final chunk = response.chunk
+          .where(widget.kindFilter.accepts)
+          .toList(growable: false);
 
       setState(() {
         if (reset) {

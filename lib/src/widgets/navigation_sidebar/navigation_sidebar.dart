@@ -24,11 +24,13 @@ import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/space_hierarchy.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/widgets/sidebar_profile_pill.dart';
 import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/room_search_field.dart';
 
 /// The navigation sidebar of the full (wide) dashboard shell.
@@ -186,47 +188,163 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     );
   }
 
-  /// The pane's title bar: what is being listed, and the one thing you can do
-  /// that is not a room.
+  /// The pane's title bar: what is being listed, and the actions for it.
   ///
-  /// On the darker rail step with a hairline under it, which is the mockup's
-  /// arrangement and the reason it works: the bar is furniture rather than
-  /// content, and reading it as furniture is what tells the eye the list below
-  /// is the part that scrolls.
+  /// Clickable as a whole. It names the destination and it carries the only
+  /// actions that apply to the destination rather than to one room, so making
+  /// the reader aim at a `+` in the corner to find them was making the label a
+  /// label. The whole bar is now the target, the title is the thing that says
+  /// what will open, and a chevron says it is openable.
+  ///
+  /// Its height is [MoonrelayDesignTokens.paneBarHeight], shared with the
+  /// composer. They were derived independently and drifted a few pixels apart,
+  /// which is enough for the eye to read the conversation as sitting between
+  /// two unrelated strips rather than inside a frame.
   Widget _buildTitleBar(ColorScheme scheme, AppLocalizations l10n) {
     final nav = context.watch<NavigationState>();
     final title = _destinationTitle(nav, l10n);
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final layers = MoonrelayThemeExtension.of(context).layers;
 
-    return Container(
+    return Material(
       color: scheme.surfaceContainerLow,
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                // The largest text in this pane. It names the thing the whole
-                // column is about, so it is set at header weight rather than
-                // at row weight.
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.1,
-                color: scheme.onSurface,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: () => _showDestinationMenu(nav, l10n),
+        // The bar is furniture, and the list below it is the part that
+        // scrolls. One hairline under it is what tells the eye so.
+        child: Container(
+          height: t.paneBarHeight,
+          padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: layers.hairline),
             ),
           ),
-          // No palette control here. It is a window-level action, not a
-          // destination and not something that filters this pane, so it lives
-          // in the title bar where it is reachable from every screen rather
-          // than only from the one that happens to have a sidebar. See
-          // [WindowTitleBar].
-          _addRoomButton(l10n),
-        ],
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    // The largest text in this pane. It names the thing the
+                    // whole column is about, so it is set at header weight
+                    // rather than at row weight.
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
+                    color: scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: t.spaceSm),
+              // A chevron rather than an ellipsis. It says "this opens
+              // something" rather than "there is more here", which is the
+              // difference between a menu and a truncation.
+              Icon(
+                LucideIcons.chevronDown,
+                size: t.iconSizeSmall,
+                color: scheme.onSurfaceVariant.withValues(alpha: t.opacityMuted),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  /// The destination's own actions, from its header.
+  ///
+  /// Replaces the `+` that used to sit here. That button only ever opened the
+  /// create form, which is one of four things a user might want from a room
+  /// list, and putting it in the header meant the other three had nowhere to
+  /// live. This menu carries the one that applies to the selected space and,
+  /// when no space is selected, the ones that apply to the room list itself.
+  void _showDestinationMenu(NavigationState nav, AppLocalizations l10n) {
+    final client = Provider.of<Client>(context, listen: false);
+    final space = nav.isSpace ? client.getRoomById(nav.selectedId) : null;
+
+    final entries = <_DestinationAction>[
+      if (space != null) ...[
+        _DestinationAction(
+          value: 'open',
+          icon: LucideIcons.folderOpen,
+          label: l10n.openSpace,
+        ),
+        _DestinationAction(
+          value: 'settings',
+          icon: LucideIcons.settings,
+          label: l10n.spaceSettings,
+        ),
+        // The one the header's `+` used to be reachable next to, and the one
+        // that most obviously belongs to a space rather than to a room.
+        _DestinationAction(
+          value: 'addRoom',
+          icon: LucideIcons.plus,
+          label: l10n.addRoomToSpace,
+        ),
+      ] else ...[
+        _DestinationAction(
+          value: 'create',
+          icon: LucideIcons.plus,
+          label: l10n.createRoomOrSpace,
+        ),
+        _DestinationAction(
+          value: 'join',
+          icon: LucideIcons.search,
+          label: l10n.findRoomsAndSpaces,
+        ),
+      ],
+    ];
+
+    final overlay =
+        Overlay.of(context, rootOverlay: true).context.findRenderObject()!
+            as RenderBox;
+    final anchor = (context.findRenderObject() as RenderBox?)
+        ?.localToGlobal(Offset.zero);
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(
+          anchor ?? Offset.zero,
+          anchor ?? Offset.zero,
+        ),
+        Offset.zero & overlay.size,
+      ),
+      constraints: moonrelayMenuConstraints(),
+      items: [
+        for (final action in entries)
+          MoonrelayMenuItem<String>(
+            value: action.value,
+            icon: action.icon,
+            label: action.label,
+          ),
+      ],
+    ).then((selected) {
+      if (selected == null || !mounted) return;
+      switch (selected) {
+        case 'open':
+          if (space != null) context.push('/main/space/${space.id}');
+        case 'settings':
+          if (space != null) {
+            context.push('/main/space/${space.id}/settings');
+          }
+        case 'addRoom':
+          // The space's own settings, scrolled to the section that adds a
+          // room. Sending someone to the create form here would create a new
+          // room rather than adding an existing one, which is the opposite of
+          // what the label says.
+          if (space != null) {
+            context.push('/main/space/${space.id}/settings');
+          }
+        case 'create':
+          context.push(MoonRoutePaths.createRoomPath);
+        case 'join':
+          context.push(MoonRoutePaths.explorePath);
+      }
+    });
   }
 
   /// What the pane is currently listing.
@@ -250,23 +368,6 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
   }
 
   /// The `+` on the rooms section header.
-  ///
-  /// Sized to a 22px box so the row it sits in keeps the height of the
-  /// section headers it now shares a line with.
-  Widget _addRoomButton(AppLocalizations l10n) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: IconButton(
-        icon: const Icon(LucideIcons.plus, size: 14),
-        tooltip: l10n.addRoom,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 22, height: 22),
-        onPressed: () => context.push('/main/addroom'),
-      ),
-    );
-  }
-
   // -- Rooms region -------------------------------------------------------
 
   /// Computes the rooms body for the active navigation destination.
@@ -332,8 +433,16 @@ class _SidebarFooter extends StatelessWidget {
 // owns the plain tap (see [_SpaceRow]).
 // ===========================================================================
 
+/// One entry in the navigation pane's destination menu.
+@immutable
+class _DestinationAction {
+  const _DestinationAction({
+    required this.value,
+    required this.icon,
+    required this.label,
+  });
 
-
-
-
-
+  final String value;
+  final IconData icon;
+  final String label;
+}

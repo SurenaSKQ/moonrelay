@@ -56,6 +56,22 @@ class MoonRoutePaths {
   /// The create-space form.
   static const String createSpacePath = '/main/newspace';
 
+  /// The one page for making or finding a room or a space.
+  ///
+  /// Replaces three separate destinations: this, /main/newroom and
+  /// /main/newspace. Creating a room and joining one were different pages
+  /// doing different halves of the same question, and the rail had a + that
+  /// could only create a space while the room list had one that could only
+  /// create a room.
+  static const String explorePath = '/main/explore';
+
+  /// The explore page with its mode chosen in the URL.
+  ///
+  /// A query rather than a path segment because the mode is a view state, not
+  /// a destination: /main/explore?mode=create and /main/explore are the
+  /// same page in two conditions, and the back button should treat them as one.
+  static const String exploreCreatePath = '/main/explore?mode=create';
+
   /// The signed-in user's own profile and account settings.
   static const String youTemplate = '/main/me';
 

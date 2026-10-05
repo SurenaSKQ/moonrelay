@@ -72,6 +72,7 @@ class MoonrelayDesignTokens {
     required this.iconSizeLarge,
     // Touch targets
     required this.minTapTarget,
+    required this.paneBarHeight,
     // Border radii (derived from [baseCornerRadius])
     required this.radiusXs,
     required this.radiusSm,
@@ -150,6 +151,19 @@ class MoonrelayDesignTokens {
   // -- Touch targets ---------------------------------------------------
 
   final double minTapTarget;
+
+  /// Height of the bar that frames the conversation: the navigation pane's
+  /// header at the top and the composer at the bottom.
+  ///
+  /// Two bars of the same height are what makes the message list look framed
+  /// rather than stranded between two unrelated strips. They were derived
+  /// independently, from a header's own padding and from the composer's
+  /// minTapTarget, so they drifted a few pixels apart and the pane lost its
+  /// top and bottom edges.
+  ///
+  /// Not a Material value: no component has one of these. Both readers are
+  /// in [NavigationSidebar] and [ChatBox].
+  final double paneBarHeight;
 
   // -- Border radii ----------------------------------------------------
 
@@ -327,6 +341,7 @@ class MoonrelayDesignTokens {
 
       // Touch targets
       minTapTarget: 48,
+    paneBarHeight: 52,
 
       // Border radii (derived from the base corner radius)
       //
@@ -346,6 +361,7 @@ class MoonrelayDesignTokens {
   // -- copyWith --------------------------------------------------------
 
   MoonrelayDesignTokens copyWith({
+    double? paneBarHeight,
     double? spaceXxs,
     double? spaceXs,
     double? spaceSm,
@@ -428,6 +444,7 @@ class MoonrelayDesignTokens {
       iconSizeMedium: iconSizeMedium ?? this.iconSizeMedium,
       iconSizeLarge: iconSizeLarge ?? this.iconSizeLarge,
       minTapTarget: minTapTarget ?? this.minTapTarget,
+      paneBarHeight: paneBarHeight ?? this.paneBarHeight,
       radiusXs: radiusXs ?? this.radiusXs,
       radiusSm: radiusSm ?? this.radiusSm,
       radiusMd: radiusMd ?? this.radiusMd,
@@ -487,6 +504,7 @@ class MoonrelayDesignTokens {
       iconSizeMedium: lerpDouble(iconSizeMedium, other.iconSizeMedium, t)!,
       iconSizeLarge: lerpDouble(iconSizeLarge, other.iconSizeLarge, t)!,
       minTapTarget: lerpDouble(minTapTarget, other.minTapTarget, t)!,
+      paneBarHeight: lerpDouble(paneBarHeight, other.paneBarHeight, t)!,
       radiusXs: lerpDouble(radiusXs, other.radiusXs, t)!,
       radiusSm: lerpDouble(radiusSm, other.radiusSm, t)!,
       radiusMd: lerpDouble(radiusMd, other.radiusMd, t)!,

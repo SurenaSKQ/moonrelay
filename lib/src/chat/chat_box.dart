@@ -670,7 +670,12 @@ static const double _pillRadius = 9999;
           AnimatedContainer(
             duration: t.durationFast,
             curve: t.curveStandard,
-            constraints: BoxConstraints(minHeight: t.minTapTarget),
+            // The same height as the navigation pane's header bar, so the
+          // conversation is framed by two bars rather than sitting between two
+          // strips that happen to be different sizes. The composer's own
+          // controls are `minTapTarget * 0.75`, so the row is set rather than
+          // left to whatever its padding and its tallest child work out to.
+          constraints: BoxConstraints(minHeight: t.paneBarHeight),
             padding: EdgeInsets.symmetric(
               horizontal: t.spaceXs,
               vertical: t.spaceXs,

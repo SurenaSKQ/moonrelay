@@ -383,6 +383,19 @@
   "spaceDetailsEditSection": "Name and topic",
   "roomNotAvailable": "Not on this device yet",
 
+  "createRoomOrSpace": "Create a room or space",
+  "findRoomsAndSpaces": "Find rooms and spaces",
+  "exploreTitle": "Add rooms and spaces",
+  "exploreCreateTab": "Create",
+  "exploreFindTab": "Find",
+  "exploreRooms": "Rooms",
+  "exploreSpaces": "Explore spaces",
+  "exploreSpacesTab": "Spaces",
+  "explorePeople": "People",
+  "exploreSearchDirectory": "Search the public directory",
+  "exploreJoinById": "Join by room ID or alias",
+  "exploreNoResults": "Nothing in the directory matched that.",
+  
   "accentFamilyMare": "The dark seas",
   "accentFamilyCrater": "The bright craters",
   "accentProcellarum": "Oceanus Procellarum",
@@ -695,7 +708,6 @@
   "homeDashboardSubtitle": "Pick up where you left off, or start somewhere new.",
   "recentActivity": "Recent activity",
   "joinRoom": "Join a room",
-  "exploreSpaces": "Explore spaces",
   "friends": "Friends",
   "allRooms": "All rooms",
   "@allRooms": {
