@@ -34,7 +34,6 @@ import 'package:moonrelay/src/screens/startup_screen/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router_paths.dart';
-import 'package:moonrelay/src/screens/global_search_page.dart';
 import 'package:moonrelay/src/screens/home_dashboard.dart';
 import 'package:moonrelay/src/screens/hub_screen/hub_screen.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
@@ -288,11 +287,6 @@ class MoonRouter {
               path: MoonRoutePaths.spacesTemplate,
               redirect: loggedOutRedirect,
               builder: (context, state) => const SpacesListPage(),
-            ),
-            GoRoute(
-              path: MoonRoutePaths.searchTemplate,
-              redirect: loggedOutRedirect,
-              builder: (context, state) => const GlobalSearchPage(),
             ),
             // The single-pane shell's "You" navigation destination.
             //

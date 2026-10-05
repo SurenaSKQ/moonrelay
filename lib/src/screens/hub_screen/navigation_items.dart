@@ -15,6 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import 'package:moonrelay/src/localization/app_localizations.dart';
 
 // -----------------------------------------------------------------------------
 // Route keys
@@ -123,4 +126,75 @@ class HubCategory {
     this.items = const [],
     this.isExpandable = false,
   });
+}
+
+// -----------------------------------------------------------------------------
+// The settings sub-item list, built once
+// -----------------------------------------------------------------------------
+
+/// The label for each settings sub-item, or null if [key] names no sub-item.
+///
+/// A switch rather than a map, so a key added to
+/// [HubRouteKeys.settingsSubItems] without a label here is a compile error
+/// rather than a row that silently renders its own URL segment as a title.
+String? settingsSubItemLabel(String key, AppLocalizations l10n) =>
+    switch (key) {
+      HubRouteKeys.appearance => l10n.appearance,
+      HubRouteKeys.layout => l10n.layout,
+      HubRouteKeys.security => l10n.encryptionAndSecurity,
+      HubRouteKeys.chat => l10n.chatSettings,
+      HubRouteKeys.keybinds => l10n.keybinds,
+      HubRouteKeys.logs => l10n.logs,
+      HubRouteKeys.background => l10n.backgroundAndTray,
+      HubRouteKeys.notifications => l10n.notifications,
+      HubRouteKeys.privacy => l10n.privacy,
+      HubRouteKeys.storage => l10n.storage,
+      HubRouteKeys.advanced => l10n.advanced,
+      HubRouteKeys.blocked => l10n.blockedUsers,
+      HubRouteKeys.updates => l10n.updates,
+      _ => null,
+    };
+
+/// The icon for each settings sub-item.
+///
+/// Every row used to carry `LucideIcons.settings`, which made the hub's
+/// thirteen-item overview a column of identical gears. The icon is what tells
+/// you which row is Storage before you read it, and it is also the first thing
+/// the command palette shows next to a settings hit, so it has to distinguish
+/// them on its own.
+IconData settingsSubItemIcon(String key) => switch (key) {
+      HubRouteKeys.appearance => LucideIcons.palette,
+      HubRouteKeys.layout => LucideIcons.layoutDashboard,
+      HubRouteKeys.security => LucideIcons.shield,
+      HubRouteKeys.chat => LucideIcons.messageSquare,
+      HubRouteKeys.keybinds => LucideIcons.keyboard,
+      HubRouteKeys.logs => LucideIcons.fileText,
+      HubRouteKeys.background => LucideIcons.minimize2,
+      HubRouteKeys.notifications => LucideIcons.bell,
+      HubRouteKeys.privacy => LucideIcons.eyeOff,
+      HubRouteKeys.storage => LucideIcons.hardDrive,
+      HubRouteKeys.advanced => LucideIcons.slidersHorizontal,
+      HubRouteKeys.blocked => LucideIcons.ban,
+      HubRouteKeys.updates => LucideIcons.download,
+      _ => LucideIcons.settings,
+    };
+
+/// Every settings sub-item, in presentation order, labelled and iconed.
+///
+/// This used to live as a private method on the hub's state, which meant the
+/// command palette could not read it and kept its own hand-written list of
+/// eight paths. Eight of thirteen, so five settings pages were unreachable
+/// from the palette, and the list named a ninth (`network`) that has never
+/// existed and rendered an empty page. Both are why it lives here now: one
+/// builder, two readers, and a key with no label is a compile error.
+List<HubNavigationItem> buildSettingsNavigationItems(AppLocalizations l10n) {
+  return [
+    for (final String key in HubRouteKeys.settingsSubItems)
+      if (settingsSubItemLabel(key, l10n) case final String label)
+        HubNavigationItem(
+          key: key,
+          label: label,
+          icon: settingsSubItemIcon(key),
+        ),
+  ];
 }

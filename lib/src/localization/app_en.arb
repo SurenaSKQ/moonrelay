@@ -2840,6 +2840,44 @@
   "@commandPaletteHint": {
     "description": "Hint shown inside the command palette search field."
   },
+  "commandPaletteUsersFilter": "People",
+  "@commandPaletteUsersFilter": {
+    "description": "Label for the command palette filter chip that narrows results to the user directory."
+  },
+  "paletteTypeToSearch": "Type to search rooms, people, messages and settings.",
+  "@paletteTypeToSearch": {
+    "description": "Command palette empty state, shown before anything has been typed."
+  },
+  "paletteSearching": "Searching…",
+  "@paletteSearching": {
+    "description": "Command palette empty state while a remote source is still working."
+  },
+  "paletteSourceFailed": "Some sources could not be reached.",
+  "@paletteSourceFailed": {
+    "description": "Command palette empty state when every source failed."
+  },
+  "paletteSourceFailedNamed": "Not reached: {sources}",
+  "@paletteSourceFailedNamed": {
+    "description": "Command palette footer naming the sources that failed.",
+    "placeholders": {
+      "sources": {
+        "type": "String",
+        "example": "message, user"
+      }
+    }
+  },
+  "paletteHintNavigate": "to move",
+  "@paletteHintNavigate": {
+    "description": "Command palette key hint for the arrow keys."
+  },
+  "paletteHintOpen": "to open",
+  "@paletteHintOpen": {
+    "description": "Command palette key hint for Enter."
+  },
+  "paletteHintClose": "to close",
+  "@paletteHintClose": {
+    "description": "Command palette key hint for Escape."
+  },
   "commandPaletteNoResults": "No matching commands.",
   "@commandPaletteNoResults": {
     "description": "Message shown when the command palette query does not match any action."
@@ -2863,9 +2901,6 @@
   "commandPaletteOpenLogs": "Open Logs",
   "@commandPaletteOpenLogs": {
     "description": "Command palette action that opens the logs hub page."
-  },
-  "@commandPaletteToggleSidebar": {
-    "description": "Command palette action that toggles the dashboard left sidebar."
   },
 
   "encryptionBadgeTooltip": "End-to-end encrypted",

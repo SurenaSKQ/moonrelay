@@ -2602,7 +2602,44 @@
   "@commandPaletteHint": {
     "description": "Hint shown inside the command palette search field."
   },
-  "commandPaletteNoResults": "هیچ فرمانی یافت نشد.",
+  "commandPaletteUsersFilter": "افراد",
+  "@commandPaletteUsersFilter": {
+    "description": "برچسب فیلتر پالت فرمان که نتایج را به فهرست کاربران محدود می‌کند."
+  },
+  "paletteTypeToSearch": "برای جست‌وجوی اتاق‌ها، افراد، پیام‌ها و تنظیمات بنویسید.",
+  "@paletteTypeToSearch": {
+    "description": "حالت خالی پالت فرمان، پیش از آنکه چیزی نوشته شود."
+  },
+  "paletteSearching": "در حال جست‌وجو…",
+  "@paletteSearching": {
+    "description": "حالت خالی پالت فرمان هنگام کار یک منبع راه دور."
+  },
+  "paletteSourceFailed": "دسترسی به برخی منابع ممکن نشد.",
+  "@paletteSourceFailed": {
+    "description": "حالت خالی پالت فرمان وقتی همه منابع شکست خورده‌اند."
+  },
+  "paletteSourceFailedNamed": "دسترسی نشد به: {sources}",
+  "@paletteSourceFailedNamed": {
+    "description": "پاورقی پالت فرمان که منابع ناموفق را نام می‌برد.",
+    "placeholders": {
+      "sources": {
+        "type": "String",
+        "example": "message, user"
+      }
+    }
+  },
+  "paletteHintNavigate": "برای جابجایی",
+  "@paletteHintNavigate": {
+    "description": "راهنمای کلید پالت فرمان برای کلیدهای جهت."
+  },
+  "paletteHintOpen": "برای باز کردن",
+  "@paletteHintOpen": {
+    "description": "راهنمای کلید پالت فرمان برای Enter."
+  },
+  "paletteHintClose": "برای بستن",
+  "@paletteHintClose": {
+    "description": "راهنمای کلید پالت فرمان برای Escape."
+  },  "commandPaletteNoResults": "هیچ فرمانی یافت نشد.",
   "@commandPaletteNoResults": {
     "description": "Message shown when the command palette query does not match any action."
   },

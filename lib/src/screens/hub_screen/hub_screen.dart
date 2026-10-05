@@ -293,7 +293,8 @@ class _AccountHeader extends StatelessWidget {
           color: selected
               ? MoonrelayThemeExtension.of(context).layers.active
               : scheme.surfaceContainerLow,
-          padding: EdgeInsets.fromLTRB(t.spaceSm, t.spaceMd, t.spaceSm, t.spaceMd),
+          padding:
+              EdgeInsets.fromLTRB(t.spaceSm, t.spaceMd, t.spaceSm, t.spaceMd),
           child: Row(
             children: [
               const _ClientAvatar(),
@@ -487,32 +488,8 @@ class _SettingsOverview extends StatelessWidget {
     return HubRouteKeys.settingsSubItems[index];
   }
 
-  List<HubNavigationItem> _overviewItems(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context)!;
-    final Map<String, String> labels = {
-      HubRouteKeys.appearance: l10n.appearance,
-      HubRouteKeys.layout: l10n.layout,
-      HubRouteKeys.security: l10n.encryptionAndSecurity,
-      HubRouteKeys.chat: l10n.chatSettings,
-      HubRouteKeys.keybinds: l10n.keybinds,
-      HubRouteKeys.logs: l10n.logs,
-      HubRouteKeys.background: l10n.backgroundAndTray,
-      HubRouteKeys.notifications: l10n.notifications,
-      HubRouteKeys.privacy: l10n.privacy,
-      HubRouteKeys.storage: l10n.storage,
-      HubRouteKeys.advanced: l10n.advanced,
-      HubRouteKeys.blocked: l10n.blockedUsers,
-      HubRouteKeys.updates: l10n.updates,
-    };
-    return [
-      for (final String key in HubRouteKeys.settingsSubItems)
-        HubNavigationItem(
-          key: key,
-          label: labels[key] ?? key,
-          icon: LucideIcons.settings,
-        ),
-    ];
-  }
+  List<HubNavigationItem> _overviewItems(BuildContext context) =>
+      buildSettingsNavigationItems(AppLocalizations.of(context)!);
 }
 
 /// The accounts section, which owns logging out.
@@ -539,8 +516,7 @@ class _AccountsPaneState extends State<_AccountsPane> {
       // Read through the service, not a single reference: the advanced
       // settings page applies changes through it, so holding this identity
       // keeps the long-lived reference valid.
-      final bool wipeLogs =
-          context.read<SettingsController>().wipeLogsOnLogout;
+      final bool wipeLogs = context.read<SettingsController>().wipeLogsOnLogout;
       await accountManager.logout();
       if (!mounted) return;
       if (wipeLogs) {
@@ -550,9 +526,7 @@ class _AccountsPaneState extends State<_AccountsPane> {
       context.go('/');
     } catch (e, stack) {
       if (!mounted) return;
-      context
-          .read<Logger>()
-          .e('Logout error', error: e, stackTrace: stack);
+      context.read<Logger>().e('Logout error', error: e, stackTrace: stack);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

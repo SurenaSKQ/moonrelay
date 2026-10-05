@@ -21,6 +21,7 @@ import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/router_paths.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
@@ -148,7 +149,6 @@ class _MobileTopBar extends StatelessWidget {
     final String title = switch (destination) {
       FocusDestination.chats => l10n.chats,
       FocusDestination.spaces => l10n.spaces,
-      FocusDestination.search => l10n.search,
       FocusDestination.you => l10n.myProfile,
       null => '',
     };
@@ -202,16 +202,10 @@ class _MobileTopBar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (destination == FocusDestination.search)
-            // The page is a search field already, so a bar button that
-            // opens the same thing would be noise. Trailing padding keeps
-            // the title off the edge, which the button otherwise provided.
-            SizedBox(width: t.spaceSm)
-          else
-            IconButton(
+          IconButton(
               icon: const Icon(LucideIcons.search, size: 18),
               tooltip: l10n.search,
-              onPressed: () => context.go(FocusDestination.search.path),
+              onPressed: () => showCommandPalette(context),
             ),
         ],
       ),

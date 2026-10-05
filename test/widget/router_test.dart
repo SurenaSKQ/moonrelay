@@ -50,6 +50,7 @@ import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/layouts/mobile_layout.dart';
+import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/router.dart';
@@ -115,7 +116,8 @@ Future<GoRouter> pumpRouter(
           value: encryption,
         ),
         ChangeNotifierProvider<CurrentRoom>(create: (_) => CurrentRoom()),
-        ChangeNotifierProvider<NavigationState>(create: (_) => NavigationState()),
+        ChangeNotifierProvider<NavigationState>(
+            create: (_) => NavigationState()),
         Provider<DeepLinkService>.value(value: MockDeepLinkService()),
         Provider<LayoutShellController>(
           create: (_) => LayoutShellController(),
@@ -185,7 +187,8 @@ void main() {
       router.dispose();
     });
 
-    testWidgets('/main/rooms with no room selected is a dashboard, not an error',
+    testWidgets(
+        '/main/rooms with no room selected is a dashboard, not an error',
         (tester) async {
       final router = await pumpRouter(
         tester,
@@ -209,7 +212,8 @@ void main() {
       router.dispose();
     });
 
-    testWidgets('a pushed route survives a resize across the mobile '
+    testWidgets(
+        'a pushed route survives a resize across the mobile '
         'breakpoint', (tester) async {
       final router = await pumpRouter(
         tester,
@@ -271,8 +275,7 @@ void main() {
           )
           .length;
 
-      testWidgets('draws its own top bar on the room list',
-          (tester) async {
+      testWidgets('draws its own top bar on the room list', (tester) async {
         final router = await pumpRouter(
           tester,
           initialLocation: '/main/rooms',
@@ -301,8 +304,7 @@ void main() {
         router.dispose();
       });
 
-      testWidgets('adds no top bar above a pushed sub-page',
-          (tester) async {
+      testWidgets('adds no top bar above a pushed sub-page', (tester) async {
         final router = await pumpRouter(
           tester,
           initialLocation: '/main/rooms',
@@ -331,8 +333,7 @@ void main() {
       // points to search and to the user's own profile lived in a sidebar it
       // does not mount, so both were unreachable, and with them every page
       // behind them (settings, accounts, devices, logs, logout).
-      testWidgets('shows the navigation bar on a destination',
-          (tester) async {
+      testWidgets('shows the navigation bar on a destination', (tester) async {
         final router = await pumpRouter(
           tester,
           initialLocation: '/main/rooms',
@@ -365,27 +366,51 @@ void main() {
           size: phone,
         );
 
-        // Tap the bar's own Search destination, not the top bar's search
-        // button, so this exercises the navigation rather than the action.
+        // Chats, then Spaces. The bar's Search destination is gone: search is
+        // the palette, which is a modal on every shell rather than a tab you
+        // can be "on".
         await tester.tap(
           find.descendant(
             of: find.byKey(kMobileShellNavigationBar),
-            matching: find.byIcon(LucideIcons.search),
+            matching: find.text('Spaces'),
           ),
         );
         for (var i = 0; i < 8; i++) {
           await tester.pump(const Duration(milliseconds: 50));
         }
 
-        expect(router.state.uri.path, MoonRoutePaths.searchTemplate);
+        expect(router.state.uri.path, MoonRoutePaths.spacesTemplate);
         // `go`, so switching tabs did not stack a page the user would have
         // to walk back through.
         expect(router.canPop(), isFalse);
         router.dispose();
       });
+
+      testWidgets('the top bar opens the palette rather than navigating',
+          (tester) async {
+        final router = await pumpRouter(
+          tester,
+          initialLocation: '/main/rooms',
+          size: phone,
+        );
+
+        // The bar's search button used to `go` to `/main/search`, a fourth
+        // destination holding a page with its own copy of the search. It now
+        // opens the palette, so the URL does not change and the conversation
+        // underneath keeps its position.
+        await tester.tap(find.byIcon(LucideIcons.search).first);
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+
+        expect(find.byType(CommandPalettePage), findsOneWidget);
+        expect(router.state.uri.path, MoonRoutePaths.roomListTemplate);
+        router.dispose();
+      });
     });
 
-    testWidgets('path parameters reach the profile view exactly once '
+    testWidgets(
+        'path parameters reach the profile view exactly once '
         'decoded', (tester) async {
       // A user ID may legitimately contain a percent sign. GoRouter decodes
       // matched segments itself, so decoding again here would either mangle

@@ -14,600 +14,250 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Command palette (`Ctrl+Shift+P`).
+// The command palette, opened with `Ctrl+Shift+P`.
 //
-// Inspired by VSCode's command palette.  When opened, the input is
-// empty and the user sees recents (recently used actions and
-// recently visited rooms).  As soon as the user types, the palette
-// infers a "mode" from the leading character:
+// This is the whole surface: an input, a row of filters, one ranked list and a
+// footer that is honest about failure. Everything it knows lives in
+// [PaletteController] and everything it ranks lives in [palette_result.dart].
 //
-// - default (`""`): filter the static command list.
-// - `?`:  full backend search (rooms/spaces/messages/users/homeserver).
-// - `>`:  filter settings pages.
-// - `#`:  restrict to joined rooms/spaces.
-// - `@`:  restrict to the user directory.
+// Three things it does that the previous version did not.
 //
-// When the result list overflows the palette the user can scroll
-// downwards to fetch the next page; every category progressively
-// loads more items, and the relevant pagination cursor is plumbed
-// through the search provider.
+// **The keyboard drives it.** Arrow keys move a cursor, Enter runs the row
+// under it, Home and End jump, Escape closes. The old palette had no arrow
+// handling at all and ran something on Enter only when exactly one result
+// matched, so a palette you opened with the keyboard could not be operated with
+// the keyboard.
 //
-// The previous "global search overlay" used to live alongside this
-// palette.  It is gone: every search-backed query, including the
-// recents lists, runs through the same provider.
-
-import 'dart:async';
+// **The filters narrow rather than replace.** `#`, `@` and `>` restrict the
+// list; with no prefix, everything competes in one ranked list. The old five
+// modes were replacements, which is why the header comment's promise that
+// "opened, the user sees recents" was untrue: the empty state rendered all
+// eight commands and put recents below a divider under the fold.
+//
+// **A source that failed says so.** The footer names it. The old version
+// returned an empty page from three bare `catch (_)` blocks, so a homeserver
+// that was down looked exactly like a query with no results.
 
 import 'package:flutter/material.dart';
-import 'package:moonrelay/src/widgets/command_palette/palette_commands.dart';
-import 'package:moonrelay/src/widgets/command_palette/palette_models.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/blur_background.dart';
-import 'package:moonrelay/src/widgets/search_provider.dart';
+import 'package:moonrelay/src/widgets/command_palette/palette_controller.dart';
+import 'package:moonrelay/src/widgets/command_palette/palette_result.dart';
+import 'package:moonrelay/src/widgets/command_palette/palette_sources.dart';
 import 'package:provider/provider.dart';
 
-/// Shows the command palette as a modal route.
+/// Opens the command palette as a modal route.
+///
+/// Root navigator, so it floats above whichever shell is mounted. A desktop
+/// user has four panes and a title bar and none of them is a good place to put a
+/// global search field, because every one of them already has a job.
 Future<void> showCommandPalette(BuildContext context) {
   return Navigator.of(context, rootNavigator: true).push(
-    PageRouteBuilder(
+    PageRouteBuilder<void>(
       opaque: false,
       barrierDismissible: true,
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (_, __, ___) => const _CommandPalettePage(),
+      pageBuilder: (_, __, ___) => const CommandPalettePage(),
     ),
   );
 }
 
-class _CommandPalettePage extends StatefulWidget {
-  const _CommandPalettePage();
+class CommandPalettePage extends StatelessWidget {
+  const CommandPalettePage({super.key});
 
   @override
-  State<_CommandPalettePage> createState() => _CommandPalettePageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<PaletteController>(
+      create: (BuildContext context) => PaletteController(
+        client: context.read<Client>(),
+        log: context.read<Logger>(),
+        sources: const PaletteSources(),
+      ),
+      child: const _CommandPaletteView(),
+    );
+  }
 }
 
-/// Helper struct that lets the parallel `Future.wait` in
-/// [_CommandPalettePageState._runFullSearchFirst] collect
-/// heterogeneous `SearchPage` results without a fan-out of
+/// The intent a row asks the view to run.
+///
+/// A result carries a closure that takes a `BuildContext`, which is the wrong
+/// shape here: the palette is about to pop itself, so the context that closure
+/// would receive is the one being torn down. That is how the old `_runAction`
+/// ended up calling `Navigator.pop()` and then handing the callback its own
+/// dying context behind an `if (!mounted) return` guard that could never fire
+/// usefully. Dispatching an intent and running it after the pop means the
+/// closure is invoked with a context that is still alive.
+sealed class _PaletteIntent {
+  const _PaletteIntent();
+}
 
-class _CommandPalettePageState extends State<_CommandPalettePage> {
+class _RunResult extends _PaletteIntent {
+  const _RunResult(this.result);
+  final PaletteResult result;
+}
+
+class _Close extends _PaletteIntent {
+  const _Close();
+}
+
+class _MoveCursor extends _PaletteIntent {
+  const _MoveCursor(this.delta);
+  final int delta;
+}
+
+class _JumpToEdge extends _PaletteIntent {
+  const _JumpToEdge({required this.last});
+  final bool last;
+}
+
+class _RunSelected extends _PaletteIntent {
+  const _RunSelected();
+}
+
+/// Wraps the view in a keyboard handler so the list can hold focus without the
+/// input field eating every arrow key.
+class _CommandPaletteView extends StatefulWidget {
+  const _CommandPaletteView();
+
+  @override
+  State<_CommandPaletteView> createState() => _CommandPaletteViewState();
+}
+
+class _CommandPaletteViewState extends State<_CommandPaletteView> {
   final TextEditingController _ctl = TextEditingController();
-  final FocusNode _focus = FocusNode();
-  final ScrollController _resultsScroll = ScrollController();
-
-  Timer? _debounce;
-
-  String _rawText = '';
-  PaletteMode _mode = PaletteMode.commands;
-  String _query = '';
-
-  // Aggregated paginated state for search-driven modes.  Each list has
-  // a parallel `hasMore*` flag plus a continuation cursor (`nextBatch*`
-  // for server-side cursors, `offset*` for local-cache pagination).
-  List<Room> _matchedRooms = [];
-  List<Room> _matchedSpaces = [];
-  List<MessageSearchResult> _msgResults = [];
-  List<Profile> _userResults = [];
-  List<PublishedRoomsChunk> _homeserverResults = [];
-  String? _nextBatchMessages;
-  String? _nextBatchHomeserver;
-  int _roomsOffset = 0;
-  int _spacesOffset = 0;
-  int _usersOffset = 0;
-  bool _hasMoreMessages = false;
-  bool _hasMoreHomeserver = false;
-  bool _hasMoreRooms = false;
-  bool _hasMoreSpaces = false;
-  bool _hasMoreUsers = false;
-
-  // Loading guard: when a list has scrolled to its bottom we request
-  // the next page; the in-flight flag prevents duplicate requests.
-  // We track per-category flags so scroll-driven pagination in the
-  // `?` (search) mode can fetch from every category that still has
-  // results in parallel without one in-flight call blocking the rest.
-  bool _isInitialSearch = false;
-  bool _isInitialUsers = false;
-  bool _isPaginatingMessages = false;
-  bool _isPaginatingHomeserver = false;
-  bool _isPaginatingRooms = false;
-  bool _isPaginatingSpaces = false;
-  bool _isPaginatingUsers = false;
-
-  // Cache the most recent localisation so widgets that read it
-  // inside [build] don't have to do an O(1) but unmemoised lookup
-  // each time they're constructed.
-  late AppLocalizations _locCache;
+  final FocusNode _inputFocus = FocusNode();
+  final ScrollController _scroll = ScrollController();
+  final FocusNode _listFocus = FocusNode(debugLabel: 'palette-results');
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
+      if (mounted) _inputFocus.requestFocus();
     });
-    _ctl.addListener(_onChanged);
-    _resultsScroll.addListener(_onResultsScroll);
-    RecentActivity.instance.addListener(_onRecentsChanged);
   }
 
   @override
   void dispose() {
-    RecentActivity.instance.removeListener(_onRecentsChanged);
-    _resultsScroll.removeListener(_onResultsScroll);
-    _debounce?.cancel();
-    _ctl.removeListener(_onChanged);
+    _scroll.removeListener(_onScroll);
     _ctl.dispose();
-    _focus.dispose();
-    _resultsScroll.dispose();
+    _inputFocus.dispose();
+    _listFocus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  void _onRecentsChanged() {
-    if (mounted) setState(() {});
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final ScrollPosition position = _scroll.position;
+    if (position.pixels < position.maxScrollExtent - 120) return;
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    context.read<PaletteController>().loadMore(l10n);
   }
 
-  void _onChanged() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 120), () {
-      if (!mounted) return;
-      setState(() {
-        _rawText = _ctl.text;
-        _mode = _detectMode(_rawText);
-        _query = _stripPrefix(_rawText, _mode);
-      });
-      _kickoffSearch();
-    });
-  }
+  /// Dispatches [intent], popping first for anything that leaves.
+  void _dispatch(_PaletteIntent intent) {
+    final PaletteController controller = context.read<PaletteController>();
+    final NavigatorState navigator = Navigator.of(context);
 
-  PaletteMode _detectMode(String input) {
-    if (input.isEmpty) return PaletteMode.commands;
-    final first = input[0];
-    switch (first) {
-      case '?':
-        return PaletteMode.search;
-      case '>':
-        return PaletteMode.settings;
-      case '#':
-        return PaletteMode.rooms;
-      case '@':
-        return PaletteMode.users;
-    }
-    return PaletteMode.commands;
-  }
-
-  String _stripPrefix(String input, PaletteMode mode) {
-    if (mode == PaletteMode.commands) return input.trim();
-    return input.substring(1).trim();
-  }
-
-  // -- Search dispatch ------------------------------------------------
-
-  /// Trigger the appropriate first-page fetch for the current mode.
-  /// Resets pagination cursors so the user sees a clean slate when
-  /// the query / mode changes.
-  void _kickoffSearch() {
-    // Anything other than the empty commands/settings modes goes
-    // through the search provider.
-    switch (_mode) {
-      case PaletteMode.search:
-        if (_query.isEmpty) {
-          _resetSearchLists();
-          return;
-        }
-        _runFullSearchFirst(_query);
-        break;
-      case PaletteMode.rooms:
-        _runRoomsFirst(_query);
-        break;
-      case PaletteMode.users:
-        _runUsersFirst(_query);
-        break;
-      case PaletteMode.settings:
-        // Settings list is filtered synchronously in build().
-        setState(() {});
-        break;
-      case PaletteMode.commands:
-        // Commands list is filtered synchronously in build().
-        setState(() {});
-        break;
+    switch (intent) {
+      case _MoveCursor(:final int delta):
+        controller.moveSelection(delta);
+        _scrollSelectedIntoView();
+      case _JumpToEdge(:final bool last):
+        controller.selectEdge(last: last);
+        _scrollSelectedIntoView();
+      case _RunSelected():
+        final PaletteResult? selected = controller.selected;
+        if (selected == null) return;
+        _dispatch(_RunResult(selected));
+      case _RunResult(:final PaletteResult result):
+        // Pop first so the result's closure runs against the context underneath
+        // rather than this one, which is about to be gone.
+        navigator.pop();
+        final BuildContext target = navigator.context;
+        if (!target.mounted) return;
+        result.run(target);
+      case _Close():
+        navigator.pop();
     }
   }
 
-  void _resetSearchLists() {
-    setState(() {
-      _matchedRooms = [];
-      _matchedSpaces = [];
-      _msgResults = [];
-      _userResults = [];
-      _homeserverResults = [];
-      _roomsOffset = 0;
-      _spacesOffset = 0;
-      _usersOffset = 0;
-      _nextBatchMessages = null;
-      _nextBatchHomeserver = null;
-      _hasMoreMessages = false;
-      _hasMoreHomeserver = false;
-      _hasMoreRooms = false;
-      _hasMoreSpaces = false;
-      _hasMoreUsers = false;
-      _isInitialSearch = false;
-      _isInitialUsers = false;
-    });
-  }
-
-  Future<void> _runFullSearchFirst(String query) async {
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() {
-      // Reset everything; we'll replace pieces as each sub-page returns.
-      _matchedRooms = [];
-      _matchedSpaces = [];
-      _msgResults = [];
-      _userResults = [];
-      _homeserverResults = [];
-      _roomsOffset = 0;
-      _spacesOffset = 0;
-      _usersOffset = 0;
-      _nextBatchMessages = null;
-      _nextBatchHomeserver = null;
-      _isInitialSearch = true;
-      _hasMoreMessages = false;
-      _hasMoreHomeserver = false;
-      _hasMoreUsers = false;
-    });
-
-    // Local categories first: synchronous.
-    final localRooms = provider.searchRoomsFirstPage(query, limit: 10);
-    final localSpaces = provider.searchSpacesFirstPage(query, limit: 5);
-
-    setState(() {
-      _matchedRooms = localRooms.items;
-      _matchedSpaces = localSpaces.items;
-      _roomsOffset = localRooms.items.length;
-      _spacesOffset = localSpaces.items.length;
-      _hasMoreRooms = localRooms.hasMore;
-      _hasMoreSpaces = localSpaces.hasMore;
-    });
-
-    // Server-side message search, homeserver public rooms, and
-    // user-directory search all run in parallel; the user sees the
-    // local rooms/spaces immediately, then each server result
-    // streams in as it returns.  Each sub-page is independent so a
-    // slow homeserver doesn't block messages, and vice versa.
-    final results = await Future.wait<InitialSearchResult>([
-      provider.searchMessagesFirstPage(query, limit: 20).then(
-        (v) => InitialSearchResult(messages: v),
-        onError: (_) => InitialSearchResult.empty(),
-      ),
-      provider.searchHomeserverFirstPage(query, limit: 10).then(
-        (v) => InitialSearchResult(homeserver: v),
-        onError: (_) => InitialSearchResult.empty(),
-      ),
-      provider.fetchUsersPage(query, limit: 10).then(
-        (v) => InitialSearchResult(users: v),
-        onError: (_) => InitialSearchResult.empty(),
-      ),
-    ]);
-    if (!mounted) return;
-    final messages = results[0].messages;
-    final homeserver = results[1].homeserver;
-    final users = results[2].users;
-    setState(() {
-      if (messages != null) {
-        _msgResults = messages.items;
-        _nextBatchMessages = messages.nextBatch;
-        _hasMoreMessages = messages.hasMore;
-      }
-      if (homeserver != null) {
-        _homeserverResults = homeserver.items;
-        _nextBatchHomeserver = homeserver.nextBatch;
-        _hasMoreHomeserver = homeserver.hasMore;
-      }
-      if (users != null) {
-        _userResults = users.items;
-        _usersOffset = users.items.length;
-        _hasMoreUsers = users.hasMore;
-      }
-      _isInitialSearch = false;
-    });
-  }
-
-  Future<void> _runFullSearchMoreMessages() async {
-    if (_isPaginatingMessages || !_hasMoreMessages) return;
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() => _isPaginatingMessages = true);
-    try {
-      final page = await provider.searchMessagesNextPage(
-        SearchPageRequest(query: _query, nextBatch: _nextBatchMessages),
-        limit: 20,
-      );
-      if (!mounted) return;
-      setState(() {
-        _msgResults = [..._msgResults, ...page.items];
-        _nextBatchMessages = page.nextBatch;
-        _hasMoreMessages = page.hasMore;
-        _isPaginatingMessages = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isPaginatingMessages = false);
+  void _scrollSelectedIntoView() {
+    if (!_scroll.hasClients) return;
+    final int index = context.read<PaletteController>().selectedIndex;
+    // A row is 48 pixels plus the 4 that separate them, which is the height the
+    // list was built with. Measuring instead of hardcoding would need a key on
+    // every row, and the number is derived from the same token in both places,
+    // so they agree by construction or not at all.
+    const double rowExtent = 52;
+    final double top = index * rowExtent;
+    final double viewport = _scroll.position.viewportDimension;
+    if (top < _scroll.position.pixels) {
+      _scroll.jumpTo(top);
+    } else if (top + rowExtent > _scroll.position.pixels + viewport) {
+      _scroll.jumpTo(top + rowExtent - viewport);
     }
   }
 
-  Future<void> _runFullSearchMoreHomeserver() async {
-    if (_isPaginatingHomeserver || !_hasMoreHomeserver) return;
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() => _isPaginatingHomeserver = true);
-    try {
-      final page = await provider.searchHomeserverNextPage(
-        SearchPageRequest(query: _query, nextBatch: _nextBatchHomeserver),
-        limit: 10,
-      );
-      if (!mounted) return;
-      setState(() {
-        _homeserverResults = [..._homeserverResults, ...page.items];
-        _nextBatchHomeserver = page.nextBatch;
-        _hasMoreHomeserver = page.hasMore;
-        _isPaginatingHomeserver = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isPaginatingHomeserver = false);
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final bool shift = HardwareKeyboard.instance.isShiftPressed;
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowDown:
+        _dispatch(const _MoveCursor(1));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+        _dispatch(const _MoveCursor(-1));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.pageDown:
+        _dispatch(const _MoveCursor(8));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.pageUp:
+        _dispatch(const _MoveCursor(-8));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.home:
+        _dispatch(const _JumpToEdge(last: false));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.end:
+        _dispatch(const _JumpToEdge(last: true));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.numpadEnter:
+        _dispatch(const _RunSelected());
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.escape:
+        _dispatch(const _Close());
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.slash:
+        // Not intercepted. `/` reaching the field is the whole reason a palette
+        // that filters to rooms exists, and shift is checked so that typing
+        // "and/or" is not a command.
+        if (shift) return KeyEventResult.ignored;
+        return KeyEventResult.ignored;
     }
+    return KeyEventResult.ignored;
   }
-
-  Future<void> _runFullSearchMoreUsers() async {
-    if (_isPaginatingUsers || !_hasMoreUsers) return;
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() => _isPaginatingUsers = true);
-    try {
-      final page = provider.nextUsersPage(
-        SearchPageRequest(query: _query, offset: _usersOffset),
-        limit: 10,
-      );
-      if (!mounted) return;
-      setState(() {
-        _userResults = [..._userResults, ...page.items];
-        _usersOffset += page.items.length;
-        _hasMoreUsers = page.hasMore;
-        _isPaginatingUsers = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isPaginatingUsers = false);
-    }
-  }
-
-  void _runRoomsFirst(String query) {
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    final rooms = provider.searchRoomsFirstPage(query, limit: 10);
-    final spaces = provider.searchSpacesFirstPage(query, limit: 10);
-    setState(() {
-      _matchedRooms = rooms.items;
-      _matchedSpaces = spaces.items;
-      _roomsOffset = rooms.items.length;
-      _spacesOffset = spaces.items.length;
-      _hasMoreRooms = rooms.hasMore;
-      _hasMoreSpaces = spaces.hasMore;
-    });
-  }
-
-  Future<void> _runRoomsMore() async {
-    // Local-cache pagination is synchronous, so we just guard with
-    // a single flag and fan out the room/space pages inside.
-    if (_isPaginatingRooms || _isPaginatingSpaces) return;
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() {
-      _isPaginatingRooms = _hasMoreRooms;
-      _isPaginatingSpaces = _hasMoreSpaces;
-    });
-    if (_hasMoreRooms) {
-      final rooms = provider.nextRoomsPage(
-        SearchPageRequest(query: _query, offset: _roomsOffset),
-        limit: 10,
-      );
-      setState(() {
-        _matchedRooms = [..._matchedRooms, ...rooms.items];
-        _roomsOffset += rooms.items.length;
-        _hasMoreRooms = rooms.hasMore;
-        _isPaginatingRooms = false;
-      });
-    }
-    if (_hasMoreSpaces) {
-      final spaces = provider.nextSpacesPage(
-        SearchPageRequest(query: _query, offset: _spacesOffset),
-        limit: 10,
-      );
-      setState(() {
-        _matchedSpaces = [..._matchedSpaces, ...spaces.items];
-        _spacesOffset += spaces.items.length;
-        _hasMoreSpaces = spaces.hasMore;
-        _isPaginatingSpaces = false;
-      });
-    }
-    // Defensive: clear any flags that may have been set above but
-    // didn't get a chance to clear because the matching hasMore was
-    // false on entry.  Without this, a 0-item pagination would leave
-    // the spinner spinning forever.
-    if (!mounted) return;
-    setState(() {
-      _isPaginatingRooms = false;
-      _isPaginatingSpaces = false;
-    });
-  }
-
-  Future<void> _runUsersFirst(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _userResults = [];
-        _usersOffset = 0;
-        _hasMoreUsers = false;
-        _isInitialUsers = false;
-      });
-      return;
-    }
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() => _isInitialUsers = true);
-    try {
-      final page = await provider.fetchUsersPage(query, limit: 10);
-      if (!mounted) return;
-      setState(() {
-        _userResults = page.items;
-        _usersOffset = page.items.length;
-        _hasMoreUsers = page.hasMore;
-        _isInitialUsers = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isInitialUsers = false);
-    }
-  }
-
-  Future<void> _runUsersMore() async {
-    if (_isPaginatingUsers || !_hasMoreUsers) return;
-    final client = context.read<Client>();
-    final provider = SearchProvider(client: client);
-    setState(() => _isPaginatingUsers = true);
-    final page = provider.nextUsersPage(
-      SearchPageRequest(query: _query, offset: _usersOffset),
-      limit: 10,
-    );
-    setState(() {
-      _userResults = [..._userResults, ...page.items];
-      _usersOffset += page.items.length;
-      _hasMoreUsers = page.hasMore;
-      _isPaginatingUsers = false;
-    });
-  }
-
-  // -- Scroll-driven pagination -------------------------------------
-
-  /// Detects when the user has scrolled near the bottom of the
-  /// results list and kicks off the appropriate next-page fetch.
-  ///
-  /// In the `?` (search) mode we fire every category that still
-  /// has more results in parallel.  The previous implementation
-  /// picked a single category per scroll-tick and walked the
-  /// priority list (messages -> homeserver -> rooms) which meant
-  /// hundreds of pixels of scroll were needed to drain each
-  /// category in turn.  Firing them in parallel keeps the result
-  /// list "topped up" smoothly without one slow endpoint blocking
-  /// the rest.
-  void _onResultsScroll() {
-    if (!_resultsScroll.hasClients) return;
-    final pos = _resultsScroll.position;
-    // Threshold matches the timeline scroll-to-load: 150 px.
-    final atEnd = pos.pixels >= pos.maxScrollExtent - 150;
-    if (!atEnd) return;
-    switch (_mode) {
-      case PaletteMode.search:
-        // Local categories first; they're synchronous, so the
-        // user sees the new entries immediately on the next frame.
-        if (_hasMoreRooms || _hasMoreSpaces) _runRoomsMore();
-        // Server-side categories: fire all in parallel; the
-        // per-paginator flags prevent duplicate in-flight requests.
-        if (_hasMoreMessages) _runFullSearchMoreMessages();
-        if (_hasMoreHomeserver) _runFullSearchMoreHomeserver();
-        if (_hasMoreUsers) _runFullSearchMoreUsers();
-        break;
-      case PaletteMode.rooms:
-        _runRoomsMore();
-        break;
-      case PaletteMode.users:
-        _runUsersMore();
-        break;
-      case PaletteMode.commands:
-      case PaletteMode.settings:
-        break;
-    }
-  }
-
-  // -- Run helpers ----------------------------------------------------
-
-  void _runAction(CommandAction action) {
-    // Pop first so the callback receives a context that lives in the
-    // parent route: calling Navigator.pop from inside the callback
-    // would pop whatever the callback just pushed.
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    RecentActivity.instance.recordAction(action.key);
-    action.callback(context);
-  }
-
-  void _runRoom(Room room) {
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    RecentActivity.instance.recordRoom(room.id);
-    openRoom(context, room.id);
-  }
-
-  /// Opens the selected settings location, which is a real hub route
-  /// (e.g. `/hub/settings/appearance`).
-  ///
-  /// `push`, so the palette closes and the hub covers the window with the
-  /// chat still underneath it. This is what the modal overlay was for; the
-  /// overlay is gone and the route does the same job, except that the URL
-  /// now matches what is on screen and a stale `/hub/...` link from the
-  /// palette resolves instead of silently rendering an empty pane.
-  void _openSettingsRoute(String path) {
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    context.push(path);
-  }
-
-  void _runMessage(MessageSearchResult msg) {
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    RecentActivity.instance.recordRoom(msg.room.id);
-    openRoom(context, msg.room.id);
-  }
-
-  void _runUser(Profile user) {
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    // The profile is decoupled from the room route: push the top-level
-    // profile route.  The router redirects to /main/myprofile when the
-    // userid matches the active account.
-    final encoded = Uri.encodeComponent(user.userId);
-    context.go('/profile/$encoded');
-  }
-
-  void _runHomeserverRoom(PublishedRoomsChunk room) {
-    // Homeserver rooms are not yet joined, so /main/rooms/:roomid (which
-    // expects RoomResolver to find the room) would spin forever.  Use
-    // the dedicated preview route instead.
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    context.go('/main/room_preview/${room.roomId}');
-  }
-
-  // -- Build ----------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    _locCache = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final PaletteController controller = context.watch<PaletteController>();
+
     return Material(
       color: Colors.transparent,
-      // Wrap the page body in a fullscreen outside-tap detector so
-      // tapping the dimmed background dismisses the palette.  The
-      // PageRoute's barrierDismissible flag is not sufficient because
-      // the page is laid out over the barrier in the overlay and the
-      // barrier's gesture detector loses the gesture arena.  See
-      // [BarrierDismissableOverlay] for the full rationale.  The
-      // card itself is wrapped in [BarrierDismissBoundary] so taps
-      // inside the palette (including the empty padding around
-      // widgets) don't dismiss the overlay.
+      // A fullscreen outside-tap detector, because the `PageRoute`'s
+      // `barrierDismissible` is not sufficient: the page is laid out over the
+      // barrier and the barrier's detector loses the gesture arena. The card
+      // marks itself so taps in the padding around a row do not dismiss.
       child: BarrierDismissableOverlay(
         child: BlurBackground(
           overlayColor: Colors.black54,
@@ -615,30 +265,30 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Padding(
-                padding: EdgeInsets.all(t.spaceXl),
+                padding: const EdgeInsets.symmetric(vertical: 64),
                 child: BarrierDismissBoundary(
-                  child: Material(
-                    elevation: t.elevationOverlay,
-                    borderRadius: BorderRadius.circular(t.radiusLg),
-                    clipBehavior: Clip.antiAlias,
-                    color: Theme.of(context).colorScheme.surface,
-                    child: Padding(
-                      padding: EdgeInsets.all(t.spaceLg),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildInput(_locCache),
-                          SizedBox(height: t.spaceSm),
-                          _buildModeHint(_locCache),
-                          SizedBox(height: t.spaceSm),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 420),
-                            child: _buildList(_locCache),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _PaletteCard(
+                    controller: controller,
+                    textController: _ctl,
+                    inputFocus: _inputFocus,
+                    listFocus: _listFocus,
+                    scrollController: _scroll,
+                    onKey: _onKey,
+                    onInput: (String value) =>
+                        controller.onInputChanged(value, l10n),
+                    onFilter: (PaletteSource source) {
+                      final String next = controller.toggleFilter(source, l10n);
+                      // The chips edit the query, so the field has to be told,
+                      // or the chips and the text disagree about what is
+                      // being searched.
+                      _ctl.value = TextEditingValue(
+                        text: next,
+                        selection: TextSelection.collapsed(
+                          offset: next.length,
+                        ),
+                      );
+                    },
+                    onRun: _dispatch,
                   ),
                 ),
               ),
@@ -648,391 +298,491 @@ class _CommandPalettePageState extends State<_CommandPalettePage> {
       ),
     );
   }
+}
 
-  Widget _buildInput(AppLocalizations loc) {
-    return TextField(
-      controller: _ctl,
-      focusNode: _focus,
-      autofocus: true,
-      decoration: InputDecoration(
-        prefixIcon: Icon(_modeIcon(_mode)),
-        hintText: _hintForMode(loc, _mode),
-        border: const OutlineInputBorder(),
+class _PaletteCard extends StatelessWidget {
+  const _PaletteCard({
+    required this.controller,
+    required this.textController,
+    required this.inputFocus,
+    required this.listFocus,
+    required this.scrollController,
+    required this.onKey,
+    required this.onInput,
+    required this.onFilter,
+    required this.onRun,
+  });
+
+  final PaletteController controller;
+  final TextEditingController textController;
+  final FocusNode inputFocus;
+  final FocusNode listFocus;
+  final ScrollController scrollController;
+  final KeyEventResult Function(FocusNode, KeyEvent) onKey;
+  final void Function(String) onInput;
+  final void Function(PaletteSource) onFilter;
+  final void Function(_PaletteIntent) onRun;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+
+    return Material(
+      elevation: t.elevationOverlay,
+      borderRadius: BorderRadius.circular(t.radiusLg),
+      clipBehavior: Clip.antiAlias,
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(t.spaceLg, t.spaceLg, t.spaceLg, 0),
+            child: Focus(
+              // The list node owns the arrows, the field owns the characters.
+              // Both are below this node so one handler sees either.
+              onKeyEvent: onKey,
+              child: TextField(
+                controller: textController,
+                focusNode: inputFocus,
+                autofocus: true,
+                textInputAction: TextInputAction.go,
+                decoration: InputDecoration(
+                  hintText: controller.hasQuery
+                      ? l10n.commandPaletteSearchHint
+                      : l10n.commandPaletteHint,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(LucideIcons.command),
+                  suffixIcon: controller.busy
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
+                onChanged: onInput,
+                onSubmitted: (_) => onRun(const _RunSelected()),
+              ),
+            ),
+          ),
+          _FilterRow(active: controller.filter, onToggle: onFilter),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 420),
+              child: Focus(
+                focusNode: listFocus,
+                onKeyEvent: onKey,
+                canRequestFocus: false,
+                skipTraversal: true,
+                descendantsAreFocusable: false,
+                child: _Results(
+                  controller: controller,
+                  scrollController: scrollController,
+                  onRun: onRun,
+                ),
+              ),
+            ),
+          ),
+          _Footer(controller: controller),
+          Divider(height: 1, color: ext.layers.hairline),
+          _Hints(),
+        ],
       ),
-      onSubmitted: (_) {
-        final results = _currentResults(loc);
-        if (results.length == 1) {
-          results.first.run();
-        }
-      },
+    );
+  }
+}
+
+/// The prefix filters, shown as chips rather than as a hint line.
+///
+/// The old palette inferred its mode from a leading character and then stripped
+/// it, so the only evidence of which mode you were in was a 14-pixel icon and a
+/// line of 12-pixel grey text. Chips are pressable, so they also let you *set*
+/// the filter rather than only read it.
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({required this.active, required this.onToggle});
+
+  final PaletteSource? active;
+  final void Function(PaletteSource) onToggle;
+
+  static const List<PaletteSource> _offered = <PaletteSource>[
+    PaletteSource.room,
+    PaletteSource.user,
+    PaletteSource.page,
+    PaletteSource.message,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: t.paneBarHeight,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(
+          horizontal: t.spaceLg,
+          vertical: (t.paneBarHeight - 28) / 2,
+        ),
+        children: <Widget>[
+          for (final PaletteSource source in _offered)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _FilterChip(
+                label: _labelFor(source, l10n),
+                prefix: source.prefix,
+                selected: active?.matches(source) ?? false,
+                onTap: () => onToggle(source),
+                scheme: scheme,
+                ext: ext,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  /// Inline pill explaining what mode the palette is currently in.
-  Widget _buildModeHint(AppLocalizations loc) {
-    final hint = switch (_mode) {
-      PaletteMode.commands => loc.commandPaletteHint,
-      PaletteMode.search => loc.commandPaletteModeSearch,
-      PaletteMode.settings => loc.commandPaletteModeSettings,
-      PaletteMode.rooms => loc.commandPaletteModeRooms,
-      PaletteMode.users => loc.commandPaletteModeUsers,
-    };
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        children: [
-          Icon(
-            _modeIcon(_mode),
-            size: 14,
-            color: Theme.of(context).colorScheme.primary,
+  static String _labelFor(PaletteSource source, AppLocalizations l10n) =>
+      switch (source) {
+        PaletteSource.room => l10n.commandPaletteRooms,
+        PaletteSource.user => l10n.searchUsersResults,
+        PaletteSource.page => l10n.appSettings,
+        PaletteSource.message => l10n.searchMessages,
+        _ => source.name,
+      };
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.prefix,
+    required this.selected,
+    required this.onTap,
+    required this.scheme,
+    required this.ext,
+  });
+
+  final String label;
+  final String? prefix;
+  final bool selected;
+  final VoidCallback onTap;
+  final ColorScheme scheme;
+  final dynamic ext;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ext.tokens;
+    return Material(
+      color: selected
+          ? scheme.primary.withValues(alpha: 0.16)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(t.radiusFull),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(t.radiusFull),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(t.radiusFull),
+            border: Border.all(
+              color: selected ? scheme.primary : ext.layers.hairline,
+              width: t.borderWidthThin,
+            ),
           ),
-          const SizedBox(width: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (prefix != null)
+                Text(
+                  prefix!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+              if (prefix != null) const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Results extends StatelessWidget {
+  const _Results({
+    required this.controller,
+    required this.scrollController,
+    required this.onRun,
+  });
+
+  final PaletteController controller;
+  final ScrollController scrollController;
+  final void Function(_PaletteIntent) onRun;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final List<PaletteResult> results = controller.results;
+
+    if (results.isEmpty) {
+      return _Empty(controller: controller, l10n: l10n);
+    }
+
+    return ListView.builder(
+      controller: scrollController,
+      padding: EdgeInsets.zero,
+      itemCount: results.length,
+      itemBuilder: (BuildContext context, int index) {
+        final PaletteResult result = results[index];
+        return _Row(
+          result: result,
+          selected: index == controller.selectedIndex,
+          // Tap runs whatever the row is, not whatever the cursor happens to be
+          // on. Using the cursor's row for a tap on a different row is the kind
+          // of off-by-one that makes a list feel haunted.
+          onTap: () => onRun(_RunResult(result)),
+        );
+      },
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.result,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PaletteResult result;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Material(
+      // The selected row is carried by a fill rather than by a border, because
+      // a border on a dense list draws more attention than the row it is
+      // marking. `glow` is the earthshine on the focused thing.
+      color: selected ? ext.layers.active : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: t.paneBarHeight,
+          padding: EdgeInsets.symmetric(horizontal: t.spaceLg),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                result.icon,
+                size: t.iconSizeMedium,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+              SizedBox(width: t.spaceMd),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      result.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    if (result.subtitle != null && result.subtitle!.isNotEmpty)
+                      Text(
+                        result.subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What the palette says when there is nothing to show.
+///
+/// Three distinct states, and the old palette had one. "Nothing matched" and
+/// "still looking" look identical in a list that is empty, and the third is the
+/// one the old version could not express at all: something failed.
+class _Empty extends StatelessWidget {
+  const _Empty({required this.controller, required this.l10n});
+
+  final PaletteController controller;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    final String message;
+    if (controller.failures.isNotEmpty) {
+      message = l10n.paletteSourceFailed;
+    } else if (controller.phase == PalettePhase.searching) {
+      message = l10n.paletteSearching;
+    } else if (controller.hasQuery) {
+      message = l10n.commandPaletteNoResults;
+    } else {
+      message = l10n.paletteTypeToSearch;
+    }
+
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(t.spaceXl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              controller.failures.isNotEmpty
+                  ? LucideIcons.cloudOff
+                  : controller.phase == PalettePhase.searching
+                      ? LucideIcons.loader
+                      : LucideIcons.search,
+              size: t.iconSizeLarge,
+              color: ext.layers.hairline,
+            ),
+            SizedBox(height: t.spaceMd),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The failure notice.
+///
+/// Says which source failed, because "some results failed" is not actionable
+/// and "message search is unavailable" is at least honest about what is
+/// missing.
+class _Footer extends StatelessWidget {
+  const _Footer({required this.controller});
+
+  final PaletteController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.failures.isEmpty) return const SizedBox.shrink();
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      color: ext.layers.hover,
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceLg,
+        vertical: t.spaceSm,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(LucideIcons.triangleAlert, size: 14, color: scheme.error),
+          SizedBox(width: t.spaceSm),
           Expanded(
             child: Text(
-              hint,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              l10n.paletteSourceFailedNamed(
+                controller.failures.keys
+                    .map((PaletteSource s) => s.name)
+                    .join(', '),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  IconData _modeIcon(PaletteMode mode) => switch (mode) {
-        PaletteMode.commands => LucideIcons.command,
-        PaletteMode.search => LucideIcons.search,
-        PaletteMode.settings => LucideIcons.settings,
-        PaletteMode.rooms => LucideIcons.hash,
-        PaletteMode.users => LucideIcons.atSign,
-      };
+/// The key hints, in the space a palette always has and never uses.
+class _Hints extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final t = Theme.of(context).moonrelay.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final TextStyle style = TextStyle(
+      fontSize: 11,
+      color: scheme.onSurfaceVariant,
+    );
 
-  String _hintForMode(AppLocalizations loc, PaletteMode mode) =>
-      switch (mode) {
-        PaletteMode.commands => loc.commandPaletteHint,
-        PaletteMode.search => loc.commandPaletteSearchHint,
-        PaletteMode.settings => loc.commandPaletteSettingsHint,
-        PaletteMode.rooms => loc.commandPaletteRoomsHint,
-        PaletteMode.users => loc.commandPaletteUsersHint,
-      };
-
-  // -- Mode-specific list builders -----------------------------------
-
-  Widget _buildList(AppLocalizations loc) {
-    switch (_mode) {
-      case PaletteMode.commands:
-        return _buildCommandsList(loc);
-      case PaletteMode.settings:
-        return _buildSettingsList(loc);
-      case PaletteMode.rooms:
-        return _buildRoomsList(loc);
-      case PaletteMode.users:
-        return _buildUsersList(loc);
-      case PaletteMode.search:
-        return _buildSearchList(loc);
-    }
-  }
-
-  Widget _buildCommandsList(AppLocalizations loc) {
-    final actions = buildPaletteActions(context, loc);
-    final q = _query.toLowerCase();
-    final filtered = q.isEmpty
-        ? actions
-        : actions
-            .where((a) =>
-                a.label.toLowerCase().contains(q) ||
-                a.key.toLowerCase().contains(q))
-            .toList(growable: false);
-
-    if (filtered.isEmpty && q.isNotEmpty) {
-      return Center(child: Text(loc.commandPaletteNoResults));
-    }
-
-    return ListView(
-      controller: _resultsScroll,
-      shrinkWrap: true,
-      children: [
-        if (filtered.isNotEmpty) _sectionHeader(loc.commandPaletteActions),
-        for (final action in filtered)
-          _recencyRow(
-            key: action.key,
-            child: ListTile(
-              dense: true,
-              leading: Icon(action.icon),
-              title: Text(action.label),
-              onTap: () => _runAction(action),
+    Widget key(String label, String description) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(t.radiusXs),
+                border: Border.all(
+                  color: scheme.onSurfaceVariant
+                      .withValues(alpha: t.opacitySubtle),
+                ),
+              ),
+              child: Text(label, style: style),
             ),
-          ),
-        ..._buildRecentSection(loc),
-        ..._buildRecentRoomsSection(loc),
-      ],
-    );
-  }
+            SizedBox(width: t.spaceXs),
+            Text(description, style: style),
+          ],
+        );
 
-  Widget _buildSettingsList(AppLocalizations loc) {
-    final entries = buildSettingsEntries(loc);
-    final q = _query.toLowerCase();
-    final filtered = q.isEmpty
-        ? entries
-        : entries
-            .where((e) =>
-                e.label.toLowerCase().contains(q) ||
-                e.description.toLowerCase().contains(q))
-            .toList(growable: false);
-
-    if (filtered.isEmpty) {
-      return Center(child: Text(loc.commandPaletteNoResults));
-    }
-
-    return ListView(
-      controller: _resultsScroll,
-      shrinkWrap: true,
-      children: [
-        _sectionHeader(loc.commandPaletteActions),
-        for (final entry in filtered)
-          ListTile(
-            dense: true,
-            leading: Icon(entry.icon),
-            title: Text(entry.label),
-            subtitle: entry.description.isNotEmpty
-                ? Text(
-                    entry.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                : null,
-            onTap: () => _openSettingsRoute(entry.path),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRoomsList(AppLocalizations loc) {
-    if (_matchedRooms.isEmpty && _matchedSpaces.isEmpty) {
-      return Center(child: Text(loc.commandPaletteNoResults));
-    }
-    return ListView(
-      controller: _resultsScroll,
-      shrinkWrap: true,
-      children: [
-        if (_matchedRooms.isNotEmpty) _sectionHeader(loc.searchRooms),
-        for (final r in _matchedRooms)
-          SearchRoomTile(room: r, onTap: () => _runRoom(r)),
-        if (_matchedSpaces.isNotEmpty) _sectionHeader(loc.searchSpaces),
-        for (final s in _matchedSpaces)
-          SearchRoomTile(room: s, onTap: () => _runRoom(s)),
-        _loadingTail(loc),
-      ],
-    );
-  }
-
-  Widget _buildUsersList(AppLocalizations loc) {
-    if (_userResults.isEmpty && !_isInitialUsers && _query.isNotEmpty) {
-      return Center(child: Text(loc.commandPaletteNoResults));
-    }
-    return ListView(
-      controller: _resultsScroll,
-      shrinkWrap: true,
-      children: [
-        if (_userResults.isNotEmpty) _sectionHeader(loc.searchUsersResults),
-        for (final u in _userResults)
-          SearchUserTile(user: u, onTap: () => _runUser(u)),
-        _loadingTail(loc),
-      ],
-    );
-  }
-
-  Widget _buildSearchList(AppLocalizations loc) {
-    final empty =
-        _matchedRooms.isEmpty &&
-            _matchedSpaces.isEmpty &&
-            _msgResults.isEmpty &&
-            _userResults.isEmpty &&
-            _homeserverResults.isEmpty &&
-            !_isInitialSearch;
-    if (empty && _query.isNotEmpty) {
-      return Center(child: Text(loc.commandPaletteNoResults));
-    }
-    return ListView(
-      controller: _resultsScroll,
-      shrinkWrap: true,
-      children: [
-        if (_matchedRooms.isNotEmpty) _sectionHeader(loc.searchRooms),
-        for (final r in _matchedRooms)
-          SearchRoomTile(room: r, onTap: () => _runRoom(r)),
-        if (_matchedSpaces.isNotEmpty) _sectionHeader(loc.searchSpaces),
-        for (final s in _matchedSpaces)
-          SearchRoomTile(room: s, onTap: () => _runRoom(s)),
-        if (_msgResults.isNotEmpty) _sectionHeader(loc.searchMessages),
-        for (final m in _msgResults)
-          SearchMessageTile(result: m, onTap: () => _runMessage(m)),
-        if (_userResults.isNotEmpty) _sectionHeader(loc.searchUsersResults),
-        for (final u in _userResults)
-          SearchUserTile(user: u, onTap: () => _runUser(u)),
-        if (_homeserverResults.isNotEmpty) _sectionHeader(loc.searchHomeserver),
-        for (final h in _homeserverResults)
-          SearchHomeserverTile(room: h, onTap: () => _runHomeserverRoom(h)),
-        _loadingTail(loc),
-      ],
-    );
-  }
-
-  /// Spinner / "no more results" footer used by the paginatable
-  /// modes.  Showing it at the bottom of every list gives the user
-  /// visual feedback that the palette is loading more items.
-  Widget _loadingTail(AppLocalizations loc) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final paginating = _isInitialSearch ||
-        _isInitialUsers ||
-        _isPaginatingMessages ||
-        _isPaginatingHomeserver ||
-        _isPaginatingUsers ||
-        _isPaginatingRooms ||
-        _isPaginatingSpaces;
-    final hasMore = _mode == PaletteMode.search
-        ? (_hasMoreMessages ||
-            _hasMoreHomeserver ||
-            _hasMoreUsers ||
-            _hasMoreRooms ||
-            _hasMoreSpaces)
-        : _mode == PaletteMode.rooms
-            ? (_hasMoreRooms || _hasMoreSpaces)
-            : _hasMoreUsers;
-    if (paginating) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: t.spaceMd),
-        child: const Center(
-          child: SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    if (!hasMore && _query.isNotEmpty) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: t.spaceMd),
-        child: Center(
-          child: Text(
-            loc.searchNoResults,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-    return SizedBox(height: t.spaceXs);
-  }
-
-  // -- Recents section helpers ----------------------------------------
-
-  List<Widget> _buildRecentSection(AppLocalizations loc) {
-    final actions = buildPaletteActions(context, loc);
-    final recents = RecentActivity.instance.actions;
-    if (recents.isEmpty) return const [];
-    return [
-      const Divider(height: 24),
-      _sectionHeader(loc.commandPaletteRecent),
-      for (final key in recents)
-        for (final action in actions.where((a) => a.key == key))
-          _recencyRow(
-            key: key,
-            child: ListTile(
-              dense: true,
-              leading: Icon(action.icon),
-              title: Text(action.label),
-              onTap: () => _runAction(action),
-            ),
-          ),
-    ];
-  }
-
-  List<Widget> _buildRecentRoomsSection(AppLocalizations loc) {
-    final ids = RecentActivity.instance.rooms;
-    final client = context.read<Client?>();
-    if (client == null || ids.isEmpty) return const [];
-    final rooms = <Room>[];
-    for (final id in ids) {
-      try {
-        final r = client.getRoomById(id);
-        if (r != null) rooms.add(r);
-      } catch (_) {/* ignore */}
-    }
-    if (rooms.isEmpty) return const [];
-    return [
-      const Divider(height: 24),
-      _sectionHeader(loc.commandPaletteRooms),
-      for (final r in rooms)
-        SearchRoomTile(
-          room: r,
-          onTap: () => _runRoom(r),
-        ),
-    ];
-  }
-
-  Widget _recencyRow({required String key, required Widget child}) {
-    return KeyedSubtree(key: ValueKey(key), child: child);
-  }
-
-  Widget _sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.labelMedium,
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceLg,
+        vertical: t.spaceSm,
+      ),
+      child: Wrap(
+        spacing: t.spaceMd,
+        runSpacing: t.spaceXs,
+        children: <Widget>[
+          key('↑↓', l10n.paletteHintNavigate),
+          key('↵', l10n.paletteHintOpen),
+          key('Esc', l10n.paletteHintClose),
+        ],
       ),
     );
-  }
-
-  /// Returns the first selectable result for the current mode.  Used
-  /// by the "Enter on single match" shortcut.
-  List<PaletteResult> _currentResults(AppLocalizations loc) {
-    switch (_mode) {
-      case PaletteMode.commands:
-        final actions = buildPaletteActions(context, loc);
-        final q = _query.toLowerCase();
-        return [
-          for (final a in actions)
-            if (a.label.toLowerCase().contains(q) ||
-                a.key.toLowerCase().contains(q))
-              PaletteResult(() => _runAction(a)),
-        ];
-      case PaletteMode.settings:
-        return [
-          for (final e in buildSettingsEntries(loc))
-            if (e.label.toLowerCase().contains(_query.toLowerCase()) ||
-                e.description.toLowerCase().contains(_query.toLowerCase()))
-              PaletteResult(() => _openSettingsRoute(e.path)),
-        ];
-      case PaletteMode.rooms:
-        return [
-          for (final r in [..._matchedRooms, ..._matchedSpaces])
-            PaletteResult(() => _runRoom(r)),
-        ];
-      case PaletteMode.users:
-        return [
-          for (final u in _userResults) PaletteResult(() => _runUser(u)),
-        ];
-      case PaletteMode.search:
-        return [
-          for (final r in [..._matchedRooms, ..._matchedSpaces])
-            PaletteResult(() => _runRoom(r)),
-          for (final m in _msgResults) PaletteResult(() => _runMessage(m)),
-          for (final u in _userResults) PaletteResult(() => _runUser(u)),
-          for (final h in _homeserverResults)
-            PaletteResult(() => _runHomeserverRoom(h)),
-        ];
-    }
   }
 }

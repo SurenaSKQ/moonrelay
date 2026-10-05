@@ -101,8 +101,8 @@ void main() {
         FocusDestination.spaces,
       );
       expect(
-        focusDestinationForSegments(seg('/main/search')),
-        FocusDestination.search,
+        focusDestinationForSegments(seg('/main/me')),
+        FocusDestination.you,
       );
       expect(
         focusDestinationForSegments(seg('/main/me')),

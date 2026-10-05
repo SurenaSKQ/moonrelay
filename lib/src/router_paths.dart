@@ -41,7 +41,6 @@ class MoonRoutePaths {
   static const String spacesTemplate = '/main/spaces';
 
   /// Global search across rooms, spaces, messages and users.
-  static const String searchTemplate = '/main/search';
 
   /// The create-room form.
   ///
@@ -151,9 +150,6 @@ enum FocusDestination {
 
   /// Every joined space.
   spaces(MoonRoutePaths.spacesTemplate),
-
-  /// Global search.
-  search(MoonRoutePaths.searchTemplate),
 
   /// The signed-in user.
   you(MoonRoutePaths.youTemplate);
