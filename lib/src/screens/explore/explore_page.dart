@@ -103,6 +103,7 @@ class _ExplorePageState extends State<ExplorePage> {
     if (query == 'create') return ExploreMode.create;
     return ExploreMode.find;
   }
+
   late _FindKind _kind = _FindKind.rooms;
 
   final TextEditingController _joinController = TextEditingController();
@@ -134,41 +135,60 @@ class _ExplorePageState extends State<ExplorePage> {
         child: ConstrainedBox(
           constraints:
               const BoxConstraints(maxWidth: MoonrelayInfoPage.maxContentWidth),
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              t.spaceLg,
-              t.spaceMd,
-              t.spaceLg,
-              t.spaceXxl * 2,
-            ),
+          // A `Column` with an `Expanded` below, not a `ListView`.
+          //
+          // The directory search scrolls its own results and reaches for
+          // `Expanded` to fill what it is given, which inside a `ListView` is
+          // an unbounded height and throws "RenderFlex children have non-zero
+          // flex but incoming height constraints are unbounded" the moment
+          // the page opens. The create half does want to scroll, so it gets its
+          // own `SingleChildScrollView` rather than making the Find half
+          // scrollable too and giving up the bounded box it needs.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Two questions, not five destinations. A segmented control
-              // rather than an app-bar tab bar, because the two answers have
-              // different shapes and a tab bar would imply they are peers in a
-              // list, which is exactly what the old four-tab page implied.
-              SegmentedButton<ExploreMode>(
-                segments: [
-                  ButtonSegment<ExploreMode>(
-                    value: ExploreMode.create,
-                    icon: const Icon(LucideIcons.plus, size: 18),
-                    label: Text(l10n.exploreCreateTab),
-                  ),
-                  ButtonSegment<ExploreMode>(
-                    value: ExploreMode.find,
-                    icon: const Icon(LucideIcons.search, size: 18),
-                    label: Text(l10n.exploreFindTab),
-                  ),
-                ],
-                selected: {_mode},
-                showSelectedIcon: false,
-                onSelectionChanged: (next) =>
-                    setState(() => _mode = next.first),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  t.spaceLg,
+                  t.spaceMd,
+                  t.spaceLg,
+                  0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Two questions, not five destinations. A segmented
+                    // control rather than an app-bar tab bar, because the two
+                    // answers have different shapes and a tab bar would imply
+                    // they are peers in a list, which is exactly what the old
+                    // four-tab page implied.
+                    SegmentedButton<ExploreMode>(
+                      segments: [
+                        ButtonSegment<ExploreMode>(
+                          value: ExploreMode.create,
+                          icon: const Icon(LucideIcons.plus, size: 18),
+                          label: Text(l10n.exploreCreateTab),
+                        ),
+                        ButtonSegment<ExploreMode>(
+                          value: ExploreMode.find,
+                          icon: const Icon(LucideIcons.search, size: 18),
+                          label: Text(l10n.exploreFindTab),
+                        ),
+                      ],
+                      selected: {_mode},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (next) =>
+                          setState(() => _mode = next.first),
+                    ),
+                    SizedBox(height: t.spaceLg),
+                  ],
+                ),
               ),
-              SizedBox(height: t.spaceLg),
-              if (_mode == ExploreMode.create)
-                const CreateRoomWidget()
-              else
-                _buildFind(context, l10n),
+              Expanded(
+                child: _mode == ExploreMode.create
+                    ? const SingleChildScrollView(child: CreateRoomWidget())
+                    : _buildFind(context, l10n),
+              ),
             ],
           ),
         ),
@@ -189,18 +209,20 @@ class _ExplorePageState extends State<ExplorePage> {
         // Keyed on the filter so switching tabs discards the previous list
         // rather than showing rooms under a heading that says spaces. The
         // request is the same either way; only what is kept from it changes.
-        KeyedSubtree(
-          key: ValueKey(_kind),
-          child: switch (_kind) {
-            _FindKind.people => const UserSearchWidget(embedded: true),
-            _FindKind.rooms || _FindKind.spaces => RoomDirectorySearch(
-                embedded: true,
-                kindFilter: _kind == _FindKind.spaces
-                    ? DirectoryKindFilter.spaces
-                    : DirectoryKindFilter.rooms,
-                onJoined: (_) => Navigator.of(context).maybePop(),
-              ),
-          },
+        Expanded(
+          child: KeyedSubtree(
+            key: ValueKey(_kind),
+            child: switch (_kind) {
+              _FindKind.people => const UserSearchWidget(embedded: true),
+              _FindKind.rooms || _FindKind.spaces => RoomDirectorySearch(
+                  embedded: true,
+                  kindFilter: _kind == _FindKind.spaces
+                      ? DirectoryKindFilter.spaces
+                      : DirectoryKindFilter.rooms,
+                  onJoined: (_) => Navigator.of(context).maybePop(),
+                ),
+            },
+          ),
         ),
         // Joining by id applies to rooms, not to people, so it is hidden
         // under the People filter rather than sitting there doing nothing.
