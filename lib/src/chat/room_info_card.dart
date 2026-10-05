@@ -15,17 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
-import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:moonrelay/src/widgets/room_pane_sheet.dart';
 import 'package:moonrelay/src/widgets/sync_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -44,21 +42,43 @@ class ChatRoomHeader extends StatefulWidget {
   const ChatRoomHeader({
     super.key,
     required this.room,
-    this.onSearchToggle,
-    this.isSearchActive = false,
+    this.paneTab,
+    this.onPaneToggle,
+    this.onPaneSheetRequested,
   });
 
   final Room room;
 
-  /// Called when the user taps the search button.
-  final VoidCallback? onSearchToggle;
+  /// Which tab the room's side pane is showing, or null when it is closed.
+  ///
+  /// The header carries a button per pane tab, so it has to know which one is
+  /// open to draw the pressed state. It used to know only about "search",
+  /// because the search panel was a separate column with its own toggle and the
+  /// pane's tabs were behind the header's tap gesture.
+  final RoomPaneTab? paneTab;
 
-  /// Whether the in-room search panel is currently visible.
-  final bool isSearchActive;
+  /// Opens or closes the pane on a given tab.
+  final void Function(RoomPaneTab tab)? onPaneToggle;
+
+  /// Opens the pane as a bottom sheet.
+  ///
+  /// Set on the single-pane shell, where there is no room beside the
+  /// conversation to put a 280-pixel column in. Null on the desktop shells,
+  /// where the pane is inline and the tab buttons drive it directly.
+  final VoidCallback? onPaneSheetRequested;
 
   @override
   State<ChatRoomHeader> createState() => _ChatRoomHeaderState();
 }
+
+IconData _paneIcon(RoomPaneTab tab) => switch (tab) {
+      RoomPaneTab.info => LucideIcons.info,
+      RoomPaneTab.members => LucideIcons.users,
+      RoomPaneTab.threads => LucideIcons.messagesSquare,
+      RoomPaneTab.pinned => LucideIcons.pin,
+      RoomPaneTab.search => LucideIcons.search,
+      RoomPaneTab.none => LucideIcons.circle,
+    };
 
 class _ChatRoomHeaderState extends State<ChatRoomHeader> {
   late String _displayName;
@@ -88,36 +108,26 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         (widget.room.summary.mJoinedMemberCount ?? 0);
   }
 
-/// React to a tap on the room header.
-///
-/// On the dashboard the right sidebar is the room's detail surface, so if
-/// it is visible and already on room info there is nothing to open. In the
-/// single-pane shell there is no right sidebar at all, so the same four
-/// panes are presented as a sheet instead of falling through to the
-/// full-page room details, which is the desktop page reused on a phone.
-void _onTap() {
-  final settings = context.read<SettingsController>();
-  final shell = context.read<LayoutShellController>();
-
-  if (shell.isMobile) {
-    showRoomPaneSheet(context, room: widget.room);
-    return;
-  }
-
-  if (settings.rightSidebarVisible &&
-      settings.rightPaneChoice == RightPaneChoice.roomInfo) {
-    // Sidebar is already open and on room_info: no-op.
-    // Otherwise (sidebar hidden, or on different pane): open it.
-    return;
-  }
-
-  // Fall back to full-page navigation.
-  _openRoomInfo();
-}
-
-  /// Navigate to the room info page via go_router.
-  void _openRoomInfo() {
-    openRoomSubpage(context, widget.room.id, 'profile/roomDetails');
+  /// React to a tap on the room header.
+  ///
+  /// On the dashboard the right sidebar is the room's detail surface, so if
+  /// it is visible and already on room info there is nothing to open. In the
+  /// Tapping the room name opens the info tab.
+  ///
+  /// It used to branch three ways: open the sheet on mobile, no-op when the
+  /// dashboard's sidebar was already on room info, and otherwise navigate to
+  /// the full page. With the pane owned by the room page, the middle branch is a
+  /// statement about a pane that may not be mounted at all, so it is gone; the
+  /// tab buttons next to the name are the visible way in, and this is the
+  /// shorthand for the one most people want.
+  void _onTap() {
+    if (widget.onPaneSheetRequested != null) {
+      widget.onPaneSheetRequested!();
+      return;
+    }
+    final void Function(RoomPaneTab)? toggle = widget.onPaneToggle;
+    if (toggle == null) return;
+    toggle(RoomPaneTab.info);
   }
 
   @override
@@ -162,7 +172,6 @@ void _onTap() {
             // Read, not watched: the shell commits in
             // `_AdaptiveMainLayout`'s build, which is an ancestor and has
             // already run, so the value is fresh without a subscription.
-            final isSinglePane = context.read<LayoutShellController>().isMobile;
             final avatarRadius = tight ? 14.0 : 16.0;
             final nameFontSize = tight ? 14.0 : 15.0;
             final hPadding = tight ? t.spaceSm : t.spaceMd;
@@ -285,42 +294,53 @@ void _onTap() {
                         _PinnedFilterButton(room: widget.room),
 
                         // In the single-pane shell the four detail panes have
-                        // no sidebar to live in, so they are reachable only
-                        // from here. Without this, pinned messages in
-                        // particular were unreachable below 600px.
-                        if (isSinglePane)
+                        // In the single-pane shell the pane has no room to
+                        // live in, so one button opens it as a sheet. Without
+                        // this, pinned messages in particular were unreachable
+                        // below 600px.
+                        if (widget.onPaneSheetRequested != null)
                           IconButton(
                             icon: Icon(
                               LucideIcons.panelsTopLeft,
                               size: iconSize,
                             ),
-                            tooltip: AppLocalizations.of(context)!.roomInfo,
+                            tooltip: AppLocalizations.of(context)!.roomPaneInfo,
                             visualDensity: density,
-                            onPressed: () =>
-                                showRoomPaneSheet(context, room: widget.room),
+                            onPressed: widget.onPaneSheetRequested,
                             color: scheme.onSurfaceVariant,
                           ),
 
                         if (showMemberCount) ...[
-                          _MemberCountBadge(count: _memberCount, scheme: scheme),
+                          _MemberCountBadge(
+                              count: _memberCount, scheme: scheme),
                           SizedBox(width: t.spaceXs),
                         ],
 
-                        // In-room search toggle
-                        IconButton(
-                          icon: Icon(
-                            widget.isSearchActive
-                                ? LucideIcons.searchX
-                                : LucideIcons.search,
-                            size: iconSize,
+                        // One button, and the pane's own strip does the tab switching.
+                        //
+                        // Five tab buttons were tried here first and overflowed
+                        // a 52-pixel bar by 43 pixels, which is the right answer
+                        // arriving the wrong way: the pane already carries a tab
+                        // strip, so buttons in two places are two controls for
+                        // one decision, and the bar that has to stay one height
+                        // is the one that ran out of room.
+                        if (widget.onPaneToggle != null)
+                          IconButton(
+                            icon: Icon(
+                              _paneIcon(widget.paneTab ?? RoomPaneTab.info),
+                              size: iconSize,
+                            ),
+                            onPressed: () =>
+                                widget.onPaneToggle!(RoomPaneTab.info),
+                            tooltip: localizedRoomPaneTab(
+                              RoomPaneTab.info,
+                              AppLocalizations.of(context)!,
+                            ),
+                            visualDensity: density,
+                            color: widget.paneTab != null
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
                           ),
-                          onPressed: widget.onSearchToggle,
-                          tooltip: AppLocalizations.of(context)!.searchInRoom,
-                          visualDensity: density,
-                          color: widget.isSearchActive
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
-                        ),
 
                         // Settings gear: navigate to room settings
                         IconButton(
@@ -430,11 +450,10 @@ class _PinnedFilterButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor:
             isActive ? scheme.primaryContainer : Colors.transparent,
-        foregroundColor:
-            isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+        foregroundColor: isActive
+            ? scheme.onPrimaryContainer
+            : scheme.onSurfaceVariant.withValues(alpha: 0.6),
       ),
     );
   }
 }
-
-

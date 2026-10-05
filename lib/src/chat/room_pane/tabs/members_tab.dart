@@ -36,16 +36,16 @@ import 'package:moonrelay/src/widgets/common/feedback.dart';
 /// then a server-side fetch backfills any members the local cache missed.
 /// A search bar with debounced filtering and a scroll-driven "load more"
 /// affordance keep the list responsive even in large rooms.
-class SidebarMembersList extends StatefulWidget {
-  const SidebarMembersList({super.key, required this.room});
+class MembersTab extends StatefulWidget {
+  const MembersTab({super.key, required this.room});
 
   final Room room;
 
   @override
-  State<SidebarMembersList> createState() => _SidebarMembersListState();
+  State<MembersTab> createState() => _MembersTabState();
 }
 
-class _SidebarMembersListState extends State<SidebarMembersList> {
+class _MembersTabState extends State<MembersTab> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
@@ -73,7 +73,7 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
   }
 
   @override
-  void didUpdateWidget(SidebarMembersList oldWidget) {
+  void didUpdateWidget(MembersTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.room.id != widget.room.id) {
       _searchController.clear();
@@ -423,7 +423,7 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
                     ? l10n.moderatorBadge
                     : null;
 
-            return SidebarMemberTile(
+            return MemberTile(
               member: member,
               displayName: displayName,
               permissionLabel: permissionLabel,
@@ -437,8 +437,8 @@ class _SidebarMembersListState extends State<SidebarMembersList> {
 }
 
 /// A compact member tile for sidebar use.
-class SidebarMemberTile extends StatelessWidget {
-  const SidebarMemberTile({
+class MemberTile extends StatelessWidget {
+  const MemberTile({
     super.key,
     required this.member,
     required this.displayName,

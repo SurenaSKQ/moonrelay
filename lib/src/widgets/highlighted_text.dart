@@ -16,6 +16,10 @@
 
 import 'package:flutter/material.dart';
 
+/// Renders [text] with every occurrence of any of [keywords] highlighted.
+///
+/// Lives outside the search panel because it is not search-specific: anything
+/// that renders matched text wants this. The panel used to own it privately.
 class HighlightedText extends StatelessWidget {
   final String text;
   final List<String> keywords;
@@ -24,7 +28,6 @@ class HighlightedText extends StatelessWidget {
   final int maxLines;
 
   const HighlightedText({
-
     super.key,
     required this.text,
     required this.keywords,
@@ -83,6 +86,16 @@ class HighlightedText extends StatelessWidget {
       text: TextSpan(children: spans),
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
+      // Both of these were missing. RichText defaults to
+      // TextScaler.noScaling, so at a 200% system text size the highlighted
+      // body rendered at 100% while the sender name above it grew, which is
+      // exactly the case the accessibility rule asks about. And without a
+      // direction it lays out left-to-right even in a right-to-left locale.
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      // The spans carry their own sizes, so the scaler has to be told what to
+      // scale from or it has no base.
+      strutStyle: StrutStyle.fromTextStyle(style),
     );
   }
 }

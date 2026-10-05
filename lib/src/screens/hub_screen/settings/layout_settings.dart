@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -117,22 +118,21 @@ class HubLayoutSettings extends StatelessWidget {
                     ListTile(
                       title: Text(l10n.content),
                       subtitle: Text(
-                        localizedRightPaneChoice(
-                            controller.rightPaneChoice, l10n),
+                        localizedRoomPaneTab(controller.roomPaneTab, l10n),
                       ),
                       leading: const Icon(LucideIcons.layoutList),
-                      trailing: DropdownButton<RightPaneChoice>(
-                        value: controller.rightPaneChoice,
+                      trailing: DropdownButton<RoomPaneTab>(
+                        value: controller.roomPaneTab,
                         onChanged: (v) {
                           if (v != null) {
-                            controller.setRightPaneChoice(v);
+                            controller.setRoomPaneTab(v);
                           }
                         },
-                        items: RightPaneChoice.values
+                        items: RoomPaneTab.values
                             .map(
                               (c) => DropdownMenuItem(
                                 value: c,
-                                child: Text(localizedRightPaneChoice(c, l10n)),
+                                child: Text(localizedRoomPaneTab(c, l10n)),
                               ),
                             )
                             .toList(),
@@ -166,4 +166,3 @@ class HubLayoutSettings extends StatelessWidget {
     );
   }
 }
-

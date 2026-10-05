@@ -370,11 +370,11 @@ class MoonRouter {
 // page. Redirect rather than an alias because a redirect also fixes the URL,
 // so the back button and a copied link both behave, and because three routes
 // pointing at one builder is three places to forget to update when it changes.
-GoRoute(
+            GoRoute(
               path: MoonRoutePaths.explorePath,
               builder: (context, state) => const ExplorePage(),
             ),
-GoRoute(
+            GoRoute(
               path: MoonRoutePaths.createRoomPath,
               redirect: (_, __) => MoonRoutePaths.exploreCreatePath,
             ),
@@ -417,8 +417,7 @@ GoRoute(
             ),
             GoRoute(
               path: MoonRoutePaths.hubTemplate,
-              redirect: (context, state) =>
-                  _hubRedirect(state, subKey: null),
+              redirect: (context, state) => _hubRedirect(state, subKey: null),
               builder: (context, state) => HubScreen(
                 client: Provider.of<Client>(context, listen: false),
                 categoryKey: _param(state, 'category'),

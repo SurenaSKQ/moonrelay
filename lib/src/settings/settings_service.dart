@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,7 +36,7 @@ class SettingsSnapshot {
   final double leftSidebarWidth;
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
-  final RightPaneChoice rightPaneChoice;
+  final RoomPaneTab roomPaneTab;
 
   /// Whether the OS draws the window title bar (true) or Moonrelay draws
   /// its own slim header (false).
@@ -115,7 +116,7 @@ class SettingsSnapshot {
     this.leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth,
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280.0,
-    this.rightPaneChoice = RightPaneChoice.roomInfo,
+    this.roomPaneTab = RoomPaneTab.info,
     this.showStateEvents = true,
     this.showTrayIcon = true,
     this.closeToTray = false,
@@ -192,7 +193,11 @@ class SettingsService {
   static const _leftSidebarWidthKey = 'left_sidebar_width';
   static const _rightSidebarVisibleKey = 'right_sidebar_visible';
   static const _rightSidebarWidthKey = 'right_sidebar_width';
-  static const _rightPaneChoiceKey = 'right_pane_choice';
+
+  /// The old key name. The value is a RoomPaneTab index and the key string is
+  /// still the old one on purpose: renaming it would silently reset everyone's
+  /// chosen tab, which is a worse outcome than an inelegant key.
+  static const _roomPaneTabKey = 'right_pane_choice';
   static const _showStateEventsKey = 'show_state_events';
   static const _showTrayIconKey = 'show_tray_icon';
   static const _closeToTrayKey = 'close_to_tray';
@@ -346,7 +351,7 @@ class SettingsService {
           LayoutBreakpoints.defaultLeftSidebarWidth,
       rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
       rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
-      rightPaneChoice: _readRightPaneChoice(prefs),
+      roomPaneTab: _readRoomPaneTab(prefs),
       showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
       showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
       closeToTray: prefs.getBool(_closeToTrayKey) ?? false,
@@ -420,10 +425,10 @@ class SettingsService {
           prefs.getInt(_notificationDedupeCacheSizeKey) ?? 256,
       deepLinkAutoJoin: prefs.getBool(_deepLinkAutoJoinKey) ?? false,
       dbBackupKeepCount: prefs.getInt(_dbBackupKeepCountKey) ?? 1,
-    autoOfflinePresenceEnabled:
-        prefs.getBool(_autoOfflinePresenceEnabledKey) ?? false,
-    autoOfflinePresenceMinutes:
-        prefs.getInt(_autoOfflinePresenceMinutesKey) ?? 5,
+      autoOfflinePresenceEnabled:
+          prefs.getBool(_autoOfflinePresenceEnabledKey) ?? false,
+      autoOfflinePresenceMinutes:
+          prefs.getInt(_autoOfflinePresenceMinutesKey) ?? 5,
       wipeLogsOnLogout: prefs.getBool(_wipeLogsOnLogoutKey) ?? true,
       syncDebounceMs: prefs.getInt(_syncDebounceMsKey) ?? 350,
       searchDebounceMs: prefs.getInt(_searchDebounceMsKey) ?? 300,
@@ -491,11 +496,11 @@ class SettingsService {
   static LayoutMode _readLayoutMode(SharedPreferences prefs) =>
       _readEnum(prefs, _layoutModeKey, LayoutMode.values, LayoutMode.auto);
 
-  static RightPaneChoice _readRightPaneChoice(SharedPreferences prefs) => _readEnum(
+  static RoomPaneTab _readRoomPaneTab(SharedPreferences prefs) => _readEnum(
         prefs,
-        _rightPaneChoiceKey,
-        RightPaneChoice.values,
-        RightPaneChoice.roomInfo,
+        _roomPaneTabKey,
+        RoomPaneTab.values,
+        RoomPaneTab.info,
       );
 
   static Set<String> _readCommaSet(SharedPreferences prefs, String key) {
@@ -578,19 +583,19 @@ class SettingsService {
     await prefs.setBool(_rightSidebarVisibleKey, visible);
   }
 
-  Future<RightPaneChoice> rightPaneChoice() async {
+  Future<RoomPaneTab> roomPaneTab() async {
     final prefs = await SharedPreferences.getInstance();
     return _readEnum(
       prefs,
-      _rightPaneChoiceKey,
-      RightPaneChoice.values,
-      RightPaneChoice.roomInfo,
+      _roomPaneTabKey,
+      RoomPaneTab.values,
+      RoomPaneTab.info,
     );
   }
 
-  Future<void> updateRightPaneChoice(RightPaneChoice choice) async {
+  Future<void> updateRoomPaneTab(RoomPaneTab choice) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_rightPaneChoiceKey, choice.index);
+    await prefs.setInt(_roomPaneTabKey, choice.index);
   }
 
   Future<bool> showStateEvents() async {
@@ -1318,5 +1323,3 @@ class SettingsService {
     await prefs.setBool(_checkForUpdatesKey, value);
   }
 }
-
-

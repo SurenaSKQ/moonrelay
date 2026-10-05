@@ -23,6 +23,7 @@ import 'package:matrix/src/utils/cached_stream_controller.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/chat/room_info_card.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
@@ -111,7 +112,13 @@ Future<void> pumpHeader(
           home: Scaffold(
             body: SizedBox(
               width: width,
-              child: ChatRoomHeader(room: room),
+              child: ChatRoomHeader(
+                room: room,
+                // The pane tab buttons, which is the configuration `RoomPage` builds
+                // and the reason this test exists: the header now carries five tab
+                // fit inside the bar" is a much harder thing to get right than it was.
+                onPaneToggle: (RoomPaneTab _) {},
+              ),
             ),
           ),
         ),
@@ -226,13 +233,15 @@ void main() {
       );
 
       // The topic is the only elastic thing in the bar. Laid out at its
-      // intrinsic width it would push the search and settings buttons past the
-      // end of the window, and those are the header's only routes out. So the
-      // assertion is about the actions' position rather than about the topic's
-      // width: a topic that happens to fit is not evidence of anything.
+      // intrinsic width it would push the pane buttons past the end of the
+      // window, and those are the header's only routes out. So the assertion is
+      // about the actions' position rather than about the topic's width: a topic
+      // that happens to fit is not evidence of anything.
+      //
+
       final bar = tester.getRect(_theBar(tester));
-      for (final icon in [
-        LucideIcons.search,
+      for (final icon in <IconData>[
+        LucideIcons.info,
         LucideIcons.settings,
       ]) {
         final button = find.descendant(

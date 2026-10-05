@@ -14,18 +14,46 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// A room: the conversation, and the pane that describes it.
+//
+// The side pane lives here now. It used to be a row child of `DashboardView`,
+// a sibling of the route content, which meant the pane that describes a room
+// was built by the shell that contains rooms. Three consequences, all of them
+// the kind of bug that comes from state living one level above where it is used:
+//
+//   - The pane learned which room to describe from `CurrentRoom`, a global. The
+//     pane was mounted even on the home dashboard, where there is no room, and
+//     rendered an empty state next to a conversation that was not there.
+//   - Which tab was showing lived in `SettingsController`, so it was global
+//     state for a per-room decision, and it persisted a choice the user made
+//     once in whichever room they happened to be in.
+//   - The in-room search was a *second* right-hand column inside this widget,
+//     with its own header, its own fixed width and its own idea of which room
+//     it was for. Two panes, two owners.
+//
+// Now there is one pane, it takes `widget.room`, and its state is the four
+// fields below. Nothing in this subtree reads a provider to find out which room
+// it is in.
+
 import 'dart:async';
 
-import 'package:moonrelay/src/chat/chat_box.dart';
-import 'package:moonrelay/src/chat/chat_timeline.dart';
-import 'package:moonrelay/src/chat/in_room_search_panel/in_room_search_panel.dart';
-import 'package:moonrelay/src/chat/room_info_card.dart';
-import 'package:moonrelay/src/chat/typing_indicator.dart';
-import 'package:moonrelay/src/helpers/current_room.dart';
-import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
-import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/chat_box.dart';
+import 'package:moonrelay/src/chat/chat_timeline.dart';
+import 'package:moonrelay/src/chat/room_pane/resize_handle.dart';
+import 'package:moonrelay/src/chat/room_info_card.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_sheet.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
+import 'package:moonrelay/src/chat/typing_indicator.dart';
+import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/json_utils.dart';
+import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/helpers/responsive.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
 class RoomPage extends StatefulWidget {
@@ -53,16 +81,94 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   /// The event the user is currently editing (or null).
   final ValueNotifier<Event?> _editTarget = ValueNotifier(null);
 
-  /// Whether the in-room search panel is visible.
-  bool _showInRoomSearch = false;
+  /// Which tab the side pane is showing, or null when it is closed.
+  RoomPaneTab? _pane;
 
-  /// Key used by [InRoomSearchPanel] to drive the timeline scroll position.
-  /// Exposed so a tap on a search result can move the chat viewport to the
-  /// matching event.
+  /// This room's pinned event ids.
+  ///
+  /// Read from room state rather than from `CurrentRoom`, which held one list
+  /// for whichever room it last saw, alongside a single global
+  /// `pinnedFilterActive` flag. So toggling the pin filter in one room and
+  /// switching to another left the flag set for the room you had not been in.
+  List<String> _pinnedEventIds = const <String>[];
+
+  bool _pinnedFilterActive = false;
+
+  /// Drag width of the pane, or null when it is at the persisted width.
+  ///
+  /// Ephemeral during a drag and written to preferences on release, which is why
+  /// it is a notifier rather than a settings field read in `build`.
+  final ValueNotifier<double?> _paneWidth = ValueNotifier<double?>(null);
+
+  /// Key used by [ChatTimeline] to drive the scroll position, so a tap on a
+  /// search result can move the chat viewport to the matching event.
   final GlobalKey<ChatTimelineState> _timelineKey =
       GlobalKey<ChatTimelineState>();
 
-  /// Navigates to the thread view for [event].
+  /// The permalink target still waiting to be handed to the timeline.
+  String? _pendingFocus;
+
+  bool get _isMobile => context.read<LayoutShellController>().isMobile;
+
+  // -- Pane -------------------------------------------------------------
+
+  void _openPane(RoomPaneTab tab) {
+    final SettingsController settings = context.read<SettingsController>();
+    setState(() => _pane = tab);
+    // `search` is deliberately not persisted: it is a task in progress, not a
+    // preference. Reopening a room with an abandoned query in it would be a bug.
+    if (tab.restorable) unawaited(settings.setRoomPaneTab(tab));
+  }
+
+  void _closePane() => setState(() => _pane = null);
+
+  /// Opens [tab], or closes the pane if it is already showing it.
+  ///
+  /// Toggle rather than open, because the room header carries one button per
+  /// pane tab and a button that only ever opens is a button that lies after the
+  /// first press.
+  void _togglePane(RoomPaneTab tab) {
+    if (_pane == tab) {
+      _closePane();
+      return;
+    }
+    _openPane(tab);
+  }
+
+  void _togglePinnedFilter() {
+    setState(() => _pinnedFilterActive = !_pinnedFilterActive);
+  }
+
+  void _onPaneDrag(double delta) {
+    final double current = _paneWidth.value ??
+        context.read<SettingsController>().rightSidebarWidth;
+    _paneWidth.value = current - delta;
+  }
+
+  void _onPaneDragEnd() {
+    final double? width = _paneWidth.value;
+    if (width == null) return;
+    _paneWidth.value = null;
+    unawaited(context.read<SettingsController>().setRightSidebarWidth(width));
+  }
+
+  void _showPaneSheet() {
+    final RoomPaneTab tab = _pane ?? RoomPaneTab.info;
+    unawaited(
+      showRoomPaneSheet(
+        context,
+        room: widget.room,
+        initialTab: tab,
+        pinnedEventIds: _pinnedEventIds,
+        pinnedFilterActive: _pinnedFilterActive,
+        onSelectTab: _openPane,
+        onTogglePinnedFilter: _togglePinnedFilter,
+      ),
+    );
+  }
+
+  // -- Timeline ---------------------------------------------------------
+
   void _onThread(Event event) {
     openRoomSubpage(
       context,
@@ -71,59 +177,36 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     );
   }
 
-  /// Stable filter function for pinned-only timeline view.
-  bool _pinnedFilter(Event event) {
-    final ids = context.read<CurrentRoom>().pinnedEventIds;
-    return ids.contains(event.eventId);
-  }
+  /// Stable filter function for the pinned-only timeline view.
+  bool _pinnedFilter(Event event) => _pinnedEventIds.contains(event.eventId);
 
-  /// Brings the event with [eventId] into view when the user taps a
-  /// search result.  Closes the search panel first so the timeline is
-  /// visible.  The timeline may need to fetch a history window when the
-  /// match is older than the local cache, hence the await.
+  /// Brings the event with [eventId] into view.
+  ///
+  /// Closes the pane first, not just the search tab: the jump moves the
+  /// timeline, and leaving a result list covering the message the user just
+  /// asked for is not a useful thing to do. The timeline may need to fetch a
+  /// history window when the match is older than the local cache.
   void _jumpFromSearch(String eventId) {
-    setState(() => _showInRoomSearch = false);
+    setState(() => _pane = null);
     final gen = beginAsync();
-    // `addPostFrameCallback` wants a void callback, so the async jump
-    // is fired and forgotten here.  It is already guarded by `mounted`
-    // and the generation check inside `ChatTimeline.jumpToEvent`.
+    // `addPostFrameCallback` wants a void callback, so the async jump is fired
+    // and forgotten. It is guarded by `mounted` here and by a generation check
+    // inside `ChatTimeline.jumpToEvent`.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || isStale(gen)) return;
       unawaited(_timelineKey.currentState?.jumpToEvent(eventId));
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // Defer the CurrentRoom update to after the current frame.
-    // Calling setRoom here would fire during the parent's build phase
-    // DashboardLayout has already read CurrentRoom for this frame and
-    // the notifyListeners would only take effect on the next frame,
-    // causing the right sidebar to lag one navigation behind.
-    //
-    // Capture the generation so a stale post-frame callback from an
-    // earlier mount (e.g. when this widget is reused for a different
-    // room via GoRouter's navigator caching) cannot overwrite the new
-    // room's CurrentRoom entry.
-    final gen = beginAsync();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || isStale(gen)) return;
-      context.read<CurrentRoom>().setRoom(widget.room);
-      _focusPermalinkEvent();
-    });
-  }
-
   /// Hands a permalinked event to the timeline once the room is mounted.
   ///
-  /// Deferred by a frame because the timeline has not built its first
-  /// list yet, and the jump may need to fetch a history window, which
-  /// the timeline owns.
+  /// Deferred by a frame because the timeline has not built its first list yet,
+  /// and the jump may need to fetch a history window, which the timeline owns.
   void _focusPermalinkEvent() {
     final target = widget.focusEventId;
     if (target == null || target.isEmpty) return;
-    // Consumed: a later rebuild must not re-jump the user back to a
-    // message they have already scrolled away from.
+    // Consumed: a later rebuild must not re-jump the user back to a message
+    // they have already scrolled away from.
     _pendingFocus = target;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -133,73 +216,103 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     });
   }
 
-  /// The permalink target still waiting to be handed to the timeline.
-  String? _pendingFocus;
+  // -- Lifecycle --------------------------------------------------------
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer the `CurrentRoom` update to after the current frame.
+    //
+    // `CurrentRoom` still exists, for the readers that are not in this subtree:
+    // the room list's selected row, the home dashboard's recents, and the
+    // notification service deciding which room you are already reading. It is
+    // no longer how the side pane finds its room, which is the reason the deferral
+    // was originally necessary.
+    //
+    // The generation capture stops a stale post-frame callback from an earlier
+    // mount (GoRouter reuses this widget for a different room) overwriting the
+    // new room's entry.
+    final gen = beginAsync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || isStale(gen)) return;
+      context.read<CurrentRoom>().setRoom(widget.room);
+      _focusPermalinkEvent();
+      _restorePane(gen);
+    });
+  }
+
+  /// Reopens the tab the user last chose, if any.
+  ///
+  /// Deferred with everything else because it is a `setState`, and reading it in
+  /// `build` would mean the pane appeared during the first frame of a room the
+  /// user has not chosen to look at yet.
+  void _restorePane(int gen) {
+    final RoomPaneTab restored =
+        context.read<SettingsController>().roomPaneTab.restorableAs;
+    if (restored == RoomPaneTab.none) return;
+    setState(() => _pane = restored);
+  }
 
   @override
   void didUpdateWidget(RoomPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.room.id != widget.room.id) {
-      // Bumping the generation invalidates the previous initState's
-      // pending setRoom callback; the new one we schedule below
-      // captures the fresh generation so it survives.
-      invalidate();
-      final gen = beginAsync();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || isStale(gen)) return;
-        context.read<CurrentRoom>().setRoom(widget.room);
-        // Close search when switching rooms
-        setState(() => _showInRoomSearch = false);
+    if (oldWidget.room.id == widget.room.id) return;
+
+    // Bumping the generation invalidates the previous initState's pending
+    // callbacks; the new ones capture the fresh generation so they survive.
+    invalidate();
+    final gen = beginAsync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || isStale(gen)) return;
+      context.read<CurrentRoom>().setRoom(widget.room);
+      // A different room, so a different pane. The search query, the pin filter
+      // and the member list all belonged to the room just left. The persisted
+      // preference is re-applied, so someone who always wants the info tab
+      // still gets it, but nothing transient follows.
+      final RoomPaneTab restored =
+          context.read<SettingsController>().roomPaneTab.restorableAs;
+      setState(() {
+        _pane = restored == RoomPaneTab.none ? null : restored;
+        _pinnedEventIds = pinnedEventIds(widget.room);
+        _pinnedFilterActive = false;
       });
-    }
+    });
   }
 
   @override
   void dispose() {
     _replyTarget.dispose();
     _editTarget.dispose();
+    _paneWidth.dispose();
     super.dispose();
   }
 
+  // -- Build ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
-    final currentRoom = context.watch<CurrentRoom>();
-    final pinnedFilterActive = currentRoom.pinnedFilterActive;
+    final bool isMobile = _isMobile;
 
     return Scaffold(
       // `surfaceContainerHigh`, not `surface`. The conversation is the
-      // brightest of the three panes, which is what makes it the thing the
-      // eye lands on when it arrives at the window: the rail is darker, the
-      // room list is mid, and the conversation is the light one. On the old
-      // ramp the room pane and the app floor were the same value, so the
-      // middle pane had no reason to exist visually.
+      // brightest of the panes, which is what makes it the thing the eye lands
+      // on when it arrives at the window: the rail is darker, the room list is
+      // mid, and the conversation is the light one.
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      // The room surface fills the pane. It is deliberately not capped and
-      // deliberately not centred.
-      //
-      // It was, briefly: the whole room was constrained to a 760px column
-      // and centred, on the reasoning that a 480px bubble in a full-width
-      // list leaves a lot of empty surface on a wide monitor and that a
-      // centred column would read as a deliberate measure. That is a
-      // reading-page argument and this is not a reading page. A chat client
-      // is a window onto a live conversation, and on a desktop the window
-      // is the thing the user sized deliberately: the extra width is there
-      // to be used, and an empty band beside the conversation reads as a
-      // layout that ran out of ideas rather than as breathing room.
-      //
-      // `test/widget/room_page_measure_test.dart` now pins the opposite
-      // invariant, so the cap cannot quietly come back.
-      body: Column(
-        children: [
-          ChatRoomHeader(
-            room: widget.room,
-            onSearchToggle: () =>
-                setState(() => _showInRoomSearch = !_showInRoomSearch),
-            isSearchActive: _showInRoomSearch,
-          ),
+      // The conversation fills its column. Deliberately not capped and
+      // deliberately not centred; `test/widget/room_page_layout_test.dart` pins
+      // that, so the cap cannot quietly come back.
+      body: Row(
+        children: <Widget>[
           Expanded(
-            child: Row(
-              children: [
+            child: Column(
+              children: <Widget>[
+                ChatRoomHeader(
+                  room: widget.room,
+                  paneTab: _pane,
+                  onPaneToggle: _togglePane,
+                  onPaneSheetRequested: isMobile ? _showPaneSheet : null,
+                ),
                 Expanded(
                   child: ChatTimeline(
                     key: _timelineKey,
@@ -207,27 +320,49 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
                     onReply: (event) => _replyTarget.value = event,
                     onThread: _onThread,
                     onEdit: (event) => _editTarget.value = event,
-                    filterEvents: pinnedFilterActive ? _pinnedFilter : null,
+                    filterEvents: _pinnedFilterActive ? _pinnedFilter : null,
                   ),
                 ),
-                if (_showInRoomSearch)
-                  InRoomSearchPanel(
-                    room: widget.room,
-                    onClose: () => setState(() => _showInRoomSearch = false),
-                    onJumpToEvent: _jumpFromSearch,
-                    key: ValueKey('search_${widget.room.id}'),
-                  ),
+                const Divider(thickness: 1),
+                TypingIndicator(room: widget.room),
+                ChatBox(
+                  room: widget.room,
+                  replyTarget: _replyTarget,
+                  editTarget: _editTarget,
+                  threadRootEventId: widget.threadRootEventId,
+                ),
               ],
             ),
           ),
-          const Divider(thickness: 1),
-          TypingIndicator(room: widget.room),
-          ChatBox(
-            room: widget.room,
-            replyTarget: _replyTarget,
-            editTarget: _editTarget,
-            threadRootEventId: widget.threadRootEventId,
-          ),
+          // The pane is a sibling of the whole conversation column rather than of
+          // the timeline inside it, so its 52px header bar lines up with
+          // `ChatRoomHeader` and the conversation keeps its full column height.
+          if (!isMobile && _pane != null) ...<Widget>[
+            ResizeHandle(onDrag: _onPaneDrag, onDragEnd: _onPaneDragEnd),
+            ValueListenableBuilder<double?>(
+              valueListenable: _paneWidth,
+              builder: (BuildContext context, double? drag, _) {
+                final double width = drag ??
+                    context.read<SettingsController>().rightSidebarWidth;
+                return SizedBox(
+                  width: width.clamp(
+                    LayoutBreakpoints.minSidebarWidth,
+                    double.infinity,
+                  ),
+                  child: RoomPane(
+                    room: widget.room,
+                    tab: _pane!,
+                    pinnedEventIds: _pinnedEventIds,
+                    pinnedFilterActive: _pinnedFilterActive,
+                    onSelectTab: _togglePane,
+                    onClose: _closePane,
+                    onJumpToEvent: _jumpFromSearch,
+                    onTogglePinnedFilter: _togglePinnedFilter,
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

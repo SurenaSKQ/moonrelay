@@ -21,6 +21,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/room_state_bus.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
@@ -60,6 +61,7 @@ Widget wrapWithProviders({
   AccountManager? accountManager,
   EncryptionService? encryptionService,
   CurrentRoom? currentRoom,
+  RoomStateBus? roomStateBus,
   NavigationState? navigationState,
   SpacePreferences? spacePreferences,
   DeepLinkService? deepLinkService,
@@ -79,6 +81,13 @@ Widget wrapWithProviders({
       ),
       ChangeNotifierProvider<CurrentRoom>.value(
         value: currentRoom ?? CurrentRoom(),
+      ),
+      // The room-state fan-out the room pane's info tab listens to. It was
+      // absent here, so every test that mounted the pane had to provide it
+      // itself; the pane now lives under RoomPage, which is inside the
+      // ordinary app tree, so it belongs in the standard set.
+      ChangeNotifierProvider<RoomStateBus>.value(
+        value: roomStateBus ?? RoomStateBus(),
       ),
       ChangeNotifierProvider<NavigationState>.value(
         value: navigationState ?? NavigationState(),

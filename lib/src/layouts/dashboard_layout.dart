@@ -17,7 +17,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 
 import 'dashboard_layout/dashboard_view.dart';
@@ -44,32 +43,6 @@ class DashboardLayout extends StatefulWidget {
 }
 
 class _DashboardLayoutState extends State<DashboardLayout> {
-  // Live drag state for the right sidebar; exposed as a ValueNotifier so
-  // the layout shell can observe it with [ListenableBuilder] without
-  // rebuilding the entire tree on every drag delta.  The left sidebar is
-  // no longer resizable: it collapses/expands via the gutter buttons.
-  final ValueNotifier<double?> _rightWidth = ValueNotifier(null);
-
-  @override
-  void dispose() {
-    _rightWidth.dispose();
-    super.dispose();
-  }
-
-  void _onRightResize(double delta) {
-    final settings = context.read<SettingsController>();
-    final current = _rightWidth.value ?? settings.rightSidebarWidth;
-    _rightWidth.value = current - delta;
-  }
-
-  void _onRightResizeEnd() {
-    final w = _rightWidth.value;
-    if (w != null) {
-      context.read<SettingsController>().setRightSidebarWidth(w);
-      _rightWidth.value = null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -97,18 +70,18 @@ class _DashboardLayoutState extends State<DashboardLayout> {
 
         final shell = context.read<LayoutShellController>();
 
-        // The dashboard's only question about the shell is whether the
-        // detail pane fits alongside the navigation pane. It used to also
-        // choose between two entirely separate dashboard widgets, which is
-        // what let the narrow one quietly become a worse product; see
-        // [DashboardView].
+        // The dashboard used to ask the shell whether the detail pane fitted
+        // alongside the navigation pane, and to own the pane's drag width.
+        // Neither is its business now: the pane belongs to `RoomPage`, which
+        // knows its own room and its own width. What is left here is the rail
+        // and the room list, and they are the same widget at every width.
+        assert(
+          shell.fitsTwoPanes || shell.isMobile,
+          'DashboardView should only be mounted in a shell that has a rail',
+        );
         return DashboardView(
           size: layoutSize,
           width: width,
-          detailPaneFits: shell.fitsTwoPanes,
-          rightWidthNotifier: _rightWidth,
-          onRightResize: _onRightResize,
-          onRightResizeEnd: _onRightResizeEnd,
           child: widget.child,
         );
       },

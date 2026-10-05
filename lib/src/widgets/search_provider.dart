@@ -253,18 +253,125 @@ class SearchProvider {
     }
   }
 
+  /// Full-text search within one room, filtered by sender and message type.
+  ///
+  /// The method the in-room search panel should have been calling all along.
+  ///
+  /// `Room.searchEvents`, which the panel used, is not a search: it is a
+  /// `/messages` backwards pager with a client-side substring filter, and its
+  /// first page walks the entire local SQLite timeline in `limit`-sized chunks
+  /// until it reaches `m.room.create`. Worse, its predicate matches
+  /// `event.body`, and for a non-text event that is the literal string
+  /// `'Unknown message format of type "..."'`, so a message-type filter could
+  /// never match an image. This goes to `client.search`, which is the actual
+  /// full-text endpoint, and pushes the room, sender and type narrowing into
+  /// [SearchFilter] so the server does the filtering rather than the client
+  /// discarding a thousand rows after the fact.
+  ///
+  /// [keywords] are ANDed, which is what the panel's own documentation promised
+  /// and what it could not deliver: `Room.searchEvents` prefilters on one term
+  /// and the panel ANDed the rest locally, so a message matching "bar baz" but
+  /// not "bar" was unfindable.
+  ///
+  /// A failure propagates. The panel needs to tell the user that the request
+  /// failed rather than rendering "no messages match your search", and an empty
+  /// `SearchPage` cannot express the difference.
+  Future<SearchPage<MessageSearchResult>> searchRoomMessages({
+    required String roomId,
+    required List<String> keywords,
+    String sender = '',
+    String msgType = '',
+    String? nextBatch,
+    int limit = 100,
+  }) async {
+    // The spec's `searchTerm` is a single string. Multiple keywords are ANDed
+    // by joining them with spaces, which every homeserver implementation
+    // treats as requiring all terms, and which is what the old panel's own doc
+    // comment described. An empty term is refused rather than sent, because
+    // `searchTerm: ''` matches every message in the room.
+    final String term = keywords.join(' ').trim();
+    if (term.isEmpty && sender.isEmpty && msgType.isEmpty) {
+      return SearchPage<MessageSearchResult>.empty();
+    }
+
+    final results = await client.search(
+      Categories(
+        roomEvents: RoomEventsCriteria(
+          searchTerm: term,
+          filter: SearchFilter(
+            limit: limit,
+            rooms: <String>[roomId],
+            // `senders` takes user ids, and the panel's field accepts a
+            // display name as readily as an id. Passing a name that is not an
+            // id returns nothing, which is correct: the field says who sent it
+            // and the id is what the server filters on. A non-matching name
+            // yields an empty result rather than silently ignoring the filter.
+            senders: sender.isEmpty ? null : <String>[sender],
+            // Only `m.text` and `m.image` are named in the spec's filter for
+            // message type; anything else is filtered client-side below rather
+            // than sending a filter the homeserver may ignore.
+            types: _filterableMsgTypes.contains(msgType) && msgType.isNotEmpty
+                ? <String>[msgType]
+                : null,
+          ),
+        ),
+      ),
+      nextBatch: nextBatch,
+    );
+
+    final roomEvents = results.searchCategories.roomEvents;
+    final Room room = client.getRoomById(roomId) ?? client.rooms.first;
+    final List<MessageSearchResult> messages = <MessageSearchResult>[];
+    for (final result in roomEvents?.results ?? const []) {
+      final Event? event = result.result;
+      if (event == null) continue;
+      if (event.roomId != roomId) continue;
+      // `m.file`, `m.audio` and `m.video` have no server-side filter in the
+      // spec, so they are applied here. This is what makes those three chips
+      // work at all, which they never did before.
+      if (msgType.isNotEmpty &&
+          !_filterableMsgTypes.contains(msgType) &&
+          event.messageType != msgType) {
+        continue;
+      }
+      messages.add(
+        MessageSearchResult(
+          event: event,
+          room: room,
+          rank: result.rank ?? 0,
+        ),
+      );
+    }
+
+    final String? returnedNext = roomEvents?.nextBatch;
+    return SearchPage<MessageSearchResult>(
+      items: messages,
+      // Explicit, and the empty-items half matters: a homeserver that echoes
+      // `nextBatch` back is permitted and common, and treating that as "there
+      // is more" is what left the old panel's load-more button on screen
+      // forever.
+      hasMore: (returnedNext ?? '').isNotEmpty && messages.isNotEmpty,
+      nextBatch: returnedNext,
+    );
+  }
+
+  /// The message types the spec lets a server filter on.
+  static const Set<String> _filterableMsgTypes = <String>{'m.text', 'm.image'};
+
   /// Public homeserver room directory search: first page.
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverFirstPage(
     String query, {
     int limit = 10,
-  }) => _searchHomeserver(query, limit: limit, since: null);
+  }) =>
+      _searchHomeserver(query, limit: limit, since: null);
 
   /// Public homeserver room directory search: continuation.
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverNextPage(
     SearchPageRequest request, {
     int limit = 10,
   }) =>
-      _searchHomeserver(request.query ?? '', limit: limit, since: request.nextBatch);
+      _searchHomeserver(request.query ?? '',
+          limit: limit, since: request.nextBatch);
 
   /// The public room directory, as the palette asks for it.
   ///
@@ -603,7 +710,8 @@ class SearchUserTile extends StatelessWidget {
 
 /// Reusable section header used by every search-aware UI surface.
 class SearchSectionHeader extends StatelessWidget {
-  const SearchSectionHeader({super.key, required this.icon, required this.title});
+  const SearchSectionHeader(
+      {super.key, required this.icon, required this.title});
   final IconData icon;
   final String title;
 

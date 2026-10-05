@@ -64,8 +64,7 @@ class MobileLayout extends StatelessWidget {
   /// `ThreadViewPage` and `RoomInformations` each got a second back arrow
   /// from the shell stacked above the one their own `AppBar` already
   /// renders, and `/main/room_preview/:roomid` was misread as a room.
-  static bool isRoomRoute(BuildContext context) =>
-      isRoomChatLocation(context);
+  static bool isRoomRoute(BuildContext context) => isRoomChatLocation(context);
 
   @override
   Widget build(BuildContext context) {
@@ -203,10 +202,10 @@ class _MobileTopBar extends StatelessWidget {
             ),
           ),
           IconButton(
-              icon: const Icon(LucideIcons.search, size: 18),
-              tooltip: l10n.search,
-              onPressed: () => showCommandPalette(context),
-            ),
+            icon: const Icon(LucideIcons.search, size: 18),
+            tooltip: l10n.search,
+            onPressed: () => showCommandPalette(context),
+          ),
         ],
       ),
     );

@@ -20,6 +20,7 @@ import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'settings_service.dart';
@@ -41,7 +42,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   double _leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth;
   bool _rightSidebarVisible = true;
   double _rightSidebarWidth = 280.0;
-  RightPaneChoice _rightPaneChoice = RightPaneChoice.roomInfo;
+  RoomPaneTab _roomPaneTab = RoomPaneTab.info;
 
   bool _showStateEvents = true;
   bool _showTrayIcon = true;
@@ -140,7 +141,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   double get leftSidebarWidth => _leftSidebarWidth;
   bool get rightSidebarVisible => _rightSidebarVisible;
   double get rightSidebarWidth => _rightSidebarWidth;
-  RightPaneChoice get rightPaneChoice => _rightPaneChoice;
+  RoomPaneTab get roomPaneTab => _roomPaneTab;
   bool get showStateEvents => _showStateEvents;
   bool get showTrayIcon => _showTrayIcon;
   bool get closeToTray => _closeToTray;
@@ -235,7 +236,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     _leftSidebarWidth = snapshot.leftSidebarWidth;
     _rightSidebarVisible = snapshot.rightSidebarVisible;
     _rightSidebarWidth = snapshot.rightSidebarWidth;
-    _rightPaneChoice = snapshot.rightPaneChoice;
+    _roomPaneTab = snapshot.roomPaneTab;
     _showStateEvents = snapshot.showStateEvents;
     _showTrayIcon = snapshot.showTrayIcon;
     _closeToTray = snapshot.closeToTray;
@@ -370,20 +371,20 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  Future<void> setRightPaneChoice(RightPaneChoice choice) async {
-    if (choice == _rightPaneChoice) return;
+  Future<void> setRoomPaneTab(RoomPaneTab choice) async {
+    if (choice == _roomPaneTab) return;
 
-    _rightPaneChoice = choice;
-    if (choice != RightPaneChoice.none && !_rightSidebarVisible) {
+    _roomPaneTab = choice;
+    if (choice != RoomPaneTab.none && !_rightSidebarVisible) {
       _rightSidebarVisible = true;
       await _settingsService.updateRightSidebarVisible(true);
     }
-    if (choice == RightPaneChoice.none && _rightSidebarVisible) {
+    if (choice == RoomPaneTab.none && _rightSidebarVisible) {
       _rightSidebarVisible = false;
       await _settingsService.updateRightSidebarVisible(false);
     }
     notifyListeners();
-    await _settingsService.updateRightPaneChoice(choice);
+    await _settingsService.updateRoomPaneTab(choice);
   }
 
   Future<void> toggleRightSidebar() async {
@@ -899,8 +900,3 @@ class SettingsController with ChangeNotifier, WindowListener {
     await _settingsService.updateLocale(locale);
   }
 }
-
-
-
-
-

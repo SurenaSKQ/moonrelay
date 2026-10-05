@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -118,14 +119,13 @@ void main() {
 
       test('rightPaneChoice() returns roomInfo for a stale index', () async {
         SharedPreferences.setMockInitialValues({rightPaneKey: 77});
-        expect(await service.rightPaneChoice(), RightPaneChoice.roomInfo);
+        expect(await service.roomPaneTab(), RoomPaneTab.info);
       });
 
-      test('the batch snapshot does not throw on a stale right pane',
-          () async {
+      test('the batch snapshot does not throw on a stale right pane', () async {
         SharedPreferences.setMockInitialValues({rightPaneKey: 77});
         final snapshot = await service.loadAll();
-        expect(snapshot.rightPaneChoice, RightPaneChoice.roomInfo);
+        expect(snapshot.roomPaneTab, RoomPaneTab.info);
       });
 
       test('themeMode() returns system for a stale index', () async {

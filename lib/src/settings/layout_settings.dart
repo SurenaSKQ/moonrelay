@@ -5,7 +5,7 @@ library;
 
 /// How the main chat surface is laid out.
 ///
-/// The default [auto] mode picks a layout based on the current 
+/// The default [auto] mode picks a layout based on the current
 /// width: the full multi-pane [DashboardLayout] when there is room for
 /// the sidebars, a compact sidebar that merges navigation, rooms, and
 /// spaces when the window is narrow, and a dedicated [MobileLayout] for
@@ -35,32 +35,6 @@ extension LayoutModeExtension on LayoutMode {
         return 'Compact';
       case LayoutMode.mobile:
         return 'Mobile';
-    }
-  }
-}
-
-/// Choices for the right sidebar pane.
-enum RightPaneChoice {
-  none,
-  roomInfo,
-  members,
-  threads,
-  pinned,
-}
-
-extension RightPaneChoiceExtension on RightPaneChoice {
-  String get label {
-    switch (this) {
-      case RightPaneChoice.none:
-        return 'None';
-      case RightPaneChoice.roomInfo:
-        return 'Room Info';
-      case RightPaneChoice.members:
-        return 'Members';
-      case RightPaneChoice.threads:
-        return 'Threads';
-      case RightPaneChoice.pinned:
-        return 'Pinned';
     }
   }
 }

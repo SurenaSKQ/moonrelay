@@ -101,7 +101,8 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(LucideIcons.keyboard, size: 22, color: theme.colorScheme.primary),
+                Icon(LucideIcons.keyboard,
+                    size: 22, color: theme.colorScheme.primary),
                 SizedBox(width: t.spaceMd),
                 Text(
                   loc.shortcutsTitle,

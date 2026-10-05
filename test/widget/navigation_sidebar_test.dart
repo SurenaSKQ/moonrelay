@@ -28,8 +28,9 @@ import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
+import 'package:moonrelay/src/chat/room_pane/resize_handle.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout/dashboard_view.dart';
-import 'package:moonrelay/src/layouts/dashboard_layout/pane_hosts.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -355,16 +356,17 @@ void main() {
   group('DashboardView composition', () {
     Widget dashboardView({
       required SettingsController settings,
-      required bool detailPaneFits,
+      bool detailPaneFits = true,
       double width = 1400,
     }) {
+      // `detailPaneFits` is accepted and ignored. The dashboard used to take it
+      // to decide whether to mount the room's detail pane, and two tests here
+      // asserted that it did; the pane now belongs to `RoomPage`, so the shell
+      // has no say. The parameter stays so those call sites keep compiling and
+      // so deleting it is a deliberate act rather than an accident.
       return DashboardView(
-        detailPaneFits: detailPaneFits,
         width: width,
         size: LayoutSize.wide,
-        rightWidthNotifier: ValueNotifier<double?>(null),
-        onRightResize: (_) {},
-        onRightResizeEnd: () {},
         child: const SizedBox(),
       );
     }
@@ -472,51 +474,43 @@ void main() {
       expect(find.byType(SpacesRailHost), findsOneWidget);
     });
 
-    testWidgets('the detail pane is the only thing the narrow band drops',
-        (tester) async {
+    testWidgets('the dashboard never mounts a room pane', (tester) async {
+      // It used to. The room's detail pane was the fourth child of this row,
+      // which meant the pane describing a room was a sibling of the route
+      // content rather than part of it, and it had to find the room from a
+      // global. It now belongs to `RoomPage`, and the strongest statement this
+      // file can make is that the shell never has one, at any width.
       final settings = createTestSettingsController();
       await tester.pumpWidget(
-        wrapDashboard(
-          settings,
-          dashboardView(
-            settings: settings,
-            detailPaneFits: false,
-            width: 800,
-          ),
-        ),
+        wrapDashboard(settings, dashboardView(settings: settings, width: 800)),
       );
       await tester.pump();
 
-      expect(find.byType(RightPaneHost), findsNothing);
+      expect(find.byType(RoomPane), findsNothing);
       expect(find.byType(ResizeHandle), findsNothing);
 
-      // Same widget, with the pane mounted.
       final wide = createTestSettingsController();
       await tester.pumpWidget(
-        wrapDashboard(
-          wide,
-          dashboardView(settings: wide, detailPaneFits: true),
-        ),
+        wrapDashboard(wide, dashboardView(settings: wide)),
       );
       await tester.pump();
 
-      expect(find.byType(RightPaneHost), findsOneWidget);
-      expect(find.byType(ResizeHandle), findsOneWidget);
+      expect(find.byType(RoomPane), findsNothing);
+      expect(find.byType(ResizeHandle), findsNothing);
     });
 
-    testWidgets('a hidden detail pane stays hidden even when it would fit',
+    testWidgets('and its visibility setting is no longer the shell\'s business',
         (tester) async {
+      // `rightSidebarVisible` used to gate a pane in this row. Nothing here reads
+      // it any more: opening a pane is a per-room decision made by RoomPage,
+      // and the setting now only carries the persisted tab choice.
       final settings = createTestSettingsController();
       await settings.setRightSidebarVisible(false);
       await tester.pumpWidget(
-        wrapDashboard(
-          settings,
-          dashboardView(settings: settings, detailPaneFits: true),
-        ),
+        wrapDashboard(settings, dashboardView(settings: settings)),
       );
       await tester.pump();
-
-      expect(find.byType(RightPaneHost), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 

@@ -37,8 +37,7 @@ extension LayoutSizeX on LayoutSize {
 
   /// Returns true when the layout can keep a single (left or right) pane
   /// pinned alongside the main content.
-  bool get hasOneSidebar =>
-      hasTwoSidebars || this == LayoutSize.medium;
+  bool get hasOneSidebar => hasTwoSidebars || this == LayoutSize.medium;
 
   /// Returns true when secondary content should be promoted to a drawer / modal
   /// instead of a pinned column.
@@ -151,25 +150,24 @@ class LayoutBreakpoints {
       width < compactMax && !shouldUseMobile(width);
 
   /// Clamps a sidebar's requested [requestedWidth] against the given [viewportWidth],
-/// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
-/// by sibling panes (e.g. the right sidebar on the far right).
-///
-/// The result is always between [minSidebarWidth] and [maxSidebarWidth].
-/// When the viewport cannot accommodate everything, the function returns
-/// the largest sidebar width that still satisfies the minimum main column.
-static double clampSidebarWidth({
-  required double requestedWidth,
-  required double viewportWidth,
-  required double mainMinWidth,
-  required double otherPanesWidth,
-}) {
-  final available =
-      (viewportWidth - mainMinWidth - otherPanesWidth).clamp(
-    minSidebarWidth,
-    maxSidebarWidth,
-  );
-  return requestedWidth.clamp(minSidebarWidth, available);
-}
+  /// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
+  /// by sibling panes (e.g. the right sidebar on the far right).
+  ///
+  /// The result is always between [minSidebarWidth] and [maxSidebarWidth].
+  /// When the viewport cannot accommodate everything, the function returns
+  /// the largest sidebar width that still satisfies the minimum main column.
+  static double clampSidebarWidth({
+    required double requestedWidth,
+    required double viewportWidth,
+    required double mainMinWidth,
+    required double otherPanesWidth,
+  }) {
+    final available = (viewportWidth - mainMinWidth - otherPanesWidth).clamp(
+      minSidebarWidth,
+      maxSidebarWidth,
+    );
+    return requestedWidth.clamp(minSidebarWidth, available);
+  }
 }
 
 /// Convenience extension on [BoxConstraints] so widgets can ask for their
@@ -201,8 +199,7 @@ class LayoutScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(covariant LayoutScope oldWidget) =>
-      size != oldWidget.size ||
-      availableWidth != oldWidget.availableWidth;
+      size != oldWidget.size || availableWidth != oldWidget.availableWidth;
 }
 
 /// Default scope used at the root of the app before any [LayoutBuilder] has

@@ -2847,6 +2847,80 @@
   "paletteDirectorySearching": "Looking for public rooms and spaces…",
   "@paletteDirectorySearching": {
     "description": "Shown in the command palette while the public room directory request is still in flight."
+  },  "roomPaneInfo": "Info",
+  "@roomPaneInfo": {
+    "description": "Tab label for room information in the room's side pane."
+  },
+  "roomPaneMembers": "Members",
+  "@roomPaneMembers": {
+    "description": "Tab label for the member list in the room's side pane."
+  },
+  "roomPaneThreads": "Threads",
+  "@roomPaneThreads": {
+    "description": "Tab label for the thread list in the room's side pane."
+  },
+  "roomPanePinned": "Pinned",
+  "@roomPanePinned": {
+    "description": "Tab label for pinned messages in the room's side pane."
+  },
+  "roomPaneSearch": "Search",
+  "@roomPaneSearch": {
+    "description": "Tab label for in-room search in the room's side pane."
+  },
+  "roomPaneSearchHint": "Searching this room. Use # to include the public directory.",
+  "@roomPaneSearchHint": {
+    "description": "Hint strip at the foot of the room pane's search tab."
+  },
+
+  "inRoomSearchSenderHint": "Filter by sender",
+  "@inRoomSearchSenderHint": {
+    "description": "Placeholder for the sender filter in the room pane's search tab."
+  },
+  "inRoomSearchFailed": "Search could not be reached. The homeserver did not answer.",
+  "@inRoomSearchFailed": {
+    "description": "Shown in the room pane's search tab when the search request failed."
+  },
+  "inRoomSearchResultCount": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@inRoomSearchResultCount": {
+    "description": "Result count in the room pane's search footer when everything has loaded.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchMoreResults": "{count, plural, =0{No results} =1{1 result, more available} other{{count} results, more available}}",
+  "@inRoomSearchMoreResults": {
+    "description": "Result count in the room pane's search footer while more pages remain.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchTypeAll": "All",
+  "@inRoomSearchTypeAll": {
+    "description": "Message type filter chip meaning no type restriction."
+  },
+  "inRoomSearchTypeText": "Text",
+  "@inRoomSearchTypeText": {
+    "description": "Message type filter chip for plain text."
+  },
+  "inRoomSearchTypeImage": "Images",
+  "@inRoomSearchTypeImage": {
+    "description": "Message type filter chip for images."
+  },
+  "inRoomSearchTypeFile": "Files",
+  "@inRoomSearchTypeFile": {
+    "description": "Message type filter chip for files."
+  },
+  "inRoomSearchTypeAudio": "Audio",
+  "@inRoomSearchTypeAudio": {
+    "description": "Message type filter chip for audio."
+  },
+  "inRoomSearchTypeVideo": "Video",
+  "@inRoomSearchTypeVideo": {
+    "description": "Message type filter chip for video."
   },  "paletteDirectorySection": "Public rooms and spaces",
   "@paletteDirectorySection": {
     "description": "Header for the trailing command palette section holding public rooms and spaces from the homeserver directory."

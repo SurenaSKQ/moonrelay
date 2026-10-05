@@ -28,21 +28,41 @@ import 'package:provider/provider.dart';
 
 /// Displays a list of all threads in the room, fetched from the server via
 /// the thread roots API.
-class SidebarThreadList extends StatefulWidget {
-  const SidebarThreadList({super.key, required this.room});
+class ThreadsTab extends StatefulWidget {
+  const ThreadsTab({super.key, required this.room});
 
   final Room room;
 
   @override
-  State<SidebarThreadList> createState() => _SidebarThreadListState();
+  State<ThreadsTab> createState() => _ThreadsTabState();
 }
 
-class _SidebarThreadListState extends State<SidebarThreadList> {
-  late final ThreadsProvider _provider;
+class _ThreadsTabState extends State<ThreadsTab> {
+  /// Rebuilt when [ThreadsTab.room] changes.
+  ///
+  /// Not late final. It used to be, bound once in initState and never
+  /// rebound, which meant this tab only ever worked because a distant caller
+  /// remembered to wrap it in ValueKey(room.id). Remove that key and the
+  /// threads list silently keeps showing the previous room's threads, with no
+  /// error anywhere. Rebuilding on the room change makes the tab correct
+  /// without asking anyone to remember.
+  late ThreadsProvider _provider;
 
   @override
   void initState() {
     super.initState();
+    _bind();
+  }
+
+  @override
+  void didUpdateWidget(ThreadsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id == widget.room.id) return;
+    _provider.dispose();
+    _bind();
+  }
+
+  void _bind() {
     _provider = ThreadsProvider(room: widget.room);
     _provider.bind(context.read<SyncPulse>());
     _provider.fetch(firstPage: true);
@@ -178,7 +198,7 @@ class _ThreadListTile extends StatelessWidget {
             ? NetworkImage(
                 event.senderFromMemoryOrFallback.avatarUrl.toString(),
                 headers: authHeaders(room.client),
-                )
+              )
             : null,
         child: event.senderFromMemoryOrFallback.avatarUrl == null
             ? Icon(Icons.person, size: 14, color: scheme.onSurfaceVariant)

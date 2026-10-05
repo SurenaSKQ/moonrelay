@@ -17,13 +17,13 @@
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/room_threads_view.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
@@ -119,7 +119,7 @@ class TopThreadsSectionState extends State<TopThreadsSection> {
     // back to the room page with the threads sidebar active.
     final settings = context.read<SettingsController>();
     if (settings.rightSidebarVisible &&
-        settings.rightPaneChoice == RightPaneChoice.threads) {
+        settings.roomPaneTab == RoomPaneTab.threads) {
       Navigator.of(context).pop();
       return;
     }

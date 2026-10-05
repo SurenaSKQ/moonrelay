@@ -14,25 +14,27 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
 
 // -- Localization helpers ----------------------------------------------------
 
-String localizedRightPaneChoice(RightPaneChoice choice, AppLocalizations l10n) {
+String localizedRoomPaneTab(RoomPaneTab choice, AppLocalizations l10n) {
   switch (choice) {
-    case RightPaneChoice.none:
+    case RoomPaneTab.none:
       return l10n.paneNone;
-    case RightPaneChoice.roomInfo:
+    case RoomPaneTab.info:
       return l10n.paneRoomInfo;
-    case RightPaneChoice.members:
+    case RoomPaneTab.members:
       return l10n.paneMembers;
-    case RightPaneChoice.threads:
+    case RoomPaneTab.threads:
       return l10n.thread;
-    case RightPaneChoice.pinned:
+    case RoomPaneTab.pinned:
       return l10n.pinnedMessages;
+    case RoomPaneTab.search:
+      return l10n.roomPaneSearch;
   }
 }
 

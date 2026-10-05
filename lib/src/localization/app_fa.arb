@@ -2609,6 +2609,79 @@
   "paletteDirectorySearching": "در حال جست‌وجوی اتاق‌ها و فضاهای عمومی…",
   "@paletteDirectorySearching": {
     "description": "در پالت فرمان و هنگام در جریان بودن درخواست فهرست اتاق‌های عمومی نمایش داده می‌شود."
+  },  "roomPaneInfo": "اطلاعات",
+  "@roomPaneInfo": {
+    "description": "برچسب زبانه اطلاعات اتاق در پنج کناری اتاق."
+  },
+  "roomPaneMembers": "اعضا",
+  "@roomPaneMembers": {
+    "description": "برچسب زبانه فهرست اعضا در پنج کناری اتاق."
+  },
+  "roomPaneThreads": "رشته‌ها",
+  "@roomPaneThreads": {
+    "description": "برچسب زبانه فهرست رشته‌ها در پنج کناری اتاق."
+  },
+  "roomPanePinned": "سنجاق‌ها",
+  "@roomPanePinned": {
+    "description": "برچسب زبانه پیام‌های سنجاق‌شده در پنج کناری اتاق."
+  },
+  "roomPaneSearch": "جست‌وجو",
+  "@roomPaneSearch": {
+    "description": "برچسب زبانه جست‌وجوی درون اتاق در پنج کناری اتاق."
+  },
+  "roomPaneSearchHint": "جست‌وجو در همین اتاق. برای افزودن فهرست عمومی از # استفاده کنید.",
+  "@roomPaneSearchHint": {
+    "description": "نوار راهنما در پای زبانه جست‌وجوی پنج کناری اتاق."
+  },
+  "inRoomSearchSenderHint": "پالایش بر اساس فرستنده",
+  "@inRoomSearchSenderHint": {
+    "description": "متن راهنمای پالایش فرستنده در زبانه جست‌وجوی پنج کناری اتاق."
+  },
+  "inRoomSearchFailed": "جست‌وجو در دسترس نبود. homeserver پاسخ نداد.",
+  "@inRoomSearchFailed": {
+    "description": "در زبانه جست‌وجوی پنج کناری اتاق وقتی درخواست شکست خورده است نمایش داده می‌شود."
+  },
+  "inRoomSearchResultCount": "{count, plural, =0{نتیجه‌ای نیست} =1{۱ نتیجه} other{{count} نتیجه}}",
+  "@inRoomSearchResultCount": {
+    "description": "شمار نتایج در پاورقی جست‌وجو وقتی همه بارگذاری شده است.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchMoreResults": "{count, plural, =0{نتیجه‌ای نیست} =1{۱ نتیجه، نتایج بیشتر هست} other{{count} نتیجه، نتایج بیشتر هست}}",
+  "@inRoomSearchMoreResults": {
+    "description": "شمار نتایج در پاورقی جست‌وجو تا وقتی صفحه‌های بیشتری باقی مانده است.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchTypeAll": "همه",
+  "@inRoomSearchTypeAll": {
+    "description": "چیپ پالایش نوع پیام به معنای بدون محدودیت نوع."
+  },
+  "inRoomSearchTypeText": "متن",
+  "@inRoomSearchTypeText": {
+    "description": "چیپ پالایش نوع پیام برای متن ساده."
+  },
+  "inRoomSearchTypeImage": "تصویرها",
+  "@inRoomSearchTypeImage": {
+    "description": "چیپ پالایش نوع پیام برای تصویرها."
+  },
+  "inRoomSearchTypeFile": "فایل‌ها",
+  "@inRoomSearchTypeFile": {
+    "description": "چیپ پالایش نوع پیام برای فایل‌ها."
+  },
+  "inRoomSearchTypeAudio": "صدا",
+  "@inRoomSearchTypeAudio": {
+    "description": "چیپ پالایش نوع پیام برای صدا."
+  },
+  "inRoomSearchTypeVideo": "ویدیو",
+  "@inRoomSearchTypeVideo": {
+    "description": "چیپ پالایش نوع پیام برای ویدیو."
   },  "paletteDirectorySection": "اتاق‌ها و فضاهای عمومی",
   "@paletteDirectorySection": {
     "description": "سرصفحه بخش پایانی پالت فرمان که اتاق‌ها و فضاهای عمومی فهرست homeserver را نگه می‌دارد."

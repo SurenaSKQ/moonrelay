@@ -25,8 +25,6 @@ import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
 
-import 'pane_hosts.dart';
-
 // --- Stateless view ---------------------------------------------------------
 
 /// Pure presentation widget for the dashboard layout.
@@ -53,10 +51,6 @@ class DashboardView extends StatelessWidget {
     required this.child,
     required this.size,
     required this.width,
-    required this.detailPaneFits,
-    required this.rightWidthNotifier,
-    required this.onRightResize,
-    required this.onRightResizeEnd,
   });
 
   final Widget child;
@@ -67,27 +61,11 @@ class DashboardView extends StatelessWidget {
   /// to every media-query change and rebuild on each resize tick).
   final double width;
 
-  /// Whether the resolved shell has room for the detail pane alongside the
-  /// navigation pane. False in the compact band, and never reached from
-  /// the single-pane shell, which does not mount this widget.
-  ///
-  /// This is the only thing the shell decides about the dashboard's
-  /// composition. The controller applies hysteresis around the boundary so
-  /// the flag only flips once the resize has settled, which is what stops
-  /// the detail pane being torn down and rebuilt mid-drag.
-  final bool detailPaneFits;
-
-  final ValueNotifier<double?> rightWidthNotifier;
-  final void Function(double) onRightResize;
-  final VoidCallback onRightResizeEnd;
-
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final theme = Theme.of(context);
 
     // -- One composition, every width -------------------------------
-    final showRight = settings.rightSidebarVisible && detailPaneFits;
     // One clamp, one range. The two dashboards used to disagree here
     // (200..360 against 220..360), so a width the user had chosen in one
     // shell was silently rewritten in the other.
@@ -101,9 +79,14 @@ class DashboardView extends StatelessWidget {
     // In RTL mode the sidebar order must be reversed so that the
     // "left" sidebar appears on the right side of the window.
     //
-    // The rail is a row child for the same reason: in RTL it should sit on
-    // the right of the room list, and reversing the whole list is simpler and
+    // The rail is a row child for the same reason: in RTL it should sit on the
+    // right of the room list, and reversing the whole list is simpler and
     // less error-prone than flipping each pane's internals.
+    //
+    // Three children, not four. The room's detail pane used to be the fourth,
+    // which meant the pane that describes a room was a sibling of the route
+    // content rather than part of it, and it had to discover the room from a
+    // global. It now lives inside `RoomPage`, where `widget.room` is the answer.
     final paneChildren = <Widget>[
       const SpacesRailHost(),
       SizedBox(
@@ -119,16 +102,6 @@ class DashboardView extends StatelessWidget {
           ),
         ),
       ),
-      if (showRight) ...[
-        ResizeHandle(
-          onDrag: onRightResize,
-          onDragEnd: onRightResizeEnd,
-        ),
-        RightPaneHost(
-          widthNotifier: rightWidthNotifier,
-          theme: theme,
-        ),
-      ],
     ];
 
     final isRtl = Directionality.of(context) == TextDirection.rtl;
@@ -143,4 +116,3 @@ class DashboardView extends StatelessWidget {
     );
   }
 }
-

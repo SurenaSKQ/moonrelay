@@ -17,24 +17,37 @@
 import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
-import 'package:provider/provider.dart';
-import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/json_utils.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// Full sidebar pane that lists all pinned messages for a room.
-class SidebarPinnedMessages extends StatefulWidget {
-  const SidebarPinnedMessages({super.key, required this.room});
+/// The pinned tab of the room's side pane.
+class PinnedTab extends StatefulWidget {
+  const PinnedTab({
+    super.key,
+    required this.room,
+    required this.pinnedEventIds,
+    required this.pinnedFilterActive,
+    required this.onTogglePinnedFilter,
+  });
 
   final Room room;
 
+  /// This room's pinned event ids, from the pane's owner.
+  final List<String> pinnedEventIds;
+
+  /// Whether the timeline is filtered to pinned messages.
+  final bool pinnedFilterActive;
+
+  /// Turns that filter on or off.
+  final VoidCallback onTogglePinnedFilter;
+
   @override
-  State<SidebarPinnedMessages> createState() => _SidebarPinnedMessagesState();
+  State<PinnedTab> createState() => _PinnedTabState();
 }
 
-class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
+class _PinnedTabState extends State<PinnedTab> {
   Map<String, Event> _pinnedEvents = {};
   bool _loading = true;
 
@@ -45,7 +58,7 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
   }
 
   @override
-  void didUpdateWidget(SidebarPinnedMessages oldWidget) {
+  void didUpdateWidget(PinnedTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.room.id != widget.room.id) {
       _loadPinnedEvents();
@@ -79,9 +92,7 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
     final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
-    final currentRoom = context.watch<CurrentRoom>();
-
-    final pinnedIds = pinnedEventIds(widget.room);
+    final pinnedIds = widget.pinnedEventIds;
 
     if (pinnedIds.isEmpty) {
       return Center(
@@ -93,7 +104,8 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
               Icon(
                 Icons.push_pin_outlined,
                 size: 40,
-                color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
+                color: scheme.onSurfaceVariant
+                    .withValues(alpha: t.opacityDisabled),
               ),
               SizedBox(height: t.spaceMd),
               Text(
@@ -113,27 +125,27 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
-              t.spaceMd, t.spaceSm, t.spaceMd, t.spaceXs),
+          padding:
+              EdgeInsets.fromLTRB(t.spaceMd, t.spaceSm, t.spaceMd, t.spaceXs),
           child: FilledButton.tonalIcon(
-            onPressed: () => currentRoom.togglePinnedFilter(),
+            onPressed: widget.onTogglePinnedFilter,
             icon: Icon(
-              currentRoom.pinnedFilterActive
+              widget.pinnedFilterActive
                   ? Icons.push_pin_outlined
                   : Icons.visibility_outlined,
               size: t.iconSizeSmall,
             ),
             label: Text(
-              currentRoom.pinnedFilterActive
+              widget.pinnedFilterActive
                   ? l10n.showAllMessages
                   : l10n.showPinnedOnly,
               style: const TextStyle(fontSize: 12),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: currentRoom.pinnedFilterActive
+              backgroundColor: widget.pinnedFilterActive
                   ? scheme.primaryContainer
                   : scheme.surfaceContainerHighest,
-              foregroundColor: currentRoom.pinnedFilterActive
+              foregroundColor: widget.pinnedFilterActive
                   ? scheme.onPrimaryContainer
                   : scheme.onSurfaceVariant,
             ),
@@ -152,7 +164,8 @@ class _SidebarPinnedMessagesState extends State<SidebarPinnedMessages> {
                 event: _pinnedEvents[eventId],
                 scheme: scheme,
                 l10n: l10n,
-                currentRoom: currentRoom,
+                pinnedFilterActive: widget.pinnedFilterActive,
+                onTogglePinnedFilter: widget.onTogglePinnedFilter,
               );
             },
           ),
@@ -169,7 +182,8 @@ class _PinnedTile extends StatelessWidget {
     this.event,
     required this.scheme,
     required this.l10n,
-    required this.currentRoom,
+    required this.pinnedFilterActive,
+    required this.onTogglePinnedFilter,
   });
 
   final Room room;
@@ -177,7 +191,8 @@ class _PinnedTile extends StatelessWidget {
   final Event? event;
   final ColorScheme scheme;
   final AppLocalizations l10n;
-  final CurrentRoom currentRoom;
+  final bool pinnedFilterActive;
+  final VoidCallback onTogglePinnedFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -188,13 +203,12 @@ class _PinnedTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      color: currentRoom.pinnedFilterActive &&
-              currentRoom.pinnedEventIds.contains(eventId)
+      color: pinnedFilterActive
           ? scheme.primaryContainer.withValues(alpha: 0.3)
           : scheme.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
       child: InkWell(
         borderRadius: BorderRadius.circular(t.radiusMd),
-        onTap: () => currentRoom.togglePinnedFilter(),
+        onTap: onTogglePinnedFilter,
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(
