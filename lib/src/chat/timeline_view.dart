@@ -29,6 +29,7 @@ import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/settings/motion.dart';
 import 'package:moonrelay/src/helpers/thread_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 
 /// How long the jumped-to message stays ringed.
@@ -237,6 +238,20 @@ class TimelineViewState extends State<TimelineView> {
   /// [BuildContext] for any event currently on screen.
   final Map<String, GlobalKey> _eventKeys = <String, GlobalKey>{};
 
+  /// One focus node per message row, so [_handleTimelineKey] can aim at them.
+  ///
+  /// Created lazily and disposed with the timeline, because a long-lived
+  /// timeline holds as many of these as it has ever rendered.
+  final Map<String, FocusNode> _rowFocusNodes = <String, FocusNode>{};
+
+  /// Event ids in list order: index 0 is the newest, because the list is
+  /// rendered under `reverse: true`.
+  List<String> _orderedEventIds = const <String>[];
+
+  /// The row the keyboard cursor last landed on, so a second arrow press
+  /// continues from there rather than restarting.
+  String? _lastFocusedEventId;
+
   /// Key on the scrollable itself, used to find the viewport's
   /// [RenderBox] when resolving the read position.  The per-event keys
   /// above only exist for *built* children, so something that covers
@@ -398,11 +413,19 @@ class TimelineViewState extends State<TimelineView> {
   }
 
   @override
-  void dispose() {
-    widget.timelineVersion?.removeListener(_onVersionChanged);
-    _undecryptableCount.dispose();
-    super.dispose();
-  }
+void dispose() {
+      widget.timelineVersion?.removeListener(_onVersionChanged);
+      _undecryptableCount.dispose();
+      // One node per message this timeline ever rendered. Long-lived rooms
+      // make that thousands, and a `FocusNode` holds a listener closure that
+      // references the row, so leaving them to the garbage collector means
+      // leaking the row's state along with them.
+      for (final node in _rowFocusNodes.values) {
+        node.dispose();
+      }
+      _rowFocusNodes.clear();
+      super.dispose();
+    }
 
   // ---------------------------------------------------------------------------
   // Index helpers
@@ -484,8 +507,9 @@ class TimelineViewState extends State<TimelineView> {
         // the screen upward, so nothing further along can be visible.
         break;
       }
-      final bottom =
-          box.localToGlobal(Offset(0, box.size.height), ancestor: viewportBox).dy;
+      final bottom = box
+          .localToGlobal(Offset(0, box.size.height), ancestor: viewportBox)
+          .dy;
       if (bottom <= 0) break; // Scrolled past the top.
       oldest = id;
     }
@@ -535,9 +559,7 @@ class TimelineViewState extends State<TimelineView> {
       if (box is! RenderBox || !box.hasSize) continue;
       final top = box.localToGlobal(Offset.zero, ancestor: viewportBox).dy;
       final limit = viewportBox.size.height;
-      final distance = top < 0
-          ? -top
-          : (top > limit ? top - limit : 0.0);
+      final distance = top < 0 ? -top : (top > limit ? top - limit : 0.0);
       final candidate = (
         groupIndex: groupIndex,
         distance: distance,
@@ -599,13 +621,12 @@ class TimelineViewState extends State<TimelineView> {
               bubbleRadius: widget.bubbleRadius,
               threadReplyCount: entry.replyCount,
               itemKey: _eventKeys[ev.eventId],
+              focusNode: _rowFocusNodeFor(ev.eventId),
               // The group this event came from, so aggregate lookups hit
               // the timeline that actually holds them.
               timeline: _timelineForGroup(entry.groupIndex),
               onAction: (action, e) => _handleItemAction(action, e),
-              onEdit: widget.onEdit != null
-                  ? () => widget.onEdit!(ev)
-                  : null,
+              onEdit: widget.onEdit != null ? () => widget.onEdit!(ev) : null,
               highlightedEventId:
                   widget.highlightedEventId ?? _highlightedEventId,
             ),
@@ -652,8 +673,7 @@ class TimelineViewState extends State<TimelineView> {
       (index, _) => !_cachedGapIndices.contains(index),
     );
     _gapKeys.removeWhere(
-      (group, _) => !_cachedGapEntries.values
-          .any((e) => e.afterGroup == group),
+      (group, _) => !_cachedGapEntries.values.any((e) => e.afterGroup == group),
     );
 
     _cachedItems = items;
@@ -664,7 +684,30 @@ class TimelineViewState extends State<TimelineView> {
     _undecryptableCount.value = result.undecryptableCount;
     _pruneStaleKeys(liveIds);
 
+    // Recorded here rather than read from `_cachedItemEventIds` in the key
+    // handler because that list is `List<String?>` (it carries a null per
+    // non-message row) and the handler wants plain ids to look up in
+    // `_rowFocusNodes`.
+    _orderedEventIds = <String>[
+      for (final id in itemEventIds)
+        if (id != null) id,
+    ];
+
     return items;
+  }
+
+  /// The row focus node for [eventId], created on first use.
+  FocusNode _rowFocusNodeFor(String eventId) {
+    return _rowFocusNodes.putIfAbsent(eventId, () {
+      final node = FocusNode(debugLabel: 'row_$eventId', skipTraversal: true);
+      // Remember where the keyboard cursor is, so the timeline can keep
+      // walking from here and can decide which row a Tab arriving from the
+      // composer should land on.
+      node.addListener(() {
+        if (node.hasFocus) _lastFocusedEventId = eventId;
+      });
+      return node;
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -683,10 +726,10 @@ class TimelineViewState extends State<TimelineView> {
     if (versionNotifier == null) {
       list = _buildListView(context);
     } else {
-list = AnimatedBuilder(
-      animation: versionNotifier,
-      builder: (context, _) => _buildListView(context),
-    );
+      list = AnimatedBuilder(
+        animation: versionNotifier,
+        builder: (context, _) => _buildListView(context),
+      );
     }
     return list;
   }
@@ -705,24 +748,75 @@ list = AnimatedBuilder(
     };
     const skeletonKey = ValueKey<String>('tl_skeleton');
 
-    return ListView.custom(
-      key: _listKey,
-      controller: widget.scrollController,
-      reverse: true,
-      childrenDelegate: SliverChildBuilderDelegate(
-        _buildItemAt(items, hasMore, extra),
-        childCount: items.length + 1,
-        findChildIndexCallback: (Key key) {
-          if (key == skeletonKey) return items.length;
-          return keyToIndex[key];
-        },
-        addRepaintBoundaries: false,
-        addAutomaticKeepAlives: false,
+    return Focus(
+      // One focusable entry point for the whole timeline, rather than a Tab
+      // stop per message. A viewport holds a couple of hundred messages, and
+      // a `Focus` on each would put Tab's travel almost entirely inside the
+      // conversation with no way out.
+      autofocus: false,
+      onKeyEvent: _handleTimelineKey,
+      child: ListView.custom(
+        key: _listKey,
+        controller: widget.scrollController,
+        reverse: true,
+        childrenDelegate: SliverChildBuilderDelegate(
+          _buildItemAt(items, hasMore, extra),
+          childCount: items.length + 1,
+          findChildIndexCallback: (Key key) {
+            if (key == skeletonKey) return items.length;
+            return keyToIndex[key];
+          },
+          addRepaintBoundaries: false,
+          addAutomaticKeepAlives: false,
+        ),
       ),
     );
   }
 
+  /// Moves the keyboard cursor between message rows.
+  ///
+  /// Only arrow keys are handled, and only once the cursor has been parked on
+  /// a row, because Up and Down belong to whatever has focus otherwise: the
+  /// composer, a scrollable, the command palette. Starting from
+  /// [_lastFocusedEventId] rather than from "whatever is focused" is what
+  /// lets a Tab that lands here go straight to the newest message instead of
+  /// nowhere.
+  ///
+  /// Under `reverse: true` the newest item is index 0 and higher indices sit
+  /// higher on screen, so "down" is towards the newer message and therefore
+  /// towards the lower index.
+  KeyEventResult _handleTimelineKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (!_isArrow(event.logicalKey)) return KeyEventResult.ignored;
 
+    final ids = _orderedEventIds;
+    if (ids.isEmpty) return KeyEventResult.ignored;
+
+    final current = _lastFocusedEventId;
+    final currentIndex = current == null ? -1 : ids.indexOf(current);
+    // From nothing, ArrowDown goes to the newest message and ArrowUp to the
+    // oldest currently built one, which is the opposite of what falling out
+    // of the composer should do: you are reading the newest thing.
+    final step = event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1;
+    final nextIndex = currentIndex < 0
+        ? (step > 0 ? 0 : ids.length - 1)
+        : (currentIndex + step).clamp(0, ids.length - 1);
+    if (nextIndex == currentIndex) return KeyEventResult.handled;
+
+    final target = _rowFocusNodes[ids[nextIndex]];
+    if (target == null) return KeyEventResult.ignored;
+    if (target.context == null) {
+      // The row for that id is not currently mounted. `_orderedEventIds` is
+      // built from the model, which can be ahead of the viewport, so this is
+      // reachable rather than theoretical.
+      return KeyEventResult.ignored;
+    }
+    target.requestFocus();
+    return KeyEventResult.handled;
+  }
+
+  static bool _isArrow(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp;
 
   /// Builds the per-index builder used by [ListView.custom].
   Widget Function(BuildContext, int) _buildItemAt(

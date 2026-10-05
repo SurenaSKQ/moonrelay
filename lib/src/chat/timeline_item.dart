@@ -34,6 +34,7 @@ import 'package:moonrelay/src/theme/component_tokens.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 
 /// Tagged action identifier used by [TimelineItem.onAction].  Folding
@@ -77,6 +78,7 @@ class TimelineItem extends StatefulWidget {
     this.highlightedEventId,
     this.itemKey,
     this.onEdit,
+    this.focusNode,
   });
 
   final Event event;
@@ -93,6 +95,19 @@ class TimelineItem extends StatefulWidget {
   /// directly), the item still renders correctly but the hover
   /// toolbar stays disabled.
   final GlobalKey? itemKey;
+
+  /// Focus node for this row's keyboard position, owned by [TimelineView].
+  ///
+  /// Rows are deliberately *not* Tab stops. A `Focus` per message would make
+  /// every one of the two or three hundred messages in a viewport a Tab stop,
+  /// so Tab would spend almost all of its travel inside the timeline and a
+  /// keyboard user could not get past it. Instead one node per row exists for
+  /// [TimelineView] to aim at, and the timeline's own focus node moves between
+  /// them with the arrow keys.
+  ///
+  /// `null` when the item is mounted without a timeline (widget tests), in
+  /// which case the row is not keyboard reachable and behaves as before.
+  final FocusNode? focusNode;
 
   /// Font size for message text, passed from the parent to avoid
   /// a per-event [context.watch] on [SettingsController].
@@ -142,6 +157,10 @@ class _TimelineItemState extends State<TimelineItem> {
   /// scroll performance: without it, every mouse move over the chat
   /// area triggered a full [TimelineItem] rebuild.
   final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  /// Whether the keyboard cursor is on this row. Draws a ring; see
+  /// [TimelineItem.focusNode] for why rows are focusable at all.
+  bool _hasKeyboardFocus = false;
 
   @override
   void dispose() {
@@ -294,7 +313,13 @@ class _TimelineItemState extends State<TimelineItem> {
   }
 
   /// Wraps [child] in a `GestureDetector` that opens the context menu on
-  /// right-click (desktop) or long-press (touch).
+  /// right-click (desktop) or long-press (touch), and in a [Focus] that lets
+  /// the keyboard reach the same menu.
+  ///
+  /// Shift+F10 and the dedicated Menu key are the two bindings every desktop
+  /// client uses, and both are handled here rather than on the timeline so
+  /// that they work for a row the keyboard cursor is already on. The menu is
+  /// anchored to the row's own rect, because there is no pointer to anchor to.
   ///
   /// The reply, forward, thread, and profile callbacks are wired through so
   /// the menu can invoke them. When none of them are available, the gesture
@@ -302,41 +327,83 @@ class _TimelineItemState extends State<TimelineItem> {
   Widget _wrapWithContextMenu(BuildContext context, Widget child) {
     if (widget.onAction == null) return child;
 
-    return GestureDetector(
+    void openAt(Offset position) {
+      MessageContextMenu.showForEvent(
+        context: context,
+        position: position,
+        event: widget.event,
+        room: widget.room,
+        timeline: widget.timeline,
+        onReply: _onReply ?? () {},
+        onForward: _onForward,
+        onThread: _onThread,
+        onOpenProfile: () => _openProfile(context),
+        onEdit: widget.onEdit,
+      );
+    }
+
+    Widget detector = GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onSecondaryTapDown: (details) {
-        MessageContextMenu.showForEvent(
-          context: context,
-          position: details.globalPosition,
-          event: widget.event,
-          room: widget.room,
-          timeline: widget.timeline,
-          onReply: _onReply ?? () {},
-          onForward: _onForward,
-          onThread: _onThread,
-          onOpenProfile: () => _openProfile(context),
-          onEdit: widget.onEdit,
-        );
-      },
-      onLongPressStart: (details) {
-        MessageContextMenu.showForEvent(
-          context: context,
-          position: details.globalPosition,
-          event: widget.event,
-          room: widget.room,
-          timeline: widget.timeline,
-          onReply: _onReply ?? () {},
-          onForward: _onForward,
-          onThread: _onThread,
-          onOpenProfile: () => _openProfile(context),
-          onEdit: widget.onEdit,
-        );
-      },
+      // A plain click parks the keyboard cursor on this row, so that a user
+      // who clicked to react can then reach the menu without reaching for the
+      // mouse again. `onTapDown` rather than `onTap` because a click on a
+      // link inside the message must still count.
+      onTapDown: (_) => widget.focusNode?.requestFocus(),
+      onSecondaryTapDown: (details) => openAt(details.globalPosition),
+      onLongPressStart: (details) => openAt(details.globalPosition),
       child: child,
+    );
+
+    final node = widget.focusNode;
+    if (node == null) return detector;
+
+    return Focus(
+      focusNode: node,
+      // Not a Tab stop, as documented on [focusNode].
+      skipTraversal: true,
+      canRequestFocus: true,
+      // Drives the focus ring. A separate channel from the jump highlight:
+      // the highlight is a timed fill and the ring is a state, and sharing
+      // one slot made the keyboard cursor look like a pointer was over the
+      // row.
+      onFocusChange: (hasFocus) {
+        if (mounted && _hasKeyboardFocus != hasFocus) {
+          setState(() => _hasKeyboardFocus = hasFocus);
+        }
+      },
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        final isMenuKey = event.logicalKey == LogicalKeyboardKey.contextMenu ||
+            (event.logicalKey == LogicalKeyboardKey.f10 &&
+                HardwareKeyboard.instance.isShiftPressed);
+        if (!isMenuKey) return KeyEventResult.ignored;
+        // Anchored to the row rather than to a point, because a keyboard has
+        // no position and `Offset.zero` would put the menu in the corner.
+        openAt(_rowAnchor(context));
+        return KeyEventResult.handled;
+      },
+      child: detector,
     );
   }
 
-   @override
+  /// The top-left of this row in global coordinates, for menus opened without
+  /// a pointer.
+  ///
+  /// Falls back to the bottom-left of the row's own box when [itemKey] is
+  /// null or the row is not currently laid out, so a keyboard-opened menu is
+  /// never stranded at the screen origin.
+  Offset _rowAnchor(BuildContext context) {
+    final key = widget.itemKey;
+    final box = key?.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) return box.localToGlobal(Offset.zero);
+    final self = context.findRenderObject() as RenderBox?;
+    if (self != null && self.hasSize) {
+      return self.localToGlobal(Offset(self.size.width, self.size.height));
+    }
+    return Offset.zero;
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (_isRedacted) {
       return RedactedEvent(
@@ -496,9 +563,7 @@ class _TimelineItemState extends State<TimelineItem> {
             padding: const EdgeInsets.only(top: 2),
             child: DeliveryIndicator(
               status: _deliveryStatusFor(widget.event),
-              onRetry: widget.event.status.isError
-                  ? _onRetrySend
-                  : null,
+              onRetry: widget.event.status.isError ? _onRetrySend : null,
             ),
           ),
         if (widget.threadReplyCount > 0)
@@ -561,8 +626,8 @@ class _TimelineItemState extends State<TimelineItem> {
                     padding: EdgeInsets.only(top: t.spaceXs),
                     child: AvatarFromUriOrFallbackImage(
                       client: widget.room.client,
-                      avatarUri: widget.event.senderFromMemoryOrFallback
-                          .avatarUrl,
+                      avatarUri:
+                          widget.event.senderFromMemoryOrFallback.avatarUrl,
                       onTap: () => _openProfile(context),
                     ),
                   )
@@ -678,8 +743,8 @@ class _TimelineItemState extends State<TimelineItem> {
                         padding: EdgeInsets.only(top: t.spaceXs),
                         child: AvatarFromUriOrFallbackImage(
                           client: widget.room.client,
-                          avatarUri: widget.event.senderFromMemoryOrFallback
-                              .avatarUrl,
+                          avatarUri:
+                              widget.event.senderFromMemoryOrFallback.avatarUrl,
                           onTap: () => _openProfile(context),
                         ),
                       )
@@ -788,8 +853,7 @@ class _TimelineItemState extends State<TimelineItem> {
   // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    final chat =
-        MoonrelayThemeExtension.of(context).components.chat;
+    final chat = MoonrelayThemeExtension.of(context).components.chat;
 
     return IRCRow(
       sender: SizedBox(
@@ -900,7 +964,3 @@ class _ItemRenderKey {
         originServerTsMs,
       );
 }
-
-
-
-
