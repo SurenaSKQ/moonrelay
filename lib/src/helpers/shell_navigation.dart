@@ -93,8 +93,8 @@ void openRoom(BuildContext context, String roomId) {
   }
 }
 
-/// Opens [subPath] as a child of the room route, e.g. `settings`,
-/// `profile/roomDetails` or `thread/$eventId`.
+/// Opens [subPath] as a child of the room route, e.g. `settings` or
+/// `thread/$eventId`.
 ///
 /// [subPath] is a relative, already-encoded path; each is appended to the
 /// room's own path by the router.

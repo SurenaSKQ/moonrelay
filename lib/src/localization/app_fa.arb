@@ -603,8 +603,6 @@
   "spaces": "فضاها",
   "friends": "دوستان",
   "hidden": "مخفی",
-  "rightSidebar": "نوار کناری راست (آزمایشی)",
-  "showOrHideRightSidebar": "نمایش یا مخفی کردن نوار کناری راست (در صفحه‌نمایش‌های متوسط مخفی می‌شود)",
   "none": "هیچ",
   "roomInfo": "اطلاعات اتاق",
   "members": "اعضا",
@@ -2774,10 +2772,6 @@
   "@shortcutToggleLeftSidebar": {
     "description": "Description of the Ctrl+Shift+M shortcut in the keyboard shortcuts overlay."
   },
-  "shortcutToggleRightSidebar": "تغییر نوار کناری راست",
-  "@shortcutToggleRightSidebar": {
-    "description": "Description of the Ctrl+Shift+R shortcut in the keyboard shortcuts overlay."
-  },
   "shortcutBold": "ضخیم کردن انتخاب",
   "@shortcutBold": {
     "description": "Description of the Ctrl+B shortcut in the keyboard shortcuts overlay."
@@ -2869,10 +2863,6 @@
   "commandPaletteOpenSecurity": "رمزنگاری و امنیت",
   "@commandPaletteOpenSecurity": {
     "description": "Command palette action that opens the encryption & security hub page."
-  },
-  "commandPaletteToggleRightSidebar": "تغییر وضعیت نوار کناری راست",
-  "@commandPaletteToggleRightSidebar": {
-    "description": "Command palette action that toggles the dashboard right sidebar."
   },
   "commandPaletteAddRoom": "افزودن اتاق",
   "@commandPaletteAddRoom": {

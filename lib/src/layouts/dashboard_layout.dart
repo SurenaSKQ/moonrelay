@@ -30,7 +30,7 @@ import 'dashboard_layout/dashboard_view.dart';
 /// same layout and a shell swap only re-renders the shell widget, not
 /// the entire tree.
 /// The actual UI is delegated to the stateless [DashboardView] so that
-/// the right sidebar receives room changes as direct props with no
+/// 
 /// indirection.
 class DashboardLayout extends StatefulWidget {
   /// The main content widget (typically the route's child).
@@ -61,10 +61,9 @@ class _DashboardLayoutState extends State<DashboardLayout> {
         // shell: the inner [LayoutBuilder] constraints shrink and grow when
         // the sidebars mount or unmount, and using them as the breakpoint
         // signal previously created a feedback loop where toggling the
-        // right sidebar could nudge the available width across the
-        // threshold and flip the shell on its own. Anchoring to the window
-        // width keeps the decision independent of which sidebars are
-        // currently mounted.
+        // opening a pane nudged the available width across the threshold and
+        // flipped the shell on its own. Anchoring to the window keeps the
+        // decision independent of what is mounted.
         final width = MediaQuery.sizeOf(context).width;
         final layoutSize = LayoutBreakpoints.sizeForWidth(width);
 

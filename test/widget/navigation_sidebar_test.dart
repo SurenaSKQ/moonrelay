@@ -30,6 +30,7 @@ import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/chat/room_pane/resize_handle.dart';
 import 'package:moonrelay/src/chat/room_pane/room_pane.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout/dashboard_view.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -499,18 +500,29 @@ void main() {
       expect(find.byType(ResizeHandle), findsNothing);
     });
 
-    testWidgets('and its visibility setting is no longer the shell\'s business',
-        (tester) async {
-      // `rightSidebarVisible` used to gate a pane in this row. Nothing here reads
-      // it any more: opening a pane is a per-room decision made by RoomPage,
-      // and the setting now only carries the persisted tab choice.
+    testWidgets('and choosing a tab does not mount one', (tester) async {
+      // `setRoomPaneTab` used to flip a visibility flag in the same call, which
+      // made "which tab" and "is it open" inseparable and put the flag in the
+      // dashboard's row. Activation is contextual now, so writing the preference
+      // is all it does.
       final settings = createTestSettingsController();
-      await settings.setRightSidebarVisible(false);
+      await settings.setRoomPaneTab(RoomPaneTab.pinned);
       await tester.pumpWidget(
         wrapDashboard(settings, dashboardView(settings: settings)),
       );
       await tester.pump();
-      expect(tester.takeException(), isNull);
+
+      expect(settings.roomPaneTab, RoomPaneTab.pinned);
+      expect(find.byType(RoomPane), findsNothing);
+    });
+
+    testWidgets('and search is never a restorable tab', (tester) async {
+      // It is a task in progress, not a preference. Writing it anywhere would
+      // reopen every room with an abandoned query in it.
+      final settings = createTestSettingsController();
+      await settings.setRoomPaneTab(RoomPaneTab.search);
+
+      expect(settings.roomPaneTab, RoomPaneTab.none);
     });
   });
 

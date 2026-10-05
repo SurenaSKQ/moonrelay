@@ -23,11 +23,10 @@ import 'package:matrix/matrix.dart';
 /// Process-wide fan-out for [Client.onRoomState] events.
 ///
 /// Without this, every widget that needs to react to room state (the
-/// right sidebar's `SidebarRoomInfo`, the members list, the
-/// encryption badge, etc.) subscribes its own listener and filters
+/// room pane's info and members tabs, the /// encryption badge, etc.) subscribes its own listener and filters
 /// client-side for the relevant room. For a 200-room account every
 /// state event traverses every listener: measurable wasted work for
-/// the kind of high-frequency events the right sidebar cares about
+/// the kind of high-frequency events the room pane cares about
 /// (display name, topic, join rules).
 ///
 /// [RoomStateBus] exposes per-room [ValueListenable]s that consumers

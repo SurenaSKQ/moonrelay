@@ -93,9 +93,6 @@ class LayoutBreakpoints {
   /// setting that makes a truncated name longer.
   static const double defaultLeftSidebarWidth = 360;
 
-  /// Default width of the right sidebar.
-  static const double defaultRightSidebarWidth = 280;
-
   /// Maximum width allowed for any pinned pane.
   static const double maxSidebarWidth = 600;
 
@@ -151,7 +148,7 @@ class LayoutBreakpoints {
 
   /// Clamps a sidebar's requested [requestedWidth] against the given [viewportWidth],
   /// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
-  /// by sibling panes (e.g. the right sidebar on the far right).
+  /// by sibling panes (e.g. the room pane on the far right).
   ///
   /// The result is always between [minSidebarWidth] and [maxSidebarWidth].
   /// When the viewport cannot accommodate everything, the function returns

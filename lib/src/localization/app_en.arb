@@ -721,8 +721,6 @@
   "you": "You",
   "search": "Search",
   "hidden": "Hidden",
-  "rightSidebar": "Right sidebar (experimental)",
-  "showOrHideRightSidebar": "Show or hide the right sidebar (hidden on medium screens)",
   "none": "None",
   "roomInfo": "Room Info",
   "members": "Members",
@@ -3013,10 +3011,6 @@
   "@shortcutToggleLeftSidebar": {
     "description": "Description of the Ctrl+Shift+M shortcut in the keyboard shortcuts overlay."
   },
-  "shortcutToggleRightSidebar": "Toggle the right sidebar",
-  "@shortcutToggleRightSidebar": {
-    "description": "Description of the Ctrl+Shift+R shortcut in the keyboard shortcuts overlay."
-  },
   "shortcutBold": "Bold selection",
   "@shortcutBold": {
     "description": "Description of the Ctrl+B shortcut in the keyboard shortcuts overlay."
@@ -3110,10 +3104,6 @@
   "commandPaletteOpenSecurity": "Encryption & Security",
   "@commandPaletteOpenSecurity": {
     "description": "Command palette action that opens the encryption & security hub page."
-  },
-  "commandPaletteToggleRightSidebar": "Toggle Right Sidebar",
-  "@commandPaletteToggleRightSidebar": {
-    "description": "Command palette action that toggles the dashboard right sidebar."
   },
   "commandPaletteAddRoom": "Add a Room",
   "@commandPaletteAddRoom": {

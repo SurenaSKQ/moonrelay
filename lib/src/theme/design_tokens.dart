@@ -170,7 +170,7 @@ class MoonrelayDesignTokens {
   /// reader can hold, and every extra one is a place for the panes to drift
   /// apart again.
   ///
-  /// The right sidebar's tab switcher was the one bar I expected to have to
+  /// The room pane's tab switcher was the one bar I expected to have to
   /// exempt, because it stacks an icon over a label and I assumed that meant
   /// two lines of height. It does not: its content measures 48 (an 18px icon,
   /// a 2px gap, a 10px label at 1.2 line height, and 8px of padding) which fits

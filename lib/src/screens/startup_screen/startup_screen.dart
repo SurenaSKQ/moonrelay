@@ -77,7 +77,7 @@ class StartupScreen extends StatelessWidget {
                   SizedBox(
                     width: 400,
                     child: SingleChildScrollView(
-                      child: _buildRightPane(
+                      child: _buildFormColumn(
                         context,
                         colors,
                         l10n,
@@ -103,7 +103,7 @@ class StartupScreen extends StatelessWidget {
                 children: [
                   _buildBranding(context, colors, l10n),
                   const SizedBox(height: 48),
-                  _buildRightPane(context, colors, l10n),
+                  _buildFormColumn(context, colors, l10n),
                   const Spacer(),
                   const SizedBox(height: 32),
                   _buildFooter(context, colors, l10n, settings),
@@ -236,9 +236,9 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  // -- Right pane -----------------------------------------------------------
+  // -- Form column -------------------------------------------------------------
 
-  Widget _buildRightPane(
+  Widget _buildFormColumn(
     BuildContext context,
     ColorScheme colors,
     AppLocalizations l10n,

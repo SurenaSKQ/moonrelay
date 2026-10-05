@@ -58,10 +58,10 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
         keys: const ['Ctrl', 'Shift', 'M'],
         description: loc.shortcutToggleLeftSidebar,
       ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'Shift', 'R'],
-        description: loc.shortcutToggleRightSidebar,
-      ),
+      // Ctrl+Shift+R was listed here as a sidebar toggle and was never bound
+      // to anything. Gone rather than rebound: the pane belongs to one room
+      // and is opened from that room's header, so a global shortcut would
+      // have had to guess which room.
       _ShortcutEntry(
         keys: const ['Ctrl', 'B'],
         description: loc.shortcutBold,

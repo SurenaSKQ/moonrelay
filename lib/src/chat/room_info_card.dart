@@ -34,10 +34,8 @@ import 'package:provider/provider.dart';
 /// without requiring a manual rebuild. When the topic is missing or fails to
 /// load a friendly placeholder is shown instead.
 ///
-/// Tap behaviour depends on the right-sidebar configuration:
-/// - If the right sidebar is enabled and set to "Room Info"**, tapping
-///   opens the sidebar (or does nothing if already open).
-/// - Otherwise, tapping navigates to the full [RoomInformations] page.
+/// Tapping the name opens the info tab, or the pane as a bottom sheet on the
+/// single-pane shell.
 class ChatRoomHeader extends StatefulWidget {
   const ChatRoomHeader({
     super.key,
@@ -108,13 +106,15 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         (widget.room.summary.mJoinedMemberCount ?? 0);
   }
 
-  /// React to a tap on the room header.
+  /// Opens the info tab, or the pane as a bottom sheet on the single-pane
+  /// shell.
   ///
-  /// On the dashboard the right sidebar is the room's detail surface, so if
-  /// it is visible and already on room info there is nothing to open. In the
-  /// Tapping the room name opens the info tab.
-  ///
-  /// It used to branch three ways: open the sheet on mobile, no-op when the
+  /// It used to branch three ways and consult a visibility flag: open the sheet
+  /// on mobile, do nothing when the dashboard's sidebar was already on room
+  /// info, and otherwise navigate to the full room-information page. That page
+  /// is gone and so is the flag, so there is one way in and no state to keep in
+  /// step with anything.
+  ///  /// It used to branch three ways: open the sheet on mobile, no-op when the
   /// dashboard's sidebar was already on room info, and otherwise navigate to
   /// the full page. With the pane owned by the room page, the middle branch is a
   /// statement about a pane that may not be mounted at all, so it is gone; the

@@ -76,11 +76,16 @@ class PaletteSources {
 
   /// Actions with no page of their own: things that toggle rather than open.
   ///
-  /// Everything that *is* a page comes from [pages] instead. Keeping the two
-  /// lists apart is the point: a search that offers "Toggle Right Sidebar"
-  /// among the pages is offering an action shaped like a destination.
-  List<PaletteResult> actions(AppLocalizations l10n) =>
-      <PaletteResult>[_toggleSidebar(l10n)];
+  /// Empty, and that is the correct shape rather than a gap. It held one entry,
+  /// which toggled a visibility flag the dashboard consulted before mounting a
+  /// pane. The pane belongs to a room now and opens from the room it describes,
+  /// so there is no global flag and therefore no command that could toggle one.
+  /// The room header's pane button is the whole interface.
+  ///
+  /// The method stays because the palette's *shape* still distinguishes "do a
+  /// thing here" from "go somewhere else", and a future command that toggles
+  /// something outside the router belongs here rather than in the page list.
+  List<PaletteResult> actions(AppLocalizations l10n) => const <PaletteResult>[];
 
   /// Every hub page, derived from the hub's own navigation.
   ///
@@ -155,28 +160,6 @@ class PaletteSources {
         HubRouteKeys.about => LucideIcons.info,
         _ => LucideIcons.circle,
       };
-
-  /// The one action that is not a page.
-  ///
-  /// The other seven used to be here, and five of them were things this module
-  /// can now derive, which is how "Add a Room" survived the route it pointed at
-  /// being deleted.
-  PaletteResult _toggleSidebar(AppLocalizations l10n) => PaletteResult(
-        source: PaletteSource.action,
-        title: l10n.commandPaletteToggleRightSidebar,
-        icon: LucideIcons.panelRight,
-        keywords: <String>[
-          l10n.commandPaletteToggleRightSidebar,
-          'sidebar',
-          'panel',
-          'pane',
-        ],
-        run: (BuildContext context) {
-          final SettingsController? settings = paletteSettingsOrNull(context);
-          if (settings == null) return;
-          settings.setRightSidebarVisible(!settings.rightSidebarVisible);
-        },
-      );
 }
 
 /// Converts user-directory hits into results.
@@ -204,13 +187,7 @@ List<PaletteResult> paletteMessageResults(List<MessageSearchResult> messages) =>
           title: _oneLine(message.event.body),
           subtitle: message.room.getLocalizedDisplayname(),
           icon: LucideIcons.messageSquare,
-          // The room id and the sender are both worth matching: a message is
-          // often found by who sent it rather than by what it said, and the
-          // subtitle is the only place the sender's name appears.
-          keywords: <String>[
-            message.room.id,
-            message.event.senderFromMemoryOrFallback.displayName ?? '',
-          ].where((String value) => value.isNotEmpty).toList(growable: false),
+          keywords: <String>[message.room.id],
           run: (BuildContext context) {
             RecentActivity.instance.recordRoom(message.room.id);
             openRoom(context, message.room.id);
@@ -226,7 +203,7 @@ List<PaletteResult> paletteMessageResults(List<MessageSearchResult> messages) =>
 /// response. A chunk with no `room_type` is a room, never a space.
 ///
 /// Every one of these navigates to the preview route rather than the room
-/// route, because the user is not in them. `/main/rooms/:roomid` goes through
+/// route, because the user is not in them. The room route goes through
 /// `RoomResolver`, which looks the room up among joined rooms and would spin
 /// forever on a room that is not joined.
 List<PaletteResult> paletteDirectoryResults(
@@ -259,12 +236,12 @@ List<PaletteResult> paletteDirectoryResults(
           ),
     ];
 
-/// The message body on one line, for a row that is 48 pixels tall.
+/// The message body on one line, for a row that is one bar tall.
 ///
 /// Truncating here rather than in the widget keeps the text the user matched
-/// against the text they can see. A row that renders an ellipsis while
-/// matching against the full body is a palette that finds a message and then
-/// shows a fragment that does not contain what was typed.
+/// against the text they can see. A row that renders an ellipsis while matching
+/// against the full body is a palette that finds a message and then shows a
+/// fragment that does not contain what was typed.
 String _oneLine(String body) {
   final String flat = body.replaceAll(RegExp(r'\s+'), ' ').trim();
   return flat.length <= 140 ? flat : '${flat.substring(0, 139)}…';

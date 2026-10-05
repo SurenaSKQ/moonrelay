@@ -141,7 +141,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
 
   void _onPaneDrag(double delta) {
     final double current = _paneWidth.value ??
-        context.read<SettingsController>().rightSidebarWidth;
+        context.read<SettingsController>().roomPaneWidth;
     _paneWidth.value = current - delta;
   }
 
@@ -149,7 +149,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
     final double? width = _paneWidth.value;
     if (width == null) return;
     _paneWidth.value = null;
-    unawaited(context.read<SettingsController>().setRightSidebarWidth(width));
+    unawaited(context.read<SettingsController>().setRoomPaneWidth(width));
   }
 
   void _showPaneSheet() {
@@ -343,7 +343,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
               valueListenable: _paneWidth,
               builder: (BuildContext context, double? drag, _) {
                 final double width = drag ??
-                    context.read<SettingsController>().rightSidebarWidth;
+                    context.read<SettingsController>().roomPaneWidth;
                 return SizedBox(
                   width: width.clamp(
                     LayoutBreakpoints.minSidebarWidth,

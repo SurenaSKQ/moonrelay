@@ -25,7 +25,6 @@ import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
 import 'package:moonrelay/src/screens/login_page/login_page.dart';
 import 'package:moonrelay/src/screens/explore/explore_page.dart';
-import 'package:moonrelay/src/screens/room_details/room_details_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
 import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
 import 'package:moonrelay/src/screens/space_home_page/space_home_page.dart';
@@ -203,17 +202,6 @@ class MoonRouter {
                         userId: _param(state, 'userid'),
                       ),
                       routes: [
-                        // IMPORTANT: literal paths must come before
-                        // parameterized ones so GoRouter matches them
-                        // first (e.g. "roomDetails" must precede :userid).
-                        GoRoute(
-                          path: 'roomDetails',
-                          builder: (context, state) {
-                            final room = _roomFromState(context, state);
-                            if (room == null) return _notFound(context);
-                            return RoomInformations(room: room);
-                          },
-                        ),
                         GoRoute(
                           path: ':userid',
                           redirect: (context, state) {

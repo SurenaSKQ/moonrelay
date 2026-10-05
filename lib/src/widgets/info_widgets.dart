@@ -155,9 +155,7 @@ class InfoPanel extends StatelessWidget {
     final theme = MoonrelayThemeExtension.of(context);
     final t = theme.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final body = children
-        .whereType<Widget>()
-        .toList(growable: false);
+    final body = children.whereType<Widget>().toList(growable: false);
 
     Widget column = DecoratedBox(
       decoration: BoxDecoration(
@@ -381,17 +379,26 @@ class InfoPanelRow extends StatelessWidget {
           labelColumn,
           if (value_ != null) ...[
             SizedBox(width: t.spaceMd),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
-              child: Text(
-                value_,
-                textAlign: TextAlign.end,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: muted,
-                  fontFamily: valueFontFamily,
+            // A share of the row's own width rather than a fixed 220.
+            //
+            // `ConstrainedBox` alone is a ceiling, not a bound: in a 280px pane
+            // the ceiling was not the constraint and the value simply took what
+            // the label left it, which was negative in the worst case. Forty
+            // percent is what a right-aligned fact column wants beside a label,
+            // and it scales down to the room pane as well as across a page.
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220),
+                child: Text(
+                  value_,
+                  textAlign: TextAlign.end,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: muted,
+                    fontFamily: valueFontFamily,
+                  ),
                 ),
               ),
             ),
@@ -404,8 +411,7 @@ class InfoPanelRow extends StatelessWidget {
             Icon(
               LucideIcons.chevronRight,
               size: t.iconSizeMedium,
-              color: scheme.onSurfaceVariant
-                  .withValues(alpha: t.opacityMuted),
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityMuted),
             ),
           ],
         ],

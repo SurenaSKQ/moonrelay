@@ -34,8 +34,7 @@ class SettingsSnapshot {
   final DisplayType displayType;
   final LayoutMode layoutMode;
   final double leftSidebarWidth;
-  final bool rightSidebarVisible;
-  final double rightSidebarWidth;
+  final double roomPaneWidth;
   final RoomPaneTab roomPaneTab;
 
   /// Whether the OS draws the window title bar (true) or Moonrelay draws
@@ -114,8 +113,7 @@ class SettingsSnapshot {
     this.displayType = DisplayType.modern,
     this.layoutMode = LayoutMode.auto,
     this.leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth,
-    this.rightSidebarVisible = true,
-    this.rightSidebarWidth = 280.0,
+    this.roomPaneWidth = 280.0,
     this.roomPaneTab = RoomPaneTab.info,
     this.showStateEvents = true,
     this.showTrayIcon = true,
@@ -191,12 +189,14 @@ class SettingsService {
 
   // Layout keys
   static const _leftSidebarWidthKey = 'left_sidebar_width';
-  static const _rightSidebarVisibleKey = 'right_sidebar_visible';
-  static const _rightSidebarWidthKey = 'right_sidebar_width';
 
-  /// The old key name. The value is a RoomPaneTab index and the key string is
-  /// still the old one on purpose: renaming it would silently reset everyone's
-  /// chosen tab, which is a worse outcome than an inelegant key.
+  /// The old key name, kept on purpose.
+  ///
+  /// The pane's width and tab are preferences about a room, but the strings on
+  /// disk are from when the pane belonged to the dashboard. Renaming them would
+  /// silently reset everyone's width and chosen tab, which is a worse outcome
+  /// than an inelegant key.
+  static const _roomPaneWidthKey = 'right_sidebar_width';
   static const _roomPaneTabKey = 'right_pane_choice';
   static const _showStateEventsKey = 'show_state_events';
   static const _showTrayIconKey = 'show_tray_icon';
@@ -349,8 +349,7 @@ class SettingsService {
       layoutMode: _readLayoutMode(prefs),
       leftSidebarWidth: prefs.getDouble(_leftSidebarWidthKey) ??
           LayoutBreakpoints.defaultLeftSidebarWidth,
-      rightSidebarVisible: prefs.getBool(_rightSidebarVisibleKey) ?? true,
-      rightSidebarWidth: prefs.getDouble(_rightSidebarWidthKey) ?? 280.0,
+      roomPaneWidth: prefs.getDouble(_roomPaneWidthKey) ?? 280.0,
       roomPaneTab: _readRoomPaneTab(prefs),
       showStateEvents: prefs.getBool(_showStateEventsKey) ?? true,
       showTrayIcon: prefs.getBool(_showTrayIconKey) ?? true,
@@ -496,12 +495,18 @@ class SettingsService {
   static LayoutMode _readLayoutMode(SharedPreferences prefs) =>
       _readEnum(prefs, _layoutModeKey, LayoutMode.values, LayoutMode.auto);
 
+  /// Reads the stored tab, collapsing the transient one.
+  ///
+  /// `search` was appended last so indices 0 to 4 still mean what they meant
+  /// when the pane belonged to the dashboard. But if a `search` ever reached
+  /// storage it would come back as an open search on every launch, and a search
+  /// is a task in progress rather than a preference.
   static RoomPaneTab _readRoomPaneTab(SharedPreferences prefs) => _readEnum(
         prefs,
         _roomPaneTabKey,
         RoomPaneTab.values,
         RoomPaneTab.info,
-      );
+      ).restorableAs;
 
   static Set<String> _readCommaSet(SharedPreferences prefs, String key) {
     final raw = prefs.getString(key);
@@ -573,24 +578,11 @@ class SettingsService {
     await prefs.setDouble(_leftSidebarWidthKey, width);
   }
 
-  Future<bool> rightSidebarVisible() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_rightSidebarVisibleKey) ?? true;
-  }
-
-  Future<void> updateRightSidebarVisible(bool visible) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_rightSidebarVisibleKey, visible);
-  }
-
   Future<RoomPaneTab> roomPaneTab() async {
     final prefs = await SharedPreferences.getInstance();
-    return _readEnum(
-      prefs,
-      _roomPaneTabKey,
-      RoomPaneTab.values,
-      RoomPaneTab.info,
-    );
+    // Through `_readRoomPaneTab`, not `_readEnum` directly, so the transient
+    // `search` collapses to `none` here as well as in the batch snapshot.
+    return _readRoomPaneTab(prefs);
   }
 
   Future<void> updateRoomPaneTab(RoomPaneTab choice) async {
@@ -726,14 +718,14 @@ class SettingsService {
     await prefs.setString(_spaceGroupsKey, jsonEncode(encoded));
   }
 
-  Future<double> rightSidebarWidth() async {
+  Future<double> roomPaneWidth() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_rightSidebarWidthKey) ?? 280.0;
+    return prefs.getDouble(_roomPaneWidthKey) ?? 280.0;
   }
 
-  Future<void> updateRightSidebarWidth(double width) async {
+  Future<void> updateRoomPaneWidth(double width) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_rightSidebarWidthKey, width);
+    await prefs.setDouble(_roomPaneWidthKey, width);
   }
 
   // -- Font size & UI scale ------------------------------------------

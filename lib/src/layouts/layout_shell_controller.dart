@@ -113,7 +113,7 @@ class LayoutShellController {
   ///
   /// The single-pane shell is excluded as well as the compact one: it is not
   /// "not quite wide enough", it is a different shell with its own
-  /// navigation, and it has no right sidebar to drop.
+  /// navigation, and it has no room pane beside the conversation to drop.
   bool get fitsTwoPanes => !isMobile && isExpanded;
 
   /// True once [resolve] has committed a width-driven decision.  The

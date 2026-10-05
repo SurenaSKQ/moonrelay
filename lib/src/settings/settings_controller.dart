@@ -40,8 +40,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Layout state
   LayoutMode _layoutMode = LayoutMode.auto;
   double _leftSidebarWidth = LayoutBreakpoints.defaultLeftSidebarWidth;
-  bool _rightSidebarVisible = true;
-  double _rightSidebarWidth = 280.0;
+  double _roomPaneWidth = 280.0;
   RoomPaneTab _roomPaneTab = RoomPaneTab.info;
 
   bool _showStateEvents = true;
@@ -139,8 +138,7 @@ class SettingsController with ChangeNotifier, WindowListener {
   // Layout getters
   LayoutMode get layoutMode => _layoutMode;
   double get leftSidebarWidth => _leftSidebarWidth;
-  bool get rightSidebarVisible => _rightSidebarVisible;
-  double get rightSidebarWidth => _rightSidebarWidth;
+  double get roomPaneWidth => _roomPaneWidth;
   RoomPaneTab get roomPaneTab => _roomPaneTab;
   bool get showStateEvents => _showStateEvents;
   bool get showTrayIcon => _showTrayIcon;
@@ -234,8 +232,7 @@ class SettingsController with ChangeNotifier, WindowListener {
     // Layout settings
     _layoutMode = snapshot.layoutMode;
     _leftSidebarWidth = snapshot.leftSidebarWidth;
-    _rightSidebarVisible = snapshot.rightSidebarVisible;
-    _rightSidebarWidth = snapshot.rightSidebarWidth;
+    _roomPaneWidth = snapshot.roomPaneWidth;
     _roomPaneTab = snapshot.roomPaneTab;
     _showStateEvents = snapshot.showStateEvents;
     _showTrayIcon = snapshot.showTrayIcon;
@@ -354,41 +351,35 @@ class SettingsController with ChangeNotifier, WindowListener {
     }
   }
 
-  Future<void> setRightSidebarVisible(bool visible) async {
-    if (visible != _rightSidebarVisible) {
-      _rightSidebarVisible = visible;
-      notifyListeners();
-      await _settingsService.updateRightSidebarVisible(visible);
-    }
-  }
-
-  Future<void> setRightSidebarWidth(double width) async {
+  /// Sets the room pane's width, clamped to the range the drag handle allows.
+  ///
+  /// A preference rather than a piece of activation config: the pane opens
+  /// from the room it belongs to, but how wide someone likes it beside the
+  /// conversation is theirs to keep.
+  Future<void> setRoomPaneWidth(double width) async {
     width = width.clamp(200.0, 500.0);
-    if (width != _rightSidebarWidth) {
-      _rightSidebarWidth = width;
+    if (width != _roomPaneWidth) {
+      _roomPaneWidth = width;
       notifyListeners();
-      await _settingsService.updateRightSidebarWidth(width);
+      await _settingsService.updateRoomPaneWidth(width);
     }
   }
 
-  Future<void> setRoomPaneTab(RoomPaneTab choice) async {
-    if (choice == _roomPaneTab) return;
-
-    _roomPaneTab = choice;
-    if (choice != RoomPaneTab.none && !_rightSidebarVisible) {
-      _rightSidebarVisible = true;
-      await _settingsService.updateRightSidebarVisible(true);
-    }
-    if (choice == RoomPaneTab.none && _rightSidebarVisible) {
-      _rightSidebarVisible = false;
-      await _settingsService.updateRightSidebarVisible(false);
-    }
+  /// Sets which tab the room pane opens on.
+  ///
+  /// This does not open the pane. Whether it is open is `RoomPage`'s state;
+  /// this is which tab it opens on.
+  ///
+  /// It used to also flip a visibility flag, which made the two inseparable:
+  /// choosing a tab turned the pane on, and choosing `none` turned it off, in
+  /// one call, from two different places. Activation is contextual now, so
+  /// there is no flag to keep in step with anything.
+  Future<void> setRoomPaneTab(RoomPaneTab tab) async {
+    final RoomPaneTab restorable = tab.restorableAs;
+    if (restorable == _roomPaneTab) return;
+    _roomPaneTab = restorable;
     notifyListeners();
-    await _settingsService.updateRoomPaneTab(choice);
-  }
-
-  Future<void> toggleRightSidebar() async {
-    await setRightSidebarVisible(!_rightSidebarVisible);
+    await _settingsService.updateRoomPaneTab(restorable);
   }
 
   /// Collapses or expands the navigation sidebar section [id].

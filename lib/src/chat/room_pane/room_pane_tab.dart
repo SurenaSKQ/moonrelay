@@ -51,17 +51,30 @@ enum RoomPaneTab {
   /// Full-text search within this room.
   search;
 
-  /// The tabs the user can pick, in the order the strip shows them.
+  /// The tabs the pane's own strip shows, in order.
   ///
   /// [none] is absent because "close the pane" is what the close button and the
-  /// room header's search toggle already do; offering it as a fifth target
-  /// would be a tab you cannot leave by tapping the tab.
+  /// room header's pane button already do; offering it as a target would be a
+  /// tab you cannot leave by tapping the tab.
   static const List<RoomPaneTab> selectable = <RoomPaneTab>[
     info,
     members,
     threads,
     pinned,
     search,
+  ];
+
+  /// The tabs worth offering as "which one does this room open on".
+  ///
+  /// [selectable] minus [search], and the difference is the point. A strip is a
+  /// navigation control, so everything reachable belongs in it. A preference is a
+  /// standing default, and a search is not one: storing it would reopen every
+  /// room with the last query still typed in.
+  static const List<RoomPaneTab> restorableOptions = <RoomPaneTab>[
+    info,
+    members,
+    threads,
+    pinned,
   ];
 
   /// Whether this value may be written to preferences.

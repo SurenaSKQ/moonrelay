@@ -101,62 +101,48 @@ class HubLayoutSettings extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Right sidebar
+              // Room pane
               HubSettingsSection(
-                title: 'Right sidebar (experimental)',
+                title: 'Room pane',
                 children: [
-                  SwitchListTile(
-                    title: const Text('Visible'),
-                    subtitle: const Text(
-                      'Show or hide the right sidebar (hidden on medium screens)',
+                  ListTile(
+                    title: Text(l10n.content),
+                    subtitle: const Text('Which tab the room pane opens on'),
+                    leading: const Icon(LucideIcons.layoutList),
+                    trailing: DropdownButton<RoomPaneTab>(
+                      value: controller.roomPaneTab,
+                      onChanged: (RoomPaneTab? tab) {
+                        if (tab != null) controller.setRoomPaneTab(tab);
+                      },
+                      // `selectable`, not `values`: `search` is not a
+                      // preference, it is a task, and offering it here would
+                      // open every room with an empty query in it.
+                      items: RoomPaneTab.restorableOptions
+                          .map(
+                            (RoomPaneTab tab) => DropdownMenuItem(
+                              value: tab,
+                              child: Text(localizedRoomPaneTab(tab, l10n)),
+                            ),
+                          )
+                          .toList(),
                     ),
-                    value: controller.rightSidebarVisible,
-                    onChanged: (v) => controller.setRightSidebarVisible(v),
-                    secondary: const Icon(LucideIcons.panelRight),
                   ),
-                  if (controller.rightSidebarVisible) ...[
-                    ListTile(
-                      title: Text(l10n.content),
-                      subtitle: Text(
-                        localizedRoomPaneTab(controller.roomPaneTab, l10n),
-                      ),
-                      leading: const Icon(LucideIcons.layoutList),
-                      trailing: DropdownButton<RoomPaneTab>(
-                        value: controller.roomPaneTab,
-                        onChanged: (v) {
-                          if (v != null) {
-                            controller.setRoomPaneTab(v);
-                          }
-                        },
-                        items: RoomPaneTab.values
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(localizedRoomPaneTab(c, l10n)),
-                              ),
-                            )
-                            .toList(),
+                  ListTile(
+                    title: Text(l10n.widthLabel),
+                    subtitle: Text('${controller.roomPaneWidth.round()} px'),
+                    leading: const Icon(LucideIcons.moveHorizontal),
+                    trailing: SizedBox(
+                      width: 160,
+                      child: Slider(
+                        value: controller.roomPaneWidth,
+                        min: 200,
+                        max: 500,
+                        divisions: 12,
+                        label: '${controller.roomPaneWidth.round()}',
+                        onChanged: controller.setRoomPaneWidth,
                       ),
                     ),
-                    ListTile(
-                      title: Text(l10n.widthLabel),
-                      subtitle: Text(
-                        '${controller.rightSidebarWidth.round()} px',
-                      ),
-                      leading: const Icon(LucideIcons.moveHorizontal),
-                      trailing: SizedBox(
-                        width: 160,
-                        child: Slider(
-                          value: controller.rightSidebarWidth,
-                          min: 200,
-                          max: 500,
-                          divisions: 12,
-                          label: '${controller.rightSidebarWidth.round()}',
-                          onChanged: (v) => controller.setRightSidebarWidth(v),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ],

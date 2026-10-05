@@ -17,12 +17,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:matrix/matrix.dart';
 
-/// A [ChangeNotifier] that tracks the currently-active room so that
-/// sibling widgets such as the right sidebar can render room-specific
-/// content without having to parse route state.
+/// A [ChangeNotifier] that tracks the currently-active room, so that widgets
+/// outside the room's own subtree can render room-specific content without
+/// having to parse route state.
 ///
-/// [RoomPage] sets this on mount; [DashboardLayout] reads it to build
-/// the room-info and members sidebars.
+/// [RoomPage] sets this on mount. Its remaining readers are the room list's
+/// selected row, the home dashboard's recents, and the notification service
+/// deciding which room is already being read. The room's own pane stopped
+/// reading it when the pane moved inside RoomPage, which is what left it a
+/// global at all.
 class CurrentRoom extends ChangeNotifier {
   Room? _room;
 

@@ -111,7 +111,7 @@ void main() {
         (tester) async {
       // Stands in for every bar in the shell that is now `height: t.paneBarHeight`
       // with no wrapper: the navigation header, the room header, the hub's
-      // sub-page header, the mobile top bar, the right sidebar's switcher.
+      // sub-page header, the mobile top bar, the room pane's tab switcher.
       await tester.pumpWidget(
         MaterialApp(
           theme: testMoonrelayTheme(),
@@ -159,7 +159,7 @@ void main() {
       expect(header.height, bar);
     });
 
-    testWidgets('the right sidebar switcher fits without cropping',
+    testWidgets('the room pane switcher fits without cropping',
         (tester) async {
       // The one bar I expected to have to exempt, because it stacks an icon
       // over a label and I assumed stacking meant tall. Its content measures

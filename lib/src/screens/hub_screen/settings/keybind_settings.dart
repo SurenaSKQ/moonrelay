@@ -140,18 +140,10 @@ class HubKeybindSettings extends StatelessWidget {
                       cs: cs,
                     ),
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: t.spaceLg,
-                      vertical: t.spaceMd,
-                    ),
-                    child: _ShortcutRow(
-                      keys: ['Ctrl', 'Shift', 'R'],
-                      description: l10n.shortcutToggleRightSidebar,
-                      cs: cs,
-                    ),
-                  ),
+                  // Ctrl+Shift+R was listed here as a sidebar toggle and was
+                  // never bound to anything. Gone rather than rebound: the
+                  // pane belongs to one room and is opened from its header.
+                  // from that room's header.
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
                     padding: EdgeInsets.symmetric(

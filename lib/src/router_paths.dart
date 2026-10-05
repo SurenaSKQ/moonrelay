@@ -203,7 +203,7 @@ bool _matchesPattern(List<String> segments, List<String> pattern) {
 /// The length check is the load-bearing part. A prefix or
 /// parameter-presence test is what made the single-pane shell stack a
 /// second back arrow above the one `RoomSettingsPage`, `ThreadViewPage` and
-/// `RoomInformations` already render in their own `AppBar`: they are all
+/// The room sub-pages already render in their own `AppBar`: they are all
 /// children of the room route, so "does this location mention a roomid"
 /// was true for every one of them.
 bool isRoomChatSegments(List<String> segments) =>

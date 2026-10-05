@@ -61,7 +61,7 @@ class MobileLayout extends StatelessWidget {
   /// Matches the declared route pattern exactly rather than testing for
   /// the presence of a `roomid` parameter. The parameter test was true for
   /// every child of the room route too, so `RoomSettingsPage`,
-  /// `ThreadViewPage` and `RoomInformations` each got a second back arrow
+  /// `ThreadViewPage` and the room pages each got a second back arrow
   /// from the shell stacked above the one their own `AppBar` already
   /// renders, and `/main/room_preview/:roomid` was misread as a room.
   static bool isRoomRoute(BuildContext context) => isRoomChatLocation(context);
