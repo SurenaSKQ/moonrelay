@@ -115,6 +115,7 @@ flutter:
 
   assets:
     # Add assets from the images directory to the application.
+    - assets/brand/
     - assets/images/
     - assets/fonts/
     - assets/agpl-3.0.txt
