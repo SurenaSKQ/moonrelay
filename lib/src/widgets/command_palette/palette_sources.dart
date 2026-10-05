@@ -218,6 +218,47 @@ List<PaletteResult> paletteMessageResults(List<MessageSearchResult> messages) =>
         ),
     ];
 
+/// Converts public-rooms directory hits into results.
+///
+/// A space here is a room whose `room_type` is `m.space`, which is the same
+/// rule the Explore page uses and for the same reason: the public room
+/// directory has no room-type filter, so the distinction is made over the
+/// response. A chunk with no `room_type` is a room, never a space.
+///
+/// Every one of these navigates to the preview route rather than the room
+/// route, because the user is not in them. `/main/rooms/:roomid` goes through
+/// `RoomResolver`, which looks the room up among joined rooms and would spin
+/// forever on a room that is not joined.
+List<PaletteResult> paletteDirectoryResults(
+  List<PublishedRoomsChunk> chunks,
+  AppLocalizations l10n,
+) =>
+    <PaletteResult>[
+      for (final PublishedRoomsChunk chunk in chunks)
+        if (chunk.roomId.isNotEmpty)
+          PaletteResult(
+            source: chunk.roomType == 'm.space'
+                ? PaletteSource.space
+                : PaletteSource.room,
+            title: chunk.name ?? chunk.canonicalAlias ?? chunk.roomId,
+            subtitle: l10n.paletteDirectoryMembers(chunk.numJoinedMembers),
+            icon: chunk.roomType == 'm.space'
+                ? LucideIcons.boxes
+                : LucideIcons.globe,
+            // The alias and the topic are both searchable but neither is worth a
+            // second line. The topic in particular is the field a public room uses
+            // to describe itself, so it is frequently the only thing in the response
+            // that a user searching for a subject would match against.
+            keywords: <String>[
+              chunk.roomId,
+              if (chunk.canonicalAlias != null) chunk.canonicalAlias!,
+              if (chunk.topic != null) chunk.topic!,
+            ].where((String value) => value.isNotEmpty).toList(growable: false),
+            run: (BuildContext context) =>
+                context.go('/main/room_preview/${chunk.roomId}'),
+          ),
+    ];
+
 /// The message body on one line, for a row that is 48 pixels tall.
 ///
 /// Truncating here rather than in the widget keeps the text the user matched

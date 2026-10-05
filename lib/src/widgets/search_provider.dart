@@ -257,8 +257,7 @@ class SearchProvider {
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverFirstPage(
     String query, {
     int limit = 10,
-  }) =>
-      _searchHomeserver(query, limit: limit, since: null);
+  }) => _searchHomeserver(query, limit: limit, since: null);
 
   /// Public homeserver room directory search: continuation.
   Future<SearchPage<PublishedRoomsChunk>> searchHomeserverNextPage(
@@ -266,6 +265,31 @@ class SearchProvider {
     int limit = 10,
   }) =>
       _searchHomeserver(request.query ?? '', limit: limit, since: request.nextBatch);
+
+  /// The public room directory, as the palette asks for it.
+  ///
+  /// Unlike [searchHomeserverFirstPage] this lets a failure through instead of
+  /// returning an empty page. The palette has a real failure state to report
+  /// into, and a homeserver that rejects an unauthenticated public-rooms
+  /// request is a completely ordinary thing that must not read as "no public
+  /// rooms matched your query". The two entry points differ only in that, and
+  /// they are kept apart because the older one has callers that genuinely want
+  /// the forgiving behaviour.
+  Future<SearchPage<PublishedRoomsChunk>> searchDirectory(
+    String query, {
+    int limit = 10,
+  }) async {
+    if (query.isEmpty) return SearchPage<PublishedRoomsChunk>.empty();
+    final response = await client.queryPublicRooms(
+      filter: PublicRoomQueryFilter(genericSearchTerm: query),
+      limit: limit,
+    );
+    return SearchPage<PublishedRoomsChunk>(
+      items: response.chunk,
+      hasMore: (response.nextBatch ?? '').isNotEmpty,
+      nextBatch: response.nextBatch,
+    );
+  }
 
   Future<SearchPage<PublishedRoomsChunk>> _searchHomeserver(
     String query, {
@@ -285,6 +309,9 @@ class SearchProvider {
         nextBatch: response.nextBatch,
       );
     } catch (_) {
+      // Expected: a homeserver may refuse or not implement the public room
+      // directory, and this caller wants an empty list rather than an error.
+      // Callers that need to tell the two apart use [searchDirectory].
       return SearchPage<PublishedRoomsChunk>.empty();
     }
   }

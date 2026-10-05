@@ -88,6 +88,27 @@ enum PalettePhase {
 /// that has been turning for half a minute.
 const Duration kPaletteSourceTimeout = Duration(seconds: 6);
 
+/// How long the query has to settle before the public room directory is asked.
+///
+/// Three times [PaletteController.debounce], and the ratio is the whole
+/// design.
+///
+/// The directory is the one source that is not about anything the user is
+/// already looking at. Rooms, people, messages and pages are the user's own
+/// data, they answer from a local cache or from an index that is already
+/// warm, and they are what someone opening a palette wants in the first
+/// second. The public directory is an unauthenticated request to somebody
+/// else's server that can take a second on a bad connection and returns
+/// rooms the user has never heard of.
+///
+/// So it goes last, in its own section, and only once the typing has stopped.
+/// Someone typing "gen" and then "general" has asked one question twice and
+/// wants one answer; firing the directory twice for it would be two round trips
+/// to a stranger's homeserver for nothing. And someone who types one character
+/// to glance at a command should never pay for the directory at all, which is
+/// what a longer debounce buys over firing it behind the first keystroke.
+const Duration kPaletteDirectoryDelay = Duration(milliseconds: 450);
+
 /// Holds the palette's query, its filter, its ranked results and its cursor.
 class PaletteController extends ChangeNotifier {
   PaletteController({
@@ -111,6 +132,11 @@ class PaletteController extends ChangeNotifier {
 
   Timer? _debounceTimer;
 
+  /// The directory's own, longer timer. Separate from [_debounceTimer] because
+  /// a keystroke has to reset both, and merging them would mean the directory
+  /// either fires with the fast sources or not at all.
+  Timer? _directoryTimer;
+
   /// Increments per query. Every awaited continuation compares against it
   /// before writing.
   int _requestToken = 0;
@@ -132,6 +158,24 @@ class PaletteController extends ChangeNotifier {
   List<Profile> _userHits = <Profile>[];
   String? _nextBatch;
 
+  /// Public directory hits, kept out of [results] rather than ranked into them.
+  ///
+  /// A trailing section with its own header, appended after the ranked list.
+  /// The reason is that a public room and a command are not competitors: the
+  /// user did not type "gen" wondering whether it was a room they are in or a
+  /// room on the server, and interleaving the two into one ranking would put an
+  /// unfamiliar public room above a settings page they have opened before. A
+  /// boundary the eye can see beats a ranking the eye has to be told about.
+  List<PublishedRoomsChunk> _directoryHits = <PublishedRoomsChunk>[];
+
+  /// Whether the directory request has been made for the current query.
+  ///
+  /// The distinction that matters for the UI: not-yet-asked is silence,
+  /// asked-and-empty is "no public rooms matched", and asked-and-failed is the
+  /// footer. Collapsing the first into the second is how a palette ends up
+  /// confidently claiming a homeserver has nothing when it was never asked.
+  bool _directoryAsked = false;
+
   Map<PaletteSource, PaletteFailure> _failures =
       <PaletteSource, PaletteFailure>{};
 
@@ -141,8 +185,26 @@ class PaletteController extends ChangeNotifier {
   /// The prefix narrowing this query, or null when it is unfiltered.
   PaletteSource? get filter => _filter;
 
-  /// The rows to show, best first.
+  /// The rows to show, best first: the ranked list, then the directory section.
+  ///
+  /// They share one list so the keyboard cursor crosses the boundary, which is
+  /// the whole point of a unified surface. The boundary is exposed as
+  /// [directoryStart] so the view can draw a header at it.
   List<PaletteResult> get results => _results;
+
+  /// Where the trailing directory section begins, or -1 when there is none.
+  int get directoryStart => _directoryStart;
+  int _directoryStart = -1;
+
+  /// Whether the directory has been asked yet for this query.
+  ///
+  /// False means the palette is still waiting out [kPaletteDirectoryDelay], so
+  /// the view should say nothing at all rather than say "no public rooms".
+  bool get directoryAsked => _directoryAsked;
+
+  /// Whether a directory request is in flight.
+  bool get directoryBusy => _directoryBusy;
+  bool _directoryBusy = false;
 
   /// Sources that could not answer this query, and why.
   Map<PaletteSource, PaletteFailure> get failures => _failures;
@@ -199,6 +261,15 @@ class PaletteController extends ChangeNotifier {
     _publish(l10n);
 
     _debounceTimer?.cancel();
+    _directoryTimer?.cancel();
+
+    // A brand new query has not been asked of the directory yet. Clearing the
+    // hits is what stops the previous query's public rooms sitting under the
+    // new query's results while the delay runs out.
+    _directoryHits = <PublishedRoomsChunk>[];
+    _directoryAsked = false;
+    _directoryBusy = false;
+
     if (_query.isEmpty) {
       // Invalidate anything in flight. Bumping the token is what stops a
       // response for a query the user has already erased from landing in a
@@ -209,9 +280,14 @@ class PaletteController extends ChangeNotifier {
       _nextBatch = null;
       _failures = <PaletteSource, PaletteFailure>{};
       setBusy(false);
+      _publish(l10n);
       return;
     }
     _debounceTimer = Timer(debounce, () => _runRemote(l10n));
+    _directoryTimer = Timer(
+      kPaletteDirectoryDelay,
+      () => _runDirectory(l10n),
+    );
   }
 
   /// Toggles the prefix filter and hands back the text the field should show.
@@ -287,6 +363,22 @@ class PaletteController extends ChangeNotifier {
       );
     }
     sortPaletteResults(scored);
+
+    // The directory section is appended rather than ranked in, and is scored
+    // among itself so a room whose name is an exact match for the query sits at
+    // the top of its own section.
+    final List<PaletteResult> directory = <PaletteResult>[
+      for (final PaletteResult candidate
+          in paletteDirectoryResults(_directoryHits, l10n))
+        if (_filter == null || _filter!.matches(candidate.source))
+          if (scoreResult(candidate, _query) case final double score)
+            candidate.withScores(score: score, recency: 0),
+    ];
+    sortPaletteResults(directory);
+
+    final int boundary = scored.length;
+    scored.addAll(directory);
+    _directoryStart = directory.isEmpty ? -1 : boundary;
 
     if (_selectedIndex >= scored.length) {
       _selectedIndex = scored.isEmpty ? 0 : scored.length - 1;
@@ -392,6 +484,35 @@ class PaletteController extends ChangeNotifier {
     }
   }
 
+  /// Asks the homeserver's public room directory, once the typing has settled.
+  ///
+  /// Its own request token, separate from [_runRemote]'s. They are two different
+  /// questions asked at two different times, and sharing one token would mean
+  /// whichever finished second could discard the other's answer. The directory is
+  /// always second, so a shared token would make it lose every time.
+  Future<void> _runDirectory(AppLocalizations l10n) async {
+    final int token = ++_requestToken;
+    _directoryBusy = true;
+    notifyListeners();
+    try {
+      final SearchPage<PublishedRoomsChunk> page = await withTimeout(
+        () => _provider.searchDirectory(_query, limit: 10),
+        timeout: kPaletteSourceTimeout,
+      );
+      if (token != _requestToken) return;
+      _directoryHits = page.items;
+      _directoryAsked = true;
+      _directoryBusy = false;
+      _clear(PaletteSource.directory);
+      _publish(l10n);
+    } catch (error) {
+      if (token != _requestToken) return;
+      _directoryAsked = true;
+      _directoryBusy = false;
+      _record(PaletteSource.directory, error);
+    }
+  }
+
   void _record(PaletteSource source, Object error) {
     _failures = <PaletteSource, PaletteFailure>{
       ..._failures,
@@ -415,6 +536,7 @@ class PaletteController extends ChangeNotifier {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _directoryTimer?.cancel();
     super.dispose();
   }
 }

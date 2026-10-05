@@ -409,6 +409,13 @@ class _FilterRow extends StatelessWidget {
   final PaletteSource? active;
   final void Function(PaletteSource) onToggle;
 
+  /// The filters worth offering as chips.
+  ///
+  /// There is no chip for the public directory, because it has no prefix of
+  /// its own and does not need one: its rows carry [PaletteSource.room] and
+  /// [PaletteSource.space], so the rooms chip already narrows to it. A fifth
+  /// chip would be a second control for a question the first one already
+  /// answers.
   static const List<PaletteSource> _offered = <PaletteSource>[
     PaletteSource.room,
     PaletteSource.user,
@@ -542,25 +549,139 @@ class _Results extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     final List<PaletteResult> results = controller.results;
 
-    if (results.isEmpty) {
+    // The palette says nothing about the directory until the delay has run and
+    // the request has come back. Rendering "no public rooms" during those 450
+    // milliseconds would be a claim about a homeserver nobody has asked yet.
+    final bool showDirectoryPlaceholder = controller.directoryBusy ||
+        (controller.directoryAsked && controller.directoryStart < 0);
+
+    if (results.isEmpty && !showDirectoryPlaceholder) {
       return _Empty(controller: controller, l10n: l10n);
     }
+    if (results.isEmpty) {
+      return _DirectoryPending(controller: controller, l10n: l10n);
+    }
+
+    final int boundary = controller.directoryStart;
 
     return ListView.builder(
       controller: scrollController,
       padding: EdgeInsets.zero,
-      itemCount: results.length,
+      // One extra slot for the header that sits on the section boundary.
+      itemCount: results.length + (boundary >= 0 ? 1 : 0),
       itemBuilder: (BuildContext context, int index) {
-        final PaletteResult result = results[index];
+        if (boundary >= 0 && index == boundary) {
+          return _SectionHeader(
+            title: l10n.paletteDirectorySection,
+            icon: LucideIcons.globe,
+          );
+        }
+        final int resultIndex =
+            boundary >= 0 && index > boundary ? index - 1 : index;
+        final PaletteResult result = results[resultIndex];
         return _Row(
           result: result,
-          selected: index == controller.selectedIndex,
+          selected: resultIndex == controller.selectedIndex,
           // Tap runs whatever the row is, not whatever the cursor happens to be
           // on. Using the cursor's row for a tap on a different row is the kind
           // of off-by-one that makes a list feel haunted.
           onTap: () => onRun(_RunResult(result)),
         );
       },
+    );
+  }
+}
+
+/// The divider and title that mark where the ranked list ends and the
+/// public directory begins.
+///
+/// The boundary is drawn rather than implied by ordering because a public room
+/// and a settings page are not comparable, so ranking them together would
+/// produce an order the user cannot predict and cannot learn.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.icon});
+
+  final String title;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Divider(height: 1, color: ext.layers.hairline),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.spaceLg,
+            t.spaceMd,
+            t.spaceLg,
+            t.spaceXs,
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, size: t.iconSizeSmall, color: scheme.onSurfaceVariant),
+              SizedBox(width: t.spaceSm),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// What the palette shows while the directory is still being asked for.
+///
+/// Deliberately not the `_Empty` state: the user has a query, the local and
+/// remote sources have already answered, and what is missing is one trailing
+/// section. Saying "nothing matched" would be wrong and saying nothing at all
+/// would look like a bug.
+class _DirectoryPending extends StatelessWidget {
+  const _DirectoryPending({required this.controller, required this.l10n});
+
+  final PaletteController controller;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).moonrelay;
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    final bool failed =
+        controller.failures.containsKey(PaletteSource.directory);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (!failed)
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          if (!failed) SizedBox(height: t.spaceMd),
+          Text(
+            failed ? l10n.paletteSourceFailed : l10n.paletteDirectorySearching,
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -696,8 +817,24 @@ class _Empty extends StatelessWidget {
 /// The failure notice.
 ///
 /// Says which source failed, because "some results failed" is not actionable
-/// and "message search is unavailable" is at least honest about what is
-/// missing.
+/// and "Messages are unavailable" is at least honest about what is missing.
+/// A source's name, in the user's language.
+///
+/// Not `source.name`, which renders as `message` and `directory`. An error
+/// naming an enum constant tells the reader something about the code rather than
+/// about their homeserver, which is the opposite of what a failure notice is
+/// for.
+String _sourceLabel(PaletteSource source, AppLocalizations l10n) =>
+    switch (source) {
+      PaletteSource.room => l10n.searchRooms,
+      PaletteSource.space => l10n.searchSpaces,
+      PaletteSource.user => l10n.searchUsersResults,
+      PaletteSource.message => l10n.searchMessages,
+      PaletteSource.directory => l10n.paletteDirectorySection,
+      PaletteSource.page => l10n.appSettings,
+      PaletteSource.action => l10n.commandPaletteActions,
+    };
+
 class _Footer extends StatelessWidget {
   const _Footer({required this.controller});
 
@@ -726,7 +863,7 @@ class _Footer extends StatelessWidget {
             child: Text(
               l10n.paletteSourceFailedNamed(
                 controller.failures.keys
-                    .map((PaletteSource s) => s.name)
+                    .map((PaletteSource source) => _sourceLabel(source, l10n))
                     .join(', '),
               ),
               style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),

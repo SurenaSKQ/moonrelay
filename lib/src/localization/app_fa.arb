@@ -2606,7 +2606,22 @@
   "@commandPaletteUsersFilter": {
     "description": "برچسب فیلتر پالت فرمان که نتایج را به فهرست کاربران محدود می‌کند."
   },
-  "paletteTypeToSearch": "برای جست‌وجوی اتاق‌ها، افراد، پیام‌ها و تنظیمات بنویسید.",
+  "paletteDirectorySearching": "در حال جست‌وجوی اتاق‌ها و فضاهای عمومی…",
+  "@paletteDirectorySearching": {
+    "description": "در پالت فرمان و هنگام در جریان بودن درخواست فهرست اتاق‌های عمومی نمایش داده می‌شود."
+  },  "paletteDirectorySection": "اتاق‌ها و فضاهای عمومی",
+  "@paletteDirectorySection": {
+    "description": "سرصفحه بخش پایانی پالت فرمان که اتاق‌ها و فضاهای عمومی فهرست homeserver را نگه می‌دارد."
+  },
+  "paletteDirectoryMembers": "{count, plural, =1{۱ عضو} other{{count} عضو}}",
+  "@paletteDirectoryMembers": {
+    "description": "شمار اعضای یک اتاق عمومی در پالت فرمان.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },  "paletteTypeToSearch": "برای جست‌وجوی اتاق‌ها، افراد، پیام‌ها و تنظیمات بنویسید.",
   "@paletteTypeToSearch": {
     "description": "حالت خالی پالت فرمان، پیش از آنکه چیزی نوشته شود."
   },

@@ -2844,7 +2844,22 @@
   "@commandPaletteUsersFilter": {
     "description": "Label for the command palette filter chip that narrows results to the user directory."
   },
-  "paletteTypeToSearch": "Type to search rooms, people, messages and settings.",
+  "paletteDirectorySearching": "Looking for public rooms and spaces…",
+  "@paletteDirectorySearching": {
+    "description": "Shown in the command palette while the public room directory request is still in flight."
+  },  "paletteDirectorySection": "Public rooms and spaces",
+  "@paletteDirectorySection": {
+    "description": "Header for the trailing command palette section holding public rooms and spaces from the homeserver directory."
+  },
+  "paletteDirectoryMembers": "{count, plural, =1{1 member} other{{count} members}}",
+  "@paletteDirectoryMembers": {
+    "description": "Member count for a public room in the command palette.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },  "paletteTypeToSearch": "Type to search rooms, people, messages and settings.",
   "@paletteTypeToSearch": {
     "description": "Command palette empty state, shown before anything has been typed."
   },
