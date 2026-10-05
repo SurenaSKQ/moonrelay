@@ -57,11 +57,8 @@ class ProfileActionsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InfoSectionHeader(
-          icon: LucideIcons.navigation,
-          title: l10n.actionsSection,
-          scheme: scheme,
-        ),
+        InfoSectionLabel(
+            icon: LucideIcons.navigation, title: l10n.actionsSection),
         const SizedBox(height: 8),
         Card(
           elevation: 0,

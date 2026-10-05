@@ -363,6 +363,8 @@
   "leaveRoomDescription": "Remove yourself from this room",
   "copyRoomId": "Copy Room ID",
   "detailsSection": "Details",
+  "roomDetailsEditSection": "Name and topic",
+  "accessAndHistorySection": "Access and history",
   "roomIdLabel": "Room ID",
   "@roomIdLabel": {
     "description": "Label for the room/space ID field."
@@ -378,6 +380,8 @@
   "membersSection": "Members",
   "directMessage": "Direct Message",
   "spaceType": "Space",
+  "spaceDetailsEditSection": "Name and topic",
+  "roomNotAvailable": "Not on this device yet",
   "publicRoom": "Public Room",
   "privateRoom": "Private Room",
   "unknownDate": "Unknown",

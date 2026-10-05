@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:moonrelay/src/screens/space_home_page/unjoined_room_tile.dart';
 
 import 'package:flutter/material.dart';
+import 'package:moonrelay/src/widgets/identity_header.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -64,442 +65,204 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final space = widget.space;
+    final client = space.client;
+
     // Coalesce rebuilds through the shared sync pulse.
     final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
     }
 
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final l10n = AppLocalizations.of(context)!;
-    final space = widget.space;
-
     final displayName = space.getLocalizedDisplayname();
     final topic = space.topic;
     final totalMembers = (space.summary.mInvitedMemberCount ?? 0) +
         (space.summary.mJoinedMemberCount ?? 0);
+    final isJoined = space.membership == Membership.join;
 
-    final client = space.client;
-    final bool isJoined = space.membership == Membership.join;
-    final canEdit = space.canChangeStateEvent('m.space.child');
-
-    // Build parent-space breadcrumb trail.
-    final parentSpaces = <Room>[];
-    for (final parent in space.spaceParents) {
-      final parentId = parent.roomId;
-      if (parentId == null) continue;
-      final parentRoom = client.getRoomById(parentId);
-      if (parentRoom != null) {
-        parentSpaces.add(parentRoom);
+    // Children split three ways. The unjoined ones are a separate section
+    // because they are a different kind of thing: the space says they belong
+    // here, but the user is not in them, so the row is a preview and an offer
+    // rather than a destination.
+    final subspaces = <_ChildEntry>[];
+    final joinedRooms = <_ChildEntry>[];
+    final unjoined = <_ChildEntry>[];
+    for (final child in space.spaceChildren) {
+      final roomId = child.roomId;
+      if (roomId == null) continue;
+      final childRoom = client.getRoomById(roomId);
+      final entry = _ChildEntry(
+        roomId: roomId,
+        room: childRoom,
+        suggested: child.suggested == true,
+      );
+      if (childRoom == null) {
+        unjoined.add(entry);
+      } else if (childRoom.isSpace) {
+        subspaces.add(entry);
+      } else {
+        joinedRooms.add(entry);
       }
     }
 
-    // Pre-compute child lists for conditional spreads below.
-    final subspaces = space.spaceChildren.where((c) {
-      final roomId = c.roomId;
-      if (roomId == null) return false;
-      final room = client.getRoomById(roomId);
-      return room != null && room.isSpace;
-    }).toList();
-
-    final joinedRooms = space.spaceChildren.where((c) {
-      final roomId = c.roomId;
-      if (roomId == null) return false;
-      final room = client.getRoomById(roomId);
-      return room != null && !room.isSpace;
-    }).toList();
-
-    final unjoined = space.spaceChildren.where((c) {
-      final roomId = c.roomId;
-      if (roomId == null) return false;
-      return client.getRoomById(roomId) == null;
-    }).toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          l10n.spaceHome,
-          style: textTheme.titleLarge,
-        ),
-        actions: [
-          if (isJoined)
-            IconButton(
-              icon: const Icon(LucideIcons.settings),
-              tooltip: l10n.openSpaceSettings,
-              onPressed: () => context.push('/main/space/${space.id}/settings'),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding:
-            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
-        children: [
-          // -- Parent-space breadcrumb ----------------------------------
-          if (parentSpaces.isNotEmpty) ...[
-            _buildBreadcrumb(context, parentSpaces, scheme),
-            SizedBox(height: t.spaceLg),
-          ],
-
-          // -- Space identity card ----------------------------------------
-          _buildIdentityCard(
-            context,
-            space,
-            displayName,
-            topic,
-            totalMembers,
-            isJoined,
-            scheme,
-            textTheme,
-            l10n,
+    return MoonrelayInfoPage(
+      title: l10n.spaceHome,
+      actions: [
+        if (isJoined)
+          IconButton(
+            icon: const Icon(LucideIcons.settings),
+            tooltip: l10n.openSpaceSettings,
+            onPressed: () => context.push('/main/space/${space.id}/settings'),
           ),
-          SizedBox(height: t.spaceXl),
-
-          // -- Quick actions (for members with permission) ----------------
-          if (isJoined && canEdit) ...[
-            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
-            SizedBox(height: t.spaceSm),
-            InfoActionTile(
-              icon: LucideIcons.plus,
-              label: l10n.addRoomToSpace,
-              description: l10n.spaceSettingsDescription,
-              onTap: () => context.push('/main/space/${space.id}/settings'),
-              scheme: scheme,
+      ],
+      children: [
+        IdentityHeader(
+          name: displayName,
+          topic: topic,
+          avatar: SizedBox(
+            width: 64,
+            height: 64,
+            child: CircleAvatar(
+              radius: 32,
+              backgroundColor: scheme.primaryContainer,
+              backgroundImage: space.avatar != null
+                  ? NetworkImage(
+                      space.avatar.toString(),
+                      headers: authHeaders(context.read<Client>()),
+                    )
+                  : null,
+              onBackgroundImageError: space.avatar != null ? (_, __) {} : null,
+              child: space.avatar == null
+                  ? Icon(
+                      LucideIcons.folder,
+                      size: 30,
+                      color: scheme.onPrimaryContainer,
+                    )
+                  : null,
             ),
-            SizedBox(height: t.spaceLg),
-          ],
-
-          // -- Child subspaces --------------------------------------------
-          if (subspaces.isNotEmpty) ...[
-            InfoSectionHeader(title: l10n.spaceChildSpaces, scheme: scheme),
-            SizedBox(height: t.spaceSm),
-            for (final child in subspaces)
-              _buildChildTile(
-                context,
-                client,
-                child,
-                isSubspace: true,
-                scheme: scheme,
-                l10n: l10n,
-              ),
-            SizedBox(height: t.spaceLg),
-          ],
-
-          // -- Child rooms (joined) ---------------------------------------
-          if (joinedRooms.isNotEmpty) ...[
-            InfoSectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
-            SizedBox(height: t.spaceSm),
-            for (final child in joinedRooms)
-              _buildChildTile(
-                context,
-                client,
-                child,
-                isSubspace: false,
-                scheme: scheme,
-                l10n: l10n,
-              ),
-            SizedBox(height: t.spaceLg),
-          ],
-
-          // -- Unjoined rooms ----------------------------------------------
-          if (unjoined.isNotEmpty) ...[
-            InfoSectionHeader(title: l10n.unjoinedRooms, scheme: scheme),
-            SizedBox(height: t.spaceSm),
-            for (final child in unjoined)
-              UnjoinedRoomTile(
-                child: child,
-                client: client,
-                scheme: scheme,
-                l10n: l10n,
-              ),
-          ],
-
-          // -- Empty state ------------------------------------------------
-          if (space.spaceChildren.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      LucideIcons.folderOpen,
-                      size: 48,
-                      color: scheme.onSurfaceVariant
-                          .withValues(alpha: t.opacityDisabled),
-                    ),
-                    SizedBox(height: t.spaceMd),
-                    Text(
-                      l10n.spaceNoChildren,
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIdentityCard(
-    BuildContext context,
-    Room space,
-    String displayName,
-    String topic,
-    int totalMembers,
-    bool isJoined,
-    ColorScheme scheme,
-    TextTheme textTheme,
-    AppLocalizations l10n,
-  ) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Card(
-      elevation: t.elevationNone,
-      color: scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusLg),
-        side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(t.spaceXl),
-        child: Column(
-          children: [
-            // Avatar
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: scheme.primaryContainer,
-                backgroundImage: space.avatar != null
-                    ? NetworkImage(
-                        space.avatar.toString(),
-                        headers: authHeaders(context.read<Client>()),
-                      )
-                    : null,
-                onBackgroundImageError:
-                    space.avatar != null ? (_, __) {} : null,
-                child: space.avatar == null
-                    ? Icon(
-                        LucideIcons.folder,
-                        size: 36,
-                        color: scheme.onPrimaryContainer,
-                      )
-                    : null,
-              ),
-            ),
-            SizedBox(height: t.spaceLg),
-
-            // Name
-            Text(
-              displayName,
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(height: t.spaceXs),
-
-            // Topic
-            if (topic.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(bottom: t.spaceSm),
-                child: Text(
-                  topic,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-            SizedBox(height: t.spaceMd),
-
-            // Badge row
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                InfoChip(
-                  icon: LucideIcons.folder,
-                  label: l10n.spaceType,
-                  scheme: scheme,
-                ),
-                InfoChip(
-                  icon: LucideIcons.users,
-                  label: '$totalMembers ${l10n.members}',
-                  scheme: scheme,
-                ),
-              ],
-            ),
-
-            // Join button for non-members
-            if (!isJoined) ...[
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: () => _joinSpace(context, space),
-                icon: const Icon(LucideIcons.userPlus, size: 18),
-                label: Text(l10n.joinSpace),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(t.radiusMd),
-                  ),
-                ),
-              ),
-            ],
+          ),
+          chips: [
+            InfoChip(icon: LucideIcons.folder, label: l10n.spaceType),
+            InfoChip(icon: LucideIcons.users, label: '$totalMembers ${l10n.members}'),
           ],
         ),
-      ),
-    );
-  }
 
-  Widget _buildChildTile(
-    BuildContext context,
-    Client client,
-    dynamic child, {
-    required bool isSubspace,
-    required ColorScheme scheme,
-    required AppLocalizations l10n,
-  }) {
-    final ext = MoonrelayThemeExtension.of(context);
-    final t = ext.tokens;
-    final roomId = child.roomId as String?;
-    final childRoom = roomId != null ? client.getRoomById(roomId) : null;
-    final name = childRoom?.getLocalizedDisplayname() ?? roomId ?? '?';
-    final avatar = childRoom?.avatar;
-
-    return Card(
-      elevation: t.elevationNone,
-      margin: const EdgeInsets.only(bottom: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: ext.components.avatar.sizeMedium / 2,
-          backgroundColor: scheme.primaryContainer,
-          backgroundImage: avatar != null
-              ? NetworkImage(
-                  avatar.toString(),
-                  headers: authHeaders(context.read<Client>()),
-                )
-              : null,
-          onBackgroundImageError: avatar != null ? (_, __) {} : null,
-          child: avatar == null
-              ? Icon(
-                  isSubspace ? LucideIcons.folder : LucideIcons.hash,
-                  size: 18,
-                  color: scheme.onPrimaryContainer,
-                )
-              : null,
-        ),
-        title: Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: child.suggested == true
-            ? Text(
-                l10n.suggested,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: scheme.tertiary,
-                ),
-              )
-            : null,
-        trailing: isSubspace
-            ? Icon(
-                LucideIcons.chevronRight,
-                size: 18,
-                color: scheme.onSurfaceVariant,
-              )
-            : null,
-        onTap: () {
-          if (roomId == null) return;
-          if (isSubspace) {
-            // Navigate to the subspace home page.
-            context.push('/main/space/${Uri.encodeComponent(roomId)}');
-          } else {
-            // Switch to the room chat, through the shell-aware seam: in the
-            // single-pane shell this pushes so the space page stays on the
-            // stack, and on the dashboard it replaces so a tour of child
-            // rooms does not build a history the user has to walk back
-            // through one chat at a time.
-            openRoom(context, roomId);
-          }
-        },
-      ),
-    );
-  }
-
-  /// Builds a breadcrumb trail of parent spaces, each tappable to navigate up.
-  Widget _buildBreadcrumb(
-    BuildContext context,
-    List<Room> parents,
-    ColorScheme scheme,
-  ) {
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (int i = 0; i < parents.length; i++) ...[
-            if (i > 0)
-              Icon(
-                LucideIcons.chevronRight,
-                size: 14,
-                color:
-                    scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
-              ),
-            // InkWell rather than GestureDetector: this chip is a link, and a
-            // bare detector gave it no hover, no press and no keyboard
-            // focus. The fill stays on the Container so the ink tints it
-            // rather than replacing it.
-            InkWell(
-              onTap: () => context.push('/main/space/${parents[i].id}'),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
+        // Join is this page's primary action for a space the user is not in,
+        // so it sits directly under the header rather than at the bottom of a
+        // list of rooms they have not joined yet. It used to live inside the
+        // centred identity card, which meant scrolling past everything else to
+        // find the button that decides whether you can see any of it.
+        if (!isJoined) ...[
+          const InfoSectionGap(first: true),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FilledButton.icon(
+              onPressed: () => _joinSpace(context, space),
+              icon: const Icon(LucideIcons.userPlus, size: 18),
+              label: Text(l10n.joinSpace),
+              style: FilledButton.styleFrom(
                 padding: EdgeInsets.symmetric(
-                    horizontal: t.spaceSm, vertical: t.spaceXs),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer
-                      .withValues(alpha: t.opacityDisabled),
-                  borderRadius: BorderRadius.circular(6),
+                  horizontal: t.spaceXl,
+                  vertical: t.spaceMd,
                 ),
-                child: Text(
-                  parents[i].getLocalizedDisplayname(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: scheme.onPrimaryContainer,
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
-          ],
+          ),
         ],
-      ),
+
+        const InfoSectionGap(first: true),
+
+        // -- Child subspaces ------------------------------------------------
+        if (subspaces.isNotEmpty) ...[
+          InfoPanel(
+            title: l10n.spaceChildSpaces,
+            padding: EdgeInsets.zero,
+            children: [
+              for (final entry in subspaces)
+                _SpaceChildRow(
+                  entry: entry,
+                  onTap: () => context.push(
+                    '/main/space/${Uri.encodeComponent(entry.roomId)}',
+                  ),
+                ),
+            ],
+          ),
+          const InfoSectionGap(),
+        ],
+
+        // -- Child rooms ------------------------------------------------------
+        if (joinedRooms.isNotEmpty) ...[
+          InfoPanel(
+            title: l10n.spaceChildRooms,
+            padding: EdgeInsets.zero,
+            children: [
+              for (final entry in joinedRooms)
+                _SpaceChildRow(
+                  entry: entry,
+                  // Through the shell-aware seam: in the single-pane shell this
+                  // pushes so the space page stays on the stack, and on the
+                  // dashboard it replaces so a tour of child rooms does not
+                  // build a history the user has to walk back through one chat
+                  // at a time.
+                  onTap: () => openRoom(context, entry.roomId),
+                ),
+            ],
+          ),
+          const InfoSectionGap(),
+        ],
+
+        // -- Unjoined rooms ----------------------------------------------------
+        if (unjoined.isNotEmpty) ...[
+          InfoPanel(
+            title: l10n.unjoinedRooms,
+            padding: EdgeInsets.zero,
+            children: [
+              for (final entry in unjoined)
+                UnjoinedRoomTile(
+                  child: entry,
+                  client: client,
+                  l10n: l10n,
+                ),
+            ],
+          ),
+          const InfoSectionGap(),
+        ],
+
+        // -- Empty state ---------------------------------------------------------
+        // The one place on this page that is centred, because there is nothing
+        // to align to: no rows, no panel, just an invitation.
+        if (space.spaceChildren.isEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: t.spaceXxl * 2),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    LucideIcons.folderOpen,
+                    size: 40,
+                    color: scheme.onSurfaceVariant
+                        .withValues(alpha: t.opacityDisabled),
+                  ),
+                  SizedBox(height: t.spaceMd),
+                  Text(
+                    l10n.spaceNoChildren,
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
-
   Future<void> _joinSpace(BuildContext context, Room space) async {
     final log = context.read<Logger>();
     try {
@@ -529,3 +292,113 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 // -- Internal widgets ----------------------------------------------------------
 
 /// A tappable action row used in the quick-actions section.
+
+// =============================================================================
+// Internal widgets
+// =============================================================================
+
+/// One child of a space, resolved as far as the local client allows.
+///
+/// The room is nullable because a space routinely names children this client
+/// has never fetched, and that is exactly the case where the page has to say
+/// something useful rather than render an empty row.
+class _ChildEntry {
+  const _ChildEntry({
+    required this.roomId,
+    required this.room,
+    required this.suggested,
+  });
+
+  final String roomId;
+  final Room? room;
+  final bool suggested;
+}
+
+/// One row in a space's child list.
+///
+/// A row rather than a bordered card because these are list items. The
+/// previous version gave every child its own box with a 4px margin, which is
+/// how a list of thirty rooms came to look like a stack of thirty unrelated
+/// documents rather than a list of thirty rooms.
+class _SpaceChildRow extends StatelessWidget {
+  const _SpaceChildRow({required this.entry, required this.onTap});
+
+  final _ChildEntry entry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    final room = entry.room;
+    final isSubspace = room?.isSpace ?? false;
+    final name = room?.getLocalizedDisplayname() ?? entry.roomId;
+    final avatar = room?.avatar;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: t.spaceLg,
+          vertical: t.spaceSm,
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: ext.components.avatar.sizeMedium / 2,
+              backgroundColor: scheme.primaryContainer,
+              backgroundImage: avatar != null
+                  ? NetworkImage(
+                      avatar.toString(),
+                      headers: authHeaders(context.read<Client>()),
+                    )
+                  : null,
+              onBackgroundImageError: avatar != null ? (_, __) {} : null,
+              child: avatar == null
+                  ? Icon(
+                      isSubspace ? LucideIcons.folder : LucideIcons.hash,
+                      size: 16,
+                      color: scheme.onPrimaryContainer,
+                    )
+                  : null,
+            ),
+            SizedBox(width: t.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  if (entry.suggested) ...[
+                    SizedBox(height: t.spaceXxs),
+                    Text(
+                      l10n.suggested,
+                      style: TextStyle(fontSize: 12, color: scheme.tertiary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              LucideIcons.chevronRight,
+              size: t.iconSizeMedium,
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacityMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

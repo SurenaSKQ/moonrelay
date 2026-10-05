@@ -28,13 +28,11 @@ class UnjoinedRoomTile extends StatefulWidget {
     super.key,
     required this.child,
     required this.client,
-    required this.scheme,
     required this.l10n,
   });
 
   final dynamic child;
   final Client client;
-  final ColorScheme scheme;
   final AppLocalizations l10n;
 
   @override
@@ -74,6 +72,8 @@ class UnjoinedRoomTileState extends State<UnjoinedRoomTile> {
   Widget build(BuildContext context) {
     final ext = MoonrelayThemeExtension.of(context);
     final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+
     final isSuggested = widget.child.suggested == true;
 
     final displayName = _loading
@@ -83,68 +83,80 @@ class UnjoinedRoomTileState extends State<UnjoinedRoomTile> {
             : _summary?.canonicalAlias ?? _roomId);
 
     final avatarUri = _summary?.avatarUrl;
+    // Monospace only while the id is all we have. Once a real name arrives it
+    // is a name, and a monospace name is a small shout.
+    final showingIdOnly = _loading || _summary?.name?.isNotEmpty != true;
 
-    return Card(
-      elevation: t.elevationNone,
-      margin: const EdgeInsets.only(bottom: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(t.radiusMd),
-        side: BorderSide(
-            color: widget.scheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: ext.components.avatar.sizeMedium / 2,
-          backgroundColor:
-              widget.scheme.primaryContainer.withValues(alpha: t.opacitySubtle),
-          backgroundImage: avatarUri != null
-              ? NetworkImage(
-                  avatarUri.toString(),
-                  headers: authHeaders(widget.client),
-                )
-              : null,
-          onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
-          child: avatarUri == null
-              ? Icon(
-                  LucideIcons.hash,
-                  size: 18,
-                  color: widget.scheme.onPrimaryContainer,
-                )
-              : null,
+    // A row rather than a bordered card: this sits in a panel with the
+    // resolved children, and a card here made the preview rooms look like a
+    // different kind of thing from the rooms you are actually in, which is
+    // precisely the distinction the section heading is there to draw.
+    return InkWell(
+      onTap: () => context.push('/main/room_preview/$_roomId'),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: t.spaceLg,
+          vertical: t.spaceSm,
         ),
-        title: Text(
-          displayName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            fontFamily: _loading || _summary?.name?.isNotEmpty != true
-                ? 'JetBrainsMono'
-                : null,
-            fontSize:
-                _loading || _summary?.name?.isNotEmpty != true ? 13 : null,
-          ),
-        ),
-        subtitle: isSuggested
-            ? Text(
-                widget.l10n.roomPreviewSuggested,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: widget.scheme.tertiary,
-                ),
-              )
-            : null,
-        trailing: FilledButton.tonal(
-          onPressed: () => context.push('/main/room_preview/$_roomId'),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Text(
-            widget.l10n.roomPreviewView,
-            style: const TextStyle(fontSize: 12),
-          ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: ext.components.avatar.sizeMedium / 2,
+              backgroundColor: scheme.primaryContainer
+                  .withValues(alpha: t.opacitySubtle),
+              backgroundImage: avatarUri != null
+                  ? NetworkImage(
+                      avatarUri.toString(),
+                      headers: authHeaders(widget.client),
+                    )
+                  : null,
+              onBackgroundImageError: avatarUri != null ? (_, __) {} : null,
+              child: avatarUri == null
+                  ? Icon(
+                      LucideIcons.hash,
+                      size: 18,
+                      color: scheme.onPrimaryContainer,
+                    )
+                  : null,
+            ),
+            SizedBox(width: t.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: scheme.onSurface,
+                      fontFamily: showingIdOnly ? 'JetBrainsMono' : null,
+                    ),
+                  ),
+                  if (isSuggested) ...[
+                    SizedBox(height: t.spaceXxs),
+                    Text(
+                      widget.l10n.roomPreviewSuggested,
+                      style: TextStyle(fontSize: 12, color: scheme.tertiary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SizedBox(width: t.spaceSm),
+            // The whole row already navigates, so this button is a labelled
+            // duplicate of the tap target. It exists because "Preview" says
+            // what will happen and a chevron does not, and because a row of
+            // chevrons with no words makes a screen reader announce the same
+            // thing thirty times.
+            Text(
+              widget.l10n.roomPreviewView,
+              style: TextStyle(fontSize: 12, color: scheme.primary),
+            ),
+          ],
         ),
       ),
     );

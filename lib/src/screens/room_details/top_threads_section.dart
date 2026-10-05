@@ -33,11 +33,9 @@ class TopThreadsSection extends StatefulWidget {
   const TopThreadsSection({
     super.key,
     required this.room,
-    required this.scheme,
   });
 
   final Room room;
-  final ColorScheme scheme;
 
   @override
   State<TopThreadsSection> createState() => TopThreadsSectionState();
@@ -74,6 +72,7 @@ class TopThreadsSectionState extends State<TopThreadsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final t = MoonrelayThemeExtension.of(context).tokens;
 
@@ -89,7 +88,6 @@ class TopThreadsSectionState extends State<TopThreadsSection> {
             event: event,
             sender: sender,
             room: widget.room,
-            scheme: widget.scheme,
           );
         }),
         Padding(
@@ -103,8 +101,8 @@ class TopThreadsSectionState extends State<TopThreadsSection> {
               ),
               onPressed: () => _openFullThreadList(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: widget.scheme.primary,
-                side: BorderSide(color: widget.scheme.outline),
+                foregroundColor: scheme.primary,
+                side: BorderSide(color: scheme.outline),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
@@ -141,16 +139,15 @@ class ThreadRootTile extends StatelessWidget {
     required this.event,
     required this.sender,
     required this.room,
-    required this.scheme,
   });
 
   final Event event;
   final User sender;
   final Room room;
-  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
     // The InkWell below already handles this tap. The GestureDetector that used
     // to wrap it registered the same handler a second time on the same
@@ -166,53 +163,53 @@ class ThreadRootTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: () => _openThread(context),
         child: Row(
-            children: [
-              // Avatar
-              SizedBox(
-                width: 36,
-                height: 36,
-                child: AvatarFromUriOrFallbackImage(
-                  client: room.client,
-                  avatarUri: sender.avatarUrl,
-                ),
+          children: [
+            // Avatar
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: AvatarFromUriOrFallbackImage(
+                client: room.client,
+                avatarUri: sender.avatarUrl,
               ),
-              SizedBox(width: t.spaceMd),
-              // Preview
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sender.calcDisplayname(),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(width: t.spaceMd),
+            // Preview
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sender.calcDisplayname(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                    SizedBox(height: t.spaceXxs),
-                    Text(
-                      event.body.isNotEmpty ? event.body : '(image or file)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: t.spaceXxs),
+                  Text(
+                    event.body.isNotEmpty ? event.body : '(image or file)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
                     ),
-                  ],
-                ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              SizedBox(width: t.spaceSm),
-              Text(
-                event.originServerTs.localizedTimeShort(context),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: scheme.onSurface.withValues(alpha: 0.45),
-                ),
+            ),
+            SizedBox(width: t.spaceSm),
+            Text(
+              event.originServerTs.localizedTimeShort(context),
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSurface.withValues(alpha: 0.45),
               ),
-            ],
+            ),
+          ],
         ),
       ),
     );

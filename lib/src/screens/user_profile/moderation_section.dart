@@ -60,11 +60,8 @@ class ModerationSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InfoSectionHeader(
-          icon: LucideIcons.slash,
-          title: l10n.sectionModeration,
-          scheme: scheme,
-        ),
+        InfoSectionLabel(
+            icon: LucideIcons.slash, title: l10n.sectionModeration),
         const SizedBox(height: 8),
         Card(
           elevation: 0,

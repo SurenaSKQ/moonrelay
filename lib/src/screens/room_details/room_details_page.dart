@@ -16,18 +16,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:moonrelay/src/screens/room_details/top_threads_section.dart';
-import 'package:moonrelay/src/screens/room_details/top_members_section.dart';
-import 'package:moonrelay/src/screens/room_details/room_identity_card.dart';
-import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/screens/encryption/user_devices_screen.dart';
+import 'package:moonrelay/src/screens/room_details/top_members_section.dart';
+import 'package:moonrelay/src/screens/room_details/top_threads_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/identity_header.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:provider/provider.dart';
 
 /// A full room information page built with Material 3 design tokens.
@@ -149,9 +150,6 @@ class _RoomInformationsState extends State<RoomInformations> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
     final room = widget.room;
     final isEncrypted = _isEncrypted(room);
     final roomType = _roomTypeLabel(room);
@@ -164,172 +162,230 @@ class _RoomInformationsState extends State<RoomInformations> {
         (room.summary.mJoinedMemberCount ?? 0);
 
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => Navigator.of(context).pop(),
+    return MoonrelayInfoPage(
+      title: l10n.roomInfoTitle,
+      actions: [
+        IconButton(
+          icon: const Icon(LucideIcons.copy),
+          tooltip: l10n.copyRoomIdTooltip,
+          onPressed: _copyRoomId,
         ),
-        title: Text(
-          l10n.roomInfoTitle,
-          style: textTheme.titleLarge,
+      ],
+      children: [
+        IdentityHeader(
+          name: room.getLocalizedDisplayname(),
+          topic: room.topic,
+          avatar: SizedBox(
+            width: 64,
+            height: 64,
+            child: AvatarFromUriOrFallbackImage(
+              client: room.client,
+              avatarUri: room.avatar,
+            ),
+          ),
+          chips: [
+            InfoChip(
+              icon: room.joinRules == JoinRules.public
+                  ? LucideIcons.globe
+                  : room.joinRules == JoinRules.knock ||
+                          room.joinRules == JoinRules.knockRestricted
+                      ? LucideIcons.doorOpen
+                      : LucideIcons.lock,
+              label: roomType,
+            ),
+            InfoChip(
+              icon: LucideIcons.users,
+              label: '$totalMembers ${l10n.members}',
+            ),
+            if (room.isDirectChat)
+              InfoChip(
+                icon: LucideIcons.userRound,
+                label: l10n.directMessage,
+              ),
+            if (room.encrypted)
+              InfoChip(
+                icon: LucideIcons.shieldCheck,
+                label: l10n.endToEndEncrypted,
+                // The one chip on the page that is filled. Encryption is the
+                // fact a reader came here to check, so it is the one chip
+                // allowed to be louder than the rest.
+                emphasis: true,
+              ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.copy),
-            tooltip: l10n.copyRoomIdTooltip,
-            onPressed: _copyRoomId,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding:
-            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
-        children: [
-          // -- Room identity card ----------------------------------------
-          RoomIdentityCard(
-            room: room,
-            roomType: roomType,
-            totalMembers: totalMembers,
-            scheme: scheme,
-            textTheme: textTheme,
-          ),
-          SizedBox(height: t.spaceLg),
 
-          // -- Room actions ---------------------------------------------
-          InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
-          SizedBox(height: t.spaceSm),
-          InfoActionTile(
-            icon: LucideIcons.settings,
-            label: l10n.roomSettings,
-            description: l10n.roomSettingsDescription,
-            onTap: () => openRoomSubpage(context, room.id, 'settings'),
-            scheme: scheme,
-          ),
-          InfoActionTile(
-            icon: LucideIcons.copy,
-            label: l10n.copyRoomId,
-            description: room.id,
-            onTap: _copyRoomId,
-            scheme: scheme,
-          ),
-          if (room.encrypted)
-            InfoActionTile(
-              icon: LucideIcons.rotateCw,
-              label: l10n.rotateMegolmSession,
-              description: l10n.rotateMegolmSessionDescription,
-              onTap: () => _rotateMegolmSession(context, room),
-              scheme: scheme,
+        const InfoSectionGap(first: true),
+
+        // -- Actions ----------------------------------------------------
+        // One panel for all of them. They were three separate bordered cards,
+        // which read as three unrelated things rather than as the three things
+        // you can do to a room.
+        InfoPanel(
+          title: l10n.actionsSection,
+          children: [
+            InfoPanelRow(
+              icon: LucideIcons.settings,
+              label: l10n.roomSettings,
+              description: l10n.roomSettingsDescription,
+              onTap: () => openRoomSubpage(context, room.id, 'settings'),
             ),
-
-          SizedBox(height: t.spaceLg),
-
-          // -- Room details ---------------------------------------------
-          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
-          SizedBox(height: t.spaceSm),
-          InfoDetailRow(
-            icon: room.joinRules == JoinRules.public
-                ? LucideIcons.globe
-                : room.joinRules == JoinRules.knock ||
-                        room.joinRules == JoinRules.knockRestricted
-                    ? LucideIcons.logIn
-                    : LucideIcons.lock,
-            label: l10n.typeLabel,
-            value: roomType,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
-            label: l10n.encryptionLabel,
-            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
-            scheme: scheme,
-          ),
-          if (canonicalAlias != null)
-            InfoDetailRow(
-              icon: LucideIcons.hash,
-              label: l10n.addressLabel,
-              value: canonicalAlias,
-              scheme: scheme,
+            InfoPanelRow(
+              icon: LucideIcons.copy,
+              label: l10n.copyRoomId,
+              // The id under the label rather than beside it. Beside it, on a
+              // 680px measure, the chevron and the value fought for the same
+              // 220px and the id ellipsised on a page whose whole job is
+              // showing you the id.
+              description: room.id,
+              valueFontFamily: MoonrelayTypography.mono(context),
+              onTap: _copyRoomId,
             ),
-          InfoDetailRow(
-            icon: LucideIcons.calendar,
-            label: l10n.createdLabel,
-            value: creationDate,
-            scheme: scheme,
-          ),
-          SizedBox(height: t.spaceLg),
+            if (room.encrypted)
+              InfoPanelRow(
+                icon: LucideIcons.rotateCw,
+                label: l10n.rotateMegolmSession,
+                description: l10n.rotateMegolmSessionDescription,
+                onTap: () => _rotateMegolmSession(context, room),
+              ),
+          ],
+        ),
 
-          // -- Security -------------------------------------------------
-          InfoSectionHeader(title: l10n.securitySection, scheme: scheme),
-          SizedBox(height: t.spaceSm),
-          _buildSecuritySection(context, scheme, room, isEncrypted),
-          SizedBox(height: t.spaceLg),
+        const InfoSectionGap(),
 
-          // -- Top members ----------------------------------------------
-          InfoSectionHeader(title: l10n.membersSection, scheme: scheme),
-          SizedBox(height: t.spaceSm),
-          TopMembersSection(
-            room: room,
-            totalMembers: totalMembers,
-            scheme: scheme,
-          ),
-          SizedBox(height: t.spaceLg),
+        // -- Facts ------------------------------------------------------
+        InfoPanel(
+          title: l10n.detailsSection,
+          children: [
+            InfoPanelRow(
+              label: l10n.typeLabel,
+              value: roomType,
+              icon: LucideIcons.tag,
+            ),
+            InfoPanelRow(
+              label: l10n.encryptionLabel,
+              value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
+              icon:
+                  isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+            ),
+            if (canonicalAlias != null)
+              InfoPanelRow(
+                label: l10n.addressLabel,
+                value: canonicalAlias,
+                icon: LucideIcons.hash,
+              ),
+            InfoPanelRow(
+              label: l10n.roomIdLabel,
+              value: room.id,
+              icon: LucideIcons.fingerprint,
+              valueFontFamily: MoonrelayTypography.mono(context),
+            ),
+            InfoPanelRow(
+              label: l10n.createdLabel,
+              value: creationDate,
+              icon: LucideIcons.calendar,
+            ),
+          ],
+        ),
 
-          // -- Threads -------------------------------------------------
-          InfoSectionHeader(title: l10n.threads, scheme: scheme),
-          SizedBox(height: t.spaceSm),
-          TopThreadsSection(
-            room: room,
-            scheme: scheme,
-          ),
-          SizedBox(height: t.spaceLg),
-        ],
-      ),
+        const InfoSectionGap(),
+
+        // -- Security ---------------------------------------------------
+        InfoPanel(
+          title: l10n.securitySection,
+          children: _securityRows(context, room, isEncrypted),
+        ),
+
+        const InfoSectionGap(),
+
+        // -- People and threads ------------------------------------------
+        InfoPanel(
+          title: l10n.membersSection,
+          padding: EdgeInsets.zero,
+          children: [
+            TopMembersSection(
+              room: room,
+              totalMembers: totalMembers,
+            ),
+          ],
+        ),
+        const InfoSectionGap(),
+
+        InfoPanel(
+          title: l10n.threads,
+          padding: EdgeInsets.zero,
+          children: [
+            TopThreadsSection(room: room),
+          ],
+        ),
+        SizedBox(height: t.spaceLg),
+      ],
     );
   }
 
-  Widget _buildSecuritySection(
+  /// The verification list for an encrypted room.
+  ///
+  /// Returns rows rather than widgets so the panel owns the hairlines between
+  /// them. The previous version built its own [Column] with
+  /// `InfoDetailRow`s that took no icon slot worth the name, which is why the
+  /// member names appeared squeezed into a 100px column with an empty value
+  /// beside them.
+  List<Widget> _securityRows(
     BuildContext context,
-    ColorScheme scheme,
     Room room,
     bool isEncrypted,
   ) {
     final l10n = AppLocalizations.of(context)!;
     if (!isEncrypted) {
-      return InfoDetailRow(
-        icon: LucideIcons.lockOpen,
-        label: l10n.encryptionLabel,
-        value: l10n.notEnabled,
-        scheme: scheme,
-      );
+      return [
+        InfoPanelRow(
+          icon: LucideIcons.lockOpen,
+          label: l10n.encryptionLabel,
+          value: l10n.notEnabled,
+        ),
+      ];
     }
-    final participants = room.getParticipants();
 
-    return Column(
-      children: [
-        InfoDetailRow(
+    final participants = room.getParticipants();
+    final verified = participants
+        .where((m) => m.id != room.client.userID)
+        .toList(growable: false);
+    // The threshold is the same ten the old list used, but it is now stated
+    // where the reader is: a room with four hundred members shows a count and
+    // a link instead of an implied "and 390 more".
+    const listThreshold = 10;
+    if (verified.length > listThreshold) {
+      return [
+        InfoPanelRow(
           icon: LucideIcons.shieldCheck,
           label: l10n.encryptionLabel,
           value: room.encryptionAlgorithm ?? 'Megolm',
-          scheme: scheme,
         ),
-        if (participants.length <= 10)
-          ...participants.map((member) {
-            if (member.id == room.client.userID) return const SizedBox.shrink();
-            return InfoDetailRow(
-              icon: LucideIcons.user,
-              label: member.calcDisplayname(),
-              value: '',
-              trailing: VerificationIconButton(
-                userId: member.id,
-                room: room,
-              ),
-              scheme: scheme,
-            );
-          }),
-      ],
-    );
+        InfoPanelRow(
+          icon: LucideIcons.users,
+          label: l10n.showAllMembers(verified.length),
+          value: '$listThreshold+',
+          onTap: () => openRoomSubpage(context, room.id, 'members'),
+        ),
+      ];
+    }
+
+    return [
+      InfoPanelRow(
+        icon: LucideIcons.shieldCheck,
+        label: l10n.encryptionLabel,
+        value: room.encryptionAlgorithm ?? 'Megolm',
+      ),
+      for (final member in verified)
+        InfoPanelRow(
+          label: member.calcDisplayname(),
+          leading: VerificationIconButton(
+            userId: member.id,
+            room: room,
+          ),
+        ),
+    ];
   }
 }
 
@@ -369,27 +425,3 @@ class VerificationIconButton extends StatelessWidget {
     );
   }
 }
-
-// =============================================================================
-// Internal widgets
-// =============================================================================
-
-/// A small chip used for room metadata badges.
-
-/// A section header label.
-
-/// A tappable action row.
-
-/// A read-only detail row with icon, label, and value.
-
-// =============================================================================
-// Top members section
-// =============================================================================
-
-// =============================================================================
-// Top threads section
-// =============================================================================
-
-// =============================================================================
-// Member tile (reused in both top members and full list)
-// =============================================================================

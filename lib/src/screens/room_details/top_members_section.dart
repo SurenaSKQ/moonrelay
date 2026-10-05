@@ -34,12 +34,10 @@ class TopMembersSection extends StatelessWidget {
     super.key,
     required this.room,
     required this.totalMembers,
-    required this.scheme,
   });
 
   final Room room;
   final int totalMembers;
-  final ColorScheme scheme;
 
   /// Build the list of top member tiles (up to 10, sorted by power level).
   List<Widget> _buildTopMemberTiles(BuildContext context) {
@@ -60,13 +58,13 @@ class TopMembersSection extends StatelessWidget {
         member: member,
         displayName: displayName,
         permissionLabel: permissionLabel,
-        scheme: scheme,
       );
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final t = MoonrelayThemeExtension.of(context).tokens;
     return StreamBuilder(
@@ -121,13 +119,11 @@ class MemberTile extends StatefulWidget {
     required this.member,
     required this.displayName,
     this.permissionLabel,
-    required this.scheme,
   });
 
   final User member;
   final String displayName;
   final String? permissionLabel;
-  final ColorScheme scheme;
 
   @override
   State<MemberTile> createState() => MemberTileState();
@@ -172,6 +168,7 @@ class MemberTileState extends State<MemberTile> {
     String? membershipLabel,
     CachedPresence? presence,
   ) {
+    final scheme = Theme.of(context).colorScheme;
     final lastSeenText = _buildLastSeenText(context, presence);
 
     // Long press used to sit on a GestureDetector wrapped around this InkWell,
@@ -233,7 +230,7 @@ class MemberTileState extends State<MemberTile> {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: widget.scheme.primaryContainer
+                                color: scheme.primaryContainer
                                     .withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(t.radiusSm),
                               ),
@@ -241,7 +238,7 @@ class MemberTileState extends State<MemberTile> {
                                 widget.permissionLabel!,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: widget.scheme.onPrimaryContainer,
+                                  color: scheme.onPrimaryContainer,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -253,7 +250,7 @@ class MemberTileState extends State<MemberTile> {
                         widget.member.id,
                         style: TextStyle(
                           fontSize: 12,
-                          color: widget.scheme.onSurfaceVariant,
+                          color: scheme.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -265,7 +262,7 @@ class MemberTileState extends State<MemberTile> {
                             lastSeenText,
                             style: TextStyle(
                               fontSize: 11,
-                              color: widget.scheme.onSurfaceVariant
+                              color: scheme.onSurfaceVariant
                                   .withValues(alpha: 0.7),
                             ),
                             maxLines: 1,
@@ -284,7 +281,7 @@ class MemberTileState extends State<MemberTile> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: widget.scheme.tertiaryContainer
+                      color: scheme.tertiaryContainer
                           .withValues(alpha: t.opacitySubtle),
                       borderRadius: BorderRadius.circular(t.radiusSm),
                     ),
@@ -292,7 +289,7 @@ class MemberTileState extends State<MemberTile> {
                       membershipLabel,
                       style: TextStyle(
                         fontSize: 11,
-                        color: widget.scheme.onTertiaryContainer,
+                        color: scheme.onTertiaryContainer,
                       ),
                     ),
                   ),

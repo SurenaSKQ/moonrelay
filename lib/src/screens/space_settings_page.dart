@@ -19,7 +19,9 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/screens/space_settings/delete_space_progress.dart';
-import 'package:moonrelay/src/screens/space_settings/space_identity_card.dart';
+import 'package:moonrelay/src/screens/space_settings/space_child_rows.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/identity_header.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -78,25 +80,21 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
   @override
   Widget build(BuildContext context) {
     // Read the debounced sync pulse so the page rebuilds on every
-    // coalesced tick rather than every raw sync event. The pulse
-    // provider is in scope for this screen (mounted inside the
-    // account-aware router).
+    // coalesced tick rather than every raw sync event.
     final pulseVersion = context.select<SyncPulse, int>((p) => p.version);
     if (pulseVersion != _lastPulseVersion) {
       _lastPulseVersion = pulseVersion;
     }
 
-    final scheme = Theme.of(context).colorScheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
-    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final space = widget.space;
 
-    // Current children (rooms and subspaces).
     final children = space.spaceChildren;
     final client = space.client;
 
-    // Rooms that the user has joined and that are NOT already children.
+    // Rooms the user has joined that are not already children.
     final availableRooms = client.rooms.where((r) {
       if (r.id == space.id) return false;
       if (r.isSpace) return false;
@@ -108,255 +106,183 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
           .compareTo(b.getLocalizedDisplayname().toLowerCase()));
 
     final canEdit = _canChange('m.space.child');
-
     final isEncrypted = _isSpaceEncrypted(space);
-
     final creationDate = _creationDate(space);
-
     final canonicalAlias =
         space.canonicalAlias.isNotEmpty ? space.canonicalAlias : null;
-
     final totalMembers = (space.summary.mInvitedMemberCount ?? 0) +
         (space.summary.mJoinedMemberCount ?? 0);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+    return MoonrelayInfoPage(
+      title: l10n.spaceSettings,
+      children: [
+        IdentityHeader(
+          name: space.getLocalizedDisplayname(),
+          topic: space.topic,
+          avatar: SizedBox(
+            width: 56,
+            height: 56,
+            child: AvatarFromUriOrFallbackImage(
+              client: space.client,
+              avatarUri: space.avatar,
+            ),
+          ),
+          chips: [
+            InfoChip(icon: LucideIcons.folder, label: l10n.spaceType),
+            InfoChip(icon: LucideIcons.users, label: '$totalMembers ${l10n.members}'),
+            if (isEncrypted)
+              InfoChip(
+                icon: LucideIcons.shieldCheck,
+                label: l10n.endToEndEncrypted,
+                emphasis: true,
+              ),
+          ],
         ),
-        title: Text(
-          l10n.spaceSettings,
-          style: textTheme.titleLarge,
+
+        const InfoSectionGap(first: true),
+
+        // -- What this space is -------------------------------------------
+        InfoPanel(
+          title: l10n.detailsSection,
+          children: [
+            InfoPanelRow(
+              icon: LucideIcons.fingerprint,
+              label: l10n.roomIdLabel,
+              description: space.id,
+              valueFontFamily: MoonrelayTypography.mono(context),
+            ),
+            if (canonicalAlias != null)
+              InfoPanelRow(
+                icon: LucideIcons.hash,
+                label: l10n.addressLabel,
+                value: canonicalAlias,
+              ),
+            InfoPanelRow(
+              icon: LucideIcons.folder,
+              label: l10n.typeLabel,
+              value: l10n.spaceType,
+            ),
+            InfoPanelRow(
+              icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+              label: l10n.encryptionLabel,
+              value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
+            ),
+            InfoPanelRow(
+              icon: LucideIcons.calendar,
+              label: l10n.createdLabel,
+              value: creationDate,
+            ),
+          ],
         ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: [
-          // -- Space identity card ------------------------------------------
-          SpaceIdentityCard(
-            space: space,
-            displayName: space.getLocalizedDisplayname(),
-            topic: space.topic,
-            totalMembers: totalMembers,
-            scheme: scheme,
-            textTheme: textTheme,
-          ),
-          SizedBox(height: t.spaceLg),
 
-          // -- Technical details --------------------------------------------
-          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
-          const SizedBox(height: 4),
-          InfoDetailRow(
-            icon: LucideIcons.hash,
-            label: l10n.roomIdLabel,
-            value: space.id,
-            scheme: scheme,
-          ),
-          if (canonicalAlias != null)
-            InfoDetailRow(
-              icon: LucideIcons.atSign,
-              label: l10n.addressLabel,
-              value: canonicalAlias,
-              scheme: scheme,
-            ),
-          InfoDetailRow(
-            icon: LucideIcons.folder,
-            label: l10n.typeLabel,
-            value: l10n.spaceType,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
-            label: l10n.encryptionLabel,
-            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: LucideIcons.calendar,
-            label: l10n.createdLabel,
-            value: creationDate,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: LucideIcons.users,
-            label: l10n.members,
-            value: '$totalMembers',
-            scheme: scheme,
-          ),
-          SizedBox(height: t.spaceLg),
+        const InfoSectionGap(),
 
-          // -- Space editing (permission-gated) ----------------------------
-          if (_canChange('m.room.name') ||
-              _canChange('m.room.topic') ||
-              _canChange('m.room.avatar')) ...[
-            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
-            const SizedBox(height: 4),
-            if (_canChange('m.room.name'))
-              InfoActionTile(
-                icon: LucideIcons.pencil,
-                label: l10n.editSpaceName,
-                description: space.getLocalizedDisplayname(),
-                onTap: _editSpaceName,
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.topic'))
-              InfoActionTile(
-                icon: LucideIcons.alignLeft,
-                label: l10n.editSpaceTopic,
-                description: space.topic.isNotEmpty ? space.topic : l10n.notSet,
-                onTap: _editSpaceTopic,
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.avatar'))
-              InfoActionTile(
-                icon: LucideIcons.image,
-                label: l10n.changeSpaceAvatar,
-                description: l10n.changeSpaceAvatarDescription,
-                onTap: _changeSpaceAvatar,
-                scheme: scheme,
-              ),
-            SizedBox(height: t.spaceSm),
-          ],
-
-          // -- Child rooms / subspaces ------------------------------------
-          if (children.isNotEmpty) ...[
-            InfoSectionHeader(title: l10n.spaceChildRooms, scheme: scheme),
-            SizedBox(height: t.spaceXs),
-            ...children.map((child) {
-              final childRoomId = child.roomId;
-              if (childRoomId == null) return const SizedBox.shrink();
-              final childRoom = client.getRoomById(childRoomId);
-              final name = childRoom?.getLocalizedDisplayname() ?? childRoomId;
-              final isSpace = childRoom?.isSpace ?? false;
-
-              return Card(
-                elevation: t.elevationNone,
-                margin: const EdgeInsets.only(bottom: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(t.radiusMd),
-                  side: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
+        // -- Editing the space's own fields --------------------------------
+        if (_canChange('m.room.name') ||
+            _canChange('m.room.topic') ||
+            _canChange('m.room.avatar'))
+          InfoPanel(
+            title: l10n.spaceDetailsEditSection,
+            children: [
+              if (_canChange('m.room.name'))
+                InfoPanelRow(
+                  icon: LucideIcons.pencil,
+                  label: l10n.editSpaceName,
+                  description: space.getLocalizedDisplayname(),
+                  onTap: _editSpaceName,
                 ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: scheme.primaryContainer,
-                    child: Icon(
-                      isSpace ? LucideIcons.folder : LucideIcons.hash,
-                      size: t.iconSizeSmall,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
-                  title: Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: child.suggested == true
-                      ? Text(
-                          l10n.suggested,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.tertiary,
-                          ),
-                        )
-                      : null,
-                  trailing: canEdit
-                      ? IconButton(
-                          icon: Icon(
-                            LucideIcons.trash2,
-                            size: 18,
-                            color: scheme.error,
-                          ),
-                          tooltip: l10n.removeRoomFromSpace,
-                          onPressed: () => _removeChild(context, childRoomId),
-                        )
-                      : null,
+              if (_canChange('m.room.topic'))
+                InfoPanelRow(
+                  icon: LucideIcons.alignLeft,
+                  label: l10n.editSpaceTopic,
+                  description: space.topic.isNotEmpty ? space.topic : l10n.notSet,
+                  onTap: _editSpaceTopic,
                 ),
-              );
-            }),
-            SizedBox(height: t.spaceSm),
-          ],
-
-          // -- Add room section ------------------------------------------
-          if (canEdit) ...[
-            InfoSectionHeader(title: l10n.addRoomToSpace, scheme: scheme),
-            SizedBox(height: t.spaceXs),
-            if (availableRooms.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    l10n.spaceNoChildren,
-                    style: TextStyle(color: scheme.onSurfaceVariant),
-                  ),
+              if (_canChange('m.room.avatar'))
+                InfoPanelRow(
+                  icon: LucideIcons.image,
+                  label: l10n.changeSpaceAvatar,
+                  description: l10n.changeSpaceAvatarDescription,
+                  onTap: _changeSpaceAvatar,
                 ),
-              )
-            else
-              ...availableRooms.map((room) {
-                return Card(
-                  elevation: t.elevationNone,
-                  margin: const EdgeInsets.only(bottom: 4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(t.radiusMd),
-                    side: BorderSide(
-                      color: scheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: scheme.primaryContainer,
-                      child: Icon(
-                        LucideIcons.hash,
-                        size: t.iconSizeSmall,
-                        color: scheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: Text(
-                      room.getLocalizedDisplayname(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        LucideIcons.plus,
-                        size: 18,
-                        color: scheme.primary,
-                      ),
-                      tooltip: l10n.addRoomToSpace,
-                      onPressed: () => _addChild(context, room.id),
-                    ),
-                  ),
-                );
-              }),
-            SizedBox(height: t.spaceSm),
-          ],
+            ],
+          ),
 
-          // -- Danger zone ------------------------------------------------
-          if (_canDeleteSpace()) ...[
-            InfoSectionHeader(
-              title: l10n.actionsDeleteSection,
-              scheme: scheme,
-            ),
-            SizedBox(height: t.spaceXs),
-            InfoActionTile(
-              icon: LucideIcons.trash2,
-              label: l10n.deleteSpace,
-              description: l10n.deleteSpaceDescription,
-              color: scheme.error,
-              onTap: _deleteSpace,
-              scheme: scheme,
-            ),
-          ],
-          SizedBox(height: t.spaceXl),
+        if (_canChange('m.room.name') ||
+            _canChange('m.room.topic') ||
+            _canChange('m.room.avatar'))
+          const InfoSectionGap(),
+
+        // -- Child rooms ----------------------------------------------------
+        // One panel with a row per child, so the list reads as a list. It was a
+        // column of separate bordered cards with a 4px margin each, which is
+        // how you draw a list when you want it to look like a stack of
+        // unrelated things.
+        if (children.isNotEmpty) ...[
+          InfoPanel(
+            title: l10n.spaceChildRooms,
+            padding: EdgeInsets.zero,
+            children: [
+              for (final child in children)
+                if (child.roomId != null)
+                  SpaceChildRoomRow(
+                    roomId: child.roomId!,
+                    room: client.getRoomById(child.roomId!),
+                    suggested: child.suggested == true,
+                    canEdit: canEdit,
+                    onRemove: () => _removeChild(context, child.roomId!),
+                  ),
+            ],
+          ),
+          const InfoSectionGap(),
         ],
-      ),
+
+        // -- Add a room ------------------------------------------------------
+        if (canEdit) ...[
+          InfoPanel(
+            title: l10n.addRoomToSpace,
+            padding: EdgeInsets.zero,
+            children: [
+              if (availableRooms.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: t.spaceXl),
+                  child: Center(
+                    child: Text(
+                      l10n.spaceNoChildren,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                )
+              else
+                for (final room in availableRooms)
+                  AvailableRoomRow(
+                    room: room,
+                    onAdd: () => _addChild(context, room.id),
+                  ),
+            ],
+          ),
+          const InfoSectionGap(),
+        ],
+
+        // -- Deleting the space -----------------------------------------------
+        if (_canDeleteSpace()) ...[
+          InfoPanel(
+            title: l10n.actionsDeleteSection,
+            children: [
+              InfoPanelRow(
+                icon: LucideIcons.trash2,
+                label: l10n.deleteSpace,
+                description: l10n.deleteSpaceDescription,
+                destructive: true,
+                onTap: _deleteSpace,
+              ),
+            ],
+          ),
+          SizedBox(height: t.spaceLg),
+        ],
+      ],
     );
   }
-
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------

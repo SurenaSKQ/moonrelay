@@ -28,9 +28,10 @@ import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/helpers/room_dates.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:moonrelay/src/widgets/identity_header.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:moonrelay/src/screens/room_settings/power_levels_editor.dart';
-import 'package:moonrelay/src/screens/room_settings/room_identity_card.dart';
 import 'package:moonrelay/src/screens/room_settings/room_notification_tile.dart';
 import 'package:moonrelay/src/screens/room_settings/knock_requests_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -345,8 +346,6 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final t = MoonrelayThemeExtension.of(context).tokens;
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
@@ -359,272 +358,288 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final totalMembers = (room.summary.mInvitedMemberCount ?? 0) +
         (room.summary.mJoinedMemberCount ?? 0);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+    return MoonrelayInfoPage(
+      title: l10n.roomSettings,
+      actions: [
+        IconButton(
+          icon: const Icon(LucideIcons.copy),
+          tooltip: l10n.copyRoomIdTooltip,
+          onPressed: _copyRoomIdWithFeedback,
         ),
-        title: Text(
-          l10n.roomSettings,
-          style: textTheme.titleLarge,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.copy),
-            tooltip: l10n.copyRoomIdTooltip,
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: room.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(l10n.roomIdCopied),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        padding:
-            EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: t.spaceSm),
-        children: [
-          // -- Room identity card ----------------------------------------
-          RoomIdentityCard(
-            room: room,
-            roomType: roomType,
-            totalMembers: totalMembers,
-            scheme: scheme,
-            textTheme: textTheme,
-          ),
-          SizedBox(height: t.spaceLg),
-
-          // -- Technical details ------------------------------------------
-          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
-          SizedBox(height: t.spaceXs),
-          InfoDetailRow(
-            icon: LucideIcons.hash,
-            label: l10n.roomIdLabel,
-            value: room.id,
-            scheme: scheme,
-          ),
-          if (canonicalAlias != null)
-            InfoDetailRow(
-              icon: LucideIcons.atSign,
-              label: l10n.addressLabel,
-              value: canonicalAlias,
-              scheme: scheme,
+      ],
+      children: [
+        IdentityHeader(
+          name: room.getLocalizedDisplayname(),
+          topic: room.topic,
+          avatar: SizedBox(
+            width: 56,
+            height: 56,
+            child: AvatarFromUriOrFallbackImage(
+              client: room.client,
+              avatarUri: room.avatar,
             ),
-          InfoDetailRow(
-            icon: room.joinRules == JoinRules.public
-                ? LucideIcons.globe
-                : room.joinRules == JoinRules.knock ||
-                        room.joinRules == JoinRules.knockRestricted
-                    ? LucideIcons.logIn
-                    : LucideIcons.lock,
-            label: l10n.typeLabel,
-            value: roomType,
-            scheme: scheme,
           ),
-          InfoDetailRow(
-            icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
-            label: l10n.encryptionLabel,
-            value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: LucideIcons.calendar,
-            label: l10n.createdLabel,
-            value: creationDate,
-            scheme: scheme,
-          ),
-          InfoDetailRow(
-            icon: LucideIcons.users,
-            label: l10n.members,
-            value: '$totalMembers',
-            scheme: scheme,
-          ),
-          SizedBox(height: t.spaceLg),
-
-          // -- Room editing (permission-gated) --------------------------
-          if (_canChange('m.room.name') ||
-              _canChange('m.room.topic') ||
-              _canChange('m.room.avatar')) ...[
-            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
-            SizedBox(height: t.spaceXs),
-            if (_canChange('m.room.name'))
-              InfoActionTile(
-                icon: LucideIcons.pencil,
-                label: l10n.editRoomName,
-                description: room.getLocalizedDisplayname(),
-                onTap: _editRoomName,
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.topic'))
-              InfoActionTile(
-                icon: LucideIcons.alignLeft,
-                label: l10n.editRoomTopic,
-                description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
-                onTap: _editRoomTopic,
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.avatar'))
-              InfoActionTile(
-                icon: LucideIcons.image,
-                label: l10n.changeRoomAvatar,
-                description: l10n.changeRoomAvatarDescription,
-                onTap: _changeRoomAvatar,
-                scheme: scheme,
-              ),
-            SizedBox(height: t.spaceSm),
-          ],
-
-          // -- Room permissions & state (permission-gated) --------------
-          if (_canChange('m.room.join_rules') ||
-              _canChange('m.room.history_visibility') ||
-              _canChange('m.room.canonical_alias') ||
-              _canChange('m.room.guest_access') ||
-              _canChange('m.room.power_levels') ||
-              _canChange('m.room.encryption')) ...[
-            InfoSectionHeader(title: l10n.actionsSection, scheme: scheme),
-            SizedBox(height: t.spaceXs),
-            if (_canChange('m.room.join_rules'))
-              InfoActionTile(
-                icon: LucideIcons.logIn,
-                label: l10n.joinRuleLabel,
-                description: roomType,
-                onTap: () => _editJoinRules(context),
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.history_visibility'))
-              InfoActionTile(
-                icon: LucideIcons.eye,
-                label: l10n.historyVisibilitySection,
-                description: _historyVisibilityLabel(context, room),
-                onTap: () => _editHistoryVisibility(context),
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.canonical_alias'))
-              InfoActionTile(
-                icon: LucideIcons.atSign,
-                label: l10n.canonicalAliasSection,
-                description: canonicalAlias ?? l10n.notSet,
-                onTap: () => _editCanonicalAlias(context),
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.guest_access'))
-              InfoActionTile(
-                icon: LucideIcons.userPlus,
-                label: l10n.guestAccessSection,
-                description: _guestAccessLabel(context, room),
-                onTap: () => _editGuestAccess(context),
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.power_levels'))
-              InfoActionTile(
-                icon: LucideIcons.keyRound,
-                label: l10n.powerLevelsSection,
-                description: l10n.powerLevelUsersDefault,
-                onTap: () => _editPowerLevels(context),
-                scheme: scheme,
-              ),
-            if (_canChange('m.room.encryption') && !isEncrypted)
-              InfoActionTile(
+          chips: [
+            InfoChip(
+              icon: room.joinRules == JoinRules.public
+                  ? LucideIcons.globe
+                  : LucideIcons.lock,
+              label: roomType,
+            ),
+            InfoChip(icon: LucideIcons.users, label: '$totalMembers ${l10n.members}'),
+            if (room.encrypted)
+              InfoChip(
                 icon: LucideIcons.shieldCheck,
-                label: l10n.encryptionSection,
-                description: l10n.enableEncryption,
-                onTap: () => _enableEncryption(context),
-                scheme: scheme,
+                label: l10n.endToEndEncrypted,
+                emphasis: true,
               ),
-            SizedBox(height: t.spaceSm),
           ],
+        ),
 
-          // -- Room list visibility -------------------------------------
-          InfoSectionHeader(
-              title: l10n.directoryVisibilitySection, scheme: scheme),
-          SizedBox(height: t.spaceXs),
-          InfoActionTile(
-            icon: LucideIcons.globe,
-            label: l10n.directoryVisibilitySection,
-            description: room.joinRules == JoinRules.public
-                ? l10n.directoryVisibilityPublic
-                : l10n.directoryVisibilityPrivate,
-            onTap: () => _editDirectoryVisibility(context),
-            scheme: scheme,
+        const InfoSectionGap(first: true),
+
+        // -- What this room is ------------------------------------------
+        // Facts first and edits below. The previous order put the facts in a
+        // panel headed "Details" and the editable state under a second panel
+        // *also* headed "Actions", so two adjacent sections on one page had
+        // the same title and the reader could not tell which was which.
+        InfoPanel(
+          title: l10n.detailsSection,
+          children: [
+            InfoPanelRow(
+              icon: LucideIcons.fingerprint,
+              label: l10n.roomIdLabel,
+              description: room.id,
+              valueFontFamily: MoonrelayTypography.mono(context),
+            ),
+            if (canonicalAlias != null)
+              InfoPanelRow(
+                icon: LucideIcons.hash,
+                label: l10n.addressLabel,
+                value: canonicalAlias,
+              ),
+            InfoPanelRow(
+              icon: LucideIcons.tag,
+              label: l10n.typeLabel,
+              value: roomType,
+            ),
+            InfoPanelRow(
+              icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+              label: l10n.encryptionLabel,
+              value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
+            ),
+            InfoPanelRow(
+              icon: LucideIcons.calendar,
+              label: l10n.createdLabel,
+              value: creationDate,
+            ),
+            InfoPanelRow(
+              icon: LucideIcons.server,
+              label: l10n.roomVersion,
+              value: room.roomVersion ?? 'unknown',
+              valueFontFamily: MoonrelayTypography.mono(context),
+            ),
+          ],
+        ),
+
+        const InfoSectionGap(),
+
+        // -- Editing the room's own fields -------------------------------
+        if (_canChange('m.room.name') ||
+            _canChange('m.room.topic') ||
+            _canChange('m.room.avatar'))
+          InfoPanel(
+            title: l10n.roomDetailsEditSection,
+            children: [
+              if (_canChange('m.room.name'))
+                InfoPanelRow(
+                  icon: LucideIcons.pencil,
+                  label: l10n.editRoomName,
+                  description: room.getLocalizedDisplayname(),
+                  onTap: _editRoomName,
+                ),
+              if (_canChange('m.room.topic'))
+                InfoPanelRow(
+                  icon: LucideIcons.alignLeft,
+                  label: l10n.editRoomTopic,
+                  description:
+                      room.topic.isNotEmpty ? room.topic : l10n.notSet,
+                  onTap: _editRoomTopic,
+                ),
+              if (_canChange('m.room.avatar'))
+                InfoPanelRow(
+                  icon: LucideIcons.image,
+                  label: l10n.changeRoomAvatar,
+                  description: l10n.changeRoomAvatarDescription,
+                  onTap: _changeRoomAvatar,
+                ),
+            ],
           ),
-          SizedBox(height: t.spaceSm),
 
-          // -- Room version + upgrade flow ------------------------------
-          InfoSectionHeader(title: l10n.detailsSection, scheme: scheme),
-          SizedBox(height: t.spaceXs),
-          InfoDetailRow(
-            icon: LucideIcons.server,
-            label: l10n.roomVersion,
-            value: room.roomVersion ?? 'unknown',
-            scheme: scheme,
+        if (_canChange('m.room.name') ||
+            _canChange('m.room.topic') ||
+            _canChange('m.room.avatar'))
+          const InfoSectionGap(),
+
+        // -- Access and history ------------------------------------------
+        if (_canChange('m.room.join_rules') ||
+            _canChange('m.room.history_visibility') ||
+            _canChange('m.room.canonical_alias') ||
+            _canChange('m.room.guest_access') ||
+            _canChange('m.room.power_levels') ||
+            _canChange('m.room.encryption'))
+          InfoPanel(
+            title: l10n.accessAndHistorySection,
+            children: [
+              if (_canChange('m.room.join_rules'))
+                InfoPanelRow(
+                  icon: LucideIcons.doorOpen,
+                  label: l10n.joinRuleLabel,
+                  description: roomType,
+                  onTap: () => _editJoinRules(context),
+                ),
+              if (_canChange('m.room.history_visibility'))
+                InfoPanelRow(
+                  icon: LucideIcons.eye,
+                  label: l10n.historyVisibilitySection,
+                  description: _historyVisibilityLabel(context, room),
+                  onTap: () => _editHistoryVisibility(context),
+                ),
+              if (_canChange('m.room.guest_access'))
+                InfoPanelRow(
+                  icon: LucideIcons.userPlus,
+                  label: l10n.guestAccessSection,
+                  description: _guestAccessLabel(context, room),
+                  onTap: () => _editGuestAccess(context),
+                ),
+              if (_canChange('m.room.power_levels'))
+                InfoPanelRow(
+                  icon: LucideIcons.keyRound,
+                  label: l10n.powerLevelsSection,
+                  description: l10n.powerLevelUsersDefault,
+                  onTap: () => _editPowerLevels(context),
+                ),
+              if (_canChange('m.room.canonical_alias'))
+                InfoPanelRow(
+                  icon: LucideIcons.atSign,
+                  label: l10n.canonicalAliasSection,
+                  description: canonicalAlias ?? l10n.notSet,
+                  onTap: () => _editCanonicalAlias(context),
+                ),
+              if (_canChange('m.room.encryption') && !isEncrypted)
+                InfoPanelRow(
+                  icon: LucideIcons.shieldCheck,
+                  label: l10n.encryptionSection,
+                  description: l10n.enableEncryption,
+                  onTap: () => _enableEncryption(context),
+                ),
+            ],
           ),
-          if (_canChange('m.room.tombstone') || _isAdmin)
-            InfoActionTile(
-              icon: LucideIcons.arrowUpCircle,
-              label: l10n.upgradeRoom,
-              description: l10n.upgradeRoomDescription,
-              onTap: () => _upgradeRoom(context),
-              scheme: scheme,
-            ),
-          SizedBox(height: t.spaceSm),
 
-          // -- Knock requests (only when joinRule allows knock) ---------
-          if (room.joinRules == JoinRules.knock ||
-              room.joinRules == JoinRules.knockRestricted)
-            KnockRequestsSection(room: room),
+        if (_canChange('m.room.join_rules') ||
+            _canChange('m.room.history_visibility') ||
+            _canChange('m.room.canonical_alias') ||
+            _canChange('m.room.guest_access') ||
+            _canChange('m.room.power_levels') ||
+            _canChange('m.room.encryption'))
+          const InfoSectionGap(),
 
-          // --- Notification settings ----------------------------------
-          InfoSectionHeader(title: l10n.notificationSettings, scheme: scheme),
-          SizedBox(height: t.spaceXs),
-          RoomNotificationTile(room: room),
-          SizedBox(height: t.spaceSm),
+        // -- Discoverability ----------------------------------------------
+        InfoPanel(
+          title: l10n.directoryVisibilitySection,
+          children: [
+            InfoPanelRow(
+              icon: LucideIcons.globe,
+              label: l10n.directoryVisibilitySection,
+              description: room.joinRules == JoinRules.public
+                  ? l10n.directoryVisibilityPublic
+                  : l10n.directoryVisibilityPrivate,
+              onTap: () => _editDirectoryVisibility(context),
+            ),
+            // Upgrade sits in the same panel as the other things that change
+            // what *other* people see about this room. It used to sit under a
+            // second panel titled "Details", which was a duplicate title and
+            // put a version-upgrade button next to a read-only version number.
+            if (_canChange('m.room.tombstone') || _isAdmin)
+              InfoPanelRow(
+                icon: LucideIcons.arrowUpCircle,
+                label: l10n.upgradeRoom,
+                description: l10n.upgradeRoomDescription,
+                onTap: () => _upgradeRoom(context),
+              ),
+          ],
+        ),
 
-          // -- Danger zone ------------------------------------------------
-          if (_isAdmin || room.membership == Membership.leave)
-            InfoSectionHeader(
-              title: l10n.actionsDeleteSection,
-              scheme: scheme,
-            ),
-          if (room.membership == Membership.join) ...[
-            SizedBox(height: t.spaceXs),
-            InfoActionTile(
-              icon: LucideIcons.logOut,
-              label: l10n.leaveRoom,
-              description: l10n.leaveRoomDescription,
-              color: scheme.error,
-              onTap: _leaveRoom,
-              scheme: scheme,
-            ),
-          ],
-          if (_isAdmin) ...[
-            SizedBox(height: t.spaceXs),
-            InfoActionTile(
-              icon: LucideIcons.trash2,
-              label: l10n.deleteRoom,
-              description: l10n.deleteRoomDescription,
-              color: scheme.error,
-              onTap: _deleteRoom,
-              scheme: scheme,
-            ),
-          ],
-          if (room.membership == Membership.leave) ...[
-            SizedBox(height: t.spaceXs),
-            InfoActionTile(
-              icon: LucideIcons.eyeOff,
-              label: l10n.forgetRoom,
-              description: l10n.forgetRoomDescription,
-              onTap: _forgetRoom,
-              scheme: scheme,
-            ),
-          ],
-          SizedBox(height: t.spaceXl),
+        const InfoSectionGap(),
+
+        // -- Knock requests, only when the join rule allows them --------
+        if (room.joinRules == JoinRules.knock ||
+            room.joinRules == JoinRules.knockRestricted) ...[
+          KnockRequestsSection(room: room),
+          const InfoSectionGap(),
         ],
-      ),
+
+        // -- Notifications ------------------------------------------------
+        InfoPanel(
+          title: l10n.notificationSettings,
+          padding: EdgeInsets.zero,
+          children: [
+            RoomNotificationTile(room: room),
+          ],
+        ),
+
+        const InfoSectionGap(),
+
+        // -- Leaving and deleting ------------------------------------------
+        // One panel, and the destructive rows are last in it rather than in
+        // their own panel. "Leave", "delete" and "forget" are the same kind of
+        // decision at different severities, and separating them into three
+        // one-row panels made the mildest of them look as final as the worst.
+        if (_isAdmin || room.membership == Membership.leave) ...[
+          InfoPanel(
+            title: l10n.actionsDeleteSection,
+            children: [
+              if (room.membership == Membership.join)
+                InfoPanelRow(
+                  icon: LucideIcons.logOut,
+                  label: l10n.leaveRoom,
+                  description: l10n.leaveRoomDescription,
+                  destructive: true,
+                  onTap: _leaveRoom,
+                ),
+              if (_isAdmin)
+                InfoPanelRow(
+                  icon: LucideIcons.trash2,
+                  label: l10n.deleteRoom,
+                  description: l10n.deleteRoomDescription,
+                  destructive: true,
+                  onTap: _deleteRoom,
+                ),
+              if (room.membership == Membership.leave)
+                InfoPanelRow(
+                  icon: LucideIcons.eyeOff,
+                  label: l10n.forgetRoom,
+                  description: l10n.forgetRoomDescription,
+                  onTap: _forgetRoom,
+                ),
+            ],
+          ),
+          SizedBox(height: t.spaceLg),
+        ],
+      ],
+    );
+  }
+
+  /// Copies the room id and confirms it, rather than copying silently.
+  ///
+  /// The confirmation used to be inlined in the [AppBar] callback, which meant
+  /// it was the one copy in the app with no logger and no `FeedbackContext`
+  /// helper and the reader had no way to tell whether it had worked.
+  void _copyRoomIdWithFeedback() {
+    Clipboard.setData(ClipboardData(text: widget.room.id));
+    context.showMessage(
+      AppLocalizations.of(context)!.roomIdCopied,
+      duration: const Duration(seconds: 2),
     );
   }
 

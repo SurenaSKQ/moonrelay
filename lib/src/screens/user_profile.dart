@@ -26,7 +26,7 @@ import 'package:moonrelay/src/screens/user_profile/profile_actions_section.dart'
 import 'package:moonrelay/src/screens/user_profile/profile_header.dart';
 import 'package:moonrelay/src/screens/user_profile/profile_info_card.dart';
 import 'package:moonrelay/src/screens/user_profile/profile_overlay_page.dart';
-import 'package:moonrelay/src/screens/user_profile/room_context_section.dart'; 
+import 'package:moonrelay/src/screens/user_profile/room_context_section.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -183,8 +183,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _displayName,
       ),
       body: ValueListenableBuilder<CachedPresence?>(
-        valueListenable: bus?.listenTo(widget.userID) ??
-            _NullPresenceListenable(),
+        valueListenable:
+            bus?.listenTo(widget.userID) ?? _NullPresenceListenable(),
         builder: (context, eventPresence, __) => ProfilePageContents(
           client: widget.client,
           userProfile: _profile,
@@ -295,11 +295,7 @@ class ProfilePageContents extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ---- About section ----
-          InfoSectionHeader(
-            icon: LucideIcons.info,
-            title: l10n.sectionAbout,
-            scheme: scheme,
-          ),
+          InfoSectionLabel(icon: LucideIcons.info, title: l10n.sectionAbout),
           const SizedBox(height: 8),
           ProfileInfoCard(
             displayName: _displayName,

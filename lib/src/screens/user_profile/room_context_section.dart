@@ -46,11 +46,7 @@ class RoomContextSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InfoSectionHeader(
-          icon: LucideIcons.shield,
-          title: l10n.roomInfoTitle,
-          scheme: scheme,
-        ),
+        InfoSectionLabel(icon: LucideIcons.shield, title: l10n.roomInfoTitle),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
