@@ -70,8 +70,8 @@ void main() {
     });
 
     test('accent seed drives the color scheme', () {
-      final light = MoonrelayTheme.light(MoonrelayAccents.indigo.seedColor);
-      final vista = MoonrelayTheme.light(MoonrelayAccents.vistaBlue.seedColor);
+      final light = MoonrelayTheme.light(MoonrelayAccents.frigoris.seedColor);
+      final vista = MoonrelayTheme.light(MoonrelayAccents.nubium.seedColor);
       expect(vista.colorScheme.primary, isNot(light.colorScheme.primary));
     });
   });

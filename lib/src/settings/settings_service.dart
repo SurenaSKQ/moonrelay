@@ -288,7 +288,11 @@ class SettingsService {
   /// Persists the active accent id under `selected_accent`.
   Future<void> updateSelectedAccent(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_selectedAccentKey, id);
+    // Resolved on the way in, so storage only ever holds a current id. The
+    // accents were renamed to lunar names, and a retired id left in storage
+    // reads back as the right colour and then lights up no radio button in the
+    // picker, which compares against the registry rather than resolving.
+    await prefs.setString(_selectedAccentKey, MoonrelayAccents.fromId(id).id);
   }
 
   Future<ThemeMode> themeMode() async {

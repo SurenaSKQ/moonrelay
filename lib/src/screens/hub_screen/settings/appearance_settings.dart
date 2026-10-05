@@ -25,6 +25,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 
 // -----------------------------------------------------------------------------
 // Appearance Settings
@@ -96,6 +97,12 @@ class HubAppearanceSettings extends StatelessWidget {
                 title: l10n.accentColor,
                 subtitle: l10n.accentColorDesc,
                 children: [
+                  // Grouped by the two populations of the lunar surface rather
+                  // than as one list of nine. The accents are named after
+                  // features now, and a reader who has looked at the Moon
+                  // knows there are dark seas and bright craters; showing them
+                  // in two groups says what the names mean, where a flat list
+                  // of nine proper nouns does not.
                   RadioGroup<String>(
                     groupValue: controller.selectedAccentId,
                     onChanged: (v) {
@@ -104,27 +111,50 @@ class HubAppearanceSettings extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final accent in MoonrelayAccents.all)
-                          RadioListTile<String>(
-                            value: accent.id,
-                            dense: true,
-                            selected: accent.id == controller.selectedAccentId,
-                            title: Row(
-                              children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: accent.seedColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                SizedBox(width: t.spaceMd),
-                                Text(accent.label),
-                              ],
-                            ),
+                        for (final family in MoonrelayAccentFamily.values) ...[
+                          InfoSectionLabel(
+                            title: family == MoonrelayAccentFamily.mare
+                                ? l10n.accentFamilyMare
+                                : l10n.accentFamilyCrater,
                           ),
+                          SizedBox(height: t.spaceXs),
+                          for (final accent in MoonrelayAccents.all
+                              .where((a) => a.family == family))
+                            RadioListTile<String>(
+                              value: accent.id,
+                              dense: true,
+                              selected:
+                                  accent.id == controller.selectedAccentId,
+                              title: Row(
+                                children: [
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      color: accent.seedColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: t.spaceMd),
+                                  Flexible(
+                                    child: Text(
+                                      localizedAccent(accent, l10n),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          SizedBox(height: t.spaceSm),
+                        ],
                       ],
+                    ),
+                  ),
+                  Text(
+                    l10n.accentDescription,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],

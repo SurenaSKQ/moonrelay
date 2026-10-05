@@ -382,6 +382,22 @@
   "spaceType": "Space",
   "spaceDetailsEditSection": "Name and topic",
   "roomNotAvailable": "Not on this device yet",
+
+  "accentFamilyMare": "The dark seas",
+  "accentFamilyCrater": "The bright craters",
+  "accentProcellarum": "Oceanus Procellarum",
+  "accentNubium": "Mare Nubium",
+  "accentSerenitatis": "Mare Serenitatis",
+  "accentFecunditatis": "Mare Fecunditatis",
+  "accentFrigoris": "Mare Frigoris",
+  "accentTycho": "Tycho",
+  "accentCopernicus": "Copernicus",
+  "accentAristarchus": "Aristarchus",
+  "accentPlato": "Plato",
+  "accentDescription": "@accentDescription",
+  "@accentDescription": {
+    "description": "Description of how the accent names are chosen, shown under the picker."
+  },
   "publicRoom": "Public Room",
   "privateRoom": "Private Room",
   "unknownDate": "Unknown",

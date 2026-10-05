@@ -326,6 +326,21 @@
   "spaceType": "فضا",
   "spaceDetailsEditSection": "نام و موضوع",
   "roomNotAvailable": "هنوز روی این دستگاه نیست",
+
+  "accentFamilyMare": "دریاهای تیره",
+  "accentFamilyCrater": "دهانه‌های روشن",
+  "accentProcellarum": "اقیانوس طوفانی",
+  "accentNubium": "دریای ابرها",
+  "accentSerenitatis": "دریای آرامش",
+  "accentFecunditatis": "دریای بارور",
+  "accentFrigoris": "دریای سرما",
+  "accentTycho": "تیخو",
+  "accentCopernicus": "کوپرنیک",
+  "accentAristarchus": "اریستارخوس",
+  "accentPlato": "پلاتو",
+  "@accentDescription": {
+    "description": "Description of how the accent names are chosen, shown under the picker."
+  },
   "publicRoom": "اتاق عمومی",
   "privateRoom": "اتاق خصوصی",
   "unknownDate": "نامشخص",

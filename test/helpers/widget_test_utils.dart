@@ -37,7 +37,7 @@ import 'mocks.dart';
 /// The default Moonrelay [ThemeData] used by test wrappers so widgets that
 /// read [MoonrelayThemeExtension] resolve it exactly like in production.
 ThemeData testMoonrelayTheme() =>
-    MoonrelayTheme.light(MoonrelayAccents.indigo.seedColor);
+    MoonrelayTheme.light(MoonrelayAccents.defaultAccent.seedColor);
 
 /// Creates a [SettingsController] backed by an in-memory [SettingsService],
 /// with default values pre-populated so tests can use it immediately without

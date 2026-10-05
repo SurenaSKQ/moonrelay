@@ -16,7 +16,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,21 +42,26 @@ void main() {
     );
     await tester.pump();
 
-    final skyTile =
-        find.widgetWithText(RadioListTile<String>, MoonrelayAccents.sky.label);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(HubAppearanceSettings)),
+    )!;
+    final skyTile = find.widgetWithText(
+      RadioListTile<String>,
+      localizedAccent(MoonrelayAccents.nubium, l10n),
+    );
     await tester.ensureVisible(skyTile);
     await tester.tap(skyTile);
     await tester.pump();
 
-    expect(controller.selectedAccentId, MoonrelayAccents.sky.id);
-    expect(controller.selectedAccent, same(MoonrelayAccents.sky));
+    expect(controller.selectedAccentId, MoonrelayAccents.nubium.id);
+    expect(controller.selectedAccent, same(MoonrelayAccents.nubium));
     // Accents own the hue only; geometry settings survive the switch.
     expect(controller.density, LayoutDensity.comfortable);
   });
 
   testWidgets('selecting a density chip keeps the accent', (tester) async {
     final controller = createTestSettingsController();
-    await controller.updateSelectedAccent(MoonrelayAccents.crimson.id);
+    await controller.updateSelectedAccent(MoonrelayAccents.aristarchus.id);
 
     await tester.pumpWidget(
       wrapWithProviders(
@@ -70,6 +77,6 @@ void main() {
     await tester.pump();
 
     expect(controller.density, LayoutDensity.compact);
-    expect(controller.selectedAccentId, MoonrelayAccents.crimson.id);
+    expect(controller.selectedAccentId, MoonrelayAccents.aristarchus.id);
   });
 }

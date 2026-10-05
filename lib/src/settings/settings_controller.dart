@@ -222,7 +222,12 @@ class SettingsController with ChangeNotifier, WindowListener {
   Future<void> loadSettings() async {
     final snapshot = await _settingsService.loadAll();
     _themeMode = snapshot.themeMode;
-    _selectedAccentId = snapshot.selectedAccentId;
+    // Normalised on load rather than on read. The accents were renamed to
+    // lunar names, and the picker compares `accent.id == selectedAccentId`, so
+    // a stale id in storage would resolve to the right *colour* through
+    // `fromId` and then light up no radio button at all. Resolving once here
+    // means `selectedAccentId` only ever holds a current id.
+    _selectedAccentId = MoonrelayAccents.fromId(snapshot.selectedAccentId).id;
     _displayType = snapshot.displayType;
 
     // Layout settings

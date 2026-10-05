@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
@@ -116,7 +117,7 @@ class WelcomeSettingsScreen extends StatelessWidget {
                                   ),
                                 ),
                                 SizedBox(width: t.spaceMd),
-                                Text(accent.label),
+                                Text(localizedAccent(accent, l10n)),
                               ],
                             ),
                             value: accent.id,

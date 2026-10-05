@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
 
@@ -95,4 +96,30 @@ String localizedLogLevel(LogLevel level, AppLocalizations l10n) {
     case LogLevel.fatal:
       return l10n.logLevelFatal;
   }
+}
+
+/// Resolves an accent's display name from its ARB key.
+///
+/// The accents carry a key rather than a string so the registry does not need
+/// to import the generated localizations, which keeps it usable from a plain
+/// unit test. That trade means something has to do the lookup, and this is it.
+///
+/// Falls back to the accent's id when the key is missing from a locale, which
+/// is better than an empty row and better than a blank settings page. The
+/// fallback is why the fallback is the id and not a hardcoded English name:
+/// an id is at least stable and recognisable.
+String localizedAccent(MoonrelayAccent accent, AppLocalizations l10n) {
+  final resolved = switch (accent.labelKey) {
+    'accentProcellarum' => l10n.accentProcellarum,
+    'accentNubium' => l10n.accentNubium,
+    'accentSerenitatis' => l10n.accentSerenitatis,
+    'accentFecunditatis' => l10n.accentFecunditatis,
+    'accentFrigoris' => l10n.accentFrigoris,
+    'accentTycho' => l10n.accentTycho,
+    'accentCopernicus' => l10n.accentCopernicus,
+    'accentAristarchus' => l10n.accentAristarchus,
+    'accentPlato' => l10n.accentPlato,
+    final other => other.isEmpty ? accent.id : other,
+  };
+  return resolved.isEmpty ? accent.id : resolved;
 }
