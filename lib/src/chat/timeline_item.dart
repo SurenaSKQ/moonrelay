@@ -499,8 +499,26 @@ class _TimelineItemState extends State<TimelineItem> {
               ? cs.primary.withValues(alpha: t.opacityFocus)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(t.radiusSm),
-          border: isHighlighted
+          // The keyboard cursor gets a ring and a halo; the jump highlight
+          // gets a fill. They are deliberately different treatments, because
+          // the highlight is a two-second flash after a jump and this is a
+          // state that persists until the cursor moves, and an earlier version
+          // that shared one slot made the two indistinguishable on screen.
+          border: _hasKeyboardFocus
               ? Border.all(color: cs.primary, width: t.borderWidthThick)
+              : isHighlighted
+                  ? Border.all(color: cs.primary, width: t.borderWidthThick)
+                  : null,
+          // Earthshine, and transparent in light mode because a row lit from
+          // the front casts nothing.
+          boxShadow: _hasKeyboardFocus && ext.layers.glow.a > 0
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: ext.layers.glow,
+                    blurRadius: t.spaceMd,
+                    spreadRadius: 1,
+                  ),
+                ]
               : null,
         ),
         child: Stack(

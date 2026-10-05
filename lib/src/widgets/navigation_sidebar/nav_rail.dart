@@ -243,8 +243,8 @@ class _SpacesRailState extends State<SpacesRail> {
                       width: MoonrelayDesignTokens.spaceIconSize * 0.66,
                       height: t.borderWidthMedium * 2,
                       decoration: BoxDecoration(
-                        color: scheme.onSurface
-                            .withValues(alpha: t.opacitySubtle),
+                        color:
+                            scheme.onSurface.withValues(alpha: t.opacitySubtle),
                         borderRadius: BorderRadius.circular(t.radiusFull),
                       ),
                     ),
@@ -260,7 +260,8 @@ class _SpacesRailState extends State<SpacesRail> {
                   final item = widget.items[index];
                   return switch (item) {
                     NavSpaceGroup() => _groupBlock(item, client),
-                    NavSpaceLeaf() => _leaf(item.space, grouped: false, client: client),
+                    NavSpaceLeaf() =>
+                      _leaf(item.space, grouped: false, client: client),
                   };
                 },
               ),
@@ -285,11 +286,11 @@ class _SpacesRailState extends State<SpacesRail> {
   }
 
   /// A group: its box, holding its children at a smaller size.
-///
-/// The children's size is the whole trick. Forty pixels instead of forty-eight
-/// is what pays for the box's four pixels of padding on each side, which is
-/// what makes a group a shape rather than a rule.
-Widget _groupBlock(NavSpaceGroup group, Client client) {
+  ///
+  /// The children's size is the whole trick. Forty pixels instead of forty-eight
+  /// is what pays for the box's four pixels of padding on each side, which is
+  /// what makes a group a shape rather than a rule.
+  Widget _groupBlock(NavSpaceGroup group, Client client) {
     final t = Theme.of(context).moonrelay.tokens;
     final children = <Widget>[
       for (final child in group.children)
@@ -317,7 +318,8 @@ Widget _groupBlock(NavSpaceGroup group, Client client) {
       padding: EdgeInsets.symmetric(vertical: t.spaceXxs),
       child: RailGroupBox(
         groupId: group.id,
-        label: group.parentSpaceName ?? AppLocalizations.of(context)!.spaceGroup,
+        label:
+            group.parentSpaceName ?? AppLocalizations.of(context)!.spaceGroup,
         count: group.children.length,
         expanded: group.isExpanded,
         dropHovered: _hoverId != null && _hoverId == group.id,
@@ -348,7 +350,9 @@ Widget _groupBlock(NavSpaceGroup group, Client client) {
       client: client,
       space: space,
       selected: selected,
-      onTap: () { if (!previewOnly) widget.onSelect(space); },
+      onTap: () {
+        if (!previewOnly) widget.onSelect(space);
+      },
       tooltip: _tooltipFor(space),
       motion: Motion.of(context),
       railActive: theme.moonrelay.layers.railActive,
@@ -439,7 +443,8 @@ Widget _groupBlock(NavSpaceGroup group, Client client) {
   }
 
   /// Moves group [groupId] so it sits immediately before [targetId].
-  void _moveGroupAbove(SpacePreferences prefs, String groupId, String targetId) {
+  void _moveGroupAbove(
+      SpacePreferences prefs, String groupId, String targetId) {
     final order = List<String>.of(prefs.spaceOrder);
     final from = order.indexOf(groupId);
     final to = order.indexOf(targetId);
@@ -540,6 +545,7 @@ class _RailTileState extends State<_RailTile> {
     final theme = Theme.of(context);
     final t = theme.moonrelay.tokens;
     final scheme = theme.colorScheme;
+    final glow = theme.moonrelay.layers.glow;
 
     // The indicator sits outside the tile's own box, hanging off the rail's
     // leading edge. Putting it inside would need the tile to shrink, and the
@@ -611,6 +617,20 @@ class _RailTileState extends State<_RailTile> {
                     // to be drawing the eye.
                     color: _lit ? widget.railActive : scheme.surfaceContainer,
                     borderRadius: _radius,
+                    // Earthshine. The rail is the darkest pane in the app and
+                    // the selected space is the one thing on it that is
+                    // switched on, so it is the one place a halo reads as
+                    // light rather than as a drop shadow. Transparent in light
+                    // mode, where there is no second light source to cast.
+                    boxShadow: _lit && glow.a > 0
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: glow,
+                              blurRadius: widget.size * 0.45,
+                              spreadRadius: widget.size * 0.05,
+                            ),
+                          ]
+                        : null,
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: widget.child,
@@ -891,8 +911,3 @@ class _DashedCirclePainter extends CustomPainter {
   bool shouldRepaint(_DashedCirclePainter old) =>
       old.colour != colour || old.stroke != stroke || old.radius != radius;
 }
-
-
-
-
-

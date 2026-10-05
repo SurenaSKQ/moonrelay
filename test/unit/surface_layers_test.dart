@@ -31,14 +31,11 @@ import 'package:moonrelay/src/theme/surface_layers.dart';
 /// assertions below reference specific ratios, so this helper has to be
 /// right; it follows the spec literally, including the sRGB gamma step.
 double contrastRatio(Color a, Color b) {
-  double channel(double c) => c <= 0.03928
-      ? c / 12.92
-      : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+  double channel(double c) =>
+      c <= 0.03928 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
 
   double luminance(Color c) =>
-      0.2126 * channel(c.r) +
-      0.7152 * channel(c.g) +
-      0.0722 * channel(c.b);
+      0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
 
   final la = luminance(a);
   final lb = luminance(b);
@@ -117,7 +114,8 @@ void main() {
         }
       });
 
-      test('$label: adjacent steps are close enough to read as one material', () {
+      test('$label: adjacent steps are close enough to read as one material',
+          () {
         // A large jump reads as a different material rather than a
         // different depth. Anything above about 1:2.5 between neighbours
         // starts to look like a card on a page instead of a wall.
@@ -293,7 +291,7 @@ void main() {
     for (final brightness in Brightness.values) {
       final label = brightness.name;
 
-test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
+      test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
         // Honest about what this does and does not catch. The loop stepped
         // from the seed rather than from the candidate, so it applied 2%
         // exactly once and gave up. For `primary` that was invisible, because
@@ -366,7 +364,7 @@ test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
       // 4.05:1, and the composer's hint is the one string in the app that is
       // permanently sitting on that step.
       expect(
-        contrastRatio(const Color(0xFF949BA4), const Color(0xFF383A40)),
+        contrastRatio(const Color(0xFF949BA4), const Color(0xFFDAD6CD)),
         lessThan(4.5),
         reason: 'if this ever fails, the mockup grey became usable and the '
             'comment in surface_layers.dart can go',
@@ -386,10 +384,114 @@ test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
     });
   });
 
+  group('the two ramps are the same object under two suns', () {
+    // The brief this palette answers: the near side is moon white and dust,
+    // the far side is a gentle night lit by earthshine. Both halves of that
+    // are checkable, and both were chosen against the temptation to reach for
+    // the obvious answer, which is a neutral grey ramp with a blue-black dark
+    // mode and a blue-white light mode.
+    for (final brightness in Brightness.values) {
+      final label = brightness.name;
+      final scheme = MoonrelaySurfaceLayers.apply(
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7255F5),
+          brightness: brightness,
+        ),
+        brightness,
+      );
+
+      test('$label: the ramp is tinted away from neutral', () {
+        // Not the same claim in both brightnesses, and the difference is the
+        // point. Light is warm, because the near side's basalt is stained
+        // yellow-brown by a billion years of iron from micrometeorites, and a
+        // warm light mode is also the one that does not read as a monitor in a
+        // warm room. Dark is cool, because the far side is lit by earthshine and
+        // earthshine is blue-white. So this asserts the *direction* each ramp
+        // leans, rather than one direction for both.
+        final wantsWarm = brightness == Brightness.light;
+        for (final surface in <Color>[
+          scheme.surface,
+          scheme.surfaceContainerLow,
+          scheme.surfaceContainerHigh,
+          scheme.surfaceContainerHighest,
+        ]) {
+          final leansWarm = surface.r > surface.b;
+          expect(
+            leansWarm,
+            wantsWarm,
+            reason: '$label: $surface leans '
+                '${leansWarm ? 'warm' : 'cool'} (r=${surface.r}, b=${surface.b})',
+          );
+        }
+
+        final textLeansWarm = scheme.onSurface.r > scheme.onSurface.b;
+        expect(textLeansWarm, wantsWarm, reason: '$label: onSurface');
+      });
+    }
+
+    test('dark: the night is blue-black, because earthshine is blue', () {
+      final scheme = MoonrelaySurfaceLayers.apply(
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7255F5),
+          brightness: Brightness.dark,
+        ),
+        Brightness.dark,
+      );
+      // The far side of the Moon is lit only by sunlight bounced off Earth,
+      // and that is why it has always been described as glowing rather than as
+      // dark. A neutral or warm black would throw away the one fact the dark
+      // mode is built on.
+      for (final surface in <Color>[
+        scheme.surface,
+        scheme.surfaceContainerLow,
+        scheme.surfaceContainerHigh,
+      ]) {
+        expect(surface.b, greaterThan(surface.r),
+            reason: '$surface is not blue-black');
+      }
+    });
+  });
+
+  group('earthshine is only visible against darkness', () {
+    test('dark: the glow is a real colour', () {
+      final layers = MoonrelaySurfaceLayers.forBrightness(Brightness.dark);
+      expect(layers.glow.a, greaterThan(0.02));
+      expect(layers.glow.a, lessThan(0.4),
+          reason: 'a halo this strong stops being a light and starts being '
+              'an outline');
+      expect(layers.glow.b, greaterThan(layers.glow.r),
+          reason: 'earthshine is blue-white');
+    });
+
+    test('light: the glow is nothing', () {
+      // Not an oversight and not a forgotten value. The near side of the Moon
+      // is lit from the front by the Sun; there is no second source, so a halo
+      // there would be drawing light that is not in the scene.
+      final layers = MoonrelaySurfaceLayers.forBrightness(Brightness.light);
+      expect(layers.glow.a, 0);
+    });
+  });
+
+  group('the media backdrop is the floor of the far side', () {
+    // A viewer is a hole in the app, so it does not take the brightness. It
+    // is a near-black rather than pure black, because pure black beside a
+    // photograph with real blacks in it reads as a glowing edge, and because
+    // pure black is the one value a display cannot dim.
+    test('both brightnesses share it, and neither is pure black', () {
+      final dark =
+          MoonrelaySurfaceLayers.forBrightness(Brightness.dark).mediaBackdrop;
+      final light =
+          MoonrelaySurfaceLayers.forBrightness(Brightness.light).mediaBackdrop;
+      expect(light, dark);
+      expect(dark, isNot(const Color(0xFF000000)));
+      // Cool, like the rest of the dark mode.
+      expect(dark.b, greaterThan(dark.r));
+    });
+  });
+
   group('hover and selection are states, not accent tints', () {
     for (final brightness in Brightness.values) {
-      final layers =
-          MoonrelaySurfaceLayers.forBrightness(brightness);
+      final layers = MoonrelaySurfaceLayers.forBrightness(brightness);
       final label = brightness.name;
 
       test('$label: hover and active differ from each other', () {
@@ -454,13 +556,13 @@ test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
         monoFontFamily: 'FiraCode',
         enableAnimations: true,
       );
-      expect(theme.colorScheme.surface, const Color(0xFF0F0F14));
+      expect(theme.colorScheme.surface, const Color(0xFF0C0E14));
       expect(theme.scaffoldBackgroundColor, theme.colorScheme.surface);
       expect(
         theme.extension<MoonrelayThemeExtension>()!.layers.hover,
-        const Color(0xFF35373C),
+        const Color(0xFF2B3140),
       );
-      expect(theme.hoverColor, const Color(0xFF35373C));
+      expect(theme.hoverColor, const Color(0xFF2B3140));
     });
 
     test('light theme uses the light surface floor', () {
@@ -472,7 +574,7 @@ test('$label: primary on onPrimary clears 4.5:1 for every accent', () {
         monoFontFamily: 'FiraCode',
         enableAnimations: true,
       );
-      expect(theme.colorScheme.surface, const Color(0xFFFBFBFD));
+      expect(theme.colorScheme.surface, const Color(0xFFF6F4EF));
       expect(theme.colorScheme.surface, isNot(const Color(0xFF000000)));
     });
   });

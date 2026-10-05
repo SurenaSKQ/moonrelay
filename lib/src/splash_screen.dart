@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/widgets/moonrelay_mark.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Full-screen splash shown while the application initialises.
@@ -125,9 +126,8 @@ class SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: scheme.surface,
       body: Center(
-        child: _done == false
-            ? _buildError(scheme, t)
-            : _buildLoading(scheme, t),
+        child:
+            _done == false ? _buildError(scheme, t) : _buildLoading(scheme, t),
       ),
     );
   }
@@ -136,7 +136,9 @@ class SplashScreenState extends State<SplashScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(LucideIcons.moon, size: 64, color: scheme.primary),
+        // The mark, not `LucideIcons.moon`. A generic moon glyph standing in
+        // for the app's own logo is the kind of placeholder that ships.
+        const MoonrelayMark(size: 64),
         SizedBox(height: t.spaceXxl),
         SizedBox(
           width: t.spaceXl,
