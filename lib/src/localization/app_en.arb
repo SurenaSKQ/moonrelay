@@ -80,6 +80,14 @@
   "ssoStartingHint": "Click \"Open in Browser\" to start.",
   "tokenLabel": "Login Token",
   "tokenHint": "Paste your login token here…",
+  "tokenPasteHint": "Paste the token from your terminal",
+  "@tokenPasteHint": {
+    "description": "Hint inside the login-token field when it is the whole sign-in method, as opposed to the SSO manual fallback."
+  },
+  "tokenPasteAfterAuthLabel": "Login token (paste after signing in with your browser)",
+  "@tokenPasteAfterAuthLabel": {
+    "description": "Caption for the token field in the SSO manual fallback. Was an English suffix concatenated onto tokenLabel, so a translated label was followed by untranslated text."
+  },
   "signingIn": "Signing in…",
   "openInBrowser": "Open in Browser",
   "preparing": "Preparing…",

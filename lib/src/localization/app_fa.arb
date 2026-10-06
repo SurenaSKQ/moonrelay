@@ -63,6 +63,14 @@
   "ssoStartingHint": "برای شروع روی \"باز کردن در مرورگر\" کلیک کنید.",
   "tokenLabel": "توکن ورود",
   "tokenHint": "توکن ورود خود را اینجا بچسبانید…",
+  "tokenPasteHint": "توکن را از ترمینال خود بچسبانید",
+  "@tokenPasteHint": {
+    "description": "Hint inside the login-token field when it is the whole sign-in method, as opposed to the SSO manual fallback."
+  },
+  "tokenPasteAfterAuthLabel": "توکن ورود (پس از ورود با مرورگر بچسبانید)",
+  "@tokenPasteAfterAuthLabel": {
+    "description": "Caption for the token field in the SSO manual fallback. Was an English suffix concatenated onto tokenLabel, so a translated label was followed by untranslated text."
+  },
   "signingIn": "در حال ورود…",
   "openInBrowser": "باز کردن در مرورگر",
   "preparing": "در حال آماده‌سازی…",

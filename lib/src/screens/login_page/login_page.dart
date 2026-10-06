@@ -33,7 +33,8 @@ import 'package:moonrelay/src/screens/login_page/sso_token_capture.dart';
 import 'package:moonrelay/src/screens/login_page/sso_widgets.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
-import 'package:moonrelay/src/widgets/form_field_label.dart';
+import 'package:moonrelay/src/widgets/auth_surface.dart';
+import 'package:moonrelay/src/widgets/moonrelay_mark.dart';
 import 'package:moonrelay/src/widgets/form_keyboard.dart';
 
 /// Login page with password and SSO support.
@@ -138,14 +139,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colors = theme.colorScheme;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    final layers = MoonrelayThemeExtension.of(context).layers;
 
     // -- Full-screen syncing state after successful login --------------
     if (_syncing) {
-      return _buildSyncingScreen(colors, theme, l10n);
+      return _buildSyncingScreen(l10n);
     }
 
     // The field order is recomputed here because the mode decides which
@@ -168,150 +165,81 @@ class _LoginPageState extends State<LoginPage> {
         enabled: !_loading && !_ssoStep.isAwaitingCallback,
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              // A raised card with a hard shadow, on the app floor.
-              //
-              // This is the one place in the app where a shadow is the right
-              // answer rather than a leftover: there is nothing else on
-              // screen. The window is the page, so something has to say
-              // "this is the form and that is the background", and on a flat
-              // surface ramp a fill alone does not say it.
-              //
-              // It takes the shadow directly rather than `elevation:`,
-              // because Material renders `elevation:` from a hardcoded black
-              // map that no theme field reaches, and on a dark surface that
-              // map is invisible. `shadowHigh` has a light rim, which does
-              // show.
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(t.radiusLg),
-                  border: Border.all(color: layers.hairline),
-                  boxShadow: t.shadowHigh,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(t.spaceXxl),
+            padding: EdgeInsets.symmetric(
+              horizontal: MoonrelayThemeExtension.of(context).tokens.spaceXl,
+              vertical: MoonrelayThemeExtension.of(context).tokens.spaceXl,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kAuthFormWidth),
+                // The raised card, from `auth_surface.dart`. It used to be a
+                // decorated `Container` written out here, with a comment
+                // explaining at length why the shadow is right here; the
+                // explanation belongs with the primitive now that three screens
+                // share it, and the register form gets the same card for free
+                // instead of a Material `Card` whose elevation renders from a
+                // hardcoded black map and is invisible on the dark ramp.
+                child: AuthCard(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(LucideIcons.arrowLeft),
-                            onPressed: () => context.pop(),
-                            tooltip: l10n.cancel,
-                          ),
-                          SizedBox(width: t.spaceSm),
-                          Text(
-                            _mode == LoginMode.sso
-                                ? l10n.ssoTitle
-                                : _mode == LoginMode.token
-                                    ? l10n.tokenLoginTitle
-                                    : l10n.signInTitle,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: colors.onSurface,
-                            ),
-                          ),
-                        ],
+                    children: <Widget>[
+                      AuthCardHeader(
+                        title: switch (_mode) {
+                          LoginMode.sso => l10n.ssoTitle,
+                          LoginMode.token => l10n.tokenLoginTitle,
+                          LoginMode.password => l10n.signInTitle,
+                        },
+                        onBack: () => context.pop(),
+                        backTooltip: l10n.cancel,
                       ),
-                      SizedBox(height: t.spaceXl),
+                      const SizedBox(height: 24),
 
-                      // Error banner
-                      if (_error != null)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: t.spaceLg),
-                          child: Container(
-                            padding: EdgeInsets.all(t.spaceMd),
-                            decoration: BoxDecoration(
-                              color: colors.errorContainer,
-                              borderRadius:
-                                  BorderRadius.circular(t.radiusMd),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(LucideIcons.alertCircle,
-                                    size: 18, color: colors.error),
-                                SizedBox(width: t.spaceSm),
-                                Expanded(
-                                  child: Text(
-                                    _error!,
-                                    style: TextStyle(
-                                      color: colors.onErrorContainer,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      // A failure the user has to read, not a decoration.
+                      if (_error != null) ...<Widget>[
+                        AuthNotice(
+                          message: _error!,
+                          icon: LucideIcons.alertCircle,
                         ),
+                        const SizedBox(height: 16),
+                      ],
 
-                      // -- Homeserver field --
-                      buildFormFieldLabel(context, l10n.homeserverText),
-                      const SizedBox(height: 6),
-                      TextField(
+                      AuthField(
+                        caption: l10n.homeserverText,
                         controller: _homeserverCtrl,
                         focusNode: _homeserverFocus,
+                        hintText: l10n.registerHomeserverHint,
+                        icon: LucideIcons.server,
                         textInputAction: _fieldOrder.getActionAt(0),
                         onSubmitted: _fieldOrder.submittedAt(
                           0,
                           onLast: _submitCurrentMode,
                         ),
-                        decoration: InputDecoration(
-                          hintText: 'matrix.org',
-                          prefixIcon: const Icon(LucideIcons.server, size: 18),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(t.radiusMd),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        style: const TextStyle(fontSize: 14),
+                        autofillHints: const <String>[AutofillHints.url],
                         enabled: !_loading,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
-                      // -- SSO mode --
-                      if (_mode == LoginMode.sso)
-                        ..._buildSsoSection(colors, l10n),
+                      if (_mode == LoginMode.sso) ..._buildSsoSection(l10n),
 
-                      // -- Auto-SSO status (shown during automatic flow) --
                       if (_ssoStep.isAwaitingCallback)
-                        ..._buildAutoSsoStatus(colors, l10n),
+                        const SsoAwaitingBanner(),
 
-                      // -- Token mode --
-                      if (_mode == LoginMode.token)
-                        ..._buildTokenSection(colors, l10n),
+                      if (_mode == LoginMode.token) ..._buildTokenSection(l10n),
 
-                      // -- Password mode --
                       if (_mode.showsCredentialFields)
-                        ..._buildPasswordSection(colors, l10n),
+                        ..._buildPasswordSection(l10n),
 
-                      SizedBox(height: t.spaceXl),
+                      const SizedBox(height: 24),
 
-                      // -- Primary action button --
                       if (_ssoStep.isAwaitingCallback)
-                        _buildAutoSsoActionButton(colors, l10n)
+                        SsoSwitchToManualButton(onPressed: _cancelAutoSso)
                       else
-                        switch (_mode) {
-                          LoginMode.sso => _buildSsoActionButton(colors, l10n),
-                          LoginMode.token =>
-                            _buildTokenActionButton(colors, l10n),
-                          LoginMode.password =>
-                            _buildPasswordActionButton(colors, l10n),
-                        },
+                        ..._buildPrimaryActions(l10n),
 
-                      // -- Mode switcher --
                       if (!_loading && !_ssoStep.isAwaitingCallback) ...[
-                        SizedBox(height: t.spaceMd),
-                        ..._buildModeLinks(l10n),
+                        const SizedBox(height: 12),
+                        _buildModeLinks(l10n),
                       ],
                     ],
                   ),
@@ -319,7 +247,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -352,54 +279,84 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Widget _buildSyncingScreen(
-      ColorScheme colors, ThemeData theme, AppLocalizations l10n) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.moon,
-              size: 48,
-              color: colors.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              l10n.welcomeToApp,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: colors.onSurface,
+  /// The screen between a successful sign-in and the dashboard.
+  ///
+  /// The one screen in this segment that is not a form, and it had none of the
+  /// form's structure: no card, no padding from the ramp, a moon glyph from the
+  /// icon set rather than the brand mark, a 22pt bold heading where every other
+  /// heading in the app is 18 or 20 at w600, and `0.7` alpha over
+  /// `onSurfaceVariant` instead of the muted token. So the moment a user reaches
+  /// after doing the hard thing looked like a different application.
+  ///
+  /// It is a card now like the forms were, because it is the same window and the
+  /// same job: say what is happening until something else takes over.
+  Widget _buildSyncingScreen(AppLocalizations l10n) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final display = Theme.of(context).textTheme.titleMedium?.fontFamily;
+
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(t.spaceXl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kAuthFormWidth),
+            child: AuthCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // The real mark, in the accent, the same as the lockup on the
+                  // welcome screen. Coming from the form to this and finding a
+                  // different glyph is the kind of thing a person notices
+                  // without being able to say what.
+                  MoonrelayMark(size: 48, color: scheme.primary),
+                  SizedBox(height: t.spaceXl),
+                  Text(
+                    l10n.welcomeToApp,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: display,
+                      fontSize: 20,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  SizedBox(height: t.spaceLg),
+                  SizedBox(
+                    width: t.iconSizeLarge,
+                    height: t.iconSizeLarge,
+                    child: CircularProgressIndicator(
+                      strokeWidth: t.borderWidthThick,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  SizedBox(height: t.spaceLg),
+                  Text(
+                    _statusMessage ?? l10n.loading,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  SizedBox(height: t.spaceXs),
+                  Text(
+                    l10n.fetchingRooms,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: colors.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _statusMessage ?? l10n.loading,
-              style: TextStyle(
-                fontSize: 15,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.fetchingRooms,
-              style: TextStyle(
-                fontSize: 13,
-                color: colors.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -407,273 +364,192 @@ class _LoginPageState extends State<LoginPage> {
 
   // -- Build helpers -----------------------------------------------------
 
-
-  Widget _buildModeLink(String text, VoidCallback onTap) {
-    return Align(
-      alignment: Alignment.center,
-      child: TextButton(
-        onPressed: onTap,
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 13),
-        ),
-      ),
+  /// The links that move away from the current mode.
+  ///
+  /// A `Wrap` rather than a column, because two of them fit on one line and one
+  /// alone was centred in a stack that looked like it had lost an item.
+  Widget _buildModeLinks(AppLocalizations l10n) {
+    return AuthLinks(
+      links: switch (_mode) {
+        LoginMode.password => <(String, VoidCallback)>[
+            (
+              l10n.useSsoInstead,
+              () => setState(() {
+                    _mode = LoginMode.sso;
+                    _ssoStep = SsoStep.idle;
+                  }),
+            ),
+            (
+              l10n.useTokenInstead,
+              () => setState(() => _mode = LoginMode.token),
+            ),
+          ],
+        LoginMode.sso => <(String, VoidCallback)>[
+            (
+              l10n.usePasswordInstead,
+              () => setState(() => _mode = LoginMode.password),
+            ),
+          ],
+        LoginMode.token => <(String, VoidCallback)>[
+            (
+              l10n.backToPasswordLogin,
+              () => setState(() => _mode = LoginMode.password),
+            ),
+          ],
+      },
     );
   }
 
-  List<Widget> _buildPasswordSection(
-      ColorScheme colors, AppLocalizations l10n) {
-    return [
-      buildFormFieldLabel(context, l10n.usernameOrEmail),
-      const SizedBox(height: 6),
-      TextField(
+  /// The username and password, as two [AuthField]s.
+  ///
+  /// The gap between them is 16 and the gap between the homeserver and the
+  /// username is also 16, because they are one column of inputs rather than two
+  /// groups. It used to be 20 in one place and 16 in the other, which drew a
+  /// rule between the homeserver and the username that nothing else on the
+  /// screen agreed with.
+  List<Widget> _buildPasswordSection(AppLocalizations l10n) {
+    return <Widget>[
+      AuthField(
+        caption: l10n.usernameOrEmail,
         controller: _usernameCtrl,
         focusNode: _usernameFocus,
+        hintText: l10n.usernameHint,
+        icon: LucideIcons.user,
         textInputAction: _fieldOrder.getActionAt(1),
         onSubmitted: _fieldOrder.submittedAt(
           1,
           onLast: _submitCurrentMode,
         ),
-        decoration: InputDecoration(
-          hintText: l10n.usernameHint,
-          prefixIcon: const Icon(LucideIcons.user, size: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        style: const TextStyle(fontSize: 14),
+        autofillHints: const <String>[AutofillHints.username],
         enabled: !_loading,
       ),
       const SizedBox(height: 16),
-      buildFormFieldLabel(context, l10n.passwordText),
-      const SizedBox(height: 6),
-      TextField(
+      AuthField(
+        caption: l10n.passwordText,
         controller: _passwordCtrl,
         focusNode: _passwordFocus,
         obscureText: true,
+        icon: LucideIcons.lock,
         textInputAction: _fieldOrder.getActionAt(2),
         onSubmitted: _fieldOrder.submittedAt(
           2,
           onLast: _submitCurrentMode,
         ),
-        decoration: InputDecoration(
-          hintText: '••••••••',
-          prefixIcon: const Icon(LucideIcons.lock, size: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        style: const TextStyle(fontSize: 14),
+        autofillHints: const <String>[AutofillHints.password],
         enabled: !_loading,
       ),
     ];
   }
 
-  /// Builds the status UI shown during the automatic (local-server) SSO flow.
-  List<Widget> _buildAutoSsoStatus(ColorScheme colors, AppLocalizations l10n) {
-    return [
-      const SizedBox(height: 8),
-      const SsoAwaitingBanner(),
-    ];
-  }
-
-  /// Builds the cancel / switch-to-manual button during automatic SSO.
-  Widget _buildAutoSsoActionButton(ColorScheme colors, AppLocalizations l10n) {
-    return SsoSwitchToManualButton(onPressed: _cancelAutoSso);
-  }
-
-  /// The links that move away from the current mode.
-  ///
-  /// Two of them sit side by side in password mode and only one fits in the
-  /// other two, so this returns a list rather than a single widget.
-  List<Widget> _buildModeLinks(AppLocalizations l10n) {
-    return switch (_mode) {
-      LoginMode.password => [
-          _buildModeLink(
-            l10n.useSsoInstead,
-            () => setState(() {
-              _mode = LoginMode.sso;
-              _ssoStep = SsoStep.idle;
-            }),
-          ),
-          _buildModeLink(
-            l10n.useTokenInstead,
-            () => setState(() => _mode = LoginMode.token),
-          ),
-        ],
-      LoginMode.sso => [
-          _buildModeLink(
-            l10n.usePasswordInstead,
-            () => setState(() => _mode = LoginMode.password),
-          ),
-        ],
-      LoginMode.token => [
-          _buildModeLink(
-            l10n.backToPasswordLogin,
-            () => setState(() => _mode = LoginMode.password),
-          ),
-        ],
-    };
-  }
-
-  List<Widget> _buildSsoSection(ColorScheme colors, AppLocalizations l10n) {
-    return [
+  List<Widget> _buildSsoSection(AppLocalizations l10n) {
+    return <Widget>[
       SsoUrlDisplay(url: _ssoUrl),
       // Why the automatic flow stopped, so the manual fallback is not a
       // dead end the user has to guess their way out of.
       if (_ssoStep.showsFailureNotice) const SsoFailureNotice(),
       // Token field: only shown when the user explicitly requests it.
-      if (_ssoStep.showsManualTokenEntry)
-        ..._buildManualTokenEntry(colors, l10n),
+      if (_ssoStep.showsManualTokenEntry) ..._buildManualTokenEntry(l10n),
     ];
   }
 
-  /// Builds the manual token-paste field (hidden behind a toggle by default).
+  /// The manual token-paste field, hidden behind a toggle by default.
   ///
-  /// Shares the field itself with the token mode, because it is the same
-  /// field reading the same controller; only the surrounding label and hint
-  /// differ, to say that the token is pasted after the browser round trip.
-  List<Widget> _buildManualTokenEntry(
-      ColorScheme colors, AppLocalizations l10n) {
-    return [
+  /// Shares the field with the token mode, because it is the same field reading
+  /// the same controller; only the caption differs, to say the token is pasted
+  /// after the browser round trip. That difference used to be an English
+  /// suffix concatenated onto a localized label, so a Persian user saw a
+  /// Persian label followed by `(paste after authenticating)`.
+  List<Widget> _buildManualTokenEntry(AppLocalizations l10n) {
+    return <Widget>[
       const SizedBox(height: 16),
-      buildFormFieldLabel(context, '${l10n.tokenLabel} (paste after authenticating)'),
-      const SizedBox(height: 6),
-      _buildTokenField(l10n.tokenHint, 1),
+      AuthField(
+        caption: l10n.tokenPasteAfterAuthLabel,
+        controller: _tokenCtrl,
+        focusNode: _tokenFocus,
+        hintText: l10n.tokenHint,
+        icon: LucideIcons.key,
+        textInputAction: _fieldOrder.getActionAt(1),
+        onSubmitted: _fieldOrder.submittedAt(
+          1,
+          onLast: _submitCurrentMode,
+        ),
+        enabled: !_loading,
+      ),
     ];
   }
 
-  List<Widget> _buildTokenSection(ColorScheme colors, AppLocalizations l10n) {
-    return [
-      buildFormFieldLabel(context, l10n.tokenLabel),
-      const SizedBox(height: 6),
-      _buildTokenField('Paste your login token here…', 1),
+  List<Widget> _buildTokenSection(AppLocalizations l10n) {
+    return <Widget>[
+      AuthField(
+        caption: l10n.tokenLabel,
+        controller: _tokenCtrl,
+        focusNode: _tokenFocus,
+        hintText: l10n.tokenPasteHint,
+        icon: LucideIcons.key,
+        textInputAction: _fieldOrder.getActionAt(1),
+        onSubmitted: _fieldOrder.submittedAt(
+          1,
+          onLast: _submitCurrentMode,
+        ),
+        enabled: !_loading,
+      ),
     ];
   }
 
-  /// The access-token input, used by both the token mode and the SSO
-  /// manual fallback.
+  /// Everything the current mode offers as its way forward.
   ///
-  /// [index] is where this field sits in the visible order. It is 1 in both
-  /// modes that show it, since the homeserver field is the only one above
-  /// it either way, but it is passed in rather than assumed so the two call
-  /// sites state it.
-  Widget _buildTokenField(String hint, int index) {
-    return TextField(
-      controller: _tokenCtrl,
-      focusNode: _tokenFocus,
-      textInputAction: _fieldOrder.getActionAt(index),
-      onSubmitted: _fieldOrder.submittedAt(index, onLast: _submitCurrentMode),
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: const Icon(LucideIcons.key, size: 18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
-      style: const TextStyle(fontSize: 14),
-      enabled: !_loading,
-    );
-  }
-
-  Widget _buildPasswordActionButton(
-    ColorScheme colors,
-    AppLocalizations l10n,
-  ) {
-    return FilledButton.icon(
-      onPressed: _loading ? null : _doPasswordLogin,
-      icon: _loading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+  /// A list because SSO shows two controls at once, one before the browser
+  /// round trip and one after it. It used to build its own `Column` for that and
+  /// a single button for the other two modes, so the three modes had three
+  /// different shapes of action area and three different button radii.
+  List<Widget> _buildPrimaryActions(AppLocalizations l10n) {
+    switch (_mode) {
+      case LoginMode.password:
+        return <Widget>[
+          AuthButton(
+            label: _loading ? l10n.signingIn : l10n.loginButton,
+            icon: LucideIcons.logIn,
+            busy: _loading,
+            onPressed: _loading ? null : _doPasswordLogin,
+          ),
+        ];
+      case LoginMode.token:
+        return <Widget>[
+          AuthButton(
+            label: _loading ? l10n.signingIn : l10n.signInWithToken,
+            icon: LucideIcons.key,
+            busy: _loading,
+            onPressed: _loading ? null : _doTokenLogin,
+          ),
+        ];
+      case LoginMode.sso:
+        return <Widget>[
+          AuthButton(
+            label: _loading ? l10n.preparing : l10n.openInBrowser,
+            icon: LucideIcons.externalLink,
+            busy: _loading,
+            filled: false,
+            onPressed: _loading ? null : _doSsoOpenBrowser,
+          ),
+          const SizedBox(height: 12),
+          // Before the round trip: a way to get the token without a browser.
+          // After it: the only way forward.
+          if (!_ssoStep.showsManualTokenEntry)
+            AuthButton(
+              label: l10n.ssoPasteManually,
+              icon: LucideIcons.key,
+              filled: false,
+              onPressed: () =>
+                  setState(() => _ssoStep = SsoStep.manualTokenEntry),
             )
-          : const Icon(LucideIcons.logIn, size: 18),
-      label: Text(_loading ? l10n.signingIn : l10n.loginButton),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  Widget _buildSsoActionButton(ColorScheme colors, AppLocalizations l10n) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        OutlinedButton.icon(
-          onPressed: _loading ? null : _doSsoOpenBrowser,
-          icon: _loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(LucideIcons.externalLink, size: 18),
-          label: Text(_loading ? l10n.preparing : l10n.openInBrowser),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // -- "Paste token manually" toggle --
-        if (!_ssoStep.showsManualTokenEntry)
-          OutlinedButton.icon(
-            onPressed: () => setState(() => _ssoStep = SsoStep.manualTokenEntry),
-            icon: const Icon(LucideIcons.key, size: 18),
-            label: Text(l10n.ssoPasteManually),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+          else
+            AuthButton(
+              label: l10n.completeLogin,
+              icon: LucideIcons.check,
+              onPressed: _loading ? null : _doSsoComplete,
             ),
-          ),
-        // -- Manual entry visible: show "Complete Login" --
-        if (_ssoStep.showsManualTokenEntry)
-          FilledButton.icon(
-            onPressed: _loading ? null : _doSsoComplete,
-            icon: const Icon(LucideIcons.check, size: 18),
-            label: Text(l10n.completeLogin),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTokenActionButton(ColorScheme colors, AppLocalizations l10n) {
-    return FilledButton.icon(
-      onPressed: _loading ? null : _doTokenLogin,
-      icon: _loading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(LucideIcons.key, size: 18),
-      label: Text(_loading ? l10n.signingIn : l10n.signInWithToken),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+        ];
+    }
   }
 
   // -- Login actions ----------------------------------------------------
@@ -794,8 +670,7 @@ class _LoginPageState extends State<LoginPage> {
       return null;
     }
 
-    if (unsupportedMessage != null &&
-        !flows.any((f) => f.type == type)) {
+    if (unsupportedMessage != null && !flows.any((f) => f.type == type)) {
       setState(() {
         _error = unsupportedMessage;
         _loading = false;
@@ -841,7 +716,8 @@ class _LoginPageState extends State<LoginPage> {
       case RetryFailed(:final error, :final attempts):
         // Log the class only. Attaching the error object would put the
         // request body in the log file via toString.
-        log.e('$label failed after $attempts attempt(s) (${error.runtimeType})');
+        log.e(
+            '$label failed after $attempts attempt(s) (${error.runtimeType})');
         setState(() => _error = error is TimeoutException
             ? l10n.loginTimedOut
             : messageFor(l10n, error));
