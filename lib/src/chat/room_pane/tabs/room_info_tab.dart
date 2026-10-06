@@ -121,7 +121,11 @@ class RoomInfoTabState extends State<RoomInfoTab> {
   /// called when the room-state bus ticks; cheap when nothing
   /// actually changed. Returns `true` when at least one field
   /// differs from the previous value (a rebuild is needed).
-  bool _refreshFromRoom({required bool force}) {
+  ///
+  /// [force] skips the comparison and always writes. The first build has no
+  /// cached values to compare against, so it passes `true`; every later tick
+  /// takes the comparing path, which is what makes a chatty room cheap.
+  bool _refreshFromRoom({bool force = false}) {
     final room = widget.room;
     final l10n = AppLocalizations.of(context)!;
     final nextDisplayName = room.getLocalizedDisplayname();
@@ -170,7 +174,21 @@ class RoomInfoTabState extends State<RoomInfoTab> {
     final bus = context.read<RoomStateBus>();
     return ValueListenableBuilder<int>(
       valueListenable: bus.tickFor(widget.room.id),
-      builder: (context, _, __) => _buildContent(context),
+      // The re-read has to happen here, in the tick handler. This widget
+      // subscribed to the bus precisely so a renamed room or a changed topic
+      // would show up, but the cached fields were only ever refreshed from
+      // `didChangeDependencies` and `didUpdateWidget`. Without this line a tick
+      // rebuilt the pane from stale values and the subscription was decoration:
+      // rename a room and this tab kept showing the old name until you switched
+      // rooms and came back.
+      //
+      // Mutating the cache inside `build` is safe and is what
+      // `didChangeDependencies` already does; the values are read immediately
+      // below by `_buildContent`.
+      builder: (context, _, __) {
+        _refreshFromRoom();
+        return _buildContent(context);
+      },
     );
   }
 

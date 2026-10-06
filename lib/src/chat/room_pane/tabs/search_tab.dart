@@ -324,11 +324,17 @@ class RoomSearchController extends ChangeNotifier {
       // to tell.
       if (_seenEventIds.add(hit.event.eventId)) _results.add(hit);
     }
+    // An echoed cursor ends the list. A homeserver that hands back the token
+    // it was just given has made no progress, and the spec permits it. Without
+    // this the empty-page guard below is not enough: the page came back full,
+    // so `hasMore` stayed true and scrolling to the end re-requested the same
+    // page forever, adding nothing each time.
+    final bool echoed = page.nextBatch == _nextBatch;
     _nextBatch = page.nextBatch;
     // Explicit rather than a nullable cursor. `nextBatch == ''` is a legal and
     // common end-of-results signal, and the old panel only tested for null, so
     // the load-more button could stay on screen forever.
-    _hasMore = page.hasMore && page.items.isNotEmpty;
+    _hasMore = page.hasMore && page.items.isNotEmpty && !echoed;
     _failed = false;
   }
 

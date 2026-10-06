@@ -323,9 +323,17 @@ class SearchProvider {
     final Room room = client.getRoomById(roomId) ?? client.rooms.first;
     final List<MessageSearchResult> messages = <MessageSearchResult>[];
     for (final result in roomEvents?.results ?? const []) {
-      final Event? event = result.result;
-      if (event == null) continue;
-      if (event.roomId != roomId) continue;
+      final MatrixEvent? raw = result.result;
+      if (raw == null) continue;
+      // The room is checked on the raw event because that is the only place
+      // the room id is still on it: `Event.fromMatrixEvent` below rebuilds it
+      // against [room], which is whatever `getRoomById` gave us.
+      if (raw.roomId != roomId) continue;
+      // `fromMatrixEvent`, not the raw event. `MatrixEvent` and `Event` are
+      // unrelated types in this SDK, so handing the former to anything expecting
+      // the latter is a `TypeError` at runtime rather than a compile error.
+      // The other message search in this file has always converted.
+      final Event event = Event.fromMatrixEvent(raw, room);
       // `m.file`, `m.audio` and `m.video` have no server-side filter in the
       // spec, so they are applied here. This is what makes those three chips
       // work at all, which they never did before.
