@@ -1534,6 +1534,11 @@
     "description": "Tab label for the about category in the hub."
   },
 
+  "identity": "Identity",
+  "@identity": {
+    "description": "Section header for the identity group on the profile page."
+  },
+
   "back": "Back",
   "@back": {
     "description": "Generic back button label used by the mobile layout."
