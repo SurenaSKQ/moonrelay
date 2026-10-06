@@ -133,6 +133,14 @@
   "usernameText": "نام کاربری",
   "confirmPasswordLabel": "تأیید رمز عبور",
   "agreeToTerms": "با شرایط خدمات این سرور اصلی موافقم",
+  "showPassword": "نمایش گذرواژه",
+  "@showPassword": {
+    "description": "Tooltip on the eye beside a password field while the password is hidden."
+  },
+  "hidePassword": "پنهان کردن گذرواژه",
+  "@hidePassword": {
+    "description": "Tooltip on the eye beside a password field while the password is visible."
+  },
   "creatingAccount": "در حال ایجاد حساب…",
   "alreadyHaveAccount": "قبلاً حساب دارید؟ وارد شوید",
   "usernameRequired": "لطفاً یک نام کاربری وارد کنید.",

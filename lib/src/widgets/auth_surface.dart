@@ -139,6 +139,7 @@ class AuthField extends StatelessWidget {
     this.textInputAction,
     this.keyboardType,
     this.onSubmitted,
+    this.onChanged,
     this.autofillHints,
     this.maxLines = 1,
     this.enabled = true,
@@ -155,6 +156,14 @@ class AuthField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onSubmitted;
+
+  /// Called on every keystroke.
+  ///
+  /// Only the register form uses it, to clear a validation message the moment
+  /// the user starts fixing it. A form that keeps showing "that username is
+  /// taken" while you are typing over it is nagging.
+  final ValueChanged<String>? onChanged;
+
   final Iterable<String>? autofillHints;
   final int maxLines;
   final bool enabled;
@@ -179,6 +188,7 @@ class AuthField extends StatelessWidget {
           textInputAction: textInputAction,
           keyboardType: keyboardType,
           onSubmitted: onSubmitted,
+          onChanged: onChanged,
           autofillHints: autofillHints,
           enabled: enabled,
           style: TextStyle(fontSize: 14, color: scheme.onSurface),

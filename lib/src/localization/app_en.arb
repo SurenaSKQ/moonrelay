@@ -164,6 +164,14 @@
   "registerUsernameHint": "Choose a username",
   "confirmPasswordLabel": "Confirm password",
   "agreeToTerms": "I agree to the Terms of Service of this homeserver",
+  "showPassword": "Show password",
+  "@showPassword": {
+    "description": "Tooltip on the eye beside a password field while the password is hidden."
+  },
+  "hidePassword": "Hide password",
+  "@hidePassword": {
+    "description": "Tooltip on the eye beside a password field while the password is visible."
+  },
   "creatingAccount": "Creating account…",
   "alreadyHaveAccount": "Already have an account? Sign in",
 
