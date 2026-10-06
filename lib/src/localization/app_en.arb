@@ -637,6 +637,10 @@
   "manageAccounts": "Manage your connected Matrix accounts",
   "myProfile": "My Profile",
   "appSettings": "App Settings",
+  "credits": "Credits",
+  "@credits": {
+    "description": "Label for the button that opens the credits page from the welcome screen footer."
+  },
   "customizeExperience": "Customize your experience",
   "appearance": "Appearance",
   "controlLookAndFeel": "Control the look and feel of the app",
