@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -111,7 +112,7 @@ class HubKeybindSettings extends StatelessWidget {
                       vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
-                      keys: ['Ctrl', 'Shift', 'P'],
+                      keys: ShortcutChord.commandPalette.keys,
                       description: l10n.shortcutOpenCommandPalette,
                       cs: cs,
                     ),
@@ -151,7 +152,7 @@ class HubKeybindSettings extends StatelessWidget {
                       vertical: t.spaceMd,
                     ),
                     child: _ShortcutRow(
-                      keys: ['Ctrl', 'Shift', '?'],
+                      keys: ShortcutChord.showShortcuts.keys,
                       description: l10n.shortcutShowShortcuts,
                       cs: cs,
                     ),

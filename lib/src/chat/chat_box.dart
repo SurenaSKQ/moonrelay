@@ -607,12 +607,12 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   }
 
   /// Corner radius of the composer's pill.
-///
-/// A stadium, not a fixed radius: the pill grows to three lines when the
-/// composer is expanded, and a constant radius on a tall box reads as a
-/// rounded rectangle with the ends left square. `[double.infinity]` on both
-/// axes is what Flutter's own `FilledButton` uses for the same reason.
-static const double _pillRadius = 9999;
+  ///
+  /// A stadium, not a fixed radius: the pill grows to three lines when the
+  /// composer is expanded, and a constant radius on a tall box reads as a
+  /// rounded rectangle with the ends left square. `[double.infinity]` on both
+  /// axes is what Flutter's own `FilledButton` uses for the same reason.
+  static const double _pillRadius = 9999;
 
   // ---------------------------------------------------------------------------
   // Build
@@ -642,12 +642,32 @@ static const double _pillRadius = 9999;
     // the formatting toolbar live in the same region above it, on the
     // conversation's own surface, and each is its own card where it needs to
     // be.
+    // The one place in the shell where a bar's frame lives *inside* the bar's
+    // own height rather than outside it, and the reason the conversation's two
+    // frames disagreed.
+    //
+    // The header reads `paneBarHeight` as a hard `height` with horizontal-only
+    // padding, so it is exactly 52. This used to read the same token as a
+    // `minHeight` on the pill and then add `spaceSm` above and `spaceMd` below
+    // around it, which no token governs. The pill was therefore 52 and the
+    // composer's whole band 72, twenty pixels taller than the bar framing it,
+    // and the icons on it sat lower than the header's because the row was
+    // bottom-aligned and the padding was asymmetric.
+    //
+    // So the band is the bar now: `spaceXs` above and below, and the pill
+    // occupies what is left, which makes the total exactly `paneBarHeight` and
+    // identical to the header's. `paneBarHeight` minus the two insets, rather
+    // than a second number, because two numbers that are supposed to be
+    // complements are exactly the pair that will drift.
+    //
+    // The insets stay. They are what keeps a rounded pill off the window edge
+    // and off the divider above it, and 4px is enough for both.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         t.spaceMd,
-        t.spaceSm,
+        t.spaceXs,
         t.spaceMd,
-        t.spaceMd,
+        t.spaceXs,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -670,16 +690,21 @@ static const double _pillRadius = 9999;
           AnimatedContainer(
             duration: t.durationFast,
             curve: t.curveStandard,
-            // The same height as the navigation pane's header bar, so the
-          // conversation is framed by two bars rather than sitting between two
-          // strips that happen to be different sizes. The composer's own
-          // controls are `minTapTarget * 0.75`, so the row is set rather than
-          // left to whatever its padding and its tallest child work out to.
-          constraints: BoxConstraints(minHeight: t.paneBarHeight),
-            padding: EdgeInsets.symmetric(
-              horizontal: t.spaceXs,
-              vertical: t.spaceXs,
+            // The pill's height, not the band's. `paneBarHeight` less the
+            // `spaceXs` above and below, so the two add up to the same 52 the
+            // header bar is. The composer's own controls are
+            // `minTapTarget * 0.75`, so the row is set rather than left to
+            // whatever its padding and its tallest child work out to.
+            constraints: BoxConstraints(
+              minHeight: t.paneBarHeight - t.spaceXs * 2,
             ),
+            // Horizontal only. The pill's own vertical padding used to be
+            // `spaceXs`, which put the pill's content at 46 against a 44 budget
+            // and made the band 54: the mismatch this change is about, arriving
+            // from the other side. The field supplies its own vertical inset via
+            // its `contentPadding`, so nothing is lost by not doubling it here,
+            // and the bar height becomes a number the content cannot overrule.
+            padding: EdgeInsets.symmetric(horizontal: t.spaceXs),
             decoration: BoxDecoration(
               // The raised step, one above the conversation. This is the
               // composer's whole visual argument and it is why the pill does
@@ -692,13 +717,18 @@ static const double _pillRadius = 9999;
               // "this is a control". Focusing is the one moment the user has
               // said they are about to type.
               border: Border.all(
-                color: _focusNode.hasFocus
-                    ? colorScheme.primary
-                    : layers.hairline,
+                color:
+                    _focusNode.hasFocus ? colorScheme.primary : layers.hairline,
               ),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              // Centre, not `end`. Bottom-aligned is right when the field grows
+              // downward and you want the controls pinned to the last line, but
+              // the row is now the same height as the header bar above it, and
+              // `end` put every control four pixels below where the header's
+              // icons sit. Two bars framing one column should line their
+              // controls up, not merely match in height.
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Attach button
                 _IconButton(
@@ -749,52 +779,59 @@ static const double _pillRadius = 9999;
                 SizedBox(width: t.spaceXxs),
 
                 // Text field: no box of its own.
-                  //
-                  // It used to be a bordered rectangle inside the band, so
-                  // the text sat in a box inside a bar inside a pane. Now it
-                  // is just the text on the pill, which is what makes the
-                  // thing you type into read as one surface.
-                  Expanded(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: _isExpanded ? 200 : t.minTapTarget,
+                //
+                // It used to be a bordered rectangle inside the band, so
+                // the text sat in a box inside a bar inside a pane. Now it
+                // is just the text on the pill, which is what makes the
+                // thing you type into read as one surface.
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: _isExpanded ? 200 : t.minTapTarget,
+                    ),
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      maxLines: _isExpanded ? null : 1,
+                      minLines: _isExpanded ? 3 : 1,
+                      textInputAction: _shouldEnterSend()
+                          ? TextInputAction.send
+                          : TextInputAction.newline,
+                      onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: colorScheme.onSurface,
                       ),
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        maxLines: _isExpanded ? null : 1,
-                        minLines: _isExpanded ? 3 : 1,
-                        textInputAction: _shouldEnterSend()
-                            ? TextInputAction.send
-                            : TextInputAction.newline,
-                        onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
-                        style: TextStyle(
+                      // Transparent, so the theme's new filled decoration
+                      // does not paint its own background and border under
+                      // the pill it now sits on.
+                      decoration: InputDecoration(
+                        hintText: l10n.chatBoxSendMessage,
+                        hintStyle: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface,
+                          color: colorScheme.onSurface
+                              .withValues(alpha: t.opacitySubtle),
                         ),
-                        // Transparent, so the theme's new filled decoration
-                        // does not paint its own background and border under
-                        // the pill it now sits on.
-                        decoration: InputDecoration(
-                          hintText: l10n.chatBoxSendMessage,
-                          hintStyle: TextStyle(
-                            fontSize: 15,
-                            color: colorScheme.onSurface
-                                .withValues(alpha: t.opacitySubtle),
-                          ),
-                          filled: false,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: t.spaceSm,
-                            vertical: t.spaceSm,
-                          ),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        // Vertical padding is `spaceXs`, not `spaceSm`. The
+                        // pill has to fit inside `paneBarHeight` less the two
+                        // band insets, and at `spaceSm` the field's own content
+                        // padding pushed the pill to 49, which made the band 57
+                        // and the mismatch this change is about reappear from
+                        // the other direction. Four pixels of breathing room
+                        // around a 15px line is the same look anyway.
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: t.spaceSm,
+                          vertical: t.spaceXs,
                         ),
                       ),
                     ),
                   ),
+                ),
 
                 SizedBox(width: t.spaceXxs),
 

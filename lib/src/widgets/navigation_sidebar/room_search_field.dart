@@ -44,10 +44,10 @@ class RoomSearchQuery {
 
 /// The search field at the top of the room list.
 ///
-/// The room list had no filter of its own. Global search existed behind a
-/// `Ctrl+K`, which means anyone who does not know the shortcut is looking at
-/// an unfiltered list of everything they have ever joined with no way to
-/// narrow it. A hundred rooms is not a scannable number.
+/// The room list had no filter of its own. Global search existed behind the
+/// command palette's shortcut, which means anyone who does not know it is
+/// looking at an unfiltered list of everything they have ever joined with no
+/// way to narrow it. A hundred rooms is not a scannable number.
 class RoomSearchField extends StatelessWidget {
   const RoomSearchField({super.key});
 

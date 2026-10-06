@@ -250,9 +250,15 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                     // composer was a bare 52, which is the whole reason the
                     // conversation had no frame.
                     //
-                    // 	ight narrows the horizontal padding and drops the
-                    // topic, so the bar needs no extra height for it.
-                    height: tight ? t.paneBarHeight - 4 : t.paneBarHeight,
+                    // Always the token, never less. A narrow column used to
+                    // subtract 4 here on the theory that a tighter bar suits a
+                    // tighter pane, which re-created the exact mismatch the
+                    // token exists to remove, 4px wide and only below a 400px
+                    // conversation. The composer cannot compensate for it: it
+                    // has no idea how wide the room is. What `tight` is for is
+                    // the horizontal padding and the topic, both of which are
+                    // free.
+                    height: t.paneBarHeight,
                     padding: EdgeInsets.symmetric(horizontal: hPadding),
                     decoration: BoxDecoration(
                       border: Border(

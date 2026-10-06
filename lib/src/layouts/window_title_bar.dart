@@ -22,6 +22,7 @@ import 'package:moonrelay/src/helpers/platform.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
+import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/menu_row.dart';
 import 'package:moonrelay/src/widgets/window_buttons.dart';
 
@@ -227,7 +228,11 @@ class GlobalSearchControl extends StatelessWidget {
                     borderRadius: BorderRadius.circular(t.radiusXs),
                   ),
                   child: Text(
-                    'Ctrl K',
+                    // From the binding, not typed out here. This chip used to
+                    // read a hardcoded `Ctrl K`, which was not and never had
+                    // been bound to anything, while the chord actually wired
+                    // up was `Ctrl+Shift+P`.
+                    ShortcutChord.commandPalette.label,
                     style: TextStyle(
                       fontFamily: theme.moonrelay.monoFontFamily,
                       fontSize: 10,

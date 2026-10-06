@@ -2758,7 +2758,7 @@
   },
   "shortcutOpenCommandPalette": "باز کردن پالت فرمان",
   "@shortcutOpenCommandPalette": {
-    "description": "Description of the Ctrl+K shortcut in the keyboard shortcuts overlay."
+    "description": "Description of the Ctrl+Shift+P shortcut in the keyboard shortcuts overlay."
   },
   "shortcutOpenSearch": "باز کردن جست‌وجوی سراسری",
   "@shortcutOpenSearch": {

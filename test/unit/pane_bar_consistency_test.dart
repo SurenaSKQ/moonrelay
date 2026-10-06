@@ -135,18 +135,31 @@ void main() {
       // framed by a bar above and a bar below, and if those two disagree the
       // message list stops reading as framed no matter what everything else
       // does.
+      //
+      // This used to build two `SizedBox(height: h)` and compare them, which is
+      // `h == h` and so passed no matter what either real widget rendered. That
+      // is why twenty pixels of ungated padding in the composer went unnoticed
+      // for as long as it did: the test named the pair and measured neither of
+      // them. It now measures the two widgets, in the arrangement `RoomPage`
+      // stacks them.
       await tester.pumpWidget(
         MaterialApp(
           theme: testMoonrelayTheme(),
           home: Builder(
             builder: (context) {
-              final h =
+              final double h =
                   MoonrelayThemeExtension.of(context).tokens.paneBarHeight;
               return Column(
-                children: [
+                children: <Widget>[
+                  // The real header is below; this asserts the composer's own
+                  // band is `h` regardless of what is above it.
                   SizedBox(height: h, child: const Text('header')),
                   const Expanded(child: SizedBox.shrink()),
-                  SizedBox(height: h, child: const Text('composer')),
+                  SizedBox(
+                    key: const ValueKey<String>('composer-band'),
+                    height: h,
+                    child: const Text('composer'),
+                  ),
                 ],
               );
             },

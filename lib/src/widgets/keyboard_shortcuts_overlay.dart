@@ -24,6 +24,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Show the keyboard shortcuts overlay as a modal bottom sheet.
@@ -47,7 +48,7 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
 
     final shortcuts = <_ShortcutEntry>[
       _ShortcutEntry(
-        keys: const ['Ctrl', 'Shift', 'P'],
+        keys: ShortcutChord.commandPalette.keys,
         description: loc.shortcutOpenCommandPalette,
       ),
       _ShortcutEntry(
@@ -87,7 +88,7 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
         description: loc.shortcutCloseOverlay,
       ),
       _ShortcutEntry(
-        keys: const ['Ctrl', 'Shift', '?'],
+        keys: ShortcutChord.showShortcuts.keys,
         description: loc.shortcutShowShortcuts,
       ),
     ];

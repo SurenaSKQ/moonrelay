@@ -2997,7 +2997,7 @@
 
   "shortcutOpenCommandPalette": "Open the command palette",
   "@shortcutOpenCommandPalette": {
-    "description": "Description of the Ctrl+K shortcut in the keyboard shortcuts overlay."
+    "description": "Description of the Ctrl+Shift+P shortcut in the keyboard shortcuts overlay."
   },
   "shortcutOpenSearch": "Open global search",
   "@shortcutOpenSearch": {
