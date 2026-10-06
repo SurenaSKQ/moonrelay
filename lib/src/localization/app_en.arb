@@ -423,7 +423,7 @@
   "accentCopernicus": "Copernicus",
   "accentAristarchus": "Aristarchus",
   "accentPlato": "Plato",
-  "accentDescription": "@accentDescription",
+  "accentDescription": "The accent tints the buttons, the selected rows and the active space. Every name is a feature of the Moon.",
   "@accentDescription": {
     "description": "Description of how the accent names are chosen, shown under the picker."
   },
@@ -705,6 +705,10 @@
   "controlLookAndFeel": "Control the look and feel of the app",
   "layout": "Layout",
   "customizeLayout": "Customize the arrangement of UI panels",
+  "appearanceAndLayout": "Appearance & Layout",
+  "appearanceAndLayoutDescription": "The theme, the text, the window and how the panels are arranged",
+  "roomPane": "Room pane",
+  "roomPaneDescription": "The panel under the conversation, and how wide it is",
   "encryptionAndSecurity": "Encryption & Security",
   "chatSettings": "Chat",
   "timeline": "Timeline",
@@ -3110,6 +3114,13 @@
   "@shortcutsTitle": {
     "description": "Title of the keyboard shortcuts overlay."
   },
+  "shortcutsEverywhere": "Everywhere",
+  "shortcutsInRoom": "In a room",
+  "shortcutsWhileTyping": "While typing",
+  "shortcutLayoutDependent": "depends on your keyboard layout",
+  "@shortcutLayoutDependent": {
+    "description": "Appended to a shortcut that only fires on some keyboard layouts."
+  },
   "shortcutsSubtitle": "Quick reference for global and in-room key bindings.",
   "@shortcutsSubtitle": {
     "description": "Subtitle under the keyboard shortcuts overlay title."
@@ -3288,6 +3299,10 @@
     "description": "Subtitle for the storage settings page."
   },
   "autoDownloadImages": "Auto-download images",
+  "autoDownload": "Automatic downloads",
+  "whenToNotify": "When to notify",
+  "checkItWorks": "Check it works",
+  "yourAccount": "Your account",
   "@autoDownloadImages": {
     "description": "Policy for automatically downloading image attachments."
   },

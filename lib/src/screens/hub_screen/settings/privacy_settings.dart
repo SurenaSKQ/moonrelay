@@ -19,11 +19,22 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// Privacy, deep-link, and data-management settings.
+// -----------------------------------------------------------------------------
+// Privacy Settings
+// -----------------------------------------------------------------------------
+
+/// Links the app follows, presence it reports, and what it keeps.
+///
+/// Three of these settings only mean anything together: going offline
+/// automatically is useless without the number of minutes, and the number of
+/// minutes is not a choice without the switch. They are one group for that
+/// reason, and the number greys out with the switch rather than being
+/// separately enabled.
 class HubPrivacySettings extends StatelessWidget {
   const HubPrivacySettings({super.key});
 
@@ -32,115 +43,87 @@ class HubPrivacySettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.privacy,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        final bool presence = controller.autoOfflinePresenceEnabled;
+        return HubPageBody(
+          children: [
+            // -- Deep links ---------------------------------------------
+            HubSettingsSection(
+              title: l10n.deepLinks,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.link,
+                  title: l10n.deepLinkAutoJoin,
+                  description: l10n.deepLinkAutoJoinDescription,
+                  value: controller.deepLinkAutoJoin,
+                  onChanged: (v) => controller.updateDeepLinkAutoJoin(v),
                 ),
-              ),
-              SizedBox(height: t.spaceXs),
-              Text(
-                l10n.privacyDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ],
+            ),
+
+            // -- Presence ---------------------------------------------------
+            HubSettingsSection(
+              title: l10n.presence,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.circleUser,
+                  title: l10n.autoOfflinePresenceEnabled,
+                  description: l10n.autoOfflinePresenceEnabledDescription,
+                  value: controller.autoOfflinePresenceEnabled,
+                  onChanged: (v) =>
+                      controller.updateAutoOfflinePresenceEnabled(v),
                 ),
-              ),
-              SizedBox(height: t.spaceXl),
-              HubSettingsSection(
-                title: l10n.deepLinks,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.deepLinkAutoJoin),
-                    subtitle: Text(l10n.deepLinkAutoJoinDescription),
-                    value: controller.deepLinkAutoJoin,
-                    onChanged: (v) => controller.updateDeepLinkAutoJoin(v),
-                    secondary: const Icon(LucideIcons.link, size: 22),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.database,
-                children: [
-                  ListTile(
-                    leading: const Icon(LucideIcons.history, size: 22),
-                    title: Text(l10n.dbBackupKeepCount),
-                    subtitle: Text('${controller.dbBackupKeepCount}'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.dbBackupKeepCount.toDouble(),
-                        min: 0,
-                        max: 10,
-                        divisions: 10,
-                        label: '${controller.dbBackupKeepCount}',
-                        onChanged: (v) =>
-                            controller.updateDbBackupKeepCount(v.round()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.presence,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.autoOfflinePresenceEnabled),
-                    subtitle:
-                        Text(l10n.autoOfflinePresenceEnabledDescription),
-                    value: controller.autoOfflinePresenceEnabled,
-                    onChanged: (v) =>
-                        controller.updateAutoOfflinePresenceEnabled(v),
-                    secondary: const Icon(LucideIcons.circleUser, size: 22),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.timer, size: 22),
-                    enabled: controller.autoOfflinePresenceEnabled,
-                    title: Text(l10n.autoOfflinePresenceMinutes),
-                    subtitle: Text('${controller.autoOfflinePresenceMinutes}'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.autoOfflinePresenceMinutes
-                            .toDouble(),
-                        min: 1,
-                        max: 60,
-                        divisions: 60,
-                        label: '${controller.autoOfflinePresenceMinutes}',
-                        onChanged: controller.autoOfflinePresenceEnabled
-                            ? (v) => controller
-                                .updateAutoOfflinePresenceMinutes(v.round())
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.logs,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.wipeLogsOnLogout),
-                    subtitle: Text(l10n.wipeLogsOnLogoutDescription),
-                    value: controller.wipeLogsOnLogout,
-                    onChanged: (v) => controller.updateWipeLogsOnLogout(v),
-                    secondary: const Icon(LucideIcons.eraser, size: 22),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                HubSliderTile(
+                  icon: LucideIcons.timer,
+                  title: l10n.autoOfflinePresenceMinutes,
+                  value: controller.autoOfflinePresenceMinutes.toDouble(),
+                  valueLabel: '${controller.autoOfflinePresenceMinutes}',
+                  min: 1,
+                  max: 60,
+                  divisions: 60,
+                  // One gate, not two. The row used to carry both `enabled:
+                  // false` and a null `onChanged`, so the label greyed out by
+                  // one mechanism while the slider went inert by another, and
+                  // the two could disagree.
+                  onChanged: presence
+                      ? (v) =>
+                          controller.updateAutoOfflinePresenceMinutes(v.round())
+                      : null,
+                ),
+              ],
+            ),
+
+            // -- Local data --------------------------------------------------
+            HubSettingsSection(
+              title: l10n.database,
+              children: [
+                HubSliderTile(
+                  icon: LucideIcons.history,
+                  title: l10n.dbBackupKeepCount,
+                  value: controller.dbBackupKeepCount.toDouble(),
+                  valueLabel: '${controller.dbBackupKeepCount}',
+                  min: 0,
+                  max: 10,
+                  divisions: 10,
+                  onChanged: (v) =>
+                      controller.updateDbBackupKeepCount(v.round()),
+                ),
+              ],
+            ),
+
+            // -- Logs ----------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.logs,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.eraser,
+                  title: l10n.wipeLogsOnLogout,
+                  description: l10n.wipeLogsOnLogoutDescription,
+                  value: controller.wipeLogsOnLogout,
+                  onChanged: (v) => controller.updateWipeLogsOnLogout(v),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );

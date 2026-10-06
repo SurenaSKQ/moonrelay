@@ -20,15 +20,24 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 // Chat Settings
 // -----------------------------------------------------------------------------
 
+/// How the conversation behaves.
+///
+/// The six media limits below are one setting repeated: a pixel ceiling on a
+/// kind of attachment, each settable over the same range. They were six
+/// hand-written `ListTile`s, which is six chances for the slider well to be
+/// 160 wide here and 200 on the page above, and it is why this file was 281
+/// lines for eleven controls. It is now the same eleven controls in a page
+/// that says what it is in the strip above it.
 class HubChatSettings extends StatelessWidget {
   const HubChatSettings({super.key});
 
@@ -37,243 +46,159 @@ class HubChatSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.chatSettings,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        return HubPageBody(
+          children: [
+            // -- Timeline -------------------------------------------------
+            HubSettingsSection(
+              title: l10n.timeline,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.info,
+                  title: l10n.showStateEvents,
+                  description: l10n.showStateEventsDescription,
+                  value: controller.showStateEvents,
+                  onChanged: (v) => controller.updateShowStateEvents(v),
                 ),
-              ),
-              SizedBox(height: t.spaceXs),
-              Text(
-                l10n.timelineAndMessages,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                HubSwitchTile(
+                  icon: LucideIcons.eye,
+                  title: l10n.sendReadReceipts,
+                  description: l10n.sendReadReceiptsDescription,
+                  value: controller.sendReadReceipts,
+                  onChanged: (v) => controller.updateSendReadReceipts(v),
                 ),
-              ),
-              SizedBox(height: t.spaceXl),
-              HubSettingsSection(
-                title: l10n.timeline,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.showStateEvents),
-                    subtitle: Text(l10n.showStateEventsDescription),
-                    value: controller.showStateEvents,
-                    onChanged: (v) => controller.updateShowStateEvents(v),
-                    secondary: const Icon(Icons.info_outline),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.sendReadReceipts),
-                    subtitle: Text(l10n.sendReadReceiptsDescription),
-                    value: controller.sendReadReceipts,
-                    onChanged: (v) => controller.updateSendReadReceipts(v),
-                    secondary: const Icon(LucideIcons.eye, size: 22),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.showReadReceipts),
-                    subtitle: Text(l10n.showReadReceiptsDescription),
-                    value: controller.showReadReceipts,
-                    onChanged: (v) => controller.updateShowReadReceipts(v),
-                    secondary: const Icon(LucideIcons.eye, size: 22),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.linkPreviewsEnabled),
-                    subtitle: Text(l10n.linkPreviewsEnabledDescription),
-                    value: controller.linkPreviewsEnabled,
-                    onChanged: (v) => controller.updateLinkPreviewsEnabled(v),
-                    secondary: const Icon(LucideIcons.link2, size: 22),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.maximize2, size: 22),
-                    title: Text(l10n.replyPreviewThreshold),
-                    subtitle: Text('${controller.replyPreviewThreshold}'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.replyPreviewThreshold.toDouble(),
-                        min: 20,
-                        max: 500,
-                        divisions: 48,
-                        label: '${controller.replyPreviewThreshold}',
-                        onChanged: (v) =>
-                            controller.updateReplyPreviewThreshold(v.round()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.typing,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.sendTypingNotifications),
-                    subtitle: Text(l10n.sendTypingNotificationsDescription),
-                    value: controller.sendTypingNotifications,
-                    onChanged: (v) =>
-                        controller.updateSendTypingNotifications(v),
-                    secondary: const Icon(LucideIcons.keyboard, size: 22),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.showTypingIndicator),
-                    subtitle: Text(l10n.showTypingIndicatorDescription),
-                    value: controller.showTypingIndicator,
-                    onChanged: (v) => controller.updateShowTypingIndicator(v),
-                    secondary: const Icon(LucideIcons.moreHorizontal, size: 22),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.composer,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: t.spaceLg,
-                      vertical: t.spaceSm,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.sendShortcut,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        SizedBox(height: t.spaceSm),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            for (final s in SendShortcut.values)
-                              ChoiceChip(
-                                label: Text(localizedSendShortcut(s, l10n)),
-                                selected: s == controller.sendShortcut,
-                                onSelected: (_) =>
-                                    controller.updateSendShortcut(s),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.mediaSizes,
-                children: [
-                  ListTile(
-                    leading: const Icon(LucideIcons.image, size: 22),
-                    title: Text(l10n.imageThumbnailMaxPx),
-                    subtitle: Text('${controller.imageThumbnailMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.imageThumbnailMaxPx.toDouble(),
-                        min: 80,
-                        max: 1200,
-                        divisions: 112,
-                        label: '${controller.imageThumbnailMaxPx} px',
-                        onChanged: (v) =>
-                            controller.updateImageThumbnailMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.smile, size: 22),
-                    title: Text(l10n.stickerMaxPx),
-                    subtitle: Text('${controller.stickerMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.stickerMaxPx.toDouble(),
-                        min: 80,
-                        max: 800,
-                        divisions: 72,
-                        label: '${controller.stickerMaxPx} px',
-                        onChanged: (v) =>
-                            controller.updateStickerMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.video, size: 22),
-                    title: Text(l10n.videoMaxPx),
-                    subtitle: Text('${controller.videoMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.videoMaxPx.toDouble(),
-                        min: 80,
-                        max: 1200,
-                        divisions: 112,
-                        label: '${controller.videoMaxPx} px',
-                        onChanged: (v) =>
-                            controller.updateVideoMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.music, size: 22),
-                    title: Text(l10n.audioMaxPx),
-                    subtitle: Text('${controller.audioMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.audioMaxPx.toDouble(),
-                        min: 80,
-                        max: 1200,
-                        divisions: 112,
-                        label: '${controller.audioMaxPx} px',
-                        onChanged: (v) =>
-                            controller.updateAudioMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.file, size: 22),
-                    title: Text(l10n.fileMaxPx),
-                    subtitle: Text('${controller.fileMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.fileMaxPx.toDouble(),
-                        min: 80,
-                        max: 1200,
-                        divisions: 112,
-                        label: '${controller.fileMaxPx} px',
-                        onChanged: (v) => controller.updateFileMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.mapPin, size: 22),
-                    title: Text(l10n.locationMaxPx),
-                    subtitle: Text('${controller.locationMaxPx} px'),
-                    trailing: SizedBox(
-                      width: 160,
-                      child: Slider(
-                        value: controller.locationMaxPx.toDouble(),
-                        min: 80,
-                        max: 1200,
-                        divisions: 112,
-                        label: '${controller.locationMaxPx} px',
-                        onChanged: (v) =>
-                            controller.updateLocationMaxPx(v.round()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                HubSwitchTile(
+                  icon: LucideIcons.eye,
+                  title: l10n.showReadReceipts,
+                  description: l10n.showReadReceiptsDescription,
+                  value: controller.showReadReceipts,
+                  onChanged: (v) => controller.updateShowReadReceipts(v),
+                ),
+                HubSwitchTile(
+                  icon: LucideIcons.link2,
+                  title: l10n.linkPreviewsEnabled,
+                  description: l10n.linkPreviewsEnabledDescription,
+                  value: controller.linkPreviewsEnabled,
+                  onChanged: (v) => controller.updateLinkPreviewsEnabled(v),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.maximize2,
+                  title: l10n.replyPreviewThreshold,
+                  value: controller.replyPreviewThreshold.toDouble(),
+                  valueLabel: '${controller.replyPreviewThreshold}',
+                  min: 20,
+                  max: 500,
+                  divisions: 48,
+                  onChanged: (v) =>
+                      controller.updateReplyPreviewThreshold(v.round()),
+                ),
+              ],
+            ),
+
+            // -- Typing ------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.typing,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.keyboard,
+                  title: l10n.sendTypingNotifications,
+                  description: l10n.sendTypingNotificationsDescription,
+                  value: controller.sendTypingNotifications,
+                  onChanged: (v) => controller.updateSendTypingNotifications(v),
+                ),
+                HubSwitchTile(
+                  icon: LucideIcons.moreHorizontal,
+                  title: l10n.showTypingIndicator,
+                  description: l10n.showTypingIndicatorDescription,
+                  value: controller.showTypingIndicator,
+                  onChanged: (v) => controller.updateShowTypingIndicator(v),
+                ),
+              ],
+            ),
+
+            // -- Composer ------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.sendShortcut,
+              children: [
+                HubChoiceChipRow<SendShortcut>(
+                  values: SendShortcut.values,
+                  selected: controller.sendShortcut,
+                  labelOf: (SendShortcut s) => localizedSendShortcut(s, l10n),
+                  onSelected: controller.updateSendShortcut,
+                ),
+              ],
+            ),
+
+            // -- Media ---------------------------------------------------------
+            // Every one of these is "the largest this attachment may be", so
+            // they are one group rather than six. Splitting them across
+            // sections would mean six headings that all say the same thing.
+            HubSettingsSection(
+              title: l10n.mediaSizes,
+              children: [
+                HubSliderTile(
+                  icon: LucideIcons.image,
+                  title: l10n.imageThumbnailMaxPx,
+                  value: controller.imageThumbnailMaxPx.toDouble(),
+                  valueLabel: '${controller.imageThumbnailMaxPx} px',
+                  min: 80,
+                  max: 1200,
+                  divisions: 112,
+                  onChanged: (v) =>
+                      controller.updateImageThumbnailMaxPx(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.smile,
+                  title: l10n.stickerMaxPx,
+                  value: controller.stickerMaxPx.toDouble(),
+                  valueLabel: '${controller.stickerMaxPx} px',
+                  min: 80,
+                  max: 800,
+                  divisions: 72,
+                  onChanged: (v) => controller.updateStickerMaxPx(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.video,
+                  title: l10n.videoMaxPx,
+                  value: controller.videoMaxPx.toDouble(),
+                  valueLabel: '${controller.videoMaxPx} px',
+                  min: 80,
+                  max: 1200,
+                  divisions: 112,
+                  onChanged: (v) => controller.updateVideoMaxPx(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.music,
+                  title: l10n.audioMaxPx,
+                  value: controller.audioMaxPx.toDouble(),
+                  valueLabel: '${controller.audioMaxPx} px',
+                  min: 80,
+                  max: 1200,
+                  divisions: 112,
+                  onChanged: (v) => controller.updateAudioMaxPx(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.file,
+                  title: l10n.fileMaxPx,
+                  value: controller.fileMaxPx.toDouble(),
+                  valueLabel: '${controller.fileMaxPx} px',
+                  min: 80,
+                  max: 1200,
+                  divisions: 112,
+                  onChanged: (v) => controller.updateFileMaxPx(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.mapPin,
+                  title: l10n.locationMaxPx,
+                  value: controller.locationMaxPx.toDouble(),
+                  valueLabel: '${controller.locationMaxPx} px',
+                  min: 80,
+                  max: 1200,
+                  divisions: 112,
+                  onChanged: (v) => controller.updateLocationMaxPx(v.round()),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );

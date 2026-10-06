@@ -70,85 +70,31 @@ class HubNavList extends StatelessWidget {
   /// resolve to something that is not the row.
   static Key rowKey({required String category, String? subItem}) =>
       ValueKey<String>(
-        subItem == null
-            ? 'hubNav:$category'
-            : 'hubNav:$category:$subItem',
+        subItem == null ? 'hubNav:$category' : 'hubNav:$category:$subItem',
       );
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
+
+    // The settings children come from [buildSettingsNavigationItems], the same
+    // list the overview page and the sub-page titles read. This used to be a
+    // hand-written third copy of all thirteen keys, beside the one in
+    // `HubRouteKeys` and the one in the overview page, which is how a row came
+    // to exist for a sub-item no page rendered: nothing could tell the three
+    // apart.
     final List<_NavEntry> entries = [
       _NavEntry(
         category: HubRouteKeys.settings,
         label: l10n.appSettings,
         icon: LucideIcons.settings,
         children: [
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.appearance,
-            label: l10n.appearance,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.layout,
-            label: l10n.layout,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.security,
-            label: l10n.encryptionAndSecurity,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.chat,
-            label: l10n.chatSettings,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.keybinds,
-            label: l10n.keybinds,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.logs,
-            label: l10n.logs,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.background,
-            label: l10n.backgroundAndTray,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.notifications,
-            label: l10n.notifications,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.privacy,
-            label: l10n.privacy,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.storage,
-            label: l10n.storage,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.advanced,
-            label: l10n.advanced,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.blocked,
-            label: l10n.blockedUsers,
-          ),
-          _NavEntry(
-            category: HubRouteKeys.settings,
-            sub: HubRouteKeys.updates,
-            label: l10n.updates,
-          ),
+          for (final item in buildSettingsNavigationItems(l10n))
+            _NavEntry(
+              category: HubRouteKeys.settings,
+              sub: item.key,
+              label: item.label,
+            ),
         ],
       ),
       _NavEntry(
@@ -170,8 +116,7 @@ class HubNavList extends StatelessWidget {
           _NavRow(
             key: rowKey(category: entry.category),
             entry: entry,
-            selected: entry.category == selectedCategory &&
-                entry.sub == null,
+            selected: entry.category == selectedCategory && entry.sub == null,
             showChevron: !expandActive && entry.children.isNotEmpty,
             onTap: () => onSelect(entry.category, null),
           ),

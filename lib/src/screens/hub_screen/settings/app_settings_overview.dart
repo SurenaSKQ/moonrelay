@@ -15,16 +15,28 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 
 // -----------------------------------------------------------------------------
 // App Settings overview (when the category itself is selected)
 // -----------------------------------------------------------------------------
 
+/// The list of settings sections, for when the list is the only way in.
+///
+/// On the wide shell this page is a second copy of the sidebar beside it. That
+/// is deliberate and it is the price of one set of destinations in two
+/// arrangements: the sidebar is navigation and this is the thing you land on,
+/// and a reader who has just tapped "App Settings" in a list of three should
+/// land on a list of twelve rather than on a paragraph.
+///
+/// It used to draw each section as its own bordered `Card`, twelve boxes
+/// stacked flush with no gap between them, using `theme.dividerColor` rather
+/// than the app's hairline. Twelve separate boxes is the failure `InfoPanel`
+/// exists to fix, and it was fixed everywhere else in the app except here.
+/// They are one panel now, at the same measure as every page below it.
 class HubAppSettingsOverview extends StatelessWidget {
   final List<HubNavigationItem> items;
   final void Function(int index) onItemTap;
@@ -37,50 +49,18 @@ class HubAppSettingsOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final t = theme.moonrelay.tokens;
-    return ListView(
-      padding: EdgeInsets.all(t.spaceXl),
+    return HubPageBody(
       children: [
-        Text(
-          l10n.appSettings,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.customizeExperience,
-          style: TextStyle(
-            fontSize: 13,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-        ...List.generate(items.length, (index) {
-          final item = items[index];
-          return Card(
-            elevation: t.elevationNone,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(t.radiusMd),
-              side: BorderSide(color: theme.dividerColor),
-            ),
-            child: ListTile(
-              leading: Icon(item.icon, size: t.iconSizeLarge),
-              title: Text(
-                item.label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                ),
+        InfoPanel(
+          children: [
+            for (var index = 0; index < items.length; index++)
+              InfoPanelRow(
+                icon: items[index].icon,
+                label: items[index].label,
+                onTap: () => onItemTap(index),
               ),
-              trailing: Icon(LucideIcons.chevronRight, size: t.iconSizeMedium),
-              onTap: () => onItemTap(index),
-            ),
-          );
-        }),
+          ],
+        ),
       ],
     );
   }

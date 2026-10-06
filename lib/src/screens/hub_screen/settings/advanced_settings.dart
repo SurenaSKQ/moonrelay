@@ -23,12 +23,23 @@ import 'package:provider/provider.dart';
 import 'package:moonrelay/src/helpers/log_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// Debounces, timeouts, and logging settings.
+// -----------------------------------------------------------------------------
+// Advanced Settings
+// -----------------------------------------------------------------------------
+
+/// Debounces, timeouts and the logging policy.
+///
+/// Every number here is an integer the slider exposes as a double, and this
+/// page used to carry its own copy of the slider row to do that conversion,
+/// at a third track width of 200px. The shared row takes the same `double` and
+/// does the rounding at the call site, so the conversion is written once
+/// instead of fourteen times.
 class HubAdvancedSettings extends StatelessWidget {
   const HubAdvancedSettings({super.key});
 
@@ -37,186 +48,184 @@ class HubAdvancedSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.advanced,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        return HubPageBody(
+          children: [
+            // -- Debounce ----------------------------------------------------
+            HubSettingsSection(
+              title: l10n.debounceTimings,
+              children: [
+                HubSliderTile(
+                  icon: LucideIcons.refreshCw,
+                  title: l10n.syncDebounceMs,
+                  value: controller.syncDebounceMs,
+                  valueLabel: '${controller.syncDebounceMs} ms',
+                  min: 0,
+                  max: 5000,
+                  divisions: 100,
+                  onChanged: (double v) =>
+                      controller.updateSyncDebounceMs(v.round()),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.advancedDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                HubSliderTile(
+                  icon: LucideIcons.search,
+                  title: l10n.searchDebounceMs,
+                  value: controller.searchDebounceMs,
+                  valueLabel: '${controller.searchDebounceMs} ms',
+                  min: 0,
+                  max: 5000,
+                  divisions: 100,
+                  onChanged: (double v) =>
+                      controller.updateSearchDebounceMs(v.round()),
                 ),
-              ),
-              const SizedBox(height: 24),
-              HubSettingsSection(
-                title: l10n.debounceTimings,
-                children: [
-                  _SliderTile(
-                    icon: LucideIcons.refreshCw,
-                    title: l10n.syncDebounceMs,
-                    value: controller.syncDebounceMs,
-                    min: 0,
-                    max: 5000,
-                    divisions: 100,
-                    onChanged: controller.updateSyncDebounceMs,
+                HubSliderTile(
+                  icon: LucideIcons.fileText,
+                  title: l10n.draftAutosaveMs,
+                  value: controller.draftAutosaveMs,
+                  valueLabel: '${controller.draftAutosaveMs} ms',
+                  min: 0,
+                  max: 5000,
+                  divisions: 100,
+                  onChanged: (double v) =>
+                      controller.updateDraftAutosaveMs(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.bell,
+                  title: l10n.notificationPersistMs,
+                  value: controller.notificationPersistMs,
+                  valueLabel: '${controller.notificationPersistMs} ms',
+                  min: 0,
+                  max: 5000,
+                  divisions: 100,
+                  onChanged: (double v) =>
+                      controller.updateNotificationPersistMs(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.link,
+                  title: l10n.deepLinkDedupMs,
+                  value: controller.deepLinkDedupMs,
+                  valueLabel: '${controller.deepLinkDedupMs} ms',
+                  min: 0,
+                  max: 10000,
+                  divisions: 200,
+                  onChanged: (double v) =>
+                      controller.updateDeepLinkDedupMs(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.shield,
+                  title: l10n.encryptionRefreshDebounceMs,
+                  value: controller.encryptionRefreshDebounceMs,
+                  valueLabel: '${controller.encryptionRefreshDebounceMs} ms',
+                  min: 0,
+                  max: 5000,
+                  divisions: 100,
+                  onChanged: (double v) =>
+                      controller.updateEncryptionRefreshDebounceMs(v.round()),
+                ),
+              ],
+            ),
+
+            // -- Timeouts -----------------------------------------------------
+            HubSettingsSection(
+              title: l10n.timeoutsAndLimits,
+              children: [
+                HubSliderTile(
+                  icon: LucideIcons.timer,
+                  title: l10n.firstSyncTimeoutS,
+                  value: controller.firstSyncTimeoutS,
+                  valueLabel: '${controller.firstSyncTimeoutS} s',
+                  min: 1,
+                  max: 60,
+                  divisions: 59,
+                  onChanged: (double v) =>
+                      controller.updateFirstSyncTimeoutS(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.search,
+                  title: l10n.searchPageSize,
+                  value: controller.searchPageSize,
+                  valueLabel: '${controller.searchPageSize}',
+                  min: 10,
+                  max: 500,
+                  divisions: 49,
+                  onChanged: (double v) =>
+                      controller.updateSearchPageSize(v.round()),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.bell,
+                  title: l10n.notificationDedupeCacheSize,
+                  value: controller.notificationDedupeCacheSize,
+                  valueLabel: '${controller.notificationDedupeCacheSize}',
+                  min: 0,
+                  max: 5000,
+                  divisions: 50,
+                  onChanged: (double v) =>
+                      controller.updateNotificationDedupeCacheSize(v.round()),
+                ),
+              ],
+            ),
+
+            // -- Logs -------------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.logs,
+              children: [
+                HubNavTile(
+                  icon: LucideIcons.layers,
+                  title: l10n.logLevel,
+                  value: localizedLogLevel(controller.logLevel, l10n),
+                  onTap: () => _pickLogLevel(context, controller, l10n),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.hardDrive,
+                  title: l10n.logMaxFileSizeMb,
+                  value: controller.logMaxFileSizeMb,
+                  valueLabel: '${controller.logMaxFileSizeMb} MB',
+                  min: 1,
+                  max: 256,
+                  divisions: 255,
+                  onChanged: (double v) => _updateLogs(
+                    context,
+                    controller,
+                    (SettingsController c) =>
+                        c.updateLogMaxFileSizeMb(v.round()),
                   ),
-                  _SliderTile(
-                    icon: LucideIcons.search,
-                    title: l10n.searchDebounceMs,
-                    value: controller.searchDebounceMs,
-                    min: 0,
-                    max: 5000,
-                    divisions: 100,
-                    onChanged: controller.updateSearchDebounceMs,
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.files,
+                  title: l10n.logMaxFiles,
+                  value: controller.logMaxFiles,
+                  valueLabel: '${controller.logMaxFiles}',
+                  min: 0,
+                  max: 50,
+                  divisions: 50,
+                  onChanged: (double v) => _updateLogs(
+                    context,
+                    controller,
+                    (SettingsController c) => c.updateLogMaxFiles(v.round()),
                   ),
-                  _SliderTile(
-                    icon: LucideIcons.fileText,
-                    title: l10n.draftAutosaveMs,
-                    value: controller.draftAutosaveMs,
-                    min: 0,
-                    max: 5000,
-                    divisions: 100,
-                    onChanged: controller.updateDraftAutosaveMs,
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.timer,
+                  title: l10n.logFlushDelayS,
+                  value: controller.logFlushDelayS,
+                  valueLabel: '${controller.logFlushDelayS} s',
+                  min: 1,
+                  max: 600,
+                  divisions: 60,
+                  onChanged: (double v) => _updateLogs(
+                    context,
+                    controller,
+                    (SettingsController c) => c.updateLogFlushDelayS(v.round()),
                   ),
-                  _SliderTile(
-                    icon: LucideIcons.bell,
-                    title: l10n.notificationPersistMs,
-                    value: controller.notificationPersistMs,
-                    min: 0,
-                    max: 5000,
-                    divisions: 100,
-                    onChanged: controller.updateNotificationPersistMs,
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.link,
-                    title: l10n.deepLinkDedupMs,
-                    value: controller.deepLinkDedupMs,
-                    min: 0,
-                    max: 10000,
-                    divisions: 200,
-                    onChanged: controller.updateDeepLinkDedupMs,
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.shield,
-                    title: l10n.encryptionRefreshDebounceMs,
-                    value: controller.encryptionRefreshDebounceMs,
-                    min: 0,
-                    max: 5000,
-                    divisions: 100,
-                    onChanged: controller.updateEncryptionRefreshDebounceMs,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              HubSettingsSection(
-                title: l10n.timeoutsAndLimits,
-                children: [
-                  _SliderTile(
-                    icon: LucideIcons.timer,
-                    title: l10n.firstSyncTimeoutS,
-                    unit: 's',
-                    value: controller.firstSyncTimeoutS,
-                    min: 1,
-                    max: 60,
-                    divisions: 59,
-                    onChanged: controller.updateFirstSyncTimeoutS,
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.search,
-                    title: l10n.searchPageSize,
-                    value: controller.searchPageSize,
-                    min: 10,
-                    max: 500,
-                    divisions: 49,
-                    onChanged: controller.updateSearchPageSize,
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.bell,
-                    title: l10n.notificationDedupeCacheSize,
-                    value: controller.notificationDedupeCacheSize,
-                    min: 0,
-                    max: 5000,
-                    divisions: 50,
-                    onChanged: controller.updateNotificationDedupeCacheSize,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              HubSettingsSection(
-                title: l10n.logs,
-                children: [
-                  ListTile(
-                    leading: const Icon(LucideIcons.layers, size: 22),
-                    title: Text(l10n.logLevel),
-                    subtitle:
-                        Text(localizedLogLevel(controller.logLevel, l10n)),
-                    onTap: () => _pickLogLevel(context, controller, l10n),
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.hardDrive,
-                    title: l10n.logMaxFileSizeMb,
-                    unit: ' MB',
-                    value: controller.logMaxFileSizeMb,
-                    min: 1,
-                    max: 256,
-                    divisions: 255,
-                    onChanged: (v) => _updateLogs(
-                      context,
-                      controller,
-                      (c) => c.updateLogMaxFileSizeMb(v),
-                    ),
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.files,
-                    title: l10n.logMaxFiles,
-                    value: controller.logMaxFiles,
-                    min: 0,
-                    max: 50,
-                    divisions: 50,
-                    onChanged: (v) => _updateLogs(
-                      context,
-                      controller,
-                      (c) => c.updateLogMaxFiles(v),
-                    ),
-                  ),
-                  _SliderTile(
-                    icon: LucideIcons.timer,
-                    title: l10n.logFlushDelayS,
-                    unit: 's',
-                    value: controller.logFlushDelayS,
-                    min: 1,
-                    max: 600,
-                    divisions: 60,
-                    onChanged: (v) => _updateLogs(
-                      context,
-                      controller,
-                      (c) => c.updateLogFlushDelayS(v),
-                    ),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.logVerboseRelease),
-                    subtitle: Text(l10n.logVerboseReleaseDescription),
-                    value: controller.logVerboseRelease,
-                    onChanged: (v) => controller.updateLogVerboseRelease(v),
-                    secondary: const Icon(LucideIcons.alertTriangle, size: 22),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                HubSwitchTile(
+                  icon: LucideIcons.alertTriangle,
+                  title: l10n.logVerboseRelease,
+                  description: l10n.logVerboseReleaseDescription,
+                  value: controller.logVerboseRelease,
+                  onChanged: (v) => controller.updateLogVerboseRelease(v),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );
@@ -237,7 +246,7 @@ class HubAdvancedSettings extends StatelessWidget {
               ListTile(
                 title: Text(localizedLogLevel(level, l10n)),
                 trailing: level == controller.logLevel
-                    ? const Icon(Icons.check)
+                    ? const Icon(LucideIcons.check)
                     : null,
                 onTap: () => Navigator.of(ctx).pop(level),
               ),
@@ -247,7 +256,11 @@ class HubAdvancedSettings extends StatelessWidget {
     );
     if (selected == null) return;
     if (!context.mounted) return;
-    _updateLogs(context, controller, (c) => c.updateLogLevel(selected));
+    _updateLogs(
+      context,
+      controller,
+      (SettingsController c) => c.updateLogLevel(selected),
+    );
   }
 
   /// Persists a logging setting and then pushes the whole policy into the
@@ -281,47 +294,5 @@ class HubAdvancedSettings extends StatelessWidget {
         level: controller.logLevel,
       );
     }());
-  }
-}
-
-class _SliderTile extends StatelessWidget {
-  const _SliderTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.onChanged,
-    this.unit = ' ms',
-  });
-
-  final IconData icon;
-  final String title;
-  final int value;
-  final int min;
-  final int max;
-  final int divisions;
-  final ValueChanged<int> onChanged;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, size: 22),
-      title: Text(title),
-      subtitle: Text('$value$unit'),
-      trailing: SizedBox(
-        width: 200,
-        child: Slider(
-          value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
-          min: min.toDouble(),
-          max: max.toDouble(),
-          divisions: divisions,
-          label: '$value$unit',
-          onChanged: (v) => onChanged(v.round()),
-        ),
-      ),
-    );
   }
 }

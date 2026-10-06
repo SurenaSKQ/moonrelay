@@ -20,12 +20,22 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-/// Media / cache / auto-download storage settings.
+// -----------------------------------------------------------------------------
+// Storage Settings
+// -----------------------------------------------------------------------------
+
+/// What arrives on its own, and what the app holds on disk.
+///
+/// The three auto-download policies were a private widget that drew a bold
+/// label and then a row of chips, repeated three times over, so the section it
+/// sat in had four headings in it where three would do. They are now three
+/// labelled chip rows in one group.
 class HubStorageSettings extends StatelessWidget {
   const HubStorageSettings({super.key});
 
@@ -34,153 +44,88 @@ class HubStorageSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.storage,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        return HubPageBody(
+          children: [
+            // -- Auto download ---------------------------------------------
+            HubSettingsSection(
+              title: l10n.autoDownload,
+              children: [
+                HubChoiceChipRow<AutoDownloadPolicy>(
+                  label: l10n.autoDownloadImages,
+                  values: AutoDownloadPolicy.values,
+                  selected: controller.autoDownloadImages,
+                  labelOf: (AutoDownloadPolicy p) =>
+                      localizedAutoDownloadPolicy(p, l10n),
+                  onSelected: controller.updateAutoDownloadImages,
                 ),
-              ),
-              SizedBox(height: t.spaceXs),
-              Text(
-                l10n.storageDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                HubChoiceChipRow<AutoDownloadPolicy>(
+                  label: l10n.autoDownloadFiles,
+                  values: AutoDownloadPolicy.values,
+                  selected: controller.autoDownloadFiles,
+                  labelOf: (AutoDownloadPolicy p) =>
+                      localizedAutoDownloadPolicy(p, l10n),
+                  onSelected: controller.updateAutoDownloadFiles,
                 ),
-              ),
-              SizedBox(height: t.spaceXl),
-              HubSettingsSection(
-                title: l10n.autoDownloadImages,
-                children: [
-                  _PolicyPicker(
-                    title: l10n.autoDownloadImages,
-                    current: controller.autoDownloadImages,
-                    onChanged: controller.updateAutoDownloadImages,
-                  ),
-                  _PolicyPicker(
-                    title: l10n.autoDownloadFiles,
-                    current: controller.autoDownloadFiles,
-                    onChanged: controller.updateAutoDownloadFiles,
-                  ),
-                  _PolicyPicker(
-                    title: l10n.autoDownloadVideos,
-                    current: controller.autoDownloadVideos,
-                    onChanged: controller.updateAutoDownloadVideos,
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.attachmentClickThreshold,
-                children: [
-                  ListTile(
-                    leading:
-                        const Icon(LucideIcons.mousePointerClick, size: 22),
-                    title: Text(l10n.attachmentClickThresholdMb),
-                    subtitle:
-                        Text('${controller.attachmentClickThresholdMb} MB'),
-                    trailing: SizedBox(
-                      width: 200,
-                      child: Slider(
-                        value: controller.attachmentClickThresholdMb.toDouble(),
-                        min: 1,
-                        max: 200,
-                        divisions: 199,
-                        label: '${controller.attachmentClickThresholdMb} MB',
-                        onChanged: (v) => controller
-                            .updateAttachmentClickThresholdMb(v.round()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: t.spaceLg),
-              HubSettingsSection(
-                title: l10n.drafts,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.draftsEnabled),
-                    subtitle: Text(l10n.draftsEnabledDescription),
-                    value: controller.draftsEnabled,
-                    onChanged: (v) => controller.updateDraftsEnabled(v),
-                    secondary: const Icon(LucideIcons.fileText, size: 22),
-                  ),
-                  ListTile(
-                    leading: const Icon(LucideIcons.clock, size: 22),
-                    enabled: controller.draftsEnabled,
-                    title: Text(l10n.draftRetentionDays),
-                    subtitle: Text('${controller.draftRetentionDays}'),
-                    trailing: SizedBox(
-                      width: 200,
-                      child: Slider(
-                        value: controller.draftRetentionDays.toDouble(),
-                        min: 0,
-                        max: 90,
-                        divisions: 90,
-                        label: '${controller.draftRetentionDays}',
-                        onChanged: controller.draftsEnabled
-                            ? (v) =>
-                                controller.updateDraftRetentionDays(v.round())
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                HubChoiceChipRow<AutoDownloadPolicy>(
+                  label: l10n.autoDownloadVideos,
+                  values: AutoDownloadPolicy.values,
+                  selected: controller.autoDownloadVideos,
+                  labelOf: (AutoDownloadPolicy p) =>
+                      localizedAutoDownloadPolicy(p, l10n),
+                  onSelected: controller.updateAutoDownloadVideos,
+                ),
+              ],
+            ),
+
+            // -- Attachments --------------------------------------------------
+            HubSettingsSection(
+              title: l10n.attachmentClickThreshold,
+              children: [
+                HubSliderTile(
+                  icon: LucideIcons.mousePointerClick,
+                  title: l10n.attachmentClickThresholdMb,
+                  value: controller.attachmentClickThresholdMb.toDouble(),
+                  valueLabel: '${controller.attachmentClickThresholdMb} MB',
+                  min: 1,
+                  max: 200,
+                  divisions: 199,
+                  onChanged: (v) =>
+                      controller.updateAttachmentClickThresholdMb(v.round()),
+                ),
+              ],
+            ),
+
+            // -- Drafts ----------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.drafts,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.fileText,
+                  title: l10n.draftsEnabled,
+                  description: l10n.draftsEnabledDescription,
+                  value: controller.draftsEnabled,
+                  onChanged: (v) => controller.updateDraftsEnabled(v),
+                ),
+                HubSliderTile(
+                  icon: LucideIcons.clock,
+                  title: l10n.draftRetentionDays,
+                  value: controller.draftRetentionDays.toDouble(),
+                  valueLabel: '${controller.draftRetentionDays}',
+                  min: 0,
+                  max: 90,
+                  divisions: 90,
+                  // Keeping drafts for 30 days while drafts are switched off
+                  // describes a state the user cannot reach, so the number
+                  // goes with the switch.
+                  onChanged: controller.draftsEnabled
+                      ? (v) => controller.updateDraftRetentionDays(v.round())
+                      : null,
+                ),
+              ],
+            ),
+          ],
         );
       },
-    );
-  }
-}
-
-class _PolicyPicker extends StatelessWidget {
-  const _PolicyPicker({
-    required this.title,
-    required this.current,
-    required this.onChanged,
-  });
-
-  final String title;
-  final AutoDownloadPolicy current;
-  final ValueChanged<AutoDownloadPolicy> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final t = MoonrelayThemeExtension.of(context).tokens;
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: t.spaceLg,
-        vertical: t.spaceSm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
-          SizedBox(height: t.spaceSm),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final policy in AutoDownloadPolicy.values)
-                ChoiceChip(
-                  label: Text(localizedAutoDownloadPolicy(policy, l10n)),
-                  selected: policy == current,
-                  onSelected: (_) => onChanged(policy),
-                ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

@@ -405,7 +405,7 @@ class MoonRouter {
             ),
             GoRoute(
               path: MoonRoutePaths.hubTemplate,
-              redirect: (context, state) => _hubRedirect(state, subKey: null),
+              redirect: (context, state) => hubRedirect(state, subKey: null),
               builder: (context, state) => HubScreen(
                 client: Provider.of<Client>(context, listen: false),
                 categoryKey: _param(state, 'category'),
@@ -419,7 +419,7 @@ class MoonRouter {
               // /hub/settings/network, which has never been a sub-item and
               // rendered an empty page. Rejecting it here turns that class
               // of dead link into a redirect rather than a blank pane.
-              redirect: (context, state) => _hubRedirect(
+              redirect: (context, state) => hubRedirect(
                 state,
                 subKey: _param(state, 'sub'),
               ),
@@ -439,7 +439,13 @@ class MoonRouter {
   ///
   /// Returns null when the location is already good, so it composes with
   /// GoRouter's redirect as "fix it, or leave it alone".
-  static String? _hubRedirect(GoRouterState state, {String? subKey}) {
+  ///
+  /// Public because the router's tests need it and had been keeping a second
+  /// copy. That copy had already fallen behind: when `/hub/settings/layout` was
+  /// retired the real redirect learned to send it to the page it became and the
+  /// test copy did not, so the tests were asserting against a router the app
+  /// does not run. A test double for a redirect is a redirect nobody maintains.
+  static String? hubRedirect(GoRouterState state, {String? subKey}) {
     final String category = _param(state, 'category');
     // An unknown category is the index page rather than an error: the index
     // is a real destination, and a mistyped or retired link is better served
@@ -449,8 +455,15 @@ class MoonRouter {
     // Only the settings category has sub-items today. Checking the parent as
     // well as the key keeps /hub/about/whatever from rendering an About
     // page that silently ignores the extra segment.
-    if (category != HubRouteKeys.settings ||
-        !HubRouteKeys.isSettingsSubItem(subKey)) {
+    if (category != HubRouteKeys.settings) return hubPath(category: category);
+    // A retired sub-item answers with the page it became. Falling through to
+    // the section overview instead would send a bookmark to the one page the
+    // reader is least likely to recognise, having silently dropped the thing
+    // they asked for.
+    if (HubRouteKeys.replacementFor(subKey) case final String replacement) {
+      return hubPath(category: category, sub: replacement);
+    }
+    if (!HubRouteKeys.isSettingsSubItem(subKey)) {
       return hubPath(category: category);
     }
     return null;

@@ -20,6 +20,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/services/auto_update_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
@@ -37,50 +39,36 @@ class HubUpdateSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.updates,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        return HubPageBody(
+          children: [
+            // Two settings, so two groups. They used to be one group cut in
+            // half by a `Divider(height: 1)` with no colour, which made the
+            // second grey in the app: every other rule in a card is
+            // `layers.hairline`.
+            HubSettingsSection(
+              title: l10n.checkForUpdatesOnStartup,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.rocket,
+                  title: l10n.checkForUpdatesOnStartup,
+                  description: l10n.checkForUpdatesOnStartupDescription,
+                  value: controller.checkForUpdates,
+                  onChanged: (v) => controller.updateCheckForUpdates(v),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.updatesDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ],
+            ),
+            HubSettingsSection(
+              title: l10n.updates,
+              children: [
+                HubActionTile(
+                  icon: LucideIcons.download,
+                  title: l10n.checkForUpdates,
+                  description: l10n.updateChecking,
+                  onTap: () => _checkNow(context),
                 ),
-              ),
-              const SizedBox(height: 24),
-              HubSettingsSection(
-                title: l10n.updates,
-                children: [
-                  SwitchListTile(
-                    secondary: const Icon(LucideIcons.rocket, size: 22),
-                    title: Text(l10n.checkForUpdatesOnStartup),
-                    subtitle: Text(l10n.checkForUpdatesOnStartupDescription),
-                    value: controller.checkForUpdates,
-                    onChanged: (v) => controller.updateCheckForUpdates(v),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(LucideIcons.download, size: 22),
-                    title: Text(l10n.checkForUpdates),
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                    onTap: () => _checkNow(context),
-                  ),
-                ],
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         );
       },
     );

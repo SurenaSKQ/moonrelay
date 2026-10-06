@@ -369,6 +369,7 @@
   "@accentDescription": {
     "description": "Description of how the accent names are chosen, shown under the picker."
   },
+  "accentDescription": "رنگ تأکیدی دکمه‌ها، ردیف‌های انتخاب‌شده و فضای فعال را رنگ می‌کند. هر نام نامِ یکی از ویژگی‌های ماه است.",
   "publicRoom": "اتاق عمومی",
   "privateRoom": "اتاق خصوصی",
   "unknownDate": "نامشخص",
@@ -643,6 +644,10 @@
   "customizeExperience": "تجربه خود را سفارشی کنید",
   "appearance": "ظاهر",
   "controlLookAndFeel": "کنترل ظاهر و احساس برنامه",
+  "appearanceAndLayout": "ظاهر و چیدمان",
+  "appearanceAndLayoutDescription": "پوسته، متن، پنجره و چیدمان پنل‌ها",
+  "roomPane": "پنل اتاق",
+  "roomPaneDescription": "پنل زیر گفتگو و پهنای آن",
   "layout": "چیدمان",
   "customizeLayout": "سفارشی‌سازی چیدمان پنل‌های رابط",
   "encryptionAndSecurity": "رمزنگاری و امنیت",
@@ -2871,6 +2876,13 @@
   "@shortcutsTitle": {
     "description": "Title of the keyboard shortcuts overlay."
   },
+  "shortcutsEverywhere": "در همه‌جا",
+  "shortcutsInRoom": "درون یک اتاق",
+  "shortcutsWhileTyping": "هنگام نوشتن",
+  "shortcutLayoutDependent": "به چیدمان صفحه‌کلید شما بستگی دارد",
+  "@shortcutLayoutDependent": {
+    "description": "Appended to a shortcut that only fires on some keyboard layouts."
+  },
   "shortcutsSubtitle": "مرجع سریع برای کلیدهای میان‌بر سراسری و درون‌اتاق.",
   "@shortcutsSubtitle": {
     "description": "Subtitle under the keyboard shortcuts overlay title."
@@ -3064,6 +3076,10 @@
     "description": "Subtitle for the storage settings page."
   },
   "autoDownloadImages": "دانلود خودکار تصاویر",
+  "autoDownload": "دانلود خودکار",
+  "whenToNotify": "چه زمانی اطلاع دهد",
+  "checkItWorks": "بررسی اینکه کار می‌کند",
+  "yourAccount": "حساب شما",
   "@autoDownloadImages": {
     "description": "Policy for automatically downloading image attachments."
   },

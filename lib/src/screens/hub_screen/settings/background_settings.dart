@@ -20,15 +20,22 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 // -----------------------------------------------------------------------------
 // Background & Tray Settings
 // -----------------------------------------------------------------------------
 
+/// What the window does when it is closed, and what the tray offers.
+///
+/// "Start minimised" and "what the tray icon's left click does" are both
+/// settings that only mean anything while a tray icon exists, so both rows
+/// refuse input when the icon is off rather than silently accepting a value
+/// that nothing will read.
 class HubBackgroundSettings extends StatelessWidget {
   const HubBackgroundSettings({super.key});
 
@@ -37,116 +44,68 @@ class HubBackgroundSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final scheme = Theme.of(context).colorScheme;
-        final t = MoonrelayThemeExtension.of(context).tokens;
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(t.spaceXl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.backgroundAndTray,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
+        final bool tray = controller.showTrayIcon;
+        return HubPageBody(
+          children: [
+            // -- Tray ------------------------------------------------------
+            HubSettingsSection(
+              title: l10n.systemTray,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.minimize2,
+                  title: l10n.showTrayIcon,
+                  description: l10n.showTrayIconDescription,
+                  value: controller.showTrayIcon,
+                  onChanged: (v) => controller.updateShowTrayIcon(v),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.backgroundAndTrayDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant,
+              ],
+            ),
+
+            // -- Window behaviour --------------------------------------------
+            HubSettingsSection(
+              title: l10n.windowBehaviour,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.xCircle,
+                  title: l10n.closeToTray,
+                  description: l10n.closeToTrayDescription,
+                  value: controller.closeToTray,
+                  onChanged: (v) => controller.updateCloseToTray(v),
                 ),
-              ),
-              const SizedBox(height: 24),
+                HubSwitchTile(
+                  icon: LucideIcons.minimize,
+                  title: l10n.minimizeToTray,
+                  description: l10n.minimizeToTrayDescription,
+                  value: controller.minimizeToTray,
+                  onChanged: (v) => controller.updateMinimizeToTray(v),
+                ),
+                HubSwitchTile(
+                  icon: LucideIcons.play,
+                  title: l10n.startMinimized,
+                  description: l10n.startMinimizedDescription,
+                  value: controller.startMinimized,
+                  onChanged:
+                      tray ? (v) => controller.updateStartMinimized(v) : null,
+                ),
+              ],
+            ),
 
-              // Show tray icon
-              HubSettingsSection(
-                title: l10n.systemTray,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.showTrayIcon),
-                    subtitle: Text(l10n.showTrayIconDescription),
-                    value: controller.showTrayIcon,
-                    onChanged: (v) => controller.updateShowTrayIcon(v),
-                    secondary: const Icon(LucideIcons.minimize2, size: 22),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Close to tray
-              HubSettingsSection(
-                title: l10n.windowBehaviour,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.closeToTray),
-                    subtitle: Text(l10n.closeToTrayDescription),
-                    value: controller.closeToTray,
-                    onChanged: (v) => controller.updateCloseToTray(v),
-                    secondary: const Icon(LucideIcons.xCircle, size: 22),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.minimizeToTray),
-                    subtitle: Text(l10n.minimizeToTrayDescription),
-                    value: controller.minimizeToTray,
-                    onChanged: (v) => controller.updateMinimizeToTray(v),
-                    secondary: const Icon(LucideIcons.minimize, size: 22),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.startMinimized),
-                    subtitle: Text(l10n.startMinimizedDescription),
-                    value: controller.startMinimized,
-                    onChanged: controller.showTrayIcon
-                        ? (v) => controller.updateStartMinimized(v)
-                        : null,
-                    secondary: const Icon(LucideIcons.play, size: 22),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              HubSettingsSection(
-                title: l10n.trayLeftClick,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: t.spaceLg,
-                      vertical: t.spaceSm,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.trayLeftClick,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        SizedBox(height: t.spaceSm),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            for (final action in TrayClickAction.values)
-                              ChoiceChip(
-                                label: Text(
-                                  localizedTrayClickAction(action, l10n),
-                                ),
-                                selected: action == controller.trayLeftClick,
-                                onSelected: controller.showTrayIcon
-                                    ? (_) =>
-                                        controller.updateTrayLeftClick(action)
-                                    : null,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            // -- Tray click ----------------------------------------------------
+            // The section title was also repeated inside its own card, which
+            // is the same double-title the sub-page strip used to have: the
+            // name of a group belongs above the group.
+            HubSettingsSection(
+              title: l10n.trayLeftClick,
+              children: [
+                HubChoiceChipRow<TrayClickAction>(
+                  values: TrayClickAction.values,
+                  selected: controller.trayLeftClick,
+                  labelOf: (action) => localizedTrayClickAction(action, l10n),
+                  onSelected: tray ? controller.updateTrayLeftClick : null,
+                ),
+              ],
+            ),
+          ],
         );
       },
     );

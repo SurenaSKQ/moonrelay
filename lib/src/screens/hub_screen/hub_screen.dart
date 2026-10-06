@@ -36,16 +36,17 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'about_page.dart';
 import 'accounts_page.dart';
 import 'hub_nav_list.dart';
+import 'initials.dart';
 import 'my_profile_page.dart';
 import 'navigation_items.dart';
+import 'page_body.dart';
 import 'settings/advanced_settings.dart';
-import 'settings/appearance_settings.dart';
+import 'settings/appearance_and_layout_settings.dart';
 import 'settings/app_settings_overview.dart';
 import 'settings/background_settings.dart';
 import 'settings/blocked_users_page.dart';
 import 'settings/chat_settings.dart';
 import 'settings/keybind_settings.dart';
-import 'settings/layout_settings.dart';
 import 'settings/notification_settings.dart';
 import 'settings/privacy_settings.dart';
 import 'settings/storage_settings.dart';
@@ -333,12 +334,11 @@ class _ClientAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Client client = context.read<Client>();
-    final String userId = client.userID ?? '';
     return CircleAvatar(
       radius: 16,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Text(
-        userId.isEmpty ? '?' : userId.substring(1, 2).toUpperCase(),
+        matrixIdInitial(client.userID),
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
@@ -348,9 +348,11 @@ class _ClientAvatar extends StatelessWidget {
 /// The hub's content pane for one section.
 ///
 /// Separate from the chrome above it so the same dispatcher serves both
-/// arrangements, and so the settings pages keep their existing
-/// `HubSubPageHeader` constraint: they are wrapped in an [Expanded], so
-/// every one of them has to be scrollable or fillable.
+/// arrangements. Every section but the index renders inside a
+/// [HubSubPageHeader], which is what gives the pane a title of its own and
+/// hands its body a bounded height; the bodies are therefore either scrollable
+/// ([HubPageBody]) or fill their box ([HubMeasure], for the encryption page,
+/// which brings its own scroll view from `/main/encryption`).
 class HubContent extends StatelessWidget {
   const HubContent({
     super.key,
@@ -365,15 +367,19 @@ class HubContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final String? sub = subKey;
 
-    if (categoryKey == null) {
-      return HubMyProfilePage(client: client);
-    }
+    // The index is the only page without a strip: it is the hub's front door,
+    // its title is the app bar's own "Hub", and on the narrow shell the
+    // section list sits under it. A strip above it would say the same words
+    // the app bar says, twenty pixels apart.
+    if (categoryKey == null) return HubMyProfilePage(client: client);
 
     if (sub != null) {
       return HubSubPageHeader(
         title: _subItemTitle(context, sub),
+        subtitle: settingsSubItemSubtitle(sub, l10n),
         // The encryption page is the one section with a control of its own,
         // and it is the only way to pick up a cross-signing or key-backup
         // change made on another device. It used to come with an `AppBar`
@@ -385,42 +391,35 @@ class HubContent extends StatelessWidget {
       );
     }
 
-    switch (categoryKey) {
-      case HubRouteKeys.accounts:
-        return _AccountsPane(client: client);
-      case HubRouteKeys.settings:
-        return HubSubPageHeader(
-          title: AppLocalizations.of(context)!.appSettings,
-          child: _SettingsOverview(),
-        );
-      case HubRouteKeys.about:
-        return HubAboutPage(client: client);
-      default:
-        // Unreachable via a route: the router rejects unknown categories.
-        // Reachable by a hand-built widget, so it renders nothing rather
-        // than throwing.
-        return const SizedBox.shrink();
-    }
+    return switch (categoryKey) {
+      HubRouteKeys.accounts => HubSubPageHeader(
+          title: l10n.accounts,
+          subtitle: l10n.manageAccounts,
+          child: _AccountsPane(client: client),
+        ),
+      // Every section gets a strip, which is what makes the hub's four panes
+      // read as one surface. Accounts and About were the two that had none,
+      // so the window's title bar said "Hub" and then the pane said nothing
+      // about what was in it.
+      HubRouteKeys.settings => HubSubPageHeader(
+          title: l10n.appSettings,
+          subtitle: l10n.customizeExperience,
+          child: const _SettingsOverview(),
+        ),
+      HubRouteKeys.about => HubSubPageHeader(
+          title: l10n.about,
+          child: HubAboutPage(client: client),
+        ),
+      // Unreachable via a route: the router rejects unknown categories.
+      // Reachable by a hand-built widget, so it renders nothing rather
+      // than throwing.
+      _ => const SizedBox.shrink(),
+    };
   }
 
   String _subItemTitle(BuildContext context, String sub) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
-    return switch (sub) {
-      HubRouteKeys.appearance => l10n.appearance,
-      HubRouteKeys.layout => l10n.layout,
-      HubRouteKeys.security => l10n.encryptionAndSecurity,
-      HubRouteKeys.chat => l10n.chatSettings,
-      HubRouteKeys.keybinds => l10n.keybinds,
-      HubRouteKeys.logs => l10n.logs,
-      HubRouteKeys.background => l10n.backgroundAndTray,
-      HubRouteKeys.notifications => l10n.notifications,
-      HubRouteKeys.privacy => l10n.privacy,
-      HubRouteKeys.storage => l10n.storage,
-      HubRouteKeys.advanced => l10n.advanced,
-      HubRouteKeys.blocked => l10n.blockedUsers,
-      HubRouteKeys.updates => l10n.updates,
-      _ => sub,
-    };
+    return settingsSubItemLabel(sub, l10n) ?? sub;
   }
 
   /// Renders a settings sub-item keyed by its stable identifier. Adding a
@@ -429,11 +428,10 @@ class HubContent extends StatelessWidget {
   Widget _buildSubItem(BuildContext context, String subKey) {
     switch (subKey) {
       case HubRouteKeys.appearance:
-        return const HubAppearanceSettings();
-      case HubRouteKeys.layout:
-        return const HubLayoutSettings();
+        return const HubAppearanceLayoutSettings();
       case HubRouteKeys.security:
-        return const EncryptionOverviewScreen(embedded: true);
+        return const HubMeasure(
+            child: EncryptionOverviewScreen(embedded: true));
       case HubRouteKeys.chat:
         return const HubChatSettings();
       case HubRouteKeys.keybinds:
@@ -467,6 +465,8 @@ class HubContent extends StatelessWidget {
 /// separate lists and could disagree, which is how `/hub/settings/network`
 /// came to exist in the command palette while naming nothing at all.
 class _SettingsOverview extends StatelessWidget {
+  const _SettingsOverview();
+
   @override
   Widget build(BuildContext context) {
     return HubAppSettingsOverview(

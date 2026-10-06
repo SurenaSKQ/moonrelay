@@ -25,16 +25,34 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:moonrelay/src/helpers/app_version.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 
 // -----------------------------------------------------------------------------
 // About Page
 // -----------------------------------------------------------------------------
 
-/// A page in the hub showing app information, version, and support links.
+/// What this is, where it lives, and where to ask.
+///
+/// The page with the most prose in the hub, and the one that most needed the
+/// measure: a paragraph set to the full width of the content pane is the one
+/// thing prose cannot do, because the eye loses the start of the next line
+/// having not finished the last.
+///
+/// Its three blocks were `Card`s outlined in `theme.dividerColor`, which is
+/// the app's second grey, and their padding was a literal 32 or 20 depending
+/// on the card. They are [InfoPanel]s on the one hairline with the padding
+/// from the token scale, which is what the room and space pages have used
+/// since before the hub existed.
 class HubAboutPage extends StatelessWidget {
   const HubAboutPage({super.key, required this.client});
+
   final Client client;
+
+  /// The project's own repository. One place, because a URL written twice is a
+  /// URL that is correct in one of them.
+  static const String repositoryUrl = 'https://github.com/SurenaSKQ/moonrelay/';
 
   @override
   Widget build(BuildContext context) {
@@ -43,113 +61,84 @@ class HubAboutPage extends StatelessWidget {
     final colors = theme.colorScheme;
     final t = theme.moonrelay.tokens;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(t.spaceXl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // -- App identity card -------------------------------------
-          Card(
-            elevation: t.elevationNone,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(t.radiusLg),
-              side: BorderSide(color: theme.dividerColor),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(
-                    LucideIcons.moon,
-                    size: 64,
-                    color: colors.primary,
-                  ),
-                  SizedBox(height: t.spaceLg),
-                  Text(
-                    l10n.projectName,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: colors.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.aboutVersion(AppVersion.currentVersion),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.appLicenseNotice,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: colors.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return HubPageBody(
+      children: [
+        // -- App identity ---------------------------------------------
+        InfoPanel(
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXl,
+            vertical: t.spaceXl,
           ),
-          SizedBox(height: t.spaceLg),
-
-          // -- Repository -------------------------------------------
-          Card(
-            elevation: t.elevationNone,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(t.radiusLg),
-              side: BorderSide(color: theme.dividerColor),
+          children: [
+            _AboutBlock(
+              children: [
+                Icon(LucideIcons.moon, size: 64, color: colors.primary),
+                SizedBox(height: t.spaceLg),
+                Text(
+                  l10n.projectName,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: colors.onSurface,
+                  ),
+                ),
+                SizedBox(height: t.spaceXs),
+                Text(
+                  l10n.aboutVersion(AppVersion.currentVersion),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                SizedBox(height: t.spaceMd),
+                Text(
+                  l10n.appLicenseNotice,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+          ],
+        ),
+
+        // -- Repository -------------------------------------------------
+        InfoPanel(
+          title: l10n.aboutRepository,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                t.spaceLg,
+                t.spaceXs,
+                t.spaceLg,
+                t.spaceLg,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.gitBranch,
-                          size: t.iconSizeMedium, color: colors.primary),
-                      const SizedBox(width: 10),
-                      Text(
-                        l10n.aboutRepository,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: colors.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   Text(
                     l10n.aboutRepositoryDescription,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: t.spaceSm),
                   Text.rich(
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: 'https://github.com/SurenaSKQ/moonrelay/',
+                          text: repositoryUrl,
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () => launchUrl(
+                                  Uri.parse(repositoryUrl),
+                                  mode: LaunchMode.externalApplication,
+                                ),
                           style: TextStyle(
                             color: colors.primary,
                             decoration: TextDecoration.underline,
                           ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () => launchUrl(
-                                  Uri.parse(
-                                    'https://github.com/SurenaSKQ/moonrelay/',
-                                  ),
-                                  mode: LaunchMode.externalApplication,
-                                ),
                         ),
                       ],
                     ),
@@ -157,51 +146,36 @@ class HubAboutPage extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-          SizedBox(height: t.spaceLg),
+          ],
+        ),
 
-          // -- Moonrelay Support ------------------------------------
-          Card(
-            elevation: t.elevationNone,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(t.radiusLg),
-              side: BorderSide(color: theme.dividerColor),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+        // -- Support -----------------------------------------------------
+        InfoPanel(
+          title: l10n.aboutSupport,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                t.spaceLg,
+                t.spaceXs,
+                t.spaceLg,
+                t.spaceLg,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.lifeBuoy,
-                          size: t.iconSizeMedium, color: colors.primary),
-                      const SizedBox(width: 10),
-                      Text(
-                        l10n.aboutSupport,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: colors.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   Text(
                     l10n.aboutSupportDescription,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () => _joinSupportSpace(context),
-                      icon: const Icon(LucideIcons.messageSquare, size: 18),
+                      icon: Icon(LucideIcons.messageSquare, size: 18),
                       label: Text(l10n.aboutJoinSupportSpace),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
@@ -214,9 +188,9 @@ class HubAboutPage extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -260,5 +234,25 @@ class HubAboutPage extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+/// Centres and stacks the contents of an [InfoPanel] that is one block rather
+/// than a list of rows.
+///
+/// `InfoPanel` is a list of rows with a hairline between them, and the app's
+/// mark is not a row. This is the one thing it needed and did not have.
+class _AboutBlock extends StatelessWidget {
+  const _AboutBlock({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
   }
 }

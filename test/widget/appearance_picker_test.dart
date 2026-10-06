@@ -17,7 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/hub_screen/settings/appearance_settings.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/appearance_and_layout_settings.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/settings/accents.dart';
 import 'package:moonrelay/src/settings/chat_preferences.dart';
@@ -37,19 +37,22 @@ void main() {
     await tester.pumpWidget(
       wrapWithProviders(
         settingsController: controller,
-        child: const HubAppearanceSettings(),
+        child: const HubAppearanceLayoutSettings(),
       ),
     );
     await tester.pump();
 
     final l10n = AppLocalizations.of(
-      tester.element(find.byType(HubAppearanceSettings)),
+      tester.element(find.byType(HubAppearanceLayoutSettings)),
     )!;
     final skyTile = find.widgetWithText(
       RadioListTile<String>,
       localizedAccent(MoonrelayAccents.nubium, l10n),
     );
-    await tester.ensureVisible(skyTile);
+    // The page is one scroll view now, so a control below the fold is not in
+    // the tree until it is reached. `ensureVisible` cannot bring a finder into
+    // existence; scrolling until it does is the version that works here.
+    await tester.scrollUntilVisible(skyTile, 120);
     await tester.tap(skyTile);
     await tester.pump();
 
@@ -66,13 +69,13 @@ void main() {
     await tester.pumpWidget(
       wrapWithProviders(
         settingsController: controller,
-        child: const HubAppearanceSettings(),
+        child: const HubAppearanceLayoutSettings(),
       ),
     );
     await tester.pump();
 
     final compactChip = find.widgetWithText(ChoiceChip, 'Compact');
-    await tester.ensureVisible(compactChip);
+    await tester.scrollUntilVisible(compactChip, 120);
     await tester.tap(compactChip);
     await tester.pump();
 

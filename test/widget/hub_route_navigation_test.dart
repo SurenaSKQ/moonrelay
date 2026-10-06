@@ -40,6 +40,7 @@ import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/router.dart';
 import 'package:moonrelay/src/router_paths.dart';
 import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:moonrelay/src/screens/hub_screen/hub_nav_list.dart';
@@ -59,19 +60,15 @@ const String _homeMarker = 'home-marker';
 const String _roomListMarker = 'room-list-marker';
 
 /// A router with the hub's three real routes, a stand-in for whatever the
-/// hub was opened over, and the same validation redirect the real router
-/// uses.
+/// hub was opened over, and the real validation redirect.
 GoRouter buildHubRouter(Client client, {String initialLocation = '/hub'}) {
-  String? validate(GoRouterState state, {String? subKey}) {
-    final String category = state.pathParameters['category'] ?? '';
-    if (!HubRouteKeys.isCategory(category)) return MoonRoutePaths.hubIndex;
-    if (subKey == null || subKey.isEmpty) return null;
-    if (category != HubRouteKeys.settings ||
-        !HubRouteKeys.isSettingsSubItem(subKey)) {
-      return hubPath(category: category);
-    }
-    return null;
-  }
+  // [MoonRouter.hubRedirect], not a copy. This used to be a local `validate`
+  // that reimplemented the rule, and it was already a copy that could drift:
+  // when a settings sub-item was retired and the real redirect learned to send
+  // it to the page it had become, this one kept rejecting it, so the tests
+  // exercised a router the app does not run.
+  String? validate(GoRouterState state, {String? subKey}) =>
+      MoonRouter.hubRedirect(state, subKey: subKey);
 
   return GoRouter(
     initialLocation: initialLocation,
@@ -132,7 +129,8 @@ Future<void> pumpHub(
       .thenAnswer((_) async => Profile(userId: '@me:example.com'));
   when(() => client.rooms).thenReturn(<Room>[]);
 
-  final GoRouter router = buildHubRouter(client, initialLocation: initialLocation);
+  final GoRouter router =
+      buildHubRouter(client, initialLocation: initialLocation);
   addTearDown(router.dispose);
 
   // The hub hosts settings pages that read services the shared wrapper does
@@ -216,13 +214,13 @@ void main() {
   // settings page happens to use; what matters is that the URL dispatched to
   // the right section, and that is observable from the widget.
   ({String? category, String? sub}) dispatched(WidgetTester tester) {
-    final HubContent content = tester.widget<HubContent>(find.byType(HubContent));
+    final HubContent content =
+        tester.widget<HubContent>(find.byType(HubContent));
     return (category: content.categoryKey, sub: content.subKey);
   }
 
   group('hub routes', () {
-    testWidgets('the index renders the profile, not a section',
-        (tester) async {
+    testWidgets('the index renders the profile, not a section', (tester) async {
       await pumpHub(tester, initialLocation: '/hub');
       // A null category is the index. The profile used to be a fourth
       // category as well, which meant `/hub` and `/hub/profile` were two
@@ -304,14 +302,48 @@ void main() {
     test('hubPath round-trips through the segment matcher', () {
       expect(hubPath(category: HubRouteKeys.settings), '/hub/settings');
       expect(
-        hubPath(category: HubRouteKeys.settings, sub: HubRouteKeys.layout),
-        '/hub/settings/layout',
+        hubPath(
+          category: HubRouteKeys.settings,
+          sub: HubRouteKeys.appearance,
+        ),
+        '/hub/settings/appearance',
       );
       // An empty sub is the category, not a trailing slash.
       expect(
         hubPath(category: HubRouteKeys.settings, sub: ''),
         '/hub/settings',
       );
+    });
+
+    // Appearance and Layout were two pages and are one now. The old key still
+    // resolves, because a bookmark, a command-palette hit from an older
+    // session, or a link somebody was sent should land on the settings it
+    // names rather than on the section's list of other settings.
+    test('the retired layout key resolves to the page it became', () {
+      expect(
+        HubRouteKeys.replacementFor(HubRouteKeys.retiredLayout),
+        HubRouteKeys.appearance,
+      );
+      // And it is genuinely retired: a key that stayed in the live list would
+      // keep a row in the nav pointing at a page that no longer renders.
+      expect(
+        HubRouteKeys.isSettingsSubItem(HubRouteKeys.retiredLayout),
+        isFalse,
+      );
+      expect(
+        HubRouteKeys.settingsSubItems,
+        isNot(contains(HubRouteKeys.retiredLayout)),
+      );
+    });
+
+    test('every retired key points at a live sub-item', () {
+      for (final entry in HubRouteKeys.retiredSubItems.entries) {
+        expect(
+          HubRouteKeys.isSettingsSubItem(entry.value),
+          isTrue,
+          reason: '${entry.key} -> ${entry.value}',
+        );
+      }
     });
   });
 
@@ -332,84 +364,83 @@ void main() {
 // These pin the invariant that fixes it rather than the button's handler:
 // the hub is a stack, so Back works at every depth and walking out of it
 // returns to the entry point.
-group('hub is a stack, so Back always has somewhere to go', () {
-  Key row(String category, [String? sub]) =>
-      HubNavList.rowKey(category: category, subItem: sub);
+  group('hub is a stack, so Back always has somewhere to go', () {
+    Key row(String category, [String? sub]) =>
+        HubNavList.rowKey(category: category, subItem: sub);
 
-  testWidgets('switching sections keeps the hub history', (tester) async {
-    await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
-    final GoRouter router =
-        GoRouter.of(tester.element(find.byType(HubNavList)));
+    testWidgets('switching sections keeps the hub history', (tester) async {
+      await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
+      final GoRouter router =
+          GoRouter.of(tester.element(find.byType(HubNavList)));
 
-    await tester.tap(find.byKey(row(HubRouteKeys.settings)));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/hub/settings');
+      await tester.tap(find.byKey(row(HubRouteKeys.settings)));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/hub/settings');
 
-    // The wide shell reveals the settings children inline, so a sub-item is
-    // reachable without leaving the list.
-    await tester.tap(
-      find.byKey(row(HubRouteKeys.settings, HubRouteKeys.layout)),
-    );
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/hub/settings/layout');
+      // The wide shell reveals the settings children inline, so a sub-item is
+      // reachable without leaving the list.
+      await tester.tap(
+        find.byKey(row(HubRouteKeys.settings, HubRouteKeys.appearance)),
+      );
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/hub/settings/appearance');
 
-    // The load-bearing assertion. With `go` here this is false, the back
-    // button is inert, and the chat the hub was opened from is unrecoverable.
-    expect(
-      router.canPop(),
-      isTrue,
-      reason: 'a section switch must not discard the hub history',
-    );
+      // The load-bearing assertion. With `go` here this is false, the back
+      // button is inert, and the chat the hub was opened from is unrecoverable.
+      expect(
+        router.canPop(),
+        isTrue,
+        reason: 'a section switch must not discard the hub history',
+      );
+    });
+
+    testWidgets('Back walks out of the hub section by section', (tester) async {
+      await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
+      final GoRouter router =
+          GoRouter.of(tester.element(find.byType(HubNavList)));
+
+      await tester.tap(find.byKey(row(HubRouteKeys.settings)));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(row(HubRouteKeys.settings, HubRouteKeys.appearance)),
+      );
+      await tester.pumpAndSettle();
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/hub/settings');
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/hub');
+
+      // And out of the hub, back to where it was opened from.
+      expect(router.canPop(), isFalse);
+    });
+
+    testWidgets('re-tapping the current row does not stack a duplicate',
+        (tester) async {
+      await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
+      final GoRouter router =
+          GoRouter.of(tester.element(find.byType(HubNavList)));
+
+      await tester.tap(find.byKey(row(HubRouteKeys.accounts)));
+      await tester.pumpAndSettle();
+      expect(router.canPop(), isTrue);
+
+      await tester.tap(find.byKey(row(HubRouteKeys.accounts)));
+      await tester.pumpAndSettle();
+
+      // A second tap on the row you are already on would make Back appear to
+      // do nothing for one press, which is the same symptom as the bug above
+      // and would be easy to misreport as "back is broken again".
+      expect(router.state.uri.path, '/hub/accounts');
+      router.pop();
+      await tester.pumpAndSettle();
+      // One press, and we are at the index rather than still on Accounts.
+      expect(router.state.uri.path, '/hub');
+    });
   });
-
-  testWidgets('Back walks out of the hub section by section',
-      (tester) async {
-    await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
-    final GoRouter router =
-        GoRouter.of(tester.element(find.byType(HubNavList)));
-
-    await tester.tap(find.byKey(row(HubRouteKeys.settings)));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(row(HubRouteKeys.settings, HubRouteKeys.layout)),
-    );
-    await tester.pumpAndSettle();
-
-    router.pop();
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/hub/settings');
-
-    router.pop();
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/hub');
-
-    // And out of the hub, back to where it was opened from.
-    expect(router.canPop(), isFalse);
-  });
-
-  testWidgets('re-tapping the current row does not stack a duplicate',
-      (tester) async {
-    await pumpHub(tester, shellWidth: 1500, initialLocation: '/hub');
-    final GoRouter router =
-        GoRouter.of(tester.element(find.byType(HubNavList)));
-
-    await tester.tap(find.byKey(row(HubRouteKeys.accounts)));
-    await tester.pumpAndSettle();
-    expect(router.canPop(), isTrue);
-
-    await tester.tap(find.byKey(row(HubRouteKeys.accounts)));
-    await tester.pumpAndSettle();
-
-    // A second tap on the row you are already on would make Back appear to
-    // do nothing for one press, which is the same symptom as the bug above
-    // and would be easy to misreport as "back is broken again".
-    expect(router.state.uri.path, '/hub/accounts');
-    router.pop();
-    await tester.pumpAndSettle();
-    // One press, and we are at the index rather than still on Accounts.
-    expect(router.state.uri.path, '/hub');
-  });
-});
 
   // The hub has two exits and they are not interchangeable, which is the
   // point of having two. Back is a history step: it undoes one section
@@ -445,7 +476,8 @@ group('hub is a stack, so Back always has somewhere to go', () {
     expect(find.byTooltip('Back'), findsOneWidget);
     expect(find.byTooltip('Close'), findsOneWidget);
 
-    await tester.tap(find.byKey(HubNavList.rowKey(category: HubRouteKeys.settings)));
+    await tester
+        .tap(find.byKey(HubNavList.rowKey(category: HubRouteKeys.settings)));
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/hub/settings');
 
@@ -455,7 +487,8 @@ group('hub is a stack, so Back always has somewhere to go', () {
     expect(router.state.uri.path, MoonRoutePaths.hubIndex);
   });
 
-  testWidgets('the encryption section carries a refresh action', (tester) async {
+  testWidgets('the encryption section carries a refresh action',
+      (tester) async {
     await pumpHub(
       tester,
       initialLocation: '/hub/settings/security',

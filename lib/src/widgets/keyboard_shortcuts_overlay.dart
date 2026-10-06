@@ -24,7 +24,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
+import 'package:moonrelay/src/widgets/shortcut_reference.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Show the keyboard shortcuts overlay as a modal bottom sheet.
@@ -46,51 +46,20 @@ class KeyboardShortcutsOverlay extends StatelessWidget {
     final theme = Theme.of(context);
     final t = MoonrelayThemeExtension.of(context).tokens;
 
+    // The same list the keybind settings page renders. It used to hold its
+    // own copy, and the two had already diverged: the settings page was
+    // missing `Esc` and filed two room-scoped chords as global. The overlay is
+    // flat rather than grouped by scope, because it is a thing you summon in
+    // three seconds and scan; the settings page groups, because it is a thing
+    // you read once.
     final shortcuts = <_ShortcutEntry>[
-      _ShortcutEntry(
-        keys: ShortcutChord.commandPalette.keys,
-        description: loc.shortcutOpenCommandPalette,
-      ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'F'],
-        description: loc.shortcutInRoomSearch,
-      ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'Shift', 'M'],
-        description: loc.shortcutToggleLeftSidebar,
-      ),
-      // Ctrl+Shift+R was listed here as a sidebar toggle and was never bound
-      // to anything. Gone rather than rebound: the pane belongs to one room
-      // and is opened from that room's header, so a global shortcut would
-      // have had to guess which room.
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'B'],
-        description: loc.shortcutBold,
-      ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'I'],
-        description: loc.shortcutItalic,
-      ),
-      _ShortcutEntry(
-        keys: const ['Ctrl', 'E'],
-        description: loc.shortcutCode,
-      ),
-      _ShortcutEntry(
-        keys: const ['Enter'],
-        description: loc.shortcutSendMessage,
-      ),
-      _ShortcutEntry(
-        keys: const ['Shift', 'Enter'],
-        description: loc.shortcutNewline,
-      ),
-      _ShortcutEntry(
-        keys: const ['Esc'],
-        description: loc.shortcutCloseOverlay,
-      ),
-      _ShortcutEntry(
-        keys: ShortcutChord.showShortcuts.keys,
-        description: loc.shortcutShowShortcuts,
-      ),
+      for (final entry in shortcutReference())
+        _ShortcutEntry(
+          keys: entry.keys,
+          description: entry.layoutDependent
+              ? '${entry.description(loc)} · ${loc.shortcutLayoutDependent}'
+              : entry.description(loc),
+        ),
     ];
 
     return SafeArea(

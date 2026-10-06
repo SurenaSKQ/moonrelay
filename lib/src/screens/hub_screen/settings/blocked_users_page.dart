@@ -21,8 +21,11 @@ import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/hub_screen/initials.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 
 /// Settings page that lists all blocked (ignored) users and allows unblocking
 /// them.
@@ -107,68 +110,47 @@ class _HubBlockedUsersPageState extends State<HubBlockedUsersPage> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(t.spaceXl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.blockedUsers,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            l10n.blockedUsersDescription,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (ignoredUsers.isEmpty)
-            HubSettingsSection(
-              title: l10n.blockedUsers,
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(t.spaceLg),
-                  child: Row(
-                    children: [
-                      Icon(LucideIcons.eyeOff,
-                          size: t.iconSizeMedium,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      SizedBox(width: t.spaceMd),
-                      Expanded(
-                        child: Text(
-                          l10n.blockedUsersEmpty,
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+    return HubPageBody(
+      children: [
+        if (ignoredUsers.isEmpty)
+          HubSettingsSection(
+            title: l10n.blockedUsers,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(t.spaceLg),
+                child: Row(
+                  children: [
+                    Icon(
+                      LucideIcons.eyeOff,
+                      size: t.iconSizeMedium,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    SizedBox(width: t.spaceMd),
+                    Expanded(
+                      child: Text(
+                        l10n.blockedUsersEmpty,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            )
-          else
-            HubSettingsSection(
-              title: l10n.blockedUsers,
-              children: [
-                for (final userId in ignoredUsers)
-                  _BlockedUserTile(
-                    userId: userId,
-                    onUnblock: () => _unblock(userId),
-                  ),
-              ],
-            ),
-        ],
-      ),
+              ),
+            ],
+          )
+        else
+          HubSettingsSection(
+            title: l10n.blockedUsers,
+            children: [
+              for (final userId in ignoredUsers)
+                _BlockedUserTile(
+                  userId: userId,
+                  onUnblock: () => _unblock(userId),
+                ),
+            ],
+          ),
+      ],
     );
   }
 }
@@ -190,7 +172,7 @@ class _BlockedUserTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: scheme.errorContainer,
         child: Text(
-          userId.replaceAll(RegExp(r'@'), '').substring(0, 1).toUpperCase(),
+          matrixIdInitial(userId),
           style: TextStyle(
             color: scheme.onErrorContainer,
             fontWeight: FontWeight.w600,
@@ -199,7 +181,15 @@ class _BlockedUserTile extends StatelessWidget {
       ),
       title: Text(
         userId,
-        style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
+        style: TextStyle(
+          fontSize: 14,
+          // The app's monospace face, not the string `'monospace'`, which is
+          // the CSS keyword rather than a font: where no family answers to
+          // that name it silently falls back to the UI face, so a Matrix id
+          // stopped being monospaced on exactly the machines where the reader
+          // was comparing two of them.
+          fontFamily: MoonrelayTypography.mono(context),
+        ),
       ),
       trailing: FilledButton.tonalIcon(
         onPressed: onUnblock,
