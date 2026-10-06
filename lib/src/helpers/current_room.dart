@@ -26,47 +26,23 @@ import 'package:matrix/matrix.dart';
 /// deciding which room is already being read. The room's own pane stopped
 /// reading it when the pane moved inside RoomPage, which is what left it a
 /// global at all.
+///
+/// It used to carry the pinned-only timeline filter as well. The filter moved
+/// into `RoomPage` with the rest of the room's own state, and the header's pin
+/// button was the last reader of the old copy. It kept rendering its pressed
+/// state from here while `ChatTimeline` filtered on `RoomPage`'s flag, so it
+/// toggled an icon and left the timeline alone. Both copies are gone now rather
+/// than left in step by hand.
 class CurrentRoom extends ChangeNotifier {
   Room? _room;
 
   /// The currently-active room, or `null` if no room is selected.
   Room? get room => _room;
 
-  /// Whether the timeline should show only pinned messages.
-  bool _pinnedFilterActive = false;
-
-  bool get pinnedFilterActive => _pinnedFilterActive;
-
-  /// The event IDs of the currently pinned messages, derived from room
-  /// state `m.room.pinned_events`.
-  List<String> get pinnedEventIds {
-    final r = _room;
-    if (r == null) return [];
-    final state = r.getState('m.room.pinned_events');
-    if (state == null) return [];
-    final pinned = state.content['pinned'];
-    if (pinned is List) return pinned.cast<String>();
-    return [];
-  }
-
-  /// Toggle the pinned-only filter on the timeline.
-  void togglePinnedFilter() {
-    _pinnedFilterActive = !_pinnedFilterActive;
-    notifyListeners();
-  }
-
-  /// Disable the pinned-only filter.
-  void disablePinnedFilter() {
-    if (!_pinnedFilterActive) return;
-    _pinnedFilterActive = false;
-    notifyListeners();
-  }
-
   /// Update the active room.  Passing the same instance is a no-op.
   void setRoom(Room? room) {
     if (room == _room) return;
     _room = room;
-    _pinnedFilterActive = false;
     notifyListeners();
   }
 }

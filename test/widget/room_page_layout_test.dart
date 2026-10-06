@@ -29,9 +29,12 @@ import 'package:moonrelay/src/chat/room_info_card.dart';
 import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/chat/room_pane/room_pane.dart';
+import 'package:moonrelay/src/chat/room_pane/tabs/members_tab.dart';
 import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:moonrelay/src/screens/room_page.dart';
 import 'package:moonrelay/src/settings/layout_settings.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 
 import '../helpers/widget_test_utils.dart';
 
@@ -87,6 +90,19 @@ class _FakeRoom extends Mock implements Room {
   @override
   List<User> get typingUsers => const <User>[];
 
+  // Read by the pane's members tab in `initState`. A mocktail getter with no
+  // override returns null where the SDK promises a list, so mounting that tab
+  // throws before anything can be asserted about which tab opened.
+  @override
+  List<User> getParticipants([
+    List<Membership> membershipFilter = const <Membership>[
+      Membership.join,
+      Membership.invite,
+      Membership.knock,
+    ],
+  ]) =>
+      const <User>[];
+
   @override
   Client get client => _FakeClient();
 
@@ -115,6 +131,20 @@ class _FakeRoom extends Mock implements Room {
 }
 
 class _FakeSummary extends Mock implements RoomSummary {}
+
+/// The same room with a different id, which is all a room change is to the
+/// router: a new `:roomid` parameter reaching the same unkeyed `RoomPage`.
+class _OtherFakeRoom extends _FakeRoom {
+  @override
+  String get id => '!other-room:example.com';
+
+  @override
+  String get name => 'Other Room';
+
+  @override
+  String getLocalizedDisplayname([MatrixLocalizations? localizations]) =>
+      'Other Room';
+}
 
 class _FakeClient extends Mock implements Client {
   @override
@@ -179,39 +209,38 @@ class _FakeTimeline extends Mock implements Timeline {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  /// [openPane] decides whether the room's side pane is showing.
+  /// The English strings, loaded the same way the widget tree loads them.
   ///
-  /// It defaults to closed, so the width assertions below mean what they say.
-  /// With the pane open the conversation is 288 pixels narrower, which is
-  /// correct and is a different measurement; the open case has its own group.
-  Future<void> pumpAt(
+  /// A hardcoded 'Room Info' in a finder would pass today and fail the day
+  /// anyone reworded it, which would read as a layout regression.
+  late AppLocalizations l10n;
+
+  setUpAll(() async {
+    l10n = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
+  /// Mounts (or re-mounts) `RoomPage` at [width] with a shared settings
+  /// controller, which is what lets a test change rooms without rebuilding the
+  /// provider tree and so without accidentally giving `RoomPage` a fresh
+  /// `State`.
+  ///
+  /// Passing the *same* [SettingsController] matters. A new one would look
+  /// identical but would hand the second mount a different preference object,
+  /// and the room-change tests below would be measuring a different thing.
+  Future<void> pumpRoom(
     WidgetTester tester,
     double width, {
-    bool openPane = false,
+    required SettingsController settings,
+    Room? room,
   }) async {
-    // The default test surface is 800x600, so a `SizedBox` wider than that
-    // is silently clamped and every width assertion in this file would be a
-    // lie about the number it names. The surface is set, not assumed.
-    tester.view.physicalSize = Size(width, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
     final client = _FakeClient();
     when(() => client.getRoomById(any())).thenReturn(null);
-
-    // The pane's tab is a preference now, so a test that wants no pane has
-    // to say so. The default is the info tab, which is why every width
-    // assertion in this file would otherwise be 288 pixels out.
-    final settings = createTestSettingsController();
-    await settings.setRoomPaneTab(
-      openPane ? RoomPaneTab.info : RoomPaneTab.none,
-    );
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          // `ChatRoomHeader` reads this to decide its own arrangement, the
-          // same one-parameter question the dashboard asks.
+          // `ChatRoomHeader` and `RoomPage` both read this to decide their own
+          // arrangement, the same one-parameter question the dashboard asks.
           Provider<LayoutShellController>(
             create: (_) => LayoutShellController()
               ..resolve(rawWidth: width, layoutMode: LayoutMode.auto),
@@ -232,7 +261,7 @@ void main() {
               body: SizedBox(
                 width: width,
                 height: 900,
-                child: RoomPage(room: _FakeRoom()),
+                child: RoomPage(room: room ?? _FakeRoom()),
               ),
             ),
           ),
@@ -244,6 +273,56 @@ void main() {
     // the client.
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  /// [openPane] decides whether the room's side pane is showing.
+  ///
+  /// It defaults to closed, so the width assertions below mean what they say.
+  /// With the pane open the conversation is 288 pixels narrower, which is
+  /// correct and is a different measurement; the open case has its own group.
+  Future<void> pumpAt(
+    WidgetTester tester,
+    double width, {
+    bool openPane = false,
+    SettingsController? settingsOverride,
+  }) async {
+    // The default test surface is 800x600, so a `SizedBox` wider than that
+    // is silently clamped and every width assertion in this file would be a
+    // lie about the number it names. The surface is set, not assumed.
+    tester.view.physicalSize = Size(width, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // The pane does not restore itself from this preference any more. It used
+    // to: `RoomPage` re-applied `roomPaneTab` on mount and on every room
+    // change, so changing rooms threw the pane back open and closing it did
+    // not stick, because nothing could write `none`. The pane is now opened by
+    // the header's button, and a test that wants it open taps that button, the
+    // same way a user does. That is the point of the change, so the test should
+    // not be able to bypass it by writing storage.
+    //
+    // [settingsOverride] exists for the one case that has to write storage: the
+    // test asserting that a stored tab does *not* open the pane.
+    final settings = settingsOverride ?? createTestSettingsController();
+
+    await pumpRoom(tester, width, settings: settings);
+
+    if (openPane) {
+      // Tapped by tooltip, and the tooltip is whatever tab the header will
+      // open, which is the stored preference rather than a hardcoded info tab.
+      // Driving the button through its label is also what keeps this helper
+      // honest about the change: a header that ignored the preference would put
+      // its button under a different tooltip and this tap would miss.
+      final RoomPaneTab opensOn = settings.roomPaneTab.restorableAs;
+      await tester.tap(find.byTooltip(localizedRoomPaneTab(opensOn, l10n)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        find.byType(RoomPane),
+        findsOneWidget,
+        reason: 'the header button is the only way the pane opens now',
+      );
     }
   }
 
@@ -344,6 +423,111 @@ void main() {
     ) async {
       await pumpAt(tester, 1600);
       expect(find.byType(RoomPane), findsNothing);
+      expect(tester.getSize(find.byType(ChatTimeline)).width, 1600);
+    });
+  });
+
+  group('the pane is closed until it is asked for', () {
+    // `RoomPage` used to re-apply `SettingsController.roomPaneTab` on mount and
+    // on every room change, so the pane opened itself into whatever tab the
+    // preference held. Changing rooms threw it back open on a room the user
+    // had not asked to see anything about, and closing it did not help: nothing
+    // anywhere could write `none`, because the hub dropdown offers
+    // `restorableOptions`, which excludes it. So the preference could never say
+    // "closed", and every room popped.
+    //
+    // The preference is not dead, it is just smaller than it was: it now says
+    // which tab the pane opens on, not whether it is open.
+
+    testWidgets('a stored tab preference does not open the pane on mount',
+        (tester) async {
+      final settings = createTestSettingsController();
+      // Explicitly a real, persistable tab. Writing `none` would not prove
+      // anything, because the hub dropdown cannot write it either.
+      await settings.setRoomPaneTab(RoomPaneTab.members);
+
+      await pumpAt(tester, 1600, settingsOverride: settings);
+
+      expect(find.byType(RoomPane), findsNothing);
+    });
+
+    testWidgets('the stored tab still decides which tab opens', (
+      tester,
+    ) async {
+      // The preference kept its meaning, so this is the assertion that keeps it
+      // alive: without a reader, "which tab does the room pane open on" in the
+      // hub would be a live setting with no effect.
+      final settings = createTestSettingsController();
+      await settings.setRoomPaneTab(RoomPaneTab.members);
+
+      await pumpAt(tester, 1600, openPane: true, settingsOverride: settings);
+
+      expect(find.byType(RoomPane), findsOneWidget);
+      // Members is the tab the preference named, not the info tab the button
+      // used to hardcode.
+      expect(find.byType(MembersTab), findsOneWidget);
+    });
+
+    testWidgets('the pane closes again when the same button is tapped', (
+      tester,
+    ) async {
+      // Toggle, not open. A button that only ever opens is a button that lies
+      // after the first press.
+      await pumpAt(tester, 1600, openPane: true);
+      expect(find.byType(RoomPane), findsOneWidget);
+
+      await tester.tap(find.byTooltip(l10n.roomInfo));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.byType(RoomPane), findsNothing);
+    });
+
+    testWidgets('changing rooms closes an open pane', (tester) async {
+      // The reported symptom, and the one `_pane = null` in `didUpdateWidget`
+      // exists for. `RoomPage` is built from a plain `builder:` with no key, so
+      // Flutter reuses this exact `State` when `:roomid` changes. The pane used
+      // to re-apply the stored tab here, which meant every room change threw a
+      // 280-pixel column back open beside a conversation the user had just
+      // arrived at.
+      final settings = createTestSettingsController();
+      await settings.setRoomPaneTab(RoomPaneTab.info);
+
+      await pumpAt(tester, 1600, openPane: true, settingsOverride: settings);
+      expect(find.byType(RoomPane), findsOneWidget);
+
+      // Same widget, same provider tree, different room: what the router does
+      // when `:roomid` changes.
+      await pumpRoom(
+        tester,
+        1600,
+        settings: settings,
+        room: _OtherFakeRoom(),
+      );
+
+      expect(find.byType(RoomPane), findsNothing);
+    });
+
+    testWidgets('and the conversation takes the width back', (tester) async {
+      // The visible consequence, asserted separately so a "no pane" test
+      // cannot pass by having laid the whole room page out too small to show
+      // a pane at all.
+      final settings = createTestSettingsController();
+      await settings.setRoomPaneTab(RoomPaneTab.info);
+
+      await pumpAt(tester, 1600, openPane: true, settingsOverride: settings);
+      expect(
+        tester.getSize(find.byType(ChatTimeline)).width,
+        closeTo(1600 - 280 - 8, 1),
+      );
+
+      await pumpRoom(
+        tester,
+        1600,
+        settings: settings,
+        room: _OtherFakeRoom(),
+      );
+
       expect(tester.getSize(find.byType(ChatTimeline)).width, 1600);
     });
   });

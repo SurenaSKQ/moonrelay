@@ -122,6 +122,20 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
 
   void _closePane() => setState(() => _pane = null);
 
+  /// Which tab the pane opens on when something opens it.
+  ///
+  /// This is the last reader of `SettingsController.roomPaneTab`, and it is why
+  /// that preference is worth keeping now that the pane no longer restores
+  /// itself. "Which tab the pane opens on" is a real question with a real
+  /// answer, and the hub dropdown's subtitle says exactly this. What is *not* a
+  /// real question is whether it should already be open, which is what the
+  /// preference used to be asked to decide.
+  RoomPaneTab get _defaultPaneTab {
+    final RoomPaneTab stored =
+        context.read<SettingsController>().roomPaneTab.restorableAs;
+    return stored == RoomPaneTab.none ? RoomPaneTab.info : stored;
+  }
+
   /// Opens [tab], or closes the pane if it is already showing it.
   ///
   /// Toggle rather than open, because the room header carries one button per
@@ -140,8 +154,8 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   }
 
   void _onPaneDrag(double delta) {
-    final double current = _paneWidth.value ??
-        context.read<SettingsController>().roomPaneWidth;
+    final double current =
+        _paneWidth.value ?? context.read<SettingsController>().roomPaneWidth;
     _paneWidth.value = current - delta;
   }
 
@@ -153,7 +167,7 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
   }
 
   void _showPaneSheet() {
-    final RoomPaneTab tab = _pane ?? RoomPaneTab.info;
+    final RoomPaneTab tab = _pane ?? _defaultPaneTab;
     unawaited(
       showRoomPaneSheet(
         context,
@@ -237,20 +251,8 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
       if (!mounted || isStale(gen)) return;
       context.read<CurrentRoom>().setRoom(widget.room);
       _focusPermalinkEvent();
-      _restorePane(gen);
+      setState(() => _pinnedEventIds = pinnedEventIds(widget.room));
     });
-  }
-
-  /// Reopens the tab the user last chose, if any.
-  ///
-  /// Deferred with everything else because it is a `setState`, and reading it in
-  /// `build` would mean the pane appeared during the first frame of a room the
-  /// user has not chosen to look at yet.
-  void _restorePane(int gen) {
-    final RoomPaneTab restored =
-        context.read<SettingsController>().roomPaneTab.restorableAs;
-    if (restored == RoomPaneTab.none) return;
-    setState(() => _pane = restored);
   }
 
   @override
@@ -266,13 +268,21 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
       if (!mounted || isStale(gen)) return;
       context.read<CurrentRoom>().setRoom(widget.room);
       // A different room, so a different pane. The search query, the pin filter
-      // and the member list all belonged to the room just left. The persisted
-      // preference is re-applied, so someone who always wants the info tab
-      // still gets it, but nothing transient follows.
-      final RoomPaneTab restored =
-          context.read<SettingsController>().roomPaneTab.restorableAs;
+      // and the member list all belonged to the room just left.
+      //
+      // The pane closes rather than reopens, and that is the whole point. This
+      // State is reused across `:roomid` changes, because `RoomPage` is built
+      // from a plain `builder:` with no key. It used to re-apply the persisted
+      // `roomPaneTab` here, which meant changing rooms threw the pane back open
+      // on a room you had not asked to see anything about, and closing the pane
+      // did not help, because nothing anywhere could write `none`: the hub
+      // dropdown offers `restorableOptions`, which excludes it.
+      //
+      // The persisted tab still means something, it is which tab the pane opens
+      // on when you do open it, via [_defaultPaneTab]. Being closed is not a
+      // preference, it is the absence of an action.
       setState(() {
-        _pane = restored == RoomPaneTab.none ? null : restored;
+        _pane = null;
         _pinnedEventIds = pinnedEventIds(widget.room);
         _pinnedFilterActive = false;
       });
@@ -312,6 +322,10 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
                   paneTab: _pane,
                   onPaneToggle: _togglePane,
                   onPaneSheetRequested: isMobile ? _showPaneSheet : null,
+                  defaultPaneTab: _defaultPaneTab,
+                  pinnedCount: _pinnedEventIds.length,
+                  pinnedFilterActive: _pinnedFilterActive,
+                  onTogglePinnedFilter: _togglePinnedFilter,
                 ),
                 Expanded(
                   child: ChatTimeline(
@@ -342,8 +356,8 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
             ValueListenableBuilder<double?>(
               valueListenable: _paneWidth,
               builder: (BuildContext context, double? drag, _) {
-                final double width = drag ??
-                    context.read<SettingsController>().roomPaneWidth;
+                final double width =
+                    drag ?? context.read<SettingsController>().roomPaneWidth;
                 return SizedBox(
                   width: width.clamp(
                     LayoutBreakpoints.minSidebarWidth,

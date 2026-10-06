@@ -90,6 +90,19 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   bool get _isAdmin => widget.room.canChangeStateEvent('m.room.power_levels');
 
+  /// Whether the current user can leave this room.
+  ///
+  /// Membership only, never a power level. The SDK bakes
+  /// `membership == Membership.join` into every capability getter it offers, so
+  /// this is the whole of the check: leave is self-targeted and unprivileged.
+  bool get canLeave => widget.room.membership == Membership.join;
+
+  /// Whether the current user can forget this room.
+  ///
+  /// Only after leaving. Forget purges local state and asks the server to drop
+  /// it, which the spec only permits once you are out of the room.
+  bool get canForget => widget.room.membership == Membership.leave;
+
   // ---------------------------------------------------------------------------
   // Room editing
   // ---------------------------------------------------------------------------
@@ -320,7 +333,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await room.leave();
+      // `forget`, not `leave`. This called `leave` and then reported
+      // `forgetRoomSuccess`, so the user was told a room had been forgotten
+      // while the server still held it and the local row was untouched. Forget
+      // is a separate operation: it purges the local database row and POSTs
+      // `/forget`, and the spec only allows it once you have already left,
+      // which is what [canForget] gates on.
+      await room.forget();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -386,7 +405,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                   : LucideIcons.lock,
               label: roomType,
             ),
-            InfoChip(icon: LucideIcons.users, label: '$totalMembers ${l10n.members}'),
+            InfoChip(
+                icon: LucideIcons.users,
+                label: '$totalMembers ${l10n.members}'),
             if (room.encrypted)
               InfoChip(
                 icon: LucideIcons.shieldCheck,
@@ -424,7 +445,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               value: roomType,
             ),
             InfoPanelRow(
-              icon: isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+              icon:
+                  isEncrypted ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
               label: l10n.encryptionLabel,
               value: isEncrypted ? l10n.endToEndEncrypted : l10n.notEncrypted,
             ),
@@ -462,8 +484,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 InfoPanelRow(
                   icon: LucideIcons.alignLeft,
                   label: l10n.editRoomTopic,
-                  description:
-                      room.topic.isNotEmpty ? room.topic : l10n.notSet,
+                  description: room.topic.isNotEmpty ? room.topic : l10n.notSet,
                   onTap: _editRoomTopic,
                 ),
               if (_canChange('m.room.avatar'))
@@ -595,11 +616,25 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         // their own panel. "Leave", "delete" and "forget" are the same kind of
         // decision at different severities, and separating them into three
         // one-row panels made the mildest of them look as final as the worst.
-        if (_isAdmin || room.membership == Membership.leave) ...[
+        //
+        // The panel is gated on whether it has anything to show, not on who is
+        // looking at it. It used to be wrapped in `_isAdmin ||`, which meant
+        // that "Leave room" required power level 50, because the row's own
+        // membership check was nested inside an admin-only panel and therefore
+        // only ever reachable by an admin. Leaving is
+        // `POST /rooms/{id}/leave`, a self-targeted `m.room.member` event that
+        // the spec puts no power requirement on at all, so the gate hid the one
+        // destructive action every single member is entitled to take from
+        // exactly the people who most often want it.
+        //
+        // This is the same bug as the one `message_context_menu.dart` already
+        // documents for Report: an unprivileged action gated on power, hiding
+        // it from the users who need it.
+        if (canLeave || canForget || _isAdmin) ...[
           InfoPanel(
             title: l10n.actionsDeleteSection,
             children: [
-              if (room.membership == Membership.join)
+              if (canLeave)
                 InfoPanelRow(
                   icon: LucideIcons.logOut,
                   label: l10n.leaveRoom,
@@ -615,7 +650,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                   destructive: true,
                   onTap: _deleteRoom,
                 ),
-              if (room.membership == Membership.leave)
+              if (canForget)
                 InfoPanelRow(
                   icon: LucideIcons.eyeOff,
                   label: l10n.forgetRoom,
@@ -683,11 +718,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final log = context.read<Logger>();
     await context.showActionResult(
       action: () => context.read<Client>().setRoomStateWithKey(
-            widget.room.id,
-            type,
-            stateKey,
-            <String, dynamic>{key: value},
-          ),
+        widget.room.id,
+        type,
+        stateKey,
+        <String, dynamic>{key: value},
+      ),
       successMessage: AppLocalizations.of(context)!.done,
       floating: true,
       log: log,
@@ -945,9 +980,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     await context.showActionResult(
       action: () => client.setRoomVisibilityOnDirectory(
         room.id,
-        visibility: selected == 'public'
-            ? Visibility.public
-            : Visibility.private,
+        visibility:
+            selected == 'public' ? Visibility.public : Visibility.private,
       ),
       successMessage: null,
       floating: true,

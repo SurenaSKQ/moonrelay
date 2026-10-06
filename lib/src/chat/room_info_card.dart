@@ -19,13 +19,11 @@ import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
 import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/sync_indicator.dart';
-import 'package:provider/provider.dart';
 
 /// A Material 3 room header bar that reactively displays the room's name,
 /// topic, avatar, and member count.
@@ -43,6 +41,10 @@ class ChatRoomHeader extends StatefulWidget {
     this.paneTab,
     this.onPaneToggle,
     this.onPaneSheetRequested,
+    this.pinnedCount = 0,
+    this.pinnedFilterActive = false,
+    this.onTogglePinnedFilter,
+    this.defaultPaneTab = RoomPaneTab.info,
   });
 
   final Room room;
@@ -64,6 +66,39 @@ class ChatRoomHeader extends StatefulWidget {
   /// conversation to put a 280-pixel column in. Null on the desktop shells,
   /// where the pane is inline and the tab buttons drive it directly.
   final VoidCallback? onPaneSheetRequested;
+
+  /// How many events this room has pinned.
+  ///
+  /// Passed in rather than read from `CurrentRoom`, which holds a pinned list
+  /// of its own for whichever room it last saw. Two lists for one room means
+  /// the header can offer a pin control for a room with no pins while the pane
+  /// says it has none.
+  final int pinnedCount;
+
+  /// Whether the timeline is currently filtered to pinned events.
+  ///
+  /// Constructor parameters for the same reason as [pinnedCount], and because
+  /// this button used to read a flag from `CurrentRoom` that no filter used.
+  /// It toggled its own icon and tooltip and the timeline carried on showing
+  /// everything, which is the one failure a filter control cannot have.
+  final bool pinnedFilterActive;
+
+  /// Toggles the timeline's pinned-only filter.
+  ///
+  /// Null hides the control. A header mounted somewhere that owns no timeline
+  /// has nothing to filter, and a button that filters nothing is worse than no
+  /// button.
+  final VoidCallback? onTogglePinnedFilter;
+
+  /// Which tab the pane button opens when it is not already open.
+  ///
+  /// The pane does not restore itself any more, so this is what the user's
+  /// "which tab does the room pane open on" preference now decides. It is a
+  /// parameter rather than a read of `SettingsController` because the header is
+  /// a plain widget with no settings dependency, and because a caller mounting
+  /// it outside `RoomPage` should be able to say what it wants instead of
+  /// silently picking up whatever the preference happens to hold.
+  final RoomPaneTab defaultPaneTab;
 
   @override
   State<ChatRoomHeader> createState() => _ChatRoomHeaderState();
@@ -291,7 +326,11 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                         // Pinned messages toggle. Also self-hiding when the
                         // room has no pinned messages, and an action rather
                         // than furniture, so it stays reachable at every width.
-                        _PinnedFilterButton(room: widget.room),
+                        _PinnedFilterButton(
+                          count: widget.pinnedCount,
+                          isActive: widget.pinnedFilterActive,
+                          onToggle: widget.onTogglePinnedFilter,
+                        ),
 
                         // In the single-pane shell the four detail panes have
                         // In the single-pane shell the pane has no room to
@@ -327,13 +366,14 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
                         if (widget.onPaneToggle != null)
                           IconButton(
                             icon: Icon(
-                              _paneIcon(widget.paneTab ?? RoomPaneTab.info),
+                              _paneIcon(
+                                  widget.paneTab ?? widget.defaultPaneTab),
                               size: iconSize,
                             ),
                             onPressed: () =>
-                                widget.onPaneToggle!(RoomPaneTab.info),
+                                widget.onPaneToggle!(widget.defaultPaneTab),
                             tooltip: localizedRoomPaneTab(
-                              RoomPaneTab.info,
+                              widget.defaultPaneTab,
                               AppLocalizations.of(context)!,
                             ),
                             visualDensity: density,
@@ -422,27 +462,34 @@ class _MemberCountBadge extends StatelessWidget {
 /// inactive (outlined) style when off, so the user knows they can tap
 /// again to return to the full timeline.
 class _PinnedFilterButton extends StatelessWidget {
-  const _PinnedFilterButton({required this.room});
+  const _PinnedFilterButton({
+    required this.count,
+    required this.isActive,
+    required this.onToggle,
+  });
 
-  final Room room;
+  final int count;
+  final bool isActive;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final currentRoom = context.watch<CurrentRoom>();
-    final isActive = currentRoom.pinnedFilterActive;
-    final hasPinned = currentRoom.pinnedEventIds.isNotEmpty;
+    // Fail closed on the callback before the condition on the count. A
+    // control with nothing to toggle would draw itself as armed and do nothing.
+    final toggle = onToggle;
+    if (toggle == null) return const SizedBox.shrink();
 
     // Only show the button if there are pinned messages or the filter
     // is already active.
-    if (!hasPinned && !isActive) return const SizedBox.shrink();
+    if (count == 0 && !isActive) return const SizedBox.shrink();
 
     return IconButton(
       icon: Icon(
         isActive ? Icons.push_pin : Icons.push_pin_outlined,
         size: 18,
       ),
-      onPressed: () => currentRoom.togglePinnedFilter(),
+      onPressed: toggle,
       tooltip: isActive
           ? AppLocalizations.of(context)!.showPinnedOnly
           : AppLocalizations.of(context)!.showAllMessages,

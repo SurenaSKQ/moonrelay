@@ -122,7 +122,6 @@ class RoomPane extends StatelessWidget {
                   room: room,
                   pinnedEventIds: pinnedEventIds,
                   pinnedFilterActive: pinnedFilterActive,
-                  onTogglePinnedFilter: onTogglePinnedFilter,
                   onOpenPinnedTab: () => onSelectTab(RoomPaneTab.pinned),
                 ),
               RoomPaneTab.members => MembersTab(room: room),

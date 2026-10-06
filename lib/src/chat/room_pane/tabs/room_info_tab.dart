@@ -43,7 +43,6 @@ class RoomInfoTab extends StatefulWidget {
     super.key,
     required this.room,
     required this.pinnedEventIds,
-    this.onTogglePinnedFilter,
     this.pinnedFilterActive = false,
     this.onOpenPinnedTab,
   });
@@ -57,14 +56,14 @@ class RoomInfoTab extends StatefulWidget {
   /// could disagree about which room they belonged to.
   final List<String> pinnedEventIds;
 
-  /// Toggles the timeline's pinned-only filter.
-  final VoidCallback? onTogglePinnedFilter;
-
-  /// Switches the pane to the pinned tab.
+  /// The pin toggle that used to be declared here is gone.
   ///
-  /// Null when the info tab is mounted somewhere that cannot switch tabs, which
-  /// today is only a test.
-  final VoidCallback? onOpenPinnedTab;
+  /// It was passed down from `RoomPage` and read by nothing: the embedded
+  /// pinned section that owned the toggle was replaced by the count row in
+  /// [_PinnedSummary], and the parameter outlived its reader. `flutter analyze`
+  /// cannot catch that, because the field is public. The control itself is not
+  /// missing, it lives in the pinned tab and in the room header, and both drive
+  /// `RoomPage`'s flag, which is the one `ChatTimeline` reads.
 
   /// Whether the timeline is currently filtered to pinned messages.
   ///
@@ -72,6 +71,12 @@ class RoomInfoTab extends StatefulWidget {
   /// pinnedFilterActive was a single global flag: toggling it in one room and
   /// switching to another used to leave the flag set for the new room too.
   final bool pinnedFilterActive;
+
+  /// Switches the pane to the pinned tab.
+  ///
+  /// Null when the info tab is mounted somewhere that cannot switch tabs, which
+  /// today is only a test.
+  final VoidCallback? onOpenPinnedTab;
 
   @override
   State<RoomInfoTab> createState() => RoomInfoTabState();
