@@ -29,10 +29,199 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/hub_screen/initials.dart';
 import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
 import 'package:moonrelay/src/screens/loading_screen.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
+
+// -----------------------------------------------------------------------------
+// _IdentityHeader
+// -----------------------------------------------------------------------------
+
+/// The avatar + name + user id at the top of the profile page.
+///
+/// This is the identity header the hub uses, not a settings card.
+/// The avatar loads from the Matrix content URI (or falls back to
+/// initials) and the name + id are one tap target, keeping the
+/// page's front door to a single surface.
+class _IdentityHeader extends StatelessWidget {
+  const _IdentityHeader({
+    required this.displayName,
+    required this.userId,
+    this.avatarUrl,
+    required this.client,
+    this.uploading = false,
+    this.onAvatarTap,
+    this.onNameTap,
+  });
+
+  final String displayName;
+  final String userId;
+  final Uri? avatarUrl;
+  final Client client;
+  final bool uploading;
+  final VoidCallback? onAvatarTap;
+  final VoidCallback? onNameTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: onAvatarTap,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Stack(
+              children: [
+                avatarUrl == null
+                    ? CircleAvatar(
+                        radius: 32,
+                        backgroundColor: cs.primaryContainer,
+                        child: Text(
+                          matrixInitials(displayName),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onPrimaryContainer,
+                          ),
+                        ),
+                      )
+                    : AvatarFromUriOrFallbackImage(
+                        client: client,
+                        avatarUri: avatarUrl,
+                        radius: 32,
+                      ),
+                if (uploading)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color:
+                            cs.scrim.withValues(alpha: t.opacityDisabled),
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: cs.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cs.surface, width: 2),
+                      ),
+                      child: Icon(
+                        LucideIcons.camera,
+                        size: 11,
+                        color: cs.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(width: t.spaceMd),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(width: t.spaceXs),
+                  IconButton(
+                    tooltip: AppLocalizations.of(context)!.editOwnProfile,
+                    icon: const Icon(
+                      LucideIcons.squarePen,
+                      size: 16,
+                    ),
+                    onPressed: onNameTap,
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                  ),
+                ],
+              ),
+              Text(
+                userId,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// InfoPresenceRow
+// -----------------------------------------------------------------------------
+
+/// Three presence choice chips in a compact row, each showing its label.
+/// The selected presence is shown with a filled chip; the others are outlined.
+class InfoPresenceRow extends StatelessWidget {
+  const InfoPresenceRow({
+    super.key,
+    required this.presence,
+    required this.onChanged,
+    required this.labels,
+  });
+
+  final PresenceType presence;
+  final void Function(PresenceType)? onChanged;
+  final Map<PresenceType, String> labels;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceXs,
+        vertical: t.spaceSm,
+      ),
+      child: Wrap(
+        spacing: t.spaceXs,
+        runSpacing: t.spaceXs,
+        children: [
+          for (final p in PresenceType.values)
+            ChoiceChip(
+              label: Text(labels[p] ?? p.name),
+              selected: presence == p,
+              onSelected: (_) => onChanged?.call(p),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 // -----------------------------------------------------------------------------
 // My Profile Page
@@ -371,7 +560,6 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
   @override
   Widget build(BuildContext context) {
     final mono = MoonrelayThemeExtension.of(context).monoFontFamily;
-    // Read the debounced sync pulse so we run a silent refresh on every
     // Read the debounced sync pulse so we can refresh on a coalesced tick
     // rather than every raw sync event. The hub is always mounted inside
     // the account-aware router so the pulse is in scope.
@@ -400,305 +588,83 @@ class _HubMyProfilePageState extends State<HubMyProfilePage> {
 
     final profile = _profile;
     final presence = _presence;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final t = theme.moonrelay.tokens;
 
-    // The measure every hub page now gets. This page is the hub's front door and
-    // the only one without a title strip, because the app bar above already
-    // says "Hub" and repeating it twenty pixels below would be the same double
-    // title the other thirteen pages had.
+    // The measure every hub page now gets, and the hub's one panel vocabulary.
+    //
+    // This page was the last one in the hub not built from it. It spent about
+    // 250 vertical lines arranging six blocks with its own `SizedBox(height: 32)`
+    // and two `Divider`s, and the result was a screen where each value had a
+    // heading above it, a box around it, and roughly 60px of nothing on either
+    // side, so the page read as a scrolling form a column tall rather than as
+    // four facts about one person. The avatar header repeated the display name
+    // and the user id that two of those six blocks then repeated, which meant
+    // the same two strings appeared three times on one screen.
     return HubPageBody(
       children: [
-        // -- Avatar + name header --------------------------------
-        Row(
+        _IdentityHeader(
+          // The header *is* the display name and the user id. It is not a
+          // summary of a panel below it, so nothing below repeats it.
+          displayName: profile?.displayName ?? l10n.unknown,
+          userId: profile?.userId ?? client.userID ?? '',
+          avatarUrl: profile?.avatarUrl,
+          client: client,
+          uploading: _uploadingAvatar,
+          onAvatarTap: _uploadingAvatar ? null : _changeAvatar,
+          onNameTap: _editDisplayName,
+        ),
+
+        // -- Identity -----------------------------------------------
+        // The two facts as rows rather than as labelled boxes. A row carries
+        // its own label and its own value, so a heading above the box and 60px
+        // of padding around it were only ever the cost of not having a row.
+        InfoPanel(
+          title: l10n.identity,
           children: [
-            GestureDetector(
-              onTap: _uploadingAvatar ? null : _changeAvatar,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Stack(
-                  children: [
-                    profile?.avatarUrl == null
-                        ? CircleAvatar(
-                            radius: 40,
-                            backgroundColor: cs.primaryContainer,
-                            child: Text(
-                              matrixInitials(
-                                profile?.displayName ?? profile?.userId,
-                              ),
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w600,
-                                color: cs.onPrimaryContainer,
-                              ),
-                            ),
-                          )
-                        : AvatarFromUriOrFallbackImage(
-                            client: client,
-                            avatarUri: profile!.avatarUrl,
-                            radius: 40,
-                          ),
-                    if (_uploadingAvatar)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            // `scheme.scrim`, not `Colors.black38`. The colour
-                            // role for "something is being worked on and you
-                            // cannot touch it yet" already exists and is
-                            // black in both brightnesses; a fixed black at
-                            // 22% happened to match only because the scrim
-                            // happened to be black, and the token's 38% is
-                            // the app's existing "inert" step. The spinner is
-                            // `onPrimaryContainer` to match the avatar it
-                            // covers, since it sits on top of the avatar's own
-                            // container tint rather than on the scrim alone.
-                            color:
-                                cs.scrim.withValues(alpha: t.opacityDisabled),
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                          child: Center(
-                            child: SizedBox(
-                              width: t.spaceXl,
-                              height: t.spaceXl,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: cs.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: cs.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: cs.surface,
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            LucideIcons.camera,
-                            size: 14,
-                            color: cs.onPrimary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+            InfoPanelRow(
+              label: l10n.displayName,
+              description:
+                  profile?.displayName ?? l10n.notSet,
+              icon: LucideIcons.user,
+              onTap: _editDisplayName,
             ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          profile?.displayName ?? l10n.unknown,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: cs.onSurface,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(width: t.spaceSm),
-                      IconButton(
-                        tooltip: l10n.editOwnProfile,
-                        icon: Icon(
-                          LucideIcons.squarePen,
-                          size: t.iconSizeSmall,
-                        ),
-                        onPressed: _editDisplayName,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: t.spaceXs),
-                  Text(
-                    profile?.userId ?? '',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  SizedBox(height: t.spaceSm),
-                  Text(
-                    l10n.profilePageTitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
+            InfoPanelRow(
+              label: l10n.userIDLabel,
+              icon: LucideIcons.atSign,
+              // The user id as a selectable value: a reader plausibly wants
+              // to copy it, and it reads as a monospace identifier.
+              value: profile?.userId ?? '',
+              valueFontFamily: mono,
             ),
           ],
         ),
 
-        const SizedBox(height: 32),
-        const Divider(),
-        SizedBox(height: t.spaceXl),
-
-        // -- Display Name ----------------------------------------
-        Text(
-          l10n.displayName,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: t.spaceSm),
-        InkWell(
-          onTap: _editDisplayName,
-          borderRadius: BorderRadius.circular(t.radiusSm),
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(t.spaceMd),
-            decoration: BoxDecoration(
-              color:
-                  cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
-              borderRadius: BorderRadius.circular(t.radiusSm),
-            ),
-            child: Text(
-              profile?.displayName ?? l10n.notSet,
-              style: TextStyle(
-                fontSize: 16,
-                color: cs.onSurface,
-              ),
-            ),
-          ),
-        ),
-
-        SizedBox(height: t.spaceXl),
-
-        // -- User ID (read-only) --------------------------------
-        Text(
-          l10n.userIDLabel,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: t.spaceSm),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(t.spaceMd),
-          decoration: BoxDecoration(
-            color:
-                cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
-            borderRadius: BorderRadius.circular(t.radiusSm),
-          ),
-          child: SelectableText(
-            profile?.userId ?? '',
-            style: TextStyle(
-              fontSize: 14,
-              fontFamily: mono,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-
-        SizedBox(height: t.spaceXl),
-        const Divider(),
-        SizedBox(height: t.spaceXl),
-
-        // -- Presence -------------------------------------------
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // -- Presence -----------------------------------------------
+        InfoPanel(
+          title: l10n.presence,
           children: [
-            Text(
-              l10n.presence,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: t.spaceXs),
-            Text(
-              l10n.presenceDescription,
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-            SizedBox(height: t.spaceMd),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final p in [
-                  PresenceType.online,
-                  PresenceType.unavailable,
-                  PresenceType.offline,
-                ])
-                  ChoiceChip(
-                    label: Text(_presenceLabel(l10n, p)),
-                    selected: presence?.presence == p ||
-                        (presence == null && p == PresenceType.online),
-                    onSelected: (_) => _setPresence(p),
-                  ),
-              ],
-            ),
-            SizedBox(height: t.spaceLg),
-            Text(
-              l10n.statusMessage,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: t.spaceXs),
-            InkWell(
+            InfoPanelRow(
+              label: l10n.statusMessage,
+              description: presence?.statusMsg?.isNotEmpty == true
+                  ? presence!.statusMsg!
+                  : l10n.notSet,
+              icon: LucideIcons.messageSquare,
               onTap: _editStatusMessage,
-              borderRadius: BorderRadius.circular(t.radiusSm),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(t.spaceMd),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest
-                      .withValues(alpha: t.opacitySubtle),
-                  borderRadius: BorderRadius.circular(t.radiusSm),
-                ),
-                child: Text(
-                  presence?.statusMsg?.isNotEmpty == true
-                      ? presence!.statusMsg!
-                      : l10n.notSet,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: cs.onSurface,
-                    fontStyle: presence?.statusMsg == null
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
-                ),
-              ),
+            ),
+            InfoPresenceRow(
+              presence: presence?.presence ?? PresenceType.online,
+              // Null rather than a no-op: presence is only settable while
+              // signed in, and a row that accepts the tap and discards it is
+              // worse than one that looks inert.
+              onChanged: _setPresence,
+              labels: <PresenceType, String>{
+                PresenceType.online: l10n.presenceStatusOnline,
+                PresenceType.unavailable: l10n.presenceStatusUnavailable,
+                PresenceType.offline: l10n.presenceStatusOffline,
+              },
             ),
           ],
         ),
-
-        SizedBox(height: t.spaceXl),
       ],
     );
-  }
-
-  String _presenceLabel(AppLocalizations l10n, PresenceType p) {
-    switch (p) {
-      case PresenceType.online:
-        return l10n.presenceStatusOnline;
-      case PresenceType.unavailable:
-        return l10n.presenceStatusUnavailable;
-      case PresenceType.offline:
-        return l10n.presenceStatusOffline;
-    }
   }
 }
