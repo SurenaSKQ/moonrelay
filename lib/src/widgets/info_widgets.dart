@@ -389,7 +389,7 @@ class InfoPanelRow extends StatelessWidget {
             Flexible(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 220),
-                child: Text(
+                child: SelectableText(
                   value_,
                   textAlign: TextAlign.end,
                   maxLines: 2,
