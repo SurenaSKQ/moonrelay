@@ -19,7 +19,6 @@ import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/helpers/responsive.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/nav_rail.dart';
 import 'package:moonrelay/src/widgets/navigation_sidebar/navigation_sidebar.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
@@ -94,11 +93,15 @@ class DashboardView extends StatelessWidget {
         child: const NavigationSidebar(),
       ),
       Expanded(
-        child: GlobalShortcutListener(
-          child: PostLoginSetupChecker(
-            child: IncomingVerificationListener(
-              child: child,
-            ),
+        // No shortcut listener here any more. It used to wrap this pane alone,
+        // which meant a `Shortcuts` node that was an ancestor of the
+        // conversation and of nothing else: not the rail beside it, not the
+        // sidebar beside that, and not the title bar, which is a sibling of
+        // `Scaffold.body` rather than a descendant. `AppFrame` now wraps the
+        // whole `Scaffold`, so the palette answers from every pane.
+        child: PostLoginSetupChecker(
+          child: IncomingVerificationListener(
+            child: child,
           ),
         ),
       ),

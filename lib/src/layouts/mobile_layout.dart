@@ -25,7 +25,6 @@ import 'package:moonrelay/src/widgets/command_palette/command_palette.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption/incoming_verification_listener.dart';
 import 'package:moonrelay/src/widgets/encryption/post_login_setup_checker.dart';
-import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 import 'package:moonrelay/src/widgets/rooms_pane.dart';
 import 'package:moonrelay/src/screens/room_page.dart';
 
@@ -90,14 +89,13 @@ class MobileLayout extends StatelessWidget {
         children: [
           if (isShellDestination(context)) _MobileTopBar(l10n: l10n),
           Expanded(
-            // The shortcut listener is mounted here as well as in the
-            // dashboard. It was dashboard-only, which meant a desktop user
-            // who opted into this shell lost the command palette they had
-            // just used to get here.
-            child: GlobalShortcutListener(
-              child: PostLoginSetupChecker(
-                child: IncomingVerificationListener(child: child),
-              ),
+            // No shortcut listener here. It was mounted per shell, in this
+            // layout and in the dashboard's main pane, which meant two
+            // independent mounts and neither of them covering the rail, the
+            // room list or the title bar. `AppFrame` now wraps the whole
+            // `Scaffold` once, above both shells.
+            child: PostLoginSetupChecker(
+              child: IncomingVerificationListener(child: child),
             ),
           ),
           if (destination != null)

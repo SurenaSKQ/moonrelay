@@ -205,72 +205,85 @@ class _SidebarProfilePillState extends State<SidebarProfilePill> {
           // is used. This replaces a modal overlay that existed for
           // exactly that reason.
           onTap: () => context.push(hubPath()),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: t.spaceSm,
-              vertical: t.spaceSm,
-            ),
-            child: Row(
-              children: [
-                _AccountAvatar(
-                  diameter: _kAvatarDiameter,
-                  loading: _loading,
-                  profile: _profile,
-                  presenceTint: _presenceTint(scheme),
-                  bandColour: scheme.surfaceContainerLow,
-                  dotDiameter: _kDotDiameter,
-                  dotRing: _kDotRing,
-                ),
-                SizedBox(width: t.spaceSm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          // One step above the status line, and a step below
-                          // the title bar's heading. This is the app's own
-                          // name for you and it is not the subject of the
-                          // pane, so it does not get the heading's weight.
-                          fontSize: 13,
-                          height: 1.2,
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        presenceLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          fontWeight: FontWeight.w400,
-                          color: _presenceTextColor(scheme),
-                        ),
-                      ),
-                    ],
+          // The footer's height is `paneBarHeight`, pinned rather than
+          // derived. It used to be whatever its tallest child happened to be,
+          // which was the 34px avatar plus 8px of padding above and below: 50.
+          // The composer at the other end of the same window is 52, and the two
+          // columns meet at a seam, so the sidebar's hairline sat a pixel and a
+          // half below the top of the conversation's bottom band and the two
+          // rows read as not lining up.
+          //
+          // The vertical padding is gone and the height is set instead. The
+          // avatar still gets its clearance because `Row` centres by default, so
+          // now it is guaranteed rather than a consequence of the arithmetic
+          // happening to work out. A derived height also meant a long display
+          // name could push the row taller and reopen the seam.
+          child: SizedBox(
+            height: t.paneBarHeight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: t.spaceSm),
+              child: Row(
+                children: [
+                  _AccountAvatar(
+                    diameter: _kAvatarDiameter,
+                    loading: _loading,
+                    profile: _profile,
+                    presenceTint: _presenceTint(scheme),
+                    bandColour: scheme.surfaceContainerLow,
+                    dotDiameter: _kDotDiameter,
+                    dotRing: _kDotRing,
                   ),
-                ),
-                SizedBox(width: t.spaceXs),
-                // Always visible rather than revealed on hover.
-                //
-                // The row is clickable, so a control that only exists while
-                // the pointer is over it is a control that appears to be
-                // missing from the row it belongs to. It is also the only
-                // route to the hub from here, and the hub is a route rather
-                // than a menu, so there is nothing to be surprised by.
-                Icon(
-                  LucideIcons.settings,
-                  size: 20,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ],
+                  SizedBox(width: t.spaceSm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            // One step above the status line, and a step below
+                            // the title bar's heading. This is the app's own
+                            // name for you and it is not the subject of the
+                            // pane, so it does not get the heading's weight.
+                            fontSize: 13,
+                            height: 1.2,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          presenceLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.3,
+                            fontWeight: FontWeight.w400,
+                            color: _presenceTextColor(scheme),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: t.spaceXs),
+                  // Always visible rather than revealed on hover.
+                  //
+                  // The row is clickable, so a control that only exists while
+                  // the pointer is over it is a control that appears to be
+                  // missing from the row it belongs to. It is also the only
+                  // route to the hub from here, and the hub is a route rather
+                  // than a menu, so there is nothing to be surprised by.
+                  Icon(
+                    LucideIcons.settings,
+                    size: 20,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

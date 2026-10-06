@@ -70,11 +70,13 @@ Widget _localized(Widget home) => MaterialApp(
     );
 
 /// The shell wraps its child in `PostLoginSetupChecker` and
-/// `IncomingVerificationListener`, which read `EncryptionService`, and in
-/// `GlobalShortcutListener`, which reads nothing but does need focus. The
-/// shared wrapper supplies the rest; the verification stream has to be
+/// `IncomingVerificationListener`, which read `EncryptionService`. The shared
+/// wrapper supplies the rest; the verification stream has to be
 /// stubbed because an unstubbed mock returns null where a `Stream` is
 /// expected, which is the same seam the router suite has to patch.
+///
+/// `GlobalShortcutListener` used to be here too, and was removed rather than
+/// kept: it is mounted once in `AppFrame` now, above both shells.
 Widget _wrap(Widget child) {
   final encryption = MockEncryptionService();
   when(() => encryption.onKeyVerificationRequest)

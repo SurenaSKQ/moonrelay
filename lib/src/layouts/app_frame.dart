@@ -25,6 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/tray_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/layouts/window_title_bar.dart';
+import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 
 /// Main application frame shown after authentication.
 ///
@@ -60,23 +61,39 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(WindowTitleBar.height(context)),
-        child: WindowTitleBar(
-          showSearch: true,
-          // Close honours the tray, which is an account preference and so is
-          // not something the shared bar can decide. See [WindowTitleBar].
-          closeWindow: () async {
-            if (settings.closeToTray && TrayService.instance != null) {
-              await TrayService.instance!.hideWindow();
-            } else {
-              await windowManager.close();
-            }
-          },
+    // The global shortcut listener wraps the `Scaffold` rather than living
+    // inside one shell, because a `Shortcuts` widget is consulted only when it
+    // is an ancestor of the node holding focus, and it used to be mounted
+    // inside the dashboard's `Expanded` content pane. That made the palette
+    // unreachable with focus in the spaces rail, in the room list, in the hub,
+    // or anywhere in the window title bar, which is a sibling of `body` rather
+    // than a descendant of it.
+    //
+    // Here it is an ancestor of all of them: `appBar` and `body` are siblings in
+    // the `Scaffold`'s layout, so only a wrapper around the `Scaffold` reaches
+    // both. `AppFrame` is also a route page inside the navigator, which matters
+    // because `showCommandPalette` pushes with `rootNavigator: true` and needs a
+    // `Navigator` ancestor; hoisting to `MaterialApp.router`'s `builder:` would
+    // have covered the dialogs too but left the palette with nowhere to push.
+    return GlobalShortcutListener(
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(WindowTitleBar.height(context)),
+          child: WindowTitleBar(
+            showSearch: true,
+            // Close honours the tray, which is an account preference and so is
+            // not something the shared bar can decide. See [WindowTitleBar].
+            closeWindow: () async {
+              if (settings.closeToTray && TrayService.instance != null) {
+                await TrayService.instance!.hideWindow();
+              } else {
+                await windowManager.close();
+              }
+            },
+          ),
         ),
+        body: widget.child,
       ),
-      body: widget.child,
     );
   }
 
@@ -130,4 +147,3 @@ class _AppFrameState extends State<AppFrame> with WindowListener {
     }
   }
 }
-
