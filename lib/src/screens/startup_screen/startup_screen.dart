@@ -46,6 +46,15 @@ import 'package:url_launcher/url_launcher.dart';
 /// right, because a 480-wide form centred in 1600 pixels is a form the eye has
 /// to hunt for, and because the brand is the one thing here worth leaving room
 /// for.
+///
+/// **Both arrangements build every block,** because both take their children
+/// from [_panels] rather than assembling their own. The two-column branch used
+/// to build a separate list, and that is how the footer came to exist only
+/// below [_twoColumnBreakpoint]: the split was introduced for the brand and
+/// the panels, and the four sub-page links were added to whichever branch was
+/// being written. On a desktop window the licences and the privacy policy were
+/// unreachable, since neither has a route and this footer is the only way in.
+/// If you add a block, add it to [_panels].
 class StartupScreen extends StatelessWidget {
   const StartupScreen({super.key});
 
@@ -112,8 +121,6 @@ class StartupScreen extends StatelessWidget {
                   brand,
                   SizedBox(height: t.spaceXxl),
                   ..._panels(context, l10n),
-                  SizedBox(height: t.spaceXl),
-                  _buildFooter(context, l10n),
                 ],
               ),
             ),
@@ -123,19 +130,29 @@ class StartupScreen extends StatelessWidget {
     );
   }
 
-  /// The column of blocks, in the order they should be read.
+  /// The column of blocks, in the order they should be read, footer included.
   ///
   /// Saved accounts first when there are any, because on a second visit the
   /// fastest thing the user can do is tap the account they used last, and
   /// burying that under a heading and two buttons is the reason people open the
   /// sign-in form for an account they are already signed in to.
+  ///
+  /// **The footer is the last thing in here, not a branch's afterthought.**
+  /// Both arrangements take their children from this method, which is the whole
+  /// reason it can be relied on: the footer was previously appended only in the
+  /// single-column branch, so a desktop window rendered none of its four links
+  /// and two of the pages they reach have no route. Adding a block anywhere on
+  /// this screen means adding it here, and both arrangements get it.
   List<Widget> _panels(BuildContext context, AppLocalizations l10n) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final List<Widget> blocks = <Widget>[
       _buildActionCard(context, l10n),
       const AuthStackGap(),
       _buildProjectNews(context, l10n),
       const AuthStackGap(),
       _buildDonators(context, l10n),
+      SizedBox(height: t.spaceXl),
+      _buildFooter(context, l10n),
     ];
     // The accounts panel carries its own bottom margin, because it is the one
     // block that can be absent and would otherwise leave a trailing gap where

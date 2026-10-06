@@ -139,12 +139,79 @@ void main() {
     ) async {
       await pumpWelcome(tester, width: 600);
 
-      // Narrow puts the footer in the column, where it is visible. Wide leaves it
-      // out entirely, which is a real gap and is recorded in WORK_NEEDED.md.
       expect(find.text(l10n.thirdPartyLicense), findsOneWidget);
       expect(find.text(l10n.privacyPolicy), findsOneWidget);
       expect(find.text(l10n.appSettings), findsOneWidget);
       expect(find.text(l10n.credits), findsOneWidget);
+    });
+
+// The footer used to be appended only in the single-column branch, so on a
+    // desktop window the four links were absent from the tree rather than
+    // merely below the fold. Two of the four pages have no route, so on a wide
+    // window the licences and the privacy policy were unreachable outright.
+    // Asserted across the breakpoint because "it renders" is only half the
+    // claim; the other half is that each branch builds it, and the two
+    // branches are separate code that used to disagree.
+    for (final double width in <double>[600, 1200, 1600]) {
+      testWidgets('the footer is present at ${width.toInt()}px wide', (
+        tester,
+      ) async {
+        await pumpWelcome(tester, width: width);
+
+        for (final String label in <String>[
+          l10n.thirdPartyLicense,
+          l10n.privacyPolicy,
+          l10n.appSettings,
+          l10n.credits,
+        ]) {
+          expect(
+            find.text(label),
+            findsOneWidget,
+            reason: '"$label" is missing at ${width.toInt()}px',
+          );
+        }
+      });
+    }
+
+    testWidgets('the footer is in the scroll view, not clipped by it', (
+      tester,
+    ) async {
+      // A short window is the case where a footer placed outside the scroll
+      // view would be cut off, which is worse than missing: the reader sees a
+      // sign-in form and no indication that there is more below it.
+      //
+      // The size has to be set before the first pump. Setting it afterwards
+      // throws the mounted tree away, and the replacement is measured at the
+      // old size, so the assertion below would be made against a screen laid
+      // out for a window that no longer exists.
+      tester.view.physicalSize = const Size(1200, 420);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final MockClient client = MockClient();
+      when(() => client.userID).thenReturn('@me:example.org');
+      when(() => client.rooms).thenReturn(<Room>[]);
+
+      await tester.pumpWidget(
+        wrapWithProviders(
+          client: client,
+          accountManager: AccountManager(log: MockLogger()),
+          child: const StartupScreen(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(SingleChildScrollView), findsWidgets);
+      final Finder footer = find.ancestor(
+        of: find.text(l10n.credits),
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(
+        footer,
+        findsOneWidget,
+        reason: 'the footer must live inside a scroll view to survive a short '
+            'window',
+      );
     });
   });
 
