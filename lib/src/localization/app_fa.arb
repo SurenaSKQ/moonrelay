@@ -597,6 +597,49 @@
   "@credits": {
     "description": "Label for the button that opens the credits page from the welcome screen footer."
   },
+  "creditsVersion": "نسخه {version}",
+  "@creditsVersion": {
+    "description": "The version line under the app name on the credits page.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "creditsLicenseTitle": "پروانه",
+  "@creditsLicenseTitle": {
+    "description": "Heading of the license section on the credits page."
+  },
+  "creditsLicenseBody": "Moonrelay نرم‌افزاری آزاد است که تحت پروانهٔ گنووی افرسی عمومی نسخهٔ ۳ یا بالاتر منتشر می‌شود.",
+  "@creditsLicenseBody": {
+    "description": "Body of the license section on the credits page."
+  },
+  "creditsOpenSourceTitle": "قدردانی از متن‌باز",
+  "@creditsOpenSourceTitle": {
+    "description": "Heading of the open-source acknowledgements section on the credits page."
+  },
+  "creditsOpenSourceBody": "Moonrelay بر پایهٔ SDK ماتریکسِ دارت و بسیاری بسته‌های متن‌باز دیگر ساخته شده است. فهرست کامل را در صفحهٔ پروانه‌های شخص ثالث ببینید.",
+  "@creditsOpenSourceBody": {
+    "description": "First paragraph of the open-source acknowledgements section."
+  },
+  "creditsOpenSourceDerivedBody": "بخش‌هایی از ابزارهای قالب‌بندی تاریخ و زمان و رنگ از FluffyChat گرفته شده‌اند، با شرایط AGPLv3.",
+  "@creditsOpenSourceDerivedBody": {
+    "description": "Second paragraph of the open-source acknowledgements section, naming derived work."
+  },
+  "creditsRepositoryTitle": "مخزن کد",
+  "@creditsRepositoryTitle": {
+    "description": "Heading of the repository section on the credits page."
+  },
+  "creditsRepositoryBody": "تمام کد منبع برای بازرسی، ممیزی و مشارکت در مخزن پروژه در دسترس است:",
+  "@creditsRepositoryBody": {
+    "description": "Body of the repository section, introducing the link below it."
+  },
+  "creditsAuthorBody": "سورنا کریم‌پور غنیادی سازنده و نگهدارندهٔ اصلی Moonrelay است.",
+  "@creditsAuthorBody": {
+    "description": "First paragraph of the author section on the credits page."
+  },
+  "creditsAuthorContactBody": "می‌توانید از راه ماتریکس یا با باز کردن یک issue در مخزن پروژه با آن تماس بگیرید.",
+  "@creditsAuthorContactBody": {
+    "description": "Second paragraph of the author section on the credits page."
+  },
   "customizeExperience": "تجربه خود را سفارشی کنید",
   "appearance": "ظاهر",
   "controlLookAndFeel": "کنترل ظاهر و احساس برنامه",
@@ -950,6 +993,10 @@
         "type": "String"
       }
     }
+  },
+  "privacyPolicyLastUpdated": "آخرین به‌روزرسانی: ژوئن ۲۰۲۵",
+  "@privacyPolicyLastUpdated": {
+    "description": "The revision date at the foot of the privacy policy. It used to be a string literal in the widget, where it silently stopped being true as the document moved on."
   },
   "privacyPolicyText": "Moonrelay هیچ اطلاعاتی فراتر از آنچه برای عملکرد برنامه لازم است منتقل نمی‌کند. ما داده جمع‌آوری نمی‌کنیم، تله‌متری اجرا نمی‌کنیم و تبلیغات نمایش نمی‌دهیم. هر محتوایی که از طریق شبکه Matrix به اشتراک گذاشته شود خارج از این خط‌مشی حریم خصوصی است؛ در سرورهای اصلی Matrix قرار دارد و تابع خط‌مشی‌های مربوط به آنهاست.",
   "encryptedTooltip": "رمزنگاری‌شده",

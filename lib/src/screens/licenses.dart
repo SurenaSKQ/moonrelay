@@ -18,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/info_widgets.dart';
 
 /// A single license entry with its full text (loaded from assets).
 class _LicenseEntry {
@@ -126,188 +128,207 @@ class _LicensesScreenState extends State<LicensesScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final mono = ext.monoFontFamily;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(l10n.thirdPartyLicense),
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: _entries.length,
-        itemBuilder: (context, index) {
-          final entry = _entries[index];
-          final isOpen = _expanded.contains(index);
+    return MoonrelayInfoPage(
+      title: l10n.thirdPartyLicense,
+      children: <Widget>[
+        for (int index = 0; index < _entries.length; index++)
+          Padding(
+            padding: EdgeInsets.only(bottom: t.spaceMd),
+            child: _LicensePanel(
+              entry: _entries[index],
+              expanded: _expanded.contains(index),
+              onToggle: () {
+                setState(() {
+                  if (_expanded.contains(index)) {
+                    _expanded.remove(index);
+                  } else {
+                    _expanded.add(index);
+                    // Kick off loading the license text if needed.
+                    _loadLicenseText(index);
+                  }
+                });
+              },
+              monoFamily: mono,
+            ),
+          ),
+      ],
+    );
+  }
+}
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // -- Header (tappable) ------------------------------
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isOpen) {
-                          _expanded.remove(index);
-                        } else {
-                          _expanded.add(index);
-                          // Kick off loading the license text if needed.
-                          _loadLicenseText(index);
-                        }
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            LucideIcons.scrollText,
-                            size: 22,
-                            color: colors.primary,
+/// One dependency: its name, what it is for, and its licence behind a tap.
+///
+/// A widget rather than an inline `Card` so the loading, the mono block and the
+/// metadata rows are one named thing instead of 130 lines inside a
+/// `ListView.builder` item builder. It is also what makes the row testable, which
+/// it was not while it was assembled in place.
+class _LicensePanel extends StatelessWidget {
+  const _LicensePanel({
+    required this.entry,
+    required this.expanded,
+    required this.onToggle,
+    required this.monoFamily,
+  });
+
+  final _LicenseEntry entry;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final String monoFamily;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return InfoPanel(
+      padding: EdgeInsets.zero,
+      children: <Widget>[
+        // The header. `Material` rather than a bare `InkWell`, so the ripple
+        // lands on this row instead of on whatever `Material` happens to be
+        // above the whole list.
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: EdgeInsets.all(t.spaceLg),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          entry.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.3,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  entry.name,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: colors.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  entry.description,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: colors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        SizedBox(height: t.spaceXxs),
+                        Text(
+                          entry.description,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: scheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            isOpen
-                                ? LucideIcons.chevronUp
-                                : LucideIcons.chevronDown,
-                            size: 20,
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-
-                  // -- Packages & URL row (always visible) ------------
-                  if (!isOpen && entry.packages != null)
-                    _MetadataRow(
-                      icon: LucideIcons.package,
-                      text: entry.packages!,
-                    ),
-                  if (!isOpen && entry.url != null)
-                    _MetadataRow(
-                      icon: LucideIcons.externalLink,
-                      text: entry.url!,
-                    ),
-
-                  // -- Expanded full license text ---------------------
-                  if (isOpen) ...[
-                    if (entry.hasAsset && entry.fullText == null)
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: SizedBox(
-                          height: 40,
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                    if (entry.fullText != null)
-                      Container(
-                        width: double.infinity,
-                        color: colors.surfaceContainerHighest,
-                        padding: const EdgeInsets.all(16),
-                        child: SelectableText(
-                          entry.fullText!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.4,
-                            fontFamily: 'monospace',
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-
-                    // Metadata below the license text
-                    if (entry.packages != null)
-                      _MetadataRow(
-                        icon: LucideIcons.package,
-                        text: entry.packages!,
-                      ),
-                    if (entry.url != null)
-                      _MetadataRow(
-                        icon: LucideIcons.externalLink,
-                        text: entry.url!,
-                      ),
-
-                    const SizedBox(height: 8),
-                  ],
+                  SizedBox(width: t.spaceSm),
+                  Icon(
+                    expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                    size: t.iconSizeMedium,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        ),
+
+        // Metadata, before the text when collapsed so the package names and the
+        // homepage are one tap away without expanding, and after it when open
+        // so the licence itself is the thing you arrived to read.
+        if (!expanded) ...<Widget>[
+          if (entry.packages != null)
+            _MetadataRow(icon: LucideIcons.package, text: entry.packages!),
+          if (entry.url != null)
+            _MetadataRow(icon: LucideIcons.externalLink, text: entry.url!),
+        ],
+
+        if (expanded) ...<Widget>[
+          if (entry.hasAsset && entry.fullText == null)
+            Padding(
+              padding: EdgeInsets.all(t.spaceLg),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  SizedBox(
+                    width: t.iconSizeMedium,
+                    height: t.iconSizeMedium,
+                    child: CircularProgressIndicator(
+                      strokeWidth: t.borderWidthMedium,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (entry.fullText != null)
+            Container(
+              width: double.infinity,
+              // `surfaceContainerLowest`, the ramp's inset-well step, rather
+              // than `surfaceContainerHighest`, which is the composer's. A block
+              // of body text is an inset, and on this ramp the composer step is
+              // the brightest thing on screen.
+              color: scheme.surfaceContainerLowest,
+              padding: EdgeInsets.all(t.spaceLg),
+              child: SelectableText(
+                entry.fullText!,
+                style: TextStyle(
+                  // The app's mono family through the extension, not the
+                  // literal `'monospace'`. The welcome screen's wordmark had a
+                  // hardcoded `'Oxanium'` and this had a hardcoded
+                  // `'monospace'`, which is the same mistake twice.
+                  fontFamily: monoFamily,
+                  fontSize: 12,
+                  height: 1.45,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          if (entry.packages != null)
+            _MetadataRow(icon: LucideIcons.package, text: entry.packages!),
+          if (entry.url != null)
+            _MetadataRow(icon: LucideIcons.externalLink, text: entry.url!),
+          SizedBox(height: t.spaceSm),
+        ],
+      ],
     );
   }
 }
 
 /// A small row showing package names or a URL.
 class _MetadataRow extends StatelessWidget {
-  const _MetadataRow({
-    required this.icon,
-    required this.text,
-  });
+  const _MetadataRow({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      padding: EdgeInsets.fromLTRB(t.spaceLg, 0, t.spaceLg, t.spaceXs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 14, color: colors.onSurfaceVariant),
-          const SizedBox(width: 8),
+        children: <Widget>[
+          Icon(icon, size: t.iconSizeSmall, color: scheme.onSurfaceVariant),
+          SizedBox(width: t.spaceSm),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
                 fontSize: 12,
-                color: colors.onSurfaceVariant.withValues(alpha: 0.8),
+                height: 1.4,
+                // The muted token, not `0.8` alpha over the variant colour.
+                // `opacitySubtle` is the one the rest of the app uses and the
+                // two do not land on the same value.
+                color:
+                    scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
               ),
             ),
           ),
