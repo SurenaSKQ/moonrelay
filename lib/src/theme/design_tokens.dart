@@ -267,7 +267,7 @@ class MoonrelayDesignTokens {
   /// Closing that means stopping at `elevation:` for anything that needs
   /// depth and passing `shadowLow` / `shadowMedium` / `shadowHigh` directly.
   /// There are roughly seventy `elevation:` call sites and most of them ask
-  /// for zero, so the change is mechanical but wide. See WORK_NEEDED.md.
+  /// for zero, so the change is mechanical but wide.
   static const ({
     List<BoxShadow> low,
     List<BoxShadow> medium,

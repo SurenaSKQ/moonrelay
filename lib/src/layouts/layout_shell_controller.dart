@@ -109,7 +109,7 @@ class LayoutShellController {
   /// and by the hub's navigation pane. They have to agree: a hub that went
   /// two-pane in the same window where the dashboard went one-pane would be
   /// two layouts disagreeing about the same measurement, which is the
-  /// mistake the dashboard unification removed (see WORK_DONE.md section 44).
+  /// mistake the dashboard unification removed.
   ///
   /// The single-pane shell is excluded as well as the compact one: it is not
   /// "not quite wide enough", it is a different shell with its own

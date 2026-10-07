@@ -330,8 +330,7 @@ class MoonrelaySurfaceLayers {
   /// The compromise is one-directional: a very light seed comes out deeper
   /// than the user picked, and in dark mode that costs some of the vibrancy
   /// a light accent would have had. Doing it properly means two accents, one
-  /// for fills and one for text on dark surfaces; that is recorded in
-  /// WORK_NEEDED.md rather than invented here.
+  /// for fills and one for text on dark surfaces; not done here.
   static ({Color primary, Color onPrimary}) _legiblePair(
     Color seed,
     Color onSeed,

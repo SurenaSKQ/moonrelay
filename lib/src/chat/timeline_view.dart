@@ -466,7 +466,7 @@ void dispose() {
   /// the user has actually reached, not the newest event in the cache:
   /// the previous implementation always sent the newest cached event,
   /// so opening a room or flicking upwards through history marked
-  /// everything read (see WORK_NEEDED.md 8.2).
+  /// everything read.
   ///
   /// Item heights are variable, so the position cannot be derived from
   /// the scroll offset arithmetically.  Instead this walks the built

@@ -62,7 +62,7 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
   // The drag-hover field went with the space rows.  Reordering is still
   // possible, on the rail icons; a 72px column has no room for the drop
   // highlight the old rows drew, which is the one part of the move that costs
-  // something.  Recorded in WORK_NEEDED.md.
+  // something.
 
   /// Set when a new space arrived and the auto-group pass is still due.
   bool _pendingAutoGroup = false;

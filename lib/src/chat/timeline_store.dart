@@ -383,8 +383,7 @@ class TimelineStore {
   /// Position of [eventId] in [flatten], or `-1` when it is not loaded.
   ///
   /// Exact, and the answer a jump needs: the view uses it to index the
-  /// render list directly. See WORK_DONE.md section 55 for why the previous
-  /// map could not be trusted.
+  /// render list directly.
   ///
   /// The traversal has to apply the same dedupe as [flatten], or it counts
   /// the events [flatten] dropped and answers with an index that is too

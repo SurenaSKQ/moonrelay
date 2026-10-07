@@ -32,7 +32,7 @@ import 'package:moonrelay/src/widgets/info_widgets.dart';
 /// is not an improvement on an English one, it is a different and unreviewed
 /// document wearing the same heading, and this file is the one place in the app
 /// where shipping unreviewed prose to a user would be actively harmful. It is a
-/// translation task for the project owner, recorded in `WORK_NEEDED.md`.
+/// translation task for the project owner.
 ///
 /// The `'Last updated: June 2025'` line was hardcoded and had been wrong for
 /// two majors. It is a key now, and its value is whatever the owner last sets.

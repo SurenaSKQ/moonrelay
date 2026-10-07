@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Jumping to an event that is not in the local cache (WORK_NEEDED.md
-// 8.4).  The live timeline is anchored to the tail of the room and
+// Jumping to an event that is not in the local cache.  The live
+// timeline is anchored to the tail of the room and
 // cannot page forward, so the old code simply returned and the jump did
 // nothing.  These pin the replacement: build a `/context` window around
 // the event, show it, and offer a way back to the live tail.

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Regression tests for the single-flight contract documented in
-// WORK_DONE.md §10 ("Skeleton / debounce / single-flight").
+// Regression tests for the single-flight contract ("Skeleton /
+// debounce / single-flight").
 // `_requestMoreHistory` is single-flight: re-entrant calls
 // (e.g. _onScroll firing while auto-fill is also requesting) must
 // be coalesced into the in-flight request. The flag is set on entry

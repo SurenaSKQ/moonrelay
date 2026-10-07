@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Regression tests for the shared-stopwatch jump-to-unread fix
-// documented in WORK_DONE.md §10 ("Jump-to-unread / parallel
-// pagination"). `_paginateUntilMarker` is bounded by a single
+// ("Jump-to-unread / parallel pagination"). `_paginateUntilMarker`
+// is bounded by a single
 // shared stopwatch. The previous implementation had two sequential
 // 8 s global timeouts (one per direction), which could trap the
 // user on the loading pill for up to 16 s. The new implementation
@@ -31,7 +31,7 @@
 // asserted "under 31 s", which is the one shape of assertion that gets
 // harder to satisfy the busier the machine is: it failed once in five
 // full-suite runs under load while passing on reruns, which is a flaky
-// test rather than a regression. See WORK_NEEDED.md 1.3.
+// test rather than a regression.
 
 import 'dart:async';
 

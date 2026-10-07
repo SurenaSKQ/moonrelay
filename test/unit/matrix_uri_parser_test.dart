@@ -72,7 +72,7 @@ void main() {
 
       // The app generates event permalinks and used to be unable to
       // resolve them, so a link copied out of Moonrelay opened the room
-      // without focusing the message. See WORK_NEEDED.md 8.4.
+      // without focusing the message.
       test(r'parses matrix:roomid/!room:domain/$event', () {
         final result = MatrixUriParser.parse(
           'matrix:roomid/!roomid:example.org/\$eventid',

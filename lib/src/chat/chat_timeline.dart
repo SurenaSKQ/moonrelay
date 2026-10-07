@@ -403,7 +403,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
           _historyPager?.ensureFilled();
           // Claim only what the user can actually see.  Posting the newest
           // cached event here retired every unread message above the fold on
-          // each room open (WORK_NEEDED.md 8.2).
+          // each room open.
           _settleReadPosition();
         });
       case RetryFailed(:final error):
@@ -417,8 +417,8 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   /// and scrolls to it.
   ///
   /// The live timeline is anchored to the tail of the room and cannot page
-  /// forward (`canRequestFuture` is permanently false on it, see
-  /// WORK_NEEDED.md 8.1), so an event outside the local cache used to be an
+  /// forward (`canRequestFuture` is permanently false on it), so an event
+  /// outside the local cache used to be an
   /// unreachable target. A `/context` window is the only primitive this SDK
   /// offers for the job.
   ///
@@ -574,7 +574,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
     // Ask the view where the user's eye actually is, rather than
     // assuming they have read everything in the cache.  Posting the
     // newest cached event on every scroll tick is what made the
-    // timeline mark itself read (WORK_NEEDED.md 8.2).
+    // timeline mark itself read.
     final events = _renderEvents;
     final readId = _timelineViewKey.currentState?.oldestVisibleEventId;
     if (events.isNotEmpty && readId != null) {
@@ -684,8 +684,7 @@ class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
   ///
   /// The read position is always "the oldest thing the user can see",
   /// never "the newest event in the cache".  Collapsing the two is what
-  /// made the timeline retire unread it had not shown yet
-  /// (WORK_NEEDED.md 8.2).
+  /// made the timeline retire unread it had not shown yet.
   void _settleReadPosition({int attemptsLeft = 3}) {
     final events = _renderEvents;
     final readId = _timelineViewKey.currentState?.oldestVisibleEventId;

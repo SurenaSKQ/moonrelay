@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Regression test for the chat-page layout race (issue 6 in
-// WORK_DONE.md, and the §11 follow-up that closed the remaining
-// always-mounted Tooltips).
+// Regression test for the chat-page layout race (issue 6, and the
+// follow-up that closed the remaining always-mounted Tooltips).
 //
 // Background:
 // Flutter's `Tooltip` wraps its child in an internal `OverlayPortal`

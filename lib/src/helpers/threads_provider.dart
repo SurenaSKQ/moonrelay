@@ -46,8 +46,7 @@ class ThreadsProvider extends ChangeNotifier {
   /// Debounced sync listener wired via [bind]. We attach to the shared
   /// [SyncPulse] rather than subscribing to `client.onSync.stream`
   /// directly so the room doesn't accumulate its own raw-sync
-  /// subscription (see WORK_DONE.md, "Sync listener
-  /// consolidation").
+  /// subscription.
   SyncPulse? _pulse;
   VoidCallback? _pulseListener;
   int _lastPulseVersion = -1;

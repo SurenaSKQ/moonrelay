@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Regression tests for the onUpdate cache-invalidation fix
-// documented in WORK_DONE.md §10 ("Jump-to-unread / parallel
-// pagination"). The `onUpdate` callback in
+// ("Jump-to-unread / parallel pagination"). The `onUpdate`
+// callback in
 // `Room.getTimeline` previously was a no-op
 // (`onUpdate: () {}`). Newly-decrypted events and aggregation
 // updates touch event content without inserting/removing anything,

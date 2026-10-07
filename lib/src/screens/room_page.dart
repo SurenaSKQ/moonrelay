@@ -343,10 +343,9 @@ class _RoomPageState extends State<RoomPage> with LifecycleGeneration {
                 // no `height` of its own is half a pixel of slot. The sidebar's
                 // rule sets `height: 1` and therefore does not, which put the two
                 // hairlines either side of this seam at different heights and
-                // the bottom rows half a pixel out. Recorded in
-                // `WORK_NEEDED.md`: the theme's `space` is the bug, but fixing
-                // it there moves every divider in the app and is not this
-                // change's business.
+                // the bottom rows half a pixel out. The theme's `space` is the
+                // bug, but fixing it there moves every divider in the app and
+                // is not this change's business.
                 const Divider(height: 1, thickness: 1),
                 TypingIndicator(room: widget.room),
                 ChatBox(

@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Tests for the compare-and-swap semantics in [ReadMarkerService]
-// documented in WORK_DONE.md §10 ("Read-marker CAS").
+// Tests for the "Read-marker CAS" semantics in [ReadMarkerService].
 // Each write carries a monotonic sequence number; a stale write with
 // a smaller sequence number must not overwrite a more recent marker.
 // Without this guard two concurrent async writes can reorder a newer

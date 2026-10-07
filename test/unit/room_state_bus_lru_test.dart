@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Regression tests for the LRU contract documented in
-// WORK_DONE.md §10 ("Memory bound on per-room state"). The per-room
-// [ValueNotifier] map in [RoomStateBus] is LRU-bounded at
-// [_maxRooms] entries. Evicted rooms have their notifier disposed so
-// listeners drop their subscriptions cleanly, and the eviction policy
-// drops the least-recently-used entry (the head of the [LinkedHashMap]).
+// Regression tests for the "Memory bound on per-room state" LRU
+// contract. The per-room [ValueNotifier] map in [RoomStateBus] is
+// LRU-bounded at [_maxRooms] entries. Evicted rooms have their
+// notifier disposed so listeners drop their subscriptions cleanly,
+// and the eviction policy drops the least-recently-used entry (the
+// head of the [LinkedHashMap]).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/helpers/room_state_bus.dart';

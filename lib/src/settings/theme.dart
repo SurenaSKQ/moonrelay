@@ -231,8 +231,7 @@ class MoonrelayTheme {
       // Focus still outranks hover: a keyboard user cannot hover, so the
       // focus tint is their only cue and the only state they cannot produce
       // by accident. It is a tint rather than a ring, so it does not by
-      // itself satisfy the WCAG 2.2 focus-appearance contrast minimum; see
-      // WORK_NEEDED.md.
+      // itself satisfy the WCAG 2.2 focus-appearance contrast minimum.
       focusColor: colorScheme.primary.withValues(alpha: tokens.opacityFocusRing),
 
       // Component themes derived from tokens

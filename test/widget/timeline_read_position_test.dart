@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// End-to-end pins for the read-position fix described in
-// WORK_NEEDED.md 8.2 and 8.3.  These build a real rendered timeline
-// because the bug lived in the seam between the scroll position and the
-// receipt, and a mock of either side would not have caught it.
+// End-to-end pins for the read-position fix.  These build a real
+// rendered timeline because the bug lived in the seam between the
+// scroll position and the receipt, and a mock of either side would
+// not have caught it.
 //
 // The two behaviours under test:
 //  1. Opening a room posts a receipt for the oldest message on screen,

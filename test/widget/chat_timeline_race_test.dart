@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Regression tests for the chat-timeline race fix documented in
-// WORK_DONE.md §10 ("Race / cancellation discipline"). When the
+// Regression tests for the chat-timeline race fix ("Race /
+// cancellation discipline"). When the
 // parent rebuilds [ChatTimeline] with a different [Room] before the
 // first room's `_initTimeline` future resolves, the late
 // continuation from the *old* room must not overwrite the *new*

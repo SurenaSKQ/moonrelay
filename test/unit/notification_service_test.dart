@@ -25,9 +25,9 @@
 // The internal `_processRooms` method is private and depends on
 // `flutter_local_notifications`; it is not unit-testable without
 // injecting the plugin.  The muted-room surface and the
-// state-error contract are pinned here so the refactors in
-// `WORK.md` (e.g. extracting a `NotificationGateway` interface)
-// have a target to keep green.
+// state-error contract are pinned here so a refactor such as
+// extracting a `NotificationGateway` interface has a target to
+// keep green.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';

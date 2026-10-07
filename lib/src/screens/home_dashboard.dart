@@ -212,7 +212,6 @@ class HomeDashboard extends StatelessWidget {
   /// would be a network call per room on a pane that renders on every entry.
   /// So this uses the creation time alone, which is honest about being a
   /// rough sort rather than pretending to know when someone last spoke.
-  /// Recorded in WORK_NEEDED.md as the thing to fix if it matters.
   static DateTime _lastActivity(Room room) =>
       roomCreatedAt(room) ?? DateTime.fromMillisecondsSinceEpoch(0);
 }

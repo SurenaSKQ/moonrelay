@@ -16,7 +16,7 @@
 
 // Read-receipt policy tests.  These pin the rule that broke the
 // unread affordance: a receipt names the event the user actually
-// reached, and it only ever moves forward.  See WORK_NEEDED.md 8.2.
+// reached, and it only ever moves forward.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matrix/matrix.dart';

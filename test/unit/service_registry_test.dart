@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Tests for the ordered shutdown registry documented in
-// WORK_DONE.md §10 ("Ordered shutdown"). Services are torn down in
+// Tests for the "Ordered shutdown" registry. Services are torn down in
 // reverse registration order so dependents are disposed before
 // their dependencies. Failures from one service must not block later
 // ones.
