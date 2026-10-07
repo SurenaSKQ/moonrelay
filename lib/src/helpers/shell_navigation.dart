@@ -142,7 +142,7 @@ void closeToRoomList(BuildContext context) =>
 /// two ways to be on that screen and therefore two back behaviours.
 /// Sends the user to the one page for making or finding a room or a space.
 ///
-/// The sSpace flag went away with the page it used to choose between. A
+/// The isSpace flag went away with the page it used to choose between. A
 /// room and a space are the same create call with one flag and the form on the
 /// destination already toggles between them, so a second route could only
 /// ever be a second URL for the same question.

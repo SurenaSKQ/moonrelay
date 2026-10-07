@@ -197,7 +197,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -225,7 +225,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -250,7 +250,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -286,7 +286,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -323,7 +323,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -357,7 +357,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.
@@ -393,7 +393,7 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in ddTearDown, because the
+      // Disposed inside the body rather than in addTearDown, because the
       // directory timer is still pending at this point on purpose and the
       // binding's invariant check runs before tearDowns. Leaving 450ms of
       // pending timer would fail every one of these tests for the wrong reason.

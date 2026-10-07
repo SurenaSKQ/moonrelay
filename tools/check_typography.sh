@@ -16,9 +16,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Fails when forbidden typography sneaks back into the tree: em dashes,
-# en dashes, non-breaking hyphens, UTF-8 BOMs, and comment banner rules.
-# The dash lookalikes break search and copy in ways that are invisible to
-# review.
+# en dashes, non-breaking hyphens, UTF-8 BOMs, comment banner rules, and
+# stray control characters. The dash lookalikes break search and copy in
+# ways that are invisible to review.
 #
 # Usage: ./tools/check_typography.sh
 
@@ -67,5 +67,10 @@ fi
 # Section banner rules: a comment line made only of a repeated rule character.
 # They carry no information and go stale silently when the section changes.
 check "banner rule" '^\s*(//|\*)\s*[-=~_*\.]{6,}\s*$' "${DART_DIRS[@]}" "${DOCS[@]}"
+
+# Stray C0 control characters and DEL. A past edit replaced the first letter
+# of four identifiers with these, leaving `addTearDown` reading as
+# `<BEL>ddTearDown`. They are invisible in review and in most editors.
+check "control char" '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]' "${DART_DIRS[@]}" "${DOCS[@]}" "${YAML[@]}"
 
 exit "$fail"

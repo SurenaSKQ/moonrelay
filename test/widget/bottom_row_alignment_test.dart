@@ -191,7 +191,7 @@ void main() {
 
   /// The bottom edge of the window, in logical pixels.
   ///
-  /// ind.byType(Scaffold) matches the test's own Scaffold and the one
+  /// find.byType(Scaffold) matches the test's own Scaffold and the one
   /// inside wrapWithProviders, so getSize would throw. The window bottom
   /// is what both columns end at, and it is what the view is sized to.
   double windowBottom(WidgetTester tester) =>
@@ -199,7 +199,7 @@ void main() {
 
   /// The profile pill, scoped to the sidebar.
   ///
-  /// ind.byType alone matches more than one: the sidebar renders a
+  /// find.byType alone matches more than one: the sidebar renders a
   /// compact and a full variant and both carry the pill, so an unscoped
   /// getSize throws Too many elements.
   Finder theFooterPill() => find

@@ -76,7 +76,7 @@ class WindowTitleBar extends StatelessWidget {
   /// would read as the strip, and a window where they all agree does not.
   ///
   /// A static getter rather than a constant, because the value now lives in the
-  /// theme. Every caller is inside a uild with a context, so this is free.
+  /// theme. Every caller is inside a build with a context, so this is free.
   static double height(BuildContext context) =>
       MoonrelayThemeExtension.of(context).tokens.paneBarHeight;
 
