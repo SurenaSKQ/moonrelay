@@ -78,8 +78,12 @@ void main() {
     // pass for the wrong reason, and the whole file is about a row that was
     // wrongly absent. So every test here looks at a page that has been
     // scrolled to where the row would be.
+    // `.first`, not `.single`: the page body is an `InfoPanel`'s `ListView`, and
+    // the power levels editor nests a `SingleChildScrollView` inside it, so
+    // `find.byType(Scrollable)` matches more than one. Depth-first traversal
+    // puts the outer, page-level scrollable first, which is the one to move.
     final Scrollable scrollable = tester.widget<Scrollable>(
-      find.byType(Scrollable),
+      find.byType(Scrollable).first,
     );
     scrollable.controller
         ?.jumpTo(scrollable.controller!.position.maxScrollExtent);
