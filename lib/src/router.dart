@@ -16,37 +16,63 @@
 
 import 'dart:async';
 
-import 'package:moonrelay/src/helpers/profile_delegate.dart';
 import 'package:moonrelay/src/layouts/app_frame.dart';
 import 'package:moonrelay/src/layouts/dashboard_layout.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/layouts/mobile_layout.dart';
 import 'package:moonrelay/src/layouts/startscreen_frame.dart';
 import 'package:moonrelay/src/screens/register_page_inclient.dart';
 import 'package:moonrelay/src/screens/startup_home_frame.dart';
-import 'package:moonrelay/src/screens/hub_screen.dart';
-import 'package:moonrelay/src/screens/login_page.dart';
-import 'package:moonrelay/src/screens/add_room_from_id.dart';
-import 'package:moonrelay/src/screens/room_details_page.dart';
+import 'package:moonrelay/src/screens/login_page/login_page.dart';
+import 'package:moonrelay/src/screens/explore/explore_page.dart';
 import 'package:moonrelay/src/screens/room_preview_screen.dart';
-import 'package:moonrelay/src/screens/room_settings_page.dart';
-import 'package:moonrelay/src/screens/space_home_page.dart';
+import 'package:moonrelay/src/screens/room_settings/room_settings_page.dart';
+import 'package:moonrelay/src/screens/space_home_page/space_home_page.dart';
 import 'package:moonrelay/src/screens/space_settings_page.dart';
-import 'package:moonrelay/src/screens/startup_screen.dart';
+import 'package:moonrelay/src/screens/startup_screen/startup_screen.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
-import 'package:moonrelay/src/helpers/room_delegate.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/router_paths.dart';
+import 'package:moonrelay/src/screens/home_dashboard.dart';
+import 'package:moonrelay/src/screens/hub_screen/hub_screen.dart';
+import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
+import 'package:moonrelay/src/screens/spaces_list_page.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/widgets/empty_state.dart';
+import 'package:moonrelay/src/widgets/profile_view.dart';
+import 'package:moonrelay/src/widgets/room_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:moonrelay/src/screens/encryption/device_list_screen.dart';
 
+/// The application's route table.
+///
+/// Every route uses `builder:` rather than `pageBuilder:`. `pageBuilder`
+/// hands back a [Page], which buys per-route transitions and
+/// `NoTransitionPage`, but in practice it was only ever used to funnel every
+/// widget through `genericPageBuilder`, and that put three things in the
+/// router that did not belong there: the user's animation preference, a
+/// hand-rolled fade, and a mid-build call to `LayoutShellController.update`.
+/// Transitions are now a theme concern
+/// (`MoonrelayPageTransitionsBuilder`), so routes only describe what they
+/// render.
+///
+/// It also means route widgets are ordinary widgets again. The old
+/// `RoomDelegate` / `ProfileDelegate` wrappers existed to do work a
+/// `builder:` closure can do inline; see [RoomResolver] and [ProfileView].
 class MoonRouter {
+  MoonRouter();
+
   /// Returns `true` when the active account has a valid Matrix session.
   static bool _isLoggedIn(BuildContext context) {
     try {
       final client = Provider.of<Client>(context, listen: false);
       return client.isLogged();
     } catch (_) {
+      // Not in the tree yet, which during boot means no session either.
       return false;
     }
   }
@@ -65,92 +91,88 @@ class MoonRouter {
     return _isLoggedIn(context) ? null : '/welcome';
   }
 
-  MoonRouter();
+  // -- Route param helpers ----------------------------------------------
 
-  /// Resolves a space room from route parameters, or null if not found.
+  /// Reads a path parameter, or an empty string when it is absent.
+  ///
+  /// GoRouter has already percent-decoded matched segments by the time they
+  /// reach [GoRouterState.pathParameters], so this deliberately does *not*
+  /// decode again. Decoding twice is not a no-op: a user ID containing a
+  /// literal `%` (which is legal in a Matrix localpart) would throw a
+  /// [FormatException] on the second pass. The old router decoded in some
+  /// places and not others, which is how a `redirect` came to compare a
+  /// decoded value while the neighbouring `builder` passed an undecoded one.
+  static String _param(GoRouterState state, String name) {
+    return state.pathParameters[name] ?? '';
+  }
+
+  /// Resolves a space room from the `:spaceid` parameter, or null.
   static Room? _spaceFromState(BuildContext context, GoRouterState state) {
-    final spaceId = state.pathParameters['spaceid'];
-    if (spaceId == null) return null;
+    final spaceId = _param(state, 'spaceid');
+    if (spaceId.isEmpty) return null;
     return Provider.of<Client>(context, listen: false).getRoomById(spaceId);
   }
 
-  /// Resolves a room from the route's :roomid parameter.
-  static Room _roomFromState(BuildContext context, GoRouterState state) {
-    final roomId = state.pathParameters['roomid']!;
-    return Provider.of<Client>(context, listen: false).getRoomById(roomId)!;
+  /// Resolves a room from the `:roomid` parameter, or null when the room is
+  /// not in the sync cache yet (e.g. a cold deep link to a room that has not
+  /// been synced). Callers render a not-found page instead of throwing.
+  static Room? _roomFromState(BuildContext context, GoRouterState state) {
+    final roomId = _param(state, 'roomid');
+    if (roomId.isEmpty) return null;
+    return Provider.of<Client>(context, listen: false).getRoomById(roomId);
   }
 
-  /// Builds a "not found" fallback page for missing rooms/spaces.
-  static Page _notFoundPage(
-    BuildContext context,
-    GoRouterState state,
-    String label,
-  ) =>
-      genericPageBuilder(context, state, Center(child: Text(label)));
+  /// A not-found page for a room or space that could not be resolved.
+  static Widget _notFound(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return EmptyState(
+      icon: Icons.search_off,
+      title: l10n?.error ?? 'Error',
+      message: l10n?.roomNotFound ?? 'Room not found',
+    );
+  }
 
-  // TODO: If the user is on desktop use a frame, if the user is on mobile use mobile layout.
+  // -- Routes ------------------------------------------------------------
+
   static final List<RouteBase> routes = [
     ShellRoute(
-      pageBuilder: (context, state, child) => genericPageBuilder(
-        context,
-        state,
-        StartscreenFrame(child: child),
-      ),
+      builder: (context, state, child) => StartscreenFrame(child: child),
       routes: [
         ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            StartupHomeFrame(
-              child: child,
-            ),
-          ),
+          builder: (context, state, child) => StartupHomeFrame(child: child),
           redirect: loggedInRedirect,
           routes: [
             GoRoute(
               path: '/welcome',
-              pageBuilder: (context, state) =>
-                  genericPageBuilder(context, state, StartupScreen()),
+              builder: (context, state) => const StartupScreen(),
               routes: [
                 GoRoute(
                   path: 'login',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    const LoginPage(),
-                  ),
+                  builder: (context, state) => const LoginPage(),
                 ),
                 GoRoute(
                   path: 'register',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    const RegisterInClientPage(),
-                  ),
+                  builder: (context, state) => const RegisterInClientPage(),
                 ),
               ],
             ),
           ],
         ),
-    // Unauthenticated route for adding a new account while another is
-    // already active.  Bypasses the loggedInRedirect on the welcome
-    // shell by living outside that shell route hierarchy.
-    GoRoute(
-      path: '/add-account',
-      pageBuilder: (context, state) => genericPageBuilder(
-        context,
-        state,
-        const LoginPage(),
-      ),
-    ),
+        // Unauthenticated route for adding a new account while another is
+        // already active.  Bypasses the loggedInRedirect on the welcome
+        // shell by living outside that shell route hierarchy.  Also guards
+        // against being navigated to while logged out (e.g. a stale link
+        // resolved before logout completed) by redirecting to /welcome so
+        // the user is never stranded on a bare LoginPage without its frame.
+        GoRoute(
+          path: '/add-account',
+          redirect: loggedOutRedirect,
+          builder: (context, state) => const LoginPage(),
+        ),
       ],
     ),
     ShellRoute(
-      pageBuilder: (context, state, child) => genericPageBuilder(
-        context,
-        state,
-        AppFrame(child: child),
-      ),
+      builder: (context, state, child) => AppFrame(child: child),
       routes: [
         GoRoute(
           path: '/',
@@ -158,115 +180,77 @@ class MoonRouter {
               _isLoggedIn(context) ? '/main/rooms' : '/welcome',
         ),
         ShellRoute(
-          pageBuilder: (context, state, child) => genericPageBuilder(
-            context,
-            state,
-            // The DashboardLayout replaces the old TwoColumnLayout.
-            // It reads sidebar visibility and pane choice from
-            // SettingsController and uses LayoutBuilder for responsive
-            // breakpoints. The user profile button is now rendered
-            // in the AppFrame header bar.
-            DashboardLayout(child: child),
-          ),
+          builder: (context, state, child) => _AdaptiveMainLayout(child: child),
           routes: [
             GoRoute(
               path: '/main/rooms',
               redirect: loggedOutRedirect,
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                RoomDelegate(
-                  roomID: state.pathParameters['roomid'],
-                  threadRootEventId: state.uri.queryParameters['threadRoot'],
-                ),
-              ),
+              builder: (context, state) => const RoomsListRoute(),
               routes: [
                 GoRoute(
                   path: ':roomid',
-                  pageBuilder: (context, state) => genericPageBuilder(
-                    context,
-                    state,
-                    RoomDelegate(
-                      roomID: state.pathParameters['roomid']!,
-                      threadRootEventId:
-                          state.uri.queryParameters['threadRoot'],
-                    ),
-                  ),
                   redirect: loggedOutRedirect,
+                  builder: (context, state) => RoomResolver(
+                    roomId: _param(state, 'roomid'),
+                    threadRootEventId: state.uri.queryParameters['threadRoot'],
+                    focusEventId: state.uri.queryParameters['event'],
+                  ),
                   routes: [
                     GoRoute(
                       path: 'profile',
-                      pageBuilder: (context, state) => genericPageBuilder(
-                        context,
-                        state,
-                        ProfileDelegate(
-                          userid: state.pathParameters['userid'],
-                        ),
+                      builder: (context, state) => ProfileView(
+                        userId: _param(state, 'userid'),
                       ),
                       routes: [
-                        // IMPORTANT: literal paths must come before
-                        // parameterized ones so GoRouter matches them
-                        // first (e.g. "roomDetails" must precede :userid).
-                        GoRoute(
-                          path: 'roomDetails',
-                          pageBuilder: (context, state) {
-                            final room = _roomFromState(context, state);
-                            return genericPageBuilder(
-                              context,
-                              state,
-                              RoomInformations(room: room),
-                            );
-                          },
-                        ),
                         GoRoute(
                           path: ':userid',
                           redirect: (context, state) {
-                            final userid = state.pathParameters['userid'];
-                            if (userid == null) return null;
+                            final userid = _param(state, 'userid');
+                            if (userid.isEmpty) return '/main/rooms';
+                            // Own profile has its own route so the existing
+                            // self-profile flow keeps working.
                             try {
                               final client =
                                   Provider.of<Client>(context, listen: false);
                               if (userid == client.userID) {
                                 return '/main/myprofile';
                               }
-                            } catch (_) {}
-                            return null;
+                            } catch (_) {
+                              // No session in the tree: fall through and
+                              // let the profile view report the failure.
+                            }
+                            // Profile viewing is decoupled from the
+                            // room route; redirect any deep link with
+                            // the form /main/rooms/.../profile/<userid>
+                            // to the top-level /profile/<userid> so it
+                            // works even when the user isn't joined to
+                            // the originating room. The value arrives
+                            // decoded, so it has to be re-encoded to go
+                            // back into a path segment.
+                            return '/profile/${Uri.encodeComponent(userid)}';
                           },
-                          pageBuilder: (context, state) => genericPageBuilder(
-                            context,
-                            state,
-                            ProfileDelegate(
-                              userid: state.pathParameters['userid'],
-                            ),
-                          ),
+                          builder: (context, state) =>
+                              ProfileView(userId: _param(state, 'userid')),
                         ),
                       ],
                     ),
                     GoRoute(
                       path: 'thread/:threadRootId',
-                      pageBuilder: (context, state) {
+                      builder: (context, state) {
                         final room = _roomFromState(context, state);
-                        final threadRootId =
-                            state.pathParameters['threadRootId']!;
-                        return genericPageBuilder(
-                          context,
-                          state,
-                          ThreadViewPage(
-                            room: room,
-                            threadRootEventId: threadRootId,
-                          ),
+                        if (room == null) return _notFound(context);
+                        return ThreadViewPage(
+                          room: room,
+                          threadRootEventId: _param(state, 'threadRootId'),
                         );
                       },
                     ),
                     GoRoute(
                       path: 'settings',
-                      pageBuilder: (context, state) {
+                      builder: (context, state) {
                         final room = _roomFromState(context, state);
-                        return genericPageBuilder(
-                          context,
-                          state,
-                          RoomSettingsPage(room: room),
-                        );
+                        if (room == null) return _notFound(context);
+                        return RoomSettingsPage(room: room);
                       },
                     ),
                   ],
@@ -275,95 +259,353 @@ class MoonRouter {
             ),
             GoRoute(
               path: '/main/myprofile',
-              pageBuilder: (context, state) {
-                final Client client =
-                    Provider.of<Client>(context, listen: false);
-                return genericPageBuilder(
-                    context, state, HubScreen(client: client));
+              builder: (context, state) => ProfileView(
+                userId: _ownUserId(context),
+              ),
+            ),
+            // The single-pane shell's four destinations. They are routes
+            // rather than `NavigationState` sentinels so they deep link,
+            // survive a cold start, and let the navigation bar read its
+            // selected index off the matched route instead of a second
+            // source of truth. See [FocusDestination].
+            //
+            // `/main/rooms` doubles as the dashboard's room list, so this
+            // only adds the three that had no route at all.
+            GoRoute(
+              path: MoonRoutePaths.spacesTemplate,
+              redirect: loggedOutRedirect,
+              builder: (context, state) => const SpacesListPage(),
+            ),
+            // The single-pane shell's "You" navigation destination.
+            //
+            // A redirect to the hub rather than a page of its own. It used
+            // to host the profile editor plus three links into the hub, which
+            // meant two routes rendering the same editor and a second place
+            // for the hub's section list to be maintained. The hub's index
+            // *is* the profile followed by that list, in the same order, so
+            // this is the same screen with one less thing to keep in step.
+            //
+            // The route stays, because the navigation bar needs a
+            // destination to land on and deep links to it already exist.
+            GoRoute(
+              path: MoonRoutePaths.youTemplate,
+              redirect: (context, state) {
+                final redirect = loggedOutRedirect(context, state);
+                return redirect ?? hubPath();
               },
+            ),
+            // Stand-alone profile route.  Decoupled from the room tree
+            // so opening a user profile from a matrix link, deep link,
+            // command palette, or inline mention doesn't require the
+            // user to be inside a particular room.  When the userid is
+            // the active account we redirect to `/main/myprofile` so
+            // the existing self-profile flow keeps working.
+            GoRoute(
+              path: '/profile/:userid',
+              redirect: (context, state) {
+                final userid = _param(state, 'userid');
+                if (userid.isEmpty) return null;
+                try {
+                  final client = Provider.of<Client>(context, listen: false);
+                  if (userid == client.userID) {
+                    return '/main/myprofile';
+                  }
+                } catch (_) {
+                  // No session in the tree; let the view report it.
+                }
+                return null;
+              },
+              builder: (context, state) =>
+                  ProfileView(userId: _param(state, 'userid')),
             ),
             GoRoute(
               path: '/main/encryption',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const EncryptionOverviewScreen(),
-              ),
+              builder: (context, state) => const EncryptionOverviewScreen(),
             ),
             GoRoute(
               path: '/main/devices',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
-                state,
-                const DeviceListScreen(),
-              ),
+              builder: (context, state) => const DeviceListScreen(),
             ),
             GoRoute(
               path: '/main/space/:spaceid',
-              pageBuilder: (context, state) {
-                final space = _spaceFromState(context, state);
-                if (space == null) {
-                  return _notFoundPage(context, state, 'Space not found');
-                }
-                return genericPageBuilder(
-                  context,
-                  state,
-                  SpaceHomePage(space: space),
-                );
-              },
               redirect: loggedOutRedirect,
+              builder: (context, state) {
+                final space = _spaceFromState(context, state);
+                if (space == null) return _notFound(context);
+                return SpaceHomePage(space: space);
+              },
               routes: [
                 GoRoute(
                   path: 'settings',
-                  pageBuilder: (context, state) {
+                  builder: (context, state) {
                     final space = _spaceFromState(context, state);
-                    if (space == null) {
-                      return _notFoundPage(
-                          context, state, 'Space not found');
-                    }
-                    return genericPageBuilder(
-                      context,
-                      state,
-                      SpaceSettingsPage(space: space),
-                    );
+                    if (space == null) return _notFound(context);
+                    return SpaceSettingsPage(space: space);
                   },
                 ),
               ],
             ),
             GoRoute(
               path: '/main/room_preview/:roomid',
-              pageBuilder: (context, state) {
-                final String roomId = state.pathParameters['roomid']!;
-                return genericPageBuilder(
-                  context,
-                  state,
-                  RoomPreviewScreen(roomId: roomId),
-                );
-              },
               redirect: loggedOutRedirect,
+              builder: (context, state) => RoomPreviewScreen(
+                roomId: _param(state, 'roomid'),
+              ),
+            ),
+            // One page for making or finding a room or a space.
+//
+// The three routes below all redirect into it rather than each building a
+// page. Redirect rather than an alias because a redirect also fixes the URL,
+// so the back button and a copied link both behave, and because three routes
+// pointing at one builder is three places to forget to update when it changes.
+            GoRoute(
+              path: MoonRoutePaths.explorePath,
+              builder: (context, state) => const ExplorePage(),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.createRoomPath,
+              redirect: (_, __) => MoonRoutePaths.exploreCreatePath,
+            ),
+            GoRoute(
+              path: MoonRoutePaths.createSpacePath,
+              redirect: (_, __) => MoonRoutePaths.exploreCreatePath,
             ),
             GoRoute(
               path: '/main/addroom',
-              pageBuilder: (context, state) => genericPageBuilder(
-                context,
+              redirect: (_, __) => MoonRoutePaths.explorePath,
+            ),
+          ],
+        ),
+        // The hub, as a full-screen page on both shells.
+        //
+        // A sibling of the /main ShellRoute rather than a route inside
+        // it, on purpose. Nested inside, it would render in the dashboard's
+        // middle pane and behind the single-pane shell's navigation bar:
+        // two different presentations of the same screen. As a sibling it is
+        // the whole window in both, so the only difference between the
+        // shells here is how the user arrived.
+        //
+        // It shares AppFrame with /main, so the window title bar and
+        // its drag region are identical. Both ShellRoutes sit under the same
+        // navigator, so entering the hub with push keeps the chat
+        // underneath and the hub's own back button returns to it.
+        ShellRoute(
+          builder: (context, state, child) => child,
+          routes: [
+            // The index: your profile, with the section list under it on a
+            // narrow window and beside it on a wide one. No redirect, because
+            // the index is a real page rather than a default for a missing
+            // category.
+            GoRoute(
+              path: MoonRoutePaths.hubIndex,
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: null,
+              ),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.hubTemplate,
+              redirect: (context, state) => hubRedirect(state, subKey: null),
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: _param(state, 'category'),
+              ),
+            ),
+            GoRoute(
+              path: MoonRoutePaths.hubSubTemplate,
+              // A sub-item only exists under a category that has items, and
+              // "network" is the standing proof that this list has drifted
+              // from the real one before: a command-palette entry pointed at
+              // /hub/settings/network, which has never been a sub-item and
+              // rendered an empty page. Rejecting it here turns that class
+              // of dead link into a redirect rather than a blank pane.
+              redirect: (context, state) => hubRedirect(
                 state,
-                const AddRoomPage(),
+                subKey: _param(state, 'sub'),
+              ),
+              builder: (context, state) => HubScreen(
+                client: Provider.of<Client>(context, listen: false),
+                categoryKey: _param(state, 'category'),
+                subKey: _param(state, 'sub'),
               ),
             ),
           ],
-        )
+        ),
       ],
     ),
   ];
 
-  static Page genericPageBuilder(
-    BuildContext context,
-    GoRouterState state,
-    Widget child,
-  ) =>
-      NoTransitionPage(
-        key: state.pageKey,
-        restorationId: state.pageKey.value,
-        child: child,
+  /// Validates a hub location, falling back to the landing page.
+  ///
+  /// Returns null when the location is already good, so it composes with
+  /// GoRouter's redirect as "fix it, or leave it alone".
+  ///
+  /// Public because the router's tests need it and had been keeping a second
+  /// copy. That copy had already fallen behind: when `/hub/settings/layout` was
+  /// retired the real redirect learned to send it to the page it became and the
+  /// test copy did not, so the tests were asserting against a router the app
+  /// does not run. A test double for a redirect is a redirect nobody maintains.
+  static String? hubRedirect(GoRouterState state, {String? subKey}) {
+    final String category = _param(state, 'category');
+    // An unknown category is the index page rather than an error: the index
+    // is a real destination, and a mistyped or retired link is better served
+    // by the hub's front door than by a blank pane.
+    if (!HubRouteKeys.isCategory(category)) return MoonRoutePaths.hubIndex;
+    if (subKey == null || subKey.isEmpty) return null;
+    // Only the settings category has sub-items today. Checking the parent as
+    // well as the key keeps /hub/about/whatever from rendering an About
+    // page that silently ignores the extra segment.
+    if (category != HubRouteKeys.settings) return hubPath(category: category);
+    // A retired sub-item answers with the page it became. Falling through to
+    // the section overview instead would send a bookmark to the one page the
+    // reader is least likely to recognise, having silently dropped the thing
+    // they asked for.
+    if (HubRouteKeys.replacementFor(subKey) case final String replacement) {
+      return hubPath(category: category, sub: replacement);
+    }
+    if (!HubRouteKeys.isSettingsSubItem(subKey)) {
+      return hubPath(category: category);
+    }
+    return null;
+  }
+
+  /// The signed-in account's own user ID, or an empty string when there is
+  /// no session yet.
+  ///
+  /// `/main/myprofile` exists precisely to mean "my profile", so it resolves
+  /// the ID here instead of handing a null down to a widget that had to
+  /// guess whether null meant "use mine" or "this is broken".
+  static String _ownUserId(BuildContext context) {
+    try {
+      return Provider.of<Client>(context, listen: false).userID ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+}
+
+/// The content behind `/main/rooms` when no room is selected.
+///
+/// This page is always on the stack: when a room *is* open, the `:roomid`
+/// page sits on top of it, so what renders here only matters when the user
+/// has backed out to the room list. On mobile that is a full page; on the
+/// dashboard it is the main pane beside the room sidebar, where the old
+/// code rendered a `RoomDelegate` with a null room ID and produced a
+/// "Room not found" error card.
+///
+/// Deliberately reads no room ID: the child route owns that, and this page
+/// reaching into the matched child parameters is how the two used to
+/// disagree about which shell was showing.
+class RoomsListRoute extends StatelessWidget {
+  const RoomsListRoute({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Reads the shell resolved by _AdaptiveMainLayout earlier in this same
+    // build pass: it is an ancestor, so its decision is already committed.
+    // A descendant reading a resolved value needs no listener.
+    final shell = context.read<LayoutShellController>();
+    if (shell.isMobile) return const MobileRoomsListPage();
+
+    // The dashboard needs the client to list recent rooms. It is optional in
+    // the tree during the logout transition, and a welcome panel with no
+    // rooms behind it beats an exception on the way out.
+    final client = context.read<Client?>();
+    if (client == null) {
+      final l10n = AppLocalizations.of(context);
+      return EmptyState(
+        icon: Icons.forum_outlined,
+        title: l10n?.noRoomSelected ?? 'No room selected',
+        message: l10n?.noRoomSelectedHint ??
+            'Pick a room from the sidebar to start reading or chatting.',
       );
+    }
+    return HomeDashboard(client: client);
+  }
+}
+
+/// Selects between the multi-pane [DashboardLayout] and the single-pane
+/// [MobileLayout] for the main chat surface.
+///
+/// Both layouts live inside the same [ShellRoute] so they share the
+/// `/main/rooms` route tree; the only difference is how the route's
+/// `child` is wrapped.
+///
+/// The shell decision itself belongs to [LayoutShellController], which every
+/// layout consumer reads, so the frame and the route pages cannot disagree.
+/// This widget renders the committed shell and nothing else. It does *not*
+/// mutate the controller during build: committing from `build` forced
+/// `notifyListeners` to be deferred to a post-frame callback, which in turn
+/// made it look safe to also drive navigation from the same place. The
+/// commit happens in [didChangeDependencies], which is outside the build
+/// pass, so a shell flip now rebuilds the layout and leaves the route stack
+/// exactly as it was.
+class _AdaptiveMainLayout extends StatefulWidget {
+  const _AdaptiveMainLayout({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_AdaptiveMainLayout> createState() => _AdaptiveMainLayoutState();
+}
+
+class _AdaptiveMainLayoutState extends State<_AdaptiveMainLayout> {
+  /// The controller whose `layoutMode` drives the shell, held so a
+  /// settings change can re-resolve without rebuilding this widget.
+  SettingsController? _settings;
+
+  /// Latest window width, refreshed on every resize. Kept as a field so
+  /// the settings listener does not have to read MediaQuery outside the
+  /// dependency phase.
+  double _width = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Re-evaluate the shell from scratch whenever the main chat surface
+    // mounts (e.g. after a fresh login): the window may have been
+    // resized while the dashboard was unmounted, so the committed shell
+    // should be re-derived from the current width instead of inheriting
+    // a stale one from the previous session.
+    context.read<LayoutShellController>().reset();
+    _settings = context.read<SettingsController>()..addListener(_onSettings);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // `MediaQuery.sizeOf` is the resize dependency. Reading the width here
+    // rather than in build is what lets the shell decision happen exactly
+    // once per frame, before any descendant reads it.
+    _width = MediaQuery.sizeOf(context).width;
+  }
+
+  @override
+  void dispose() {
+    _settings?.removeListener(_onSettings);
+    super.dispose();
+  }
+
+  /// Re-renders after a settings change so a forced layout mode takes
+  /// effect. Cheap and idempotent: [LayoutShellController.resolve] only
+  /// commits when the target actually differs past the dead band, so an
+  /// unrelated preference change cannot move the shell.
+  void _onSettings() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = _settings;
+    if (settings == null) return const SizedBox.shrink();
+
+    // The one and only writer. Every consumer of the shell is a descendant
+    // of this widget, so they all read this frame's decision below without
+    // needing a notification.
+    final shell = context.read<LayoutShellController>()
+      ..resolve(rawWidth: _width, layoutMode: settings.layoutMode);
+
+    if (shell.isMobile) {
+      return MobileLayout(child: widget.child);
+    }
+    return DashboardLayout(child: widget.child);
+  }
 }

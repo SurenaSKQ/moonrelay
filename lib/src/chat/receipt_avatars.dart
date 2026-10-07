@@ -17,7 +17,10 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// Renders a stacked list of small avatars for every user who has sent a
 /// read receipt for [event]. Used by [MessageEventHandler] in the timeline
@@ -38,8 +41,15 @@ class ReceiptAvatars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final l10n = AppLocalizations.of(context)!;
     final me = room.client.userID;
+
+    // Honour the user-level "show read receipts" toggle.
+    final showReceipts =
+        context.select<SettingsController, bool>((c) => c.showReadReceipts);
+    if (!showReceipts) return const SizedBox.shrink();
 
     final seen = <String, User>{};
     for (final r in event.receipts) {
@@ -59,14 +69,14 @@ class ReceiptAvatars extends StatelessWidget {
           AvatarFromUriOrFallbackImage(
             client: room.client,
             avatarUri: u.avatarUrl,
-            radius: 10,
+            radius: ext.components.avatar.sizeSmall / 2,
           ),
         if (extra > 0)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: EdgeInsets.symmetric(horizontal: 6, vertical: t.spaceXxs),
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(t.radiusSm),
             ),
             child: Text(
               '+${l10n.unreadCount('$extra')}',
@@ -80,10 +90,20 @@ class ReceiptAvatars extends StatelessWidget {
       ],
     );
 
-    return Tooltip(
-      message: l10n.seenBy(seen.length),
+    // [Semantics] instead of [Tooltip]: this widget renders inline
+    // inside the chat timeline, which lives under the dashboard's
+    // [LayoutBuilder] shell. A Tooltip always mounts an internal
+    // [OverlayPortal] (via [RawTooltip]) that activates the moment
+    // the message appears; the activation marks a sibling
+    // [_RenderLayoutBuilder] as needing layout mid-performLayout,
+    // tripping the `_RenderLayoutBuilder was mutated in
+    // performLayout` assertion (the chat-page layout race). A
+    // Semantics label gives screen readers the same affordance
+    // without ever materialising an overlay entry.
+    return Semantics(
+      label: l10n.seenBy(seen.length),
       child: Padding(
-        padding: const EdgeInsets.only(top: 2),
+        padding: EdgeInsets.only(top: t.spaceXxs),
         child: chipWidget,
       ),
     );

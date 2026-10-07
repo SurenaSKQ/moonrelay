@@ -22,7 +22,10 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Maximum nesting depth before we stop rendering deeper subspaces
@@ -55,26 +58,42 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
   /// Room IDs of subspaces that are currently expanded (at any depth).
   final Set<String> _expanded = {};
 
-  StreamSubscription? _syncSub;
+  /// Last [SyncPulse.version] observed at build time. The build re-
+  /// triggers when the pulse advances; we compare against the previous
+  /// value so a build caused by another field doesn't double-refresh.
+  int _lastPulseVersion = -1;
+
+  /// Pulse we're subscribed to, captured on mount. Used in dispose to
+  /// detach the listener cleanly.
+  SyncPulse? _pulse;
 
   @override
   void initState() {
     super.initState();
-    try {
-      _syncSub = widget.client.onSync.stream.listen(
-        (_) {
-          if (mounted) setState(() {});
-        },
-        onError: (_) {
-          // Errors on the sync stream are non-fatal.
-        },
-      );
-    } catch (_) {
-      // If the client is not yet fully initialised, silently skip
-      // the subscription — the tree will still render correctly.
-    }
     // Auto-expand the first level of subspaces on load.
     _autoExpandFirstLevel();
+    // Register for sync pulse ticks so we can re-render on the next
+    // coalesced sync. We do this in a post-frame callback because
+    // SyncPulse may not be available during the first frame (e.g.
+    // splash-screen transition, or a widget test that doesn't mount
+    // a pulse provider).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pulse = maybeSyncPulse(context);
+      if (pulse != null) {
+        _pulse = pulse;
+        pulse.addListener(_onPulse);
+      }
+    });
+  }
+
+  void _onPulse() {
+    if (!mounted) return;
+    final pulse = _pulse;
+    if (pulse == null) return;
+    if (pulse.version == _lastPulseVersion) return;
+    _lastPulseVersion = pulse.version;
+    setState(() {});
   }
 
   void _autoExpandFirstLevel() {
@@ -90,7 +109,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    _pulse?.removeListener(_onPulse);
     super.dispose();
   }
 
@@ -106,7 +125,13 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
 
   @override
   Widget build(BuildContext context) {
+    // We rebuild via the [SyncPulse] listener registered in [initState],
+    // so [build] itself doesn't need to subscribe. The dependency on
+    // [widget.space.spaceChildren] and [widget.client] is implicit via
+    // the read below; any sync-driven change invalidates the cached
+    // child list through the listener.
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final children = widget.space.spaceChildren;
 
@@ -125,16 +150,16 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
     if (items.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 LucideIcons.folderOpen,
                 size: 40,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: scheme.onSurfaceVariant.withValues(alpha: t.opacityDisabled),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.spaceMd),
               Text(
                 l10n.spaceNoChildren,
                 style: TextStyle(color: scheme.onSurfaceVariant),
@@ -177,7 +202,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Subspace header ──────────────────────────────────────
+          // -- Subspace header --------------------------------------
           _SubspaceHeader(
             displayName: displayName,
             depth: depth,
@@ -188,7 +213,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
             onDoubleTap: () => context.push('/main/space/${room.id}'),
           ),
 
-          // ── Children (if expanded) ───────────────────────────────
+          // -- Children (if expanded) -------------------------------
           if (isExpanded)
             ...subspaceChildren.whereType<Room>().map(
                   (child) => _buildTreeItem(
@@ -203,7 +228,7 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
       );
     }
 
-    // ── Regular room tile ──────────────────────────────────────────
+    // -- Regular room tile ------------------------------------------
     return _RoomTile(
       room: room,
       depth: depth,
@@ -224,16 +249,16 @@ class _SpaceRoomsPaneState extends State<SpaceRoomsPane> {
   }
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// --- Data ---------------------------------------------------------------------
 
-/// An item in the tree – either a regular room or a subspace.
+/// An item in the tree: either a regular room or a subspace.
 class _TreeItem {
   const _TreeItem({required this.room, this.isSuggested = false});
   final Room room;
   final bool isSuggested;
 }
 
-// ─── Subspace header ──────────────────────────────────────────────────────────
+// --- Subspace header ----------------------------------------------------------
 
 /// A tappable header row for a subspace in the tree.
 ///
@@ -261,44 +286,47 @@ class _SubspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     // Gradually decrease the background tint intensity as depth increases.
     final bgAlpha = (20 - depth * 3).clamp(4, 20);
     final leftBorderColor = HSLColor.fromColor(scheme.primary)
         .withLightness((0.4 + depth * 0.06).clamp(0.4, 0.7))
         .toColor();
 
-    return GestureDetector(
-      onDoubleTap: onDoubleTap,
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 8.0 + depth * 20.0,
-          right: 8,
-          top: 10,
-          bottom: 10,
+    // Double tap used to sit on a GestureDetector wrapped around the InkWell
+    // below. InkWell takes onDoubleTap itself, which drops the wrapper and
+    // gives the double tap the same gesture handling as the single tap.
+    return Container(
+      padding: EdgeInsets.only(
+        left: 8.0 + depth * 20.0,
+        right: 8,
+        top: 10,
+        bottom: 10,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: bgAlpha / 255.0),
+        border: Border(
+          left: BorderSide(color: leftBorderColor, width: 3),
         ),
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: bgAlpha / 255.0),
-          border: Border(
-            left: BorderSide(color: leftBorderColor, width: 3),
-          ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(4),
-          child: Row(
+      ),
+      child: InkWell(
+        onTap: onTap,
+        onDoubleTap: onDoubleTap,
+        borderRadius: BorderRadius.circular(t.radiusXs),
+        child: Row(
             children: [
               Icon(
                 isExpanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Icon(
                 LucideIcons.folder,
-                size: 16,
+                size: t.iconSizeSmall,
                 color: scheme.primary,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               Expanded(
                 child: Text(
                   displayName,
@@ -316,8 +344,9 @@ class _SubspaceHeader extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: scheme.outlineVariant.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
+                    color:
+                        scheme.outlineVariant.withValues(alpha: t.opacityDisabled),
+                    borderRadius: BorderRadius.circular(t.radiusSm),
                   ),
                   child: Text(
                     '$roomCount',
@@ -330,12 +359,11 @@ class _SubspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
 
-// ─── Room tile ────────────────────────────────────────────────────────────────
+// --- Room tile ----------------------------------------------------------------
 
 /// A compact room list tile used inside the space tree.
 ///
@@ -371,7 +399,7 @@ class _RoomTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // ── Avatar with unread dot ─────────────────────────────
+            // -- Avatar with unread dot -----------------------------
             SizedBox(
               width: 32,
               height: 32,
@@ -400,7 +428,7 @@ class _RoomTile extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // ── Name and subtitle ──────────────────────────────────
+            // -- Name and subtitle ----------------------------------
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,7 +544,7 @@ Future<void> _joinRoom(BuildContext context, Room room) async {
       }
     }
     if (!context.mounted) return;
-    context.pushReplacement('/main/rooms/${room.id}');
+    openRoom(context, room.id);
   } catch (e) {
     log.f(
       'Failed to join',

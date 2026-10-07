@@ -20,7 +20,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/encryption/encryption_overview.dart';
+import 'package:moonrelay/src/screens/encryption/encryption_overview/encryption_overview.dart';
 import 'package:provider/provider.dart';
 
 class _MockEncryptionService extends Mock implements EncryptionService {}
@@ -128,7 +128,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // The AppBar action button reuses LucideIcons.refreshCw — the
+      // The AppBar action button reuses LucideIcons.refreshCw; the
       // outlined "Re-run Setup" button on the cross-signing card uses
       // the same icon, so multiple matches are expected.  We pin at
       // least one in the AppBar (the topmost).
@@ -145,6 +145,48 @@ void main() {
           .where((e) => e.widget is Icon)
           .first;
       expect(appbarIcon, isNotNull);
+    });
+
+    group('recovery key row', () {
+      Future<void> pumpBackupCard(WidgetTester tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Key Backup'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('reads "set" when a key is cached', (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(true);
+        await pumpBackupCard(tester);
+        expect(find.text('Recovery key is set'), findsOneWidget);
+        expect(find.text('No recovery key set'), findsNothing);
+        expect(find.text('Recovery key status unknown'), findsNothing);
+      });
+
+      testWidgets('reads "not set" when the key is known absent',
+          (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(false);
+        await pumpBackupCard(tester);
+        expect(find.text('No recovery key set'), findsOneWidget);
+        expect(find.text('Recovery key is set'), findsNothing);
+      });
+
+      // The regression this pins: the old implementation reported
+      // crossSigning.enabled here, so any bootstrapped account was told it
+      // had a recovery key. `null` must render as its own state, never as
+      // either of the two answers.
+      testWidgets('reads "unknown" when the SDK gives no signal',
+          (tester) async {
+        when(() => enc.keyBackupCached).thenReturn(null);
+        await pumpBackupCard(tester);
+        expect(find.text('Recovery key status unknown'), findsOneWidget);
+        expect(find.text('Recovery key is set'), findsNothing);
+        expect(find.text('No recovery key set'), findsNothing);
+      });
     });
   });
 }

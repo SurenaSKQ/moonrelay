@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Displays detailed information about a single timeline event, including
 /// sender metadata, timestamps, event identifiers, and the raw JSON content.
@@ -38,6 +39,7 @@ class MessageDetailsPage extends StatelessWidget {
     final cs = theme.colorScheme;
     final sender = event.senderFromMemoryOrFallback;
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,8 +55,8 @@ class MessageDetailsPage extends StatelessWidget {
           // --- Sender section ---
           _SectionHeader(title: l10n.senderSection, cs: cs),
           _InfoRow(
-              label: l10n.displayNameLabel, value: sender.calcDisplayname()),
-          _InfoRow(label: l10n.userIdLabel, value: sender.id, mono: true),
+              label: l10n.displayName, value: sender.calcDisplayname()),
+          _InfoRow(label: l10n.userIDLabel, value: sender.id, mono: true),
           const Divider(),
 
           // --- Timestamps ---
@@ -99,10 +101,10 @@ class MessageDetailsPage extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(t.spaceMd),
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(t.radiusMd),
               border: Border.all(
                 color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
@@ -129,9 +131,7 @@ class MessageDetailsPage extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reusable sub-widgets
-// ---------------------------------------------------------------------------
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.cs});

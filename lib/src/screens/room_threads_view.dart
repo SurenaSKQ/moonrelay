@@ -14,14 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:moonrelay/src/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/helpers/threads_provider.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/thread_view.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
+import 'package:provider/provider.dart';
 
 /// A full-screen page that lists all thread roots in a room with progressive
 /// loading from the server.
@@ -49,6 +53,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
   void initState() {
     super.initState();
     _provider = ThreadsProvider(room: widget.room);
+    _provider.bind(context.read<SyncPulse>());
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
     _provider.fetch(firstPage: true);
@@ -99,6 +104,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -112,9 +118,9 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: l10n.searchThreadsHint,
-                prefixIcon: const Icon(LucideIcons.search, size: 20),
+                prefixIcon: Icon(LucideIcons.search, size: t.iconSizeMedium),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -131,7 +137,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
         listenable: _provider,
         builder: (context, _) {
           if (_provider.isLoading && _provider.threadRoots.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return PaneLoading(label: AppLocalizations.of(context)!.loading);
           }
 
           if (_provider.threadRoots.isEmpty) {
@@ -144,7 +150,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
                     size: 48,
                     color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: t.spaceMd),
                   Text(
                     l10n.noThreadsYet,
                     style: TextStyle(color: scheme.onSurfaceVariant),
@@ -159,32 +165,30 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
           return RefreshIndicator(
             onRefresh: _onRefresh,
             child: ListView.builder(
-                controller: _scrollController,
-                itemCount:
-                    filtered.length + (_provider.hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                      if (index >= filtered.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        );
-                      }
+              controller: _scrollController,
+              itemCount: filtered.length + (_provider.hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= filtered.length) {
+                  return Padding(
+                    padding: EdgeInsets.all(t.spaceLg),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                }
 
-                      final event = filtered[index];
+                final event = filtered[index];
 
-                      return _ThreadListTile(
-                        event: event,
-                        room: widget.room,
-                      );
-                    },
-                  ),
+                return _ThreadListTile(
+                  event: event,
+                  room: widget.room,
+                );
+              },
+            ),
           );
         },
       ),
@@ -192,7 +196,7 @@ class _FullRoomThreadsListState extends State<FullRoomThreadsList> {
   }
 }
 
-// ─── Thread list tile ──────────────────────────────────────────────────────────
+// --- Thread list tile ----------------------------------------------------------
 
 class _ThreadListTile extends StatelessWidget {
   const _ThreadListTile({
@@ -206,13 +210,15 @@ class _ThreadListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: AvatarFromUriOrFallbackImage(
         client: room.client,
         avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-        radius: 18,
+        radius: ext.components.avatar.sizeMedium / 2,
       ),
       title: Text(
         event.senderFromMemoryOrFallback.calcDisplayname(),
@@ -230,7 +236,7 @@ class _ThreadListTile extends StatelessWidget {
         event.originServerTs.localizedTimeShort(context),
         style: TextStyle(
           fontSize: 12,
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+          color: scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
         ),
       ),
       onTap: () {

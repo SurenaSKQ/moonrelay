@@ -17,8 +17,75 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+
+/// The fraction of its bar an option's vote count should fill.
+///
+/// Relative to the total, not to the leading option. A bar scaled to the
+/// maximum is the same drawing for "one vote each across ten options" and
+/// "everybody picked the same one": the leading bar comes out full either way,
+/// so the chart says nothing about how the votes actually split. Ten options at
+/// one vote each rendered as ten full bars.
+///
+/// Zero votes is zero width rather than a division by zero, and the clamp is
+/// belt and braces for a tally that counts each voter once.
+double pollBarShare(int count, int totalVotes) =>
+    totalVotes <= 0 ? 0 : (count / totalVotes).clamp(0.0, 1.0);
+
+/// One `m.poll.response`, reduced to what the tally needs.
+typedef PollResponse = ({String sender, List<String> answers});
+
+/// The result of counting a poll's responses.
+class PollTally {
+  const PollTally({
+    required this.counts,
+    required this.answersBySender,
+    required this.voters,
+  });
+
+  /// Vote count per answer id.
+  final Map<String, int> counts;
+
+  /// The answers each sender's current vote consists of.
+  final Map<String, Set<String>> answersBySender;
+
+  /// How many people voted, counted once each.
+  final int voters;
+}
+
+/// Counts a poll's responses, counting each person once.
+///
+/// MSC3381 supersedes a sender's earlier response with their later one, so a
+/// user who changes their mind sends a second response and the first must stop
+/// counting. Adding up the raw response events instead made one person who
+/// voted twice contribute two votes, which inflated the total and filled a bar
+/// that nobody else had voted for.
+///
+/// [responses] arrives newest first, because that is the order a timeline
+/// hands them over, so the walk is reversed to let the newest write win.
+PollTally tallyPollResponses(List<PollResponse> responses) {
+  final latest = <String, List<String>>{};
+  for (final r in responses.reversed) {
+    latest[r.sender] = r.answers;
+  }
+  final counts = <String, int>{};
+  final answersBySender = <String, Set<String>>{};
+  for (final entry in latest.entries) {
+    for (final id in entry.value) {
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    answersBySender[entry.key] = entry.value.toSet();
+  }
+  return PollTally(
+    counts: counts,
+    answersBySender: answersBySender,
+    voters: latest.length,
+  );
+}
 
 /// Renders MSC3381 / `m.poll.start` events as a card with the question,
 /// the answer options, and a button to vote. Aggregated vote counts are
@@ -50,23 +117,19 @@ class _PollMessageTypeState extends State<PollMessageType> {
 
   Future<_PollState> _load() async {
     final events = widget.timeline?.events ?? [];
-    final responses = events
-        .where((e) => _isPollResponseFor(e, widget.event.eventId))
-        .toList();
-
-    final voteCounts = <String, int>{};
-    final userVoteIds = <String>{};
-    final clientUserId = widget.room.client.userID;
-    for (final r in responses) {
-      final rel = r.content['m.poll.response'];
-      final ids = _answersInResponse(rel);
-      for (final id in ids) {
-        voteCounts[id] = (voteCounts[id] ?? 0) + 1;
-        if (r.senderId == clientUserId) {
-          userVoteIds.add(id);
-        }
-      }
-    }
+    final tally = tallyPollResponses(
+      events
+          .where((e) => _isPollResponseFor(e, widget.event.eventId))
+          .map(
+            (e) => (
+              sender: e.senderId,
+              answers: _answersInResponse(e.content['m.poll.response']),
+            ),
+          )
+          .toList(),
+    );
+    final userVoteIds =
+        tally.answersBySender[widget.room.client.userID] ?? const <String>{};
 
     final poll = widget.event.content['m.poll'];
     if (poll is! Map) {
@@ -78,22 +141,17 @@ class _PollMessageTypeState extends State<PollMessageType> {
     final answers = (poll['answers'] is List)
         ? (poll['answers'] as List).whereType<Map>().toList()
         : <Map<dynamic, dynamic>>[];
-    final answersCast = answers
-        .map((m) => m.cast<String, dynamic>())
-        .toList();
-    final ended = (poll['end_time'] is int) ||
-        (widget.event.content['end_time'] is int);
-    final maxSelections =
-        (poll['max_selections'] as int?) ?? 1;
+    final answersCast = answers.map((m) => m.cast<String, dynamic>()).toList();
+    final ended =
+        (poll['end_time'] is int) || (widget.event.content['end_time'] is int);
 
     return _PollState(
       question: question,
       answers: answersCast,
-      voteCounts: voteCounts,
+      voteCounts: tally.counts,
       userVoteIds: userVoteIds,
       ended: ended,
-      maxSelections: maxSelections,
-      totalVotes: responses.length,
+      totalVotes: tally.voters,
     );
   }
 
@@ -112,7 +170,7 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Future<void> _vote(String answerId) async {
-    setState(() {});
+    final l10n = AppLocalizations.of(context)!;
     try {
       await withRetry(
         () => widget.room.sendEvent(<String, dynamic>{
@@ -131,8 +189,17 @@ class _PollMessageTypeState extends State<PollMessageType> {
         log: null,
         label: 'pollVote',
       );
-      if (mounted) setState(() => _state = _load());
-    } catch (_) {}
+      if (!mounted) return;
+      setState(() => _state = _load());
+    } catch (_) {
+      // Surfaced rather than swallowed. This used to be an empty catch, which
+      // made a failed vote indistinguishable from a vote that landed: the user
+      // tapped an option, nothing changed, and nothing said why. A tap on a
+      // poll is the whole interaction, so a silent failure is the user being
+      // told, quietly, that the app ignored them.
+      if (!mounted) return;
+      context.showMessage(l10n.pollVoteFailed);
+    }
   }
 
   @override
@@ -150,33 +217,35 @@ class _PollMessageTypeState extends State<PollMessageType> {
           return _buildUnavailable(cs);
         }
         final state = snapshot.data!;
-        return _buildCard(state, cs, l10n);
+        return _buildCard(context, state, cs, l10n);
       },
     );
   }
 
-  Widget _buildCard(_PollState state, ColorScheme cs, AppLocalizations l10n) {
-    final maxCount = state.voteCounts.values.fold<int>(0, (m, v) => v > m ? v : m);
+  Widget _buildCard(
+    BuildContext context,
+    _PollState state,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 400),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
+    return AttachmentCard(
+      maxWidth: 400,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header ─────────────────────────────────────────────────
+          // -- Header -------------------------------------------------
           Row(
             children: [
-              Icon(LucideIcons.listChecks, size: 18, color: cs.primary),
-              const SizedBox(width: 8),
+              AttachmentLeadingIcon(
+                // No size override, for the same reason the video row's is
+                // gone: three attachment types were drawing three different
+                // squares down one timeline.
+                icon: LucideIcons.listChecks,
+              ),
+              SizedBox(width: t.spaceSm),
               Expanded(
                 child: Text(
                   state.question,
@@ -188,13 +257,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
               ),
               if (state.ended)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceXs,
+                    vertical: t.spaceXxs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
+                    color: cs.error.withValues(alpha: t.opacityDragged),
+                    borderRadius: BorderRadius.circular(t.radiusXs),
                   ),
                   child: Text(
                     l10n.pollClosed,
@@ -208,17 +277,15 @@ class _PollMessageTypeState extends State<PollMessageType> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.spaceMd),
 
-          // ── Options ───────────────────────────────────────────────
+          // -- Options -----------------------------------------------
           ...state.answers.map((a) {
             final id = a['id']?.toString() ?? '';
             final text = a['body']?.toString() ?? '';
             final count = state.voteCounts[id] ?? 0;
             final voted = state.userVoteIds.contains(id);
-            final percent = maxCount == 0
-                ? 0.0
-                : (count / maxCount).clamp(0.0, 1.0);
+            final percent = pollBarShare(count, state.totalVotes);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -249,12 +316,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Widget _buildLoading(ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 220,
       height: 80,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: const Center(
         child: SizedBox(
@@ -267,12 +335,13 @@ class _PollMessageTypeState extends State<PollMessageType> {
   }
 
   Widget _buildUnavailable(ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 220,
       height: 80,
       decoration: BoxDecoration(
         color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusLg),
       ),
       child: Center(
         child: Icon(
@@ -308,17 +377,18 @@ class _PollOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       child: Stack(
         children: [
-          // ── Fill bar ─────────────────────────────────────────────
+          // -- Fill bar ---------------------------------------------
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 color: cs.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
             ),
           ),
@@ -328,15 +398,14 @@ class _PollOptionTile extends StatelessWidget {
               widthFactor: percent.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: voted
-                      ? cs.primary
-                      : cs.primary.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(10),
+                  color:
+                      voted ? cs.primary : cs.primary.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
               ),
             ),
           ),
-          // ── Content ──────────────────────────────────────────────
+          // -- Content ----------------------------------------------
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -383,7 +452,6 @@ class _PollState {
     required this.voteCounts,
     required this.userVoteIds,
     required this.ended,
-    required this.maxSelections,
     required this.totalVotes,
   });
 
@@ -393,7 +461,6 @@ class _PollState {
         voteCounts: const {},
         userVoteIds: const {},
         ended: false,
-        maxSelections: 1,
         totalVotes: 0,
       );
 
@@ -402,7 +469,10 @@ class _PollState {
   final Map<String, int> voteCounts;
   final Set<String> userVoteIds;
   final bool ended;
-  final int maxSelections;
+
+  /// How many people voted, each counted once. Not the number of responses:
+  /// re-voting sends a second response, and a poll that adds those up reports
+  /// more voters than there are people.
   final int totalVotes;
 
   bool get valid => question.isNotEmpty && answers.isNotEmpty;

@@ -23,18 +23,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/services/presence_service.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// StoredAccount — immutable serialisable metadata for a single Matrix session
-// ─────────────────────────────────────────────────────────────────────────────
+// StoredAccount: immutable serialisable metadata for a single Matrix session
 
 /// Lightweight account descriptor persisted in [SharedPreferences].
 ///
 /// This holds the bare minimum needed to display an account in the UI and to
 /// locate its per-account database on disk.  The Matrix SDK's [Client] stores
 /// the actual access token, device keys, sync state etc. inside its own
-/// per-account database – we never persist tokens here.
+/// per-account database; we never persist tokens here.
 class StoredAccount {
   final String userId;
   final String homeserver;
@@ -75,9 +74,7 @@ class StoredAccount {
   String toString() => 'StoredAccount($userId @ $homeserver)';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AccountManager — ChangeNotifier that owns the multi-account lifecycle
-// ─────────────────────────────────────────────────────────────────────────────
+// AccountManager: ChangeNotifier that owns the multi-account lifecycle
 
 /// Top-level controller for multi-account support.
 ///
@@ -98,13 +95,13 @@ class AccountManager extends ChangeNotifier {
 
   AccountManager({required this.log});
 
-  // ── Account list ───────────────────────────────────────────────────
+  // -- Account list ---------------------------------------------------
 
   List<StoredAccount> _accounts = [];
   List<StoredAccount> get accounts => List.unmodifiable(_accounts);
   bool get hasAccounts => _accounts.isNotEmpty;
 
-  // ── Active account selection ───────────────────────────────────────
+  // -- Active account selection ---------------------------------------
 
   StoredAccount? _activeAccount;
   StoredAccount? get activeAccount => _activeAccount;
@@ -116,16 +113,20 @@ class AccountManager extends ChangeNotifier {
   /// Whether the active client has a valid session.
   bool get isLoggedIn => _activeClient?.isLogged() ?? false;
 
-  // ── Factories (set once by the boot process) ───────────────────────
+  // -- Factories (set once by the boot process) -----------------------
 
   /// Used by [switchToAccount] to obtain a fresh [Client] for a given account.
   Future<Client> Function(StoredAccount account)? clientFactory;
 
-  /// Called with (client, storedAccount) after a client is created so the
-  /// caller can attach any additional setup (encryption, tray, etc.).
-  Future<void> Function(Client client)? onClientReady;
+  /// Called with `client` after a client is created so the caller can attach
+  /// any additional setup (encryption, tray, etc.).
+  ///
+  /// Implementations should return the [EncryptionService] they create
+  /// for this client so the manager can install it; returning null is
+  /// allowed and means "no encryption service required".
+  Future<EncryptionService?> Function(Client client)? onClientReady;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────
+  // -- Lifecycle ------------------------------------------------------
 
   /// Load persisted accounts from [SharedPreferences].
   ///
@@ -173,7 +174,7 @@ class AccountManager extends ChangeNotifier {
     await prefs.setString(_activeKey, _activeAccount?.userId ?? '');
   }
 
-  // ── Account operations ─────────────────────────────────────────────
+  // -- Account operations ---------------------------------------------
 
   /// Record a new account or update an existing one, and set it as the
   /// active account with the given [client] and optional [encryptionService].
@@ -207,7 +208,7 @@ class AccountManager extends ChangeNotifier {
     _activeAccount = account;
     _activeClient = client;
     _encryptionService = encryptionService;
-    // Don't persist here – the account is already saved; this is just a
+    // Don't persist here; the account is already saved; this is just a
     // runtime association.  Notify so the provider tree re-reads.
     notifyListeners();
   }
@@ -215,8 +216,9 @@ class AccountManager extends ChangeNotifier {
   /// Switch to a different saved account.
   ///
   /// Disposes the current [Client] (if any), creates a fresh one for the
-  /// target account via [clientFactory], and notifies listeners.
-  /// Returns `true` if the new client has a valid session.
+  /// target account via [clientFactory], wires the [EncryptionService]
+  /// returned by [onClientReady], and notifies listeners.  Returns `true`
+  /// if the new client has a valid session.
   ///
   /// Tear-down is ordered so widgets never observe a disposed
   /// [EncryptionService] between the old and the new instance: the new
@@ -230,7 +232,12 @@ class AccountManager extends ChangeNotifier {
       log.w('switchToAccount: account not found $userId');
       return false;
     }
-    if (_activeAccount?.userId == userId) return false; // already active
+    // Switching to the already-active account is a no-op success; report
+    // it as such so callers do not treat it as a failed switch and, say,
+    // bounce the user to the login page.
+    if (_activeAccount?.userId == userId) {
+      return _activeClient?.isLogged() ?? false;
+    }
 
     final target = _accounts[idx];
 
@@ -247,7 +254,15 @@ class AccountManager extends ChangeNotifier {
     _activeClient = await clientFactory!(target);
     final loggedIn = _activeClient!.isLogged();
     if (loggedIn) {
-      await onClientReady?.call(_activeClient!);
+      // Install the freshly-built encryption service.  Returning a
+      // value from the callback (rather than stashing it in the manager)
+      // avoids the prior bug where `onClientReady` constructed a new
+      // service but it was discarded because `_encryptionService` was
+      // never assigned here.
+      final fresh = await onClientReady?.call(_activeClient!);
+      if (fresh != null) {
+        _encryptionService = fresh;
+      }
     }
     await _save();
 
@@ -259,6 +274,22 @@ class AccountManager extends ChangeNotifier {
     // Tear down the previous pair on a microtask so any synchronous
     // provider reads during this frame complete against the new pair.
     Future.microtask(() async {
+      // Mark the outgoing account offline before its client goes away.
+      // Without this it stays published as online on other people's
+      // clients until the server times the session out, and an account
+      // switch is exactly the case where nobody is looking at the window
+      // to notice. Best-effort for the same reason as logout: a server
+      // that already dropped the session would reject it.
+      if (previousClient != null && previousClient.isLogged()) {
+        try {
+          await PresenceService.publishTo(
+            previousClient,
+            type: PresenceType.offline,
+          );
+        } catch (e) {
+          log.w('Could not mark the previous account offline', error: e);
+        }
+      }
       final EncryptionService? previousEnc = previousEncryption;
       if (previousEnc != null) {
         try {
@@ -293,16 +324,30 @@ class AccountManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Logout ─────────────────────────────────────────────────────────
+  // -- Logout ---------------------------------------------------------
 
   /// Log out from the server and remove the current account.
   Future<void> logout() async {
     if (_activeClient != null && _activeClient!.isLogged()) {
       try {
         await _encryptionService?.onLogout();
-        await _activeClient!.logout();
+        // Mark offline before the session is torn down, or the account
+        // shows as online on other people's clients until the server
+        // times the session out. Best-effort: a homeserver that has
+        // already dropped us would reject it, and the logout below must
+        // still happen.
+        await PresenceService.publishTo(
+          _activeClient!,
+          type: PresenceType.offline,
+        );
       } catch (e) {
         log.w('Logout error, continuing with account removal', error: e);
+      }
+      try {
+        await _activeClient!.logout();
+      } catch (e) {
+        log.w('Client logout failed, continuing with account removal',
+            error: e);
       }
     }
     if (_activeAccount != null) {
@@ -315,12 +360,12 @@ class AccountManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Encryption service ─────────────────────────────────────────────
+  // -- Encryption service ---------------------------------------------
 
   EncryptionService? _encryptionService;
   EncryptionService? get encryptionService => _encryptionService;
 
-  // ── Internal helpers ───────────────────────────────────────────────
+  // -- Internal helpers -----------------------------------------------
 
   Future<void> _disposeActiveClient() async {
     try {
@@ -339,9 +384,45 @@ class AccountManager extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposeActiveClient();
+    // The framework calls this when the provider tree goes away. The
+    // real, awaited teardown is [shutdown]; this is only a safety net
+    // for the case where the tree is torn down without a shutdown
+    // sequence having run.
     _encryptionService?.dispose();
     _encryptionService = null;
+    _disposeActiveClient();
     super.dispose();
+  }
+
+  /// Tears down the account-scoped resources this manager owns: the live
+  /// [EncryptionService] first, then the live [Client].
+  ///
+  /// [AccountManager] is the single owner of both. The [Client] is
+  /// replaced on every account switch and the boot-time
+  /// `EncryptionService` is replaced alongside it
+  /// (`onClientReady` builds a fresh one per client), so neither can be
+  /// held by reference at shutdown-registration time; resolving them
+  /// here is what makes the teardown reach the instances that are
+  /// actually live.
+  ///
+  /// Order matters and is the whole point of awaiting rather than
+  /// disposing both ad hoc: [EncryptionService] subscribes to
+  /// `client.onSync`, so it has to stop reacting before the client that
+  /// feeds it goes away. Disposing the client also joins the native
+  /// threads that `vodozemac.dll` spawned inside the SDK's
+  /// `NativeImplementationsIsolate`, which is what lets Windows release
+  /// the process and the build output folder, so the await is load
+  /// bearing rather than decorative.
+  Future<void> shutdown() async {
+    final enc = _encryptionService;
+    _encryptionService = null;
+    if (enc != null) {
+      try {
+        enc.dispose();
+      } catch (e) {
+        log.w('Error disposing encryption service', error: e);
+      }
+    }
+    await _disposeActiveClient();
   }
 }

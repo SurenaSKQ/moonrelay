@@ -17,7 +17,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/widgets/space_card.dart';
+
+import '../helpers/mocks.dart';
 
 /// Helper to create a MaterialApp wrapped SpaceCard for testing.
 Widget buildSpaceCard({
@@ -25,6 +29,7 @@ Widget buildSpaceCard({
   String? thumbnailURL,
   String? subtitle,
   VoidCallback? onTap,
+  Client? client,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -33,9 +38,17 @@ Widget buildSpaceCard({
         thumbnailURL: thumbnailURL,
         subtitle: subtitle,
         onTap: onTap,
+        client: client,
       ),
     ),
   );
+}
+
+/// A client with a token, which is the whole reason the card takes one.
+Client _clientWithToken() {
+  final client = MockClient();
+  when(() => client.accessToken).thenReturn('test-token');
+  return client;
 }
 
 void main() {
@@ -87,7 +100,10 @@ void main() {
 
     testWidgets('renders card with thumbnail URL placeholder', (tester) async {
       await tester.pumpWidget(
-        buildSpaceCard(thumbnailURL: 'https://example.com/avatar.png'),
+        buildSpaceCard(
+          thumbnailURL: 'https://example.com/avatar.png',
+          client: _clientWithToken(),
+        ),
       );
 
       // The card should still render; the network image may fail silently.
@@ -95,6 +111,43 @@ void main() {
       // Folder icon should NOT be shown when a thumbnail URL is present
       // (CircleAvatar child is null when backgroundImage is set).
       expect(find.byIcon(LucideIcons.folder), findsNothing);
+    });
+
+    testWidgets('sends the bearer token with the thumbnail', (tester) async {
+      // Matrix media is authenticated, so a thumbnail fetched without the
+      // token answers 401 and the card silently shows its folder icon. The
+      // header is asserted through the widget's own `NetworkImage`, which is
+      // the only place it is observable: `flutter_test` replaces the HTTP
+      // stack the image would actually go out on.
+      await tester.pumpWidget(
+        buildSpaceCard(
+          thumbnailURL: 'https://example.com/avatar.png',
+          client: _clientWithToken(),
+        ),
+      );
+      await tester.pump();
+
+      final avatar =
+          tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
+      final image = avatar.backgroundImage;
+      expect(image, isA<NetworkImage>());
+      final network = image! as NetworkImage;
+      expect(
+        network.headers?['authorization'],
+        'Bearer test-token',
+        reason: 'the thumbnail would be fetched unauthenticated and 401',
+      );
+    });
+
+    testWidgets('shows the folder icon when there is no client to fetch with',
+        (tester) async {
+      // Without a token the request cannot succeed, so the honest rendering
+      // is the placeholder rather than an image that will fail.
+      await tester.pumpWidget(
+        buildSpaceCard(thumbnailURL: 'https://example.com/avatar.png'),
+      );
+
+      expect(find.byIcon(LucideIcons.folder), findsOneWidget);
     });
   });
 }

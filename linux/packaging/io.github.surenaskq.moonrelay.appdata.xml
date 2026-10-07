@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.surenaskq.moonrelay</id>
+  <name>Moonrelay</name>
+  <summary>A Matrix chat client for professionals.</summary>
+  <developer_name>Surena Karimpour Ghannadi</developer_name>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <metadata_license>FSFAP</metadata_license>
+
+  <url type="homepage">https://github.com/SurenaSKQ/moonrelay</url>
+  <url type="bugtracker">https://github.com/SurenaSKQ/moonrelay/issues</url>
+
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+  </categories>
+
+  <keywords>
+    <keyword>matrix</keyword>
+    <keyword>chat</keyword>
+    <keyword>im</keyword>
+    <keyword>e2ee</keyword>
+    <keyword>matrix-protocol</keyword>
+  </keywords>
+
+  <launchable type="desktop-id">moonrelay.desktop</launchable>
+
+  <requires>
+    <display_length compare="ge">1024</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1" />
+
+  <provides>
+    <binary>moonrelay</binary>
+  </provides>
+
+  <releases>
+    <release version="@VERSION@" date="">
+      <url type="details">https://github.com/SurenaSKQ/moonrelay/releases</url>
+    </release>
+  </releases>
+
+  <description>
+    <p>Moonrelay is a desktop Matrix chat client for professionals. It supports
+    end-to-end encryption (Vodozemac), rich messages (text, image, audio,
+    file, video), custom themes, and the Freedesktop matrix:// URI scheme.</p>
+  </description>
+
+  <screenshots>
+    <screenshot type="default">https://raw.githubusercontent.com/SurenaSKQ/moonrelay/main/docs/screenshots/main.png</screenshot>
+  </screenshots>
+</component>

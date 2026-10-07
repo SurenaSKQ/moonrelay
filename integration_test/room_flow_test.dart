@@ -27,7 +27,7 @@ import 'helpers/test_app_boot.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // ── Shared test data ──────────────────────────────────────────────
+  // -- Shared test data ----------------------------------------------
   const String testRoomId = '!devteam:matrix.org';
   const String testRoomName = 'Dev Team';
   const String testRoomTopic = 'Development discussion';
@@ -70,6 +70,7 @@ void main() {
 
   setUp(() {
     mockHttp = MockMatrixHttpClient();
+    mockHttp.configureSendHandlers();
 
     // One room with a few messages in the timeline
     mockHttp.addRoom(
@@ -113,9 +114,18 @@ void main() {
     );
   });
 
-  // ─────────────────────────────────────────────────────────────────
+  /// Waits (with a bound) until [text] is present in the tree.
+  ///
+  /// Post-login processing (device keys, first sync) takes longer under
+  /// matrix 9.0.0, so rooms can take a few seconds to populate.
+  Future<void> waitForText(WidgetTester tester, String text) async {
+    final finder = find.text(text);
+    for (var i = 0; i < 50 && finder.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
   // Tests
-  // ─────────────────────────────────────────────────────────────────
 
   group('Room interaction flow', () {
     testWidgets('shows room list after login', (tester) async {
@@ -125,7 +135,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Login ──
+      // -- Login --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -136,14 +146,15 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       await tester.pump();
       await tester.pump();
 
-      // ── Verify room is visible ──
+      // -- Verify room is visible --
+      await waitForText(tester, testRoomName);
       expect(find.text(testRoomName), findsWidgets);
       // The topic might also be visible in the sidebar or header
       expect(find.text(testRoomTopic), findsWidgets);
@@ -156,7 +167,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // ── Login ──
+      // -- Login --
       await tester.tap(find.text('Sign In'));
       await tester.pump();
       await tester.pump();
@@ -167,23 +178,84 @@ void main() {
       await tester.enterText(fields.at(2), 'password123');
       await tester.pump();
 
-      await tester.tap(find.text('Sign in'));
+      await tester.tap(find.text('Sign In').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       await tester.pump();
       await tester.pump();
 
-      // ── Tap on the room in the sidebar ──
+      // -- Tap on the room in the sidebar --
+      await waitForText(tester, testRoomName);
       await tester.tap(find.text(testRoomName).last);
       await tester.pump();
       await tester.pump();
       await tester.pump();
 
-      // ── Check that timeline messages appear ──
+      // -- Check that timeline messages appear --
       // The messages pre-populated in sync should be visible
       expect(find.text('Hey team, check the new PR'), findsWidgets);
       expect(find.text('On it!'), findsWidgets);
+    });
+
+    testWidgets('sending a message shows it in the timeline', (tester) async {
+      configureLoginHandlers();
+      await tester.pumpWidget(await buildTestApp(mockHttp: mockHttp));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- Login --
+      await tester.tap(find.text('Sign In'));
+      await tester.pump();
+      await tester.pump();
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'testuser');
+      await tester.pump();
+      await tester.enterText(fields.at(2), 'password123');
+      await tester.pump();
+
+      await tester.tap(find.text('Sign In').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- Tap on the room in the sidebar --
+      await waitForText(tester, testRoomName);
+      await tester.tap(find.text(testRoomName).last);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // -- ChatBox should now be visible with a send button --
+      final sendButton = find.bySemanticsLabel('Send');
+      expect(sendButton, findsOneWidget);
+
+      // -- Type a message into the ChatBox text field --
+      const message = 'Hello from the integration test!';
+      final chatField = find.byType(TextField).last;
+      await tester.enterText(chatField, message);
+      await tester.pump();
+
+      // -- Tap the send button --
+      await tester.tap(sendButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      await tester.pump();
+
+      // -- Verify the sent message appears in the timeline (local echo) --
+      expect(find.text(message), findsWidgets);
+
+      // -- Verify the mock HTTP client captured the request --
+      expect(mockHttp.sentMessages.length, greaterThan(0));
+      expect(
+        mockHttp.sentMessages.first['body'],
+        message,
+      );
     });
   });
 }

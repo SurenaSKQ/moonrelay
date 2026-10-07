@@ -28,7 +28,6 @@
   "cancel": "Cancel",
   "ok": "OK",
   "retry": "Retry",
-  "back": "Back",
   "error": "Error",
   "warning": "Warning",
   "unknown": "Unknown",
@@ -40,16 +39,12 @@
   "areYouSureExit": "Are you sure you want to exit the application?",
   "yesOrAffirmitive": "Yes",
   "noOrCancellation": "No",
-  "collapseSidebar": "Collapse sidebar",
-  "expandSidebar": "Expand sidebar",
   "minimize": "Minimize",
   "maximize": "Maximize",
   "restore": "Restore",
   "closeWindow": "Close window",
   "showSystemMenu": "Show system menu",
 
-  "lightMode": "Light Mode",
-  "darkMode": "Dark Mode",
   "home": "Home",
   "directMessages": "Direct Messages",
 
@@ -85,6 +80,14 @@
   "ssoStartingHint": "Click \"Open in Browser\" to start.",
   "tokenLabel": "Login Token",
   "tokenHint": "Paste your login token here…",
+  "tokenPasteHint": "Paste the token from your terminal",
+  "@tokenPasteHint": {
+    "description": "Hint inside the login-token field when it is the whole sign-in method, as opposed to the SSO manual fallback."
+  },
+  "tokenPasteAfterAuthLabel": "Login token (paste after signing in with your browser)",
+  "@tokenPasteAfterAuthLabel": {
+    "description": "Caption for the token field in the SSO manual fallback. Was an English suffix concatenated onto tokenLabel, so a translated label was followed by untranslated text."
+  },
   "signingIn": "Signing in…",
   "openInBrowser": "Open in Browser",
   "preparing": "Preparing…",
@@ -126,7 +129,7 @@
   "ssoAutomaticFailed": "Automatic SSO login failed. You can try manually below.",
   "ssoLocalServerError": "Could not start local server. Trying manual method.",
   "ssoWaitingForToken": "Waiting for the login token from your browser…",
-  "ssoTokenDetected": "Login token received! Completing sign-in…",
+  "ssoTokenDetected": "Login token received. Completing sign-in…",
   "ssoPasteManually": "Paste token manually",
   "ssoConfirmHomeserverTitle": "Continue with single sign-on?",
   "@ssoConfirmHomeserverTitle": {
@@ -148,7 +151,7 @@
   "@encryptionRecoveryKeyReminderTitle": {
     "description": "Title of the post-bootstrap reminder that surfaces recovery key limitations."
   },
-  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key — the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
+  "encryptionRecoveryKeyReminderBody": "Your encryption keys are set up on this device, but Moonrelay cannot display the recovery key; the Matrix SDK encrypts it before we can read it.\n\nWrite down your security key or recovery passphrase somewhere safe before you lose access to this account. If you forget it, you will not be able to read your encrypted messages on a new device.",
   "@encryptionRecoveryKeyReminderBody": {
     "description": "Explanation shown after bootstrap completes. Recovery keys are encrypted at rest by the SDK, so the wizard cannot surface them."
   },
@@ -158,9 +161,17 @@
   "registerTitle": "Create Account",
   "registerHomeserverHint": "matrix.org",
   "usernameText": "Username",
-  "usernameHint": "Choose a username",
+  "registerUsernameHint": "Choose a username",
   "confirmPasswordLabel": "Confirm password",
   "agreeToTerms": "I agree to the Terms of Service of this homeserver",
+  "showPassword": "Show password",
+  "@showPassword": {
+    "description": "Tooltip on the eye beside a password field while the password is hidden."
+  },
+  "hidePassword": "Hide password",
+  "@hidePassword": {
+    "description": "Tooltip on the eye beside a password field while the password is visible."
+  },
   "creatingAccount": "Creating account…",
   "alreadyHaveAccount": "Already have an account? Sign in",
 
@@ -205,6 +216,7 @@
     "description": "Tooltip for the sticker picker button in the chat box."
   },
   "chatBoxCancelReply": "Cancel reply",
+  "chatBoxCancelEdit": "Cancel edit",
 
   "formatBold": "Bold",
   "formatItalic": "Italic",
@@ -220,6 +232,8 @@
   "sendFailed": "Failed to send message.",
   "sendTimedOut": "The request timed out.",
   "uploadTimedOut": "Upload timed out.",
+  "sendRetried": "Retrying message…",
+  "sendCancelled": "Send cancelled.",
 
   "reactTooltip": "React",
   "replyTooltip": "Reply",
@@ -268,7 +282,6 @@
   "messageCopiedToClipboard": "Message copied to clipboard",
   "deleteMessage": "Delete message",
   "areYouSureDeleteMessage": "Are you sure you want to delete this message?",
-  "delete": "Delete",
   "failedToDelete": "Failed to delete: {error}",
   "@failedToDelete": {
     "placeholders": {
@@ -284,7 +297,48 @@
   },
 
   "couldNotLoadMessages": "Could not load messages",
+  "couldNotLoadMembers": "Could not load members",
+  "couldNotLoadRooms": "Could not load rooms",
   "serverMayBeUnreachable": "The server may be unreachable or the room may contain encrypted messages that cannot be decrypted. Pull down to retry.",
+  "jumpToFirstUnread": "Jump to first unread",
+  "@jumpToFirstUnread": {
+    "description": "Pill shown over the chat composer when a single message is unread. Tapping it scrolls to the first unread event."
+  },
+  "jumpToFirstUnreadMany": "{count} new messages",
+  "@jumpToFirstUnreadMany": {
+    "description": "Pill shown over the chat composer when multiple messages are unread. Tapping it scrolls to the first unread event.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scrollToBottom": "Scroll to bottom",
+  "@scrollToBottom": {
+    "description": "Floating button shown when the user has scrolled up away from the newest messages. Tapping it animates the timeline back to the bottom."
+  },
+  "backToLatest": "Back to latest",
+  "@backToLatest": {
+    "description": "Floating button shown when the timeline is displaying a history window around a specific event rather than the live tail. Tapping it returns to the newest messages."
+  },
+  "loadingEventContext": "Loading message…",
+  "@loadingEventContext": {
+    "description": "Transient label shown while the timeline fetches the surrounding history for an event that is not in the local cache."
+  },
+  "eventNotFound": "That message is no longer available",
+  "@eventNotFound": {
+    "description": "Shown when a jump to a specific event fails because the server could not return it, for example an event outside the user's access or one that has been redacted and purged."
+  },
+  "unreadPillDismissTooltip": "Dismiss",
+  "messagesMissing": "Messages missing",
+  "@messagesMissing": {
+    "description": "Marker shown where the timeline has a hole: a boundary between two separately-fetched history windows with messages in between that were not loaded. Without it the two halves read as one continuous conversation."
+  },
+  "@unreadPillDismissTooltip": {
+    "description": "Tooltip on the small × button next to the jump-to-first-unread pill. Tapping it hides the pill without changing the user's read state."
+  },
+  "jumpToUnreadLoading": "Loading messages…",
+  "@jumpToUnreadLoading": {
+    "description": "Inline label shown on the jump-to-unread pill while the timeline is being paginated to surface the first unread event."
+  },
   "encryptionUndecryptableMessage": "message can't be decrypted",
   "encryptionUndecryptableMessages": "messages can't be decrypted",
   "messageDeleted": "Message deleted",
@@ -317,14 +371,16 @@
   "actionsSection": "Actions",
 
   "roleLabel": "Role",
-  "statusLabel": "Status",
   "reportUserReason": "Please describe why you are reporting this user.",
   "reportUserHint": "Reason for report…",
+  "reportUserDefaultReason": "Reported via Moonrelay",
 
   "leaveRoom": "Leave Room",
   "leaveRoomDescription": "Remove yourself from this room",
   "copyRoomId": "Copy Room ID",
   "detailsSection": "Details",
+  "roomDetailsEditSection": "Name and topic",
+  "accessAndHistorySection": "Access and history",
   "roomIdLabel": "Room ID",
   "@roomIdLabel": {
     "description": "Label for the room/space ID field."
@@ -340,6 +396,37 @@
   "membersSection": "Members",
   "directMessage": "Direct Message",
   "spaceType": "Space",
+  "spaceDetailsEditSection": "Name and topic",
+  "roomNotAvailable": "Not on this device yet",
+
+  "createRoomOrSpace": "Create a room or space",
+  "findRoomsAndSpaces": "Find rooms and spaces",
+  "exploreTitle": "Add rooms and spaces",
+  "exploreCreateTab": "Create",
+  "exploreFindTab": "Find",
+  "exploreRooms": "Rooms",
+  "exploreSpaces": "Explore spaces",
+  "exploreSpacesTab": "Spaces",
+  "explorePeople": "People",
+  "exploreSearchDirectory": "Search the public directory",
+  "exploreJoinById": "Join by room ID or alias",
+  "exploreNoResults": "Nothing in the directory matched that.",
+  
+  "accentFamilyMare": "The dark seas",
+  "accentFamilyCrater": "The bright craters",
+  "accentProcellarum": "Oceanus Procellarum",
+  "accentNubium": "Mare Nubium",
+  "accentSerenitatis": "Mare Serenitatis",
+  "accentFecunditatis": "Mare Fecunditatis",
+  "accentFrigoris": "Mare Frigoris",
+  "accentTycho": "Tycho",
+  "accentCopernicus": "Copernicus",
+  "accentAristarchus": "Aristarchus",
+  "accentPlato": "Plato",
+  "accentDescription": "The accent tints the buttons, the selected rows and the active space. Every name is a feature of the Moon.",
+  "@accentDescription": {
+    "description": "Description of how the accent names are chosen, shown under the picker."
+  },
   "publicRoom": "Public Room",
   "privateRoom": "Private Room",
   "unknownDate": "Unknown",
@@ -358,6 +445,26 @@
     }
   },
   "roomIdCopied": "Room ID copied to clipboard",
+  "rotateMegolmSession": "Rotate megolm session",
+  "@rotateMegolmSession": {
+    "description": "Action label and confirm button for rotating the room's outbound megolm session."
+  },
+  "rotateMegolmSessionDescription": "Force a fresh encryption session. Members will receive a new key on your next message.",
+  "@rotateMegolmSessionDescription": {
+    "description": "Subtitle for the rotate-megolm-session action tile."
+  },
+  "rotateMegolmSessionConfirm": "The next message you send will be encrypted with a new session. Other members' already-encrypted history remains readable. Rotate now?",
+  "@rotateMegolmSessionConfirm": {
+    "description": "Body of the confirm dialog shown before rotating a megolm session."
+  },
+  "rotateMegolmSessionDone": "Megolm session rotated. The next message will use the new key.",
+  "@rotateMegolmSessionDone": {
+    "description": "Snackbar shown after a successful megolm session rotation."
+  },
+  "rotateMegolmSessionFailed": "Could not rotate the megolm session. Make sure encryption is set up.",
+  "@rotateMegolmSessionFailed": {
+    "description": "Snackbar shown when rotation fails (e.g. encryption is not initialised)."
+  },
 
   "knockRoom": "Knock",
   "@knockRoom": {
@@ -495,10 +602,7 @@
     }
   },
 
-  "messageDetails": "Message Details",
   "senderSection": "Sender",
-  "displayNameLabel": "Display name",
-  "userIdLabel": "User ID",
   "timestampsSection": "Timestamps",
   "sentAt": "Sent at",
   "eventInfo": "Event Info",
@@ -539,6 +643,8 @@
   },
 
   "loadingRooms": "Loading rooms…",
+  "syncFailedTitle": "Cannot reach your homeserver",
+  "syncFailedDescription": "The last sync failed and Moonrelay is still retrying. Your messages will appear once the connection is back.",
   "noRoomsYet": "No rooms yet",
   "noMessages": "No messages",
   "couldNotJoinRoomTimeout": "Could not join room: The server did not respond in time.",
@@ -547,13 +653,68 @@
   "manageAccounts": "Manage your connected Matrix accounts",
   "myProfile": "My Profile",
   "appSettings": "App Settings",
+  "credits": "Credits",
+  "@credits": {
+    "description": "Label for the button that opens the credits page from the welcome screen footer."
+  },
+  "creditsVersion": "Version {version}",
+  "@creditsVersion": {
+    "description": "The version line under the app name on the credits page.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "creditsLicenseTitle": "License",
+  "@creditsLicenseTitle": {
+    "description": "Heading of the license section on the credits page."
+  },
+  "creditsLicenseBody": "Moonrelay is free software released under the GNU Affero General Public License version 3 or later.",
+  "@creditsLicenseBody": {
+    "description": "Body of the license section on the credits page."
+  },
+  "creditsOpenSourceTitle": "Open Source Acknowledgements",
+  "@creditsOpenSourceTitle": {
+    "description": "Heading of the open-source acknowledgements section on the credits page."
+  },
+  "creditsOpenSourceBody": "Moonrelay builds on the Matrix Dart SDK and many other open-source packages. See the Third Party Licenses screen for the full list.",
+  "@creditsOpenSourceBody": {
+    "description": "First paragraph of the open-source acknowledgements section."
+  },
+  "creditsOpenSourceDerivedBody": "Portions of the date and time formatting and colour utilities are derived from FluffyChat, used under the terms of the AGPLv3.",
+  "@creditsOpenSourceDerivedBody": {
+    "description": "Second paragraph of the open-source acknowledgements section, naming derived work."
+  },
+  "creditsRepositoryTitle": "Repository",
+  "@creditsRepositoryTitle": {
+    "description": "Heading of the repository section on the credits page."
+  },
+  "creditsRepositoryBody": "The complete source code is available for inspection, audit and contribution at the project repository:",
+  "@creditsRepositoryBody": {
+    "description": "Body of the repository section, introducing the link below it."
+  },
+  "creditsAuthorBody": "Surena Karimpour Ghannadi is the creator and primary maintainer of Moonrelay.",
+  "@creditsAuthorBody": {
+    "description": "First paragraph of the author section on the credits page."
+  },
+  "creditsAuthorContactBody": "You can reach the project via Matrix or by opening an issue on the project repository.",
+  "@creditsAuthorContactBody": {
+    "description": "Second paragraph of the author section on the credits page."
+  },
   "customizeExperience": "Customize your experience",
   "appearance": "Appearance",
   "controlLookAndFeel": "Control the look and feel of the app",
   "layout": "Layout",
   "customizeLayout": "Customize the arrangement of UI panels",
+  "appearanceAndLayout": "Appearance & Layout",
+  "appearanceAndLayoutDescription": "The theme, the text, the window and how the panels are arranged",
+  "roomPane": "Room pane",
+  "roomPaneDescription": "The panel under the conversation, and how wide it is",
   "encryptionAndSecurity": "Encryption & Security",
   "chatSettings": "Chat",
+  "timeline": "Timeline",
+  "@timeline": {
+    "description": "Section title for chat timeline behaviour settings (read receipts, state events, etc.)."
+  },
   "timelineAndMessages": "Timeline and message display options",
   "selectCategory": "Select a category",
 
@@ -561,21 +722,72 @@
   "system": "System",
   "light": "Light",
   "dark": "Dark",
-  "colourTheme": "Colour theme",
-  "enable": "Enable",
+  "accentColor": "Accent colour",
+  "accentColorDesc": "Choose the accent colour used across the app.",
   "chatDisplayType": "Chat display type",
+  "matrixUserBannerLabel": "Matrix User",
+  "matrixRoomBannerLabel": "Room",
+  "matrixRoomPreviewBannerLabel": "Room Preview",
+  "matrixBannerOpenProfile": "Open Profile",
+  "matrixBannerGoToRoom": "Go to Room",
+  "matrixBannerPreviewRoom": "Preview Room",
+  "matrixBannerFailedToOpenRoom": "Failed to open room: {error}",
+  "fontSize": "Font size",
+  "messageFontSize": "Message font size",
+  "uiScale": "UI scale",
+  "interfaceScale": "Interface scale",
 
-  "leftSidebar": "Left sidebar",
   "visible": "Visible",
-  "showOrHideLeftSidebar": "Show or hide the left sidebar",
   "content": "Content",
   "widthLabel": "Width",
   "rooms": "Rooms",
   "spaces": "Spaces",
+  "addSpace": "Add Space",
+  "spaceGroup": "Group",
+  "@spaceGroup": {
+    "description": "Fallback name for a space group the user made by dragging spaces together, which has no parent space to take a name from."
+  },
+  "spaceGroupCount": "{count, plural, =1{1 space} other{{count} spaces}} in {group}",
+  "@spaceGroupCount": {
+    "description": "Tooltip and accessible name for a group header in the spaces rail. Plural because the count is the only thing a collapsed group shows.",
+    "placeholders": {
+      "count": { "type": "int" },
+      "group": { "type": "String" }
+    }
+  },
+  "collapseGroup": "Collapse group",
+  "@collapseGroup": {
+    "description": "Tooltip and accessible name for the control that hides a group's spaces in the rail."
+  },
+  "expandGroup": "Expand group",
+  "@expandGroup": {
+    "description": "Tooltip and accessible name for the control that shows a collapsed group's spaces in the rail."
+  },
+  "moveSpaceUp": "Move Up",
+  "moveSpaceDown": "Move Down",
+  "moveGroupUp": "Move Group Up",
+  "moveGroupDown": "Move Group Down",
+  "removeFromGroup": "Remove from Group",
+  "ungroupAllSpaces": "Ungroup All",
+  "sortSpacesIntoGroups": "Sort into Groups",
+  "resetSpaceLayout": "Reset Space Layout",
+  "welcomeToMoonrelay": "Welcome to Moonrelay",
+  "homeDashboardSubtitle": "Pick up where you left off, or start somewhere new.",
+  "recentActivity": "Recent activity",
+  "joinRoom": "Join a room",
   "friends": "Friends",
+  "allRooms": "All rooms",
+  "@allRooms": {
+    "description": "Room-list filter segment: show every joined chat room, as against direct conversations."
+  },
+  "filterRooms": "Filter rooms",
+  "@filterRooms": {
+    "description": "Accessible name for the room-list segmented filter, which narrows the list below it to direct conversations or to all rooms."
+  },
+  "chats": "Chats",
+  "you": "You",
+  "search": "Search",
   "hidden": "Hidden",
-  "rightSidebar": "Right sidebar (experimental)",
-  "showOrHideRightSidebar": "Show or hide the right sidebar (hidden on medium screens)",
   "none": "None",
   "roomInfo": "Room Info",
   "members": "Members",
@@ -597,7 +809,7 @@
     }
   },
   "profileLoadTimeout": "Could not load profile: The server did not respond in time.",
-  "noDisplayNameSet": "You have not set a display name!",
+  "noDisplayNameSet": "You have not set a display name.",
 
   "profilePageTitle": "Profile View",
   "userProfilePageBanner": "{username}'s Profile",
@@ -606,7 +818,7 @@
       "username": { "type": "String" }
     }
   },
-  "userNoDisplayNameSet": "The user has not set a display name!",
+  "userNoDisplayNameSet": "The user has not set a display name.",
 
   "encryptionSecurity": "Encryption & Security",
   "encryptionSetupTitle": "Encryption Setup",
@@ -684,10 +896,6 @@
     "description": "Button label to re-launch the bootstrap wizard specifically to recreate key backup."
   },
   "encryptionSetupCrossSigningFirst": "Set up cross-signing first",
-  "encryptionBackupAlgorithm": "Algorithm",
-  "@encryptionBackupAlgorithm": {
-    "description": "Label for the backup-algorithm detail line in the encryption overview."
-  },
   "encryptionVerifiedUsers": "Verified Users",
   "encryptionUnverifiedOwn": "My unverified devices",
   "encryptionUnverifiedOther": "Unverified other users",
@@ -695,6 +903,30 @@
   "encryptionUserVerified": "This user is verified",
   "encryptionUserNotVerified": "This user is not verified",
   "encryptionVerify": "Verify",
+  "encryptionLocalDataSection": "Local Encryption Data",
+  "@encryptionLocalDataSection": {
+    "description": "Section header for sensitive per-device data (export, etc)."
+  },
+  "encryptionExportKeys": "Export E2EE keys",
+  "@encryptionExportKeys": {
+    "description": "Action label / button text for exporting the device's encryption keys to a file."
+  },
+  "encryptionExportKeysDescription": "Save the device's olm account and preferences to a file you can re-import on a new install.",
+  "@encryptionExportKeysDescription": {
+    "description": "Subtitle for the export-keys action."
+  },
+  "encryptionExportKeysConfirm": "The exported file contains your device's private keys. Treat it like a password; anyone with the file can read your encrypted history. Continue?",
+  "@encryptionExportKeysConfirm": {
+    "description": "Body of the confirm dialog shown before exporting encryption keys."
+  },
+  "encryptionExportKeysDone": "Encryption keys exported.",
+  "@encryptionExportKeysDone": {
+    "description": "Snackbar shown after a successful export."
+  },
+  "encryptionExportKeysCancelled": "Export cancelled.",
+  "@encryptionExportKeysCancelled": {
+    "description": "Snackbar shown when the user cancels the export."
+  },
   "encryptionNoKeyInfo": "No key information",
   "encryptionEnabledTitle": "Encrypted",
   "encryptionNotEnabledTitle": "Not Encrypted",
@@ -746,8 +978,8 @@
   "encryptionWaitingForOther": "Waiting for the other device…",
   "encryptionVerificationWaitingDesc": "The verification request has been sent.",
   "encryptionWaitingForSas": "Waiting for the emoji/number comparison…",
-  "encryptionDone": "Encryption Setup Complete!",
-  "encryptionVerificationDone": "Verification Complete!",
+  "encryptionDone": "Encryption setup complete",
+  "encryptionVerificationDone": "Verification complete",
   "encryptionVerificationFailed": "Verification Failed",
 
   "encryptionVerified": "Verified",
@@ -776,11 +1008,19 @@
   "saveAudio": "Save audio",
   "audioFileName": "audio_file",
   "downloadAudio": "Download audio",
+  "downloadFile": "Download file",
   "saveVideo": "Save video",
   "videoFileName": "video_file",
   "unknownType": "Unknown type",
   "downloadVideo": "Download video",
   "selectDownloadTarget": "Select download target",
+  "saveImage": "Save image",
+  "downloadImage": "Download image",
+  "imageViewerHint": "Drag to move, pinch or use the zoom controls to scale, double-tap to toggle, Escape to close",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "actualSize": "Actual size",
+  "fitToScreen": "Fit to screen",
   "fileInfo": "File: {name} of Type: {mimeType} with extension: {ext}",
   "@fileInfo": {
     "description": "Information about an attached file.",
@@ -881,14 +1121,6 @@
   "today": "Today",
   "yesterday": "Yesterday",
 
-  "themeDefault": "Default (Indigo)",
-  "themeOceanBlue": "Ocean Blue",
-  "themeMidnightSlate": "British Racing Green",
-  "themeCrimson": "Bright Maroon",
-  "themeAmber": "Amber",
-  "themeSteel": "Lime Green",
-  "themeSky": "Sky",
-
   "displayModern": "Modern",
   "displayIrc": "IRC",
   "displayBubbles": "Bubbles",
@@ -902,7 +1134,6 @@
   "paneMembers": "Members",
 
   "displayName": "Display Name",
-  "displayNameLabel": "Display name",
   "userIDLabel": "User ID",
 
   "logoutError": "Logout error: {error}",
@@ -912,10 +1143,14 @@
     }
   },
 
+  "privacyPolicyLastUpdated": "Last updated: June 2025",
+  "@privacyPolicyLastUpdated": {
+    "description": "The revision date at the foot of the privacy policy. It used to be a string literal in the widget, where it silently stopped being true as the document moved on."
+  },
   "privacyPolicyText": "Moonrelay does not transmit any information beyond what is necessary for the application's operation. We do not collect data, run telemetry, or serve advertisements. Any content shared through the Matrix network falls outside this privacy policy; it resides on Matrix homeservers and is subject to their respective policies.",
 
   "encryptedTooltip": "Encrypted",
-  "notEncryptedTooltip": "Not encrypted",
+  "notEncryptedTooltip": "Not Encrypted",
   "verifiedTooltip": "Verified",
   "unverifiedTooltip": "Unverified",
 
@@ -953,9 +1188,17 @@
   },
 
   "presenceOnline": "Online",
+  "@presenceOnline": {
+    "description": "Matrix presence state: the user is online now."
+  },
   "presenceOffline": "Offline",
+  "@presenceOffline": {
+    "description": "Matrix presence state: the user is offline."
+  },
   "presenceUnavailable": "Unavailable",
-  "presenceUnknown": "Unknown",
+  "@presenceUnavailable": {
+    "description": "Matrix presence state: idle / away."
+  },
 
   "lastActive": "Last Active",
   "@lastActive": {
@@ -1051,12 +1294,17 @@
   },
   "encryptionBackupRecoveryKeySet": "Recovery key is set",
   "encryptionBackupNoRecoveryKey": "No recovery key set",
+  "encryptionBackupRecoveryKeyUnknown": "Recovery key status unknown",
+  "encryptionBackupRecoveryKeyUnknownHint": "Moonrelay cannot tell from the Matrix API whether a recovery key was set up. If you are not sure, re-run the recovery setup to be certain you can restore encrypted history on a new device.",
   "encryptionBackupRecoveryKeyHint": "If you didn't set a recovery passphrase or key during setup, re-run setup to generate one. Without it, you cannot restore encrypted history on a new device.",
 
   "roomNotFound": "Room not found",
   "roomNotFoundHint": "You must join a room before you can view its messages. Use the search bar above to find and join rooms.",
+  "stillWaitingForServer": "Still waiting for the server…",
+  "noRoomSelected": "No room selected",
+  "noRoomSelectedHint": "Pick a room from the sidebar to start reading or chatting.",
 
-  "profileIdNullError": "The User's ID could not be understood. Please try again later, or report a bug to our project.",
+
   "profileIdInvalid": "The User's ID could not be understood ({error}). Please try again later, or report a bug to our project.",
   "@profileIdInvalid": {
     "description": "Error shown when the profile user ID is invalid.",
@@ -1073,27 +1321,25 @@
   "@networkDescription": {
     "description": "Subtitle description for the Network settings page."
   },
-  "statusBarSection": "Status bar",
-  "@statusBarSection": {
-    "description": "Section title for the status bar toggle."
+
+
+  "syncStillFetching": "Still fetching",
+  "@syncStillFetching": {
+    "description": "Shown in a room when no data has arrived for a while. Deliberately reassuring rather than alarming: Matrix long-polling is slow by nature and the client is still trying."
   },
-  "showStatusBar": "Show status bar",
-  "showStatusBarDescription": "Display the sync status bar at the bottom of the screen.",
-  "@showStatusBarDescription": {
-    "description": "Description for the status bar toggle."
+  "syncStillFetchingDescription": "No new data yet. Moonrelay is still trying; Matrix servers can be slow to respond.",
+  "@syncStillFetchingDescription": {
+    "description": "Tooltip for the still-fetching indicator."
+  },
+  "syncConnectionFailed": "Not syncing",
+  "@syncConnectionFailed": {
+    "description": "Shown in a room when the last sync failed. Doubles as the retry button label."
+  },
+  "syncConnectionFailedDescription": "The last attempt to fetch data failed. Activate to try again.",
+  "@syncConnectionFailedDescription": {
+    "description": "Tooltip for the failed-sync indicator."
   },
 
-  "statusWaitingForResponse": "Waiting for response",
-  "statusSyncing": "Syncing",
-  "statusError": "Error",
-  "statusSynced": "Synced",
-  "statusBarLabel": "Status: {status}",
-  "@statusBarLabel": {
-    "description": "Label for the status bar showing the current sync state.",
-    "placeholders": {
-      "status": { "type": "String" }
-    }
-  },
 
   "logs": "Logs",
   "@logs": {
@@ -1248,6 +1494,54 @@
   "pinnedSpaces": "Pinned",
   "@pinnedSpaces": {
     "description": "Section header for pinned subspaces in the navigation pane."
+  },
+
+  "layoutMode": "Layout mode",
+  "@layoutMode": {
+    "description": "Section label for the layout mode picker."
+  },
+  "layoutModeDescription": "Choose how the main window arranges its panes. Auto adapts to the window size; Compact keeps a unified narrow sidebar at all widths; Mobile uses a single-pane layout with route-driven pages.",
+  "@layoutModeDescription": {
+    "description": "Helper text explaining what each layout mode does."
+  },
+  "layoutModeAuto": "Auto",
+  "@layoutModeAuto": {
+    "description": "Layout mode that adapts to the current window width."
+  },
+  "layoutModeCompact": "Compact",
+  "@layoutModeCompact": {
+    "description": "Layout mode that always uses a unified compact sidebar."
+  },
+  "layoutModeMobile": "Mobile",
+  "@layoutModeMobile": {
+    "description": "Layout mode that uses a single-pane, route-driven mobile-style layout."
+  },
+
+  "hubTabAccounts": "Accounts",
+  "@hubTabAccounts": {
+    "description": "Tab label for the accounts category in the hub."
+  },
+  "hubTabProfile": "Profile",
+  "@hubTabProfile": {
+    "description": "Tab label for the profile category in the hub."
+  },
+  "hubTabSettings": "Settings",
+  "@hubTabSettings": {
+    "description": "Tab label for the app settings category in the hub."
+  },
+  "hubTabAbout": "About",
+  "@hubTabAbout": {
+    "description": "Tab label for the about category in the hub."
+  },
+
+  "identity": "Identity",
+  "@identity": {
+    "description": "Section header for the identity group on the profile page."
+  },
+
+  "back": "Back",
+  "@back": {
+    "description": "Generic back button label used by the mobile layout."
   },
 
   "deleteRoom": "Delete Room",
@@ -1657,6 +1951,10 @@
     "description": "Section header for user directory search results."
   },
   "searchRooms": "Rooms",
+  "filterRoomsPlaceholder": "Search rooms",
+  "clearSearch": "Clear search",
+  "noRoomsMatch": "No rooms match \"{query}\"",
+  "noRoomsMatchHint": "Try a different search, or clear the filter to see everything you have joined.",
   "@searchRooms": {
     "description": "Section header for room search results."
   },
@@ -1770,6 +2068,20 @@
       "count": { "type": "int" }
     }
   },
+  "searchMatchCount": "{count} match",
+  "@searchMatchCount": {
+    "description": "Pill shown next to a search-result sender name when the query has a single match in the message body.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "searchMatchCountMany": "{count} matches",
+  "@searchMatchCountMany": {
+    "description": "Pill shown next to a search-result sender name when the query has multiple matches in the message body.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "searchingMessages": "Searching messages…",
   "@searchingMessages": {
     "description": "Message shown while searching messages."
@@ -1783,6 +2095,15 @@
   "about": "About",
   "@about": {
     "description": "Hub navigation item for the About page."
+  },
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "description": "App version label on the About page, with the version value substituted (e.g. 0.6.0+0).",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "aboutRepository": "Repository",
   "@aboutRepository": {
@@ -1804,7 +2125,7 @@
   "@aboutJoinSupportSpace": {
     "description": "Button to navigate to the Moonrelay support Matrix space home."
   },
-  "aboutJoinedSupportSpace": "Joined Moonrelay Support space!",
+  "aboutJoinedSupportSpace": "Joined Moonrelay Support space",
   "@aboutJoinedSupportSpace": {
     "description": "Snackbar confirmation after joining the support space."
   },
@@ -1891,7 +2212,7 @@
   "@unpinMessage": {
     "description": "Tooltip for the unpin message action."
   },
-  "showPinnedOnly": "Viewing pinned messages only — tap to show all",
+  "showPinnedOnly": "Viewing pinned messages only; tap to show all",
   "@showPinnedOnly": {
     "description": "Tooltip for the pinned filter toggle when active."
   },
@@ -1911,6 +2232,14 @@
   "editedIndicator": "(edited)",
   "@editedIndicator": {
     "description": "Inline marker shown next to an edited message body."
+  },
+  "replyShowMore": "Show more",
+  "@replyShowMore": {
+    "description": "Toggle under a long reply preview to expand the quoted body."
+  },
+  "replyShowLess": "Show less",
+  "@replyShowLess": {
+    "description": "Toggle shown when a reply preview is expanded."
   },
   "viewEditHistory": "View edit history",
   "@viewEditHistory": {
@@ -1942,6 +2271,47 @@
     "placeholders": {
       "error": { "type": "String" }
     }
+  },
+
+  "openSenderProfile": "Open sender profile",
+  "@openSenderProfile": {
+    "description": "Context-menu item that opens the sender's profile page."
+  },
+  "copyMessage": "Copy message",
+  "@copyMessage": {
+    "description": "Context-menu item that copies the message body to the clipboard."
+  },
+  "copyEventId": "Copy event ID",
+  "@copyEventId": {
+    "description": "Context-menu item that copies the message's Matrix event ID."
+  },
+  "copyMessageLink": "Copy message link",
+  "@copyMessageLink": {
+    "description": "Context-menu item that copies a matrix.to permalink to the message."
+  },
+  "copyRawJson": "Copy raw JSON",
+  "@copyRawJson": {
+    "description": "Context-menu item that copies the event content as pretty-printed JSON."
+  },
+  "messageDetails": "Message details",
+  "@messageDetails": {
+    "description": "Context-menu item that opens the message details page."
+  },
+  "messageEventIdCopied": "Event ID copied to clipboard",
+  "@messageEventIdCopied": {
+    "description": "Snackbar after copying a message event ID."
+  },
+  "messageLinkCopied": "Message link copied to clipboard",
+  "@messageLinkCopied": {
+    "description": "Snackbar after copying a matrix.to message permalink."
+  },
+  "messageRawJsonCopied": "Raw event JSON copied to clipboard",
+  "@messageRawJsonCopied": {
+    "description": "Snackbar after copying a message's raw JSON."
+  },
+  "reportReasonHint": "Reason",
+  "@reportReasonHint": {
+    "description": "Placeholder text in the report-user dialog text field."
   },
 
   "recordVoiceNote": "Record voice note",
@@ -2001,13 +2371,49 @@
   "@playVideo": {
     "description": "Tooltip for the video message play button."
   },
-  "pauseVideo": "Pause",
+"pauseVideo": "Pause",
   "@pauseVideo": {
     "description": "Tooltip for the video message pause button."
+  },
+  "videoSkipBack": "Back {seconds}s",
+  "@videoSkipBack": {
+    "description": "Tooltip for the full-screen video player's rewind control. The argument is the number of seconds, plural in every locale that has this key so far.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "10"
+      }
+    }
+  },
+  "videoSkipForward": "Forward {seconds}s",
+  "@videoSkipForward": {
+    "description": "Tooltip for the full-screen video player's fast-forward control. The argument is the number of seconds, plural in every locale that has this key so far.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "videoMute": "Mute",
+  "@videoMute": {
+    "description": "Tooltip for the full-screen video player's mute control."
+  },
+  "videoUnmute": "Unmute",
+  "@videoUnmute": {
+    "description": "Tooltip for the full-screen video player's unmute control."
   },
   "fullscreenVideo": "Fullscreen",
   "@fullscreenVideo": {
     "description": "Tooltip for the fullscreen video button."
+  },
+  "videoLoadFailed": "Couldn't load video",
+  "@videoLoadFailed": {
+    "description": "Message shown in the player area when the video attachment can't be initialized."
+  },
+  "tapToRetry": "Tap to retry",
+  "@tapToRetry": {
+    "description": "Hint shown beneath a retry-able error indicator."
   },
 
   "shareLocation": "Share location",
@@ -2030,7 +2436,18 @@
   "@openInMaps": {
     "description": "Button on a location message to open the coordinates in a maps app."
   },
-  "locationAccuracyMeters": "±{m} m",
+  "latitudeLabel": "Lat",
+  "@latitudeLabel": {
+    "description": "Abbreviation for latitude, shown beside a coordinate in a location message."
+  },
+  "longitudeLabel": "Lon",
+  "@longitudeLabel": {
+    "description": "Abbreviation for longitude, shown beside a coordinate in a location message."
+  },
+  "openInMapsFailed": "No app on this system can open maps",
+  "@openInMapsFailed": {
+    "description": "Shown when the location message's map button is pressed and no installed app handles a geo: URI."
+  },  "locationAccuracyMeters": "±{m} m",
   "@locationAccuracyMeters": {
     "description": "Accuracy indicator for a shared location.",
     "placeholders": {
@@ -2070,7 +2487,10 @@
   "@pollVote": {
     "description": "Action label on a poll option the user has not voted for."
   },
-  "pollVotedFor": "Voted",
+  "pollVoteFailed": "Vote could not be sent",
+  "@pollVoteFailed": {
+    "description": "Shown when sending a poll response fails. Without it a failed tap is indistinguishable from a tap that landed."
+  },  "pollVotedFor": "Voted",
   "@pollVotedFor": {
     "description": "Action label on a poll option the user has voted for."
   },
@@ -2189,6 +2609,18 @@
   "denyKnock": "Deny",
   "@denyKnock": {
     "description": "Action to deny a pending knock request."
+  },
+  "knockApproveConfirmTitle": "Approve knock request?",
+  "@knockApproveConfirmTitle": {
+    "description": "Title of the confirm dialog shown when a moderator approves a knock request."
+  },
+  "knockApproveConfirmBody": "The user will be invited to the room. They will not see this room's history unless explicitly shared with them.",
+  "@knockApproveConfirmBody": {
+    "description": "Body text of the knock-approve confirm dialog."
+  },
+  "approve": "Approve",
+  "@approve": {
+    "description": "Generic approve action label, used by the knock confirmation dialog."
   },
   "knockApproved": "{displayName} was approved to join.",
   "@knockApproved": {
@@ -2394,14 +2826,6 @@
   "@displayNameUpdated": {
     "description": "Snackbar after updating display name."
   },
-  "sharePresence": "Share presence",
-  "@sharePresence": {
-    "description": "Toggle to share presence with other users."
-  },
-  "sharePresenceDescription": "Allow other users to see your online status.",
-  "@sharePresenceDescription": {
-    "description": "Description for the share-presence toggle."
-  },
 
   "expandReplies": "Show thread context",
   "@expandReplies": {
@@ -2470,5 +2894,933 @@
   "ensureDMPermission": "Send a direct message",
   "@ensureDMPermission": {
     "description": "Action label for the DM shortcut on a profile."
+  },
+
+  "deliverySending": "Sending…",
+  "@deliverySending": {
+    "description": "Tooltip on the delivery indicator while a message is in flight."
+  },
+  "deliverySent": "Sent",
+  "@deliverySent": {
+    "description": "Tooltip on the delivery indicator once the message is confirmed by the server."
+  },
+  "deliveryFailed": "Failed to send. Tap to retry.",
+  "@deliveryFailed": {
+    "description": "Tooltip on the delivery indicator when a message failed to send."
+  },
+
+  "commandPalette": "Command palette",
+  "commandPaletteHint": "Type a command or search…",
+  "@commandPaletteHint": {
+    "description": "Hint shown inside the command palette search field."
+  },
+  "commandPaletteUsersFilter": "People",
+  "@commandPaletteUsersFilter": {
+    "description": "Label for the command palette filter chip that narrows results to the user directory."
+  },
+  "paletteDirectorySearching": "Looking for public rooms and spaces…",
+  "@paletteDirectorySearching": {
+    "description": "Shown in the command palette while the public room directory request is still in flight."
+  },  "roomPaneInfo": "Info",
+  "@roomPaneInfo": {
+    "description": "Tab label for room information in the room's side pane."
+  },
+  "roomPaneMembers": "Members",
+  "@roomPaneMembers": {
+    "description": "Tab label for the member list in the room's side pane."
+  },
+  "roomPaneThreads": "Threads",
+  "@roomPaneThreads": {
+    "description": "Tab label for the thread list in the room's side pane."
+  },
+  "roomPanePinned": "Pinned",
+  "@roomPanePinned": {
+    "description": "Tab label for pinned messages in the room's side pane."
+  },
+  "roomPaneSearch": "Search",
+  "@roomPaneSearch": {
+    "description": "Tab label for in-room search in the room's side pane."
+  },
+  "roomPaneSearchHint": "Searching this room. Use # to include the public directory.",
+  "@roomPaneSearchHint": {
+    "description": "Hint strip at the foot of the room pane's search tab."
+  },
+
+  "inRoomSearchSenderHint": "Filter by sender",
+  "@inRoomSearchSenderHint": {
+    "description": "Placeholder for the sender filter in the room pane's search tab."
+  },
+  "inRoomSearchFailed": "Search could not be reached. The homeserver did not answer.",
+  "@inRoomSearchFailed": {
+    "description": "Shown in the room pane's search tab when the search request failed."
+  },
+  "inRoomSearchResultCount": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@inRoomSearchResultCount": {
+    "description": "Result count in the room pane's search footer when everything has loaded.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchMoreResults": "{count, plural, =0{No results} =1{1 result, more available} other{{count} results, more available}}",
+  "@inRoomSearchMoreResults": {
+    "description": "Result count in the room pane's search footer while more pages remain.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inRoomSearchTypeAll": "All",
+  "@inRoomSearchTypeAll": {
+    "description": "Message type filter chip meaning no type restriction."
+  },
+  "inRoomSearchTypeText": "Text",
+  "@inRoomSearchTypeText": {
+    "description": "Message type filter chip for plain text."
+  },
+  "inRoomSearchTypeImage": "Images",
+  "@inRoomSearchTypeImage": {
+    "description": "Message type filter chip for images."
+  },
+  "inRoomSearchTypeFile": "Files",
+  "@inRoomSearchTypeFile": {
+    "description": "Message type filter chip for files."
+  },
+  "inRoomSearchTypeAudio": "Audio",
+  "@inRoomSearchTypeAudio": {
+    "description": "Message type filter chip for audio."
+  },
+  "inRoomSearchTypeVideo": "Video",
+  "@inRoomSearchTypeVideo": {
+    "description": "Message type filter chip for video."
+  },  "paletteDirectorySection": "Public rooms and spaces",
+  "@paletteDirectorySection": {
+    "description": "Header for the trailing command palette section holding public rooms and spaces from the homeserver directory."
+  },
+  "paletteDirectoryMembers": "{count, plural, =1{1 member} other{{count} members}}",
+  "@paletteDirectoryMembers": {
+    "description": "Member count for a public room in the command palette.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },  "paletteTypeToSearch": "Type to search rooms, people, messages and settings.",
+  "@paletteTypeToSearch": {
+    "description": "Command palette empty state, shown before anything has been typed."
+  },
+  "paletteSearching": "Searching…",
+  "@paletteSearching": {
+    "description": "Command palette empty state while a remote source is still working."
+  },
+  "paletteSourceFailed": "Some sources could not be reached.",
+  "@paletteSourceFailed": {
+    "description": "Command palette empty state when every source failed."
+  },
+  "paletteSourceFailedNamed": "Not reached: {sources}",
+  "@paletteSourceFailedNamed": {
+    "description": "Command palette footer naming the sources that failed.",
+    "placeholders": {
+      "sources": {
+        "type": "String",
+        "example": "message, user"
+      }
+    }
+  },
+  "paletteHintNavigate": "to move",
+  "@paletteHintNavigate": {
+    "description": "Command palette key hint for the arrow keys."
+  },
+  "paletteHintOpen": "to open",
+  "@paletteHintOpen": {
+    "description": "Command palette key hint for Enter."
+  },
+  "paletteHintClose": "to close",
+  "@paletteHintClose": {
+    "description": "Command palette key hint for Escape."
+  },
+  "commandPaletteNoResults": "No matching commands.",
+  "@commandPaletteNoResults": {
+    "description": "Message shown when the command palette query does not match any action."
+  },
+  "commandPaletteActions": "Actions",
+  "@commandPaletteActions": {
+    "description": "Section header above the static command palette actions."
+  },
+  "commandPaletteRooms": "Jump to",
+  "@commandPaletteRooms": {
+    "description": "Section header above the searchable room list in the command palette."
+  },
+  "commandPaletteOpenSettings": "Open Settings",
+  "@commandPaletteOpenSettings": {
+    "description": "Command palette action that opens the settings hub."
+  },
+  "commandPaletteOpenAccounts": "Manage Accounts",
+  "@commandPaletteOpenAccounts": {
+    "description": "Command palette action that opens the accounts hub page."
+  },
+  "commandPaletteOpenLogs": "Open Logs",
+  "@commandPaletteOpenLogs": {
+    "description": "Command palette action that opens the logs hub page."
+  },
+
+  "encryptionBadgeTooltip": "End-to-end encrypted",
+  "@encryptionBadgeTooltip": {
+    "description": "Tooltip on the encrypted-room badge in the rooms list."
+  },
+
+  "shortcutOpenCommandPalette": "Open the command palette",
+  "@shortcutOpenCommandPalette": {
+    "description": "Description of the Ctrl+Shift+P shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutOpenSearch": "Open global search",
+  "@shortcutOpenSearch": {
+    "description": "Description of the Ctrl+/ shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutInRoomSearch": "Search in this room",
+  "@shortcutInRoomSearch": {
+    "description": "Description of the Ctrl+F shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutToggleLeftSidebar": "Toggle the left sidebar",
+  "@shortcutToggleLeftSidebar": {
+    "description": "Description of the Ctrl+Shift+M shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutBold": "Bold selection",
+  "@shortcutBold": {
+    "description": "Description of the Ctrl+B shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutItalic": "Italicise selection",
+  "@shortcutItalic": {
+    "description": "Description of the Ctrl+I shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCode": "Toggle code formatting",
+  "@shortcutCode": {
+    "description": "Description of the Ctrl+E shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutSendMessage": "Send the message",
+  "@shortcutSendMessage": {
+    "description": "Description of the Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutNewline": "Insert a newline",
+  "@shortcutNewline": {
+    "description": "Description of the Shift+Enter shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutCloseOverlay": "Close the current overlay or dialog",
+  "@shortcutCloseOverlay": {
+    "description": "Description of the Esc shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutShowShortcuts": "Show this shortcuts list",
+  "@shortcutShowShortcuts": {
+    "description": "Description of the Ctrl+Shift+? shortcut in the keyboard shortcuts overlay."
+  },
+  "shortcutsTitle": "Keyboard Shortcuts",
+  "@shortcutsTitle": {
+    "description": "Title of the keyboard shortcuts overlay."
+  },
+  "shortcutsEverywhere": "Everywhere",
+  "shortcutsInRoom": "In a room",
+  "shortcutsWhileTyping": "While typing",
+  "shortcutLayoutDependent": "depends on your keyboard layout",
+  "@shortcutLayoutDependent": {
+    "description": "Appended to a shortcut that only fires on some keyboard layouts."
+  },
+  "shortcutsSubtitle": "Quick reference for global and in-room key bindings.",
+  "@shortcutsSubtitle": {
+    "description": "Subtitle under the keyboard shortcuts overlay title."
+  },
+  "shortcutsHint": "Press Ctrl+Shift+? anywhere to reopen this list.",
+  "@shortcutsHint": {
+    "description": "Hint shown at the bottom of the keyboard shortcuts overlay."
+  },
+
+  "notifyOnMentionsOnly": "Notify on mentions only",
+  "@notifyOnMentionsOnly": {
+    "description": "Toggle to only notify when the user is mentioned in a room."
+  },
+  "notifyOnMentionsOnlyDescription": "Suppress notifications for non-mention messages",
+  "@notifyOnMentionsOnlyDescription": {
+    "description": "Subtitle for the mentions-only notification toggle."
+  },
+
+  "commandPaletteModeSearch": "Search: rooms, messages, users, homeserver",
+  "@commandPaletteModeSearch": {
+    "description": "Inline hint shown in the command palette when search mode (?) is active."
+  },
+  "commandPaletteModeSettings": "Settings: jump to any app settings page",
+  "@commandPaletteModeSettings": {
+    "description": "Inline hint shown in the command palette when settings mode (>) is active."
+  },
+  "commandPaletteModeRooms": "Rooms: filter your joined rooms and spaces",
+  "@commandPaletteModeRooms": {
+    "description": "Inline hint shown in the command palette when rooms mode (#) is active."
+  },
+  "commandPaletteModeUsers": "Users: search the user directory",
+  "@commandPaletteModeUsers": {
+    "description": "Inline hint shown in the command palette when users mode (@) is active."
+  },
+  "commandPaletteSearchHint": "Search rooms, messages, users…",
+  "@commandPaletteSearchHint": {
+    "description": "Placeholder shown in the command palette input when in search mode."
+  },
+  "commandPaletteSettingsHint": "Search settings…",
+  "@commandPaletteSettingsHint": {
+    "description": "Placeholder shown in the command palette input when in settings mode."
+  },
+  "commandPaletteRoomsHint": "Filter rooms and spaces…",
+  "@commandPaletteRoomsHint": {
+    "description": "Placeholder shown in the command palette input when in rooms mode."
+  },
+  "commandPaletteUsersHint": "Search users…",
+  "@commandPaletteUsersHint": {
+    "description": "Placeholder shown in the command palette input when in users mode."
+  },
+  "commandPaletteOpenProfile": "Your Profile",
+  "@commandPaletteOpenProfile": {
+    "description": "Command palette action that opens the user's own profile in the hub."
+  },
+  "commandPaletteOpenAbout": "About Moonrelay",
+  "@commandPaletteOpenAbout": {
+    "description": "Command palette action that opens the about page in the hub."
+  },
+  "commandPaletteOpenSecurity": "Encryption & Security",
+  "@commandPaletteOpenSecurity": {
+    "description": "Command palette action that opens the encryption & security hub page."
+  },
+  "commandPaletteAddRoom": "Add a Room",
+  "@commandPaletteAddRoom": {
+    "description": "Command palette action that opens the new-room screen."
+  },
+  "commandPaletteRecent": "Recently used actions",
+  "@commandPaletteRecent": {
+    "description": "Section header in the command palette listing previously executed actions."
+  },
+  "commandPaletteAppearanceDesc": "Theme, accent color, density, and fonts",
+  "@commandPaletteAppearanceDesc": {
+    "description": "Short description shown next to the Appearance settings entry."
+  },
+  "commandPaletteLayoutDesc": "Sidebar widths, panes, and chat density",
+  "@commandPaletteLayoutDesc": {
+    "description": "Short description shown next to the Layout settings entry."
+  },
+  "commandPaletteSecurityDesc": "Cross-signing, key backup, and devices",
+  "@commandPaletteSecurityDesc": {
+    "description": "Short description shown next to the Encryption & Security settings entry."
+  },
+  "commandPaletteChatDesc": "Message display, font size, state events",
+  "@commandPaletteChatDesc": {
+    "description": "Short description shown next to the Chat settings entry."
+  },
+  "commandPaletteNetworkDesc": "Homeserver, sync options, and timeouts",
+  "@commandPaletteNetworkDesc": {
+    "description": "Short description shown next to the Network settings entry."
+  },
+  "commandPaletteBackgroundDesc": "Tray icon and start-up behaviour",
+  "@commandPaletteBackgroundDesc": {
+    "description": "Short description shown next to the Background & Tray settings entry."
+  },
+  "commandPaletteNotificationsDesc": "Desktop and mention notifications",
+  "@commandPaletteNotificationsDesc": {
+    "description": "Short description shown next to the Notifications settings entry."
+  },
+  "commandPaletteBlockedDesc": "Users you have blocked",
+  "@commandPaletteBlockedDesc": {
+    "description": "Short description shown next to the Blocked Users settings entry."
+  },
+  "commandPaletteLogsDesc": "Inspect recent app log lines",
+  "@commandPaletteLogsDesc": {
+    "description": "Short description shown next to the Logs settings entry."
+  },
+
+  "accessibilityAnimations": "Animations",
+  "@accessibilityAnimations": {
+    "description": "Section title in accessibility settings for motion controls."
+  },
+  "enableAnimations": "Enable animations",
+  "@enableAnimations": {
+    "description": "Toggle for whether in-app motion is enabled.  Disabling honours reduced-motion accessibility preferences."
+  },
+  "enableAnimationsDescription": "Smooth transitions, fades, and skeleton pulses",
+  "@enableAnimationsDescription": {
+    "description": "Subtitle for the animations toggle."
+  },
+
+  "privacy": "Privacy",
+  "@privacy": {
+    "description": "Title of the privacy settings sub-page in the hub."
+  },
+  "privacyDescription": "Deep-link behaviour, database management, auto-lock, and log retention.",
+  "@privacyDescription": {
+    "description": "Subtitle for the privacy settings page."
+  },
+  "deepLinks": "Deep links",
+  "@deepLinks": {
+    "description": "Section title for the matrix:// deep-link behaviour settings."
+  },
+  "deepLinkAutoJoin": "Auto-join via deep links",
+  "@deepLinkAutoJoin": {
+    "description": "Toggle that controls whether matrix.to / matrix: links auto-join rooms."
+  },
+  "deepLinkAutoJoinDescription": "When on, opening a matrix link joins the room. When off, unknown rooms open as previews.",
+  "@deepLinkAutoJoinDescription": {
+    "description": "Subtitle for the deep-link auto-join toggle."
+  },
+  "database": "Database",
+  "@database": {
+    "description": "Section title for database-related privacy settings."
+  },
+  "dbBackupKeepCount": "Database backups to keep",
+  "@dbBackupKeepCount": {
+    "description": "How many .bak files to keep when the database is wiped."
+  },
+  "autoOfflinePresenceEnabled": "Appear offline when idle",
+  "@autoOfflinePresenceEnabled": {
+    "description": "Toggle for marking the account offline after a period of inactivity. This is a Matrix presence change only, visible to other users; it does not lock the app, clear keys, or affect the session in any other way. Do not word this as a lock."
+  },
+  "autoOfflinePresenceEnabledDescription": "Mark the account as offline after a period of no keyboard or mouse activity.",
+  "@autoOfflinePresenceEnabledDescription": {
+    "description": "Subtitle for the appear-offline-when-idle toggle. Presence only: other users see you as offline, nothing is locked and no keys are cleared."
+  },
+  "autoOfflinePresenceMinutes": "Idle minutes before appearing offline",
+  "@autoOfflinePresenceMinutes": {
+    "description": "Number of minutes of inactivity before the account is marked offline."
+  },
+  "wipeLogsOnLogout": "Wipe logs on logout",
+  "@wipeLogsOnLogout": {
+    "description": "Toggle that controls whether log files are deleted when the user logs out."
+  },
+  "wipeLogsOnLogoutDescription": "Remove all log files from disk when signing out of the active account.",
+  "@wipeLogsOnLogoutDescription": {
+    "description": "Subtitle for the wipe-logs-on-logout toggle."
+  },
+
+  "storage": "Storage",
+  "@storage": {
+    "description": "Title of the storage / media settings sub-page in the hub."
+  },
+  "storageDescription": "Automatic downloads, attachment thresholds, and draft retention.",
+  "@storageDescription": {
+    "description": "Subtitle for the storage settings page."
+  },
+  "autoDownloadImages": "Auto-download images",
+  "autoDownload": "Automatic downloads",
+  "whenToNotify": "When to notify",
+  "checkItWorks": "Check it works",
+  "yourAccount": "Your account",
+  "@autoDownloadImages": {
+    "description": "Policy for automatically downloading image attachments."
+  },
+  "autoDownloadFiles": "Auto-download files",
+  "@autoDownloadFiles": {
+    "description": "Policy for automatically downloading generic file attachments."
+  },
+  "autoDownloadVideos": "Auto-download videos",
+  "@autoDownloadVideos": {
+    "description": "Policy for automatically downloading video attachments."
+  },
+  "clickToDownload": "Click to download",
+  "@clickToDownload": {
+    "description": "Label on an attachment placeholder whose download is withheld until the user asks for it."
+  },
+  "autoDownloadAlways": "Always",
+  "@autoDownloadAlways": {
+    "description": "AutoDownloadPolicy value: always download regardless of network."
+  },
+  "autoDownloadWifi": "On Wi-Fi only",
+  "@autoDownloadWifi": {
+    "description": "AutoDownloadPolicy value: only download while connected to Wi-Fi."
+  },
+  "autoDownloadNever": "Never",
+  "@autoDownloadNever": {
+    "description": "AutoDownloadPolicy value: never auto-download, require explicit click."
+  },
+  "attachmentClickThreshold": "Click-to-download threshold",
+  "@attachmentClickThreshold": {
+    "description": "Section title for the click-to-download attachment threshold."
+  },
+  "attachmentClickThresholdMb": "Click-to-download threshold (MB)",
+  "@attachmentClickThresholdMb": {
+    "description": "Attachments larger than this many MB require an explicit click to download."
+  },
+  "drafts": "Drafts",
+  "@drafts": {
+    "description": "Section title for composer draft settings."
+  },
+  "draftsEnabled": "Save message drafts",
+  "@draftsEnabled": {
+    "description": "Toggle for whether composer drafts are saved between sessions."
+  },
+  "draftsEnabledDescription": "Persist the in-progress composer text when the app closes or the user switches rooms.",
+  "@draftsEnabledDescription": {
+    "description": "Subtitle for the drafts-enabled toggle."
+  },
+  "draftRetentionDays": "Draft retention (days)",
+  "@draftRetentionDays": {
+    "description": "How many days to keep saved drafts before they expire."
+  },
+
+  "advanced": "Advanced",
+  "@advanced": {
+    "description": "Title of the advanced settings sub-page in the hub."
+  },
+  "advancedDescription": "Debounce timings, sync timeouts, and log rotation.",
+  "@advancedDescription": {
+    "description": "Subtitle for the advanced settings page."
+  },
+  "debounceTimings": "Debounce timings",
+  "@debounceTimings": {
+    "description": "Section title for the various debounce intervals."
+  },
+  "syncDebounceMs": "Sync debounce",
+  "@syncDebounceMs": {
+    "description": "Milliseconds to wait between sync updates before rebuilding the rooms list."
+  },
+  "searchDebounceMs": "Search debounce",
+  "@searchDebounceMs": {
+    "description": "Milliseconds to wait after the user stops typing before running a search."
+  },
+  "draftAutosaveMs": "Draft autosave debounce",
+  "@draftAutosaveMs": {
+    "description": "Milliseconds to wait after the user stops typing before persisting the draft."
+  },
+  "notificationPersistMs": "Notification persist debounce",
+  "@notificationPersistMs": {
+    "description": "Milliseconds to wait before persisting the notification dedupe state."
+  },
+  "deepLinkDedupMs": "Deep-link dedupe window",
+  "@deepLinkDedupMs": {
+    "description": "Milliseconds during which identical incoming deep-link URIs are collapsed."
+  },
+  "encryptionRefreshDebounceMs": "Encryption refresh debounce",
+  "@encryptionRefreshDebounceMs": {
+    "description": "Milliseconds to wait after sync before refreshing encryption state."
+  },
+  "timeoutsAndLimits": "Timeouts & limits",
+  "@timeoutsAndLimits": {
+    "description": "Section title for first-sync timeouts and search/notification batch sizes."
+  },
+  "firstSyncTimeoutS": "First-sync timeout",
+  "@firstSyncTimeoutS": {
+    "description": "Seconds to wait for the first sync before continuing the boot sequence."
+  },
+  "searchPageSize": "In-room search page size",
+  "@searchPageSize": {
+    "description": "How many events to fetch per page when searching within a room."
+  },
+  "notificationDedupeCacheSize": "Notification dedupe cache size",
+  "@notificationDedupeCacheSize": {
+    "description": "Maximum number of recently seen event IDs to keep in memory for dedupe."
+  },
+  "logLevel": "Minimum log level",
+  "@logLevel": {
+    "description": "Minimum severity persisted to log files."
+  },
+  "logMaxFileSizeMb": "Log file max size",
+  "@logMaxFileSizeMb": {
+    "description": "Maximum size of a single log file in megabytes before rotation."
+  },
+  "logMaxFiles": "Log files to keep",
+  "@logMaxFiles": {
+    "description": "Maximum number of rotated log files to retain on disk."
+  },
+  "logFlushDelayS": "Log flush delay",
+  "@logFlushDelayS": {
+    "description": "Seconds between batched log flushes."
+  },
+  "logVerboseRelease": "Verbose logging in release",
+  "@logVerboseRelease": {
+    "description": "When on, all log levels are persisted even in release builds."
+  },
+  "logVerboseReleaseDescription": "Persist debug and trace logs in release builds (off by default).",
+  "@logVerboseReleaseDescription": {
+    "description": "Subtitle for the verbose-logging-in-release toggle."
+  },
+  "logLevelAll": "All",
+  "@logLevelAll": {
+    "description": "LogLevel value: every severity."
+  },
+  "logLevelTrace": "Trace",
+  "@logLevelTrace": {
+    "description": "LogLevel value: trace-level events."
+  },
+  "logLevelDebug": "Debug",
+  "@logLevelDebug": {
+    "description": "LogLevel value: debug-level events."
+  },
+  "logLevelInfo": "Info",
+  "@logLevelInfo": {
+    "description": "LogLevel value: informational events."
+  },
+  "logLevelWarning": "Warning",
+  "@logLevelWarning": {
+    "description": "LogLevel value: warnings."
+  },
+  "logLevelError": "Error",
+  "@logLevelError": {
+    "description": "LogLevel value: errors."
+  },
+  "logLevelFatal": "Fatal",
+  "@logLevelFatal": {
+    "description": "LogLevel value: fatal / panic-level events."
+  },
+
+  "layoutDensity": "Layout density",
+  "@layoutDensity": {
+    "description": "Section title for the comfortable/compact list-row density."
+  },
+  "densityComfortable": "Comfortable",
+  "@densityComfortable": {
+    "description": "LayoutDensity value: roomy list rows."
+  },
+  "densityCompact": "Compact",
+  "@densityCompact": {
+    "description": "LayoutDensity value: tighter list rows for higher information density."
+  },
+  "bubbleRadius": "Bubble corner radius",
+  "@bubbleRadius": {
+    "description": "Corner radius (in px) applied to chat message bubbles."
+  },
+  "window": "Window",
+  "@window": {
+    "description": "Section title for desktop window-related settings."
+  },
+  "windowMinWidth": "Minimum window width",
+  "@windowMinWidth": {
+    "description": "Lower bound on the desktop window width in pixels."
+  },
+  "windowMinHeight": "Minimum window height",
+  "@windowMinHeight": {
+    "description": "Lower bound on the desktop window height in pixels."
+  },
+  "fonts": "Fonts",
+  "@fonts": {
+    "description": "Section title for primary and monospace font family settings."
+  },
+  "fontFamily": "App font family",
+  "@fontFamily": {
+    "description": "Font family used throughout the app."
+  },
+  "monoFontFamily": "Monospace font family",
+  "@monoFontFamily": {
+    "description": "Font family used for code blocks and inline code."
+  },
+
+  "sendReadReceipts": "Send read receipts",
+  "@sendReadReceipts": {
+    "description": "Toggle that controls whether the app sends m.read receipt events."
+  },
+  "sendReadReceiptsDescription": "Tell other clients when you have read their messages.",
+  "@sendReadReceiptsDescription": {
+    "description": "Subtitle for the send-read-receipts toggle."
+  },
+  "showReadReceipts": "Show read receipts",
+  "@showReadReceipts": {
+    "description": "Toggle that controls whether others' read receipts are rendered under messages."
+  },
+  "showReadReceiptsDescription": "Display the avatar stack of users who have read each message.",
+  "@showReadReceiptsDescription": {
+    "description": "Subtitle for the show-read-receipts toggle."
+  },
+  "linkPreviewsEnabled": "Show link previews",
+  "@linkPreviewsEnabled": {
+    "description": "Toggle that controls whether matrix:// and matrix.to URLs in messages render preview banners."
+  },
+  "linkPreviewsEnabledDescription": "Append a clickable banner to matrix.to / matrix: URLs detected in message bodies.",
+  "@linkPreviewsEnabledDescription": {
+    "description": "Subtitle for the link-previews toggle."
+  },
+  "replyPreviewThreshold": "Reply preview collapse length",
+  "@replyPreviewThreshold": {
+    "description": "Reply previews longer than this many characters get an expand toggle."
+  },
+  "sendTypingNotifications": "Send typing notifications",
+  "@sendTypingNotifications": {
+    "description": "Toggle that controls whether typing in the composer emits m.typing events."
+  },
+  "sendTypingNotificationsDescription": "Let the room know when you are typing a message.",
+  "@sendTypingNotificationsDescription": {
+    "description": "Subtitle for the send-typing-notifications toggle."
+  },
+  "showTypingIndicator": "Show typing indicator",
+  "@showTypingIndicator": {
+    "description": "Toggle that controls whether the \"X is typing…\" footer renders."
+  },
+  "showTypingIndicatorDescription": "Show the footer that lists users currently typing in the room.",
+  "@showTypingIndicatorDescription": {
+    "description": "Subtitle for the show-typing-indicator toggle."
+  },
+  "typing": "Typing",
+  "@typing": {
+    "description": "Section title for typing-indicator settings."
+  },
+  "composer": "Composer",
+  "@composer": {
+    "description": "Section title for chat-box / composer settings."
+  },
+  "sendShortcut": "Send shortcut",
+  "@sendShortcut": {
+    "description": "Section title for the keyboard shortcut that sends a message."
+  },
+  "sendShortcutEnter": "Enter",
+  "@sendShortcutEnter": {
+    "description": "SendShortcut value: pressing Enter alone sends the message."
+  },
+  "sendShortcutCmdEnter": "Cmd/Ctrl+Enter",
+  "@sendShortcutCmdEnter": {
+    "description": "SendShortcut value: pressing Cmd/Ctrl+Enter sends the message."
+  },
+  "sendShortcutBoth": "Both",
+  "@sendShortcutBoth": {
+    "description": "SendShortcut value: both Enter and Cmd/Ctrl+Enter send the message."
+  },
+  "sendShortcutDescription": "Choose which key or combination sends your message. Shift+Enter always inserts a newline.",
+  "@sendShortcutDescription": {
+    "description": "Description for the send shortcut keybind setting."
+  },
+
+  "keybinds": "Keybinds",
+  "@keybinds": {
+    "description": "Page label for the keybinds settings page."
+  },
+  "keybindsDescription": "Customise and review keyboard shortcuts.",
+  "@keybindsDescription": {
+    "description": "Subtitle for the keybinds settings page."
+  },
+  "mediaSizes": "Media bubble sizes",
+  "@mediaSizes": {
+    "description": "Section title for the per-media-type bubble dimension sliders."
+  },
+  "imageThumbnailMaxPx": "Image thumbnail max size",
+  "@imageThumbnailMaxPx": {
+    "description": "Maximum dimension (in px) for image thumbnails in the chat."
+  },
+  "stickerMaxPx": "Sticker max size",
+  "@stickerMaxPx": {
+    "description": "Maximum size (in px) for stickers in the chat."
+  },
+  "videoMaxPx": "Video preview max size",
+  "@videoMaxPx": {
+    "description": "Maximum size (in px) for video previews."
+  },
+  "audioMaxPx": "Audio message max size",
+  "@audioMaxPx": {
+    "description": "Maximum size (in px) for audio message bubbles."
+  },
+  "fileMaxPx": "File bubble max size",
+  "@fileMaxPx": {
+    "description": "Maximum size (in px) for generic file attachment bubbles."
+  },
+  "locationMaxPx": "Location bubble max size",
+  "@locationMaxPx": {
+    "description": "Maximum size (in px) for location message bubbles."
+  },
+
+  "testNotification": "Test notification",
+  "@testNotification": {
+    "description": "Action label that fires a test notification."
+  },
+  "testNotificationDescription": "Send a test notification to verify delivery",
+  "@testNotificationDescription": {
+    "description": "Subtitle for the test notification action."
+  },
+  "testNotificationFired": "Test notification fired; check logs",
+  "@testNotificationFired": {
+    "description": "Snackbar after firing a test notification."
+  },
+  "testNotificationBody": "This is a test notification from Moonrelay.",
+  "@testNotificationBody": {
+    "description": "Body text of the debug test notification."
+  },
+
+  "notificationActionMarkRead": "Mark as read",
+  "@notificationActionMarkRead": {
+    "description": "Windows notification action button that clears a room's unread state without opening the app."
+  },
+  "notificationActionOpen": "Open",
+  "@notificationActionOpen": {
+    "description": "Default notification action label, used as the tap affordance on Linux and as the Windows open button."
+  },
+  "notificationChannelDescription": "Matrix message notifications",
+  "@notificationChannelDescription": {
+    "description": "Android notification channel description."
+  },
+  "notificationFailed": "Notification failed: {error}",
+  "@notificationFailed": {
+    "description": "Snackbar shown when a test notification fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "notifyDmsOnly": "Only notify for direct messages",
+  "@notifyDmsOnly": {
+    "description": "Toggle that limits notifications to direct-message rooms."
+  },
+  "notifyDmsOnlyDescription": "Suppress notifications from non-DM rooms.",
+  "@notifyDmsOnlyDescription": {
+    "description": "Subtitle for the notify-DMs-only toggle."
+  },
+  "notifyWhenFocused": "Notify when window is focused",
+  "@notifyWhenFocused": {
+    "description": "Toggle that controls whether notifications fire while the window has focus."
+  },
+  "notifyWhenFocusedDescription": "When on, suppress notifications while the main window has focus.",
+  "@notifyWhenFocusedDescription": {
+    "description": "Subtitle for the notify-when-focused toggle."
+  },
+  "notificationSoundEnabled": "Play notification sound",
+  "@notificationSoundEnabled": {
+    "description": "Toggle that controls whether notifications play the default sound."
+  },
+  "notificationSoundEnabledDescription": "Emit the default sound alongside every notification.",
+  "@notificationSoundEnabledDescription": {
+    "description": "Subtitle for the notification-sound toggle."
+  },
+
+  "trayLeftClick": "Tray left-click action",
+  "@trayLeftClick": {
+    "description": "Section title for what happens when the user clicks the tray icon."
+  },
+  "trayClickToggle": "Toggle window",
+  "@trayClickToggle": {
+    "description": "TrayClickAction value: show/hide the main window."
+  },
+  "trayClickShow": "Show window",
+  "@trayClickShow": {
+    "description": "TrayClickAction value: always show the main window."
+  },
+  "trayClickOpenUnread": "Open unread",
+  "@trayClickOpenUnread": {
+    "description": "TrayClickAction value: jump to the first unread room."
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Generic save action button label."
+  },
+  "security": "Security",
+  "@security": {
+    "description": "Section title for security-related settings."
+  },
+
+  "updates": "Updates",
+  "@updates": {
+    "description": "Hub navigation item for the Updates settings page."
+  },
+  "updatesDescription": "Check for new versions of Moonrelay and configure update preferences.",
+  "@updatesDescription": {
+    "description": "Subtitle for the Updates settings page."
+  },
+  "checkForUpdates": "Check for Updates",
+  "@checkForUpdates": {
+    "description": "Button label to manually check for application updates."
+  },
+  "checkForUpdatesOnStartup": "Check for updates on startup",
+  "@checkForUpdatesOnStartup": {
+    "description": "Toggle label for checking for updates when the app starts."
+  },
+  "checkForUpdatesOnStartupDescription": "Automatically check for new versions when Moonrelay launches",
+  "@checkForUpdatesOnStartupDescription": {
+    "description": "Subtitle for the check-on-startup toggle."
+  },
+  "updateAvailable": "Update Available",
+  "@updateAvailable": {
+    "description": "Title for the update-available dialog."
+  },
+  "updateAvailableBody": "Moonrelay {version} is now available. You are running {current}. Would you like to download it?",
+  "@updateAvailableBody": {
+    "description": "Body of the update-available dialog.",
+    "placeholders": {
+      "version": { "type": "String" },
+      "current": { "type": "String" }
+    }
+  },
+  "updateDownload": "Download",
+  "@updateDownload": {
+    "description": "Button to download the new version from GitHub."
+  },
+  "updateLater": "Later",
+  "@updateLater": {
+    "description": "Button to dismiss the update notification."
+  },
+  "updateChecking": "Checking for updates…",
+  "@updateChecking": {
+    "description": "Status shown while checking for updates."
+  },
+  "updateUpToDate": "Moonrelay is up to date ({version}).",
+  "@updateUpToDate": {
+    "description": "Message shown when the app is already the latest version.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "updateCheckFailed": "Could not check for updates. Please try again later.",
+  "@updateCheckFailed": {
+    "description": "Message shown when the update check fails."
+  },
+  "updateCheckResult": "Latest version: {version}",
+  "@updateCheckResult": {
+    "description": "Result showing the latest version found during update check.",
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "language": "Language",
+  "@language": {
+    "description": "Section title for the language selector."
+  },
+  "languageDescription": "Choose the application language",
+  "@languageDescription": {
+    "description": "Subtitle for the language selector."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "Option label for English language."
+  },
+  "languagePersian": "Persian",
+  "@languagePersian": {
+    "description": "Option label for Persian (Farsi) language."
+  },
+  "languageSystem": "System default",
+  "@languageSystem": {
+    "description": "Option label to follow the system locale."
+  },
+
+  "stateMessageRedacted": "Message deleted by {name}",
+  "@stateMessageRedacted": {
+    "description": "Timeline event showing that someone deleted a message.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "stateMessageRedactedReason": "Message deleted by {name}: {reason}",
+  "@stateMessageRedactedReason": {
+    "description": "Timeline event showing a message deletion with reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedBy": "Deleted by {name}",
+  "@redactedBy": {
+    "description": "Label next to a redacted message showing who performed the deletion.",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "redactedWithReason": "Deleted by {name}: {reason}",
+  "@redactedWithReason": {
+    "description": "Redacted message label including the reason.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
+  "redactedForAdmin": "Redacted for violation",
+
+  "cancelFailedSendConfirm": "This message was not sent successfully. It will be removed from the timeline. The copy already on the server (visible to other clients) will not be deleted.",
+  "@cancelFailedSendConfirm": {
+    "description": "Confirmation shown when discarding a stuck failed-send event."
   }
 }
+

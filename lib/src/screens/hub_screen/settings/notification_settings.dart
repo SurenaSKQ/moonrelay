@@ -19,13 +19,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
-import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
+import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart';
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
+import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Notification Settings
-// ─────────────────────────────────────────────────────────────────────────────
 
 class HubNotificationSettings extends StatelessWidget {
   const HubNotificationSettings({super.key});
@@ -35,76 +35,96 @@ class HubNotificationSettings extends StatelessWidget {
     return Consumer<SettingsController>(
       builder: (context, controller, _) {
         final l10n = AppLocalizations.of(context)!;
-        final scheme = Theme.of(context).colorScheme;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.notifications,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
+        return HubPageBody(
+          children: [
+            // The section is "When to notify" rather than a second copy of the
+            // page's own name. The strip above already says Notifications and
+            // the page used to say it twice, in a 14px strip and a 22px
+            // heading, four lines apart.
+            HubSettingsSection(
+              title: l10n.whenToNotify,
+              children: [
+                HubSwitchTile(
+                  icon: LucideIcons.bell,
+                  title: l10n.enableNotifications,
+                  description: l10n.enableNotificationsDescription,
+                  value: controller.notificationsEnabled,
+                  onChanged: (v) => controller.updateNotificationsEnabled(v),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.notificationsDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant,
+                HubSwitchTile(
+                  icon: LucideIcons.messageCircle,
+                  title: l10n.notifyDmsOnly,
+                  description: l10n.notifyDmsOnlyDescription,
+                  value: controller.notifyDmsOnly,
+                  onChanged: (v) => controller.updateNotifyDmsOnly(v),
                 ),
-              ),
-              const SizedBox(height: 24),
-              HubSettingsSection(
-                title: l10n.notifications,
-                children: [
-                  SwitchListTile(
-                    title: Text(l10n.enableNotifications),
-                    subtitle: Text(l10n.enableNotificationsDescription),
-                    value: controller.notificationsEnabled,
-                    onChanged: (v) => controller.updateNotificationsEnabled(v),
-                    secondary: const Icon(LucideIcons.bell, size: 22),
-                  ),
-                  const Divider(height: 1, indent: 72),
-                  ListTile(
-                    leading: const Icon(LucideIcons.play, size: 22),
-                    title: const Text('Test notification'),
-                    subtitle: const Text(
-                      'Send a test notification to verify delivery',
-                    ),
-                    onTap: () async {
-                      final notif = context.read<NotificationService>();
-                      try {
-                        await notif.showTestNotification();
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Test notification fired — check logs',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Notification failed: $e'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+                HubSwitchTile(
+                  icon: LucideIcons.appWindow,
+                  title: l10n.notifyWhenFocused,
+                  description: l10n.notifyWhenFocusedDescription,
+                  value: controller.notifyWhenFocused,
+                  onChanged: (v) => controller.updateNotifyWhenFocused(v),
+                ),
+                HubSwitchTile(
+                  icon: LucideIcons.volume2,
+                  title: l10n.notificationSoundEnabled,
+                  description: l10n.notificationSoundEnabledDescription,
+                  value: controller.notificationSoundEnabled,
+                  onChanged: (v) =>
+                      controller.updateNotificationSoundEnabled(v),
+                ),
+              ],
+            ),
+
+            // The test notification is not a setting, so it is a section of
+            // its own. It used to be the last row of the settings above, cut
+            // off with a `Divider(height: 1, indent: 72)` that guessed where
+            // the icons ended.
+            HubSettingsSection(
+              title: l10n.checkItWorks,
+              children: [
+                HubActionTile(
+                  icon: LucideIcons.play,
+                  title: l10n.testNotification,
+                  description: l10n.testNotificationDescription,
+                  onTap: () => _fireTestNotification(context),
+                ),
+              ],
+            ),
+          ],
         );
       },
+    );
+  }
+
+  /// Shows a notification and says whether it arrived.
+  ///
+  /// Both outcomes are reported. The failure used to be logged nowhere and
+  /// shown as a bare interpolated exception, so a reader who had notifications
+  /// switched off saw a snackbar about a platform channel instead of about
+  /// their own setting.
+  Future<void> _fireTestNotification(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final service = context.read<NotificationService>();
+    try {
+      await service.showTestNotification();
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.notificationFailed('$e')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.testNotificationFired),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

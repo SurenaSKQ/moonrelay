@@ -16,6 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:provider/provider.dart';
 import 'package:moonrelay/src/chat/events/formatted_text_widget.dart';
 import 'package:moonrelay/src/chat/events/matrix_url_banner_wrapper.dart';
 import 'package:moonrelay/src/chat/events/matrix_events/Message/audio/audio_message_type.dart';
@@ -31,8 +33,8 @@ import 'package:moonrelay/src/chat/events/unsupported_event.dart';
 import 'package:moonrelay/src/chat/poll_message_type.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/encryption/trust_indicator.dart';
-import 'package:provider/provider.dart';
 
 /// Routes each [Event] to the appropriate rendering widget based on its type
 /// and message type.
@@ -43,7 +45,7 @@ import 'package:provider/provider.dart';
 ///
 /// Encrypted events (m.room.encrypted) are automatically handled by the SDK;
 /// this widget wraps the decrypted content with a trust indicator.
-class MessageEventHandler extends StatelessWidget {
+class MessageEventHandler extends StatefulWidget {
   const MessageEventHandler({
     super.key,
     required this.event,
@@ -70,12 +72,138 @@ class MessageEventHandler extends StatelessWidget {
   final void Function(String eventId)? onJumpToEvent;
 
   @override
+  State<MessageEventHandler> createState() => _MessageEventHandlerState();
+}
+
+class _MessageEventHandlerState extends State<MessageEventHandler> {
+  /// Captures the inputs that influence what this widget renders.  Used
+  /// by [didUpdateWidget] to short-circuit rebuilds when nothing
+  /// rendering-relevant has changed.
+  ///
+  /// The matrix SDK mutates [Event.content] and [Event.messageType]
+  /// in place, so identity comparison alone isn't enough: we hash the
+  /// dispatch-determining fields.  This trims the rebuild cost on every
+  /// parent build during rapid scrolling -- the cached subtree is
+  /// replayed verbatim when the key is unchanged.
+  late _HandlerRenderKey _renderKey;
+  Widget? _cachedSubtree;
+
+  @override
+  void initState() {
+    super.initState();
+    _renderKey = _computeKey();
+  }
+
+  @override
+  void didUpdateWidget(covariant MessageEventHandler oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _computeKey();
+    if (next == _renderKey) return;
+    _renderKey = next;
+    _cachedSubtree = null;
+  }
+
+  /// Hash of every input that influences the rendered widget subtree.
+  /// Captures identity via the [contentIdentity] / [bodyLength] /
+  /// [formattedBodyLength] pair so an in-place edit of an existing
+  /// event invalidates the cache.
+  _HandlerRenderKey _computeKey() {
+    final ev = widget.event;
+    final content = ev.content;
+    final rawBody = content['body'] as String?;
+    final rawFormatted = content['formatted_body'] as String?;
+    final timeline = widget.timeline;
+    // Compute a hash that changes when a new edit arrives for this event.
+    // The SDK stores edits in timeline.aggregatedEvents but does NOT
+    // mutate the original event's content, so contentIdentity alone
+    // won't detect an edit.  We hash the latest edit event's timestamp
+    // to bust the cache when edits arrive.
+    int editVersion = 0;
+    if (timeline != null &&
+        ev.hasAggregatedEvents(timeline, RelationshipTypes.edit)) {
+      final edits = ev.aggregatedEvents(timeline, RelationshipTypes.edit);
+      // Use the most recent edit's timestamp for versioning.
+      var latestTs = 0;
+      for (final e in edits) {
+        final ts = e.originServerTs.millisecondsSinceEpoch;
+        if (ts > latestTs) latestTs = ts;
+      }
+      editVersion = latestTs;
+    }
+    return _HandlerRenderKey(
+      eventId: ev.eventId,
+      type: ev.type,
+      messageType: ev.messageType,
+      inReplyTo: ev.inReplyToEventId(),
+      redacted: ev.redacted,
+      originalSourceType: ev.originalSource?.type,
+      contentIdentity: identityHashCode(content),
+      bodyLength: rawBody?.length ?? 0,
+      formattedBodyLength: rawFormatted?.length ?? 0,
+      replyThreshold: _cachedReplyThreshold,
+      fontSizeBucket: (widget.fontSize * 10).round(),
+      timelineIdentity: identityHashCode(timeline),
+      roomIdentity: identityHashCode(widget.room),
+      editVersion: editVersion,
+    );
+  }
+
+  /// Cached read of [SettingsController.replyPreviewThreshold], populated
+  /// lazily on the first [didChangeDependencies] so widget tests that
+  /// don't mount a provider tree still work.  Keying on this in the
+  /// [_HandlerRenderKey] lets the cache survive a font-size / threshold
+  /// change without being torn down wholesale.
+  int _cachedReplyThreshold = 90;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final next =
+          context.read<SettingsController>().replyPreviewThreshold;
+      if (next != _cachedReplyThreshold) {
+        _cachedReplyThreshold = next;
+        final updated = _computeKey();
+        if (updated != _renderKey) {
+          setState(() {
+            _renderKey = updated;
+            _cachedSubtree = null;
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // No provider in tree -- keep the static default.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final fs = fontSize;
+    final cached = _cachedSubtree;
+    if (cached != null) return cached;
+
+    final fs = widget.fontSize;
+    // Use `read` rather than `watch` so this widget does NOT subscribe
+    // to [EncryptionService] notifications. The verification result is
+    // memoized internally (see `EncryptionService.isDeviceVerifiedById`)
+    // so the cost per build is O(1), and the widget only needs to
+    // re-render when the underlying event or its surroundings change.
+    // Previously this `watch` caused every visible message in the
+    // timeline to rebuild on every sync tick.
+    final enc = context.read<EncryptionService>();
+    final result = _build(enc, fs);
+    _cachedSubtree = result;
+    return result;
+  }
+
+  /// The actual dispatch.  Pulled out of [build] so the cache-replay
+  /// short-circuit stays one path.
+  Widget _build(EncryptionService enc, double fs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final event = widget.event;
 
     // If the event is still encrypted (failed to decrypt), show a warning.
     if (event.type == EventTypes.Encrypted && !event.redacted) {
-      final enc = context.watch<EncryptionService>();
       final isVerified = _isDeviceVerified(enc);
 
       return Column(
@@ -85,7 +213,7 @@ class MessageEventHandler extends StatelessWidget {
           Row(
             children: [
               TrustIndicator(isVerified: isVerified, size: 14),
-              const SizedBox(width: 4),
+              SizedBox(width: t.spaceXs),
               Expanded(child: _renderContent(fs)),
             ],
           ),
@@ -95,7 +223,6 @@ class MessageEventHandler extends StatelessWidget {
 
     // Decrypted or non-encrypted events: show verification status inline.
     if (event.type == EventTypes.Message) {
-      final enc = context.watch<EncryptionService>();
       final isVerified = _isDeviceVerified(enc);
 
       return Column(
@@ -107,7 +234,8 @@ class MessageEventHandler extends StatelessWidget {
             children: [
               if (event.originalSource?.type == EventTypes.Encrypted)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 4),
+                  padding: EdgeInsets.only(
+                      top: t.spaceXxs, right: t.spaceXs),
                   child: TrustIndicator(isVerified: isVerified, size: 12),
                 ),
               Expanded(child: _renderContent(fs)),
@@ -120,7 +248,7 @@ class MessageEventHandler extends StatelessWidget {
     return _renderContent(fs);
   }
 
-  /// Checks whether the device that sent this event is verified via
+  /// Checks whether the device that sent [event] is verified via
   /// cross-signing.
   ///
   /// For decrypted events the sender's device ID is extracted from
@@ -131,7 +259,8 @@ class MessageEventHandler extends StatelessWidget {
   ///
   /// Falls back to user-level verification when the sender's device ID is
   /// not available (e.g. unencrypted events).
-  bool _isDeviceVerified(EncryptionService enc) {
+  static bool _isDeviceVerifiedFor(
+      EncryptionService enc, Event event) {
     // 1. Try the original encrypted source (available after decryption).
     final fromOriginal = event.originalSource?.content['device_id'] as String?;
     if (fromOriginal != null) {
@@ -151,6 +280,12 @@ class MessageEventHandler extends StatelessWidget {
     return enc.isUserVerifiedById(event.senderId);
   }
 
+  /// Convenience instance accessor used by [_build] so the call sites
+  /// stay short and reference the current widget event without a
+  /// shadowing local.
+  bool _isDeviceVerified(EncryptionService enc) =>
+      _isDeviceVerifiedFor(enc, widget.event);
+
   /// Strips the `<mx-reply>…</mx-reply>` wrapper from a Matrix HTML body
   /// so that the actual message content remains.
   static String _stripReplyHtml(String html) {
@@ -161,7 +296,10 @@ class MessageEventHandler extends StatelessWidget {
   }
 
   Widget _renderContent(double fontSize) {
-    // Failed decryption — show the decryption-failed placeholder
+    final event = widget.event;
+    final room = widget.room;
+    final timeline = widget.timeline;
+    // Failed decryption: show the decryption-failed placeholder
     // with a manual key-request button.
     if (event.type == EventTypes.Encrypted) {
       return DecryptionFailedWidget(
@@ -185,6 +323,9 @@ class MessageEventHandler extends StatelessWidget {
           return VerificationNoticeEvent(event: event);
         }
 
+        final isEdited = timeline != null &&
+            event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
+
         switch (event.messageType) {
           case MessageTypes.Text:
           case MessageTypes.Emote:
@@ -197,21 +338,63 @@ class MessageEventHandler extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTextContent(fontSize),
-                if (isEditedMessage(event)) _EditedMarker(event: event),
+                if (isEdited) _EditedMarker(event: event),
               ],
             );
           case MessageTypes.Image:
-            return ImageMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ImageMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Audio:
-            return AudioMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AudioMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Video:
-            return VideoMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                VideoMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.File:
-            return FileAttachedMessage(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FileAttachedMessage(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Location:
-            return LocationMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LocationMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           case MessageTypes.Sticker:
-            return StickerMessageType(event: event);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StickerMessageType(event: event),
+                if (isEdited) _EditedMarker(event: event),
+              ],
+            );
           default:
             if (event.type == 'm.poll.start' || event.type == 'm.poll') {
               return PollMessageType(
@@ -263,12 +446,23 @@ class MessageEventHandler extends StatelessWidget {
   /// any Matrix URLs (room aliases, user IDs, permalinks) found in the body
   /// render as interactive banners below the message.
   Widget _buildTextContent(double fontSize) {
-    final textWidget = FormattedTextWidget(event: event, baseFontSize: fontSize);
+    final event = widget.event;
+    final room = widget.room;
+    final timeline = widget.timeline;
+    // Use the SDK's edit-aware display event so edited messages render
+    // with the latest m.new_content body instead of the original text.
+    final displayEvent =
+        timeline != null ? event.getDisplayEvent(timeline) : event;
+    final textWidget = FormattedTextWidget(
+      event: displayEvent,
+      baseFontSize: fontSize,
+      room: room,
+    );
     if (room == null) return textWidget;
     return MatrixUrlBannerWrapper(
-      textBody: event.body,
-      room: room!,
-      event: event,
+      textBody: displayEvent.body,
+      room: room,
+      event: displayEvent,
       child: textWidget,
     );
   }
@@ -276,9 +470,20 @@ class MessageEventHandler extends StatelessWidget {
   /// Builds the content for a reply event: a reply preview header followed
   /// by the actual message body (with the `<mx-reply>` wrapper stripped).
   Widget _buildReplyContent(String replyId, double fontSize) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final event = widget.event;
+    final room = widget.room;
+    final timeline = widget.timeline;
+    final isEdited = timeline != null &&
+        event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
+    // Use the SDK's edit-aware display event so the reply body reflects
+    // the latest edit.
+    final displayEvent =
+        timeline != null ? event.getDisplayEvent(timeline) : event;
     // Strip reply HTML from the formatted body so we only render the
-    // actual message.
-    final rawFormatted = event.content['formatted_body'] as String?;
+    // actual message.  For edited messages m.new_content already lacks
+    // the <mx-reply> wrapper so stripping is a no-op.
+    final rawFormatted = displayEvent.content['formatted_body'] as String?;
     final strippedHtml =
         rawFormatted != null ? _stripReplyHtml(rawFormatted) : null;
 
@@ -286,7 +491,7 @@ class MessageEventHandler extends StatelessWidget {
     Event? repliedTo;
     if (timeline != null) {
       try {
-        repliedTo = timeline!.events.firstWhere(
+        repliedTo = timeline.events.firstWhere(
           (e) => e.eventId == replyId,
         );
       } catch (_) {
@@ -302,22 +507,23 @@ class MessageEventHandler extends StatelessWidget {
           repliedTo: repliedTo,
           replyId: replyId,
           room: room,
-          onJumpToEvent: onJumpToEvent,
+          onJumpToEvent: widget.onJumpToEvent,
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: t.spaceXs),
         FormattedTextWidget(
-          event: event,
+          event: displayEvent,
           formattedBodyOverride: strippedHtml,
           baseFontSize: fontSize,
         ),
+        if (isEdited) _EditedMarker(event: event),
       ],
     );
 
     if (room == null) return content;
     return MatrixUrlBannerWrapper(
-      textBody: event.body,
-      room: room!,
-      event: event,
+      textBody: displayEvent.body,
+      room: room,
+      event: displayEvent,
       child: content,
     );
   }
@@ -328,7 +534,11 @@ class MessageEventHandler extends StatelessWidget {
 /// Tries to show the replied-to message body (truncated with ellipsis)
 /// prefixed by a vertical bar in the accent colour.  If the replied-to
 /// event isn't available locally, fetches it via [Room.getEventById].
-class _ReplyPreview extends StatelessWidget {
+///
+/// Long replies (e.g. a quoted code block or a multi-line message) are
+/// shown collapsed by default with a "Show more" affordance so a noisy
+/// chat doesn't fill the viewport with quoted context.
+class _ReplyPreview extends StatefulWidget {
   const _ReplyPreview({
     required this.repliedTo,
     required this.replyId,
@@ -345,18 +555,56 @@ class _ReplyPreview extends StatelessWidget {
   final void Function(String eventId)? onJumpToEvent;
 
   @override
+  State<_ReplyPreview> createState() => _ReplyPreviewState();
+}
+
+class _ReplyPreviewState extends State<_ReplyPreview> {
+  /// When true the full reply body is shown instead of the truncated
+  /// single-line preview.  Toggled via the "Show more / Show less"
+  /// affordance that appears next to the preview when the body is
+  /// long enough to truncate.
+  bool _expanded = false;
+
+  /// Memoized future for the missing-event fetch. Without this the
+  /// build method would create a new `getEventById` future on every
+  /// parent rebuild: a sync tick while the preview is mounted would
+  /// re-issue the network call, leak the in-flight future, and
+  /// flicker the placeholder.
+  Future<Event?>? _pendingFetch;
+
+  /// Number of characters above which the body is considered
+  /// "long" and the expand toggle is shown.  Honoured as a fallback
+  /// when the [SettingsController] cannot be read from the tree (e.g.
+  /// in isolated widget tests).
+  static const int _defaultCollapseThreshold = 90;
+
+  @override
   Widget build(BuildContext context) {
-    if (repliedTo != null) {
-      return _buildPreview(context, repliedTo!.body);
+    int collapseThreshold = _defaultCollapseThreshold;
+    try {
+      collapseThreshold =
+          context.read<SettingsController>().replyPreviewThreshold;
+    } catch (_) {
+      // No controller in tree: fall back to the static default.
+    }
+    if (widget.repliedTo != null) {
+      return _buildForBody(context, widget.repliedTo!.body, collapseThreshold);
     }
 
-    // If we have a room, try to fetch the replied-to event.
-    if (room != null) {
+    // If we have a room, try to fetch the replied-to event. The
+    // future is memoized per (room, replyId) so a parent rebuild
+    // doesn't re-issue the same fetch.
+    if (widget.room != null) {
+      _pendingFetch ??= widget.room!.getEventById(widget.replyId);
       return FutureBuilder<Event?>(
-        future: room!.getEventById(replyId),
+        future: _pendingFetch,
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
-            return _buildPreview(context, snapshot.data!.body);
+            return _buildForBody(
+              context,
+              snapshot.data!.body,
+              collapseThreshold,
+            );
           }
           // While loading or on error, show nothing.
           return const SizedBox.shrink();
@@ -367,58 +615,117 @@ class _ReplyPreview extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _buildPreview(BuildContext context, String body) {
+  @override
+  void didUpdateWidget(covariant _ReplyPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the reply target changed, drop the cached fetch so the next
+    // build kicks off a fresh one.
+    if (oldWidget.replyId != widget.replyId ||
+        oldWidget.room?.id != widget.room?.id) {
+      _pendingFetch = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pendingFetch = null;
+    super.dispose();
+  }
+
+  Widget _buildForBody(
+    BuildContext context,
+    String body,
+    int collapseThreshold,
+  ) {
     final scheme = Theme.of(context).colorScheme;
-    final preview = _preview(body);
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
+    final clean = body.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
+    final display = clean.isNotEmpty ? clean : body.trim();
+    final canExpand = display.length > collapseThreshold;
 
     final barAndText = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Vertical bar indicator
         Container(
-          width: 3,
-          margin: const EdgeInsets.only(right: 8),
+          width: chat.replyBarWidth,
+          margin: EdgeInsets.only(right: t.spaceSm),
           decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(2),
+            color: scheme.primary.withValues(alpha: t.opacityFocusRing),
+            borderRadius: BorderRadius.circular(t.radiusXs),
           ),
-          constraints: const BoxConstraints(minHeight: 20, maxHeight: 40),
+          constraints: BoxConstraints(
+            minHeight: 20,
+            // Cap the bar at a short height so very long quoted text
+            // doesn't push the rest of the chat down; the toggle
+            // affordance below it gives the user a way to read the
+            // full body when they actually want to.
+            maxHeight: _expanded ? double.infinity : 40,
+          ),
         ),
-        // Preview text
         Expanded(
           child: Text(
-            preview,
+            display,
             style: TextStyle(
               fontSize: 13,
-              color: scheme.onSurface.withValues(alpha: 0.55),
+              color: scheme.onSurface.withValues(alpha: t.opacitySubtle),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: _expanded ? null : 1,
+            overflow: _expanded
+                ? TextOverflow.visible
+                : TextOverflow.ellipsis,
           ),
         ),
       ],
     );
 
-    if (onJumpToEvent != null) {
-      return GestureDetector(
-        onTap: () => onJumpToEvent!(replyId),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: barAndText,
-        ),
-      );
-    }
+    final preview = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.onJumpToEvent != null)
+          GestureDetector(
+            onTap: () => widget.onJumpToEvent!(widget.replyId),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: barAndText,
+            ),
+          )
+        else
+          barAndText,
+        if (canExpand)
+          Padding(
+            padding: EdgeInsets.only(
+              left: chat.replyBarWidth + t.spaceSm,
+              top: t.spaceXxs,
+            ),
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(t.radiusXs),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spaceXs,
+                  vertical: t.spaceXxs,
+                ),
+                child: Text(
+                  _expanded
+                      ? AppLocalizations.of(context)!.replyShowLess
+                      : AppLocalizations.of(context)!.replyShowMore,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
 
-    return barAndText;
-  }
-
-  /// Returns a short preview (≈40 characters + ellipsis) of [text].
-  static String _preview(String text, [int maxLen = 40]) {
-    // Strip leading " > " reply markers from the body.
-    final clean = text.replaceAll(RegExp(r'^>.*$', multiLine: true), '').trim();
-    final display = clean.isNotEmpty ? clean : text.trim();
-    if (display.length <= maxLen) return display;
-    return '${display.substring(0, maxLen)}…';
+    return preview;
   }
 }
 
@@ -434,28 +741,103 @@ class _EditedMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: EdgeInsets.only(top: t.spaceXxs),
       child: Text(
         l10n.editedIndicator,
         style: TextStyle(
           fontSize: 11,
           fontStyle: FontStyle.italic,
-          color: cs.onSurface.withValues(alpha: 0.45),
+          color: cs.onSurface.withValues(alpha: t.opacitySubtle),
         ),
       ),
     );
   }
 }
 
-/// Whether [event] has a `m.replace` relation pointing to an original event.
-bool isEditedMessage(Event event) {
-  try {
-    final rel = event.content['m.relates_to'];
-    if (rel is! Map) return false;
-    return rel['rel_type'] == 'm.replace' && rel['event_id'] is String;
-  } catch (_) {
-    return false;
+/// Compact equality record used by
+/// [_MessageEventHandlerState] to short-circuit rebuilds when nothing
+/// rendering-relevant has changed.
+///
+/// Captures identity (content map, timeline, room) so an in-place
+/// edit of an event invalidates the cache, plus length fingerprints
+/// of the body / formatted body so an SDK mutation that swaps the
+/// string in place still triggers a rebuild.
+@immutable
+class _HandlerRenderKey {
+  const _HandlerRenderKey({
+    required this.eventId,
+    required this.type,
+    required this.messageType,
+    required this.inReplyTo,
+    required this.redacted,
+    required this.originalSourceType,
+    required this.contentIdentity,
+    required this.bodyLength,
+    required this.formattedBodyLength,
+    required this.replyThreshold,
+    required this.fontSizeBucket,
+    required this.timelineIdentity,
+    required this.roomIdentity,
+    required this.editVersion,
+  });
+
+  final String eventId;
+  final String type;
+  final String messageType;
+  final String? inReplyTo;
+  final bool redacted;
+  final String? originalSourceType;
+  final int contentIdentity;
+  final int bodyLength;
+  final int formattedBodyLength;
+  final int replyThreshold;
+  final int fontSizeBucket;
+  final int timelineIdentity;
+  final int roomIdentity;
+
+  /// Monotonic version bumped by the latest edit's timestamp so an edit
+  /// arriving via sync invalidates the render cache even though the
+  /// original event's content map is untouched.
+  final int editVersion;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _HandlerRenderKey &&
+        other.eventId == eventId &&
+        other.type == type &&
+        other.messageType == messageType &&
+        other.inReplyTo == inReplyTo &&
+        other.redacted == redacted &&
+        other.originalSourceType == originalSourceType &&
+        other.contentIdentity == contentIdentity &&
+        other.bodyLength == bodyLength &&
+        other.formattedBodyLength == formattedBodyLength &&
+        other.replyThreshold == replyThreshold &&
+        other.fontSizeBucket == fontSizeBucket &&
+        other.timelineIdentity == timelineIdentity &&
+        other.roomIdentity == roomIdentity &&
+        other.editVersion == editVersion;
   }
+
+  @override
+  int get hashCode => Object.hash(
+        eventId,
+        type,
+        messageType,
+        inReplyTo,
+        redacted,
+        originalSourceType,
+        contentIdentity,
+        bodyLength,
+        formattedBodyLength,
+        replyThreshold,
+        fontSizeBucket,
+        timelineIdentity,
+        roomIdentity,
+        editVersion,
+      );
 }

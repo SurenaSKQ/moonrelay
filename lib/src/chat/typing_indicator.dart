@@ -19,7 +19,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/sync_pulse.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:provider/provider.dart';
 
 /// A small footer that shows "(name) is typing…" for the active room.
 ///
@@ -35,26 +39,48 @@ class TypingIndicator extends StatefulWidget {
 }
 
 class _TypingIndicatorState extends State<TypingIndicator> {
-  StreamSubscription<Object?>? _syncSub;
+  /// Bound to [SyncPulse] (debounced 350 ms fan-out) instead of
+  /// subscribing to [Client.onSync] directly. Typing notifications
+  /// don't need every raw sync tick; a debounced pulse is plenty
+  /// and saves us one raw stream subscription per typing indicator
+  /// instance.
+  VoidCallback? _pulseListener;
 
   @override
   void initState() {
     super.initState();
-    _syncSub = widget.room.client.onSync.stream.listen((_) {
-      if (mounted) setState(() {});
-    });
+    final pulse = maybeSyncPulse(context);
+    if (pulse != null) {
+      _pulseListener = () {
+        if (mounted) setState(() {});
+      };
+      pulse.addListener(_pulseListener!);
+    }
   }
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    if (_pulseListener != null) {
+      final pulse = maybeSyncPulse(context);
+      if (pulse != null) {
+        pulse.removeListener(_pulseListener!);
+      }
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
+
+    // Honour the user-level "show typing indicator" toggle. The
+    // notifier that emits `m.typing` events is wired separately and
+    // always runs so other clients see our own typing state.
+    final showIndicator =
+        context.select<SettingsController, bool>((c) => c.showTypingIndicator);
+    if (!showIndicator) return const SizedBox.shrink();
 
     final typingUsers = widget.room.typingUsers
         .where((u) => u.id != widget.room.client.userID)
@@ -81,11 +107,11 @@ class _TypingIndicatorState extends State<TypingIndicator> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceLg, vertical: 6),
       child: Row(
         children: [
           _BouncingDots(color: cs.primary),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Text(
             label,
             style: TextStyle(
@@ -129,6 +155,7 @@ class _BouncingDotsState extends State<_BouncingDots>
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) {
@@ -138,7 +165,7 @@ class _BouncingDotsState extends State<_BouncingDots>
             final phase = (_controller.value + i / 3.0) % 1.0;
             final dy = (1 - (phase * 2 - 1).abs()) * -4.0;
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: EdgeInsets.symmetric(horizontal: t.spaceXxs),
               child: Transform.translate(
                 offset: Offset(0, dy),
                 child: Container(
@@ -166,12 +193,16 @@ class TypingNotifier {
   Timer? _stopTimer;
 
   /// Notifies the homeserver that the user is typing, restarting the
-  /// auto-stop timer. Safe to call on every keystroke.
+  /// auto-stop timer. Safe to call on every keystroke. No-op when the
+  /// client is not logged in (no `userID`); callers in widget tests
+  /// and pre-login flows depend on this guard.
   void notify() {
+    final userId = _room.client.userID;
+    if (userId == null) return;
     unawaited(
       withTimeout(
         () => _room.client.setTyping(
-          _room.client.userID!,
+          userId,
           _room.id,
           true,
           timeout: 4000,
@@ -185,10 +216,12 @@ class TypingNotifier {
 
   void _stop() {
     _stopTimer?.cancel();
+    final userId = _room.client.userID;
+    if (userId == null) return;
     unawaited(
       withTimeout(
         () => _room.client.setTyping(
-          _room.client.userID!,
+          userId,
           _room.id,
           false,
         ),
@@ -199,6 +232,6 @@ class TypingNotifier {
 
   void dispose() {
     _stopTimer?.cancel();
-    _stop();
+    _stopTimer = null;
   }
 }

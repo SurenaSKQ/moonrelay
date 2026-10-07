@@ -24,9 +24,8 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 
 /// Builder dialog for creating a new MSC3381 poll.
 ///
-/// Returns the resulting event ID via [room.startPoll] once the user
-/// submits. Validation requires a question and at least two non-empty
-/// options.
+/// Sends the poll via [Room.sendEvent] with the `m.poll.start` event type
+/// so other Matrix clients render it as an interactive poll.
 Future<void> showPollCreateDialog(BuildContext context, Room room) async {
   await showDialog<void>(
     context: context,
@@ -76,8 +75,10 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
   Future<void> _send() async {
     final l10n = AppLocalizations.of(context)!;
     final question = _questionController.text.trim();
-    final options =
-        _optionControllers.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+    final options = _optionControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
     if (question.isEmpty || options.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,26 +92,24 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
       await withRetry(
         () => widget.room.sendEvent(
           <String, dynamic>{
-            'type': 'm.poll.start',
-            'content': <String, dynamic>{
-              'm.poll': <String, dynamic>{
-                'question': <String, dynamic>{
-                  'body': question,
+            'm.poll': <String, dynamic>{
+              'question': <String, dynamic>{
+                'body': question,
+                'msgtype': 'm.text',
+              },
+              'answers': List.generate(
+                options.length,
+                (i) => <String, dynamic>{
+                  'id': _idForIndex(i),
+                  'body': options[i],
                   'msgtype': 'm.text',
                 },
-                'answers': List.generate(
-                  options.length,
-                  (i) => <String, dynamic>{
-                    'id': _idForIndex(i),
-                    'body': options[i],
-                    'msgtype': 'm.text',
-                  },
-                ),
-                'max_selections': 1,
-                'kind': 'm.poll.disclosed',
-              },
+              ),
+              'max_selections': 1,
+              'kind': 'm.poll.disclosed',
             },
           },
+          type: 'm.poll.start',
         ),
         maxRetries: 1,
         timeout: kDefaultTimeout,
@@ -147,7 +146,7 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Question ──────────────────────────────────────────────
+              // -- Question ----------------------------------------------
               TextField(
                 controller: _questionController,
                 autofocus: true,
@@ -159,7 +158,7 @@ class _PollCreateDialogState extends State<_PollCreateDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ── Options ───────────────────────────────────────────────
+              // -- Options -----------------------------------------------
               Text(
                 l10n.pollOptions,
                 style: TextStyle(

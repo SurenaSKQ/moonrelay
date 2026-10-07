@@ -51,7 +51,7 @@ class _DeepLinkListenerState extends State<DeepLinkListener> {
   /// helper from [deep_link_service.dart] so the navigation rules live
   /// in exactly one place. Both the [DeepLinkListener] and any caller of
   /// [DeepLinkService.processUri] now go through this single decision
-  /// tree (room → rooms route, unknown alias → preview, user → profile).
+  /// tree (room -> rooms route, unknown alias -> preview, user -> profile).
   void _handleUri(MatrixUriResult result) {
     if (!mounted) return;
     navigateToMatrixUri(context, result);

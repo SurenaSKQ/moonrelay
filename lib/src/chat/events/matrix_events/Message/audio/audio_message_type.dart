@@ -14,15 +14,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/sidebar_row.dart';
+import 'package:provider/provider.dart';
 
 /// Displays an audio message with an in-app `just_audio` player.
 ///
@@ -40,43 +50,67 @@ class AudioMessageType extends StatefulWidget {
 class _AudioMessageTypeState extends State<AudioMessageType> {
   Future<MatrixFile>? _downloadFuture;
   final AudioPlayer _player = AudioPlayer();
+  final ValueNotifier<Duration> _position = ValueNotifier(Duration.zero);
+  final ValueNotifier<Duration> _duration = ValueNotifier(Duration.zero);
+  final ValueNotifier<bool> _isPlaying = ValueNotifier(false);
+  final ValueNotifier<bool> _isReady = ValueNotifier(false);
+
+  /// Set when the most recent load or playback attempt failed.  We
+  /// swallow the underlying error so a transient network blip doesn't
+  /// throw across the widget tree; instead we surface a retry chip.
+  Object? _lastError;
   Uint8List? _bytes;
-  bool _isReady = false;
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+  bool _autoDownloadResolved = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment().then((m) {
-        final bytes = m.bytes;
-        _bytes = bytes;
-        // Defer play start until next frame so we can attach the URL.
-        return m;
-      });
-    }
-    _player.positionStream.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
+    // Subscribe to streams once and forward to per-stream
+    // [ValueNotifier]s so the leaf widgets (slider, play/pause
+    // icon) rebuild via [ValueListenableBuilder] instead of forcing
+    // a full widget-tree rebuild. The previous implementation called
+    // `setState` from three separate stream listeners: for a
+    // position that ticks at ~10 Hz during playback that produced
+    // 10 setState calls per second per audio message.
+    _player.positionStream.listen((p) => _position.value = p);
     _player.durationStream.listen((d) {
-      if (mounted && d != null) setState(() => _duration = d);
+      if (d != null) _duration.value = d;
     });
     _player.playerStateStream.listen((s) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = s.playing;
-          _isReady = s.processingState != ProcessingState.loading;
-        });
-      }
+      _isPlaying.value = s.playing;
+      _isReady.value = s.processingState != ProcessingState.loading;
     });
   }
 
   @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    // The play button already routes through _downloadOnDemand, so a
+    // withheld audio just waits for the user rather than needing its own
+    // placeholder.
+    final policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadFiles,
+    );
+    if (!policy.shouldAutoDownload) return;
+    // Share the in-flight future with the global cache so audio
+    // re-entries (e.g. scrolling away and back) don't re-download.
+    // `roomId` is nullable on the SDK type; fall back to the event
+    // id (which is guaranteed non-null) so the cache key stays valid
+    // even before the event has been attached to a room.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
   }
 
   // ---- Content helpers ----
@@ -102,12 +136,6 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
     return '$m:$s';
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
   // ---- Actions ----
 
   Future<void> _ensureAttached() async {
@@ -120,216 +148,274 @@ class _AudioMessageTypeState extends State<AudioMessageType> {
       final tmp = File('${Directory.systemTemp.path}/moonrelay_$name')
         ..writeAsBytesSync(_bytes!);
       await _player.setFilePath(tmp.path);
-    } catch (_) {}
+    } on Object catch (e, st) {
+      // Don't crash the chat; log and surface the failure.
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+      rethrow;
+    }
   }
 
   Future<void> _togglePlay() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _ensureAttached();
-      await _player.play();
+    try {
+      if (_isPlaying.value) {
+        await _player.pause();
+      } else {
+        await _ensureAttached();
+        await _player.play();
+      }
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
     }
   }
 
   Future<void> _seekTo(double value) async {
-    final d = _duration;
+    final d = _duration.value;
     if (d == Duration.zero) return;
     final newPos = Duration(
       milliseconds: (value * d.inMilliseconds).round(),
     );
-    await _player.seek(newPos);
-    if (mounted) setState(() => _position = newPos);
+    try {
+      await _player.seek(newPos);
+      _position.value = newPos;
+    } on Object catch (e, st) {
+      // Seeks are best-effort; never bubble them up.
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+    }
   }
 
   Future<void> _downloadFile() async {
     final bytes = _bytes;
     if (bytes == null) return;
     final l10n = AppLocalizations.of(context)!;
-    await FilePicker.saveFile(
-      dialogTitle: l10n.saveAudio,
-      fileName: _fileName ?? 'audio.$_extension',
-      bytes: bytes,
+    try {
+      await FilePicker.saveFile(
+        dialogTitle: l10n.saveAudio,
+        fileName: _fileName ?? 'audio.$_extension',
+        bytes: bytes,
+      );
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      // User dismissal is not an error; only report real failures.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('Audio save failed: $e');
+      }
+    }
+  }
+
+  Future<void> _retry() async {
+    setState(() => _lastError = null);
+    try {
+      await _togglePlay();
+    } on Object catch (_) {
+      // The toggle play surfaces a new error inside the catch chain.
+    }
+  }
+
+  /// Ad-hoc download path used when the auto-download policy is
+  /// "never" and the user taps the save icon anyway.  Reuses the
+  /// shared cache so a second tap doesn't refetch.
+  ///
+  /// Uses block-body lambdas for `setState` because the arrow form
+  /// `() => _x = future` returns the assigned `Future`, which
+  /// `State.setState` rejects as "the closure returned a Future".
+  Future<void> _downloadOnDemand() async {
+    final future = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
     );
+    setState(() {
+      _downloadFuture = future;
+    });
+    try {
+      final mf = await future;
+      _bytes = mf.bytes;
+      if (!mounted) return;
+      await _downloadFile();
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      if (mounted) setState(() => _lastError = e);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadFuture = null;
+        });
+      }
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  void dispose() {
+    _player.dispose();
+    _position.dispose();
+    _duration.dispose();
+    _isPlaying.dispose();
+    _isReady.dispose();
+    super.dispose();
+  }
+
+  @override
+Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
     final l10n = AppLocalizations.of(context)!;
+
+    // Fast path: bytes are already in the shared cache, so we don't
+    // need a FutureBuilder at all. The audio player will lazily
+    // attach the file on first play.
+    final cached = RoomMediaCache.instance
+        .get(widget.event.roomId ?? widget.event.eventId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      _bytes ??= cached;
+    }
 
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
-        final isReady = snapshot.hasData;
-        final displayPos = _position.inSeconds.toDouble();
-        final displayDur = (_duration.inSeconds == 0
-                ? _durationMs ?? 0
-                : _duration.inMilliseconds) /
-            1000.0;
-        final progress = displayDur == 0
-            ? 0.0
-            : (displayPos / displayDur).clamp(0.0, 1.0);
-
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 360),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Play/Pause button (or download icon while loading).
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: cs.primary,
-                      size: 22,
-                    ),
-                    onPressed: isReady && _isReady ? _togglePlay : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Track + metadata
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _fileName ?? l10n.audioFileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Slider
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 3,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 6,
-                          ),
-                        ),
-                        child: Slider(
-                          value: progress,
-                          onChanged: isReady ? _seekTo : null,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-
-                      // Time/duration and badges
-                      Row(
-                        children: [
-                          Text(
-                            _formatDuration(_position),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurface,
-                              fontFamily: 'JetBrainsMono',
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '/',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDuration(_duration == Duration.zero
-                                ? Duration(milliseconds: _durationMs ?? 0)
-                                : _duration),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontFamily: 'JetBrainsMono',
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cs.tertiaryContainer
-                                  .withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _extension,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onTertiaryContainer,
-                                letterSpacing: 0.5,
+        final downloaded = snapshot.hasData;
+        // Subscribe to all four notifiers; only the widgets that
+        // actually read a value re-paint when it changes.
+        return ValueListenableBuilder<bool>(
+          valueListenable: _isPlaying,
+          builder: (context, isPlaying, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: _isReady,
+              builder: (context, isReady, _) {
+                return ValueListenableBuilder<Duration>(
+                  valueListenable: _position,
+                  builder: (context, position, _) {
+                    return ValueListenableBuilder<Duration>(
+                      valueListenable: _duration,
+                      builder: (context, duration, _) {
+                        final displayPos = position.inSeconds.toDouble();
+                        final resolvedDuration = duration.inSeconds == 0
+                            ? Duration(milliseconds: _durationMs ?? 0)
+                            : duration;
+                        final displayDur =
+                            resolvedDuration.inMilliseconds / 1000.0;
+                        final progress = displayDur == 0
+                            ? 0.0
+                            : (displayPos / displayDur).clamp(0.0, 1.0);
+                        return AttachmentCard(
+                          maxWidth: MediaSizePrefs.of(context).audioMax,
+                          isError: _lastError != null,
+                          child: Row(
+                            children: [
+                              // Prominent: this is the row. Play is the reason
+                              // an audio attachment exists.
+                              //
+                              // Labelled, because the download control beside
+                              // it is and this is the more important of the
+                              // two: an unlabelled play button is a button a
+                              // screen reader announces only as "button", which
+                              // is no use in a list of forty of them.
+                              Semantics(
+                                label: _lastError != null
+                                    ? l10n.tapToRetry
+                                    : isPlaying
+                                        ? l10n.pauseAudio
+                                        : l10n.playAudio,
+                                button: true,
+                                child: AttachmentLeadingIcon(
+                                  icon: _lastError != null
+                                      ? LucideIcons.rotateCw
+                                      : isPlaying
+                                          ? LucideIcons.pause
+                                          : LucideIcons.play,
+                                  isError: _lastError != null,
+                                  onTap: downloaded && isReady
+                                      ? (_lastError != null
+                                            ? _retry
+                                            : _togglePlay)
+                                      : null,
+                                ),
                               ),
-                            ),
-                          ),
-                          if (_fileSize != null) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              _formatSize(_fileSize!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
+                              SizedBox(width: t.spaceMd),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _fileName ?? l10n.audioFileName,
+                                      style: TextStyle(
+                                        fontSize: sidebarMetricsFor(context)
+                                            .titleSize,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    SliderTheme(
+                                      data:
+                                          SliderTheme.of(context).copyWith(
+                                        trackHeight: 3,
+                                        thumbShape:
+                                            const RoundSliderThumbShape(
+                                          enabledThumbRadius: 6,
+                                        ),
+                                      ),
+                                      child: Slider(
+                                        value: progress,
+                                        onChanged:
+                                            downloaded ? _seekTo : null,
+                                      ),
+                                    ),
+                                    SizedBox(height: t.spaceXxs),
+                                    // Elapsed and total in the mono face, then
+                                    // the extension and size, all through the
+                                    // shared row so the file attachment above
+                                    // this one puts its facts in the same place.
+                                    AttachmentMetaRow(
+                                      leading: AttachmentBadge(
+                                        label: _extension,
+                                      ),
+                                      elapsedOf: _formatDuration(position),
+                                      totalOf: _formatDuration(resolvedDuration),
+                                      parts: [
+                                        if (_fileSize != null)
+                                          AttachmentDownloadPolicy.formatSize(
+                                            context,
+                                            _fileSize,
+                                          )!,
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 6),
-
-                // Save button
-                Tooltip(
-                  message: l10n.downloadAudio,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        LucideIcons.download,
-                        size: 18,
-                        color: cs.primary,
-                      ),
-                      onPressed: isReady ? _downloadFile : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                              SizedBox(width: t.spaceXs),
+                              Semantics(
+                                label: l10n.downloadAudio,
+                                button: true,
+                                child: AttachmentLeadingIcon(
+                                  // Quiet. It sits beside the play control and
+                                  // used to be drawn identically to it, so the
+                                  // two competed for the same attention.
+                                  emphasis: AttachmentEmphasis.quiet,
+                                  icon: LucideIcons.download,
+                                  onTap: downloaded
+                                      ? _downloadFile
+                                      : _downloadOnDemand,
+                                  ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
         );
       },
     );
   }
 }
+

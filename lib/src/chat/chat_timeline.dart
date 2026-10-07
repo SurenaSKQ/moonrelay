@@ -14,142 +14,360 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:moonrelay/src/chat/forward_message_dialog.dart';
-import 'package:moonrelay/src/chat/timeline_item.dart';
-import 'package:moonrelay/src/chat/timeline_view.dart';
-import 'package:moonrelay/src/helpers/async_utils.dart';
-import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/display_type.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
 
+import 'package:moonrelay/src/chat/chat_timeline_floating_actions.dart';
+import 'package:moonrelay/src/chat/chat_unread_utils.dart';
+import 'package:moonrelay/src/chat/forward_message_dialog.dart';
+import 'package:moonrelay/src/chat/history_pager.dart';
+import 'package:moonrelay/src/chat/history_skeleton_tile.dart';
+import 'package:moonrelay/src/chat/jump_coordinator.dart';
+import 'package:moonrelay/src/chat/pinned_events_list.dart';
+import 'package:moonrelay/src/chat/read_marker_tracker.dart';
+import 'package:moonrelay/src/chat/timeline_store.dart';
+import 'package:moonrelay/src/chat/timeline_view.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/lifecycle_generation.dart';
+import 'package:moonrelay/src/helpers/pinned_events_cache.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+
 /// Orchestrates the chat timeline lifecycle.
 ///
-/// Creates the [Timeline] via the Matrix SDK, manages scroll-to-load-history
-/// with auto-fill for short content, and delegates rendering to [TimelineView].
+/// Creates the [Timeline] via the Matrix SDK, mounts the floating-action
+/// column, and composes three narrow collaborators:
 ///
-/// ## Scroll loading
+/// - [HistoryPager]  -- owns scroll-driven pagination and the
+///   auto-fill / state-event-drain loops.
+/// - [JumpCoordinator]  -- owns the "jump to first unread" affordance.
+/// - [ReadMarkerTracker]  -- owns the scroll-debounced read-receipt
+///   pipeline.
 ///
-/// With `reverse: true` on the ListView, the scroll position is 0 at the
-/// bottom (newest messages) and reaches [maxScrollExtent] at the top (oldest
-/// messages).  History is loaded whenever the user scrolls within 150 px of
-/// the top.
-///
-/// ## Auto-fill
-///
-/// If the initially loaded content does not fill the viewport (no scrollbar),
-/// history is fetched repeatedly until the viewport is full or the server
-/// returns no more events.  This ensures the user can always scroll up to
-/// trigger manual pagination.
-///
-/// ## Stability
-///
-/// A shared [scaffold] / debounce mechanism prevents cascading history loads.
-/// When a load completes, layout-induced scroll notifications are suppressed
-/// for two frames while the list stabilises, stopping the "load → layout
-/// change → scroll event → load" feedback loop that would otherwise overflow.
+/// The state itself is intentionally thin: lifecycle, keying, and
+/// build.  All the imperative plumbing lives in the collaborators.
 class ChatTimeline extends StatefulWidget {
-  const ChatTimeline(
-      {super.key,
-      required this.room,
-      this.onReply,
-      this.onThread,
-      this.filterEvents});
+  const ChatTimeline({
+    super.key,
+    required this.room,
+    this.onReply,
+    this.onThread,
+    this.onEdit,
+    this.filterEvents,
+  });
 
   final Room room;
-
-  /// Called when the user wants to reply to a specific timeline event.
   final void Function(Event event)? onReply;
-
-  /// Called when the user wants to open or create a thread for an event.
   final void Function(Event event)? onThread;
-
-  /// When non-null, passed through to [TimelineView.filterEvents] to
-  /// override the default event visibility filter.
+  final void Function(Event event)? onEdit;
   final bool Function(Event)? filterEvents;
 
   @override
   State<ChatTimeline> createState() => ChatTimelineState();
 }
 
-class ChatTimelineState extends State<ChatTimeline> {
-  /// The resolved Timeline, or null while still initialising.
+class ChatTimelineState extends State<ChatTimeline> with LifecycleGeneration {
+  /// The room's live tail, or null while still initialising.
+  ///
+  /// Only the live tail. History windows live in [_store], which is what
+  /// replaced holding one `Timeline` that had to be either the tail or a
+  /// window and could not be both.
   Timeline? _timeline;
 
-  final ScrollController _scrollController = ScrollController();
+  /// The live tail plus every history window currently loaded.
+  ///
+  /// Null while [_timeline] is null. Windows accumulate: a jump adds the one
+  /// it needs and leaves the others loaded, so the user can scroll away from
+  /// a jump in either direction and keep loading, instead of the room
+  /// forgetting where they have been.
+  TimelineStore? _store;
 
-  /// True while a [requestHistory] call is in flight.
-  bool _isLoadingHistory = false;
+  /// True while a `/context` window is being fetched for a jump.
+  bool _loadingContext = false;
 
-  /// True while the auto-fill loop is running.
-  bool _isFillingViewport = false;
+  /// Bumped on every SDK `onChange`/`onInsert`/`onRemove`/`onUpdate`
+  /// so [TimelineView] knows to invalidate its item-list cache.
+  /// Exposed as a [ValueNotifier] so the parent [build] of
+  /// [ChatTimeline] is not forced through rebuild on every sync tick
+  /// -- the previous `setState(() => _timelineVersion++)` rebuilt the
+  /// entire subtree, including [ChatTimelineFloatingActions] and
+  /// [ChatTimelineFloatingActions]'s parent [Stack].
+  final ValueNotifier<int> _timelineVersion = ValueNotifier<int>(0);
 
-  /// Temporarily suppresses [_onScroll] after a successful history load so
-  /// that layout-induced scroll notifications don't trigger another request
-  /// before the user has had a chance to scroll manually.
-  bool _scrollDebounce = false;
-
-  /// How many consecutive auto-fill requests have been issued without the
-  /// viewport becoming scrollable.  Caps the retry loop when the server
-  /// returns no more history.
-  int _autoFillRetries = 0;
-  static const int _maxAutoFillRetries = 5;
-
-  /// Trigger distance (logical pixels) from the top of the list.
-  static const double _scrollThreshold = 150.0;
-
-  /// Public accessor for the scroll controller, exposed so callers
-  /// outside this widget (e.g. the in-room search panel) can request
-  /// a jump to a specific event after we've already built the timeline.
-  ScrollController get scrollController => _scrollController;
-
-  int _timelineVersion = 0;
+  /// Mirror of `TimelineStore.version`, pushed into a `ValueListenable` so
+  /// [TimelineView] can invalidate its item cache.
+  ///
+  /// `flatten()` allocates a fresh list on every call, so the store's list
+  /// identity is worthless as a cache key. The
+  /// store stays pure Dart; this notifier is the Flutter-shaped end of it.
+  final ValueNotifier<int> _storeVersion = ValueNotifier<int>(0);
 
   /// True when [_initTimeline] finished with a permanent error.
   bool _timelineLoadFailed = false;
 
-  /// Events explicitly fetched for the pinned filter (fetched by ID from
-  /// the server when they aren't in the local timeline batch).
-  List<Event>? _fetchedFilteredEvents;
+  /// True while a user-initiated retry of [_initTimeline] is in flight.
+  ///
+  /// Guards against a second tap stacking a second request, and keeps the
+  /// retry button disabled so the user can see it is already working.
+  bool _retryInFlight = false;
 
-  /// True while [fetchFilteredEvents] is in flight.
+  /// Events explicitly fetched for the pinned filter (fetched by ID
+  /// from the server when they aren't in the local timeline batch).
+  List<Event>? _fetchedFilteredEvents;
   bool _isFetchingFilteredEvents = false;
+
+  final ScrollController _scrollController = ScrollController();
+
+  /// Pixel distance from the bottom of the (reverse) list that triggers
+  /// the "Scroll to bottom" pill.
+  static const double _scrollUpThreshold = 200.0;
+
+  /// Live scroll-up flag surfaced as a [ValueNotifier] so the floating
+  /// action column can rebuild via [ValueListenableBuilder] without
+  /// forcing the entire chat surface to rebuild on every scroll tick.
+  final ValueNotifier<bool> _isScrolledUpNotifier = ValueNotifier<bool>(false);
+
+  /// The user has explicitly dismissed the jump-to-unread pill via its
+  /// close icon.  Scoped to the newest event that existed at the moment
+  /// of dismissal: if a later sync brings something new, the pill comes
+  /// back rather than staying latched off for the rest of the session.
+  String? _pillDismissedAtNewestId;
+
+  final GlobalKey<TimelineViewState> _timelineViewKey =
+      GlobalKey<TimelineViewState>(debugLabel: 'chat_timeline_view');
+
+  HistoryPager? _historyPager;
+  JumpCoordinator? _jumpCoordinator;
+  ReadMarkerTracker? _readMarkerTracker;
+
+  // -- Test accessors --------------------------------------------
+
+  @visibleForTesting
+  int get timelineVersionForTest => _timelineVersion.value;
+
+  @visibleForTesting
+  bool get isLoadingHistoryForTest => _historyPager?.isLoading ?? false;
+
+  /// Wall-clock ceiling the jump pager is configured with.
+  ///
+  /// Exposed so a test can pin the shipped default. The pager's own budget
+  /// is a constructor parameter precisely so a test can lower it, which
+  /// means a future edit could quietly shorten the real one and every test
+  /// would still pass; this is the assertion that notices.
+  Duration? get paginationBudgetForTest => _jumpCoordinator?.paginationBudget;
+
+  /// Test accessor for the paginate-until-marker primitive, with an
+  /// injectable [budget].
+  ///
+  /// Delegates to [JumpCoordinator.paginateUntilMarkerForTest] rather than
+  /// reaching for a pager of its own. It used to call the whole
+  /// `jumpToLastRead()` and then re-scan the event list for the marker,
+  /// which is a test-only shim standing in for a primitive that now
+  /// exists: it could scroll the user, it ignored [budget], and it reported
+  /// whatever the cache happened to hold rather than what the pager found.
+  @visibleForTesting
+  Future<bool> paginateUntilMarkerForTest(
+    String markerId, {
+    Duration? budget,
+  }) {
+    final timeline = _timeline;
+    final coordinator = _jumpCoordinator;
+    if (timeline == null || coordinator == null) return Future.value(false);
+    // The coordinator owns the pager, so its own test seam is the one
+    // thing allowed to call another. Reaching in here is deliberate: the
+    // wrapper exists so the test can ask the widget rather than reaching
+    // into its collaborators, and duplicating the null checks here is what
+    // that indirection buys.
+    // ignore: invalid_use_of_visible_for_testing_member
+    return coordinator.paginateUntilMarkerForTest(markerId, budget: budget);
+  }
+
+  /// Test accessor matching the prior public API for
+  /// `_requestMoreHistory`.  Re-entrant calls during an in-flight
+  /// request short-circuit instead of issuing additional
+  /// `requestHistory` calls (delegated to [HistoryPager]).
+  @visibleForTesting
+  Future<void> requestMoreHistoryForTest() async {
+    _historyPager?.ensureFilled();
+  }
+
+  // -- Lifecycle -------------------------------------------------
 
   @override
   void initState() {
     super.initState();
+    _initCollaborators();
     _initTimeline();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void didUpdateWidget(ChatTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.room.id != widget.room.id) {
+      invalidate();
+      _historyPager?.resetForRoom();
+      _jumpCoordinator?.resetForRoom();
+      _readMarkerTracker?.resetForRoom();
+      _pillDismissedAtNewestId = null;
+      _discardStore();
+      _timeline = null;
+      _fetchedFilteredEvents = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _bindRoom();
+        _initTimeline();
+      });
+    }
     if (widget.filterEvents != null && oldWidget.filterEvents == null) {
       _fetchFilteredEvents();
-    } else if (widget.filterEvents == null &&
-        oldWidget.filterEvents != null) {
+    } else if (widget.filterEvents == null && oldWidget.filterEvents != null) {
       if (_fetchedFilteredEvents != null) {
         setState(() => _fetchedFilteredEvents = null);
       }
     }
   }
 
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _historyPager?.dispose();
+    _jumpCoordinator?.dispose();
+    _readMarkerTracker?.dispose();
+    _scrollController.dispose();
+    _discardStore();
+    _isScrolledUpNotifier.dispose();
+    _timelineVersion.dispose();
+    super.dispose();
+  }
+
+  /// Drops every history window, cancelling their SDK subscriptions.
+  ///
+  /// A window is a `Timeline`, so it subscribes to `onSync` on construction
+  /// and the SDK's `_removeEventsNotInThisSync` would empty it on the next
+  /// gap-limited sync. The live tail is not touched: it is the one segment
+  /// that must stay subscribed to follow sync.
+  void _discardStore() {
+    final store = _store;
+    if (store == null) return;
+    for (final segment in store.history) {
+      segment.cancel();
+    }
+    _store = null;
+  }
+
+  // -- Init ------------------------------------------------------
+
+  void _initCollaborators() {
+    _historyPager = HistoryPager(
+      room: widget.room,
+      scrollController: _scrollController,
+      // The oldest loaded segment, not the live tail. With a window on
+      // screen the top of the render list is above that window, so paging
+      // the tail would extend the wrong end and the window would never grow.
+      getSegmentToPage: () => _store?.oldestSegment,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      logger: _tryReadLogger(),
+    );
+    _jumpCoordinator = JumpCoordinator(
+      context: context,
+      getTimeline: () => _timeline,
+      // Lookups span every loaded window; pagination goes through the tail
+      // alone, since only the tail can reach newer events.
+      getRenderEvents: () => _renderEvents,
+      getFullyReadMarker: () => widget.room.fullyRead,
+      scrollController: _scrollController,
+      timelineViewKey: _timelineViewKey,
+      historyPager: _historyPager!,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      onAfterJump: () {},
+      scrollToBottom: _goLive,
+      logger: _tryReadLogger(),
+    );
+    _readMarkerTracker = ReadMarkerTracker(
+      room: widget.room,
+      sendReceipts: _readSendReceipts(),
+      notificationService: _tryReadNotificationMirror(),
+      onLastSeenChanged: (_) {},
+      logger: _tryReadLogger(),
+    );
+  }
+
+  void _bindRoom() {
+    _historyPager = HistoryPager(
+      room: widget.room,
+      scrollController: _scrollController,
+      getSegmentToPage: () => _store?.oldestSegment,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      logger: _tryReadLogger(),
+    );
+    _jumpCoordinator = JumpCoordinator(
+      context: context,
+      getTimeline: () => _timeline,
+      // Lookups span every loaded window; pagination goes through the tail
+      // alone, since only the tail can reach newer events.
+      getRenderEvents: () => _renderEvents,
+      getFullyReadMarker: () => widget.room.fullyRead,
+      scrollController: _scrollController,
+      timelineViewKey: _timelineViewKey,
+      historyPager: _historyPager!,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      onAfterJump: () {},
+      scrollToBottom: _goLive,
+      logger: _tryReadLogger(),
+    );
+    _readMarkerTracker?.bindRoom(widget.room);
+  }
+
+  /// Re-attempts a failed first timeline load.
+  ///
+  /// The load is a plain `await` behind [LifecycleGeneration] rather than a
+  /// subscription, so retrying is just calling it again: the new call bumps
+  /// the generation, which makes any earlier in-flight attempt stale, and
+  /// [withRetry] inside it gives the request its own retry budget.
+  ///
+  /// The error is deliberately left on screen while the retry runs. Clearing
+  /// it would swap the message for the loading skeleton and then swap that
+  /// for messages, so a slow retry would show three states in a row for one
+  /// user action. Keeping it means the button can carry the wait, and the
+  /// pane only changes once there is something new to show. On success
+  /// `_timeline` is non-null, so the error branch stops being reached without
+  /// anything having to unset it.
+  ///
+  /// [LifecycleGeneration] also makes a room switch mid-retry safe: the late
+  /// continuation is stale and writes nothing.
+  void _retryTimelineLoad() {
+    if (_retryInFlight) return;
+    setState(() => _retryInFlight = true);
+    _initTimeline();
+  }
+
   Future<void> _initTimeline() async {
-    final log = context.read<Logger>();
+    final log = _tryReadLogger();
+    final gen = beginAsync();
 
     final result = await withRetry(
       () => widget.room.getTimeline(
         onChange: (_) => _onTimelineUpdate(),
         onInsert: (_) => _onTimelineUpdate(),
         onRemove: (_) => _onTimelineUpdate(),
-        onUpdate: () {},
+        onUpdate: () => _onTimelineUpdate(),
       ),
       maxRetries: 1,
       timeout: kDefaultTimeout,
@@ -157,132 +375,334 @@ class ChatTimelineState extends State<ChatTimeline> {
       label: 'getTimeline(${widget.room.id})',
     );
 
-    if (!mounted) return;
+    if (isStale(gen) || !mounted) return;
+
+    if (_retryInFlight && mounted) {
+      setState(() => _retryInFlight = false);
+    }
 
     switch (result) {
       case RetrySuccess(:final value):
-        {
-          setState(() => _timeline = value);
-          _scrollController.addListener(_onScroll);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _ensureContentFillsScreen();
-          });
-          // Mark the latest event as read.
-          _markRoomRead();
-        }
+        setState(() {
+          // A fresh tail means a fresh store. Windows from the previous
+          // room state were already dropped and cancelled by `_discardStore`.
+          _timeline = value;
+          _store = TimelineStore(
+            live: TimelineSegment(
+              id: 'live',
+              timeline: value,
+              isLive: true,
+              logger: _tryReadLogger(),
+            ),
+          );
+          _bumpStoreVersion();
+        });
+        _readMarkerTracker?.bindRoom(widget.room);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (isStale(gen) || !mounted) return;
+          _historyPager?.ensureFilled();
+          // Claim only what the user can actually see.  Posting the newest
+          // cached event here retired every unread message above the fold on
+          // each room open.
+          _settleReadPosition();
+        });
       case RetryFailed(:final error):
-        {
-          log.e('Failed to load timeline for ${widget.room.id}', error: error);
-          _timelineLoadFailed = true;
-          setState(() {});
-        }
+        log?.e('Failed to load timeline for ${widget.room.id}', error: error);
+        _timelineLoadFailed = true;
+        setState(() {});
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Shared history-loading
-  // ---------------------------------------------------------------------------
-
-  /// Requests more history from the server and debounces subsequent
-  /// scroll-triggered loads so that layout reflow doesn't create a loop.
-  Future<void> _requestMoreHistory() async {
-    if (_timeline == null) return;
-    final Logger log = context.read<Logger>();
-    _isLoadingHistory = true;
-    _scrollDebounce = true;
-
-    try {
-      await withTimeout(
-        () => _timeline!.requestHistory(),
-        timeout: kDefaultTimeout,
-      );
-    } catch (e) {
-      log.w('History request failed for ${widget.room.id}', error: e);
-    }
-
-    if (!mounted) return;
-    _isLoadingHistory = false;
-    // Let the list lay out, then release the debounce two frames later
-    // to skip any layout-caused scroll events.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _scrollDebounce = false);
-      });
-    });
-    // Release the auto-fill guard so that _ensureContentFillsScreen
-    // can re-evaluate whether the viewport is full.
-    _isFillingViewport = false;
-    // Also re-check auto-fill after this load finishes.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureContentFillsScreen();
-    });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Scroll-to-load history
-  // ---------------------------------------------------------------------------
-
-  /// Called on every scroll event.  Loads more history when the user scrolls
-  /// near the top of the timeline (oldest messages).
+  /// Loads a `/context` window centred on [eventId], adds it to the store
+  /// and scrolls to it.
   ///
-  /// The ListView uses `reverse: true`, so:
-  /// - `pixels == 0` → bottom of the list (newest messages)
-  /// - `pixels >= maxScrollExtent - threshold` → near the top (oldest)
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    if (_isLoadingHistory) return;
-    if (_scrollDebounce) return;
-    if (_isFillingViewport) return;
+  /// The live timeline is anchored to the tail of the room and cannot page
+  /// forward (`canRequestFuture` is permanently false on it), so an event
+  /// outside the local cache used to be an
+  /// unreachable target. A `/context` window is the only primitive this SDK
+  /// offers for the job.
+  ///
+  /// Windows **accumulate**. A jump adds the one it needs and leaves every
+  /// other window loaded, so scrolling away from a jump in either direction
+  /// keeps loading from where the user is, instead of the room forgetting
+  /// the places they have already been. Collapsing them would also discard
+  /// the live tail every time, which is the state a room opens in.
+  Future<void> _loadEventContext(String eventId) async {
+    final log = _tryReadLogger();
+    final store = _store;
+    if (store == null) return;
+    final gen = beginAsync();
 
-    final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - _scrollThreshold) {
-      _requestMoreHistory();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Auto-fill viewport
-  // ---------------------------------------------------------------------------
-
-  /// If the current content does not overflow the viewport (i.e. no scrollbar
-  /// is visible), requests more history until either the viewport is filled or
-  /// no more events are available from the server.
-  void _ensureContentFillsScreen() {
-    if (!mounted) return;
-    if (_isFillingViewport) return;
-    if (_isLoadingHistory) return;
-    if (_timeline == null) return;
-
-    if (!_scrollController.hasClients) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _ensureContentFillsScreen());
+    // A window for this point may already be loaded but not contain the
+    // event itself: `/context` centres on an event the server can locate
+    // without returning. Re-fetching would build a second window with the
+    // same id, which `addHistory` rejects, and that rejection would land
+    // inside `setState` and take the frame with it.
+    final id = 'ctx_$eventId';
+    if (store.history.any((s) => s.id == id)) {
+      log?.d('Event context for $eventId is already loaded');
+      _timelineViewKey.currentState?.scrollToEventId(eventId);
       return;
     }
 
-    if (_autoFillRetries >= _maxAutoFillRetries) return;
+    final result = await withRetry(
+      () => widget.room.getEventContext(eventId),
+      maxRetries: 1,
+      timeout: kDefaultTimeout,
+      log: log,
+      label: 'getEventContext($eventId)',
+    );
 
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    // Still too short -> request more.
-    if (maxScroll <= 50.0) {
-      _autoFillRetries++;
-      _isFillingViewport = true;
-      _requestMoreHistory();
-    } else {
-      _isFillingViewport = false;
+    if (isStale(gen) || !mounted) return;
+
+    final TimelineSegment? segment;
+    switch (result) {
+      case RetrySuccess(:final value):
+        segment = value == null
+            ? null
+            : TimelineSegment.fromEventContext(
+                id: 'ctx_$eventId',
+                timeline: Timeline(room: widget.room, chunk: value),
+                anchorEventId: eventId,
+                logger: log,
+              );
+      case RetryFailed(:final error):
+        log?.w('getEventContext($eventId) failed', error: error);
+        segment = null;
+    }
+
+    if (segment == null) {
+      // Either the request failed or the window came back anchored to
+      // nothing. Both render as a dead end, so neither is added and the miss
+      // is made visible rather than substituted in.
+      log?.w('Event context for $eventId is unusable; '
+          'keeping the current view');
+      _reportUnreachableEvent();
+      return;
+    }
+
+    final window = segment;
+    try {
+      setState(() => store.addHistory(window));
+    } on ArgumentError catch (e) {
+      // `addHistory` rejecting a duplicate or a live segment is a data
+      // invariant, and letting it escape `setState` would take the frame
+      // with it. The store checked the id already; this is the belt.
+      log?.w('Refusing to add a duplicate history segment', error: e);
+      return;
+    }
+    _bumpStoreVersion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _timelineViewKey.currentState?.scrollToEventId(eventId);
+    });
+  }
+
+  /// Grows the segment above [groupIndex] towards the tail, closing the gap.
+  ///
+  /// Called by the view when a gap marker comes within reach of the fold.
+  /// A `/context` window can page forward (`TimelineSegment.canPageNewer`), so
+  /// pulling the two windows together is the same mechanism as pulling more
+  /// history, just in the other direction.
+  ///
+  /// Single-flight per segment: a scroll fires this on many consecutive
+  /// frames and the store's `version` only bumps on a page that actually
+  /// landed, so the guard is the caller's.
+  ///
+  /// Keyed by side as well as group, because the same boundary can be
+  /// approached from both ends: a reader who crosses it on the way down is
+  /// loading a different page than one crossing it on the way up, and
+  /// suppressing the second would strand the hole they just filled.
+  Future<void> _closeGap(int groupIndex, bool viewerOnNewerSide) async {
+    final store = _store;
+    if (store == null) return;
+    final key = '$groupIndex:$viewerOnNewerSide';
+    if (_closingGaps.contains(key)) return;
+    final gen = beginAsync();
+    _closingGaps.add(key);
+    try {
+      await store.closeGapAfterGroup(
+        groupIndex,
+        viewerOnNewerSide: viewerOnNewerSide,
+      );
+      if (isStale(gen) || !mounted) return;
+      _bumpStoreVersion();
+    } finally {
+      _closingGaps.remove(key);
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
+  final Set<String> _closingGaps = <String>{};
 
-  /// Fetches events that pass the active filter by their event IDs.
+  /// Invalidates the view's item cache after a store mutation.
   ///
-  /// When the pinned-only filter is active, the regular timeline may not
-  /// contain the pinned events (they may be outside the loaded window).
-  /// This method reads the pinned event IDs from room state and fetches
-  /// each event via [PinnedEventsCache], which dedupes concurrent requests
-  /// and avoids round-trips for events already known to the cache.
+  /// `TimelineStore.version` is the store's own counter, but the view reads a
+  /// `ValueListenable`, and the store is deliberately pure Dart with no
+  /// Flutter dependency. So the notifier is mirrored here instead.
+  void _bumpStoreVersion() {
+    final store = _store;
+    _storeVersion.value = store?.version ?? 0;
+  }
+
+  /// Surfaces "that message is gone" to the user.  A jump that silently
+  /// does nothing is indistinguishable from a broken button, which is
+  /// how the old cache-only path read.
+  void _reportUnreachableEvent() {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.eventNotFound)),
+    );
+  }
+
+  // -- Scroll listener ------------------------------------------
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    // Close a gap the user is about to scroll into, by growing the segment
+    // above it towards the tail. Nothing else loads downward between two
+    // windows, so this is the only thing that makes a drawn gap temporary.
+    _timelineViewKey.currentState?.reportGapApproach();
+
+    final pos = _scrollController.position;
+    final scrolledUp = pos.pixels > _scrollUpThreshold;
+    if (scrolledUp != _isScrolledUpNotifier.value) {
+      _isScrolledUpNotifier.value = scrolledUp;
+    }
+
+    // Ask the view where the user's eye actually is, rather than
+    // assuming they have read everything in the cache.  Posting the
+    // newest cached event on every scroll tick is what made the
+    // timeline mark itself read.
+    final events = _renderEvents;
+    final readId = _timelineViewKey.currentState?.oldestVisibleEventId;
+    if (events.isNotEmpty && readId != null) {
+      _readMarkerTracker?.scheduleOnScroll(
+        TimelineSnapshot.atReadPosition(events, readId: readId),
+      );
+    }
+
+    _historyPager?.onScroll();
+  }
+
+  void _onTimelineUpdate() {
+    if (!mounted) return;
+    _historyPager?.onTimelineUpdated();
+    _timelineVersion.value++;
+  }
+
+  // -- Helpers --------------------------------------------------
+
+  /// Events the timeline is currently showing: the live tail plus every
+  /// loaded history window, newest first.
+  ///
+  /// Read paths must use this rather than `_timeline.events`. The read
+  /// position is now chosen by a walk over the rendered list, so it can name
+  /// an event from a window, and a count or a timestamp lookup taken against
+  /// the tail alone would miss it. That degrades quietly rather than throwing:
+  /// the receipt posts with an unknown timestamp and falls back to id-based
+  /// dedupe, and the unread pill under-counts by whatever is in the window.
+  List<Event> get _renderEvents => _store?.flatten() ?? const <Event>[];
+
+  /// Number of events the user can see that are newer than [Room.fullyRead].
+  ///
+  /// Drives the unread pill.  The whole render list, because the read marker
+  /// can sit in a window: counting the tail alone would report nothing unread
+  /// while the user is looking at unread messages.
+  int get _unreadInWindow {
+    final events = _renderEvents;
+    if (events.isEmpty) return 0;
+    // Read the fullyRead marker from the room (always present via the
+    // owning widget) rather than the timeline's room reference, which
+    // can be null in test fakes.
+    return countUnreadInWindow(events, widget.room.fullyRead);
+  }
+
+  /// Newest event id in the render list, used to scope pill dismissal.
+  ///
+  /// The tail holds the newest event in the room, so this is its first id
+  /// in every case where the tail is non-empty. It reads the render list
+  /// anyway so the two cannot drift apart if the ordering ever changes.
+  String? get _newestEventId {
+    final events = _renderEvents;
+    if (events.isEmpty) return null;
+    return events.first.eventId;
+  }
+
+  bool get _pillDismissed =>
+      _pillDismissedAtNewestId != null &&
+      _pillDismissedAtNewestId == _newestEventId;
+
+  bool get _showUnreadPill =>
+      _unreadInWindow > 0 &&
+      !_pillDismissed &&
+      !(_jumpCoordinator?.isJumping ?? false);
+
+  void _dismissUnreadPill() {
+    if (_pillDismissed) return;
+    setState(() => _pillDismissedAtNewestId = _newestEventId ?? '');
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final motion = Motion.of(context);
+    // Glided through however many messages separate the user from the live
+    // edge.  Gated, because the two most noticeable motions in the timeline
+    // are the jump and the return to live, and a user who turned animations
+    // off was getting both anyway.
+    _scrollController.animateTo(
+      0,
+      duration: motion.duration(t.durationFast),
+      curve: motion.curve(Curves.easeOutCubic),
+    );
+  }
+
+  /// Public entry point for the floating "Scroll to bottom" button.
+  void scrollToBottom() {
+    if (!_isScrolledUpNotifier.value) return;
+    _goLive();
+  }
+
+  /// Returns the viewport to the newest message.  Also clears the
+  /// scrolled-up flag, so a caller that lands on the live edge does not
+  /// leave a stale "scroll to bottom" pill behind.
+  ///
+  /// No read receipt is posted here.  Landing at the newest message
+  /// means the user has read the *oldest* event on screen, not the
+  /// newest event in the room, and the animation's own scroll
+  /// notifications drive [_settleReadPosition] to the right answer.
+  void _goLive() {
+    if (!_scrollController.hasClients) return;
+    _isScrolledUpNotifier.value = false;
+    _scrollToBottom();
+  }
+
+  /// Posts a read receipt naming the oldest event currently on screen,
+  /// and retries across a few frames while the list is still settling.
+  ///
+  /// The read position is always "the oldest thing the user can see",
+  /// never "the newest event in the cache".  Collapsing the two is what
+  /// made the timeline retire unread it had not shown yet.
+  void _settleReadPosition({int attemptsLeft = 3}) {
+    final events = _renderEvents;
+    final readId = _timelineViewKey.currentState?.oldestVisibleEventId;
+    if (events.isEmpty || readId == null) {
+      // The view has not built its items yet, or nothing measurable is
+      // on screen.  A few frames is enough for the first layout and for
+      // HistoryPager's own deferred auto-fill.
+      if (attemptsLeft <= 0) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _settleReadPosition(attemptsLeft: attemptsLeft - 1);
+      });
+      return;
+    }
+    _readMarkerTracker?.markRoomReadFromSnapshot(
+      TimelineSnapshot.atReadPosition(events, readId: readId),
+    );
+  }
+
   Future<void> _fetchFilteredEvents() async {
     if (_isFetchingFilteredEvents) return;
     _isFetchingFilteredEvents = true;
@@ -302,19 +722,12 @@ class ChatTimelineState extends State<ChatTimeline> {
         return;
       }
 
-      // Fetch via the shared cache. Concurrent calls for the same event ID
-      // share a single in-flight future, and already-cached events return
-      // immediately — so 50 pinned IDs in a fresh room are fetched in
-      // parallel rather than 50 sequential awaits.
       final events = await Future.wait(
         pinnedIds.map(
           (id) => PinnedEventsCache.instance.getEvent(widget.room, id),
         ),
       );
       final resolved = events.whereType<Event>().toList();
-
-      // Sort oldest-first so the reversed ListView places the newest at
-      // the bottom.
       resolved.sort((a, b) => a.originServerTs.compareTo(b.originServerTs));
 
       if (!mounted) return;
@@ -324,126 +737,283 @@ class ChatTimelineState extends State<ChatTimeline> {
     }
   }
 
+  // -- Provider lookups (tolerant when missing) -----------------
+
+  Logger? _tryReadLogger() {
+    if (!mounted) return null;
+    try {
+      return context.read<Logger>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _readSendReceipts() {
+    try {
+      return context.read<SettingsController>().sendReadReceipts;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  NotificationMirror _tryReadNotificationMirror() {
+    try {
+      final service = context.read<NotificationService>();
+      return _ServiceNotificationMirror(service);
+    } catch (_) {
+      return const NoopNotificationMirror();
+    }
+  }
+
+  // -- Build ----------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
-    // Reset auto-fill counter when content becomes scrollable.
+    // Reset retry / drain counters once the viewport is scrollable.
     if (_scrollController.hasClients &&
+        _scrollController.position.haveDimensions &&
         _scrollController.position.maxScrollExtent > 50.0) {
-      _autoFillRetries = 0;
+      _historyPager?.resetCounters();
     }
 
-    return Consumer<SettingsController>(
+    // Sample the SDK's fullyRead marker on every build; the
+    // debouncer inside [ReadMarkerTracker] coalesces rapid rebuilds
+    // (window resize, sidebar drag) into one mutation.
+    _readMarkerTracker?.scheduleLastSeenRefresh(widget.room.fullyRead);
+
+    return Selector<SettingsController, _TimelineSettings>(
+      selector: (_, settings) => _TimelineSettings(
+        displayType: settings.displayType,
+        fontSize: settings.fontSize,
+        bubbleRadius: settings.bubbleRadius,
+        showStateEvents: settings.showStateEvents,
+      ),
+      shouldRebuild: (a, b) => a != b,
       builder: (context, settings, _) {
+        final t = MoonrelayThemeExtension.of(context).tokens;
         if (_timeline == null) {
-          if (_timelineLoadFailed) {
-            return _buildError(context);
-          }
-          // Still loading – sync indicator in ChatRoomHeader handles the
-          // visual feedback, so we just show an empty container.
-          return const SizedBox.shrink();
+          if (_timelineLoadFailed) return _buildError(context);
+          // A blank pane reads as a broken room, not as a room that is still
+          // loading. Shape-matched placeholders are the honest signal, and
+          // [HistorySkeletonTile] is already the app's vocabulary for "the
+          // timeline is not all here yet".
+          return _buildInitialLoadingSkeleton(t);
         }
 
-        // When a filter is active and we've explicitly fetched the matching
-        // events, render those instead of the regular timeline view (which
-        // would show nothing if the target events aren't in the loaded batch).
-        if (widget.filterEvents != null) {
-          if (_fetchedFilteredEvents != null) {
-            if (_fetchedFilteredEvents!.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.push_pin_outlined,
-                      size: 40,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppLocalizations.of(context)!.noPinnedMessages,
-                      style: TextStyle(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
+        final child = _buildTimelineContent(context, settings);
+
+        return Stack(
+          children: [
+            child,
+            ListenableBuilder(
+              listenable:
+                  Listenable.merge([_isScrolledUpNotifier, _timelineVersion]),
+              builder: (context, _) {
+                final isScrolledUp = _isScrolledUpNotifier.value;
+                final isJumping = _jumpCoordinator?.isJumping ?? false;
+                // The jump-to-unread pill stays visible regardless of scroll
+                // position once it has appeared -- it only disappears when
+                // explicitly dismissed or when the room is marked read (which
+                // zeros the unread count).  The scroll-to-bottom pill, by
+                // contrast, only appears when the user has scrolled away from
+                // the newest messages.
+                //
+                // Both pills can be on screen at once, and that is intended:
+                // one is "go to the unread messages", the other is "go to the
+                // newest".  They answer different questions and a room with
+                // unreads while scrolled up has both.
+                //
+                // The unread pill is no longer suppressed inside a history
+                // window.  It used to be, because a substituted window held
+                // no read marker and so counted every event as unread.  With
+                // the windows in the same list as the live tail the marker is
+                // present, so the count is the real one.
+                final unreadVisible = _showUnreadPill || isJumping;
+                final showColumn = isScrolledUp || unreadVisible ||
+                    _loadingContext;
+                if (!showColumn) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: t.spaceMd,
+                  child: SafeArea(
+                    top: false,
+                    child: Center(
+                      child: ChatTimelineFloatingActions(
+                        unreadCount: _unreadInWindow,
+                        isScrolledUp: isScrolledUp,
+                        unreadVisible: unreadVisible,
+                        isJumping: isJumping,
+                        loadingContext: _loadingContext,
+                        onJumpToUnread: () async {
+                          await _jumpCoordinator?.jumpToLastRead();
+                          if (!mounted) return;
+                          // Deliberately no mark-read and no dismiss
+                          // here.  The jump lands the first unread
+                          // message near the top of the viewport, so
+                          // the read position is roughly there and not
+                          // at the newest event; forcing a receipt for
+                          // the newest event is what made the pill
+                          // reappear and then vanish on every attempt.
+                          // The scroll listener settles the real
+                          // position once the animation finishes.
+                        },
+                        onJumpToBottom: scrollToBottom,
+                        onDismissUnread: _dismissUnreadPill,
                       ),
                     ),
-                  ],
-                ),
-              );
-            }
-
-            return _PinnedEventsList(
-              events: _fetchedFilteredEvents!,
-              room: widget.room,
-              displayType: settings.displayType,
-              fontSize: settings.fontSize,
-              scrollController: _scrollController,
-              onReply: widget.onReply,
-              onThread: widget.onThread,
-              onForward: (event) => showForwardDialog(
-                context: context,
-                event: event,
-                sourceRoom: widget.room,
-              ),
-            );
-          }
-
-          // Still fetching...
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        return TimelineView(
-          timeline: _timeline!,
-          room: widget.room,
-          displayType: settings.displayType,
-          fontSize: settings.fontSize,
-          scrollController: _scrollController,
-          timelineVersion: _timelineVersion,
-          onReply: widget.onReply,
-          onThread: widget.onThread,
-          showStateEvents: settings.showStateEvents,
-          filterEvents: widget.filterEvents,
+                  ),
+                );
+              },
+            ),
+          ],
         );
       },
     );
   }
 
+  Widget _buildTimelineContent(
+    BuildContext context,
+    _TimelineSettings settings,
+  ) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    if (widget.filterEvents != null) {
+      if (_fetchedFilteredEvents != null) {
+        if (_fetchedFilteredEvents!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 40,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withValues(alpha: t.opacityMuted),
+                ),
+                SizedBox(height: t.spaceMd),
+                Text(
+                  AppLocalizations.of(context)!.noPinnedMessages,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return PinnedEventsList(
+          events: _fetchedFilteredEvents!,
+          room: widget.room,
+          displayType: settings.displayType,
+          fontSize: settings.fontSize,
+          bubbleRadius: settings.bubbleRadius,
+          scrollController: _scrollController,
+          onReply: widget.onReply,
+          onThread: widget.onThread,
+          onForward: (event) => showForwardDialog(
+            context: context,
+            event: event,
+            sourceRoom: widget.room,
+          ),
+        );
+      }
+
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final store = _store;
+    final renderEvents = store?.flatten() ?? _timeline!.events;
+    final renderGroups = store?.eventGroups();
+    final renderGaps = store?.gapBoundaries() ?? const <int>{};
+
+    return TimelineView(
+      key: _timelineViewKey,
+      // The flattened store list: live tail plus every loaded window,
+      // newest first. `flatten()` allocates a fresh list each call, so the
+      // view's cache key pairs it with `_storeVersion` rather than with
+      // list identity.
+      events: renderEvents,
+      eventGroups: renderGroups,
+      segmentTimelines: store?.segmentTimelines(),
+      gapBoundaries: renderGaps,
+      onGapApproach: _closeGap,
+      timeline: _timeline!,
+      room: widget.room,
+      displayType: settings.displayType,
+      fontSize: settings.fontSize,
+      bubbleRadius: settings.bubbleRadius,
+      scrollController: _scrollController,
+      timelineVersion: Listenable.merge([_timelineVersion, _storeVersion]),
+      onReply: widget.onReply,
+      onThread: widget.onThread,
+      onEdit: widget.onEdit,
+      showStateEvents: settings.showStateEvents,
+      filterEvents: widget.filterEvents,
+      isLoadingHistory: _historyPager?.shouldShowSkeleton ?? false,
+      highlightedEventId: _jumpCoordinator?.highlightedEventId,
+    );
+  }
+
   Widget _buildError(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              LucideIcons.alertCircle,
-              size: 48,
-              color: scheme.error,
-            ),
-            const SizedBox(height: 16),
+            Icon(LucideIcons.alertCircle,
+                size: t.minTapTarget, color: scheme.error),
+            SizedBox(height: t.spaceLg),
             Text(
               AppLocalizations.of(context)!.couldNotLoadMessages,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               AppLocalizations.of(context)!.serverMayBeUnreachable,
               style: TextStyle(
                 fontSize: 13,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color:
+                    scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
+            // The retry sits above the encryption note, not below it. The
+            // note is a suggestion attached to "the server is unreachable",
+            // and burying the way out under it makes the pane read as advice
+            // rather than as something that can be fixed.
+            FilledButton.tonalIcon(
+              onPressed: _retryInFlight ? null : _retryTimelineLoad,
+              icon: _retryInFlight
+                  ? SizedBox(
+                      width: t.iconSizeSmall,
+                      height: t.iconSizeSmall,
+                      child: CircularProgressIndicator(
+                        strokeWidth: t.borderWidthMedium,
+                      ),
+                    )
+                  : Icon(LucideIcons.refreshCw, size: t.iconSizeSmall),
+              label: Text(
+                _retryInFlight
+                    ? AppLocalizations.of(context)!.loading
+                    : AppLocalizations.of(context)!.retry,
+              ),
+            ),
+            SizedBox(height: t.spaceXl),
             Icon(
               LucideIcons.shield,
-              size: 24,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              size: t.iconSizeLarge,
+              color: scheme.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(
               AppLocalizations.of(context)!.encryptionVerifyDevice,
               style: TextStyle(
@@ -457,170 +1027,144 @@ class ChatTimelineState extends State<ChatTimeline> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Read marker
-  // ---------------------------------------------------------------------------
-
-  /// Scrolls the rendered timeline to the event with [eventId].
+  /// Placeholder messages shown while the first `/sync` for this room is
+  /// still in flight.
   ///
-  /// The estimate is intentionally approximate (item index in the
-  /// visible list × viewport-fraction); the user can see the target and
-  /// scroll if it lands off by a few items.
-  ///
-  /// No-ops when [eventId] is null, no client is attached, or the
-  /// scroll controller isn't ready yet.
-  void jumpToEvent(String? eventId) {
-    final timeline = _timeline;
-    if (timeline == null || eventId == null) return;
-    if (!_scrollController.hasClients) return;
-
-    final events = timeline.events;
-    if (events.isEmpty) return;
-    final idx = events.indexWhere((e) => e.eventId == eventId);
-    if (idx < 0) return;
-
-    final position = _scrollController.position;
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final fraction = idx / (events.length - 1);
-    final targetOffset = position.minScrollExtent + range * fraction;
-    final paddedOffset =
-        (targetOffset - position.viewportDimension * 0.33).clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-
-    _scrollController.animateTo(
-      paddedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  /// Bottom-aligned, because a chat pane fills from the bottom: placeholders
+  /// at the top of an empty column would sit exactly where the newest
+  /// messages land and then jump downwards once real events arrived. The
+  /// per-tile fractions vary so the stack reads as a conversation of mixed
+  /// message lengths rather than a repeated row.
+  Widget _buildInitialLoadingSkeleton(MoonrelayDesignTokens t) {
+    const fractions = <double>[0.72, 0.45, 0.80, 0.38, 0.60];
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final fraction in fractions)
+            HistorySkeletonTile(barFraction: fraction),
+          SizedBox(height: t.spaceSm),
+        ],
+      ),
     );
   }
 
-  /// Sends a read receipt for the newest event in the timeline so the server
-  /// and other clients know that the user has seen the latest messages.
-  void _markRoomRead() {
-    if (_timeline == null) return;
-    final events = _timeline!.events;
-    if (events.isEmpty) return;
-    // events are newest-first, so index 0 is the most recent.
-    final latestId = events.first.eventId;
-    widget.room.setReadMarker(latestId, mRead: latestId);
+  // -- Public API for callers outside the widget -----------------
+
+  /// Public accessor for the scroll controller, exposed so callers
+  /// outside this widget (e.g. the in-room search panel) can request
+  /// a jump to a specific event.
+  ScrollController get scrollController => _scrollController;
+
+  /// Dismisses the jump-to-unread pill.  No-op if already dismissed.
+  void dismissUnreadPill() => _dismissUnreadPill();
+
+  /// Brings [eventId] into view.
+  ///
+  /// Three cases, in order of cost:
+  ///  1. The event is already rendered, or at least cached: scroll.
+  ///  2. It is not cached: fetch a `/context` window around it and
+  ///     show that instead (see [_loadEventContext]).
+  ///  3. The server cannot return it: leave the current view alone and
+  ///     report the failure, rather than blanking the room.
+  Future<void> jumpToEvent(String? eventId) async {
+    if (eventId == null || eventId.isEmpty) return;
+
+    // The whole store, not just the live tail.  A target that is already in
+    // a loaded window is a scroll, which is what makes a second jump into
+    // the same area cheap and what lets the user wander between places they
+    // have already been without re-fetching anything.
+    final store = _store;
+    if (store != null && store.indexOf(eventId) >= 0) {
+      _jumpCoordinator?.jumpToEvent(eventId);
+      return;
+    }
+
+    if (_loadingContext) return;
+    setState(() => _loadingContext = true);
+    try {
+      await _loadEventContext(eventId);
+    } finally {
+      if (mounted) setState(() => _loadingContext = false);
+    }
   }
 
-  // ---------------------------------------------------------------------------
-  // Dispose
-  // ---------------------------------------------------------------------------
+  /// True while any history window is loaded alongside the live tail.
+  bool get isViewingHistoryWindow => _store?.isViewingHistory ?? false;
 
-  void _onTimelineUpdate() {
-    if (!mounted) return;
-    setState(() => _timelineVersion++);
-  }
+  /// The loaded segments, for tests that assert windows accumulate.
+  ///
+  /// A count of context *requests* does not prove accumulation: a jump that
+  /// collapsed the previous window and refetched would produce the same
+  /// number of requests. The store is what actually holds the windows.
+  @visibleForTesting
+  TimelineStore? get storeForTest => _store;
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    _timeline?.cancelSubscriptions();
-    super.dispose();
-  }
+  /// The list every read path reads from.
+  ///
+  /// Exposed because the read paths are the ones that must not use the tail,
+  /// and the only way to see which list they were given is to ask.
+  @visibleForTesting
+  List<Event> get renderEventsForTest => _renderEvents;
+
+  /// The timeline view's state, for tests that read the read position.
+  ///
+  /// The read position is chosen by a walk over the rendered list, so the
+  /// only way to observe it is through the view.
+  @visibleForTesting
+  TimelineViewState? get debugTimelineViewForTest =>
+      _timelineViewKey.currentState;
+
+  /// True while a jump is fetching a history window.
+  bool get isLoadingContext => _loadingContext;
 }
 
-/// Renders a list of events fetched by ID for the pinned-only filter.
-///
-/// These events are not necessarily present in the room's [Timeline.events]
-/// list, so they cannot be rendered by [TimelineView]'s filter mechanism.
-/// Instead, this widget takes the pre-fetched events and renders each one
-/// with a [TimelineItem], computing sender grouping from their timestamps.
-class _PinnedEventsList extends StatelessWidget {
-  const _PinnedEventsList({
-    required this.events,
-    required this.room,
-    required this.displayType,
-    required this.fontSize,
-    required this.scrollController,
-    this.onReply,
-    this.onThread,
-    this.onForward,
-  });
-
-  final List<Event> events;
-  final Room room;
-  final DisplayType displayType;
-  final double fontSize;
-  final ScrollController scrollController;
-  final void Function(Event event)? onReply;
-  final void Function(Event event)? onThread;
-  final void Function(Event event)? onForward;
+class _ServiceNotificationMirror implements NotificationMirror {
+  _ServiceNotificationMirror(this._service);
+  final NotificationService _service;
 
   @override
-  Widget build(BuildContext context) {
-    // Events are already sorted oldest-first.  Compute sender grouping:
-    // each event is a continuation of the *newer* event below it
-    // (which appears later in the list).  Since the ListView is reversed,
-    // index 0 appears at the bottom (newest message) of the viewport.
-    final Map<String, int> eventIdToItemIndex = {};
-    final itemCount = events.length;
+  void onRoomRead(String roomId, String eventId) =>
+      _service.onRoomReadByTimeline(roomId, eventId);
+}
 
-    return ListView.builder(
-      controller: scrollController,
-      reverse: true,
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        // index 0 = last in list (newest), index n-1 = first (oldest)
-        final event = events[itemCount - 1 - index];
+/// Subset of [SettingsController] fields that influence what the
+/// chat timeline renders.  Used by a [Selector] so an unrelated
+/// settings change (e.g. theme, notification preferences) does not
+/// force a full timeline rebuild.
+///
+/// Captured as an immutable record so equality is cheap and the
+/// selector can short-circuit re-renders during rapid scrolling.
+@immutable
+class _TimelineSettings {
+  const _TimelineSettings({
+    required this.displayType,
+    required this.fontSize,
+    required this.bubbleRadius,
+    required this.showStateEvents,
+  });
 
-        // Determine if this event is a continuation of the older event
-        // above it in the list (the *next* newer event in reversed order).
-        final isContinuation = index + 1 < itemCount &&
-            _isSameSenderAndCloseInTime(
-              events[itemCount - 1 - index],
-              events[itemCount - 2 - index],
-            );
+  final DisplayType displayType;
+  final double fontSize;
+  final double bubbleRadius;
+  final bool showStateEvents;
 
-        eventIdToItemIndex[event.eventId] = index;
-
-        return TimelineItem(
-          event: event,
-          room: room,
-          displayType: displayType,
-          isGroupStart: !isContinuation,
-          isGroupContinuation: isContinuation,
-          fontSize: fontSize,
-          onReply: onReply != null ? () => onReply!(event) : null,
-          onThread: onThread != null ? () => onThread!(event) : null,
-          onForward:
-              onForward != null ? () => onForward!(event) : null,
-          onJumpToEvent: (String eventId) {
-            final targetIdx = eventIdToItemIndex[eventId];
-            if (targetIdx == null) return;
-            if (!scrollController.hasClients) return;
-            final position = scrollController.position;
-            final range =
-                position.maxScrollExtent - position.minScrollExtent;
-            final fraction =
-                itemCount > 1 ? targetIdx / (itemCount - 1) : 0.0;
-            final targetOffset =
-                position.minScrollExtent + range * fraction;
-            scrollController.animateTo(
-              targetOffset,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          },
-        );
-      },
-    );
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _TimelineSettings &&
+        other.displayType == displayType &&
+        other.fontSize == fontSize &&
+        other.bubbleRadius == bubbleRadius &&
+        other.showStateEvents == showStateEvents;
   }
 
-  /// True when [newer] and [older] are from the same sender within ~10 min.
-  bool _isSameSenderAndCloseInTime(Event newer, Event older) {
-    if (newer.senderId != older.senderId) return false;
-    return _sameEnvironment(newer.originServerTs, older.originServerTs);
-  }
-
-  /// True when two timestamps fall within 10 minutes of each other.
-  bool _sameEnvironment(DateTime a, DateTime b) {
-    final diff = a.difference(b).inMinutes.abs();
-    return diff <= 10;
-  }
+  @override
+  int get hashCode => Object.hash(
+        displayType,
+        fontSize,
+        bubbleRadius,
+        showStateEvents,
+      );
 }

@@ -22,10 +22,13 @@ import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
-import 'package:moonrelay/src/encryption/encryption_service.dart';
-import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/login_errors.dart';
+import 'package:moonrelay/src/helpers/post_login.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/auth_surface.dart';
+import 'package:moonrelay/src/widgets/form_keyboard.dart';
 
 /// In-client registration page for creating a new Matrix account.
 ///
@@ -54,8 +57,22 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
   String? _error;
   String? _usernameError;
 
+  final FocusNode _homeserverFocus = FocusNode(debugLabel: 'homeserver');
+  final FocusNode _usernameFocus = FocusNode(debugLabel: 'username');
+  final FocusNode _passwordFocus = FocusNode(debugLabel: 'password');
+  final FocusNode _confirmPasswordFocus =
+      FocusNode(debugLabel: 'confirmPassword');
+
+  /// The register form's fields are always all four, so the order is fixed
+  /// and Enter on the last one submits.
+  final FormFieldOrder _fieldOrder = FormFieldOrder();
+
   @override
   void dispose() {
+    _homeserverFocus.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
     _homeserverCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -64,269 +81,207 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colors = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    _fieldOrder.nodes = <FocusNode>[
+      _homeserverFocus,
+      _usernameFocus,
+      _passwordFocus,
+      _confirmPasswordFocus,
+    ];
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+      body: FormKeyboard(
+        onSubmit: _doRegister,
+        enabled: !_loading,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: t.spaceXl,
+              vertical: t.spaceXl,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.arrowLeft),
-                        onPressed: () => context.pop(),
-                        tooltip: l10n.back,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kAuthFormWidth),
+                // The same `AuthCard` the sign-in form uses. This was a Material
+                // `Card` with `elevation: 2`, which renders from
+                // `kElevationToShadow`, a hardcoded black map no theme field
+                // reaches, so on the dark ramp the register form had no elevation
+                // at all while the sign-in form beside it had a real shadow. Two
+                // forms, one journey, two different materials.
+                child: AuthCard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      AuthCardHeader(
+                        title: l10n.registerTitle,
+                        onBack: () => context.pop(),
+                        backTooltip: l10n.back,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.registerTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: colors.onSurface,
+                      const SizedBox(height: 24),
+
+                      if (_error != null) ...<Widget>[
+                        AuthNotice(
+                          message: _error!,
+                          icon: LucideIcons.alertCircle,
                         ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      AuthField(
+                        caption: l10n.homeserverText,
+                        controller: _homeserverCtrl,
+                        focusNode: _homeserverFocus,
+                        hintText: l10n.registerHomeserverHint,
+                        icon: LucideIcons.server,
+                        textInputAction: _fieldOrder.getActionAt(0),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          0,
+                          onLast: _doRegister,
+                        ),
+                        autofillHints: const <String>[AutofillHints.url],
+                        enabled: !_loading,
+                      ),
+                      const SizedBox(height: 16),
+
+                      AuthField(
+                        caption: l10n.usernameText,
+                        controller: _usernameCtrl,
+                        focusNode: _usernameFocus,
+                        hintText: l10n.registerUsernameHint,
+                        icon: LucideIcons.user,
+                        errorText: _usernameError,
+                        textInputAction: _fieldOrder.getActionAt(1),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          1,
+                          onLast: _doRegister,
+                        ),
+                        autofillHints: const <String>[
+                          AutofillHints.newUsername,
+                        ],
+                        enabled: !_loading,
+                        onChanged: (_) {
+                          // Clearing the message the moment the user starts
+                          // fixing it is the difference between a form that is
+                          // helping and one that is nagging.
+                          if (_usernameError != null) {
+                            setState(() => _usernameError = null);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      AuthField(
+                        caption: l10n.passwordText,
+                        controller: _passwordCtrl,
+                        focusNode: _passwordFocus,
+                        obscureText: _obscurePassword,
+                        icon: LucideIcons.lock,
+                        suffix: _RevealToggle(
+                          revealed: !_obscurePassword,
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                        ),
+                        textInputAction: _fieldOrder.getActionAt(2),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          2,
+                          onLast: _doRegister,
+                        ),
+                        autofillHints: const <String>[
+                          AutofillHints.newPassword,
+                        ],
+                        enabled: !_loading,
+                      ),
+                      const SizedBox(height: 16),
+
+                      AuthField(
+                        caption: l10n.confirmPasswordLabel,
+                        controller: _confirmPasswordCtrl,
+                        focusNode: _confirmPasswordFocus,
+                        obscureText: _obscureConfirm,
+                        icon: LucideIcons.lock,
+                        suffix: _RevealToggle(
+                          revealed: !_obscureConfirm,
+                          onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
+                        ),
+                        // Deliberately not `AutofillHints.newPassword`: a
+                        // password manager filling the confirmation field would
+                        // defeat the one thing the confirmation field is for.
+                        textInputAction: _fieldOrder.getActionAt(3),
+                        onSubmitted: _fieldOrder.submittedAt(
+                          3,
+                          onLast: _doRegister,
+                        ),
+                        enabled: !_loading,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Laid out rather than borrowed. `CheckboxListTile` brings
+                      // the list's own 48px minimum height and its own padding,
+                      // so the consent row was a 56px band with a small box in
+                      // it, and it did not match the gap rhythm of the four
+                      // fields above it.
+                      _ConsentRow(
+                        label: l10n.agreeToTerms,
+                        value: _agreeToTerms,
+                        enabled: !_loading,
+                        onChanged: (bool? v) => setState(() {
+                          _agreeToTerms = v ?? false;
+                          // Ticking the box is the user telling us they have
+                          // dealt with whatever the notice is complaining about.
+                          // Leaving the complaint up after they have answered it
+                          // is the form arguing with a question already settled,
+                          // and it is the same reason the username field clears
+                          // its error on the first keystroke.
+                          if (_error != null &&
+                              _error == l10n.mustAgreeToTerms) {
+                            _error = null;
+                          }
+                        }),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      AuthButton(
+                        label: _loading
+                            ? l10n.creatingAccount
+                            : l10n.createAccount,
+                        icon: LucideIcons.userPlus,
+                        busy: _loading,
+                        onPressed: _loading ? null : _doRegister,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      AuthLinks(
+                        links: <(String, VoidCallback)>[
+                          (
+                            l10n.alreadyHaveAccount,
+                            () => context.push('/welcome/login'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Error banner
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: colors.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(LucideIcons.alertCircle,
-                                size: 18, color: colors.error),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: TextStyle(
-                                  color: colors.onErrorContainer,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // ── Homeserver field ──
-                  _buildLabel(colors, l10n.homeserverText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _homeserverCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'matrix.org',
-                      prefixIcon: const Icon(LucideIcons.server, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Username field ──
-                  _buildLabel(colors, l10n.usernameText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _usernameCtrl,
-                    decoration: InputDecoration(
-                      hintText: l10n.usernameHint,
-                      prefixIcon: const Icon(LucideIcons.user, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      errorText: _usernameError,
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                    onChanged: (_) {
-                      if (_usernameError != null) {
-                        setState(() => _usernameError = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Password field ──
-                  _buildLabel(colors, l10n.passwordText),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? LucideIcons.eyeOff
-                              : LucideIcons.eye,
-                          size: 18,
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Confirm Password field ──
-                  _buildLabel(colors, l10n.confirmPasswordLabel),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _confirmPasswordCtrl,
-                    obscureText: _obscureConfirm,
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirm
-                              ? LucideIcons.eyeOff
-                              : LucideIcons.eye,
-                          size: 18,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    enabled: !_loading,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Terms of service checkbox ──
-                  CheckboxListTile(
-                    value: _agreeToTerms,
-                    onChanged: !_loading
-                        ? (v) => setState(() => _agreeToTerms = v ?? false)
-                        : null,
-                    title: Text(
-                      l10n.agreeToTerms,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Register button ──
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _doRegister,
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(LucideIcons.userPlus, size: 18),
-                    label: Text(
-                        _loading ? l10n.creatingAccount : l10n.createAccount),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.center,
-                    child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => context.push('/welcome/login'),
-                      child: Text(
-                        l10n.alreadyHaveAccount,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
         ),
       ),
-      ),
-      ),
     );
   }
 
-  // ── Build helpers ─────────────────────────────────────────────────────
-
-  Widget _buildLabel(ColorScheme colors, String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.w500,
-        fontSize: 13,
-        color: colors.onSurfaceVariant,
-      ),
-    );
-  }
-
-  // ── Registration logic ────────────────────────────────────────────────
+  // -- Registration logic ------------------------------------------------
 
   String? _validateForm() {
     final l10n = AppLocalizations.of(context)!;
@@ -409,25 +364,7 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
       case RetrySuccess(:final value):
         {
           log.i('Registration successful for ${value.userId}');
-
-          // ── Save this account for multi-account support ─────────
-          // Capture provider reads before any subsequent await so the
-          // analyzer doesn't see [context] used across the async gap.
-          final accountManager = context.read<AccountManager>();
-          final encryptionService = context.read<EncryptionService>();
-          final homeserverSnapshot = client.homeserver?.toString() ?? '';
-          final userIdSnapshot = client.userID!;
-          await accountManager.addOrUpdateAccount(
-            StoredAccount(
-              userId: userIdSnapshot,
-              homeserver: homeserverSnapshot,
-            ),
-            client: client,
-            encryptionService: encryptionService,
-          );
-
-          if (!mounted) return;
-          context.go('/main/rooms');
+          await completeSignIn(context, client);
         }
       case RetryFailed(:final error):
         {
@@ -449,11 +386,93 @@ class _RegisterInClientPageState extends State<RegisterInClientPage> {
             setState(() {
               _error = error is TimeoutException
                   ? l10n.registerTimedOut
-                  : l10n.registerFailed('$error');
+                  : l10n.registerFailed(safeErrorMessage(error));
               _loading = false;
             });
           }
         }
     }
+  }
+}
+
+/// The eye beside a password field.
+///
+/// Its own tiny widget because there are two of them and an inline
+/// `IconButton` inside `InputDecoration.suffixIcon` is thirty lines each time.
+/// It is an `IconButton` and not a `GestureDetector`, so it is reachable by Tab
+/// and announces itself, which a bare detector does not.
+class _RevealToggle extends StatelessWidget {
+  const _RevealToggle({required this.revealed, required this.onPressed});
+
+  final bool revealed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final l10n = AppLocalizations.of(context)!;
+    return IconButton(
+      icon: Icon(
+        revealed ? LucideIcons.eyeOff : LucideIcons.eye,
+        size: t.iconSizeMedium,
+      ),
+      onPressed: onPressed,
+      // It had no tooltip at all, so the control's purpose was carried by its
+      // glyph alone, which is the one thing a glyph cannot do for a screen
+      // reader.
+      tooltip: revealed ? l10n.hidePassword : l10n.showPassword,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+/// The consent checkbox above the register button.
+class _ConsentRow extends StatelessWidget {
+  const _ConsentRow({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // A fixed width, so the label starts at the same x on every line of a
+        // wrapped sentence rather than drifting with the box's own size.
+        SizedBox(
+          width: t.iconSizeLarge + t.spaceSm,
+          child: Checkbox(
+            value: value,
+            onChanged: enabled ? onChanged : null,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: enabled
+                  ? scheme.onSurfaceVariant
+                  : scheme.onSurfaceVariant
+                      .withValues(alpha: t.opacityDisabled),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

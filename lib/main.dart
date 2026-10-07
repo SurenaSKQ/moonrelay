@@ -24,17 +24,25 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'src/app.dart';
 import 'src/boot.dart';
 import 'src/encryption/encryption_service.dart';
 import 'src/helpers/account_manager.dart';
+import 'src/helpers/app_shutdown.dart';
+import 'src/helpers/app_version.dart';
 import 'src/helpers/current_room.dart';
 import 'src/helpers/log_service.dart';
 import 'src/helpers/navigation_state.dart';
+import 'src/helpers/service_registry.dart';
 import 'src/init_logger.dart';
+import 'src/layouts/layout_shell_controller.dart';
+import 'src/localization/app_localizations.dart';
 import 'src/services/deep_link_service.dart';
+import 'src/services/auto_update_service.dart';
 import 'src/services/notification_service.dart';
+import 'src/services/tray_service.dart';
 import 'src/settings/settings_controller.dart';
 import 'src/settings/space_preferences.dart';
 import 'src/splash_screen.dart';
@@ -48,11 +56,9 @@ import 'src/splash_screen.dart';
 ///
 /// During heavy development this is bumped on every release to avoid
 /// subtle migration bugs.
-const int kDbSchemaVersion = 2;
+const int kDbSchemaVersion = 3;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Init state — populated by the boot pipeline, consumed by the app on success
-// ─────────────────────────────────────────────────────────────────────────────
+// Init state: populated by the boot pipeline, consumed by the app on success
 
 class _AppState {
   const _AppState({
@@ -66,6 +72,8 @@ class _AppState {
     required this.currentRoom,
     required this.notificationService,
     required this.deepLinkService,
+    required this.registry,
+    required this.autoUpdateService,
   });
 
   final Client sdk;
@@ -78,19 +86,20 @@ class _AppState {
   final CurrentRoom currentRoom;
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
+  final ServiceRegistry registry;
+  final AutoUpdateService autoUpdateService;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Init pipeline
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Runs the full boot pipeline via [runBootPipeline] in [boot.dart].
 Future<_AppState> _initialize({
   required void Function(String) onStatus,
+  required void Function() onWaitingForFirstSync,
   required Logger log,
   required LogService logService,
 }) async {
-  // Load saved accounts first — the boot pipeline needs them to know
+  // Load saved accounts first; the boot pipeline needs them to know
   // which database to open.
   final accountManager = AccountManager(log: log);
   await accountManager.load();
@@ -102,6 +111,7 @@ Future<_AppState> _initialize({
     logService: logService,
     accountManager: accountManager,
     onStatus: onStatus,
+    onWaitingForFirstSync: onWaitingForFirstSync,
   );
 
   return _AppState(
@@ -115,12 +125,12 @@ Future<_AppState> _initialize({
     currentRoom: ctx.currentRoom,
     notificationService: ctx.notificationService,
     deepLinkService: ctx.deepLinkService,
+    registry: ctx.registry,
+    autoUpdateService: ctx.autoUpdateService,
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Root widget — swaps between splash and the real app via setState
-// ─────────────────────────────────────────────────────────────────────────────
+// Root widget: swaps between splash and the real app via setState
 
 class MoonrelayBootstrap extends StatefulWidget {
   const MoonrelayBootstrap({super.key});
@@ -141,6 +151,12 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   final GlobalKey<SplashScreenState> _splashKey =
       GlobalKey<SplashScreenState>();
 
+  /// Navigator key handed to the router inside [MoonrelayApp].  The boot
+  /// pipeline sits above [MaterialApp.router], so its context has no
+  /// [Localizations] or [Navigator] ancestors; dialogs must be shown
+  /// through a context obtained from this key instead.
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
@@ -148,7 +164,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   }
 
   Future<void> _boot() async {
-    // ── Step 0: Log service (lightweight, run it first) ──────
+    // -- Step 0: Log service (lightweight, run it first) ------
     LogService logService;
     Logger log;
     try {
@@ -164,7 +180,12 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       return;
     }
 
-    // ── Steps 1-7: heavy init with status callbacks ───────────
+    // -- Step 0b: App version (platform channel; fire-and-forget) --
+    // Cheap and parallel to the rest of boot; the UI shows a fallback
+    // version until this completes.
+    await AppVersion.init();
+
+    // -- Steps 1-7: heavy init with status callbacks -----------
     try {
       final state = await _initialize(
         onStatus: (msg) {
@@ -176,17 +197,44 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           // first frame.
           _splashKey.currentState?.updateStatus(msg);
         },
+        onWaitingForFirstSync: () {
+          // Stay on the splash until the first `/sync` response
+          // arrives so the user never sees an empty rooms pane.
+          _splashKey.currentState?.markWaitingForSync();
+        },
         log: log,
         logService: logService,
       );
       if (!mounted) return;
       _splashKey.currentState?.markDone();
       setState(() => _appState = state);
+
+      // Register the unified shutdown callback so every close path
+      // (window close button, tray "Quit", system close) tears down
+      // services in the correct order before destroying the window.
+      //
+      // The account manager is captured rather than `state.sdk`: the
+      // Client is rebuilt on every account switch, so a client frozen
+      // into this closure is the boot one and is stale by the time the
+      // user quits. `performShutdown` resolves the live pair from it.
+      MoonShutdown.register(() => performShutdown(
+            accountManager: state.accountManager,
+            log: state.log,
+            logService: state.logService,
+            registry: state.registry,
+            trayService: TrayService.instance,
+          ));
+
+      // -- Startup update check ----------------------------------
+      if (state.settingsController.checkForUpdates) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _performStartupUpdateCheck(state);
+        });
+      }
     } catch (e) {
       log.f('Initialization failed', error: e);
       if (!mounted) return;
-      _splashKey.currentState
-          ?.markError('Initialization Failed', '$e');
+      _splashKey.currentState?.markError('Initialization Failed', '$e');
       setState(() {
         _errorTitle = 'Initialization Failed';
         _errorBody = '$e';
@@ -194,9 +242,77 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
     }
   }
 
+  /// Checks for updates on startup and shows a dialog if available.
+  void _performStartupUpdateCheck(_AppState state) {
+    final log = state.log;
+    log.t('Startup update check');
+    state.autoUpdateService.check().then((result) {
+      if (!mounted || !result.available) return;
+      // Use a post-frame callback since we may be called during
+      // initial render.  The dialog runs on the navigator context so
+      // Localizations and showDialog resolve inside the MaterialApp.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+        _showUpdateDialog(navContext, result);
+      });
+    }).catchError((e) {
+      log.w('Startup update check failed', error: e);
+    });
+  }
+
+  /// Shows the update-available dialog using [dialogContext], which
+  /// must live inside the [MaterialApp.router] subtree (the navigator
+  /// key context) so both [AppLocalizations] and [showDialog] work.
+  void _showUpdateDialog(BuildContext dialogContext, UpdateCheckResult result) {
+    final l10n = AppLocalizations.of(dialogContext)!;
+    showDialog<bool>(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.system_update,
+              color: Theme.of(ctx).colorScheme.primary,
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            Text(l10n.updateAvailable),
+          ],
+        ),
+        content: Text(
+          l10n.updateAvailableBody(result.latestVersion, result.currentVersion),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.updateLater),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _launchUpdateUrl(result.releaseUrl);
+            },
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(l10n.updateDownload),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUpdateUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ── Error state ───────────────────────────────────────────
+    // -- Error state -------------------------------------------
     if (_errorTitle != null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -248,7 +364,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
       );
     }
 
-    // ── Success state — the real app ──────────────────────────
+    // -- Success state: the real app --------------------------
     if (_appState != null) {
       return MultiProvider(
         providers: [
@@ -260,6 +376,9 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           ChangeNotifierProvider<NavigationState>(
             create: (_) => NavigationState(),
           ),
+        Provider<LayoutShellController>(
+          create: (_) => LayoutShellController(),
+        ),
           ChangeNotifierProvider<AccountManager>.value(
               value: _appState!.accountManager),
           ChangeNotifierProvider<EncryptionService>.value(
@@ -271,14 +390,15 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
           if (_appState!.notificationService != null)
             Provider<NotificationService>.value(
                 value: _appState!.notificationService!),
-          Provider<DeepLinkService>.value(
-              value: _appState!.deepLinkService),
+          Provider<DeepLinkService>.value(value: _appState!.deepLinkService),
+          Provider<AutoUpdateService>.value(
+              value: _appState!.autoUpdateService),
         ],
-        child: const MoonrelayApp(),
+        child: MoonrelayApp(navigatorKey: _navigatorKey),
       );
     }
 
-    // ── Loading state — the splash screen ─────────────────────
+    // -- Loading state: the splash screen ---------------------
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -293,9 +413,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Entry point
-// ─────────────────────────────────────────────────────────────────────────────
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

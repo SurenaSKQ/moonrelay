@@ -14,60 +14,107 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:moonrelay/src/chat/chat_event.dart';
+import 'package:moonrelay/src/chat/events/delivery_indicator.dart';
 import 'package:moonrelay/src/chat/message_actions.dart';
+import 'package:moonrelay/src/chat/irc_row.dart';
+import 'package:moonrelay/src/chat/message_context_menu.dart';
 import 'package:moonrelay/src/chat/reactions_bar.dart';
 import 'package:moonrelay/src/chat/receipt_avatars.dart';
+import 'package:moonrelay/src/chat/redacted_event.dart';
+import 'package:moonrelay/src/chat/thread_indicator.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/screens/user_profile.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/motion.dart';
+import 'package:moonrelay/src/theme/component_tokens.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
+
+/// Tagged action identifier used by [TimelineItem.onAction].  Folding
+/// the four message actions into a single dispatch keeps the closure
+/// identities stable across rebuilds so the Flutter element tree can
+/// re-use existing children instead of inflating new ones.
+enum TimelineItemAction {
+  reply,
+  forward,
+  thread,
+  jumpToEvent,
+}
 
 /// Renders a single event in the chat timeline with proper sender grouping,
 /// avatar placement, and display-type-specific styling.
 ///
-/// **Sender grouping logic:**
+/// Sender grouping logic:
 /// - Consecutive events from the same sender within ~10 minutes are grouped:
 ///   the avatar and sender name appear only on the first event of the group.
 /// - The timestamp is shown on every event by default, but hidden for
 ///   grouped events (the first event of the group still shows the time).
 ///
-/// **Display types:**
+/// Display types:
 /// - [DisplayType.modern] and [DisplayType.bubbles]: hover actions (React,
-///   Reply, Forward, Delete) appear at the top‑right when hovering anywhere
+///   Reply, Forward, Delete) appear at the top-right when hovering anywhere
 ///   on the message.
 /// - [DisplayType.irc]: compact format with no hover actions.
-class TimelineItem extends StatelessWidget {
+class TimelineItem extends StatefulWidget {
   const TimelineItem({
     super.key,
     required this.event,
     required this.room,
-    this.previousEvent,
     required this.displayType,
     this.isGroupStart = true,
     this.isGroupContinuation = false,
     this.timeline,
     required this.fontSize,
+    this.bubbleRadius = 12.0,
     this.threadReplyCount = 0,
-    this.onReply,
-    this.onForward,
-    this.onThread,
-    this.onJumpToEvent,
+    this.onAction,
     this.highlightedEventId,
+    this.itemKey,
+    this.onEdit,
+    this.focusNode,
   });
 
   final Event event;
-  final Event? previousEvent;
   final Room room;
   final DisplayType displayType;
   final Timeline? timeline;
 
+  /// Stable [GlobalKey] for this item, supplied by [TimelineView].
+  /// The inner [HoverItem] registers this key with the shared
+  /// [HoverOverlayController] so the overlay can resolve the on-screen
+  /// position of the hovered item without scanning the widget tree.
+  ///
+  /// When `null` (e.g. in widget tests that mount a `TimelineItem`
+  /// directly), the item still renders correctly but the hover
+  /// toolbar stays disabled.
+  final GlobalKey? itemKey;
+
+  /// Focus node for this row's keyboard position, owned by [TimelineView].
+  ///
+  /// Rows are deliberately *not* Tab stops. A `Focus` per message would make
+  /// every one of the two or three hundred messages in a viewport a Tab stop,
+  /// so Tab would spend almost all of its travel inside the timeline and a
+  /// keyboard user could not get past it. Instead one node per row exists for
+  /// [TimelineView] to aim at, and the timeline's own focus node moves between
+  /// them with the arrow keys.
+  ///
+  /// `null` when the item is mounted without a timeline (widget tests), in
+  /// which case the row is not keyboard reachable and behaves as before.
+  final FocusNode? focusNode;
+
   /// Font size for message text, passed from the parent to avoid
   /// a per-event [context.watch] on [SettingsController].
   final double fontSize;
+
+  /// Corner radius for the message bubble in bubbles display mode.
+  final double bubbleRadius;
 
   /// Precomputed number of thread replies (0 = no thread).
   final int threadReplyCount;
@@ -81,46 +128,317 @@ class TimelineItem extends StatelessWidget {
   /// in time). In this case the avatar and name header are hidden.
   final bool isGroupContinuation;
 
-  /// Called when the user wants to reply to this event.
-  final VoidCallback? onReply;
+  /// Single stable callback used by the message actions (reply, forward,
+  /// thread, jump). Passing one callback with a tagged [TimelineItemAction]
+  /// means the closures handed to the leaf widgets have stable identity
+  /// across rebuilds, so Flutter can re-use the existing [Element]s
+  /// instead of inflating new ones on every parent build.
+  final void Function(TimelineItemAction action, Event event)? onAction;
 
-  /// Called when the user wants to forward this event to another room.
-  final VoidCallback? onForward;
-
-  /// Called when the user wants to view the thread for this event.
-  final VoidCallback? onThread;
-
-  /// Called when the user taps a reply preview to jump to the replied-to
-  /// event.  Receives the event ID of the target event.
-  final void Function(String eventId)? onJumpToEvent;
+  /// Optional callback triggered when the user wants to edit this event
+  /// inline.  When set, the edit action delegates to this callback instead
+  /// of opening the dialog via [MessageActionRunner.edit].
+  final VoidCallback? onEdit;
 
   /// When non-null and matching this event's [event.eventId], the event
   /// is rendered with a brief highlight background flash.
   final String? highlightedEventId;
 
-  /// Whether the event was redacted (deleted).
-  bool get _isRedacted => event.redacted;
+  @override
+  State<TimelineItem> createState() => _TimelineItemState();
+}
 
-  /// Navigates to the sender's profile page.
-  void _openProfile(BuildContext context) {
-    context.push(
-      '${GoRouterState.of(context).uri}/profile/${event.senderFromMemoryOrFallback.id}',
+class _TimelineItemState extends State<TimelineItem> {
+  /// Tracks whether the mouse is currently over this item.
+  ///
+  /// Using a [ValueNotifier] instead of [setState] means only the
+  /// hover-sensitive parts (the actions overlay) rebuild on enter/exit,
+  /// not the entire message subtree.  This is the single biggest win for
+  /// scroll performance: without it, every mouse move over the chat
+  /// area triggered a full [TimelineItem] rebuild.
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  /// Whether the keyboard cursor is on this row. Draws a ring; see
+  /// [TimelineItem.focusNode] for why rows are focusable at all.
+  bool _hasKeyboardFocus = false;
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  /// Convenience getters that call [widget.onAction] with the right action tag.
+  VoidCallback? get _onReply => widget.onAction == null
+      ? null
+      : () => widget.onAction!(TimelineItemAction.reply, widget.event);
+  VoidCallback? get _onForward => widget.onAction == null
+      ? null
+      : () => widget.onAction!(TimelineItemAction.forward, widget.event);
+  VoidCallback? get _onThread => widget.onAction == null
+      ? null
+      : () => widget.onAction!(TimelineItemAction.thread, widget.event);
+  void Function(String)? get _onJumpToEvent => widget.onAction == null
+      ? null
+      : (id) => widget.onAction!(TimelineItemAction.jumpToEvent, widget.event);
+
+  /// Whether the event was redacted (deleted).
+  bool get _isRedacted => widget.event.redacted;
+
+  /// Captures the inputs that influence what this widget renders.  Used
+  /// by [didUpdateWidget] to skip the rebuild cost during rapid
+  /// scrolling when an item's content has not actually changed.
+  ///
+  /// The matrix SDK mutates [Event.content] and [Event.status] in place,
+  /// so identity comparison is not enough: we hash the fields that
+  /// affect rendering.  The list is intentionally small (display type,
+  /// font size, bubble radius, group-start flags, status, content
+  /// length, redaction flag, highlight).  When the cache matches the
+  /// previous build we return the cached subtree instead of re-running
+  /// every descendant's `build()`.
+  late _ItemRenderKey _renderKey;
+  Widget? _cachedSubtree;
+
+  @override
+  void initState() {
+    super.initState();
+    _renderKey = _computeKey();
+  }
+
+  /// Hashes the rendering-relevant fields of the current widget into a
+  /// small comparable record.
+  _ItemRenderKey _computeKey() {
+    final ev = widget.event;
+    final content = ev.content;
+    return _ItemRenderKey(
+      displayType: widget.displayType,
+      fontSize: widget.fontSize,
+      bubbleRadius: widget.bubbleRadius,
+      isGroupStart: widget.isGroupStart,
+      isGroupContinuation: widget.isGroupContinuation,
+      threadReplyCount: widget.threadReplyCount,
+      highlight: widget.highlightedEventId == ev.eventId,
+      redacted: ev.redacted,
+      // Some test mocks omit [EventStatus]; coalesce to the synced
+      // sentinel so we never throw from a build path.  In real SDK
+      // use [EventStatus] is always populated.
+      statusName: _safeStatusName(ev),
+      // `content` is a mutable Map; hashing it directly is expensive
+      // for big bodies.  Instead, we capture identity (length + map
+      // identity) -- the SDK reallocates the map when the message is
+      // edited, so identity-equality is enough to detect an edit for
+      // the common case.  We additionally hash the body string so
+      // in-place mutations of the body map (rare but possible) still
+      // invalidate the cache.
+      contentIdentity: identityHashCode(content),
+      bodyLength: (content['body'] as String?)?.length ?? 0,
+      senderId: ev.senderId,
+      originServerTsMs: ev.originServerTs.millisecondsSinceEpoch,
     );
+  }
+
+  /// Reads [EventStatus.name] from the event without throwing when the
+  /// underlying value is null (test mocks sometimes leave it unset).
+  /// Falling back to the synced sentinel keeps equality stable across
+  /// builds so the cache hit rate stays high.
+  static String _safeStatusName(Event ev) {
+    try {
+      final s = ev.status;
+      // [EventStatus] is declared non-nullable on [Event]; test mocks
+      // sometimes leave it unset, which surfaces as a [TypeError] at
+      // the getter.  Catch and fall back to the synced sentinel.
+      return s.name;
+    } catch (_) {
+      return EventStatus.synced.name;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TimelineItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newKey = _computeKey();
+    if (newKey != _renderKey) {
+      _renderKey = newKey;
+      _cachedSubtree = null;
+    }
+  }
+
+  /// Opens the sender's profile as a centered modal overlay.
+  ///
+  /// The overlay is decoupled from the room route -- it works even if
+  /// the user later leaves the originating room, and it doesn't pop
+  /// the current chat off the navigation stack.
+  void _openProfile(BuildContext context) {
+    final senderId = widget.event.senderFromMemoryOrFallback.id;
+    showProfileOverlay(context, userId: senderId, room: widget.room);
+  }
+
+  /// Retries sending a failed event via the SDK's [Event.sendAgain].
+  /// Called from the [DeliveryIndicator] retry icon.
+  void _onRetrySend() {
+    unawaited(widget.event.sendAgain());
+  }
+
+  /// Builds the inline hoverbar widget shown when the cursor is over
+  /// this message.  Returns `null` when no actions are available
+  /// (e.g. IRC display mode or missing onAction callback).
+  Widget? _buildActions(BuildContext context) {
+    if (widget.onAction == null) return null;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(t.radiusSm),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+        ),
+        boxShadow: t.shadowMedium,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceXxs,
+        vertical: t.spaceXxs,
+      ),
+      child: MessageActions(
+        event: widget.event,
+        room: widget.room,
+        timeline: widget.timeline,
+        onReply: _onReply ?? () {},
+        onForward: _onForward,
+        onThread: _onThread,
+        onEdit: widget.onEdit,
+      ),
+    );
+  }
+
+  /// Wraps [child] in a `GestureDetector` that opens the context menu on
+  /// right-click (desktop) or long-press (touch), and in a [Focus] that lets
+  /// the keyboard reach the same menu.
+  ///
+  /// Shift+F10 and the dedicated Menu key are the two bindings every desktop
+  /// client uses, and both are handled here rather than on the timeline so
+  /// that they work for a row the keyboard cursor is already on. The menu is
+  /// anchored to the row's own rect, because there is no pointer to anchor to.
+  ///
+  /// The reply, forward, thread, and profile callbacks are wired through so
+  /// the menu can invoke them. When none of them are available, the gesture
+  /// detector is omitted to avoid accidental interactions.
+  Widget _wrapWithContextMenu(BuildContext context, Widget child) {
+    if (widget.onAction == null) return child;
+
+    void openAt(Offset position) {
+      MessageContextMenu.showForEvent(
+        context: context,
+        position: position,
+        event: widget.event,
+        room: widget.room,
+        timeline: widget.timeline,
+        onReply: _onReply ?? () {},
+        onForward: _onForward,
+        onThread: _onThread,
+        onOpenProfile: () => _openProfile(context),
+        onEdit: widget.onEdit,
+      );
+    }
+
+    Widget detector = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      // A plain click parks the keyboard cursor on this row, so that a user
+      // who clicked to react can then reach the menu without reaching for the
+      // mouse again. `onTapDown` rather than `onTap` because a click on a
+      // link inside the message must still count.
+      onTapDown: (_) => widget.focusNode?.requestFocus(),
+      onSecondaryTapDown: (details) => openAt(details.globalPosition),
+      onLongPressStart: (details) => openAt(details.globalPosition),
+      child: child,
+    );
+
+    final node = widget.focusNode;
+    if (node == null) return detector;
+
+    return Focus(
+      focusNode: node,
+      // Not a Tab stop, as documented on [focusNode].
+      skipTraversal: true,
+      canRequestFocus: true,
+      // Drives the focus ring. A separate channel from the jump highlight:
+      // the highlight is a timed fill and the ring is a state, and sharing
+      // one slot made the keyboard cursor look like a pointer was over the
+      // row.
+      onFocusChange: (hasFocus) {
+        if (mounted && _hasKeyboardFocus != hasFocus) {
+          setState(() => _hasKeyboardFocus = hasFocus);
+        }
+      },
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        final isMenuKey = event.logicalKey == LogicalKeyboardKey.contextMenu ||
+            (event.logicalKey == LogicalKeyboardKey.f10 &&
+                HardwareKeyboard.instance.isShiftPressed);
+        if (!isMenuKey) return KeyEventResult.ignored;
+        // Anchored to the row rather than to a point, because a keyboard has
+        // no position and `Offset.zero` would put the menu in the corner.
+        openAt(_rowAnchor(context));
+        return KeyEventResult.handled;
+      },
+      child: detector,
+    );
+  }
+
+  /// The top-left of this row in global coordinates, for menus opened without
+  /// a pointer.
+  ///
+  /// Falls back to the bottom-left of the row's own box when [itemKey] is
+  /// null or the row is not currently laid out, so a keyboard-opened menu is
+  /// never stranded at the screen origin.
+  Offset _rowAnchor(BuildContext context) {
+    final key = widget.itemKey;
+    final box = key?.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) return box.localToGlobal(Offset.zero);
+    final self = context.findRenderObject() as RenderBox?;
+    if (self != null && self.hasSize) {
+      return self.localToGlobal(Offset(self.size.width, self.size.height));
+    }
+    return Offset.zero;
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isRedacted) {
-      return _RedactedEvent(
-        event: event,
-        isGroupContinuation: isGroupContinuation,
+      return RedactedEvent(
+        event: widget.event,
+        isGroupContinuation: widget.isGroupContinuation,
+        room: widget.room,
+        onForward: _onForward,
+        onThread: _onThread,
+        onReply: _onReply,
+        onOpenProfile: () => _openProfile(context),
       );
     }
 
-    final isHighlighted = highlightedEventId == event.eventId;
+    final isHighlighted = widget.highlightedEventId == widget.event.eventId;
+    final hoverActions = _buildActions(context);
+
+    // When nothing rendering-relevant has changed since the previous
+    // build, replay the cached subtree verbatim.  This avoids the
+    // cost of allocating Padding/Row/Column and re-running every
+    // descendant `build()` on each parent rebuild -- the common case
+    // during fast scrolling.
+    final cached = _cachedSubtree;
+    if (cached != null) {
+      // The highlight flag is re-applied each time since it's not part of
+      // the cached subtree (the cached content is the raw message body).
+      return _wrapWithHover(
+        context: context,
+        isHighlighted: isHighlighted,
+        actions: hoverActions,
+        child: _wrapWithContextMenu(context, cached),
+      );
+    }
 
     Widget content;
-    switch (displayType) {
+    switch (widget.displayType) {
       case DisplayType.modern:
         content = _buildModern(context);
       case DisplayType.bubbles:
@@ -129,12 +447,100 @@ class TimelineItem extends StatelessWidget {
         content = _buildIrc(context);
     }
 
-    content = _HoverHighlight(
-      isHighlighted: isHighlighted,
-      child: content,
-    );
+    // Cache the rendering subtree (before hover wrapping so the
+    // highlight state isn't snapshotted).  The next build will
+    // replay this subtree without re-running any descendants.
+    _cachedSubtree = content;
 
-    return content;
+    return _wrapWithHover(
+      context: context,
+      isHighlighted: isHighlighted,
+      actions: hoverActions,
+      child: _wrapWithContextMenu(context, content),
+    );
+  }
+
+  /// Wraps [child] in a [MouseRegion] that tracks hover state via
+  /// [_isHovered] (a [ValueNotifier]), applying the hover tint and
+  /// optionally the inline hoverbar.
+  ///
+  /// Only the hover-sensitive parts rebuild on enter/exit -- the
+  /// [child] subtree is unaffected because it is not inside the
+  /// [ValueListenableBuilder].
+  ///
+  /// Highlight and hover are deliberately different channels.  They used to
+  /// share one [BoxDecoration] slot, which meant the two-second flash after a
+  /// jump looked exactly like a mouse-over, and simply moving the pointer
+  /// during the flash cancelled it.  The highlight is now an inset ring on
+  /// the row, which survives the pointer, and which stays visible *above* a
+  /// bubble's own fill rather than underneath it.
+  Widget _wrapWithHover({
+    required BuildContext context,
+    required Widget child,
+    required bool isHighlighted,
+    required Widget? actions,
+  }) {
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final motion = Motion.of(context);
+    final cs = Theme.of(context).colorScheme;
+
+    return MouseRegion(
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
+      child: AnimatedContainer(
+        // Colour and border only.  Animating a margin here would mean
+        // re-laying-out the row on every frame of the flash; the row's own
+        // vertical padding already leaves the ring room to read.
+        duration: motion.duration(t.durationFast),
+        curve: motion.curve(t.curveDecelerate),
+        decoration: BoxDecoration(
+          color: isHighlighted
+              ? cs.primary.withValues(alpha: t.opacityFocus)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(t.radiusSm),
+          // The keyboard cursor gets a ring and a halo; the jump highlight
+          // gets a fill. They are deliberately different treatments, because
+          // the highlight is a two-second flash after a jump and this is a
+          // state that persists until the cursor moves, and an earlier version
+          // that shared one slot made the two indistinguishable on screen.
+          border: _hasKeyboardFocus
+              ? Border.all(color: cs.primary, width: t.borderWidthThick)
+              : isHighlighted
+                  ? Border.all(color: cs.primary, width: t.borderWidthThick)
+                  : null,
+          // Earthshine, and transparent in light mode because a row lit from
+          // the front casts nothing.
+          boxShadow: _hasKeyboardFocus && ext.layers.glow.a > 0
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: ext.layers.glow,
+                    blurRadius: t.spaceMd,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child,
+            if (actions != null)
+              ValueListenableBuilder<bool>(
+                valueListenable: _isHovered,
+                builder: (context, isHovered, _) {
+                  if (!isHovered) return const SizedBox.shrink();
+                  return Positioned(
+                    top: t.spaceXs,
+                    right: t.spaceSm,
+                    child: actions,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Message body + reactions bar (shared between all display modes).
@@ -142,111 +548,160 @@ class TimelineItem extends StatelessWidget {
   /// Uses the precomputed [threadReplyCount] and passed [fontSize] instead
   /// of scanning the timeline or watching [SettingsController] on every build.
   Widget _messageContent(BuildContext context) {
+    // The delivery indicator only matters for outgoing messages that
+    // haven't yet been confirmed by sync.  Events that arrived via
+    // sync (`EventStatus.synced`) are already in their final state and
+    // don't need a spinner / check / retry icon next to them.
+    final isOutgoing = widget.event.senderId == widget.room.client.userID;
+    final showDelivery =
+        isOutgoing && widget.event.status != EventStatus.synced;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         MessageEventHandler(
-          event: event,
-          timeline: timeline,
-          room: room,
-          fontSize: fontSize,
-          onJumpToEvent: onJumpToEvent,
+          event: widget.event,
+          timeline: widget.timeline,
+          room: widget.room,
+          fontSize: widget.fontSize,
+          onJumpToEvent: _onJumpToEvent,
         ),
-        if (timeline != null)
+        if (widget.timeline != null)
           ReactionsBar(
-            event: event,
-            timeline: timeline!,
-            room: room,
+            event: widget.event,
+            timeline: widget.timeline!,
+            room: widget.room,
           ),
         // Read-receipt avatars under every message that someone has seen.
-        if (timeline != null)
-          ReceiptAvatars(event: event, room: room),
-        if (threadReplyCount > 0)
-          _ThreadIndicator(
-            replyCount: threadReplyCount,
-            onTap: onThread,
+        if (widget.timeline != null)
+          ReceiptAvatars(event: widget.event, room: widget.room),
+        if (showDelivery)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: DeliveryIndicator(
+              status: _deliveryStatusFor(widget.event),
+              onRetry: widget.event.status.isError ? _onRetrySend : null,
+            ),
+          ),
+        if (widget.threadReplyCount > 0)
+          ThreadIndicator(
+            replyCount: widget.threadReplyCount,
+            onTap: _onThread,
           ),
       ],
     );
   }
 
-  // ---------------------------------------------------------------------------
+  /// Maps the SDK's [EventStatus] to the smaller set of states the
+  /// [DeliveryIndicator] knows how to render.
+  DeliveryStatus _deliveryStatusFor(Event ev) {
+    switch (ev.status) {
+      case EventStatus.sending:
+        return DeliveryStatus.sending;
+      case EventStatus.sent:
+      case EventStatus.synced:
+        return DeliveryStatus.sent;
+      case EventStatus.error:
+        return DeliveryStatus.failed;
+    }
+  }
+
   // Modern display
-  // ---------------------------------------------------------------------------
+
+  /// Vertical gap above this message.
+  ///
+  /// A run of messages from one sender and a series of unrelated messages
+  /// used to have byte-identical spacing, so the eye had nothing to find a
+  /// group boundary with: the avatar disappears on continuation messages and
+  /// the sender name only appears on the first one.  The gap is what carries
+  /// the structure, so it has to differ between the two cases.
+  double _verticalSpacing(MoonrelayChatTokens chat) =>
+      widget.isGroupStart ? chat.groupSpacing : chat.rowSpacing;
 
   Widget _buildModern(BuildContext context) {
     final theme = Theme.of(context);
-    final showAvatar = isGroupStart && !isGroupContinuation;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
+    final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spaceSm,
+        vertical: _verticalSpacing(chat),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar column
           SizedBox(
-            width: 48,
+            width: chat.avatarGutter,
             child: showAvatar
                 ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: EdgeInsets.only(top: t.spaceXs),
                     child: AvatarFromUriOrFallbackImage(
-                      client: room.client,
-                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
+                      client: widget.room.client,
+                      avatarUri:
+                          widget.event.senderFromMemoryOrFallback.avatarUrl,
                       onTap: () => _openProfile(context),
                     ),
                   )
                 : null,
           ),
-          const SizedBox(width: 8),
-          // Content column
+          SizedBox(width: t.spaceSm),
+          // Content column.  Capped at a readable measure: flat display
+          // modes used to run body text the full width of the pane, which
+          // in the expanded dashboard shell is a fifteen-hundred-pixel line.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Sender name + timestamp (only for group-start)
-                if (isGroupStart)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            event.senderFromMemoryOrFallback.calcDisplayname(),
-                            style: TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: chat.measureMaxWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Sender name + timestamp (only for group-start)
+                    if (widget.isGroupStart)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: t.spaceXs),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.event.senderFromMemoryOrFallback
+                                    .calcDisplayname(),
+                                style: TextStyle(
+                                  fontSize:
+                                      chat.senderFontSize(widget.fontSize),
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            SizedBox(width: t.spaceSm),
+                            Text(
+                              widget.event.originServerTs
+                                  .localizedTimeShort(context),
+                              style: TextStyle(
+                                fontSize:
+                                    chat.metadataFontSize(widget.fontSize),
+                                fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: t.opacitySubtle),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          event.originServerTs.localizedTimeShort(context),
-                          style: TextStyle(
-                            fontSize: fontSize * 0.6875,
-                            fontWeight: FontWeight.w500,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // No timestamp for continuation messages (time shown on group start)
-                // Hover actions (right-aligned -- away from sender info)
-                _HoverActionsWrapper(
-                  event: event,
-                  room: room,
-                  timeline: timeline,
-                  onReply: onReply,
-                  onForward: onForward,
-                  onThread: onThread,
-                  child: _messageContent(context),
+                      ),
+                    // No timestamp for continuation messages (time shown on
+                    // group start)
+                    _messageContent(context),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -254,453 +709,270 @@ class TimelineItem extends StatelessWidget {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Bubbles display
-  // ---------------------------------------------------------------------------
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final showAvatar = isGroupStart && !isGroupContinuation;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final chat = ext.components.chat;
+    final showAvatar = widget.isGroupStart && !widget.isGroupContinuation;
+    // Own messages read as *your side* of the conversation, not as a
+    // slightly darker version of everyone else's.  The old signal was a
+    // fifteen percent alpha difference on one shared hue, which is at or
+    // under the threshold of notice on a large filled area and vanishes
+    // entirely in dark mode, where `primaryContainer` is already a dark,
+    // low-chroma value.  Two different surface roles is a signal that
+    // survives the palette.
+    final isOwn = widget.event.senderId == widget.room.client.userID;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar column
-          SizedBox(
-            width: 48,
-            child: showAvatar
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: AvatarFromUriOrFallbackImage(
-                      client: room.client,
-                      avatarUri: event.senderFromMemoryOrFallback.avatarUrl,
-                      onTap: () => _openProfile(context),
-                    ),
-                  )
-                : null,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Scale the width cap and the floating gutter with the pane.  The
+        // gutter used to be a flat 64px, which cost thirteen percent of a
+        // phone screen; the cap was a flat 480px, which on a phone is most
+        // of the pane anyway and reads better as a proportion.
+        final bubbleMax = math.min(
+          chat.bubbleMaxWidth,
+          constraints.maxWidth * 0.78,
+        );
+        final gutter = math.min(
+          chat.bubbleGutter,
+          constraints.maxWidth * 0.12,
+        );
+
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceSm,
+            vertical: _verticalSpacing(chat),
           ),
-          const SizedBox(width: 8),
-          // Bubble content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isGroupStart)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4, left: 4),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            event.senderFromMemoryOrFallback.calcDisplayname(),
-                            style: TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w700,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar column
+              SizedBox(
+                width: chat.avatarGutter,
+                child: showAvatar
+                    ? Padding(
+                        padding: EdgeInsets.only(top: t.spaceXs),
+                        child: AvatarFromUriOrFallbackImage(
+                          client: widget.room.client,
+                          avatarUri:
+                              widget.event.senderFromMemoryOrFallback.avatarUrl,
+                          onTap: () => _openProfile(context),
+                        ),
+                      )
+                    : null,
+              ),
+              SizedBox(width: t.spaceSm),
+              // Bubble content.  The whole column is wrapped in an
+              // [Expanded] (filling the row) with a gutter on the right so
+              // the bubble floats to the left and the gap on the right gives
+              // the layout visual breathing room.
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.isGroupStart)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: t.spaceXs,
+                            left: t.spaceXs,
+                          ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.event.senderFromMemoryOrFallback
+                                      .calcDisplayname(),
+                                  style: TextStyle(
+                                    fontSize:
+                                        chat.senderFontSize(widget.fontSize),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(width: t.spaceSm),
+                              Text(
+                                widget.event.originServerTs
+                                    .localizedTimeShort(context),
+                                style: TextStyle(
+                                  fontSize:
+                                      chat.metadataFontSize(widget.fontSize),
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface
+                                      .withValues(alpha: t.opacitySubtle),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // The bubble hugs its content rather than stretching
+                      // to fill the chat column, and hugs the leading edge
+                      // rather than centring, so a run of messages reads as
+                      // a left margin instead of a ragged centred stack.
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: bubbleMax),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              // A fill and a lift, not an outline.
+                              //
+                              // This was a 30% primary fill behind a 0.7px
+                              // 50% primary border, which is the visual
+                              // signature of a wireframe: it draws a box
+                              // around the text rather than putting a
+                              // surface under it, so a screen full of them
+                              // looks like a diagram of messages instead of
+                              // messages.
+                              //
+                              // A fill plus the shadowLow pair, because the
+                              // two shadow layers together do the work the
+                              // border was standing in for. One would read
+                              // as a glow.
+                              color: isOwn
+                                  ? cs.primaryContainer
+                                  : cs.surfaceContainerHighest
+                                      .withValues(alpha: t.opacityDisabled),
+                              borderRadius: BorderRadius.circular(
+                                widget.bubbleRadius,
+                              ),
+                              boxShadow: t.shadowLow,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: chat.messagePaddingH,
+                              vertical: chat.messagePaddingV,
+                            ),
+                            child: _messageContent(context),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          event.originServerTs.localizedTimeShort(context),
-                          style: TextStyle(
-                            fontSize: fontSize * 0.6875,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // Hover actions + bubble
-                _HoverActionsWrapper(
-                  event: event,
-                  room: room,
-                  timeline: timeline,
-                  onReply: onReply,
-                  onForward: onForward,
-                  onThread: onThread,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: cs.primary.withValues(alpha: 0.5),
-                        width: 0.7,
                       ),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _messageContent(context),
-                        // No timestamp for continuation messages
-                      ],
-                    ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // ---------------------------------------------------------------------------
   // IRC display (compact, no hover actions)
-  // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
-    return _IRCRow(
+    final chat = MoonrelayThemeExtension.of(context).components.chat;
+
+    return IRCRow(
       sender: SizedBox(
         width: 120,
         child: Text(
-          '<${event.senderFromMemoryOrFallback.calcDisplayname()}>',
+          '<${widget.event.senderFromMemoryOrFallback.calcDisplayname()}>',
           style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
+            fontSize: chat.senderFontSize(widget.fontSize),
+            fontWeight: FontWeight.w600,
           ),
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.right,
         ),
       ),
       timestamp: Text(
-        event.originServerTs.localizedTimeShort(context),
-        style: const TextStyle(
-          fontSize: 12,
+        widget.event.originServerTs.localizedTimeShort(context),
+        style: TextStyle(
+          fontSize: chat.metadataFontSize(widget.fontSize),
           fontWeight: FontWeight.w500,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MessageEventHandler(
-            event: event,
-            timeline: timeline,
-            room: room,
-            fontSize: fontSize,
-            onJumpToEvent: onJumpToEvent,
-          ),
-          if (timeline != null)
-            ReactionsBar(
-              event: event,
-              timeline: timeline!,
-              room: room,
-            ),
-        ],
-      ),
+      // `_messageContent`, not a hand-rolled column.  IRC mode used to
+      // rebuild the body itself with just the event handler and the reaction
+      // bar, which quietly dropped delivery state, read receipts, and thread
+      // counts: a user who switched display types stopped being able to see
+      // whether their own messages had actually been sent.
+      body: _messageContent(context),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hover actions wrapper (Modern & Bubbles only)
-// ---------------------------------------------------------------------------
-
-/// Wraps [child] with a [MouseRegion] and overlays action buttons at the
-/// top‑right corner of the message when the user hovers over it.
+/// Compact equality record used by [_TimelineItemState] to short-circuit
+/// rebuilds when no rendering-relevant input has changed.
 ///
-/// Actions include **React**, **Reply**, **Forward**, **Details**, **Edit**,
-/// **Delete** (when permitted), and **Moderation** for users with sufficient
-/// permissions.
-///
-/// When [onReply] is `null` the whole mechanism is skipped and [child] is
-/// returned as-is.
-class _HoverActionsWrapper extends StatefulWidget {
-  const _HoverActionsWrapper({
-    required this.child,
-    required this.event,
-    required this.room,
-    required this.timeline,
-    this.onReply,
-    this.onForward,
-    this.onThread,
-  });
-
-  final Widget child;
-  final Event event;
-  final Room room;
-  final Timeline? timeline;
-  final VoidCallback? onReply;
-  final VoidCallback? onForward;
-  final VoidCallback? onThread;
-
-  @override
-  State<_HoverActionsWrapper> createState() => _HoverActionsWrapperState();
-}
-
-class _HoverActionsWrapperState extends State<_HoverActionsWrapper> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    // No reply callback means no actions at all – skip the overhead.
-    if (widget.onReply == null) return widget.child;
-
-    final cs = Theme.of(context).colorScheme;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Stack(
-        children: [
-          widget.child,
-          if (_isHovered)
-            Positioned(
-              top: -4,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: cs.outlineVariant,
-                    width: 0.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 4,
-                ),
-                child: MessageActions(
-                  event: widget.event,
-                  room: widget.room,
-                  timeline: widget.timeline,
-                  onReply: widget.onReply!,
-                  onForward: widget.onForward,
-                  onThread: widget.onThread,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Redacted event indicator
-// ---------------------------------------------------------------------------
-
-/// Renders a compact placeholder for redacted (deleted) messages.
-class _RedactedEvent extends StatelessWidget {
-  const _RedactedEvent({
-    required this.event,
+/// Captures identity (content map), length, sender id, timestamp and a
+/// handful of structural flags.  An in-place edit of the event body
+/// invalidates this key via the [contentIdentity] + [bodyLength] pair;
+/// a redaction flips [redacted]; an outgoing send flips [status].
+@immutable
+class _ItemRenderKey {
+  const _ItemRenderKey({
+    required this.displayType,
+    required this.fontSize,
+    required this.bubbleRadius,
+    required this.isGroupStart,
     required this.isGroupContinuation,
+    required this.threadReplyCount,
+    required this.highlight,
+    required this.redacted,
+    required this.statusName,
+    required this.contentIdentity,
+    required this.bodyLength,
+    required this.senderId,
+    required this.originServerTsMs,
   });
 
-  final Event event;
+  final DisplayType displayType;
+  final double fontSize;
+  final double bubbleRadius;
+  final bool isGroupStart;
   final bool isGroupContinuation;
+  final int threadReplyCount;
+  final bool highlight;
+  final bool redacted;
+
+  /// Captures the [EventStatus.name] (a stable string) rather than the
+  /// enum value itself so the equality check tolerates null returns
+  /// from test mocks without throwing.
+  final String statusName;
+  final int contentIdentity;
+  final int bodyLength;
+  final String senderId;
+  final int originServerTsMs;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.delete,
-            size: 14,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            AppLocalizations.of(context)!.messageDeleted,
-            style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
-          ),
-        ],
-      ),
-    );
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _ItemRenderKey &&
+        other.displayType == displayType &&
+        other.fontSize == fontSize &&
+        other.bubbleRadius == bubbleRadius &&
+        other.isGroupStart == isGroupStart &&
+        other.isGroupContinuation == isGroupContinuation &&
+        other.threadReplyCount == threadReplyCount &&
+        other.highlight == highlight &&
+        other.redacted == redacted &&
+        other.statusName == statusName &&
+        other.contentIdentity == contentIdentity &&
+        other.bodyLength == bodyLength &&
+        other.senderId == senderId &&
+        other.originServerTsMs == originServerTsMs;
   }
-}
-
-// ─── Thread indicator ──────────────────────────────────────────────────────────
-
-/// A clickable indicator shown below a message when it has thread replies.
-/// Shows the reply count and navigates to the thread view on tap.
-class _ThreadIndicator extends StatelessWidget {
-  const _ThreadIndicator({
-    required this.replyCount,
-    this.onTap,
-  });
-
-  final int replyCount;
-  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: scheme.primary.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.forum_rounded,
-                size: 14,
-                color: scheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.threadReplies(replyCount),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.primary,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right,
-                size: 14,
-                color: scheme.primary.withValues(alpha: 0.6),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Hover highlight & reply-jump flash
-// ---------------------------------------------------------------------------
-
-/// Wraps a chat item and applies a subtle background tint when the mouse
-/// hovers over it, plus a stronger flash when [isHighlighted] is true
-/// (triggered by a reply jump-to).
-///
-/// Uses [ColorScheme.surfaceContainerHighest] tones that adapt cleanly
-/// to both light and dark themes.
-class _HoverHighlight extends StatefulWidget {
-  const _HoverHighlight({
-    required this.isHighlighted,
-    required this.child,
-  });
-
-  final bool isHighlighted;
-  final Widget child;
-
-  @override
-  State<_HoverHighlight> createState() => _HoverHighlightState();
-}
-
-class _HoverHighlightState extends State<_HoverHighlight> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    Color bgColor;
-    if (widget.isHighlighted) {
-      bgColor = cs.primary.withValues(alpha: 0.15);
-    } else if (_isHovered) {
-      bgColor = cs.surfaceContainerHighest.withValues(alpha: 0.5);
-    } else {
-      bgColor = Colors.transparent;
-    }
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: bgColor,
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// IRC row layout
-// ---------------------------------------------------------------------------
-
-/// Renders a single IRC-style message row with the sender always visible and
-/// the timestamp shown only on hover at the end of the row.
-class _IRCRow extends StatefulWidget {
-  const _IRCRow({
-    required this.sender,
-    required this.timestamp,
-    required this.body,
-  });
-
-  final Widget sender;
-  final Widget timestamp;
-  final Widget body;
-
-  @override
-  State<_IRCRow> createState() => _IRCRowState();
-}
-
-class _IRCRowState extends State<_IRCRow> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                widget.sender,
-                const SizedBox(width: 8),
-                Expanded(child: widget.body),
-              ],
-            ),
-            if (_isHovered)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: widget.timestamp,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  int get hashCode => Object.hash(
+        displayType,
+        fontSize,
+        bubbleRadius,
+        isGroupStart,
+        isGroupContinuation,
+        threadReplyCount,
+        highlight,
+        redacted,
+        statusName,
+        contentIdentity,
+        bodyLength,
+        senderId,
+        originServerTsMs,
+      );
 }

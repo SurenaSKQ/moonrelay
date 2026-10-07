@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonrelay/src/settings/display_type.dart';
+import 'package:moonrelay/src/settings/layout_settings.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,6 +111,47 @@ void main() {
       // Try setting to irc again (no change)
       await controller.updateDisplayType(DisplayType.irc);
       expect(notificationCount, firstCount);
+    });
+
+    test('layoutMode defaults to auto', () {
+      expect(controller.layoutMode, LayoutMode.auto);
+    });
+
+    test('setLayoutMode changes the layout mode and persists', () async {
+      expect(controller.layoutMode, LayoutMode.auto);
+
+      await controller.setLayoutMode(LayoutMode.compact);
+      expect(controller.layoutMode, LayoutMode.compact);
+      expect(await service.layoutMode(), LayoutMode.compact);
+
+      await controller.setLayoutMode(LayoutMode.mobile);
+      expect(controller.layoutMode, LayoutMode.mobile);
+      expect(await service.layoutMode(), LayoutMode.mobile);
+    });
+
+    test('setLayoutMode notifies listeners', () async {
+      int notificationCount = 0;
+      controller.addListener(() => notificationCount++);
+
+      await controller.setLayoutMode(LayoutMode.compact);
+      expect(notificationCount, greaterThanOrEqualTo(1));
+    });
+
+    test('setLayoutMode skips notify when unchanged', () async {
+      await controller.setLayoutMode(LayoutMode.compact);
+      int notificationCount = 0;
+      controller.addListener(() => notificationCount++);
+
+      await controller.setLayoutMode(LayoutMode.compact);
+      expect(notificationCount, 0);
+    });
+
+    test('persisted layoutMode loads on a fresh controller', () async {
+      await controller.setLayoutMode(LayoutMode.mobile);
+
+      final reloaded = SettingsController(service);
+      await reloaded.loadSettings();
+      expect(reloaded.layoutMode, LayoutMode.mobile);
     });
   });
 }

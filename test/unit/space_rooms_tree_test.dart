@@ -25,9 +25,7 @@ import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import '../helpers/mocks.dart';
 import 'package:provider/provider.dart';
 
-// ---------------------------------------------------------------------------
 // Helper that mirrors the static _extractInitials in space_rooms_tree.dart
-// ---------------------------------------------------------------------------
 
 String extractInitials(String name) {
   final trimmed = name.trim();
@@ -42,9 +40,7 @@ String extractInitials(String name) {
 }
 
 void main() {
-  // ═══════════════════════════════════════════════════════════════════════
   // Unit tests: _extractInitials helper
-  // ═══════════════════════════════════════════════════════════════════════
   group('extractInitials', () {
     test('two-word name',
         () => expect(extractInitials('Alice Bob'), equals('AB')));
@@ -63,9 +59,7 @@ void main() {
         () => expect(extractInitials('\t\n '), equals('?')));
   });
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Widget tests — SpaceRoomsPane (basic rendering without children)
-  // ═══════════════════════════════════════════════════════════════════════
+  // Widget tests: SpaceRoomsPane (basic rendering without children)
   group('SpaceRoomsPane rendering', () {
     late MockClient client;
 
@@ -120,7 +114,7 @@ void main() {
       when(() => room.lastEvent).thenReturn(null);
       when(() => client.getRoomById('!s:test')).thenReturn(room);
 
-      // Intentionally do NOT stub client.onSync — the widget should handle
+      // Intentionally do NOT stub client.onSync; the widget should handle
       // a null return gracefully via the try-catch in initState.
       await pumpPane(tester, room);
       await tester.pump();
@@ -129,9 +123,7 @@ void main() {
     });
   });
 
-  // ═══════════════════════════════════════════════════════════════════════
   // NavigationState lifecycle
-  // ═══════════════════════════════════════════════════════════════════════
   group('NavigationState lifecycle', () {
     late NavigationState nav;
     setUp(() => nav = NavigationState());
@@ -142,7 +134,7 @@ void main() {
       expect(nav.isSpace, isFalse);
     });
 
-    test('home → space → home round-trip', () {
+    test('home -> space -> home round-trip', () {
       nav.selectHome();
       expect(nav.isHome, isTrue);
       nav.selectSpace('!s:test');
@@ -153,7 +145,7 @@ void main() {
       expect(nav.isSpace, isFalse);
     });
 
-    test('all → space → all round-trip', () {
+    test('all -> space -> all round-trip', () {
       nav.selectSpace('!s:test');
       expect(nav.isSpace, isTrue);
       nav.selectAll();

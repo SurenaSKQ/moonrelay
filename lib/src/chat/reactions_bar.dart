@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Common emojis shown in the quick-reaction popup.
 const List<String> kQuickReactionEmojis = [
@@ -66,6 +67,7 @@ class ReactionEmojiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return SizedBox(
       width: 200,
       child: Wrap(
@@ -73,13 +75,13 @@ class ReactionEmojiGrid extends StatelessWidget {
         runSpacing: 4,
         children: kQuickReactionEmojis.map((emoji) {
           return InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             onTap: () {
               onSelected(emoji);
               Navigator.of(context).pop();
             },
             child: Padding(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(t.spaceXs),
               child: Text(emoji, style: const TextStyle(fontSize: 22)),
             ),
           );
@@ -89,9 +91,7 @@ class ReactionEmojiGrid extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reactions bar (placed below message body)
-// ---------------------------------------------------------------------------
 
 /// A compact bar that displays emoji reactions for a timeline event.
 ///
@@ -113,6 +113,7 @@ class ReactionsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final reactions =
         event.aggregatedEvents(timeline, RelationshipTypes.reaction);
 
@@ -130,7 +131,7 @@ class ReactionsBar extends StatelessWidget {
     final currentUserId = room.client.userID;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: t.spaceXs),
       child: Wrap(
         spacing: 4,
         runSpacing: 2,
@@ -171,7 +172,7 @@ class ReactionsBar extends StatelessWidget {
         try {
           await r.redactEvent();
         } catch (_) {
-          // Silently ignore – the redaction may already be in-flight.
+          // Silently ignore; the redaction may already be in-flight.
         }
       }
     } else {
@@ -205,9 +206,7 @@ class ReactionsBar extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reaction chip
-// ---------------------------------------------------------------------------
 
 /// A small chip showing an emoji, a count, and a highlight when the current
 /// user has used that reaction.
@@ -227,21 +226,31 @@ class _ReactionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    // Chips are pills.  `radiusMd` put a rounded rectangle inside the
+    // message bubble, which is itself a rounded rectangle: three concentric
+    // curves stacked on each other.  It is the same wireframe problem the
+    // bubble fix addressed, one level down.
+    final radius = BorderRadius.circular(ext.components.chat.reactionRadius);
     return Material(
       color: isOwn
-          ? cs.primary.withValues(alpha: 0.15)
-          : cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(12),
+          ? cs.primary.withValues(alpha: t.opacityFocus)
+          : cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+      borderRadius: radius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: radius,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXs,
+            vertical: t.spaceXxs,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(emoji, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 3),
+              SizedBox(width: t.spaceXxs),
               Text(
                 '$count',
                 style: TextStyle(
@@ -259,9 +268,7 @@ class _ReactionChip extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Add-reaction button
-// ---------------------------------------------------------------------------
 
 /// A small `+` button that opens a popup with common reaction emojis.
 class _AddReactionButton extends StatelessWidget {
@@ -272,18 +279,24 @@ class _AddReactionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final radius = BorderRadius.circular(ext.components.chat.reactionRadius);
     return Material(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(12),
+      color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+      borderRadius: radius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: radius,
         onTap: () => showReactionPicker(context, onSelected: onSelected),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spaceXs,
+            vertical: t.spaceXxs,
+          ),
           child: Icon(
             Icons.add,
             size: 14,
-            color: cs.onSurface.withValues(alpha: 0.6),
+            color: cs.onSurface.withValues(alpha: t.opacitySubtle),
           ),
         ),
       ),

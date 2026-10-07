@@ -25,7 +25,11 @@ import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:window_manager/window_manager.dart';
 
 import 'package:moonrelay/src/helpers/account_manager.dart';
+import 'package:moonrelay/src/helpers/app_shutdown.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/services/notification_service.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 
 /// Manages the system tray icon and background behaviour for Moonrelay.
 ///
@@ -41,7 +45,7 @@ import 'package:moonrelay/src/services/notification_service.dart';
 ///
 /// Tray icon setup can fail (sandboxed Linux, locked-down Windows
 /// corporate installs, missing `path_provider` permission). When
-/// [_setup] throws, [_init] clears [_instance] and returns — the
+/// [_setup] throws, [_init] clears [_instance] and returns; the
 /// rest of the app's window-management code paths
 /// ([showWindow], [hideWindow], [toggleWindow], [quit]) still work
 /// via direct [windowManager] calls in [AppFrame]. Callers that
@@ -64,6 +68,13 @@ class TrayService with tray.TrayListener {
   final Logger _log;
   final AccountManager _accountManager;
 
+  /// Read on every left click rather than captured at init, so a change
+  /// to `trayLeftClick` lands without a restart. Safe to hold across
+  /// account switches: unlike [Client], the controller is
+  /// process-lifetime.
+  final SettingsController _settings;
+  final DeepLinkService _deepLinkService;
+
   /// Currently bound Matrix client, or `null` when no account is
   /// active. The service re-resolves this on every account switch.
   Client? _client;
@@ -79,7 +90,12 @@ class TrayService with tray.TrayListener {
   int _highlightCount = 0;
   bool _available = false;
 
-  TrayService._(this._accountManager, this._log);
+  TrayService._(
+    this._accountManager,
+    this._log,
+    this._settings,
+    this._deepLinkService,
+  );
 
   /// Whether the tray icon is alive and registered. Callers (the
   /// AppFrame minimise/close branch, the tray settings page) should
@@ -91,8 +107,10 @@ class TrayService with tray.TrayListener {
   static Future<bool> init({
     required AccountManager accountManager,
     required Logger log,
+    required SettingsController settings,
+    required DeepLinkService deepLinkService,
   }) async {
-    final service = TrayService._(accountManager, log);
+    final service = TrayService._(accountManager, log, settings, deepLinkService);
     final ok = await service._setup();
     if (ok) {
       _instance = service;
@@ -263,14 +281,16 @@ class TrayService with tray.TrayListener {
     }
   }
 
-  /// Destroy the tray icon, remove temp file, and terminate the
-  /// application.
-  Future<void> quit() async {
+  /// Clean up tray resources without destroying the window.
+  ///
+  /// Called by [performShutdown] during orderly app shutdown.  The
+  /// tray icon and temp file are removed and the sync subscription is
+  /// cancelled, but the window is left intact for the shutdown
+  /// coordinator to destroy after all services have been torn down.
+  Future<void> destroyTray() async {
     try {
       if (_available) await tray.trayManager.destroy();
     } catch (_) {}
-    // Sweep the temp icon file regardless of whether setup succeeded;
-    // the temp directory accumulates one icon per boot otherwise.
     final File? file = _iconFile;
     _iconFile = null;
     if (file != null) {
@@ -281,14 +301,74 @@ class TrayService with tray.TrayListener {
     _syncSubscription?.cancel();
     _syncSubscription = null;
     _available = false;
-    await windowManager.destroy();
   }
 
-  // ── TrayListener callbacks ─────────────────────────────────────────────
+  /// Destroy the tray icon, remove temp file, run the orderly
+  /// shutdown sequence, and terminate the application.
+  Future<void> quit() async {
+    await destroyTray();
+    await MoonShutdown.call();
+    await windowManager.destroy();
+    // `windowManager.destroy()` only tears the window down; it does not
+    // terminate the Dart VM. Exit explicitly so the process does not
+    // linger on the system as a zombie after the UI is gone.
+    exit(0);
+  }
+
+  // -- TrayListener callbacks ---------------------------------------------
 
   @override
   void onTrayIconMouseDown() {
-    toggleWindow();
+    unawaited(_handleLeftClick());
+  }
+
+  Future<void> _handleLeftClick() async {
+    switch (_settings.trayLeftClick) {
+      case TrayClickAction.toggle:
+        await toggleWindow();
+      case TrayClickAction.show:
+        await showWindow();
+      case TrayClickAction.openUnread:
+        await _openMostUrgentRoom();
+    }
+  }
+
+  /// Brings the window forward and navigates to the room with the most
+  /// pending attention.
+  ///
+  /// Ranks highlights above plain unread, because a mention is the case
+  /// where jumping to the wrong room is most annoying, then falls back to
+  /// the most recently active unread room. Navigation goes through
+  /// [DeepLinkService] rather than the router directly: this code is not
+  /// in the widget tree, and the deep-link path is the same one a
+  /// notification tap already uses, so there is one navigation route
+  /// instead of two.
+  Future<void> _openMostUrgentRoom() async {
+    final client = _client;
+    if (client == null) {
+      await showWindow();
+      return;
+    }
+    final mutedIds = NotificationService.mutedRoomsSnapshot;
+
+    Room? best;
+    int bestScore = 0;
+    for (final room in client.rooms) {
+      if (room.membership != Membership.join) continue;
+      if (mutedIds.contains(room.id)) continue;
+      final score = room.highlightCount * 1000 + room.notificationCount;
+      if (score <= 0) continue;
+      // Strictly greater, so an earlier room wins a tie and the choice
+      // is stable across clicks rather than dependent on iteration order.
+      if (score > bestScore) {
+        best = room;
+        bestScore = score;
+      }
+    }
+
+    await showWindow();
+    if (best == null) return;
+    _deepLinkService.processUri('matrix:r/${best.id}');
   }
 
   @override

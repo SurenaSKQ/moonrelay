@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/date_time_extension.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/screens/message_details_page.dart';
 
 /// Shows a scrollable history of prior versions of [event]'s body.
@@ -78,7 +79,10 @@ Future<void> showEditHistoryDialog(
   );
 }
 
-/// Collects every version of [original] found in [timeline].
+/// Collects every version of [original] found via timeline aggregation.
+///
+/// Uses the SDK's [Event.aggregatedEvents] which is populated during sync
+/// processing and is more reliable than scanning the raw event list.
 List<_EventVersion> _collectEditVersions(
   Event original,
   Timeline timeline,
@@ -87,14 +91,11 @@ List<_EventVersion> _collectEditVersions(
   final versions = <_EventVersion>[];
   versions.add(_EventVersion(event: original));
 
-  for (final e in timeline.events) {
-    if (e.eventId == original.eventId) continue;
-    final rel = e.content['m.relates_to'];
-    if (rel is Map &&
-        rel['rel_type'] == 'm.replace' &&
-        rel['event_id'] == original.eventId) {
-      versions.add(_EventVersion(event: e));
-    }
+  final edits =
+      original.aggregatedEvents(timeline, RelationshipTypes.edit);
+  for (final e in edits) {
+    if (e.senderId != original.senderId) continue;
+    versions.add(_EventVersion(event: e));
   }
 
   versions.sort((a, b) => b.event.originServerTs.compareTo(a.event.originServerTs));
@@ -129,13 +130,14 @@ class _EditHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final body = _body(version.event);
     final time = version.event.originServerTs.localizedTimeShort(context);
     final name = version.event.senderFromMemoryOrFallback.calcDisplayname();
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(t.radiusMd),
       onTap: () {
         Navigator.of(context).pop();
         Navigator.of(context).push(
@@ -153,7 +155,7 @@ class _EditHistoryTile extends StatelessWidget {
           color: isLatest
               ? cs.primaryContainer.withValues(alpha: 0.5)
               : cs.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(t.radiusMd),
           border: Border.all(
             color: cs.outlineVariant.withValues(alpha: 0.4),
           ),
@@ -181,7 +183,7 @@ class _EditHistoryTile extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: cs.primary,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(t.radiusXs),
                     ),
                     child: Text(
                       'CURRENT',

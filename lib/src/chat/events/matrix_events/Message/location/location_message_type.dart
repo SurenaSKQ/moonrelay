@@ -17,7 +17,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
+import 'package:moonrelay/src/helpers/feedback.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Renders an m.location event. Shows the latitude, longitude and accuracy,
@@ -29,6 +33,9 @@ class LocationMessageType extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ext = MoonrelayThemeExtension.of(context);
+    final t = ext.tokens;
+    final mono = ext.monoFontFamily;
     final l10n = AppLocalizations.of(context)!;
 
     final content = event.content;
@@ -45,7 +52,8 @@ class LocationMessageType extends StatelessWidget {
       // Fall back to geo_uri "geo:lat,lon"
       final geoUri = content['geo_uri'] as String?;
       if (geoUri != null) {
-        final match = RegExp(r'^geo:(-?\d+\.?\d*),(-?\d+\.?\d*)').firstMatch(geoUri);
+        final match =
+            RegExp(r'^geo:(-?\d+\.?\d*),(-?\d+\.?\d*)').firstMatch(geoUri);
         if (match != null) {
           lat = double.tryParse(match.group(1)!);
           lon = double.tryParse(match.group(2)!);
@@ -54,106 +62,90 @@ class LocationMessageType extends StatelessWidget {
     }
 
     if (lat == null || lon == null) {
-      return _buildUnavailable(cs);
+      return _buildUnavailable(context, cs);
     }
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
+    return AttachmentCard(
+      maxWidth: MediaSizePrefs.of(context).locationMax,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header ───────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    LucideIcons.mapPin,
-                    size: 20,
-                    color: cs.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Lat: ${lat.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontFamily: 'JetBrainsMono',
-                        ),
+          // -- Header ---------------------------------------------------
+          Row(
+            children: [
+              AttachmentLeadingIcon(
+                // No size override. The location, video and poll rows all used
+                // to pass a smaller square than audio and file, which is the
+                // exact drift this component exists to prevent: four
+                // attachment types at three different heights down the same
+                // timeline.
+                icon: LucideIcons.mapPin,
+              ),
+              SizedBox(width: t.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${l10n.latitudeLabel} ${_formatCoordinate(lat)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: t.opacityDisabled),
+                        fontFamily: mono,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Lon: ${lon.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontFamily: 'JetBrainsMono',
-                        ),
+                    ),
+                    SizedBox(height: t.spaceXxs),
+                    Text(
+                      '${l10n.longitudeLabel} ${_formatCoordinate(lon)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: t.opacityDisabled),
+                        fontFamily: mono,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          SizedBox(height: t.spaceSm),
 
-          // ── Body / metadata ──────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            child: Row(
-              children: [
-                if (accuracy != null) ...[
-                  Icon(
-                    LucideIcons.crosshair,
-                    size: 14,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+          // -- Body / metadata ------------------------------------------
+          Row(
+            children: [
+              if (accuracy != null) ...[
+                Icon(
+                  LucideIcons.crosshair,
+                  size: 14,
+                  color: cs.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
+                ),
+                SizedBox(width: t.spaceXs),
+                Text(
+                  l10n.locationAccuracyMeters(accuracy.round()),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant.withValues(alpha: t.opacitySubtle),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.locationAccuracyMeters(accuracy.round()),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const Spacer(),
-                ] else
-                  const Spacer(),
-                FilledButton.tonalIcon(
-                  icon: const Icon(LucideIcons.externalLink, size: 16),
-                  label: Text(l10n.openInMaps),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    textStyle: const TextStyle(fontSize: 12),
-                  ),
-                  onPressed: () => _openInMaps(context, lat!, lon!),
                 ),
               ],
-            ),
+              const Spacer(),
+              FilledButton.tonalIcon(
+                icon: Icon(LucideIcons.externalLink, size: t.iconSizeSmall),
+                label: Text(l10n.openInMaps),
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.spaceMd,
+                    vertical: t.spaceXs,
+                  ),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () => _openInMaps(context, lat!, lon!),
+              ),
+            ],
           ),
         ],
       ),
@@ -165,19 +157,33 @@ class LocationMessageType extends StatelessWidget {
     double lat,
     double lon,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
     final url = Uri.parse(
-      'geo:$lat,$lon?q=$lat,$lon(${AppLocalizations.of(context)!.shareLocation})',
+      'geo:$lat,$lon?q=$lat,$lon(${l10n.shareLocation})',
     );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    // `launchUrl` returns false rather than throwing when nothing on the
+    // machine handles the scheme, which is the normal case on a desktop with
+    // no maps app installed. The return value used to be discarded, so the
+    // button did nothing at all and looked broken.
+    final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      context.showMessage(l10n.openInMapsFailed, isError: true);
+    }
   }
 
-  Widget _buildUnavailable(ColorScheme cs) {
+  /// Six decimals is about 11 cm, which is more than a phone GPS resolves,
+  /// and the trailing zeros keep the two lines the same width so the card does
+  /// not reflow as the coordinates change.
+  String _formatCoordinate(double value) => value.toStringAsFixed(6);
+
+  Widget _buildUnavailable(BuildContext context, ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
       width: 120,
       height: 120,
       decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        color: cs.errorContainer.withValues(alpha: t.opacityDragged),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Icon(LucideIcons.map, size: 40, color: cs.error),
     );

@@ -31,6 +31,8 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/helpers/current_room.dart';
 import 'package:moonrelay/src/helpers/navigation_state.dart';
+import 'package:moonrelay/src/layouts/layout_shell_controller.dart';
+import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:moonrelay/src/settings/space_preferences.dart';
@@ -49,8 +51,8 @@ Future<Widget> buildTestApp({
 }) async {
   SharedPreferences.setMockInitialValues({});
 
-  // ── 1. Native init (works on desktop test runner) ──────────
-  // Vodozemac (native crypto) — needed by Client.init()
+  // -- 1. Native init (works on desktop test runner) ----------
+  // Vodozemac (native crypto): needed by Client.init()
   try {
     await vdz.init();
   } catch (e) {
@@ -58,11 +60,11 @@ Future<Widget> buildTestApp({
     // The Client init below will handle missing crypto gracefully.
   }
 
-  // SQLite FFI — needed for the SDK database
+  // SQLite FFI: needed for the SDK database
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  // ── 2. Database (temp file, cleaned up on next run) ────────
+  // -- 2. Database (temp file, cleaned up on next run) --------
   final dbDir = await getTemporaryDirectory();
   final dbPath = '${dbDir.path}/moonrelay_e2e_test.db';
   final dbFile = File(dbPath);
@@ -77,7 +79,7 @@ Future<Widget> buildTestApp({
   );
   await sdkDb.open();
 
-  // ── 3. Matrix Client with mocked HTTP ─────────────────────
+  // -- 3. Matrix Client with mocked HTTP ---------------------
   final client = Client(
     'Moonrelay (E2E Test)',
     httpClient: mockHttp,
@@ -89,10 +91,13 @@ Future<Widget> buildTestApp({
   );
   await client.init();
 
-  // ── 4. Services ───────────────────────────────────────────
+  // -- 4. Services -------------------------------------------
   final log = Logger();
   final settingsController = SettingsController(SettingsService());
   await settingsController.loadSettings();
+  // Opt into the in-app header: the E2E assertions drive the header
+  // chrome (window title, buttons), which the OS decorations path
+  // renders outside the Flutter tree and cannot be found by finders.
 
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();
@@ -126,7 +131,7 @@ Future<Widget> buildTestApp({
     return newClient;
   };
 
-  // ── 5. Build provider tree (matches main.dart exactly) ────
+  // -- 5. Build provider tree (matches main.dart exactly) ----
   return MultiProvider(
     providers: [
       Provider<Client>.value(value: client),
@@ -137,11 +142,16 @@ Future<Widget> buildTestApp({
       ChangeNotifierProvider<NavigationState>(
         create: (_) => NavigationState(),
       ),
+      Provider<LayoutShellController>(
+        create: (_) => LayoutShellController(),
+      ),
       ChangeNotifierProvider<AccountManager>.value(value: accountManager),
       ChangeNotifierProvider<EncryptionService>.value(value: encryptionService),
       ChangeNotifierProvider<SpacePreferences>.value(value: spacePreferences),
       ChangeNotifierProvider<CurrentRoom>.value(value: currentRoom),
+      Provider<DeepLinkService>.value(value: DeepLinkService(log: log)),
     ],
     child: const MoonrelayApp(),
   );
 }
+

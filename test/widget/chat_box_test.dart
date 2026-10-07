@@ -11,7 +11,11 @@ import 'package:matrix/matrix.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonrelay/src/chat/chat_box.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/settings/settings_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mocks.dart';
 
@@ -19,11 +23,14 @@ void main() {
   late MockRoom room;
   late MockClient client;
   late MockLogger logger;
+  late SettingsController settings;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     room = MockRoom();
     client = MockClient();
     logger = MockLogger();
+    settings = SettingsController(SettingsService());
 
     when(() => room.client).thenReturn(client);
     when(() => room.sendTextEvent(any())).thenAnswer((_) async {
@@ -45,6 +52,8 @@ void main() {
     return MultiProvider(
       providers: [
         Provider<Logger>.value(value: logger),
+        ChangeNotifierProvider<SettingsController>.value(value: settings),
+        Provider<Client>.value(value: client),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -57,6 +66,96 @@ void main() {
   }
 
   group('ChatBox', () {
+    /// The composer pill: the decorated container the controls sit on.
+    ///
+    /// Picked out by its radius rather than by position, because the reply
+    /// preview and the formatting toolbar are also decorated containers in the
+    /// same region.
+    Finder thePill() => find.descendant(
+          of: find.byType(ChatBox),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is AnimatedContainer &&
+                w.decoration is BoxDecoration &&
+                (w.decoration! as BoxDecoration).borderRadius ==
+                    BorderRadius.circular(9999),
+          ),
+        );
+
+    testWidgets('the pill is raised above the conversation, not sunk below it',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      final scheme = Theme.of(
+        tester.element(find.byType(ChatBox)),
+      ).colorScheme;
+
+final fill = tester
+          .widget<AnimatedContainer>(thePill())
+          .decoration! as BoxDecoration;
+
+      // A control used more than anything else in the window should not be the
+      // least prominent thing in it. The pill used to sit on a band one step
+      // darker than the conversation, with the pill itself on the room list's
+      // step, which put both below the message column.
+      expect(fill.color, scheme.surfaceContainerHighest);
+
+      // "Further from the floor" rather than "lighter": the ramp is inverted
+      // in light mode, so a fixed direction would only be true on one theme.
+      final floorLuminance = scheme.surface.computeLuminance();
+      double distanceFrom(double luminance) => (luminance - floorLuminance).abs();
+      expect(
+        distanceFrom(fill.color!.computeLuminance()),
+        greaterThan(distanceFrom(scheme.surfaceContainerHigh.computeLuminance())),
+        reason: 'the composer should be a step away from the conversation, '
+            'in whichever direction this brightness makes "raised"',
+      );
+    });
+
+    testWidgets('there is no darker band behind the composer',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      final scheme = Theme.of(
+        tester.element(find.byType(ChatBox)),
+      ).colorScheme;
+
+      // The band's job was to separate the composer from the timeline. The
+      // raised pill does that on its own, and the band was one more plane in a
+      // layout that already has three.
+      expect(
+        find.descendant(
+          of: find.byType(ChatBox),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.color == scheme.surfaceContainerLow &&
+                w.decoration is BoxDecoration,
+          ),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the border only appears on focus, and then in the accent',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      final theme = Theme.of(tester.element(find.byType(ChatBox)));
+
+      BoxDecoration border() =>
+          tester.widget<AnimatedContainer>(thePill()).decoration! as BoxDecoration;
+
+      // An unfocused field with a permanent outline is a rectangle drawn around
+      // a hole; the fill already says "this is a control". What it has instead
+      // is the single hairline, which is not an outline because it is the same
+      // value every divider in the app uses.
+      expect(border().border!.top.color, theme.moonrelay.layers.hairline);
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.pump();
+
+      expect(border().border!.top.color, theme.colorScheme.primary);
+    });
+
     testWidgets('renders text field and send button', (tester) async {
       await tester.pumpWidget(buildApp());
 
@@ -92,7 +191,7 @@ void main() {
       expect(find.byType(ChatBox), findsOneWidget);
     });
 
-    // ─── Regression: unsent text is restored when send fails ─────────
+    // --- Regression: unsent text is restored when send fails ---------
     //
     // Bug: `_send` cleared the controller immediately, then showed a
     // snackbar on failure.  A long message sent on a flaky network would
@@ -119,7 +218,7 @@ void main() {
       },
     );
 
-    // ─── Regression: reply-with-markdown must keep formatted_body ───
+    // --- Regression: reply-with-markdown must keep formatted_body ---
     //
     // The bug we fixed: when a user replied to a message with markdown
     // input, the formatted_body was dropped because the markdown
@@ -133,8 +232,15 @@ void main() {
         await tester.enterText(find.byType(TextField), '**bold reply**');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // The Markdown-to-HTML conversion now runs through
+        // [MarkdownToHtml.convertAsync] which dispatches to a
+        // background isolate.  `runAsync` gives the test enough real
+        // wall-clock time to let the isolate complete and the
+        // awaited send to land in `room.sendEvent`.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // Without a reply target, the markdown send falls into the
         // sendEvent branch and the assertion below confirms the
@@ -155,8 +261,13 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello world');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // Allow the async Markdown conversion to settle; see the
+        // note above about [MarkdownToHtml.convertAsync] requiring
+        // real wall-clock time.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // The chat box always wraps the body in a paragraph, so even
         // plain-text input produces a `formatted_body`.  We pin this
@@ -180,7 +291,11 @@ void main() {
         // doesn't crash the send pipeline.
         final replyTarget = ValueNotifier<Event?>(null);
         await tester.pumpWidget(MultiProvider(
-          providers: [Provider<Logger>.value(value: logger)],
+          providers: [
+            Provider<Logger>.value(value: logger),
+            ChangeNotifierProvider<SettingsController>.value(value: settings),
+            Provider<Client>.value(value: client),
+          ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
@@ -192,8 +307,11 @@ void main() {
         await tester.enterText(find.byType(TextField), 'plain reply');
         await tester.pump();
         await tester.tap(find.byIcon(LucideIcons.send));
+        // Allow the async Markdown conversion to settle.
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        });
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
 
         // The send went through sendEvent (no reply target = non-reply
         // branch).  Body and formatted_body are both present.
@@ -207,3 +325,5 @@ void main() {
     );
   });
 }
+
+

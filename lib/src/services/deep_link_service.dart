@@ -22,7 +22,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/router_paths.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:provider/provider.dart';
 
 /// Handles incoming Matrix deep links (`matrix:` scheme and
@@ -38,7 +41,7 @@ import 'package:provider/provider.dart';
 /// For the app to receive `matrix:` URIs, the protocol must be registered
 /// at the OS level:
 ///
-/// **Windows**: Add to the registry
+/// Windows: Add to the registry
 /// ```
 /// HKEY_CLASSES_ROOT\matrix\shell\open\command
 ///   (Default) = "path\to\moonrelay.exe" "%1"
@@ -46,18 +49,23 @@ import 'package:provider/provider.dart';
 ///   (Default) = ""
 /// ```
 ///
-/// **Linux**: Create or amend the `.desktop` file:
+/// Linux: Create or amend the `.desktop` file:
 /// ```
 /// MimeType=x-scheme-handler/matrix;
 /// ```
 ///
-/// **macOS**: Add `matrix` to `Info.plist` `CFBundleURLTypes`.
+/// macOS: Add `matrix` to `Info.plist` `CFBundleURLTypes`.
 class DeepLinkService {
   DeepLinkService({
     required this.log,
-  });
+    Duration dedupWindow = const Duration(milliseconds: 500),
+  }) : _dedupWindow = dedupWindow;
 
   final Logger log;
+
+  /// Window in which a repeated delivery of the same URI is suppressed.
+  /// Seeded from `SettingsController.deepLinkDedupMs` at boot.
+  final Duration _dedupWindow;
 
   /// The callback invoked when a matrix URI is received.
   /// The service processes the URI and passes the [MatrixUriResult] to this
@@ -70,10 +78,10 @@ class DeepLinkService {
   /// Initialises the service: listens for method channel calls from the
   /// native side and processes any command-line arguments.
   Future<void> init() async {
-    // ── Listen for incoming deep links from the native side ─────
+    // -- Listen for incoming deep links from the native side -----
     _channel.setMethodCallHandler(_handleMethodCall);
 
-    // ── Check command-line arguments for matrix: URIs ───────────
+    // -- Check command-line arguments for matrix: URIs -----------
     // On Windows, when the app is registered as a protocol handler,
     // the OS launches the executable with the URL as the first argument.
     _processCommandLineArgs();
@@ -104,14 +112,17 @@ class DeepLinkService {
 
   /// Two delivery windows. OSes occasionally deliver the same protocol
   /// URI twice for the same launch; we suppress the duplicate.
-  static const Duration _dedupWindow = Duration(milliseconds: 500);
+  ///
+  /// `_lastUri` and `_lastAt` stay static deliberately. There is exactly
+  /// one service instance for the process, and static state is what lets
+  /// the window survive a re-`init()`, which is the case this guards.
   static String _lastUri = '';
   static DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool _isDuplicate(String uri) {
     final now = DateTime.now();
-    final isDuplicate = uri == _lastUri &&
-        now.difference(_lastAt) < _dedupWindow;
+    final isDuplicate =
+        uri == _lastUri && now.difference(_lastAt) < _dedupWindow;
     _lastUri = uri;
     _lastAt = now;
     return isDuplicate;
@@ -123,7 +134,7 @@ class DeepLinkService {
   /// registered protocol handler is invoked (Windows: as the trailing
   /// element of the command line; Linux: from `argv` exposed via
   /// [Platform.executableArguments]).  We do not rely on
-  /// `Platform.environment` here — that only catches child-process env
+  /// `Platform.`Platform.environment` here: that only catches child-process env
   /// variables, not the arguments the app was launched with.
   void _processCommandLineArgs() {
     if (kIsWeb) return;
@@ -151,7 +162,7 @@ class DeepLinkService {
   ///
   /// Note: `Platform.executableArguments` is `@visibleForTesting` in
   /// the Flutter SDK. We still call it from production code because
-  /// the alternative — losing command-line links on first launch — is
+  /// the alternative (losing command-line links on first launch) is
   /// a worse trade-off than the `@visibleForTesting` lint. Upstream
   /// has discussed promoting the field; track
   /// https://github.com/flutter/flutter/issues/142523.
@@ -193,26 +204,147 @@ class DeepLinkService {
 /// via the context's provider tree.
 ///
 /// Call this from the callback registered on [DeepLinkService.onMatrixUri].
-void navigateToMatrixUri(
+///
+/// Returns a future because `deepLinkAutoJoin` has to await `joinRoom`.
+/// The callback it is assigned to is `void Function(MatrixUriResult)`, so
+/// callers that ignore the result are fine; the only awaiting caller is
+/// the auto-join branch below.
+Future<void> navigateToMatrixUri(
   BuildContext context,
   MatrixUriResult result,
-) {
+) async {
   // Import is at the bottom to avoid circular dependency issues.
   final client = Provider.of<Client>(context, listen: false);
 
+  // The matrix URI may have been queued while the user was on the
+  // welcome screen (e.g. cold-start with the URI on the command
+  // line).  In that case `client` is non-null but there is no
+  // session.  Any `context.go` against an auth-guarded route would
+  // bounce straight back to `/welcome` via [loggedOutRedirect], and
+  // the snackbar we show on validation errors would briefly flash on
+  // the welcome screen before the redirect ran.  Bail out so the
+  // login flow can take over cleanly.  The login page already
+  // listens to deep links via the same service so once login
+  // completes the URI will be reprocessed if needed.
+  if (!client.isLogged()) {
+    return;
+  }
+
+  final settings = context.read<SettingsController>();
+  final log = context.read<Logger>();
+
   switch (result.entityType) {
+    case MatrixUriEntity.event:
+      // An event permalink.  The room has to be open before the event
+      // can be focused, so navigate first and hand the id to the room
+      // page through the route, which lets the timeline load a history
+      // window if the event is older than the local cache.
+      final eventRoom = result.roomId;
+      if (eventRoom == null || !eventRoom.startsWith('!')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid Matrix room id in link')),
+          );
+        }
+        return;
+      }
+      if (client.getRoomById(eventRoom) == null) {
+        if (settings.deepLinkAutoJoin) {
+          await _autoJoinRoom(
+            context,
+            client,
+            MatrixUriResult(
+              entityType: MatrixUriEntity.room,
+              entityId: eventRoom,
+              viaServers: result.viaServers,
+            ),
+            log,
+          );
+        } else {
+          context.go(
+            '/main/room_preview/${Uri.encodeComponent(eventRoom)}',
+          );
+        }
+        return;
+      }
+      context.go(MoonRoutePaths.roomChatPath(
+        eventRoom,
+        query: {'event': result.entityId},
+      ));
     case MatrixUriEntity.room:
     case MatrixUriEntity.roomAlias:
       // Check if already joined.
       final room = client.getRoomById(result.entityId);
       if (room != null) {
-        context.go('/main/rooms/${result.entityId}');
+        // Deliberately a `go`, and deliberately not the [openRoom] seam: a
+        // deep link arrives from outside the app, so there is no in-app
+        // context worth preserving and the page the user was on is not a
+        // step they took through this navigator. Pushing would bury
+        // whatever they had open underneath a room they were linked to.
+        context.go(MoonRoutePaths.roomChatPath(result.entityId));
+      } else if (settings.deepLinkAutoJoin) {
+        await _autoJoinRoom(context, client, result, log);
       } else {
         // Open room preview.
-        context.go('/main/room_preview/${result.entityId}');
+        context.go(
+          '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+        );
       }
     case MatrixUriEntity.user:
-      // Navigate to a user profile.
-      context.go('/main/rooms/${result.entityId}');
+      // Navigate to a user profile via the top-level profile route.
+      // The previous implementation pushed to `/main/rooms/<userid>`,
+    // which silently failed because the room route could not
+    // resolve a userid as a room id -- the profile overlay is now
+    // decoupled from the room route.
+      if (!RegExp(r'^@.+:.+$').hasMatch(result.entityId)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Invalid Matrix user id: ${result.entityId}')),
+          );
+        }
+        return;
+      }
+      context.go('/profile/${Uri.encodeComponent(result.entityId)}');
+  }
+}
+
+/// Joins the room behind an unjoined deep link, honouring
+/// `SettingsController.deepLinkAutoJoin`.
+///
+/// Falls back to the room preview on failure rather than dead-ending the
+/// user on a spinner: the link is then a way to *see* the room, and the
+/// preview page is where a human can decide. That is also the behaviour
+/// when the setting is off, so a failed auto-join is indistinguishable
+/// from a disabled one, which is the right outcome for an action this
+/// user did not explicitly take.
+Future<void> _autoJoinRoom(
+  BuildContext context,
+  Client client,
+  MatrixUriResult result,
+  Logger log,
+) async {
+  // withRetry returns a RetryResult rather than throwing, so the result
+  // has to be matched. A bare try/await/catch here would compile, look
+  // correct, and silently swallow every failure.
+  final outcome = await withRetry(
+    () => client.joinRoom(result.entityId),
+    maxRetries: 1,
+    log: log,
+    label: 'deep link auto-join',
+  );
+
+  if (!context.mounted) return;
+
+  switch (outcome) {
+    case RetrySuccess(:final value):
+      // joinRoom returns the canonical room ID even when the link carried
+      // an alias, and the room route resolves ids only, so navigate with
+      // the returned value rather than the parsed one.
+      log.i('Deep link auto-joined ${result.entityId} as $value');
+      context.go(MoonRoutePaths.roomChatPath(value));
+    case RetryFailed(:final error):
+      log.w('Deep link auto-join failed for ${result.entityId}: $error');
+      context.go('/main/room_preview/${Uri.encodeComponent(result.entityId)}');
   }
 }

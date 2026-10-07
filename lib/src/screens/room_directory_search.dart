@@ -17,12 +17,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Visibility;
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A full-screen page for discovering and joining rooms on a Matrix
@@ -33,13 +34,50 @@ import 'package:provider/provider.dart';
 /// - Paginated browsing (load more on scroll)
 /// - Joining a room directly from the result list
 /// - Joining by room ID / alias as a fallback option
+/// What a directory search is looking for.
+///
+/// The public directory serves rooms and spaces from the same endpoint and the
+/// spec has no server-side filter for room type, so this is applied to the
+/// returned chunk. Spaces are rooms with `roomType == 'm.space'`, which is
+/// also how the app already tells them apart everywhere else.
+enum DirectoryKindFilter {
+  rooms,
+  spaces,
+  all;
+
+  bool accepts(PublishedRoomsChunk chunk) => switch (this) {
+        DirectoryKindFilter.all => true,
+        DirectoryKindFilter.rooms => !isSpaceChunk(chunk),
+        DirectoryKindFilter.spaces => isSpaceChunk(chunk),
+      };
+}
+
+/// Whether a directory entry is a space.
+///
+/// A space is a room whose `room_type` is `m.space`. Anything else, including
+/// a server that omits the field, is a room: guessing "space" from a null
+/// would put ordinary rooms in the spaces tab, which is worse than the reverse.
+bool isSpaceChunk(PublishedRoomsChunk chunk) => chunk.roomType == 'm.space';
+
 class RoomDirectorySearch extends StatefulWidget {
   /// When `true`, the widget renders without its own [Scaffold] / [AppBar]
   /// so it can be embedded inside another page (e.g. as a tab in
   /// [AddRoomPage]) without duplicating the chrome.
   final bool embedded;
 
-  const RoomDirectorySearch({super.key, this.embedded = false});
+  /// Which entries to show. Defaults to [DirectoryKindFilter.all] so the
+  /// standalone use of this widget keeps its current behaviour.
+  final DirectoryKindFilter kindFilter;
+
+  /// Emitted whenever a successful join or knock resolves, with the room id.
+  final ValueChanged<String>? onJoined;
+
+  const RoomDirectorySearch({
+    super.key,
+    this.embedded = false,
+    this.kindFilter = DirectoryKindFilter.all,
+    this.onJoined,
+  });
 
   @override
   State<RoomDirectorySearch> createState() => _RoomDirectorySearchState();
@@ -130,8 +168,12 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
       );
 
       if (!mounted) return;
-
-      final chunk = response.chunk;
+// Filtered here rather than server-side: the directory endpoint
+      // has no room-type filter, and a space is a room whose
+      // room_type is m.space.
+      final chunk = response.chunk
+          .where(widget.kindFilter.accepts)
+          .toList(growable: false);
 
       setState(() {
         if (reset) {
@@ -180,12 +222,14 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
     setState(() => _joiningRoomId = null);
 
     switch (result) {
-      case RetrySuccess():
+      case RetrySuccess(:final value):
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.addRoom)),
         );
-        context.push('/main/rooms/$alias');
+        // Navigate with the returned room ID, not the alias, so the
+        // room route resolves (getRoomById only matches room IDs).
+        openRoom(context, value);
       case RetryFailed(:final error):
         setState(() {
           _joinError = error is TimeoutException
@@ -208,12 +252,15 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
 
     final l10n = AppLocalizations.of(context)!;
     try {
-      await client.knockRoom(alias);
+      final roomId = await client.knockRoom(alias);
       if (!mounted) return;
       setState(() => _knockingRoomId = null);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.knockSent(alias))),
       );
+      // knockRoom returns the room ID even for an alias; navigate with
+      // it so the room route resolves.
+      openRoom(context, roomId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _knockingRoomId = null);
@@ -226,6 +273,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     final Widget body = Column(
@@ -237,7 +285,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
             controller: _searchController,
             decoration: InputDecoration(
               hintText: l10n.joinRoomInstructions,
-              prefixIcon: const Icon(LucideIcons.search, size: 20),
+              prefixIcon: Icon(LucideIcons.search, size: t.iconSizeMedium),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(LucideIcons.x, size: 18),
@@ -245,9 +293,10 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
                     )
                   : null,
               filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              fillColor: scheme.surfaceContainerHighest
+                  .withValues(alpha: t.opacitySubtle),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -264,15 +313,15 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(t.spaceMd),
               decoration: BoxDecoration(
                 color: scheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(t.radiusSm),
               ),
               child: Row(
                 children: [
                   Icon(LucideIcons.alertCircle, size: 18, color: scheme.error),
-                  const SizedBox(width: 8),
+                  SizedBox(width: t.spaceSm),
                   Expanded(
                     child: Text(
                       _joinError!,
@@ -283,7 +332,8 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(LucideIcons.x, size: 16, color: scheme.error),
+                    icon: Icon(LucideIcons.x,
+                        size: t.iconSizeSmall, color: scheme.error),
                     onPressed: () => setState(() => _joinError = null),
                     visualDensity: VisualDensity.compact,
                   ),
@@ -345,7 +395,7 @@ class _RoomDirectorySearchState extends State<RoomDirectorySearch> {
               Icon(LucideIcons.alertCircle, size: 48, color: scheme.error),
               const SizedBox(height: 16),
               Text(
-                l10n.couldNotLoadMessages,
+                l10n.couldNotLoadRooms,
                 style: TextStyle(color: scheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
@@ -457,20 +507,22 @@ class _PublicRoomTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final displayName = room.name?.isNotEmpty == true ? room.name : room.roomId;
     final topic = room.topic?.isNotEmpty == true ? room.topic : null;
     final alias = room.canonicalAlias;
     final memberCount = room.numJoinedMembers;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(t.radiusMd),
+        side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: t.opacitySubtle)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(t.spaceMd),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -480,30 +532,31 @@ class _PublicRoomTile extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(t.radiusMd),
               ),
               child: room.avatarUrl != null
                   ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                       child: Image.network(
                         room.avatarUrl!.toString(),
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
+                        headers: authHeaders(context.read<Client>()),
                         errorBuilder: (_, __, ___) => Icon(
                           LucideIcons.hash,
                           color: scheme.onPrimaryContainer,
-                          size: 24,
+                          size: t.iconSizeLarge,
                         ),
                       ),
                     )
                   : Icon(
                       LucideIcons.hash,
                       color: scheme.onPrimaryContainer,
-                      size: 24,
+                      size: t.iconSizeLarge,
                     ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: t.spaceMd),
 
             // Room info
             Expanded(
@@ -554,7 +607,7 @@ class _PublicRoomTile extends StatelessWidget {
                             size: 14,
                             color:
                                 scheme.onSurfaceVariant.withValues(alpha: 0.7)),
-                        const SizedBox(width: 4),
+                        SizedBox(width: t.spaceXs),
                         Text(
                           '$memberCount',
                           style: TextStyle(
@@ -571,7 +624,7 @@ class _PublicRoomTile extends StatelessWidget {
             ),
 
             // Action button
-            const SizedBox(width: 8),
+            SizedBox(width: t.spaceSm),
             if (isJoining || isKnocking)
               SizedBox(
                 width: 20,

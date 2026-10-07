@@ -16,19 +16,28 @@
 
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/screens/image_viewer_screen.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:provider/provider.dart';
 
 /// Displays an image message with a polished thumbnail card and tap-to-open
 /// full-screen viewer.
 ///
-/// Sizing rule: the thumbnail is **height-constrained** so wide panoramic
+/// Sizing rule: the thumbnail is height-constrained so wide panoramic
 /// images or tall portrait shots both render as a comfortable rectangle
 /// instead of stretching to the full timeline width. The image is then
 /// scaled with `BoxFit.contain` so its aspect ratio is preserved without
-/// cropping — it fits inside the box, not the other way around.
+/// cropping: it fits inside the box, not the other way around.
 class ImageMessageType extends StatefulWidget {
   const ImageMessageType({super.key, required this.event});
   final Event event;
@@ -40,28 +49,97 @@ class ImageMessageType extends StatefulWidget {
 class _ImageMessageTypeState extends State<ImageMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
+  bool _autoDownloadResolved = false;
+
+  /// Resolved download policy for this event. Defaults to permissive so
+  /// the pre-dependencies build (and a tree with no
+  /// [SettingsController]) behaves as it did before the threshold existed.
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
+
+  /// Resolve the room id once for [RoomMediaCache] keying. Falls back
+  /// to the event id when the room id isn't yet attached (early in the
+  /// sync lifecycle); the cache key is per-event either way.
+  String get _roomId {
+    try {
+      final id = widget.event.roomId;
+      if (id == null) return widget.event.eventId;
+      return id.isNotEmpty ? id : widget.event.eventId;
+    } catch (_) {
+      return widget.event.eventId;
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadImages,
+    );
+    if (!_policy.shouldAutoDownload) return;
+    _startDownload();
+  }
+
+  /// Starts (or joins) the download for this event.
+  ///
+  /// Split out from [_resolveAutoDownload] so the click-to-download tile
+  /// can start it after the initial render declined to.
+  void _startDownload() {
+    // Use the shared cache so multiple State objects for the same
+    // event share a single downloaded blob and a single in-flight
+    // future. The State no longer holds a long-lived Future; once
+    // the cache resolves, the bytes live in the global cache and the
+    // State reads them from there.
+    _downloadFuture ??= RoomMediaCache.instance.getOrDownload(
+      _roomId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
+  }
+
+  /// Starts the download from an explicit user action.
+  void _downloadOnTap() {
+    setState(() {
+      _policy = _policy.asDownloading();
+      _startDownload();
+    });
+  }
+
   /// Maximum display size for thumbnails in the timeline. Both axes are
-  /// upper bounds — the larger dimension of the image decides the box,
+  /// upper bounds: the larger dimension of the image decides the box,
   /// and the smaller dimension follows proportionally.
-  static const double _maxThumbnailDimension = 360;
+  ///
+  /// Honoured as a fallback when the [SettingsController] cannot be read
+  /// (e.g. isolated widget tests).  In production the value comes from
+  /// `SettingsController.imageThumbnailMaxPx`.
+  static const double _defaultMaxThumbnailDimension = 360;
 
-  /// Image dimensions from the event content's `info` blob.
-  int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _imgHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
+  /// Image dimensions from the event content's `info` blob. Tolerates
+  /// [num] of any runtime type via [coerceJsonInt].
+  int? get _imgWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _imgHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
-
-  int? get _fileSize => _infoMap['size'] as int?;
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
 
   /// Whether this image is a GIF (animated or static).
   bool get _isGif =>
@@ -77,83 +155,130 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
   ///   - a 100×100 square renders as 360×360.
   ///
   /// When dimensions are unknown we fall back to a square 240px default.
-  Size _imageSize() {
+  Size _imageSize(double maxDim) {
     final w = _imgWidth;
     final h = _imgHeight;
     if (w == null || h == null || w <= 0 || h <= 0) {
       return const Size(240, 240);
     }
 
-    final longSide =
-        w >= h ? _maxThumbnailDimension : _maxThumbnailDimension * (w / h);
-    final shortSide =
-        w >= h ? _maxThumbnailDimension * (h / w) : _maxThumbnailDimension;
+    final longSide = w >= h ? maxDim : maxDim * (w / h);
+    final shortSide = w >= h ? maxDim * (h / w) : maxDim;
     return Size(longSide, shortSide);
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  /// Returns the configured thumbnail max dimension (px).  Falls back to
+  /// [_defaultMaxThumbnailDimension] when the [SettingsController] is not
+  /// available in the widget tree.
+  double _resolveMaxThumbnailDimension() {
+    try {
+      return context.read<SettingsController>().imageThumbnailMaxPx.toDouble();
+    } catch (_) {
+      return _defaultMaxThumbnailDimension;
+    }
   }
 
   /// Opens the full-screen image viewer.
+  ///
+  /// The push is deferred to the next frame for the same reason as
+  /// [MessageActionRunner.showDetails]: stacking a `MaterialPageRoute`
+  /// over the router page's `FadeTransition` mid-build mutates render
+  /// objects during `performLayout` and trips Flutter's assertions.
   void _openViewer(Uint8List bytes) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ImageViewerScreen(
-          bytes: bytes,
-          event: widget.event,
-        ),
+    final event = widget.event;
+    final navigator = Navigator.of(context);
+    final route = MaterialPageRoute(
+      builder: (_) => ImageViewerScreen(
+        bytes: bytes,
+        event: event,
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!navigator.mounted) return;
+      navigator.push(route);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    // Fast path: bytes are already in the shared cache (e.g. we
+    // previously downloaded the same attachment, or this is a
+    // rebuild after the FutureBuilder resolved once). Avoid creating
+    // another FutureBuilder; the underlying bytes never go stale.
+    final cached = RoomMediaCache.instance.get(_roomId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      return _buildThumbnail(cs, cached);
+    }
     if (_downloadFuture == null) {
-      return _buildPlaceholder(cs);
+      return _buildPlaceholder(context, cs);
     }
 
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _buildLoading(cs);
+          return _buildLoading(context, cs);
         }
 
         if (snapshot.hasError) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         final bytes = snapshot.data?.bytes;
         if (bytes == null || bytes.isEmpty) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
+        // Bytes live in the shared cache; release this State's
+        // reference to the FutureBuilder's result so the next rebuild
+        // uses the fast-path cache lookup above.
         return _buildThumbnail(cs, bytes);
       },
     );
   }
 
-  Widget _buildPlaceholder(ColorScheme cs) {
+  Widget _buildPlaceholder(BuildContext context, ColorScheme cs) {
+    // Sized from the same source as the thumbnail it stands in for.
+    //
+    // This was a fixed hundred and twenty square, the loading and error tiles
+    // were a hundred and eighty by a hundred and forty, and the image itself is
+    // drawn at up to 360 on its long side. One picture therefore changed size
+    // three times on its way down the timeline, and everything below it moved
+    // each time. The states a picture passes through should be the same shape.
+    final size = _imageSize(_resolveMaxThumbnailDimension());
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    // Withheld for size: offer the download instead of a dead icon.
+    if (_policy.requiresExplicitClick) {
+      return ClickToDownloadTile(
+        policy: _policy,
+        onDownload: _downloadOnTap,
+        icon: LucideIcons.image,
+        width: size.width,
+        height: size.height,
+      );
+    }
     return Container(
-      width: 120,
-      height: 120,
+      width: size.width,
+      height: size.height,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
-      child: Icon(Icons.image_outlined, size: 40, color: cs.onSurfaceVariant),
+      child: Icon(
+        LucideIcons.image,
+        size: t.iconSizeLarge,
+        color: cs.onSurfaceVariant,
+      ),
     );
   }
 
-  Widget _buildLoading(ColorScheme cs) {
+  Widget _buildLoading(BuildContext context, ColorScheme cs) {
+    final size = _imageSize(_resolveMaxThumbnailDimension());
     return Container(
-      width: 180,
-      height: 140,
+      width: size.width,
+      height: size.height,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
@@ -182,138 +307,275 @@ class _ImageMessageTypeState extends State<ImageMessageType> {
     );
   }
 
-  Widget _buildError(ColorScheme cs) {
-    return Tooltip(
-      message: AppLocalizations.of(context)!.failedToLoadImage,
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          color: cs.errorContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: cs.error.withValues(alpha: 0.3),
+  /// Re-attempts the download when the user taps the retry icon.  The
+  /// cache might hold a partial or poisoned entry, so it is invalidated
+  /// first; without that step every retry would replay the same error.
+  ///
+  /// Resets [_downloadFuture] in a single `setState` call so the
+  /// build that follows the reset doesn't observe a torn state (a
+  /// half-applied reset + the same future would re-show the error tile).
+  /// Also re-checks `mounted` after the awaited invalidation so a
+  /// rapid tap-then-dispose doesn't fire a `setState` after dispose.
+  Future<void> _retryDownload() async {
+    if (!mounted) return;
+    final cache = RoomMediaCache.instance;
+    cache.invalidate(_roomId, widget.event.eventId);
+    if (!mounted) return;
+    setState(() {
+      _downloadFuture = cache.getOrDownload(
+        _roomId,
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(),
+      );
+    });
+  }
+
+  Widget _buildError(BuildContext context, ColorScheme cs) {
+    final size = _imageSize(_resolveMaxThumbnailDimension());
+    return Semantics(
+      label: AppLocalizations.of(context)!.failedToLoadImage,
+      button: true,
+      child: GestureDetector(
+        onTap: _retryDownload,
+        child: Container(
+          width: size.width,
+          height: size.height,
+          decoration: BoxDecoration(
+            color: cs.errorContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: cs.error.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.broken_image_outlined, size: 36, color: cs.error),
+                const SizedBox(height: 6),
+                Text(
+                  AppLocalizations.of(context)!.tapToRetry,
+                  style: TextStyle(fontSize: 11, color: cs.onErrorContainer),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Icon(Icons.broken_image_outlined, size: 40, color: cs.error),
       ),
     );
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
-    final size = _imageSize();
+    final maxDim = _resolveMaxThumbnailDimension();
+    final size = _imageSize(maxDim);
 
-    return GestureDetector(
-      onTap: () => _openViewer(bytes),
-      child: Container(
-        width: size.width,
-        height: size.height,
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.4),
+    // Cap the decoded bitmap to the rendered box (scaled by device pixel
+    // ratio for HiDPI). Without this, Flutter decodes the full source
+    // image: a 4032×3024 photo becomes a ~48 MB ui.Image even though
+    // it displays at a few hundred logical pixels.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
+    // Left-align the picture to its message so wide thumbnails don't
+    // centre-stretch across the timeline.  The chat_event wrapper
+    // inserts the message body inside an `Expanded` in a Row, which
+    // would otherwise force this widget to fill the row's width.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: GestureDetector(
+        onTap: () => _openViewer(bytes),
+        onLongPress: () => _saveToDisk(bytes),
+        child: Container(
+          width: size.width,
+          height: size.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            // ── The image (BoxFit.contain keeps aspect ratio) ──────────
-            Positioned.fill(
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Container(
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                  child: Icon(
-                    Icons.image_outlined,
-                    size: 40,
-                    color: cs.onSurfaceVariant,
+          clipBehavior: Clip.antiAlias,
+          // The picture is the entire visible bubble: no background,
+          // border, or metadata overlay.  Stickers are now stripped of
+          // their backgrounds, and image thumbnails follow suit so the
+          // chat reads as a flow of images rather than a row of framed
+          // cards.  A long-press surfaces the save-to-disk action, which
+          // is also exposed inside the full-screen viewer.
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.memory(
+                  bytes,
+                  // Fit (not cover): the bubble already matches the
+                  // image's intrinsic aspect ratio, so cover would
+                  // crop into something the user can't see in the
+                  // viewer.  Contain fills the box exactly without
+                  // distortion.
+                  fit: BoxFit.contain,
+                  cacheWidth: (size.width * dpr).ceil(),
+                  errorBuilder: (_, __, ___) => Container(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 40,
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            // ── GIF badge ──────────────────────────────────────────────
-            if (_isGif)
+              // Tiny download affordance in the corner: appears on hover
+              // so it doesn't clutter the bubble when reading.
               Positioned(
                 top: 6,
-                left: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'GIF',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
+                right: 6,
+                child: _HoverDownloadButton(
+                  onPressed: () => _saveToDisk(bytes),
+                  tooltip: AppLocalizations.of(context)!.downloadImage,
                 ),
               ),
+              if (_isGif)
+                const Positioned(
+                  top: 6,
+                  left: 6,
+                  child: _GifBadge(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-            // ── Hover / tap hint overlay ────────────────────────────────
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.5),
-                      Colors.transparent,
-                    ],
+  /// Writes the image bytes to a user-chosen path via the platform
+  /// save-file dialog.  Pulled out of the build tree so it can be
+  /// reached from the thumbnail itself, the hover download affordance,
+  /// and the full-screen viewer.
+  Future<void> _saveToDisk(Uint8List bytes) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final filename = _suggestedFileName();
+      final extension = _suggestedExtension();
+      await FilePicker.saveFile(
+        dialogTitle: l10n.saveImage,
+        fileName: filename.isEmpty ? 'image$extension' : filename,
+        bytes: bytes,
+      );
+    } on Object catch (e, st) {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+      // User cancellation isn't a failure; only the platform errors
+      // get logged.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('Image save failed: $e');
+      }
+    }
+  }
+
+  String _suggestedFileName() {
+    final body = widget.event.body;
+    if (body.isEmpty || body == 'Image') return '';
+    return body;
+  }
+
+  String _suggestedExtension() {
+    final mime = (_infoMap['mimetype'] as String?)?.toLowerCase() ?? '';
+    if (mime == 'image/png') return '.png';
+    if (mime == 'image/jpeg') return '.jpg';
+    if (mime == 'image/gif') return '.gif';
+    if (mime == 'image/webp') return '.webp';
+    if (mime == 'image/bmp') return '.bmp';
+    return '.bin';
+  }
+}
+
+/// Small badge that overlays a "GIF" label in the top-left of an
+/// image.  Pulled out so the parent Stack can use it via a `const`
+/// reference, which keeps the image subtree stable across rebuilds.
+class _GifBadge extends StatelessWidget {
+  const _GifBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(t.radiusXs),
+      ),
+      child: const Text(
+        'GIF',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Download affordance that fades in only while the cursor is over
+/// the thumbnail.  Kept as a separate widget so its `State` (and
+/// listeners on the hover notifier) stays isolated from the rest of
+/// the image subtree: Image.memory on the parent never re-paints just
+/// because the cursor moved.
+class _HoverDownloadButton extends StatefulWidget {
+  const _HoverDownloadButton({required this.onPressed, required this.tooltip});
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  State<_HoverDownloadButton> createState() => _HoverDownloadButtonState();
+}
+
+class _HoverDownloadButtonState extends State<_HoverDownloadButton> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    return MouseRegion(
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _isHovered,
+        builder: (context, hovered, _) {
+          return AnimatedOpacity(
+            duration: t.durationFast,
+            opacity: hovered ? 1.0 : 0.0,
+            // [Semantics] instead of [Tooltip] so the affordance is
+            // announced by screen readers but the widget never mounts
+            // an internal [OverlayPortal].  The IconButton already
+            // exposes the same role through its ink-well hit area;
+            // a popup would only repeat the same information and
+            // risks tripping the chat-page layout race when a hover
+            // is active during a route push.
+            child: Semantics(
+              label: widget.tooltip,
+              button: true,
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.6),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: widget.onPressed,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.download_rounded,
+                      size: t.iconSizeSmall,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.zoom_in,
-                      size: 14,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _imgWidth != null && _imgHeight != null
-                          ? '$_imgWidth×$_imgHeight'
-                          : '',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    if (_fileSize != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatSize(_fileSize!),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -37,8 +37,7 @@ extension LayoutSizeX on LayoutSize {
 
   /// Returns true when the layout can keep a single (left or right) pane
   /// pinned alongside the main content.
-  bool get hasOneSidebar =>
-      hasTwoSidebars || this == LayoutSize.medium;
+  bool get hasOneSidebar => hasTwoSidebars || this == LayoutSize.medium;
 
   /// Returns true when secondary content should be promoted to a drawer / modal
   /// instead of a pinned column.
@@ -52,67 +51,120 @@ extension LayoutSizeX on LayoutSize {
 class LayoutBreakpoints {
   const LayoutBreakpoints._();
 
-  /// Below this width we treat the window as compact.
-  static const double compactMax = 600;
+  /// Below this width we treat the window as compact (single-pane dashboard
+  /// shell with a unified sidebar); anything narrower switches to the
+  /// dedicated mobile layout via [LayoutBreakpoints.mobileMax].
+  ///
+  /// Historical note: this used to be 600, then 1280.  We now treat the
+  /// entire 600-1100 range as compact because the old "medium" shell only
+  /// rendered a left sidebar with no room list, which was useless on a
+  /// 768px monitor.  We deliberately leave the 1100-1280 band for the
+  /// full multi-pane layout because a 1100px window can still fit the
+  /// navigation rail (80px) + left pane (~280px) + chat + right pane
+  /// (~240px) without either sidebar dropping below its 200px minimum,
+  /// whereas 1280px is exactly the line where the right pane begins to
+  /// crowd the chat.  1100 gives the user a few extra pixels of headroom
+  /// so the multi-pane shell doesn't immediately collapse as soon as the
+  /// window is dragged in by a pixel.
+  static const double compactMax = 1100;
+
+  /// Below this width we render the dedicated [MobileLayout] instead of
+  /// the dashboard, even when the user has not opted into mobile mode
+  /// explicitly.  Below 600px the dashboard is unusable.
+  static const double mobileMax = 600;
 
   /// Below this width we treat the window as medium (single sidebar).
+  /// Retained for back-compat with code that still inspects
+  /// [LayoutSize.medium]: the new dashboard treats medium and compact
+  /// the same way.
   static const double mediumMax = 900;
 
   /// Below this width we treat the window as expanded (two sidebars).
-  static const double expandedMax = 1280;
+  static const double expandedMax = 1100;
 
   /// Minimum width allowed for any pinned pane.
-  static const double minSidebarWidth = 200;
+  static const double minSidebarWidth = 240;
 
   /// Default width of the left sidebar.
-  static const double defaultLeftSidebarWidth = 320;
-
-  /// Default width of the right sidebar.
-  static const double defaultRightSidebarWidth = 280;
+  ///
+  /// 360 rather than 320. The room list is the densest reading surface in
+  /// the app and it was losing its room names to the right, which is the one
+  /// thing a wider pane can fix and the one thing a user cannot: there is no
+  /// setting that makes a truncated name longer.
+  static const double defaultLeftSidebarWidth = 360;
 
   /// Maximum width allowed for any pinned pane.
   static const double maxSidebarWidth = 600;
-
-  /// Width of the fixed navigation column on the far left.
-  static const double navigationPaneWidth = 80;
 
   /// Width of the in-room search panel overlay.
   static const double searchPanelWidth = 320;
 
   /// Width of the hub category sidebar.
-  static const double hubCategorySidebarWidth = 240;
+  static const double hubCategorySidebarWidth = 280;
 
   /// Width of a compact hub navigation rail.
   static const double hubNavRailWidth = 72;
 
   /// Computes the [LayoutSize] for the given width.
+  ///
+  /// Note: the dashboard no longer renders a distinct "medium" shell.
+  /// Anything in the 600-1100 range is now [LayoutSize.compact] so the
+  /// unified sidebar stays visible.  Callers that need the historical
+  /// medium bucket can compare against [mediumMax] directly.
+  ///
+  /// The values returned here are kept stable for callers that still
+  /// inspect [LayoutSize.medium] / [LayoutSize.expanded] (e.g. the
+  /// dashboard's wide-mode shell), but the actual layout decision now
+  /// flows through [shouldUseCompact] / [shouldUseMobile] to avoid
+  /// ambiguity at the 900-1100 boundary.
   static LayoutSize sizeForWidth(double width) {
-    if (width < compactMax) return LayoutSize.compact;
+    if (width < mobileMax) return LayoutSize.compact;
     if (width < mediumMax) return LayoutSize.medium;
-    if (width < expandedMax) return LayoutSize.expanded;
+    if (width < expandedMax) return LayoutSize.compact;
     return LayoutSize.wide;
   }
 
+  /// Returns true when the dashboard should be replaced by the mobile
+  /// layout at the given viewport width.
+  ///
+  /// The dashboard assumes both side panes and a chat surface can fit
+  /// side-by-side; below [mobileMax] it cannot.  This helper is the
+  /// single source of truth for the switch: the router and the
+  /// dashboard both consult it.
+  static bool shouldUseMobile(double width) => width < mobileMax;
+
+  /// Returns true when the dashboard should drop its detail pane rather
+  /// than run the full three-pane layout at the given viewport width.
+  ///
+  /// The compact shell kicks in at [compactMax] and stays in use all
+  /// the way down to [mobileMax] (where the dashboard itself is no
+  /// longer usable and [shouldUseMobile] takes over).
+  ///
+  /// Dead: the shell controller maps width to a [LayoutShell] directly and
+  /// the dashboard asks it whether the detail pane fits. Kept only until
+  /// the dead-code sweep, because a test still pins its arithmetic.
+  static bool shouldUseCompact(double width) =>
+      width < compactMax && !shouldUseMobile(width);
+
   /// Clamps a sidebar's requested [requestedWidth] against the given [viewportWidth],
-/// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
-/// by sibling panes (e.g. the navigation rail on the far left).
-///
-/// The result is always between [minSidebarWidth] and [maxSidebarWidth].
-/// When the viewport cannot accommodate everything, the function returns
-/// the largest sidebar width that still satisfies the minimum main column.
-static double clampSidebarWidth({
-  required double requestedWidth,
-  required double viewportWidth,
-  required double mainMinWidth,
-  required double otherPanesWidth,
-}) {
-  final available =
-      (viewportWidth - mainMinWidth - otherPanesWidth).clamp(
-    minSidebarWidth,
-    maxSidebarWidth,
-  );
-  return requestedWidth.clamp(minSidebarWidth, available);
-}
+  /// the [mainMinWidth] that must remain visible, and the [otherPanesWidth] consumed
+  /// by sibling panes (e.g. the room pane on the far right).
+  ///
+  /// The result is always between [minSidebarWidth] and [maxSidebarWidth].
+  /// When the viewport cannot accommodate everything, the function returns
+  /// the largest sidebar width that still satisfies the minimum main column.
+  static double clampSidebarWidth({
+    required double requestedWidth,
+    required double viewportWidth,
+    required double mainMinWidth,
+    required double otherPanesWidth,
+  }) {
+    final available = (viewportWidth - mainMinWidth - otherPanesWidth).clamp(
+      minSidebarWidth,
+      maxSidebarWidth,
+    );
+    return requestedWidth.clamp(minSidebarWidth, available);
+  }
 }
 
 /// Convenience extension on [BoxConstraints] so widgets can ask for their
@@ -144,8 +196,7 @@ class LayoutScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(covariant LayoutScope oldWidget) =>
-      size != oldWidget.size ||
-      availableWidth != oldWidget.availableWidth;
+      size != oldWidget.size || availableWidth != oldWidget.availableWidth;
 }
 
 /// Default scope used at the root of the app before any [LayoutBuilder] has

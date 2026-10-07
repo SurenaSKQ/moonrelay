@@ -28,6 +28,34 @@
 /// before the browser is launched.
 library;
 
+/// Parses freeform homeserver text from the login field into a [Uri].
+///
+/// The field accepts both `matrix.org` and `https://matrix.org` because
+/// that is what people type, so a bare host is promoted to HTTPS rather
+/// than rejected. Returns `null` when the text is empty or will not parse,
+/// which is what the callers want to be able to report: the login page has
+/// to tell the user their address is unusable, and `Uri.parse` throwing
+/// inside a `setState` is not a way to do that.
+///
+/// The result is not yet trusted; pass it through [isPlausibleHomeserverUrl]
+/// before opening a browser or sending credentials anywhere.
+Uri? parseHomeserverInput(String input) {
+  final String trimmed = input.trim();
+  if (trimmed.isEmpty) return null;
+  final Uri parsed;
+  try {
+    parsed = trimmed.contains('://')
+        ? Uri.parse(trimmed)
+        : Uri.https(trimmed, '');
+  } on FormatException {
+    return null;
+  }
+  // `Uri.parse('https://')` succeeds and yields an empty host, so parsing
+  // alone is not enough to call the text a URL the user could have meant.
+  if (parsed.host.isEmpty) return null;
+  return parsed;
+}
+
 /// Returns `true` when [uri] looks like a homeserver the user actually
 /// intends to authenticate against (a public HTTP/HTTPS origin).
 bool isPlausibleHomeserverUrl(Uri uri) {
@@ -44,7 +72,7 @@ bool isPlausibleHomeserverUrl(Uri uri) {
   // Refuse loopback destinations: no real homeserver runs there and a
   // user typing `localhost` is almost always going to land on their
   // own machine.  `Uri.host` returns IPv6 addresses without the
-  // surrounding brackets (e.g. `[::1]` → `::1`), so we match on both.
+  // surrounding brackets (e.g. `[::1]` -> `::1`), so we match on both.
   if (lower == 'localhost' ||
       lower == 'localhost.localdomain' ||
       lower.startsWith('127.') ||
@@ -54,7 +82,7 @@ bool isPlausibleHomeserverUrl(Uri uri) {
     return false;
   }
 
-  // Refuse URLs that smuggle credentials into the location — phishing
+  // Refuse URLs that smuggle credentials into the location: phishing
   // pages occasionally use `https://user:pass@evil.example/` style URIs.
   if (uri.userInfo.isNotEmpty) return false;
 

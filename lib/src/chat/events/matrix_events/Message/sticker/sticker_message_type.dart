@@ -17,7 +17,15 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:provider/provider.dart';
 
 /// Renders an `m.sticker` event as a compact image card without the
 /// tap-to-open viewer (stickers are meant to be lightweight).
@@ -32,146 +40,211 @@ class StickerMessageType extends StatefulWidget {
 class _StickerMessageTypeState extends State<StickerMessageType> {
   Future<MatrixFile>? _downloadFuture;
 
+  bool _autoDownloadResolved = false;
+
+  /// Resolved download policy. The size threshold is deliberately not
+  /// applied to stickers; see [_resolveAutoDownload].
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
-    }
   }
 
-  /// Maximum display size for stickers in the timeline.
-  static const double _maxStickerWidth = 180;
-  static const double _maxStickerHeight = 180;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
 
-  /// Image dimensions from the event content's `info` blob.
-  int? get _imgWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _imgHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
-
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
-
-  /// Computes a constrained box size that preserves aspect ratio.
-  BoxConstraints _stickerConstraints() {
-    if (_imgWidth == null || _imgHeight == null) {
-      return BoxConstraints(
-        maxWidth: _maxStickerWidth,
-        maxHeight: _maxStickerHeight,
-      );
-    }
-
-    final w = _imgWidth!.toDouble();
-    final h = _imgHeight!.toDouble();
-    final scale = (_maxStickerWidth / w).clamp(0.0, 1.0);
-    final displayWidth = w * scale;
-    final displayHeight = h * scale;
-
-    if (displayHeight > _maxStickerHeight) {
-      final heightScale = _maxStickerHeight / displayHeight;
-      return BoxConstraints(
-        maxWidth: displayWidth * heightScale,
-        maxHeight: _maxStickerHeight,
-      );
-    }
-
-    return BoxConstraints(
-      maxWidth: displayWidth,
-      maxHeight: displayHeight,
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    // Stickers are small by nature and there is no sticker-specific
+    // auto-download policy, so they follow the image policy but are not
+    // subject to the size threshold. A threshold on stickers would only
+    // ever produce a "click to download" tile in place of a sticker,
+    // which is a worse outcome than downloading a few hundred KB.
+    final settings = context.read<SettingsController>();
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: settings.autoDownloadImages,
+    ).ignoringSizeThreshold;
+    if (!_policy.shouldAutoDownload) return;
+    // Share the in-flight future with the global cache so other
+    // States for the same event don't download a second copy.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
     );
+  }
+
+  /// Starts the download from the click-to-download tile.
+  void _downloadOnTap() {
+    setState(() {
+      _policy = _policy.asDownloading();
+      _downloadFuture ??= RoomMediaCache.instance.getOrDownload(
+        widget.event.roomId ?? widget.event.eventId,
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(),
+      );
+    });
+  }
+
+  /// Image dimensions from the event content's `info` blob. Tolerates
+  /// [num] of any runtime type via [coerceJsonInt].
+  int? get _imgWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _imgHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
+
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
+
+  /// Computes the rendered sticker size preserving aspect ratio.
+  ///
+  /// Returns the on-screen size the sticker should be drawn at so it
+  /// never grows past [maxStickerDim] on either axis.  When the source
+  /// dimensions are unknown the bubble falls back to a square box of
+  /// [maxStickerDim] pixels.
+  Size _stickerSize(double maxStickerDim) {
+    final w = _imgWidth;
+    final h = _imgHeight;
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      return Size(maxStickerDim, maxStickerDim);
+    }
+    final ar = w / h;
+    if (ar >= 1) {
+      final width = maxStickerDim;
+      final height = (maxStickerDim / ar).clamp(1.0, maxStickerDim);
+      return Size(width, height);
+    }
+    final height = maxStickerDim;
+    final width = (maxStickerDim * ar).clamp(1.0, maxStickerDim);
+    return Size(width, height);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final cached = RoomMediaCache.instance
+        .get(widget.event.roomId ?? widget.event.eventId, widget.event.eventId);
+    if (cached != null && cached.isNotEmpty) {
+      return _buildSticker(cs, cached, context);
+    }
+
     if (_downloadFuture == null) {
-      return _buildPlaceholder(cs);
+      return _buildPlaceholder(context, cs);
     }
 
     return FutureBuilder<MatrixFile>(
       future: _downloadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _buildLoading(cs);
+          return _buildLoading(context, cs);
         }
 
         if (snapshot.hasError) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
         final bytes = snapshot.data?.bytes;
         if (bytes == null || bytes.isEmpty) {
-          return _buildError(cs);
+          return _buildError(context, cs);
         }
 
-        return _buildSticker(cs, bytes);
+        return _buildSticker(cs, bytes, context);
       },
     );
   }
 
-  Widget _buildPlaceholder(ColorScheme cs) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(Icons.sticky_note_2_outlined, size: 36, color: cs.onSurfaceVariant),
+  Widget _buildPlaceholder(BuildContext context, ColorScheme cs) {
+    // Reached when the image policy says "never". The size threshold does
+    // not apply here, so this is a real click-to-download affordance
+    // rather than a dead icon.
+    //
+    // Sized from the same source as the sticker itself. It used to be a fixed
+    // hundred by hundred while the sticker that replaced it was drawn at
+    // `stickerMax`, so the bubble visibly jumped the moment the download
+    // finished.
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
+    return ClickToDownloadTile(
+      policy: _policy,
+      onDownload: _downloadOnTap,
+      icon: LucideIcons.stickyNote,
+      width: size.width,
+      height: size.height,
     );
   }
 
-  Widget _buildLoading(ColorScheme cs) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _buildLoading(BuildContext context, ColorScheme cs) {
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
+    return SizedBox(
+      width: size.width,
+      height: size.height,
       child: Center(
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: cs.primary),
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: cs.primary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildError(ColorScheme cs) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
+  Widget _buildError(BuildContext context, ColorScheme cs) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final size = _stickerSize(MediaSizePrefs.of(context).stickerMax);
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: Center(
+        child: Icon(
+          LucideIcons.imageOff,
+          size: t.iconSizeLarge,
+          color: cs.error,
+        ),
       ),
-      child: Icon(Icons.broken_image_outlined, size: 32, color: cs.error),
     );
   }
 
-  Widget _buildSticker(ColorScheme cs, Uint8List bytes) {
-    return Container(
-      constraints: _stickerConstraints(),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Image.memory(
-        bytes,
-        fit: BoxFit.contain,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (_, __, ___) => Container(
-          height: 80,
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-          child: Icon(Icons.broken_image_outlined, size: 32, color: cs.onSurfaceVariant),
+  Widget _buildSticker(ColorScheme cs, Uint8List bytes, BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final prefs = MediaSizePrefs.of(context);
+    // Cap decoded bitmap to display size × DPR. Stickers are typically
+    // small but the raw attachment can still be a multi-megapixel PNG.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final stickerMax = prefs.stickerMax;
+    final size = _stickerSize(stickerMax);
+    // Stickers render as the picture alone: no borders, no info
+    // overlays, no background card.  The sticker is the whole bubble.
+    return Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      width: size.width,
+      height: size.height,
+      cacheWidth: (stickerMax * dpr).ceil(),
+      errorBuilder: (_, __, ___) => SizedBox(
+        width: size.width,
+        height: size.height,
+        child: Container(
+          color: cs.surfaceContainerHighest.withValues(alpha: t.opacitySubtle),
+          child: Icon(
+            LucideIcons.imageOff,
+            size: t.iconSizeLarge,
+            color: cs.onSurfaceVariant,
+          ),
         ),
       ),
     );

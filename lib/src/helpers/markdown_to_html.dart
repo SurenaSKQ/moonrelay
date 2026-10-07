@@ -14,28 +14,52 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:flutter/foundation.dart';
+
 /// Converts a subset of Markdown into Matrix-compatible HTML.
 ///
 /// This is intentionally limited to the formatting that the composing UI
 /// supports and is _not_ a full Markdown parser.
 ///
 /// Supported syntax:
-/// - `**bold**` → `<b>bold</b>`
-/// - `*italic*` → `<i>italic</i>`
-/// - `~~strikethrough~~` → `<s>strikethrough</s>`
-/// - `` `inline code` `` → `<code>inline code</code>`
-/// - `` ```code block``` `` → `<pre>code block</pre>`
-/// - `> quote` → `<blockquote><p>quote</p></blockquote>`
-/// - `# heading` → `<h1>heading</h1>` (up to `######`)
-/// - `[text](url)` → `<a href="url">text</a>`
-/// - `- item` → `<ul><li>item</li></ul>`
-/// - `1. item` → `<ol><li>item</li></ol>`
-/// - Newlines → `<br>`
+/// - `**bold**` -> `<b>bold</b>`
+/// - `*italic*` -> `<i>italic</i>`
+/// - `~~strikethrough~~` -> `<s>strikethrough</s>`
+/// - `` `inline code` `` -> `<code>inline code</code>`
+/// - `` ```code block``` `` -> `<pre>code block</pre>`
+/// - `> quote` -> `<blockquote><p>quote</p></blockquote>`
+/// - `# heading` -> `<h1>heading</h1>` (up to `######`)
+/// - `[text](url)` -> `<a href="url">text</a>`
+/// - `- item` -> `<ul><li>item</li></ul>`
+/// - `1. item` -> `<ol><li>item</li></ol>`
+/// - Newlines -> `<br>`
 class MarkdownToHtml {
   /// Converts [markdown] to a Matrix-compatible HTML string.
+  ///
+  /// Do not call this from the UI thread for large messages; it
+  /// runs the full parser on the calling isolate.  Use [convertAsync]
+  /// instead, which dispatches to a background isolate via
+  /// [compute].
   static String convert(String markdown) {
     return _processBlocks(markdown);
   }
+
+  /// Converts [markdown] to a Matrix-compatible HTML string on a
+  /// background isolate.  Returns immediately with a `Future` that
+  /// resolves with the rendered HTML.
+  ///
+  /// The parser only touches pure strings, so it is safe to ship
+  /// across isolate boundaries without copying any platform objects.
+  /// [compute] marshals the input and result for us, with a small
+  /// per-call overhead, which is acceptable for chat messages.
+  static Future<String> convertAsync(String markdown) {
+    return compute(_convertIsolated, markdown);
+  }
+
+  /// Top-level entry point used by [compute].  Must remain a top-level
+  /// or static function because [compute] serialises by reference and
+  /// cannot pass closures with captures across the isolate boundary.
+  static String _convertIsolated(String markdown) => _processBlocks(markdown);
 
   /// Processes block-level elements line-by-line.
   static String _processBlocks(String input) {
@@ -172,15 +196,21 @@ class MarkdownToHtml {
     return output.toString().trim();
   }
 
+  /// Writes a completed unordered list and clears [items] so a later
+  /// flush does not re-emit the same entries.
   static void _flushUl(StringBuffer buf, List<String> items) {
     if (items.isNotEmpty) {
       buf.writeln('<ul>${items.join()}</ul>');
+      items.clear();
     }
   }
 
+  /// Writes a completed ordered list and clears [items] so a later
+  /// flush does not re-emit the same entries.
   static void _flushOl(StringBuffer buf, List<String> items) {
     if (items.isNotEmpty) {
       buf.writeln('<ol>${items.join()}</ol>');
+      items.clear();
     }
   }
 
@@ -229,8 +259,8 @@ class MarkdownToHtml {
   static bool _isSafeHref(String url) {
     for (final c in url.split('')) {
       // Letters, digits, common URL punctuation, and percent-encoded
-      // sequences are allowed.  Anything else — quotes, brackets,
-      // angle brackets, whitespace, control chars — is rejected.
+      // sequences are allowed.  Anything else (quotes, brackets,
+      // angle brackets, whitespace, control chars) is rejected.
       final code = c.codeUnitAt(0);
       final allowed = (code >= 0x30 && code <= 0x39) || // 0-9
           (code >= 0x41 && code <= 0x5A) || // A-Z
@@ -259,11 +289,11 @@ class MarkdownToHtml {
   /// The scanner walks the input character by character with the
   /// following precedence (highest first):
   ///
-  /// 1. `` `…` `` — inline code: everything between matching backticks.
-  /// 2. `**…**` — bold: greedy forward `**` close, rejecting empty
+  /// 1. `` `…` ``: inline code: everything between matching backticks.
+  /// 2. `**…**`: bold: greedy forward `**` close, rejecting empty
   ///    spans and anything that would land inside an already-started
   ///    bold.
-  /// 3. `*…*` — italic: rejected when adjacent to another `*`, so
+  /// 3. `*…*`: italic: rejected when adjacent to another `*`, so
   ///    `*a**b*c*` italicises only `a` and leaves the inner `**`
   ///    pair un-touched.
   /// 4. Plain character pass-through.
@@ -272,7 +302,7 @@ class MarkdownToHtml {
     int i = 0;
 
     while (i < text.length) {
-      // ── 1. Inline code: backticks win over * and **. ───────────
+      // -- 1. Inline code: backticks win over * and **. -----------
       if (text[i] == '`' && i + 1 < text.length && text[i + 1] != '`') {
         final close = text.indexOf('`', i + 1);
         if (close != -1) {
@@ -283,13 +313,13 @@ class MarkdownToHtml {
         }
       }
 
-      // ── 2. Bold `**text**` ─────────────────────────────────────
+      // -- 2. Bold `**text**` -------------------------------------
       if (i + 1 < text.length && text[i] == '*' && text[i + 1] == '*') {
         // Reject empty `****` and `**` followed immediately by another
-        // asterisk (which would be three+ in a row — ambiguous, just
+        // asterisk (which would be three+ in a row; ambiguous, just
         // emit the leading `**` literally rather than mis-nesting).
         if (i + 2 < text.length && text[i + 2] == '*') {
-          // Three asterisks in a row — emit them as text; the next
+          // Three asterisks in a row: emit them as text; the next
           // pass may still find a valid italic if that's what the
           // user typed.
         } else {
@@ -303,7 +333,7 @@ class MarkdownToHtml {
         }
       }
 
-      // ── 3. Italic `*text*` ─────────────────────────────────────
+      // -- 3. Italic `*text*` -------------------------------------
       // We only open italic when the surrounding bytes aren't also
       // asterisks: this prevents `*a**b*c*` from being scanned as a
       // single italic span that swallows the inner `**` pair.
@@ -312,7 +342,8 @@ class MarkdownToHtml {
           (i + 1 >= text.length || text[i + 1] != '*')) {
         final closeIdx = _findItalicClose(text, i + 1);
         if (closeIdx != null) {
-          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          result.write(
+              '<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
           i = closeIdx + 1;
           continue;
         }
@@ -355,7 +386,8 @@ class MarkdownToHtml {
           (i + 1 >= text.length || text[i + 1] != '*')) {
         final closeIdx = _findItalicClose(text, i + 1);
         if (closeIdx != null) {
-          result.write('<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
+          result.write(
+              '<i>${_escapeHtmlRaw(text.substring(i + 1, closeIdx))}</i>');
           i = closeIdx + 1;
           continue;
         }
@@ -395,10 +427,10 @@ class MarkdownToHtml {
         if (close != -1) {
           final tag = processed.substring(i, close + 1);
           if (_knownTag.hasMatch(tag)) {
-            // Legitimate converter-generated tag — pass through.
+            // Legitimate converter-generated tag: pass through.
             result.write(tag);
           } else {
-            // Raw user-input HTML — escape it.
+            // Raw user-input HTML: escape it.
             result.write('&lt;');
             result.write(_escapeHtmlRaw(processed.substring(i + 1, close)));
             result.write('&gt;');

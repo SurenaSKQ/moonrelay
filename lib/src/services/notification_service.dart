@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
@@ -24,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
@@ -67,8 +69,9 @@ class NotificationService {
   /// Maximum number of in-memory event-ids we track to avoid showing
   /// the same notification twice within a single boot. The on-disk
   /// `_lastNotifiedEventIds` map handles persistence across reboots;
-  /// this Set is a cheap in-memory short-circuit and is bounded.
-  static const int _notifiedIdsCacheLimit = 256;
+  /// this Set is a cheap in-memory short-circuit and is bounded by
+  /// `SettingsController.notificationDedupeCacheSize`, which is read
+  /// per event so the limit is live.
 
   /// Default tag format for per-event notifications: combines the
   /// owning room and the Matrix event id so the plugin dedupes by
@@ -76,23 +79,127 @@ class NotificationService {
   static String _eventTag(String roomId, String eventId) =>
       'matrix:$roomId:$eventId';
 
+  /// Cached notification strings, refreshed when the account's language
+  /// changes. `null` until [init] resolves them, in which case
+  /// [_buildDetails] falls back to English.
+  static AppLocalizations? _strings;
+
+  /// The language tag [_strings] was resolved for, so a no-op refresh can
+  /// be skipped.
+  static String? _stringsLocale;
+
+  /// Points the notification chrome at [tag], reloading the strings.
+  ///
+  /// Notifications are built outside the widget tree, so there is no
+  /// `BuildContext` to read `AppLocalizations.of` from. The delegate is
+  /// synchronous for the locales this app ships, so this is cheap enough
+  /// to run on every language change, which is as often as it happens.
+  static Future<void> useLocale(String? tag) async {
+    if (_strings != null && _stringsLocale == tag) return;
+    _stringsLocale = tag;
+    try {
+      _strings = await AppLocalizations.delegate
+          .load(tag == null ? const Locale('en') : Locale(tag));
+    } catch (_) {
+      // The delegate throws for a locale it has no table for. Keep the
+      // previous strings rather than blanking the notification labels.
+      _stringsLocale = null;
+    }
+  }
+
   /// Builds the [NotificationDetails] used by every notification.
   /// Pulled out into a single helper because the channel / importance
   /// / priority are identical for direct messages, group summaries,
   /// and the debug test notification.
-  static const NotificationDetails _details = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'moonrelay_channel',
-      'Moonrelay',
-      channelDescription: 'Matrix message notifications',
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-    linux: LinuxNotificationDetails(defaultActionName: 'Open'),
-    macOS: DarwinNotificationDetails(),
-    windows: WindowsNotificationDetails(),
-  );
+  ///
+  /// On Windows, every notification gets a small action button row so
+  /// users can triage new messages without bringing the window to the
+  /// foreground first:
+  ///
+  /// -"Mark as read": silently clear the unread state for the
+  ///   owning room without opening the app.
+  /// -"Open": same behaviour as tapping the notification body
+  ///   bring the window forward and navigate to the room.
+  ///
+  /// Other platforms fall through to their default tap behaviour
+  /// (open the app), which the platform-specific plugin surfaces
+  /// support for out of the box.
+  ///
+  /// The user-visible strings go through [_strings] rather than being
+  /// hardcoded. This class has no `BuildContext`, so it resolves them
+  /// from the delegate against the account's chosen language.
+  static NotificationDetails _buildDetails(String? payload,
+      {bool playSound = true}) {
+    final strings = _strings;
+    return NotificationDetails(      android: AndroidNotificationDetails(
+        'moonrelay_channel',
+        'Moonrelay',
+        channelDescription: strings?.notificationChannelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: playSound,
+      ),
+      iOS: DarwinNotificationDetails(),
+      linux: LinuxNotificationDetails(
+        defaultActionName: strings?.notificationActionOpen,
+      ),
+      macOS: DarwinNotificationDetails(),
+      windows: WindowsNotificationDetails(
+        actions: <WindowsAction>[
+          WindowsAction(
+            content: strings?.notificationActionMarkRead ??
+                'Mark as read',
+            arguments: 'action=markRead',
+            activationType: WindowsActivationType.foreground,
+          ),
+          WindowsAction(
+            content: strings?.notificationActionOpen ?? 'Open',
+            arguments: 'action=open',
+            activationType: WindowsActivationType.foreground,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Returns a JSON-encoded payload that tells the listener which
+  /// room this notification belongs to and which action the user
+  /// pressed (if any).  The listener splits this back into pieces.
+  ///
+  /// We deliberately embed `action` here (rather than relying on the
+  /// plugin's `actionId` from the action button) so platforms that do
+  /// not surface button presses (Linux, macOS, mobile) still receive
+  /// the room context via the body tap path.
+  static String? _encodePayload(String? matrixUri, {String action = 'open'}) {
+    if (matrixUri == null || matrixUri.isEmpty) return null;
+    return jsonEncode(<String, String>{
+      'uri': matrixUri,
+      'action': action,
+    });
+  }
+
+  /// Decodes a payload produced by [_encodePayload].  Returns null on
+  /// legacy payloads (a bare Matrix URI string) so older persisted
+  /// state is still routable.
+  static ({String matrixUri, String action})? _decodePayload(String raw) {
+    if (raw.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final uri = decoded['uri'];
+          if (uri is String) {
+            final rawAction = decoded['action'];
+            final action = rawAction is String ? rawAction : 'open';
+            return (
+              matrixUri: uri,
+              action: action,
+            );
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
 
   final Client _client;
   final SettingsController _settings;
@@ -100,7 +207,7 @@ class NotificationService {
   final DeepLinkService? _deepLinkService;
   final Logger _log;
   FlutterLocalNotificationsPlugin? _plugin;
-  StreamSubscription? _syncSubscription;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
   Timer? _persistDebouncer;
   bool _available = false;
 
@@ -123,6 +230,16 @@ class NotificationService {
   final Map<String, String> _lastNotifiedEventIds = {};
   final Map<String, int> _groupNotifiedCounts = {};
   bool _loadedMuted = false;
+
+  /// Whether the app window is currently focused (has input focus).
+  /// Used by the [notifyWhenFocused] toggle to suppress notifications
+  /// while the user is actively using the app.
+  bool _hasFocus = true;
+
+  /// Whether the app window was previously focused before a notification
+  /// check.  Updated on each [_processEvent] call so we don't spam the
+  /// window-manager bridge.
+  bool _focusChecked = false;
 
   /// Static, read-only snapshot of the muted-room set; cross-service
   /// consumers (notably the system tray, which uses it to skip muted
@@ -152,7 +269,7 @@ class NotificationService {
   bool get isAvailable => _available;
 
   /// Create and initialise the notification service. Returns the
-  /// service instance which is **always** usable, even on platforms
+  /// service instance which is always usable, even on platforms
   /// where the plugin failed to initialise. Callers that want to
   /// show notification-related UI should gate it on [isAvailable].
   ///
@@ -176,6 +293,11 @@ class NotificationService {
       onNavigate,
       log,
     );
+    // The notification chrome is built outside the widget tree, so the
+    // account's language has to be pushed in from here and refreshed when
+    // the user changes it.
+    await useLocale(settings.locale);
+    service._settings.addListener(service._onSettingsChanged);
     await service.loadMutedRooms();
     await service._loadLastEventIds();
     await service._loadGroupNotifiedCounts();
@@ -186,6 +308,12 @@ class NotificationService {
     log.i('Notification service initialised'
         '${ok ? '' : ' (plugin unavailable on this platform)'}');
     return service;
+  }
+
+  void _onSettingsChanged() {
+    // Language is the only setting the notification chrome renders, so
+    // this is a no-op for every other preference change.
+    unawaited(useLocale(_settings.locale));
   }
 
   /// Initialises the platform plugin. Returns `true` on success; on
@@ -212,42 +340,178 @@ class NotificationService {
       _available = true;
       return true;
     } catch (e) {
-      _log.w('Notification plugin init failed; falling back to no-op', error: e);
+      _log.w('Notification plugin init failed; falling back to no-op',
+          error: e);
       _plugin = null;
       _available = false;
       return false;
     }
   }
 
-  /// Called when the user clicks a notification. We try to navigate to
-  /// the room the notification was for via the deep-link service or
-  /// the navigation callback registered at init time; if both are
-  /// missing we just bring the window forward.
-  void _onNotificationTap(NotificationResponse response) {
+  /// Called when the user clicks a notification (body or action button).
+  ///
+  /// We try to navigate to the room the notification was for via the
+  /// deep-link service or the navigation callback registered at init
+  /// time.  For "mark as read" the app still comes forward so the user
+  /// can see the result, but we suppress navigation so the timeline
+  /// keeps the last room the user was viewing.
+  void _onNotificationTap(NotificationResponse response) async {
     try {
       windowManager.show();
       windowManager.focus();
     } catch (_) {}
+
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
+
+    // The plugin delivers the OS-level action id in `response.actionId`
+    // ("action=markRead" / "action=open") for clicks on the action
+    // buttons, but on body taps it is `null`.  We also embed the
+    // intended action in the payload so platforms without action
+    // support still receive a useful routing hint.
+    final fromButton = response.actionId;
+    String action = 'open';
+    final String matrixUri;
+
+    if (fromButton != null && fromButton.isNotEmpty) {
+      // Plugin-supported action button path (Windows / Android).
+      final params = Uri.tryParse('moonrelay://?$fromButton');
+      action = params?.queryParameters['action'] ?? 'open';
+    }
+
+    final decoded = _decodePayload(payload);
+    if (decoded != null) {
+      matrixUri = decoded.matrixUri;
+      // A body tap and an explicit "open" button share the same intent
+      //  promote the body-tap default to "open".
+      if (fromButton == null || fromButton.isEmpty) {
+        action = 'open';
+      }
+    } else {
+      // Legacy (pre-action) payloads: treat as open with the raw string
+      // as the matrix URI.
+      matrixUri = payload;
+      action = 'open';
+    }
+
+    if (matrixUri.isEmpty) return;
+
+    if (action == 'markRead') {
+      await _markUriAsRead(matrixUri);
+      // Still open the app; the user expects feedback that their tap
+      // was registered.
+    }
+
     final navigator = _navigate;
     if (navigator != null) {
-      navigator(payload);
+      navigator(matrixUri);
     } else if (_deepLinkService != null) {
-      _deepLinkService.processUri(payload);
+      _deepLinkService.processUri(matrixUri);
+    }
+  }
+
+  /// Marks the room in the given matrix URI as read by sending a
+  /// read-receipt up to the most recently known event.  Used by the
+  /// "Mark as read" notification action so users can clear the badge
+  /// without opening the room in the timeline.
+  Future<void> _markUriAsRead(String uri) async {
+    final parsed = Uri.tryParse(uri);
+    if (parsed == null) return;
+    final segments = parsed.pathSegments;
+    if (segments.length < 2) return;
+    // matrix:r/<roomid>  -> segments[0]=='r', segments[1] is room id
+    // matrix:roomid/<roomid>/<eventid>
+    final roomId =
+        segments[0] == 'r' && segments.length >= 2 ? segments[1] : segments[0];
+    if (roomId.isEmpty) return;
+
+    try {
+      final room = _client.getRoomById(roomId);
+      if (room == null) return;
+      final lastSynced = room.lastEvent;
+      if (lastSynced == null) return;
+      await room.setReadMarker(
+        lastSynced.eventId,
+        mRead: lastSynced.eventId,
+      );
+      // Mirror the read marker locally so the in-app badge reflects the
+      // action immediately, even before the next sync delivers the
+      // server-acknowledged state.
+      _groupNotifiedCounts[room.id] = room.notificationCount;
+      _lastNotifiedEventIds[room.id] = lastSynced.eventId;
+      _persistDebouncer?.cancel();
+      _persistDebouncer = Timer(
+        Duration(milliseconds: _settings.notificationPersistMs),
+        () async {
+          await _persistLastEventIds();
+          await _persistGroupNotifiedCounts();
+        },
+      );
+    } catch (e) {
+      _log.w('Failed to mark room as read from notification action', error: e);
     }
   }
 
   void _startListening() {
-    _syncSubscription = _client.onSync.stream.listen(
-      (_) => _processRooms(),
-      onError: (e) =>
-          _log.w('Sync stream error in notification service', error: e),
+    // Subscribe to onSync only; the onEvent stream is deprecated in
+    // recent Matrix SDK versions. [_processRoomsIfChanged] short-
+    // circuits on no-op ticks (same room, same last-event timestamp)
+    // so the per-tick scan is cheap when nothing has actually moved.
+    _subscriptions.add(
+      _client.onSync.stream.listen((_) => _processRoomsIfChanged()),
     );
+  }
+
+  /// Calls [_processRooms] only when something has actually changed
+  /// since the last tick.  Cheap O(rooms) signature check over each
+  /// room's last event; if the cache is empty the first tick still
+  /// runs so we never get stuck.
+  ///
+  /// The signature covers every room's last event ID, not just the room
+  /// with the newest timestamp.  Tracking a single max-timestamp room
+  /// would drop notifications for rooms whose new message has an older
+  /// timestamp than the current global maximum.
+  String? _lastProcessSignature;
+  void _processRoomsIfChanged() {
+    final all = _client.rooms;
+    final buf = StringBuffer();
+    var count = 0;
+    for (final room in all) {
+      final e = room.lastEvent;
+      if (e == null) continue;
+      buf.write(room.id);
+      buf.write('#');
+      buf.write(e.eventId);
+      buf.write(';');
+      count++;
+    }
+    final signature = '$count:$buf';
+    if (signature == _lastProcessSignature) return;
+    _lastProcessSignature = signature;
+    _processRooms();
+  }
+
+  /// Refresh the cached focus state from the window manager.  Called
+  /// at most once per notification flush so we don't hammer the platform
+  /// bridge on every event.
+  Future<void> _updateFocusState() async {
+    if (_focusChecked) return;
+    _focusChecked = true;
+    try {
+      _hasFocus = await windowManager.isFocused();
+    } catch (_) {
+      // Window manager unavailable (e.g. tests); assume focused.
+      _hasFocus = true;
+    }
   }
 
   void _processRooms() {
     if (!_settings.notificationsEnabled) return;
+
+    // Refresh focus state once per sync tick so that the
+    // notifyWhenFocused check in _processEvent uses a recent value
+    // without making an async bridge call for every event.
+    unawaited(_updateFocusState());
 
     bool changed = false;
     bool groupChanged = false;
@@ -255,14 +519,15 @@ class NotificationService {
     // Group summary accumulators.
     int totalGroupUnread = 0;
     int groupRoomCount = 0;
-    String? singleGroupName;
+    String? lastGroupName;
+    String? lastGroupRoomId;
 
     for (final room in _client.rooms) {
       if (room.membership != Membership.join) continue;
       if (_mutedRooms.contains(room.id)) continue;
 
       if (room.isDirectChat) {
-        // ── Direct message: per-message notification ──
+        // -- Direct message: per-message notification --
         final event = room.lastEvent;
         if (event == null) continue;
 
@@ -281,7 +546,10 @@ class NotificationService {
 
         _processEvent(room, event);
       } else {
-        // ── Group chat: accumulate for summary notification ──
+        // -- Group chat: skip when DMs-only mode is active --
+        if (_settings.notifyDmsOnly) continue;
+
+        // -- Group chat: accumulate for summary notification --
         final currentCount = room.notificationCount;
         final lastCount = _groupNotifiedCounts[room.id];
 
@@ -290,31 +558,33 @@ class NotificationService {
         _groupNotifiedCounts[room.id] = currentCount;
         groupChanged = true;
 
-        // First time seeing this room — record the baseline count
+        // First time seeing this room: record the baseline count
         // without notifying so we don't spam for pre-existing messages.
         if (lastCount == null) continue;
 
         final delta = currentCount - lastCount;
         if (delta <= 0) continue; // count decreased (user read messages)
 
-        final roomName = room.getLocalizedDisplayname();
         totalGroupUnread += delta;
         groupRoomCount++;
         // Last room with new messages wins for the single-room
-        // summary copy.
-        singleGroupName = roomName;
+        // summary copy. Track the room id too so the deep-link
+        // payload doesn't have to do a name-based lookup.
+        lastGroupName = room.getLocalizedDisplayname();
+        lastGroupRoomId = room.id;
       }
     }
 
     // Debounce all persistence to once-per-burst: a single chat session
     // can shift the *_lastNotifiedEventIds and the group-count maps by
     // many entries per sync, and a half-written prefs blob is just as
-    // wrong as a missing one. 750 ms is well under the SDK's default
-    // 30 s long-poll and keeps the prefs disk write off the hot path.
+    // wrong as a missing one. The window comes from
+    // notificationPersistMs and is meant to stay well under the SDK's
+    // default 30 s long-poll so the prefs write stays off the hot path.
     if (changed || groupChanged) {
       _persistDebouncer?.cancel();
       _persistDebouncer = Timer(
-        const Duration(milliseconds: 750),
+        Duration(milliseconds: _settings.notificationPersistMs),
         () async {
           if (changed) await _persistLastEventIds();
           if (groupChanged) await _persistGroupNotifiedCounts();
@@ -326,7 +596,8 @@ class NotificationService {
       _sendGroupSummary(
         roomCount: groupRoomCount,
         totalUnread: totalGroupUnread,
-        singleGroupName: groupRoomCount == 1 ? singleGroupName : null,
+        singleGroupName: groupRoomCount == 1 ? lastGroupName : null,
+        singleGroupRoomId: groupRoomCount == 1 ? lastGroupRoomId : null,
       );
     }
   }
@@ -337,18 +608,25 @@ class NotificationService {
 
     if (event.senderId == _client.userID) return;
 
-    // Encrypted messages should still notify the user — the SDK
+    // Honour "don't notify when focused" toggle: suppress notification
+    // when the app window has input focus and the user chose not to be
+    // disturbed by foreground alerts.
+    if (!_settings.notifyWhenFocused && _hasFocus) return;
+
+    // Encrypted messages should still notify the user; the SDK
     // may not have decrypted the event by the time the notification
     // fires, in which case the body string is empty. We surface a
     // dedicated "(encrypted message)" placeholder so the user is not
     // left guessing whether a notification was suppressed.
     final isEncrypted = event.type == EventTypes.Encrypted ||
         (event.messageType.isEmpty && event.content['m.ciphertext'] != null);
-    final rawBody = event.content.tryGet('body') as String? ?? '';
+    // Use the generic [Map.tryGet] so a non-string body from a
+    // malformed or foreign event returns null instead of throwing a
+    // TypeError inside the sync listener (which would abort the rest
+    // of the room scan).
+    final rawBody = event.content.tryGet<String>('body') ?? '';
     final isUndecryptedPlaceholder = isEncrypted && rawBody.isEmpty;
-    final body = isUndecryptedPlaceholder
-        ? 'Encrypted message'
-        : rawBody;
+    final body = isUndecryptedPlaceholder ? 'Encrypted message' : rawBody;
     if (body.isEmpty) return;
 
     // Skip if the user is viewing this room
@@ -363,7 +641,8 @@ class NotificationService {
       isUndecryptedPlaceholder
           ? '$senderName sent an encrypted message'
           : '$senderName: $body',
-      payload: 'matrix:r/${room.id}',
+      payload: _encodePayload('matrix:r/${room.id}'),
+      playSound: _settings.notificationSoundEnabled,
     );
   }
 
@@ -376,6 +655,7 @@ class NotificationService {
     required int roomCount,
     required int totalUnread,
     String? singleGroupName,
+    String? singleGroupRoomId,
   }) {
     final String title;
     final String body;
@@ -393,20 +673,18 @@ class NotificationService {
     // Use the deep-link payload only for the single-room case so
     // tapping it jumps straight to the room; for the multi-room case
     // we leave the payload empty and the listener just brings the
-    // window forward.
+    // window forward.  We have the room id directly from the caller
+    // so no scan over all rooms is needed.
     String? payload;
-    if (singleGroupName != null) {
-      final ids = _client.rooms
-          .where((r) => r.getLocalizedDisplayname() == singleGroupName)
-          .map((r) => r.id)
-          .toList();
-      if (ids.length == 1) payload = 'matrix:r/${ids.first}';
+    if (singleGroupRoomId != null) {
+      payload = _encodePayload('matrix:r/$singleGroupRoomId');
     }
     _showNotification(
       groupSummaryTag,
       title,
       body,
       payload: payload,
+      playSound: _settings.notificationSoundEnabled,
     );
   }
 
@@ -415,6 +693,7 @@ class NotificationService {
     String title,
     String body, {
     String? payload,
+    bool playSound = true,
   }) async {
     final plugin = _plugin;
     if (plugin == null) {
@@ -427,7 +706,7 @@ class NotificationService {
         id: 0, // ignored when a tag is provided on every supported platform
         title: title,
         body: body,
-        notificationDetails: _details,
+        notificationDetails: _buildDetails(payload, playSound: playSound),
         payload: payload,
       );
     } catch (e) {
@@ -446,8 +725,9 @@ class NotificationService {
     await plugin.show(
       id: 0,
       title: 'Moonrelay',
-      body: 'This is a test notification from Moonrelay.',
-      notificationDetails: _details,
+      body: _strings?.testNotificationBody ??
+          'This is a test notification from Moonrelay.',
+      notificationDetails: _buildDetails(null),
     );
     return true;
   }
@@ -458,13 +738,20 @@ class NotificationService {
     if (_notifiedEventIds.add(eventId)) {
       _seenOrder.add(eventId);
     }
-    while (_seenOrder.length > _notifiedIdsCacheLimit) {
+    // notificationDedupeCacheSize is clamped to at least 1, so this
+    // always keeps the entry that was just added. At 0 the cache would
+    // empty itself on insert and the dedupe would silently stop working
+    // while still looking configured.
+    final limit = _settings.notificationDedupeCacheSize < 1
+        ? 1
+        : _settings.notificationDedupeCacheSize;
+    while (_seenOrder.length > limit) {
       final oldest = _seenOrder.removeAt(0);
       _notifiedEventIds.remove(oldest);
     }
   }
 
-  // ── Persisted group notified counts ────
+  // -- Persisted group notified counts ----
 
   Future<void> _loadGroupNotifiedCounts() async {
     try {
@@ -500,7 +787,7 @@ class NotificationService {
     }
   }
 
-  // ── Persisted last-notified event IDs ──
+  // -- Persisted last-notified event IDs --
 
   Future<void> _loadLastEventIds() async {
     try {
@@ -549,13 +836,13 @@ class NotificationService {
     return null;
   }
 
-  // ── Per-room mute preferences ───────────
+  // -- Per-room mute preferences -----------
 
   Future<void> loadMutedRooms() async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // ── Current format (StringList) ────────────────────────
+      // -- Current format (StringList) ------------------------
       // getStringList uses `as List<String>?` internally and throws
       // TypeError when the stored value is a legacy comma-separated
       // String rather than a List<String>. Catch that gracefully so
@@ -567,11 +854,10 @@ class NotificationService {
       if (raw != null) {
         _mutedRooms = raw.where((id) => id.isNotEmpty).toSet();
       } else {
-        // ── Migration from old comma-separated format ────────
+        // -- Migration from old comma-separated format --------
         final oldRaw = prefs.getString(_mutedRoomsKey);
         if (oldRaw != null) {
-          _mutedRooms =
-              oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
+          _mutedRooms = oldRaw.split(',').where((id) => id.isNotEmpty).toSet();
           await prefs.setStringList(_mutedRoomsKey, _mutedRooms.toList());
           await prefs.remove('${_mutedRoomsKey}_legacy');
         }
@@ -609,8 +895,11 @@ class NotificationService {
   /// Cancels the sync subscription and any pending persistence work.
   /// Safe to call multiple times.
   void dispose() {
-    _syncSubscription?.cancel();
-    _syncSubscription = null;
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+    _settings.removeListener(_onSettingsChanged);
     _persistDebouncer?.cancel();
     _persistDebouncer = null;
     // Reset the in-memory caches so a re-`init` after `dispose`
@@ -626,4 +915,42 @@ class NotificationService {
     _plugin = null;
     _available = false;
   }
+
+  // -- Public helpers used by the timeline for "catch up" affordances --
+
+  /// Returns the most recently notified event id for [roomId] or an
+  /// empty string when no notification has ever fired for the room.
+  /// Used by the timeline to compute the unread gap and offer a
+  /// "Jump to first unread" affordance when the room is opened.
+  String lastNotifiedEventIdFor(String roomId) =>
+      _lastNotifiedEventIds[roomId] ?? '';
+
+  /// Returns the last persisted group-unread count for [roomId] or
+  /// `null` when no baseline has been recorded yet.
+  int? lastNotifiedGroupCountFor(String roomId) => _groupNotifiedCounts[roomId];
+
+  /// Mirrors the timeline's "I just marked this room read" event into
+  /// the local notification bookkeeping so the next sync tick doesn't
+  /// emit a stale "you have N new messages" notification for a room
+  /// the user has just caught up on.
+  ///
+  /// This is the timeline-side counterpart to [_markUriAsRead]: both
+  /// paths funnel through the same debounced persistence so the prefs
+  /// blob stays consistent regardless of which surface the user used to
+  /// clear the badge.
+  void onRoomReadByTimeline(String roomId, String eventId) {
+    final room = _client.getRoomById(roomId);
+    if (room == null) return;
+    _lastNotifiedEventIds[roomId] = eventId;
+    _groupNotifiedCounts[roomId] = room.notificationCount;
+    _persistDebouncer?.cancel();
+    _persistDebouncer = Timer(
+      const Duration(milliseconds: 750),
+      () async {
+        await _persistLastEventIds();
+        await _persistGroupNotifiedCounts();
+      },
+    );
+  }
 }
+

@@ -19,7 +19,7 @@ import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
 
 void main() {
   group('MatrixUriParser', () {
-    // ── matrix: scheme parsing ─────────────────────────────────
+    // -- matrix: scheme parsing ---------------------------------
     group('matrix: scheme', () {
       test('parses matrix:r/!roomid:domain', () {
         final result = MatrixUriParser.parse('matrix:r/!roomid:example.org');
@@ -69,9 +69,49 @@ void main() {
         final result = MatrixUriParser.parse('matrix:r/roomid:example.org');
         expect(result, isNull);
       });
+
+      // The app generates event permalinks and used to be unable to
+      // resolve them, so a link copied out of Moonrelay opened the room
+      // without focusing the message.
+      test(r'parses matrix:roomid/!room:domain/$event', () {
+        final result = MatrixUriParser.parse(
+          'matrix:roomid/!roomid:example.org/\$eventid',
+        );
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.event);
+        expect(result.entityId, r'$eventid');
+        expect(result.roomId, '!roomid:example.org');
+        expect(result.targetRoomId, '!roomid:example.org');
+      });
+
+      test(r'parses matrix:roomid/!room:domain/$event with via', () {
+        final result = MatrixUriParser.parse(
+          'matrix:roomid/!roomid:example.org/\$eventid?via=relay.example',
+        );
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.event);
+        expect(result.entityId, r'$eventid');
+        expect(result.roomId, '!roomid:example.org');
+        expect(result.viaServers, ['relay.example']);
+      });
+
+      test('rejects an event permalink with a non-event suffix', () {
+        expect(
+          MatrixUriParser.parse(
+            'matrix:roomid/!roomid:example.org/notanevent',
+          ),
+          isNull,
+        );
+        expect(
+          MatrixUriParser.parse(
+            'matrix:roomid/@user:example.org/\$eventid',
+          ),
+          isNull,
+        );
+      });
     });
 
-    // ── matrix.to permalink parsing ────────────────────────────
+    // -- matrix.to permalink parsing ----------------------------
     group('matrix.to permalink', () {
       test('parses room permalink', () {
         final result = MatrixUriParser.parse(
@@ -110,6 +150,78 @@ void main() {
         expect(result.viaServers, ['server1.org']);
       });
 
+      test('parses an event permalink into room plus event', () {
+        final result = MatrixUriParser.parse(
+          'https://matrix.to/#/!roomid:example.org/\$eventid',
+        );
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.event);
+        expect(result.entityId, r'$eventid');
+        expect(result.roomId, '!roomid:example.org');
+        expect(result.targetRoomId, '!roomid:example.org');
+        // An event permalink is not itself a room, so the auto-join and
+        // preview branches must not treat it as one.
+        expect(result.isRoom, isFalse);
+      });
+
+      test('parses an event permalink with via servers', () {
+        final result = MatrixUriParser.parse(
+          'https://matrix.to/#/!roomid:example.org/\$eventid?via=relay.example',
+        );
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.event);
+        expect(result.viaServers, ['relay.example']);
+      });
+
+      test('rejects an event permalink with a malformed suffix', () {
+        expect(
+          MatrixUriParser.parse(
+            'https://matrix.to/#/!roomid:example.org/notanevent',
+          ),
+          isNull,
+        );
+        expect(
+          MatrixUriParser.parse(
+            'https://matrix.to/#/@user:example.org/\$eventid',
+          ),
+          isNull,
+        );
+      });
+
+      test('buildEventPermalink round-trips through parse', () {
+        final link = MatrixUriParser.buildEventPermalink(
+          '!roomid:example.org',
+          r'$eventid',
+          via: ['relay.example'],
+        );
+        final result = MatrixUriParser.parse(link);
+        expect(result, isNotNull);
+        expect(result!.entityType, MatrixUriEntity.event);
+        expect(result.roomId, '!roomid:example.org');
+        expect(result.entityId, r'$eventid');
+        expect(result.viaServers, ['relay.example']);
+      });
+
+      test('a broken percent-escape degrades to no match', () {
+        // A literal `%` is legal in a Matrix room id, and this parser
+        // runs on every message body that contains a matrix-looking
+        // string.  Throwing here would take the renderer down with it.
+        expect(
+          MatrixUriParser.parse('https://matrix.to/#/!ro%om:example.org'),
+          isNull,
+        );
+        expect(
+          MatrixUriParser.parse('https://matrix.to/#/!room:example.org/\$ev%ent'),
+          isNull,
+        );
+        // The scan path must be equally unharmed, since that is what the
+        // message renderer actually calls.
+        expect(
+          MatrixUriParser.parseAll('see https://matrix.to/#/!ro%om:example.org'),
+          isEmpty,
+        );
+      });
+
       test('handles URL-encoded characters in fragment', () {
         final result = MatrixUriParser.parse(
           'https://matrix.to/#/%23alias%3Aexample.org',
@@ -120,7 +232,7 @@ void main() {
       });
     });
 
-    // ── parseAll (scanning text) ────────────────────────────────
+    // -- parseAll (scanning text) --------------------------------
     group('parseAll', () {
       test('finds matrix: URIs in plain text', () {
         final results = MatrixUriParser.parseAll(
@@ -162,7 +274,7 @@ void main() {
       });
     });
 
-    // ── URI builder methods ────────────────────────────────────
+    // -- URI builder methods ------------------------------------
     group('buildRoomUri', () {
       test('builds basic room URI', () {
         final uri = MatrixUriParser.buildRoomUri('!roomid:example.org');
@@ -193,7 +305,7 @@ void main() {
       });
     });
 
-    // ── Bare Matrix ID parsing ──────────────────────────────────
+    // -- Bare Matrix ID parsing ----------------------------------
     group('bare Matrix IDs', () {
       test('parses @user:domain as user', () {
         final result = MatrixUriParser.parse('@user:example.org');
@@ -259,7 +371,7 @@ void main() {
 
       test('does not detect bare room IDs in plain text', () {
         // Bare room IDs (starting with `!`) are deliberately excluded from
-        // `parseAll` — they are random-looking 26-character strings that
+        // `parseAll`: they are random-looking 26-character strings that
         // collide with normal prose.  Use `matrix:r/!room:domain` instead.
         final results = MatrixUriParser.parseAll(
           'Join !room:example.org for discussion',

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Part of Moonrelay, a matrix protocol client.
+  Copyright (C) 2025 Surena Karimpour Ghannadi
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as
+  published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  The Moonrelay mark: three nested crescents and one dot.
+
+  Concentric circles of r 25, 18.5 and 12 about (34,33), each swept from
+  -38 degrees to +52 degrees. That is 270 degrees of arc, and the remaining 90
+  is the gap on the right. A 270 degree arc read at a glance is a crescent,
+  which is the whole reason the Moon is here rather than a set of bars.
+
+  270 degrees is also the number that separates this mark from a wifi glyph.
+  Signal marks are 180 degree semicircles opening away from a point on the
+  circle; sweep past 180 and the arcs stop being radiation and become the
+  thing they are an echo of. Three nested ones, evenly spaced at 6.5 units, so
+  the gaps read as rhythm rather than as perspective.
+
+  The dot is the relay and the mark's only asymmetry. It sits on the outer
+  arc's radius at r 30.5, which is 5.5 units past where that arc stops. It
+  could not be a round line cap: the arcs already end in round caps, so a dot
+  in the same place would be indistinguishable from a slightly bolder end
+  stroke. Offset from the terminus is what makes it read as something that
+  left.
+
+  Stroke weight is 2.6 on a 64 box, which is 4 percent. Thinner matches the
+  reference more closely and falls under one device pixel at 24px, which is
+  where this is mostly seen; 2.6 keeps every arc visible there. The dot is
+  what carries the mark if the arcs ever do go sub-pixel.
+
+  Colour is left as currentColor so one file serves both themes.
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  width="64"
+  height="64"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2.6"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  role="img"
+  aria-label="Moonrelay"
+>
+  <!-- Three nested crescents, all opening to the right. -->
+  <path d="M53.7 17.61A25 25 0 1 0 49.39 52.7" />
+  <path d="M48.58 21.61A18.5 18.5 0 1 0 45.39 47.58" />
+  <path d="M43.46 25.61A12 12 0 1 0 41.39 42.46" />
+  <!-- The relayed signal, past the end of the outermost arc. -->
+  <circle cx="58.03" cy="14.22" r="2.9" fill="currentColor" stroke="none" />
+</svg>

@@ -15,10 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
@@ -28,17 +28,22 @@ import 'package:moonrelay/src/chat/share_location_dialog.dart';
 import 'package:moonrelay/src/chat/typing_indicator.dart';
 import 'package:moonrelay/src/chat/voice_recorder_dialog.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/helpers/upload_limits.dart';
 import 'package:moonrelay/src/helpers/markdown_to_html.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/services/draft_service.dart';
+import 'package:moonrelay/src/settings/chat_preferences.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// A modern chat composition widget with formatting tools,
 /// attachment support, and a compact/expanded mode toggle.
 ///
-/// **Compact mode** – single-line text field with an attach button,
+/// ** Compact mode**: single-line text field with an attach button,
 /// an expand toggle, and a send button.
 ///
-/// **Expanded mode** – multi-line editor with a full formatting toolbar
+/// ** Expanded mode**: multi-line editor with a full formatting toolbar
 /// (bold, italic, strikethrough, inline code, blockquote, heading,
 /// unordered list, link), an attach button, and a send button.
 class ChatBox extends StatefulWidget {
@@ -46,6 +51,7 @@ class ChatBox extends StatefulWidget {
     super.key,
     required this.room,
     this.replyTarget,
+    this.editTarget,
     this.threadRootEventId,
   });
 
@@ -54,6 +60,12 @@ class ChatBox extends StatefulWidget {
   /// A notifier that signals which event (if any) the user is currently
   /// replying to.  Set to `null` to clear the reply preview.
   final ValueNotifier<Event?>? replyTarget;
+
+  /// A notifier that signals which event (if any) the user is currently
+  /// editing.  When non-null the chat box enters edit mode: the message
+  /// body is loaded into the composer, a banner marks the event being
+  /// edited, and sending edits the event instead of posting a new message.
+  final ValueNotifier<Event?>? editTarget;
 
   /// When non-null, messages are sent as replies in this thread.
   final String? threadRootEventId;
@@ -71,19 +83,27 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isEmpty = true;
   Event? _replyEvent;
+  Event? _editEvent;
   bool _disposed = false;
   late final TypingNotifier _typingNotifier = TypingNotifier(widget.room);
 
   /// The composer text captured immediately before [_send] cleared the
-  /// controller.  Stored so we can restore it if `sendFn` throws — the
+  /// controller.  Stored so we can restore it if `sendFn` throws; the
   /// user can correct and resend without retyping a long message.
   String? _draftValue;
+
+  /// Saved draft text from before entering edit mode, restored on cancel.
+  String? _previousDraft;
+
+  /// Per-room draft persistence.  Initialized when a room is available
+  /// and [draftsEnabled] is true.
+  DraftService? _draftService;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
-    _focusNode = FocusNode();
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
     _expandController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -93,7 +113,47 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
     _controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
     widget.replyTarget?.addListener(_onReplyTargetChanged);
+    widget.editTarget?.addListener(_onEditTargetChanged);
+    // Load persisted draft after init so the listener is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft());
+  }
+
+  /// Rebuilds when the field gains or loses focus.
+  ///
+  /// The pill's border reads `_focusNode.hasFocus`, and a `FocusNode` is a
+  /// `ChangeNotifier`, not something `build` re-runs on. Reading the flag
+  /// without listening meant the accent border was computed once at mount and
+  /// never again, so the composer advertised "this border means you are typing"
+  /// and then never changed colour.
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Loads the persisted draft for the current room, if drafts are enabled.
+  Future<void> _loadDraft() async {
+    if (!context.mounted) return;
+    final settings = context.read<SettingsController>();
+    if (!settings.draftsEnabled) return;
+    final client = context.read<Client>();
+    final userId = client.userID;
+    if (userId == null) return;
+    // Shared per-account DraftService so multiple ChatBox instances
+    // share the same debounce timer.  [release] is called in
+    // [dispose] to balance the reference count.
+    final drafts = DraftService.instanceFor(userId);
+    _draftService = drafts;
+    // The service is ref-counted and outlives any single composer, so
+    // push the current values on every load rather than letting it keep
+    // whatever it was constructed with.
+    drafts.setDebounce(Duration(milliseconds: settings.draftAutosaveMs));
+    final draft = await drafts.load(
+      widget.room.id,
+      maxAge: Duration(days: settings.draftRetentionDays),
+    );
+    if (!mounted || draft.isEmpty) return;
+    _controller.text = draft.body;
   }
 
   @override
@@ -103,17 +163,30 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       oldWidget.replyTarget?.removeListener(_onReplyTargetChanged);
       widget.replyTarget?.addListener(_onReplyTargetChanged);
     }
+    if (oldWidget.editTarget != widget.editTarget) {
+      oldWidget.editTarget?.removeListener(_onEditTargetChanged);
+      widget.editTarget?.addListener(_onEditTargetChanged);
+    }
   }
 
   @override
   void dispose() {
     _disposed = true;
     widget.replyTarget?.removeListener(_onReplyTargetChanged);
+    widget.editTarget?.removeListener(_onEditTargetChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
+    // The listener goes before the node, and in that order: removing from a
+    // disposed notifier is the kind of thing that throws only on the second
+    // room you open.
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _expandController.dispose();
     _typingNotifier.dispose();
+    // Balance the ref count we took in [_loadDraft]; the underlying
+    // service may be torn down (timer cancelled) once we're the last
+    // ChatBox for this account.
+    _draftService?.release();
     super.dispose();
   }
 
@@ -125,6 +198,33 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     }
   }
 
+  void _onEditTargetChanged() {
+    if (!mounted) return;
+    final target = widget.editTarget?.value;
+    if (target == _editEvent) return;
+    if (target != null) {
+      // Save the current composer text so it can be restored on cancel.
+      _previousDraft = _controller.text;
+      // Pre-fill the composer with the event's body, preferring the
+      // latest edited body from the timeline when available.
+      _fillEditText(target);
+      _clearReply();
+      _focusNode.requestFocus();
+    }
+    setState(() => _editEvent = target);
+  }
+
+  /// Loads the body of [target] into the composer, using the SDK's
+  /// [Event.getDisplayEvent] when a timeline is available.
+  Future<void> _fillEditText(Event target) async {
+    try {
+      final tl = await target.room.getTimeline();
+      _controller.text = target.getDisplayEvent(tl).body;
+    } catch (_) {
+      _controller.text = target.body;
+    }
+  }
+
   void _onTextChanged() {
     final empty = _controller.text.trim().isEmpty;
     if (empty != _isEmpty) {
@@ -133,27 +233,87 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     // Typing indicators: fire only when transitioning to non-empty,
     // and rely on the TypingNotifier to throttle & auto-stop.
     if (!empty) {
-      _typingNotifier.notify();
+      // Honour the user-level "send typing notifications" toggle.
+      final settings = context.read<SettingsController>();
+      if (settings.sendTypingNotifications) {
+        _typingNotifier.notify();
+      }
+    }
+    // Debounced draft save, if drafts are enabled.
+    _draftService?.scheduleSave(
+      widget.room.id,
+      _controller.text,
+      replyToEventId: _replyEvent?.eventId,
+    );
+  }
+
+  /// Whether plain Enter should send the message (vs. only Cmd+Enter).
+  bool _shouldEnterSend() {
+    if (!context.mounted) return !_isExpanded;
+    final shortcut = context.read<SettingsController>().sendShortcut;
+    switch (shortcut) {
+      case SendShortcut.enter:
+      case SendShortcut.both:
+        return true;
+      case SendShortcut.cmdEnter:
+        return false;
     }
   }
 
-  // ---------------------------------------------------------------------------
+  /// Handles raw key events on the composer's [FocusNode] so we can
+  /// intercept Enter / Cmd+Enter regardless of [TextInputAction].
+  ///
+  /// Plain Enter dispatches [_send] or inserts a newline depending on
+  /// the user's [SendShortcut] preference.  Cmd/Ctrl+Enter always sends.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final isMeta = HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isControlPressed;
+
+    if (event.logicalKey != LogicalKeyboardKey.enter &&
+        event.logicalKey != LogicalKeyboardKey.numpadEnter) {
+      return KeyEventResult.ignored;
+    }
+
+    if (isMeta) {
+      _send();
+      return KeyEventResult.handled;
+    }
+
+    if (_shouldEnterSend() && !HardwareKeyboard.instance.isShiftPressed) {
+      _send();
+      return KeyEventResult.handled;
+    }
+
+    // Let Shift+Enter / plain Enter when not in send-mode insert a newline.
+    return KeyEventResult.ignored;
+  }
+
   // Actions
-  // ---------------------------------------------------------------------------
 
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    final editEvent = _editEvent;
+    if (editEvent != null) {
+      await _sendEdit(text, editEvent);
+      return;
+    }
+
     final log = context.read<Logger>();
     final replyTo = _replyEvent;
-    final html = MarkdownToHtml.convert(text);
+    // Parse the Markdown on a background isolate so the UI thread
+    // stays responsive even when the user pastes a long message with
+    // many code fences / list items.
+    final html = await MarkdownToHtml.convertAsync(text);
     final hasHtml = html.isNotEmpty && html != text;
 
-    // ── Slash commands ──────────────────────────────────────────────────
+    // -- Slash commands --------------------------------------------------
     // The chat composer accepts a tiny set of builtin commands:
-    //   /me <text>      — sends as m.emote (third-person action).
-    //   /shrug <text>   — prepends the ¯\_(ツ)_/¯ shrug glyph and sends
+    //   /me <text>       sends as m.emote (third-person action).
+    //   /shrug <text>    prepends the ¯\_(ツ)_/¯ shrug glyph and sends
     //                     as plain text.
     String effectiveBody = text;
     String? emoteMsgtype;
@@ -181,8 +341,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                AppLocalizations.of(context)!
-                    .unsupportedSlashCommand(cmd),
+                AppLocalizations.of(context)!.unsupportedSlashCommand(cmd),
               ),
               duration: const Duration(seconds: 2),
             ),
@@ -243,8 +402,14 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
       _controller.clear();
 
       await withTimeout(sendFn, timeout: kDefaultTimeout);
-      // Success — clear the draft.
+      // The composer may have been disposed while the send was in
+      // flight; guard before touching state (the error path below is
+      // already guarded).
+      if (!mounted) return;
+      // Success: clear the draft.
       _draftValue = null;
+      _draftService?.cancelPending();
+      unawaited(_draftService?.clear(widget.room.id));
       _clearReply();
     } catch (e) {
       log.w('Failed to send message', error: e);
@@ -270,48 +435,91 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     setState(() => _replyEvent = null);
   }
 
+  void _clearEdit() {
+    // Restore the draft that was in the composer before editing.
+    if (_previousDraft != null && _previousDraft!.isNotEmpty) {
+      _controller.text = _previousDraft!;
+    }
+    _previousDraft = null;
+    widget.editTarget?.value = null;
+    setState(() => _editEvent = null);
+  }
+
+  /// Sends an `m.replace` edit for [editEvent] with [newBody].
+  Future<void> _sendEdit(String newBody, Event editEvent) async {
+    final log = context.read<Logger>();
+    final html = await MarkdownToHtml.convertAsync(newBody);
+    final hasHtml = html.isNotEmpty && html != newBody;
+
+    final content = <String, dynamic>{
+      'msgtype': editEvent.messageType,
+      'body': newBody,
+      if (hasHtml) ...<String, dynamic>{
+        'format': 'org.matrix.custom.html',
+        'formatted_body': html,
+      },
+      'm.new_content': <String, dynamic>{
+        'msgtype': editEvent.messageType,
+        'body': newBody,
+        if (hasHtml) ...<String, dynamic>{
+          'format': 'org.matrix.custom.html',
+          'formatted_body': html,
+        },
+      },
+      'm.relates_to': <String, dynamic>{
+        'rel_type': 'm.replace',
+        'event_id': editEvent.eventId,
+      },
+    };
+
+    // Preserve thread context if the edited event belongs to a thread.
+    if (editEvent.relationshipType == RelationshipTypes.thread &&
+        editEvent.relationshipEventId != null) {
+      (content['m.relates_to'] as Map<String, dynamic>)['m.thread'] =
+          <String, dynamic>{
+        'event_id': editEvent.relationshipEventId,
+      };
+    }
+
+    try {
+      await withTimeout(
+        () => widget.room.sendEvent(content),
+        timeout: kDefaultTimeout,
+      );
+      if (!mounted) return;
+      _clearEdit();
+      _controller.clear();
+      _draftService?.cancelPending();
+    } catch (e) {
+      log.w('Failed to edit message', error: e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.editFailed('$e'),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _attachFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.any,
-      allowMultiple: true,
-      withData: true,
     );
     if (_disposed) return;
     if (result == null || result.files.isEmpty) return;
 
     for (final file in result.files) {
-      final bytes = file.bytes;
-      if (bytes == null) {
-        // Fallback: read from path.
-        final path = file.path;
-        if (path == null) continue;
-        try {
-          final fileBytes = await File(path).readAsBytes();
-          await withTimeout(
-            () => widget.room.sendFileEvent(
-              MatrixFile(bytes: fileBytes, name: file.name),
-            ),
-            timeout: kUploadTimeout,
-          );
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${AppLocalizations.of(context)!.error}: '
-                  '${e is TimeoutException ? AppLocalizations.of(context)!.uploadTimedOut : '$e'}',
-                ),
-              ),
-            );
-          }
-        }
-        continue;
-      }
-
+      // Read bytes on demand via the new PlatformFile API; the older
+      // `file.bytes` and `withData: true` parameters are deprecated in
+      // file_picker 12. readFileBytes checks the picker's size metadata
+      // first, so an oversized video is refused before it is allocated.
       try {
+        final fileBytes = await readFileBytes(file);
         await withTimeout(
           () => widget.room.sendFileEvent(
-            MatrixFile(bytes: bytes, name: file.name),
+            MatrixFile(bytes: fileBytes, name: file.name),
           ),
           timeout: kUploadTimeout,
         );
@@ -341,9 +549,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Text selection helpers
-  // ---------------------------------------------------------------------------
 
   /// Wraps the current selection with [before] and [after] markers.
   ///
@@ -396,24 +602,66 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     _focusNode.requestFocus();
   }
 
-  // ---------------------------------------------------------------------------
+  /// Corner radius of the composer's pill.
+  ///
+  /// A stadium, not a fixed radius: the pill grows to three lines when the
+  /// composer is expanded, and a constant radius on a tall box reads as a
+  /// rounded rectangle with the ends left square. `[double.infinity]` on both
+  /// axes is what Flutter's own `FilledButton` uses for the same reason.
+  static const double _pillRadius = 9999;
+
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final layers = ext.layers;
     final l10n = AppLocalizations.of(context)!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
+    // The composer is one raised shape on the conversation.
+    //
+    // It used to be a full-width bar with a rectangular text field inset in
+    // it, and then a pill on a band one step *darker* than the conversation.
+    // Both put the thing you type into below the message column, which is the
+    // wrong way round: a control you use more than anything else in the window
+    // should not be the least prominent thing in it.
+    //
+    // Now there is no band. The pill sits directly on the conversation and is
+    // one step *lighter* than it, which is the mockup's arrangement and the
+    // reason it reads: the eye finds the raised shape without a border or a
+    // separator having to announce it. The reply preview, the edit banner and
+    // the formatting toolbar live in the same region above it, on the
+    // conversation's own surface, and each is its own card where it needs to
+    // be.
+    // The one place in the shell where a bar's frame lives *inside* the bar's
+    // own height rather than outside it, and the reason the conversation's two
+    // frames disagreed.
+    //
+    // The header reads `paneBarHeight` as a hard `height` with horizontal-only
+    // padding, so it is exactly 52. This used to read the same token as a
+    // `minHeight` on the pill and then add `spaceSm` above and `spaceMd` below
+    // around it, which no token governs. The pill was therefore 52 and the
+    // composer's whole band 72, twenty pixels taller than the bar framing it,
+    // and the icons on it sat lower than the header's because the row was
+    // bottom-aligned and the padding was asymmetric.
+    //
+    // So the band is the bar now: `spaceXs` above and below, and the pill
+    // occupies what is left, which makes the total exactly `paneBarHeight` and
+    // identical to the header's. `paneBarHeight` minus the two insets, rather
+    // than a second number, because two numbers that are supposed to be
+    // complements are exactly the pair that will drift.
+    //
+    // The insets stay. They are what keeps a rounded pill off the window edge
+    // and off the divider above it, and 4px is enough for both.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        t.spaceMd,
+        t.spaceXs,
+        t.spaceMd,
+        t.spaceXs,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -425,19 +673,56 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
             child: _buildFormattingToolbar(colorScheme),
           ),
 
-          // Reply preview banner
-          if (_replyEvent != null) _buildReplyPreview(colorScheme, l10n),
+          // Reply preview banner (hidden during editing)
+          if (_replyEvent != null && _editEvent == null)
+            _buildReplyPreview(colorScheme, l10n),
 
-          // Main input row
-          Padding(
-            padding: EdgeInsets.only(
-              left: 8,
-              right: 6,
-              top: _isExpanded ? 6 : 10,
-              bottom: _isExpanded ? 6 : 10,
+          // Edit-mode banner
+          if (_editEvent != null) _buildEditBanner(colorScheme, l10n),
+
+          // Main input row: one pill, controls on it.
+          AnimatedContainer(
+            duration: t.durationFast,
+            curve: t.curveStandard,
+            // The pill's height, not the band's. `paneBarHeight` less the
+            // `spaceXs` above and below, so the two add up to the same 52 the
+            // header bar is. The composer's own controls are
+            // `minTapTarget * 0.75`, so the row is set rather than left to
+            // whatever its padding and its tallest child work out to.
+            constraints: BoxConstraints(
+              minHeight: t.paneBarHeight - t.spaceXs * 2,
+            ),
+            // Horizontal only. The pill's own vertical padding used to be
+            // `spaceXs`, which put the pill's content at 46 against a 44 budget
+            // and made the band 54: the mismatch this change is about, arriving
+            // from the other side. The field supplies its own vertical inset via
+            // its `contentPadding`, so nothing is lost by not doubling it here,
+            // and the bar height becomes a number the content cannot overrule.
+            padding: EdgeInsets.symmetric(horizontal: t.spaceXs),
+            decoration: BoxDecoration(
+              // The raised step, one above the conversation. This is the
+              // composer's whole visual argument and it is why the pill does
+              // not need a band to sit on.
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(_pillRadius),
+              // The hairline only appears while focused, and then in the
+              // accent: an unfocused field with a permanent outline is a
+              // rectangle drawn around a hole, and the fill already says
+              // "this is a control". Focusing is the one moment the user has
+              // said they are about to type.
+              border: Border.all(
+                color:
+                    _focusNode.hasFocus ? colorScheme.primary : layers.hairline,
+              ),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              // Centre, not `end`. Bottom-aligned is right when the field grows
+              // downward and you want the controls pinned to the last line, but
+              // the row is now the same height as the header bar above it, and
+              // `end` put every control four pixels below where the header's
+              // icons sit. Two bars framing one column should line their
+              // controls up, not merely match in height.
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Attach button
                 _IconButton(
@@ -447,7 +732,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Sticker button
                 _IconButton(
@@ -457,7 +742,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Voice note recorder
                 _IconButton(
@@ -481,59 +766,68 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                 _IconButton(
                   icon: LucideIcons.listChecks,
                   tooltip: l10n.createPoll,
-                  onPressed: () =>
-                      showPollCreateDialog(context, widget.room),
+                  onPressed: () => showPollCreateDialog(context, widget.room),
                   colorScheme: colorScheme,
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
-                // Text field
+                // Text field: no box of its own.
+                //
+                // It used to be a bordered rectangle inside the band, so
+                // the text sat in a box inside a bar inside a pane. Now it
+                // is just the text on the pill, which is what makes the
+                // thing you type into read as one surface.
                 Expanded(
-                  child: Container(
+                  child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxHeight: _isExpanded ? 200 : 48,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.6),
-                      ),
+                      maxHeight: _isExpanded ? 200 : t.minTapTarget,
                     ),
                     child: TextField(
                       controller: _controller,
                       focusNode: _focusNode,
                       maxLines: _isExpanded ? null : 1,
                       minLines: _isExpanded ? 3 : 1,
-                      textInputAction: _isExpanded
-                          ? TextInputAction.newline
-                          : TextInputAction.send,
-                      onSubmitted: _isExpanded ? null : (_) => _send(),
+                      textInputAction: _shouldEnterSend()
+                          ? TextInputAction.send
+                          : TextInputAction.newline,
+                      onSubmitted: _shouldEnterSend() ? (_) => _send() : null,
                       style: TextStyle(
                         fontSize: 15,
                         color: colorScheme.onSurface,
                       ),
+                      // Transparent, so the theme's new filled decoration
+                      // does not paint its own background and border under
+                      // the pill it now sits on.
                       decoration: InputDecoration(
                         hintText: l10n.chatBoxSendMessage,
                         hintStyle: TextStyle(
                           fontSize: 15,
-                          color: colorScheme.onSurface.withValues(alpha: 0.4),
+                          color: colorScheme.onSurface
+                              .withValues(alpha: t.opacitySubtle),
                         ),
+                        filled: false,
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                         isDense: true,
+                        // Vertical padding is `spaceXs`, not `spaceSm`. The
+                        // pill has to fit inside `paneBarHeight` less the two
+                        // band insets, and at `spaceSm` the field's own content
+                        // padding pushed the pill to 49, which made the band 57
+                        // and the mismatch this change is about reappear from
+                        // the other direction. Four pixels of breathing room
+                        // around a 15px line is the same look anyway.
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: t.spaceSm,
+                          vertical: t.spaceXs,
+                        ),
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(width: 2),
+                SizedBox(width: t.spaceXxs),
 
                 // Expand / Collapse button
                 _IconButton(
@@ -563,15 +857,14 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Reply preview banner
-  // ---------------------------------------------------------------------------
 
   /// Builds a banner showing which message the user is replying to, with a
   /// dismiss button to cancel the reply.
   Widget _buildReplyPreview(ColorScheme colorScheme, AppLocalizations? l10n) {
     final replyTo = _replyEvent;
     if (replyTo == null) return const SizedBox.shrink();
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     final senderName = replyTo.senderFromMemoryOrFallback.calcDisplayname();
     final preview = replyTo.body.length > 80
@@ -579,32 +872,34 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
         : replyTo.body;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 8, 2),
+      padding:
+          EdgeInsets.fromLTRB(t.spaceMd, t.spaceXs + 2, t.spaceSm, t.spaceXxs),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        color: colorScheme.primaryContainer.withValues(alpha: t.opacityMuted),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color:
+                colorScheme.outlineVariant.withValues(alpha: t.opacityDisabled),
           ),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 3,
-            height: 32,
+            width: t.borderWidthThick,
+            height: t.spaceXxl,
             decoration: BoxDecoration(
               color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(t.spaceXxs),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.spaceSm),
           Icon(
             Icons.reply_rounded,
-            size: 16,
+            size: t.iconSizeSmall,
             color: colorScheme.primary,
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: t.spaceXs + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,7 +917,8 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
                   preview,
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -630,20 +926,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
               ],
             ),
           ),
-          const SizedBox(width: 4),
-          Tooltip(
-            message: l10n.chatBoxCancelReply,
+          SizedBox(width: t.spaceXs),
+          Semantics(
+            label: l10n.chatBoxCancelReply,
+            button: true,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(t.radiusSm),
                 onTap: _clearReply,
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(t.spaceXs),
                   child: Icon(
                     Icons.close_rounded,
-                    size: 18,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    size: t.iconSizeSmall,
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
                   ),
                 ),
               ),
@@ -654,17 +952,110 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ---------------------------------------------------------------------------
+  // Edit-mode banner
+
+  /// Builds a banner showing which message is being edited, with a
+  /// dismiss button to cancel the edit.
+  Widget _buildEditBanner(ColorScheme colorScheme, AppLocalizations? l10n) {
+    final editTarget = _editEvent;
+    if (editTarget == null) return const SizedBox.shrink();
+    final t = MoonrelayThemeExtension.of(context).tokens;
+
+    final preview = editTarget.body.length > 80
+        ? '${editTarget.body.substring(0, 80)}...'
+        : editTarget.body;
+
+    return Container(
+      padding:
+          EdgeInsets.fromLTRB(t.spaceMd, t.spaceXs + 2, t.spaceSm, t.spaceXxs),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: t.opacityMuted),
+        border: Border(
+          bottom: BorderSide(
+            color:
+                colorScheme.outlineVariant.withValues(alpha: t.opacityDisabled),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: t.borderWidthThick,
+            height: t.spaceXxl,
+            decoration: BoxDecoration(
+              color: colorScheme.tertiary,
+              borderRadius: BorderRadius.circular(t.spaceXxs),
+            ),
+          ),
+          SizedBox(width: t.spaceSm),
+          Icon(
+            Icons.edit_outlined,
+            size: t.iconSizeSmall,
+            color: colorScheme.tertiary,
+          ),
+          SizedBox(width: t.spaceXs + 2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n!.editMessageTitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.tertiary,
+                  ),
+                ),
+                Text(
+                  preview,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: t.spaceXs),
+          Semantics(
+            label: l10n.chatBoxCancelEdit,
+            button: true,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(t.radiusSm),
+                onTap: _clearEdit,
+                child: Padding(
+                  padding: EdgeInsets.all(t.spaceXs),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: t.iconSizeSmall,
+                    color: colorScheme.onSurface
+                        .withValues(alpha: t.opacitySubtle),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Formatting toolbar
-  // ---------------------------------------------------------------------------
 
   Widget _buildFormattingToolbar(ColorScheme colorScheme) {
     final l10n = AppLocalizations.of(context)!;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: t.spaceXs),
       child: Wrap(
-        spacing: 2,
-        runSpacing: 2,
+        spacing: t.spaceXxs,
+        runSpacing: t.spaceXxs,
         children: [
           _formatButton(
             icon: LucideIcons.bold,
@@ -725,12 +1116,16 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   }
 
   Widget _formatDivider() {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      padding:
+          EdgeInsets.symmetric(horizontal: t.spaceXxs, vertical: t.spaceXs),
       child: Container(
-        width: 1,
-        color:
-            Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+        width: t.borderWidthThin,
+        color: Theme.of(context)
+            .colorScheme
+            .outlineVariant
+            .withValues(alpha: t.opacityDisabled),
       ),
     );
   }
@@ -741,20 +1136,22 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     required VoidCallback onTap,
   }) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return SizedBox(
-      width: 32,
-      height: 32,
-      child: Tooltip(
-        message: tooltip,
+      width: t.spaceXxl,
+      height: t.spaceXxl,
+      child: Semantics(
+        label: tooltip,
+        button: true,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(t.radiusSm),
             onTap: onTap,
             child: Icon(
               icon,
-              size: 18,
-              color: cs.onSurface.withValues(alpha: 0.7),
+              size: t.iconSizeSmall,
+              color: cs.onSurface.withValues(alpha: t.opacitySubtle),
             ),
           ),
         ),
@@ -763,9 +1160,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reusable icon button used in the chat box
-// ---------------------------------------------------------------------------
 
 /// A small, clean icon button for the chat box toolbar.
 class _IconButton extends StatelessWidget {
@@ -788,30 +1183,36 @@ class _IconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canTap = enabled && onPressed != null;
-    return Tooltip(
-      message: tooltip,
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    return Semantics(
+      label: tooltip,
+      button: true,
+      enabled: canTap,
+      excludeSemantics: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           onTap: canTap ? onPressed : null,
           child: Container(
-            width: 36,
-            height: 36,
+            width: t.minTapTarget * 0.75,
+            height: t.minTapTarget * 0.75,
             decoration: isPrimary && canTap
                 ? BoxDecoration(
                     color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(t.radiusSm),
                   )
                 : null,
             child: Icon(
               icon,
-              size: 20,
+              size: t.iconSizeMedium,
               color: isPrimary
                   ? (canTap
                       ? colorScheme.onPrimary
-                      : colorScheme.onSurface.withValues(alpha: 0.3))
-                  : colorScheme.onSurface.withValues(alpha: canTap ? 0.7 : 0.3),
+                      : colorScheme.onSurface
+                          .withValues(alpha: t.opacityDisabled))
+                  : colorScheme.onSurface.withValues(
+                      alpha: canTap ? t.opacitySubtle : t.opacityDisabled),
             ),
           ),
         ),

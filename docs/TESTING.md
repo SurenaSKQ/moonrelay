@@ -1,100 +1,103 @@
 # Testing Moonrelay
 
-This document is a short orientation for the test pyramid and how to
-run each layer locally.  The CI workflow (`.github/workflows/tests.yml`)
-runs the same commands on every push.
+Three layers, run in increasing order of cost. CI
+(`.github/workflows/tests.yml`) runs the first two plus a release-build smoke
+test on every push.
 
 ## Layers
 
-### 1. Unit tests (`test/unit/`)
+### Unit (`test/unit/`)
 
-Pure-Dart tests that don't pull in Flutter widgets.  Cover parsers,
-helper utilities, and any logic that can be expressed without
-`WidgetTester`.  These run fastest — typically < 5 s for the entire
-folder.
+Pure Dart, no Flutter widgets. Parsers, helpers, and any logic that can be
+expressed without a `WidgetTester`. The whole folder runs in a few seconds.
 
 ```bash
 flutter test test/unit/
 ```
 
-### 2. Widget tests (`test/widget/`)
+### Widget (`test/widget/`)
 
-`flutter_test` widget tests.  Each widget is mounted in a synthetic
-`MaterialApp` with the providers it actually needs (see
-`test/helpers/widget_test_utils.dart`).
+`flutter_test` widget tests. Each widget is mounted in a synthetic `MaterialApp`
+with the providers it needs; `test/helpers/widget_test_utils.dart` builds the
+standard tree.
 
 ```bash
 flutter test test/widget/
 ```
 
-### 3. Integration tests (`integration_test/`)
+### Integration (`integration_test/`)
 
-Full-app smoke tests run with the `integration_test` package.  All
-Matrix API calls are intercepted by the mock HTTP client in
-`integration_test/helpers/mock_matrix_http_client.dart` — no live
-homeserver is required.  Each test boots a real `Client` + an
-`EncryptionService` and walks the GUI.
+Full-app tests through the `integration_test` package. Every Matrix request is
+intercepted by the mock HTTP client in
+`integration_test/helpers/mock_matrix_http_client.dart`, so no homeserver is
+needed. Each test boots a real `Client` and `EncryptionService` and walks the
+GUI.
 
 ```bash
-flutter test integration_test/ -d linux   # or windows / macos
+flutter test integration_test/ -d linux
+flutter test integration_test/ -d windows
 ```
 
-## What's pinned by tests
+These need a real desktop session and are not part of CI. See
+[CONTRIBUTING.md](../CONTRIBUTING.md#integration-tests) for the reasoning.
 
-| Test file | Pins | Notes |
-| --- | --- | --- |
-| `test/unit/log_redaction_test.dart` | The redaction ruleset.  14 cases covering `syt_…`, `MDA…`, Bearer, `device_id`/`session_id`, password, loginToken, and a chaos line with every class.  **New in this rev — the redaction pipeline had three real bugs that these tests now prevent.** |
-| `test/unit/markdown_round_trip_test.dart` | The `MarkdownToHtml.convert` output for the supported subset.  20 cases that pin tags, XSS hardening, and edge cases.  **New.** |
-| `test/unit/matrix_uri_parser_test.dart` | Bare-Matrix-ID detection and matrix.to permalink parsing.  41 cases.  Already shipped. |
-| `test/unit/space_pinning_test.dart` | SettingsService JSON round-trip for pinned spaces / space order / collapsed groups / space groups.  9 cases.  Already shipped; the JSON encoding was added in a previous rev after the `,`/`|` splitting bug. |
-| `test/widget/encryption_overview_screen_test.dart` | Encryption overview layout (4 sections, Ready/Action-required badges, master-key fingerprint, refresh button, "Why set up?" checklist).  6 cases.  **New.** |
-| `test/widget/chat_box_test.dart` | Reply-with-markdown keeps `formatted_body` in the event content (regression for the bug where the markdown branch lived in the `else` branch of the reply branch).  8 cases total.  **New cases.** |
-| `integration_test/login_test.dart` | Login flow end-to-end (welcome → form → room list).  4 cases.  Already shipped. |
-| `integration_test/room_flow_test.dart` | Room interaction (list, tap to view messages).  2 cases.  Already shipped. |
-| `integration_test/encryption_gui_test.dart` | Encryption flow end-to-end (login + encryption handlers installed + GUI smoke).  **New in this rev — the new `configureEncryptionHandlers()` helper on `MockMatrixHttpClient` makes the encryption flow testable in CI.** |
+## What the heavier tests pin
 
-## Mock HTTP client
+| File | Pins |
+|------|------|
+| `test/unit/log_redaction_test.dart` | The log redaction ruleset: `syt_...`, Matrix access tokens, bearer tokens, `device_id`, `session_id`, passwords and login tokens, plus a line containing every class at once. |
+| `test/unit/markdown_round_trip_test.dart` | `MarkdownToHtml.convert` output for the supported subset, including tag stripping and XSS hardening. |
+| `test/unit/matrix_uri_parser_test.dart` | Bare Matrix ID detection and `matrix.to` permalink parsing. |
+| `test/unit/space_pinning_test.dart` | `SettingsService` round-trips for pinned spaces, space order, collapsed groups and space groups. The JSON encoding exists because the earlier comma and pipe delimiters broke on spaces in a display name. |
+| `test/widget/encryption_overview_screen_test.dart` | The encryption overview layout: section count, Ready and Action-required badges, master key fingerprint, refresh button. |
+| `test/widget/chat_box_test.dart` | That a reply written in Markdown keeps `formatted_body` in the event content. The formatting branch used to sit in the `else` of the reply branch, so replies lost their formatting. |
+| `integration_test/login_test.dart` | Sign-in end to end: welcome screen, form, room list. |
+| `integration_test/room_flow_test.dart` | Room list and opening a room to read its messages. |
+| `integration_test/encryption_gui_test.dart` | Login, encryption handlers installed, GUI smoke. Depends on `configureEncryptionHandlers()` on the mock client. |
 
-`MockMatrixHttpClient` in `integration_test/helpers/` is a `http.BaseClient`
-that intercepts requests by regex.  Each test calls `mockHttp.on(...)` to
-register a handler; the default returns a 404 with an `M_NOT_FOUND`
-errcode.  Two convenience helpers ship:
+## The mock HTTP client
 
-- `mockHttp.addRoom(...)` — pre-populate a room in the sync response.
-- `mockHttp.configureEncryptionHandlers()` — install standard
-  `/keys/upload`, `/keys/device_signing/upload`,
-  `/keys/signatures/upload` handlers and a single bootstrap device
-  for `/devices`.  Tests that need a non-default state can register
-  their own handlers before calling `buildTestApp`.
+`MockMatrixHttpClient` is an `http.BaseClient` that dispatches on a regex. Each
+test registers handlers with `mockHttp.on(...)`; an unmatched request gets a 404
+with an `M_NOT_FOUND` errcode.
 
-## Pre-flight (CI) vs dev
+Two helpers cover most cases:
 
-For local development, `tools/test.sh all` runs the same checks as CI
-in one shot.  The script auto-detects your platform for the
-integration test target, or you can override with `CI_PLATFORM=…`.
+- `mockHttp.addRoom(...)` pre-populates a room in the sync response.
+- `mockHttp.configureEncryptionHandlers()` installs the standard
+  `/keys/upload`, `/keys/device_signing/upload` and `/keys/signatures/upload`
+  routes plus one bootstrap device for `/devices`.
 
-## Adding new tests
+Register your own handlers before `buildTestApp` when you need a different state.
 
-1. **Unit** — drop a new `test_*.dart` in `test/unit/`.  Use the existing
-   pattern of `group(...)` + `test(...)` + plain `expect` assertions.
-2. **Widget** — drop a new `*_test.dart` in `test/widget/`.  Use
-   `wrapWithProviders(...)` from `test/helpers/widget_test_utils.dart`
-   for the standard provider tree, or build a one-off `MaterialApp`
-   if the widget is self-contained.
-3. **Integration** — drop a new `*_test.dart` in
-   `integration_test/`.  Use `buildTestApp(mockHttp: ...)` from
-   `test_app_boot.dart`.  All Matrix API calls go through the mock.
+## Running everything at once
 
-## Common pitfalls
+`./tools/test.sh` runs the same checks as CI. It takes `unit`, `widget`,
+`integration` or `all` (the default), and detects the integration target platform
+unless you pass `CI_PLATFORM`.
 
-- `pumpAndSettle` **deadlocks** on the encryption overview screen
-  because the sync stream keeps emitting events forever.  Use a
-  bounded number of `await tester.pump(const Duration(...))` calls
-  to settle FutureBuilder state.
-- `MockClient`/`MockRoom` from `test/helpers/mocks.dart` use
-  mocktail.  Stub every getter the test reads or `NoSuchMethodError`
-  will be thrown at the first `.userID`/`.deviceID` access.
-- The shared `_textResponse`/`_jsonResponse` helpers in the
-  integration test files are local.  If you need the helper in a
-  new file, copy the helper or move it to
+## Adding tests
+
+1. **Unit**: a `*_test.dart` in `test/unit/`, using `group(...)`, `test(...)`
+   and plain `expect`.
+2. **Widget**: a `*_test.dart` in `test/widget/`. Use `wrapWithProviders(...)`
+   from `test/helpers/widget_test_utils.dart`, or build a bare `MaterialApp` if
+   the widget needs nothing.
+3. **Integration**: a `*_test.dart` in `integration_test/`, using
+   `buildTestApp(mockHttp: ...)` from `test_app_boot.dart`.
+
+## Pitfalls
+
+- `pumpAndSettle` deadlocks on the encryption overview. The sync stream keeps
+  emitting forever, so the tree never goes idle. Pump a bounded number of times
+  with an explicit duration instead.
+- The mocks in `test/helpers/mocks.dart` use mocktail. Stub every getter the
+  test touches, or the first `.userID` or `.deviceID` access throws
+  `NoSuchMethodError`.
+- `_textResponse` and `_jsonResponse` are file-local helpers in the integration
+  tests. Copy one into your file, or move it to
   `integration_test/helpers/json_response.dart`.
+- A test that builds its own stand-in for a real widget proves nothing about that
+  widget. `test/unit/pane_bar_consistency_test.dart` existed in a form that
+  compared two `SizedBox(height: h)` values to each other, which passes whatever
+  the bar renders. Mount the real thing.

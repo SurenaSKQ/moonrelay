@@ -1,0 +1,508 @@
+// Part of Moonrelay, a matrix protocol client.
+// Copyright (C) 2025 Surena Karimpour Ghannadi
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'package:matrix/matrix.dart';
+
+import 'package:moonrelay/src/helpers/thread_utils.dart';
+
+// -- State event detection --
+
+/// Number of minutes within which two events from the same sender are
+/// considered part of the same visual "environment" for grouping purposes.
+const int kMinutesBetweenEnvironments = 10;
+
+/// True when [event] is a Matrix state event (room metadata, membership,
+/// etc.) as opposed to a content event that should be rendered as a
+/// standalone message row.
+///
+/// Uses an explicit whitelist of content event types so that
+/// `m.room.encrypted` events are never misclassified as state events.
+/// The previous implementation (`event.type != Message && event.type != Sticker`)
+/// treated anything that wasn't a message or sticker as a state event, which
+/// caused encrypted messages to be collapsed into [StateEventTile] batches
+/// instead of rendering as individual chat bubbles with their own avatar and
+/// timestamp.
+bool isStateEvent(Event event) {
+  const contentEventTypes = <String>{
+    EventTypes.Message,
+    EventTypes.Sticker,
+    EventTypes.Encrypted,
+  };
+  return !contentEventTypes.contains(event.type);
+}
+
+/// True when [event] is a content event that renders as a regular message
+/// row (message, sticker, or encrypted body).  Inverse of [isStateEvent].
+///
+/// Mirrors [isMessageLikeEvent] from `chat_unread_utils.dart` but also
+/// includes encrypted events, which are content rows that the unread-count
+/// logic also needs to see.
+bool isContentEvent(Event event) => !isStateEvent(event);
+
+// -- Helper predicates --
+
+/// True when [newer] and [older] belong to the same sender and fall within
+/// the same ~10-minute environment, i.e. they should share a visual group.
+///
+/// [newer] is the chronologically newer event (displayed lower in the
+/// timeline) and [older] is the earlier event.  When they form a group,
+/// the older event acts as the group start (shows avatar/name) and the
+/// newer event is a continuation (no avatar).
+///
+/// Stickers never group with adjacent messages -- they are short,
+/// visually-distinct and conventionally shown as standalone rows with
+/// their own sender label.
+bool isContinuation(Event newer, Event older) {
+  if (newer.senderId != older.senderId) return false;
+  if (newer.messageType == MessageTypes.Sticker ||
+      older.messageType == MessageTypes.Sticker) {
+    return false;
+  }
+  return newer.originServerTs.millisecondsSinceEpoch -
+      older.originServerTs.millisecondsSinceEpoch <
+      1000 * 60 * kMinutesBetweenEnvironments;
+}
+
+/// True when [newer] and [older] fall on different calendar days.
+bool isDifferentDay(Event newer, Event older) {
+  final n = newer.originServerTs;
+  final o = older.originServerTs;
+  return n.year != o.year || n.month != o.month || n.day != o.day;
+}
+
+/// Returns the next visible (non-state) event after index [currentI] in
+/// [visibleIndices], or null if none exists.
+///
+/// Walks past hidden state events so they don't incorrectly absorb the
+/// sender info for grouping purposes.
+Event? nextVisibleMessage(
+  List<int> visibleIndices,
+  List<Event> events,
+  int currentI,
+) {
+  int j = currentI + 1;
+  while (j < visibleIndices.length) {
+    final ev = events[visibleIndices[j]];
+    if (!isStateEvent(ev)) {
+      return ev;
+    }
+    j++;
+  }
+  return null;
+}
+
+/// True when a visible event after [eventIndex] still belongs to [group].
+///
+/// False means the walk has left [group], so [eventIndex] is the last visible
+/// event of it and a gap marker belongs here.
+///
+/// Scans every later visible event rather than stopping at the first one from
+/// another group. The indices are ordered, so the first foreign group does
+/// come first, but the question is whether any of this group's events remain
+/// and the answer is not decided by seeing someone else's.
+bool _groupHasLaterVisible(
+  List<int> indices,
+  List<int> groupOf,
+  int eventIndex,
+  int group,
+) {
+  for (final index in indices) {
+    if (index <= eventIndex) continue;
+    if (index < groupOf.length && groupOf[index] == group) return true;
+  }
+  return false;
+}
+
+// -- Visible indices --
+
+/// Indices (into `events`) of events that should appear as standalone
+/// items in the main timeline.
+///
+/// Events are in SDK order (newest -> oldest).  Thread roots are kept
+/// visible; all other related events (reactions, edits, thread replies)
+/// are excluded because they render inline with their parent.
+List<int> visibleIndices(List<Event> events, bool Function(Event)? filter) {
+  final indices = List<int>.generate(events.length, (i) => i);
+  indices.removeWhere((i) {
+    final event = events[i];
+    if (filter != null) return !filter(event);
+    return !ThreadUtils.isVisibleInMainTimeline(event);
+  });
+  return indices;
+}
+
+// -- Undecryptable counter --
+
+/// Counts encrypted events visible under the active filter / state-event
+/// toggle.  Used to drive the undecryptable banner so a new encrypted
+/// arrival updates the badge without invalidating the full item cache.
+int countUndecryptable(List<Event> events, bool Function(Event)? filter) {
+  var count = 0;
+  for (final ev in events) {
+    if (filter != null) {
+      if (!filter(ev)) continue;
+    } else {
+      if (!ThreadUtils.isVisibleInMainTimeline(ev)) continue;
+    }
+    if (ev.type != EventTypes.Encrypted) continue;
+    count++;
+  }
+  return count;
+}
+
+// -- Item model --
+
+/// Kind of entry in the visible timeline list.
+enum TimelineItemKind {
+  /// A regular message, sticker, or encrypted event.
+  event,
+
+  /// A date-boundary separator between two events on different calendar days.
+  dateSeparator,
+
+  /// A collapsed batch of consecutive state events.
+  stateEventBatch,
+
+  /// The undecryptable-encrypted banner (always at index 0 of the item list).
+  undecryptableBanner,
+
+  /// A non-contiguous boundary between two segments of the render list.
+  ///
+  /// Not an event and not addressable, so it has no id and cannot be a jump
+  /// target. It exists because two adjacent history windows otherwise render
+  /// as one continuous conversation with a silent hole in the middle, and the
+  /// user reads the part below the hole as if it directly follows the part
+  /// above it.
+  gap,
+}
+
+/// A single visible entry produced by [buildTimelineItems].
+///
+/// The [TimelineView] widget maps each entry to a concrete [Widget]
+/// ([TimelineItem], [DateSeparator], [StateEventTile], [UndecryptableBanner]).
+/// Keeping the entry as plain data lets the grouping, ordering, and
+/// continuation logic be unit-tested without a Flutter dependency.
+class TimelineItemEntry {
+  const TimelineItemEntry({
+    required this.kind,
+    this.event,
+    this.stateEvents,
+    this.isGroupStart = true,
+    this.isGroupContinuation = false,
+    this.replyCount = 0,
+    this.date,
+    this.undecryptableCount = 0,
+    this.afterGroup,
+    this.groupIndex,
+  });
+
+  /// Which kind of entry this is (see [TimelineItemKind]).
+  final TimelineItemKind kind;
+
+  /// The Matrix event, for [TimelineItemKind.event].
+  final Event? event;
+
+  /// The batch of state events, for [TimelineItemKind.stateEventBatch].
+  final List<Event>? stateEvents;
+
+  /// True when this event is the first in a sender group.
+  final bool isGroupStart;
+
+  /// True when this event continues a sender group (same sender, same
+  /// environment).
+  final bool isGroupContinuation;
+
+  /// Precomputed thread-reply count for this event.
+  final int replyCount;
+
+  /// The date for [TimelineItemKind.dateSeparator].
+  final DateTime? date;
+
+  /// Number of undecryptable encrypted events, for
+  /// [TimelineItemKind.undecryptableBanner].
+  final int undecryptableCount;
+
+  /// For [TimelineItemKind.gap], the index of the group the marker follows.
+  ///
+  /// The group is the newer side of the boundary, so paging *it* forward is
+  /// what closes the hole. Null for every other kind.
+  final int? afterGroup;
+
+  /// Index of the segment group this event came from, when the render list
+  /// spans more than one.
+  ///
+  /// The renderer needs it to hand the item the timeline that actually holds
+  /// its aggregates. Reactions, edits and reply resolution all read
+  /// 	imeline.aggregatedEvents, which is per-timeline, so an item from a
+  /// history window handed the live tail finds nothing.
+  final int? groupIndex;
+
+  /// Convenience constructor for regular message events.
+  static TimelineItemEntry forEvent({
+    required Event event,
+    bool isGroupStart = true,
+    bool isGroupContinuation = false,
+    int replyCount = 0,
+    int? groupIndex,
+  }) =>
+      TimelineItemEntry(
+        kind: TimelineItemKind.event,
+        event: event,
+        isGroupStart: isGroupStart,
+        isGroupContinuation: isGroupContinuation,
+        replyCount: replyCount,
+        groupIndex: groupIndex,
+      );
+
+  /// Convenience constructor for date separators.
+  static TimelineItemEntry forDateSeparator(DateTime date) =>
+      TimelineItemEntry(
+        kind: TimelineItemKind.dateSeparator,
+        date: date,
+      );
+
+  /// Convenience constructor for state-event batches.
+  static TimelineItemEntry forStateBatch(List<Event> stateEvents) =>
+      TimelineItemEntry(
+        kind: TimelineItemKind.stateEventBatch,
+        stateEvents: stateEvents,
+      );
+
+  /// Convenience constructor for the undecryptable banner.
+  static TimelineItemEntry forUndecryptable(int count) => TimelineItemEntry(
+        kind: TimelineItemKind.undecryptableBanner,
+        undecryptableCount: count,
+      );
+
+  /// Convenience constructor for a non-contiguous segment boundary.
+  ///
+  /// [afterGroup] is the index of the group the marker follows, so a caller
+  /// that wants to close the hole knows which segment to grow without having
+  /// to re-derive the boundary from a rendered index.
+  static TimelineItemEntry forGap(DateTime olderThan, {int? afterGroup}) =>
+      TimelineItemEntry(
+        kind: TimelineItemKind.gap,
+        date: olderThan,
+        afterGroup: afterGroup,
+      );
+}
+
+/// Result bundle returned by [buildTimelineItems].
+class TimelineItemsResult {
+  const TimelineItemsResult({
+    required this.items,
+    required this.eventIdToItemIndex,
+    required this.undecryptableCount,
+  });
+
+  /// The flat list of visible items in newest-first order
+  /// (index 0 is nearmost the banner sentinel, then newest event first,
+  /// matching [Timeline.events] order).
+  final List<TimelineItemEntry> items;
+
+  /// Maps each event id to its position in [items].
+  ///
+  /// Used by jump-to-event lookups.  The indices are exact: they count
+  /// every entry [items] contains, including the banner at index 0 and any
+  /// date separators or state batches, so a caller can index [items]
+  /// directly.  Only regular message events are *keys* -- a state-event
+  /// batch and a separator occupy positions but are not individually
+  /// addressable.
+  ///
+  /// This used to be off by one for every event, because the banner was
+  /// `insert`ed at index 0 after the indices were recorded.  A caller that
+  /// trusted it then re-derived the truth by scanning the rendered widget
+  /// list, and the two answers disagreed whenever a banner was present.
+  final Map<String, int> eventIdToItemIndex;
+
+  /// Number of undecryptable encrypted events in the visible list.
+  final int undecryptableCount;
+}
+
+// -- Builder --
+
+/// Produces the list of [TimelineItemEntry] objects for [events] in
+/// newest-first order so that the `reverse: true` ListView places
+/// the newest item at the bottom.
+///
+/// Takes a `List<Event>` rather than a [Timeline]. That is the seam that
+/// lets the render list come from somewhere other than a single SDK
+/// timeline: `TimelineStore.flatten()` returns a plain list spanning the live
+/// tail and any number of history windows, and this function has to accept
+/// that without knowing anything about segments.
+///
+/// The list must already be in SDK order (newest first).
+///
+/// [DateSeparator] entries are interleaved before events that start a
+/// new calendar day.  Consecutive state events are grouped into a single
+/// [TimelineItemEntry] of kind [TimelineItemKind.stateEventBatch] when
+/// [showStateEvents] is true, or filtered out when it is false.
+///
+/// If any visible events are undecryptable (type == `m.room.encrypted`),
+/// an [TimelineItemKind.undecryptableBanner] entry is prepended to alert
+/// the user.
+///
+/// This is the pure-Dart core of the former `TimelineViewState._buildItemList`.
+/// Extracting it here lets the grouping, continuation, and state-event
+/// classification logic be tested without a Flutter widget tester.
+TimelineItemsResult buildTimelineItems(
+  List<Event> events, {
+  bool showStateEvents = true,
+  bool Function(Event)? filterEvents,
+}) =>
+    buildTimelineItemsFromGroups(
+      [events],
+      showStateEvents: showStateEvents,
+      filterEvents: filterEvents,
+    );
+
+/// Builds the item list from segment groups, drawing a
+/// [TimelineItemKind.gap] after each group named in [gapsAfter].
+///
+/// [gapsAfter] holds group indices, so a gap lands after group *i* and before
+/// group *i+1*. Group-relative rather than index-relative on purpose: a raw
+/// index into the flattened list is ambiguous the moment a filter hides
+/// events, because a group's last event may not be rendered at all and an
+/// index-based marker would be dropped along with it, silently closing the
+/// hole the marker exists to show.
+///
+/// Group boundaries do not break sender grouping or day separators. A window
+/// continuing the conversation picks up the same grouping and the same day
+/// divider as an unbroken list, so a gap reads as an interruption in a
+/// conversation rather than a change of conversation.
+TimelineItemsResult buildTimelineItemsFromGroups(
+  List<List<Event>> groups, {
+  Set<int> gapsAfter = const {},
+  bool showStateEvents = true,
+  bool Function(Event)? filterEvents,
+}) {
+  final events = [for (final group in groups) ...group];
+  final indices = visibleIndices(events, filterEvents);
+  final threadReplyCounts = ThreadUtils.buildThreadReplyCounts(events);
+
+  // Which group each event belongs to, so the walk can tell when it has
+  // left one. The model does not need to know how the groups were produced.
+  final groupOf = <int>[];
+  for (var g = 0; g < groups.length; g++) {
+    for (var k = 0; k < groups[g].length; k++) {
+      groupOf.add(g);
+    }
+  }
+
+  // Index 0 is reserved for the undecryptable banner from the start, and
+  // the real entry replaces it at the end.  Reserving the slot rather than
+  // `insert(0, ...)` afterwards is what keeps [eventIdToItemIndex] correct:
+  // an `insert` shifts every recorded index by one, which is exactly the bug
+  // this arrangement avoids.  It also means the banner is present even for a
+  // timeline with nothing undecryptable, which the renderer relies on.
+  final items = <TimelineItemEntry>[TimelineItemEntry.forUndecryptable(0)];
+  final eventIdToItemIndex = <String, int>{};
+  Event? previousVisible;
+  int undecryptableCount = 0;
+  int i = 0;
+
+  while (i < indices.length) {
+    final eventIndex = indices[i];
+    final event = events[eventIndex];
+
+    if (event.type == EventTypes.Encrypted) {
+      undecryptableCount++;
+    }
+
+    if (isStateEvent(event)) {
+      if (showStateEvents) {
+        // Collect a run of consecutive state events.
+        final batch = <Event>[event];
+        i++;
+        while (i < indices.length &&
+            isStateEvent(events[indices[i]])) {
+          batch.add(events[indices[i]]);
+          i++;
+        }
+
+        // Insert a date boundary before the batch if needed (using the
+        // oldest event in the batch for the comparison).
+        if (previousVisible != null &&
+            isDifferentDay(previousVisible, batch.last)) {
+          items.add(TimelineItemEntry.forDateSeparator(
+            batch.last.originServerTs,
+          ));
+        }
+
+        items.add(TimelineItemEntry.forStateBatch(batch));
+        // State events do not participate in message grouping.
+      } else {
+        // Skip state events entirely.
+        i++;
+      }
+    } else {
+      // Regular message event.
+      if (previousVisible != null &&
+          isDifferentDay(previousVisible, event)) {
+        items.add(TimelineItemEntry.forDateSeparator(event.originServerTs));
+      }
+
+      // An event is a continuation of the older event above it
+      // (next in newest-first iteration). Walk past hidden state events
+      // so they don't incorrectly absorb the sender info.
+      final effectiveNextEvent =
+          nextVisibleMessage(indices, events, i);
+      final isContinuationFlag = effectiveNextEvent != null &&
+          isContinuation(event, effectiveNextEvent);
+
+      final replyCount = threadReplyCounts[event.eventId] ?? 0;
+
+      items.add(TimelineItemEntry.forEvent(
+        event: event,
+        isGroupStart: !isContinuationFlag,
+        isGroupContinuation: isContinuationFlag,
+        replyCount: replyCount,
+        groupIndex: eventIndex < groupOf.length ? groupOf[eventIndex] : null,
+      ));
+
+      eventIdToItemIndex[event.eventId] = items.length - 1;
+      previousVisible = event;
+      i++;
+    }
+
+    // Emit the gap once the walk has left this group, if it wants one.
+    // Checked after every event so it survives a group whose tail is
+    // entirely hidden by the filter: the boundary is still crossed, and the
+    // hole is still real. The last group is excluded because a boundary
+    // needs two sides; naming it would put a marker above the whole
+    // timeline for nothing.
+    final g = eventIndex < groupOf.length ? groupOf[eventIndex] : -1;
+    if (g >= 0 &&
+        g < groups.length - 1 &&
+        gapsAfter.contains(g) &&
+        !_groupHasLaterVisible(indices, groupOf, eventIndex, g)) {
+      items.add(TimelineItemEntry.forGap(
+        event.originServerTs,
+        afterGroup: g,
+      ));
+    }
+  }
+
+  // The banner's count is only known once every event has been walked, so it
+  // is filled in now.  Replacing index 0 leaves every other index untouched.
+  items[0] = TimelineItemEntry.forUndecryptable(undecryptableCount);
+
+  return TimelineItemsResult(
+    items: items,
+    eventIdToItemIndex: eventIdToItemIndex,
+    undecryptableCount: undecryptableCount,
+  );
+}

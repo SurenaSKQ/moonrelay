@@ -32,15 +32,50 @@ void main() {
       expect(LayoutBreakpoints.sizeForWidth(899), LayoutSize.medium);
     });
 
-    test('returns expanded between 900 and 1280', () {
-      expect(LayoutBreakpoints.sizeForWidth(900), LayoutSize.expanded);
-      expect(LayoutBreakpoints.sizeForWidth(1024), LayoutSize.expanded);
-      expect(LayoutBreakpoints.sizeForWidth(1279), LayoutSize.expanded);
+    test('returns compact between 900 and 1100 (unified sidebar shell)', () {
+      // The dashboard treats the entire 900-1100 range as a compact
+      // shell so the unified sidebar stays visible.  sizeForWidth still
+      // returns LayoutSize.compact here for consumers that follow the
+      // shell-selection helpers (shouldUseCompact / shouldUseMobile).
+      expect(LayoutBreakpoints.sizeForWidth(900), LayoutSize.compact);
+      expect(LayoutBreakpoints.sizeForWidth(1024), LayoutSize.compact);
+      expect(LayoutBreakpoints.sizeForWidth(1099), LayoutSize.compact);
     });
 
-    test('returns wide at or above 1280', () {
-      expect(LayoutBreakpoints.sizeForWidth(1280), LayoutSize.wide);
+    test('returns wide at or above 1100', () {
+      expect(LayoutBreakpoints.sizeForWidth(1100), LayoutSize.wide);
       expect(LayoutBreakpoints.sizeForWidth(1920), LayoutSize.wide);
+    });
+  });
+
+  group('LayoutBreakpoints.shouldUseCompact', () {
+    test('true in the dashboard compact window (600-1100)', () {
+      expect(LayoutBreakpoints.shouldUseCompact(600), isTrue);
+      expect(LayoutBreakpoints.shouldUseCompact(900), isTrue);
+      expect(LayoutBreakpoints.shouldUseCompact(1099), isTrue);
+    });
+
+    test('false above expandedMax', () {
+      expect(LayoutBreakpoints.shouldUseCompact(1100), isFalse);
+      expect(LayoutBreakpoints.shouldUseCompact(1600), isFalse);
+    });
+
+    test('false below mobileMax (mobile takes over)', () {
+      expect(LayoutBreakpoints.shouldUseCompact(599), isFalse);
+      expect(LayoutBreakpoints.shouldUseCompact(0), isFalse);
+    });
+  });
+
+  group('LayoutBreakpoints.shouldUseMobile', () {
+    test('true below mobileMax', () {
+      expect(LayoutBreakpoints.shouldUseMobile(0), isTrue);
+      expect(LayoutBreakpoints.shouldUseMobile(320), isTrue);
+      expect(LayoutBreakpoints.shouldUseMobile(599), isTrue);
+    });
+
+    test('false at or above mobileMax', () {
+      expect(LayoutBreakpoints.shouldUseMobile(600), isFalse);
+      expect(LayoutBreakpoints.shouldUseMobile(900), isFalse);
     });
   });
 
@@ -69,7 +104,7 @@ void main() {
 
   group('LayoutBreakpoints.clampSidebarWidth', () {
     test('returns requested width when it fits in the viewport', () {
-      // viewport=800, sidebar=400, main=300, other=0 → 400 fits.
+      // viewport=800, sidebar=400, main=300, other=0 -> 400 fits.
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 400,
         viewportWidth: 800,
@@ -81,15 +116,15 @@ void main() {
 
     test('clamps down when the requested width exceeds available', () {
       // viewport=500, sidebar=800, main=300, other=0
-      // available = (500-300-0).clamp(200,600) = 200
-      // clamped = 800.clamp(200, 200) = 200
+      // available = (500-300-0).clamp(240,600) = 240
+      // clamped = 800.clamp(240, 240) = 240
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 800,
         viewportWidth: 500,
         mainMinWidth: 300,
         otherPanesWidth: 0,
       );
-      expect(result, 200);
+      expect(result, 240);
     });
 
     test('respects min sidebar width', () {
@@ -113,7 +148,7 @@ void main() {
     });
 
     test('accounts for other panes when computing available space', () {
-      // viewport=700, sidebar=300, main=200, other=200 → 300 fits.
+      // viewport=700, sidebar=300, main=200, other=200 -> 300 fits.
       final result = LayoutBreakpoints.clampSidebarWidth(
         requestedWidth: 300,
         viewportWidth: 700,

@@ -25,17 +25,19 @@ import 'package:logger/logger.dart';
 /// callback from the browser.
 ///
 /// After the user authenticates in their browser, the homeserver redirects
-/// to `http://localhost:{port}/callback?loginToken={token}&state={nonce}`.
+/// to `http://127.0.0.1:{port}/callback?loginToken={token}&state={nonce}`.
 /// This server validates the `state` parameter against the nonce generated
 /// at [start] time, then captures the token and makes it available via
 /// [token].
 ///
-/// Only GET requests from localhost are accepted; any other request method
-/// or origin is rejected with a 403 response.
+/// Only GET requests carrying a loopback Host header (127.0.0.1 or
+/// localhost) on the server's own port are accepted; any other request
+/// method or origin is rejected with a 403 response.
 class SsoCallbackServer {
   HttpServer? _server;
   Completer<String>? _completer;
   int _port = 0;
+  Uri? _redirectUri;
 
   /// The randomly generated CSRF nonce that must appear in the callback.
   String? _expectedState;
@@ -48,6 +50,11 @@ class SsoCallbackServer {
 
   /// The port the server is listening on, or 0 if not started.
   int get port => _port;
+
+  /// The callback URL handed back by [start], kept so callers that need to
+  /// show the destination to the user can read it back without keeping
+  /// their own copy of a value this class already holds.
+  Uri? get redirectUri => _redirectUri;
 
   /// Starts the local HTTP server on a random available port and returns
   /// the [Uri] the browser should be redirected to for SSO.
@@ -69,15 +76,20 @@ class SsoCallbackServer {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
 
+    // Use the literal loopback address rather than "localhost" in the
+    // redirect.  Browsers may resolve "localhost" to ::1 (IPv6) first,
+    // and the server only listens on 127.0.0.1, which made the callback
+    // fail on systems that prefer IPv6.
     final Uri redirectUri = Uri(
       scheme: 'http',
-      host: 'localhost',
+      host: InternetAddress.loopbackIPv4.address,
       port: _port,
       path: '/callback',
       queryParameters: {'state': _expectedState},
     );
+    _redirectUri = redirectUri;
 
-    // Listen for exactly one request — the SSO redirect.
+    // Listen for exactly one request: the SSO redirect.
     _server!.listen(_handleRequest);
 
     // Self-destruct timer: close server after 120 seconds even without callback.
@@ -101,14 +113,15 @@ class SsoCallbackServer {
     await _server?.close(force: true);
     _server = null;
     _port = 0;
+    _redirectUri = null;
     _expectedState = null;
-    // Don't cancel the completer — callers may still await it.
+    // Don't cancel the completer; callers may still await it.
     // If the token was never received, the future will never complete,
     // and the caller is responsible for a timeout.
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
-    // ── Reject anything that isn't the SSO callback path ──────────
+    // -- Reject anything that isn't the SSO callback path ----------
     // A misbehaving browser tab that hits `/` or any other path would
     // otherwise keep the connection open until the auto-shutdown fires.
     // Returning a 404 closes the request promptly and surfaces the
@@ -128,9 +141,14 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Validate the Host header ────────────────────────────
+    // -- Validate the Host header ----------------------------
+    // The browser navigates to whatever the redirect URI host was.
+    // Accept both loopback spellings (the redirect uses 127.0.0.1, but
+    // a homeserver or proxy may echo `localhost` instead) while still
+    // pinning the exact port so no other origin can reach the callback.
     final host = request.headers.value('host');
-    if (host == null || host != 'localhost:$_port') {
+    final expectedHosts = {'localhost:$_port', '127.0.0.1:$_port'};
+    if (host == null || !expectedHosts.contains(host)) {
       _log.w('SSO: rejected request with Host header "$host"');
       _respondWithError(
         request,
@@ -147,7 +165,7 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Only accept GET ───────────────────────────────────────────
+    // -- Only accept GET -------------------------------------------
     if (request.method.toUpperCase() != 'GET') {
       _respondWithError(
         request,
@@ -160,7 +178,7 @@ class SsoCallbackServer {
 
     final Uri uri = request.uri;
 
-    // ── Validate the CSRF state parameter ─────────────────────────
+    // -- Validate the CSRF state parameter -------------------------
     final String? receivedState = uri.queryParameters['state'];
     if (_expectedState == null ||
         receivedState == null ||
@@ -181,15 +199,15 @@ class SsoCallbackServer {
       return;
     }
 
-    // ── Invalidate state immediately + close server (single-use) ──
+    // -- Invalidate state immediately + close server (single-use) --
     _expectedState = null;
     stop();
 
-    // ── Try to extract the login token ────────────────────────────
+    // -- Try to extract the login token ----------------------------
     final String? loginToken = uri.queryParameters['loginToken'];
 
     if (loginToken != null && loginToken.isNotEmpty) {
-      // ── Success path ──
+      // -- Success path --
       _respondWithPage(
         request,
         200,
@@ -206,7 +224,7 @@ class SsoCallbackServer {
         _completer!.complete(loginToken);
       }
     } else {
-      // ── Fallback: show a page with the full URL so the user can
+      // -- Fallback: show a page with the full URL so the user can
       // manually copy the token if the automatic extraction failed.
       // The URL in the error page omits the token to avoid leaking it.
       _respondWithPage(
@@ -276,7 +294,7 @@ class SsoCallbackServer {
                   background:white;border-radius:12px;box-shadow:0 4px 6px
                   rgba(0,0,0,0.1);">
         <h1 style="font-size:22px;margin-bottom:16px;">
-          Moonrelay — $title
+          Moonrelay  $title
         </h1>
         $bodyHtml
       </div>

@@ -21,12 +21,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// SAS (emoji/number) verification dialog.
 ///
 /// This screen handles both sides of the verification flow:
-/// - **Incoming** — another user has sent us a verification request.
-/// - **Outgoing** — we initiated the request and are waiting for their response.
+/// - ** Incoming**: another user has sent us a verification request.
+/// - ** Outgoing**: we initiated the request and are waiting for their response.
 ///
 /// The widget takes a [KeyVerification] object and listens to its state
 /// transitions to drive the UI.  Callers should obtain the object from
@@ -58,12 +59,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
     super.initState();
 
     if (!widget.isIncoming) {
-      // We already called kv.start() in the service — listen for updates.
+      // We already called kv.start() in the service; listen for updates.
       widget.request.onUpdate = () {
         if (mounted) setState(() {});
       };
     } else {
-      // Incoming — we need to react to the request's built-in stream.
+      // Incoming: we need to react to the request's built-in stream.
       widget.request.onUpdate = () {
         if (mounted) setState(() {});
       };
@@ -80,6 +81,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -92,7 +94,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(t.spaceXl),
           child: _buildBody(scheme, loc, context),
         ),
       ),
@@ -102,6 +104,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget _buildBody(
       ColorScheme scheme, AppLocalizations loc, BuildContext context) {
     final theme = Theme.of(context);
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final req = widget.request;
 
     switch (req.state) {
@@ -119,17 +122,17 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.shieldQuestion, size: 56, color: scheme.primary),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationRequest,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             Text(req.userId, style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => _accept(context),
               child: Text(loc.yesOrAffirmitive),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.spaceSm),
             OutlinedButton(
               onPressed: () => _cancel(context),
               child: Text(loc.noOrCancellation),
@@ -142,9 +145,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.handshake, size: 56, color: scheme.primary),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionChooseMethod, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             if (req.possibleMethods.contains(EventTypes.Sas))
               _methodButton(
                 icon: LucideIcons.smile,
@@ -172,13 +175,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
           children: [
             Text(loc.encryptionCompareEmojis,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(
               loc.encryptionCompareDescription,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             // Emoji display
             if (isEmoji)
               Wrap(
@@ -206,7 +209,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(t.radiusMd),
                     ),
                     child: Text(
                       '$d',
@@ -216,9 +219,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   );
                 }).toList(),
               ),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             Text(loc.encryptionDoTheyMatch, style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -227,7 +230,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   label: Text(loc.encryptionTheyMatch),
                   onPressed: () => _sasMatch(context),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.spaceMd),
                 ElevatedButton.icon(
                   icon: const Icon(LucideIcons.x, color: Colors.red),
                   label: Text(loc.encryptionTheyDontMatch),
@@ -249,10 +252,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.shieldCheck, size: 72, color: Colors.green),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationDone,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(loc.done),
@@ -265,12 +268,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.alertOctagon, size: 56, color: scheme.error),
-            const SizedBox(height: 16),
+            SizedBox(height: t.spaceLg),
             Text(loc.encryptionVerificationFailed,
                 style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
+            SizedBox(height: t.spaceMd),
             Text(req.canceledReason ?? loc.encryptionUnknownError),
-            const SizedBox(height: 24),
+            SizedBox(height: t.spaceXl),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(loc.close),
@@ -295,7 +298,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   /// Builds the recovery prompt shown when the verification flow enters
-  /// the SDK's `askSSSS` state — usually because cross-signing is set up
+  /// the SDK's `askSSSS` state, usually because cross-signing is set up
   /// but locked behind SSSS / a recovery passphrase that the user has
   /// not yet provided to this client.  We cannot drive that step from
   /// the screen (the SDK expects callers to handle it via

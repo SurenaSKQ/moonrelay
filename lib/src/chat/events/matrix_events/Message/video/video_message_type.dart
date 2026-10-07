@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/video/fullscreen_video_player.dart';
+import 'package:moonrelay/src/chat/events/matrix_events/Message/video/video_player_surface.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -21,15 +24,23 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/chat/events/attachment_card.dart';
+import 'package:moonrelay/src/helpers/number_coercion.dart';
+import 'package:moonrelay/src/helpers/room_media_cache.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/settings/attachment_download_policy.dart';
+import 'package:moonrelay/src/settings/media_size_prefs.dart';
+import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 /// Displays a video message with an in-app `video_player` controller.
 ///
-/// Heights follow the message's natural aspect ratio (clamped to the
-/// 16:9 – 9:16 range) so portrait videos aren't stretched into a 320×180
-/// bar anymore. A bottom play/pause overlay appears whenever the user
-/// hovers the video; tapping the video itself toggles play/pause.
+/// Heights follow the message's natural aspect ratio so portrait videos
+/// aren't stretched into a 320×180 bar.  The bubble is left-aligned to
+/// the message (matching the rest of the timeline) instead of being
+/// forced to a full row width.
 class VideoMessageType extends StatefulWidget {
   const VideoMessageType({super.key, required this.event});
   final Event event;
@@ -43,20 +54,64 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   Future<MatrixFile>? _thumbnailFuture;
   VideoPlayerController? _controller;
 
+  /// True after the first controller initialization failed.  Cleared
+  /// when a new attempt is made so the UI offers a retry instead of a
+  /// permanently silent fallback.
+  bool _controllerFailed = false;
+
+  /// Monotonic token so stale build-controller futures can't clobber a
+  /// newer one if the user retries mid-download.
+  int _buildToken = 0;
+
+  /// Scratch timer we schedule when auto-download is in flight so the
+  /// spinner's first frame shows immediately.  Tracked so it can be
+  /// cancelled in [dispose].
+  Timer? _spinnerTimer;
+
+  bool _autoDownloadResolved = false;
+
+  /// Resolved download policy, including the shared size threshold.
+  AttachmentDownloadPolicy _policy = AttachmentDownloadPolicy.permissive;
+
   @override
   void initState() {
     super.initState();
-    if (widget.event.hasAttachment) {
-      _downloadFuture = widget.event.downloadAndDecryptAttachment();
-    }
-    if (widget.event.hasThumbnail) {
-      _thumbnailFuture =
-          widget.event.downloadAndDecryptAttachment(getThumbnail: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveAutoDownload();
+  }
+
+  void _resolveAutoDownload() {
+    if (_autoDownloadResolved) return;
+    _autoDownloadResolved = true;
+    if (!widget.event.hasAttachment) return;
+    _policy = AttachmentDownloadPolicy.of(
+      context,
+      event: widget.event,
+      mediaPolicy: context.read<SettingsController>().autoDownloadVideos,
+    );
+    if (!_policy.shouldAutoDownload) return;
+    // Share the in-flight future with the global cache.
+    _downloadFuture = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
+    if (widget.event.hasThumbnail && _thumbnailFuture == null) {
+      _thumbnailFuture = RoomMediaCache.instance.getOrDownload(
+        '${widget.event.roomId ?? widget.event.eventId}::thumb',
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(getThumbnail: true),
+      );
     }
   }
 
   @override
   void dispose() {
+    _spinnerTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -69,14 +124,19 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
       (_fileName?.split('.').last ?? _mimeType?.split('/').last ?? 'VIDEO')
           .toUpperCase();
 
-  Map<String, dynamic> get _infoMap => widget.event.content['info'] is Map
-      ? widget.event.content['info'] as Map<String, dynamic>
-      : const {};
+  Map<String, dynamic> get _infoMap {
+    final info = widget.event.content['info'];
+    if (info is Map<String, dynamic>) return info;
+    if (info is Map) return Map<String, dynamic>.from(info);
+    return const {};
+  }
 
-  int? get _duration => _infoMap['duration'] as int?;
-  int? get _fileSize => _infoMap['size'] as int?;
-  int? get _videoWidth => _infoMap['w'] as int? ?? _infoMap['width'] as int?;
-  int? get _videoHeight => _infoMap['h'] as int? ?? _infoMap['height'] as int?;
+  int? get _duration => coerceJsonInt(_infoMap['duration']);
+  int? get _fileSize => coerceJsonInt(_infoMap['size']);
+  int? get _videoWidth =>
+      coerceJsonInt(_infoMap['w']) ?? coerceJsonInt(_infoMap['width']);
+  int? get _videoHeight =>
+      coerceJsonInt(_infoMap['h']) ?? coerceJsonInt(_infoMap['height']);
 
   String _formatDuration(int ms) {
     final totalSeconds = ms ~/ 1000;
@@ -85,20 +145,11 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
   /// Computes the height-and-width-clamped box for the video player.
-  ///
-  /// Constrains by height: video fills the available height (max 360)
-  /// while the width follows from the aspect ratio. Falls back to
-  /// 320×180 when dimensions are unknown.
-  Size _playerSize() {
-    const maxWidth = 360.0;
-    const maxHeight = 360.0;
+  /// Falls back to 320×180 when dimensions are unknown.
+  Size _playerSize(double maxBox) {
+    final maxWidth = maxBox;
+    final maxHeight = maxBox;
     final w = _videoWidth?.toDouble();
     final h = _videoHeight?.toDouble();
     if (w == null || h == null || w <= 0 || h <= 0) {
@@ -106,44 +157,103 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
     }
     final ratio = w / h;
     if (h >= w) {
-      // Portrait — clamp height, follow width.
+      // Portrait: clamp height, follow width.
       final height = maxHeight;
       final width = (height * ratio).clamp(120.0, maxWidth);
       return Size(width, height);
-    } else {
-      // Landscape — clamp width, follow height.
-      final width = maxWidth;
-      final height = (width / ratio).clamp(120.0, maxHeight);
-      return Size(width, height);
+    }
+    // Landscape: clamp width, follow height.
+    final width = maxWidth;
+    final height = (width / ratio).clamp(120.0, maxHeight);
+    return Size(width, height);
+  }
+
+  /// Brings the controller up, downloading the attachment first if we
+  /// don't have it yet.  Errors during either stage surface as a
+  /// retry-able state in [_buildPlayerArea].
+  Future<void> _buildControllerFromDownload() async {
+    if (_controller != null && _controller!.value.isInitialized) {
+      await _playIfReady(_controller!);
+      return;
+    }
+    if (_controllerFailed) {
+      // Clear the stale controller and rebuild from scratch.
+      _disposeController();
+      _controllerFailed = false;
+    }
+    final token = ++_buildToken;
+    try {
+      final snap =
+          await (_downloadFuture ??= RoomMediaCache.instance.getOrDownload(
+        widget.event.roomId ?? widget.event.eventId,
+        widget.event.eventId,
+        () => widget.event.downloadAndDecryptAttachment(),
+      ));
+      if (!mounted || token != _buildToken) return;
+      final bytes = snap.bytes;
+      if (bytes.isEmpty) {
+        throw StateError('Empty video attachment');
+      }
+      await _buildController(bytes);
+      if (!mounted || token != _buildToken) return;
+      await _playIfReady(_controller!);
+    } catch (_) {
+      if (!mounted || token != _buildToken) return;
+      // Surface the failure so the UI offers a retry rather than a
+      // silent fallback.
+      setState(() {
+        _controllerFailed = true;
+      });
     }
   }
 
-  Future<void> _buildControllerFromDownload() async {
-    if (_controller != null) return;
-    final snap = await _downloadFuture;
-    final bytes = snap?.bytes;
-    if (bytes == null || bytes.isEmpty) return;
-    if (!mounted) return;
-    await _buildController(bytes);
+  Future<void> _playIfReady(VideoPlayerController c) async {
+    if (c.value.isInitialized && !c.value.isPlaying) {
+      await c.play();
+    }
   }
 
   Future<void> _buildController(Uint8List bytes) async {
-    if (_controller != null) return;
+    // Defensive cleanup: if a previous attempt left us with a half-built
+    // controller, dispose it before constructing a new one.
+    if (_controller != null) {
+      _disposeController();
+    }
     final name = _fileName ?? 'video_${widget.event.eventId}.mp4';
-    final path = '${Directory.systemTemp.path}/moonrelay_$name';
-    final tmp = File(path)..writeAsBytesSync(bytes);
-    final c = VideoPlayerController.file(tmp);
+    final dir = Directory.systemTemp;
+    final file = File('${dir.path}/moonrelay_$name');
+    try {
+      file.writeAsBytesSync(bytes, flush: true);
+    } on FileSystemException {
+      // Could be a read-only temp dir or a name collision.  Re-throw
+      // so [_buildControllerFromDownload] reports it to the user via
+      // the retry state.
+      rethrow;
+    }
+    final c = VideoPlayerController.file(file);
     _controller = c;
     try {
       await c.initialize();
       await c.setLooping(false);
       if (mounted) setState(() {});
-      c.addListener(_onControllerTick);
-    } catch (_) {}
+    } catch (_) {
+      // Initialization failed (codec, corrupt file, no decoder).  Mark
+      // the controller for disposal and rethrow so the outer future
+      // surfaces the retry state.
+      _disposeController();
+      rethrow;
+    }
   }
 
-  void _onControllerTick() {
-    if (mounted) setState(() {});
+  void _disposeController() {
+    final c = _controller;
+    _controller = null;
+    if (c != null) {
+      // VideoPlayerController.dispose is async; we don't await it so
+      // callers can react immediately.  Errors here are best-effort
+      // because the controller is going away anyway.
+      unawaited(c.dispose().catchError((_) {}));
+    }
   }
 
   Future<void> _togglePlay() async {
@@ -156,266 +266,286 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
       }
       return;
     }
-    // Initialise on first toggle if the future hasn't completed yet.
     await _buildControllerFromDownload();
   }
 
   Future<void> _downloadFile(MatrixFile attFile) async {
+    final l10n = AppLocalizations.of(context)!;
     await FilePicker.saveFile(
-      dialogTitle: AppLocalizations.of(context)!.saveVideo,
+      dialogTitle: l10n.saveVideo,
       fileName: _fileName ?? 'video.$_extension',
       bytes: attFile.bytes,
     );
   }
 
+  /// Ad-hoc download: pulls the video attachment when the user taps
+  /// the save icon even though the auto-download policy is "never".
+  /// Reuses the shared cache so a second tap doesn't refetch.
+  ///
+  /// Uses block-body lambdas for `setState` because the arrow form
+  /// `() => _x = future` returns the assigned `Future`, which
+  /// `State.setState` rejects as "the closure returned a Future".
+  Future<void> _downloadOnDemand() async {
+    final future = RoomMediaCache.instance.getOrDownload(
+      widget.event.roomId ?? widget.event.eventId,
+      widget.event.eventId,
+      () => widget.event.downloadAndDecryptAttachment(),
+    );
+    setState(() {
+      _downloadFuture = future;
+    });
+    try {
+      final mf = await future;
+      if (!mounted) return;
+      await _downloadFile(mf);
+    } catch (_) {
+      // Keep the icon tappable for retry.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadFuture = null;
+        });
+      }
+    }
+  }
+
   Future<void> _openFullscreen() async {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullscreenVideoPlayer(controller: c),
-      ),
+    final navigator = Navigator.of(context);
+    final controller = c;
+    final route = MaterialPageRoute(
+      builder: (_) => FullscreenVideoPlayer(controller: controller),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!navigator.mounted) return;
+      navigator.push(route);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
-    final playerSize = _playerSize();
+    final prefs = MediaSizePrefs.of(context);
+    final playerSize = _playerSize(prefs.videoMax);
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Player / preview area ────────────────────────────────
-          SizedBox(
-            width: playerSize.width,
-            height: playerSize.height,
-            child: _buildPlayerArea(cs, l10n),
-          ),
-
-          // ── Metadata row ───────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+    // The video bubble hugs the player + metadata row. No full-row
+    // background: both panels have their own subtle fills so the
+    // bubble reads as a unit only when the player itself is being
+    // rendered.  The outer `Align` keeps the bubble glued to the left
+    // edge so the chat doesn't get an oversized video card centred in
+    // the row.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: AttachmentCard(
+        maxWidth: prefs.videoMax,
+        footer: Row(
+          children: [
+            AttachmentLeadingIcon(
+              // No size override. This row used to ask for a 36px square
+              // against the audio and file rows' 44, which is the exact drift
+              // this component exists to prevent.
+              icon: LucideIcons.video,
+            ),
+            SizedBox(width: t.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _fileName ?? l10n.videoFileName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  child: Icon(
-                    LucideIcons.video,
-                    size: 18,
-                    color: cs.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _fileName ?? l10n.videoFileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cs.tertiaryContainer
-                                  .withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
+                  SizedBox(height: t.spaceXxs),
+                  // The metadata row is allowed to shrink: the
+                  // duration/size widgets can otherwise request more
+                  // horizontal space than the card has (a long file size
+                  // pushes us past the icon plus the trailing download
+                  // target and the row overflows on the right).
+                  Flexible(
+                    child: Row(
+                      children: [
+                        AttachmentBadge(label: _extension),
+                        if (_duration != null) ...[
+                          SizedBox(width: t.spaceSm),
+                          Icon(
+                            LucideIcons.clock,
+                            size: 12,
+                            color: cs.onSurfaceVariant
+                                .withValues(alpha: t.opacitySubtle),
+                          ),
+                          SizedBox(width: t.spaceXxs),
+                          Flexible(
                             child: Text(
-                              _extension,
+                              _formatDuration(_duration!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onTertiaryContainer,
-                                letterSpacing: 0.5,
+                                fontSize: 11,
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: t.opacitySubtle),
                               ),
                             ),
                           ),
-                          if (_duration != null) ...[
-                            const SizedBox(width: 8),
-                            Icon(
-                              LucideIcons.clock,
-                              size: 12,
-                              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              _formatDuration(_duration!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                          if (_fileSize != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatSize(_fileSize!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: cs.onSurfaceVariant
-                                    .withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ],
                         ],
-                      ),
-                    ],
+                        if (_fileSize != null) ...[
+                          SizedBox(width: t.spaceSm),
+                          Flexible(
+                            child: Text(
+                              AttachmentDownloadPolicy.formatSize(
+                                context,
+                                _fileSize,
+                              )!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: t.opacitySubtle),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
 
-                // Download / save button.
-                Tooltip(
-                  message: l10n.downloadVideo,
-                  child: FutureBuilder<MatrixFile>(
-                    future: _downloadFuture,
-                    builder: (context, snapshot) {
-                      final isReady =
-                          snapshot.connectionState == ConnectionState.done &&
-                              !snapshot.hasError;
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            LucideIcons.download,
-                            size: 18,
+            // Pinned to the same box the audio and file rows use, so the
+            // three attachment rows line up down the timeline. It was 36
+            // here against 44 there, and the video row sat visibly shorter
+            // than the file row above it.
+            Semantics(
+              label: l10n.downloadVideo,
+              button: true,
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: FutureBuilder<MatrixFile>(
+                  future: _downloadFuture,
+                  builder: (context, snapshot) {
+                    final isReady = snapshot.connectionState ==
+                            ConnectionState.done &&
+                        !snapshot.hasError;
+                    final isWaiting = snapshot.connectionState ==
+                        ConnectionState.waiting;
+                    if (isWaiting) {
+                      return Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
                             color: cs.primary,
                           ),
-                          onPressed: isReady && snapshot.data != null
-                              ? () => _downloadFile(snapshot.data!)
-                              : null,
                         ),
                       );
-                    },
-                  ),
+                    }
+                    return AttachmentLeadingIcon(
+                      // Quiet, like the audio and file rows' trailing
+                      // download. It is available rather than the thing you
+                      // came for, and it used to be drawn identically to the
+                      // leading glyph, so the row had two identical accent
+                      // squares and no way to say which was primary.
+                      emphasis: AttachmentEmphasis.quiet,
+                      icon: LucideIcons.download,
+                      onTap: () async {
+                        if (isReady && snapshot.data != null) {
+                          await _downloadFile(snapshot.data!);
+                        } else {
+                          await _downloadOnDemand();
+                        }
+                      },
+                    );
+                  },
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: SizedBox(
+          width: playerSize.width,
+          height: playerSize.height,
+          child: _buildPlayerArea(cs, l10n),
+        ),
       ),
     );
   }
 
   Widget _buildPlayerArea(ColorScheme cs, AppLocalizations l10n) {
     final c = _controller;
+
+    if (_controllerFailed) {
+      return _buildErrorPlayer(cs, l10n);
+    }
+
     if (c != null && c.value.isInitialized) {
-      // ── Real video player ─────────────────────────────────────
-      return MouseRegion(
-        child: GestureDetector(
-          onTap: _togglePlay,
-          onDoubleTap: _openFullscreen,
-          child: Stack(
-            alignment: Alignment.center,
+      // Subscribe only to the controller's ValueListenable so a frame
+      // tick only re-paints the surface: the metadata row stays put.
+      // Without ValueListenableBuilder we'd rebuild the entire Stack
+      // (overlays, progress indicator, fullscreen button) at 60Hz.
+      return InitializedVideoPlayer(controller: c, l10n: l10n);
+    }
+
+    return _buildPreviewArea(cs, l10n);
+  }
+
+  Widget _buildErrorPlayer(ColorScheme cs, AppLocalizations l10n) {
+    return GestureDetector(
+      onTap: () {
+        // Clear the failure flag and kick off a retry; the user
+        // gets one explicit tap instead of an invisible dead button.
+        setState(() {
+          _controllerFailed = false;
+        });
+        _buildControllerFromDownload();
+      },
+      child: Container(
+        color: cs.errorContainer.withValues(alpha: 0.4),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Positioned.fill(
-                child: AspectRatio(
-                  aspectRatio: c.value.aspectRatio == 0
-                      ? 1.0
-                      : c.value.aspectRatio,
-                  child: VideoPlayer(c),
-                ),
+              Icon(
+                Icons.error_outline_rounded,
+                size: 36,
+                color: cs.onErrorContainer,
               ),
-              // Play/pause overlay
-              if (!c.value.isPlaying)
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 38,
-                  ),
-                ),
-              // Top-right fullscreen button
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Tooltip(
-                  message: l10n.fullscreenVideo,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _openFullscreen,
-                      child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Icon(
-                          LucideIcons.maximize,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                      ),
-                    ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  l10n.videoLoadFailed,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onErrorContainer,
                   ),
                 ),
               ),
-              // Bottom progress bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: VideoProgressIndicator(
-                  c,
-                  allowScrubbing: true,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.tapToRetry,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onErrorContainer.withValues(alpha: 0.7),
                 ),
               ),
             ],
           ),
         ),
-      );
-    }
-
-    // ── Thumbnail placeholder ────────────────────────────────
-    return _buildPreviewArea(cs, l10n);
+      ),
+    );
   }
 
   Widget _buildPreviewArea(ColorScheme cs, AppLocalizations l10n) {
@@ -438,123 +568,124 @@ class _VideoMessageTypeState extends State<VideoMessageType> {
   }
 
   Widget _buildThumbnail(ColorScheme cs, Uint8List bytes) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildPreviewFallback(cs, null),
+    final t = MoonrelayThemeExtension.of(context).tokens;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final size = _playerSize(MediaSizePrefs.of(context).videoMax);
+    final longSide = size.width >= size.height ? size.width : size.height;
+    return GestureDetector(
+      onTap: _togglePlay,
+      onDoubleTap: _openFullscreen,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.memory(
+              bytes,
+              fit: BoxFit.cover,
+              cacheWidth: (longSide * dpr).ceil(),
+              errorBuilder: (_, __, ___) => _buildPreviewFallback(cs, null),
+            ),
           ),
-        ),
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.center,
-                colors: [
-                  Colors.black.withValues(alpha: 0.5),
-                  Colors.transparent,
-                ],
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: [
+                    Colors.black.withValues(alpha: t.opacitySubtle),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        // Build the controller once downloaded.
-        Center(
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 2,
+          Center(
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: t.opacitySubtle),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                size: 30,
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
-            child: Icon(
-              Icons.play_arrow_rounded,
-              size: 30,
-              color: Colors.white.withValues(alpha: 0.9),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            // [Semantics] instead of [Tooltip]: the fullscreen
+            // overlay button is part of the always-mounted video
+            // thumbnail. Tooltip would mount an internal
+            // [OverlayPortal] that activates on mount; inside the
+            // dashboard's [LayoutBuilder] shell that activation
+            // marks a sibling [_RenderLayoutBuilder] as needing
+            // layout mid-performLayout and trips the
+            // `_RenderLayoutBuilder was mutated in performLayout`
+            // assertion (chat-page layout race). Semantics carries
+            // the same accessibility label without ever
+            // materialising an overlay entry.
+            child: Semantics(
+              label: AppLocalizations.of(context)!.fullscreenVideo,
+              button: true,
+              child: Material(
+                color: Colors.black.withValues(alpha: t.opacitySubtle),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _openFullscreen,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      LucideIcons.maximize,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildPreviewFallback(ColorScheme cs, AppLocalizations? l10n) {
-    return Container(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          child: Center(
+            child: Icon(
               LucideIcons.video,
               size: 40,
               color: cs.onSurfaceVariant.withValues(alpha: 0.4),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FullscreenVideoPlayer extends StatefulWidget {
-  const _FullscreenVideoPlayer({required this.controller});
-  final VideoPlayerController controller;
-
-  @override
-  State<_FullscreenVideoPlayer> createState() =>
-      _FullscreenVideoPlayerState();
-}
-
-class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onTick);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_onTick);
-    super.dispose();
-  }
-
-  void _onTick() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.controller;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: GestureDetector(
-          onTap: () => c.value.isPlaying ? c.pause() : c.play(),
-          child: AspectRatio(
-            aspectRatio:
-                c.value.aspectRatio == 0 ? 16 / 9 : c.value.aspectRatio,
-            child: VideoPlayer(c),
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        foregroundColor: Colors.white,
-        onPressed: () => c.value.isPlaying ? c.pause() : c.play(),
-        child: Icon(c.value.isPlaying ? Icons.pause : Icons.play_arrow),
-      ),
+        if (_downloadFuture != null)
+          const Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

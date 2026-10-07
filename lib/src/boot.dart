@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vdz;
@@ -28,17 +30,18 @@ import 'helpers/account_manager.dart';
 import 'helpers/current_room.dart';
 import 'helpers/log_service.dart';
 import 'helpers/platform.dart';
+import 'helpers/service_registry.dart';
+import 'helpers/window_chrome.dart';
 import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/auto_update_service.dart';
 import 'services/notification_service.dart';
 import 'services/tray_service.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_service.dart';
 import 'settings/space_preferences.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BootContext — result of the boot pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+// BootContext: result of the boot pipeline
 
 /// All initialized services produced by the boot pipeline.
 class BootContext {
@@ -54,6 +57,8 @@ class BootContext {
     required this.currentRoom,
     this.notificationService,
     required this.deepLinkService,
+    required this.registry,
+    required this.autoUpdateService,
   });
 
   final Logger log;
@@ -67,11 +72,11 @@ class BootContext {
   final CurrentRoom currentRoom;
   final NotificationService? notificationService;
   final DeepLinkService deepLinkService;
+  final ServiceRegistry registry;
+  final AutoUpdateService autoUpdateService;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BootStep — single unit of the boot pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+// BootStep: single unit of the boot pipeline
 
 /// A single initialisation step in the boot pipeline.
 ///
@@ -88,22 +93,29 @@ abstract class BootStep<T> {
   Future<T> run();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Pipeline runner
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Runs the full boot pipeline, calling [onStatus] before each step.
 ///
 /// Returns a fully-initialized [BootContext] on success, or throws on
 /// the first step failure.
+///
+/// [onWaitingForFirstSync] is invoked after the local pipeline
+/// finishes when the SDK session is logged in but no synced rooms
+/// have arrived yet.  The splash screen uses it to stay visible
+/// while the first `/sync` response is in flight, preventing an
+/// empty rooms pane from flashing in and out.
 Future<BootContext> runBootPipeline({
   required int schemaVersion,
   required Logger log,
   required LogService logService,
   required AccountManager accountManager,
   required void Function(String) onStatus,
+  void Function()? onWaitingForFirstSync,
 }) async {
-  // ── 1. Vodozemac (native crypto) ────────────────────────────
+  final registry = ServiceRegistry();
+
+  // -- 1. Vodozemac (native crypto) ----------------------------
   onStatus('Initializing encryption engine…');
   log.t('Boot: Vodozemac');
   try {
@@ -113,7 +125,7 @@ Future<BootContext> runBootPipeline({
     rethrow;
   }
 
-  // ── 2. SQLite FFI ───────────────────────────────────────────
+  // -- 2. SQLite FFI -------------------------------------------
   onStatus('Initializing database…');
   log.t('Boot: SQLite FFI');
   try {
@@ -124,15 +136,35 @@ Future<BootContext> runBootPipeline({
   }
   databaseFactory = databaseFactoryFfi;
 
-  // ── 3. Open database ────────────────────────────────────────
+  // -- 3. Settings (needed before the database) -----------------
+  // Loaded here rather than in a later step because the database's
+  // backup-retention policy comes from settings, and the wipe that
+  // policy governs happens during database open.
+  onStatus('Loading preferences…');
+  log.t('Boot: Settings');
+  if (!kIsWeb &&
+      [
+        TargetPlatform.windows,
+        TargetPlatform.android,
+      ].contains(defaultTargetPlatform)) {
+    SystemTheme.accentColor.load();
+  }
+  final settingsController = SettingsController(SettingsService());
+  await settingsController.loadSettings();
+
+  // -- 4. Open database ----------------------------------------
   onStatus('Opening database…');
   log.t('Boot: Database');
-  final dbService = DatabaseService(schemaVersion: schemaVersion, log: log);
-  final String dbName = accountManager.activeAccount?.databaseName ??
-      'moonrelay.db';
+  final dbService = DatabaseService(
+    schemaVersion: schemaVersion,
+    log: log,
+    backupKeepCount: settingsController.dbBackupKeepCount,
+  );
+  final String dbName =
+      accountManager.activeAccount?.databaseName ?? 'moonrelay.db';
   final dbobj = await dbService.openDatabaseFor(dbName);
 
-  // ── 4. Create Matrix Client ─────────────────────────────────
+  // -- 5. Create Matrix Client ---------------------------------
   onStatus('Starting network client…');
   log.t('Boot: Matrix Client');
   final sdk = Client(
@@ -154,31 +186,31 @@ Future<BootContext> runBootPipeline({
     rethrow;
   }
 
-  // ── 5. Theme & Settings ─────────────────────────────────────
-  onStatus('Loading preferences…');
-  log.t('Boot: Settings');
-  if (!kIsWeb &&
-      [
-        TargetPlatform.windows,
-        TargetPlatform.android,
-      ].contains(defaultTargetPlatform)) {
-    SystemTheme.accentColor.load();
-  }
-  final settingsController = SettingsController(SettingsService());
-  await settingsController.loadSettings();
-
+  // -- 5. Remaining settings-dependent boot work ---------------
+  // Settings themselves loaded in step 3, ahead of the database.
+  logService.updateVerboseRelease(settingsController.logVerboseRelease);
+  // Re-assert the full logging policy. The service is built before
+  // settings load, so without this the size, retention, flush-delay and
+  // level controls would only take effect from the first change made in
+  // the settings page rather than at boot.
+  await logService.applyPolicy(
+    maxFileSizeMb: settingsController.logMaxFileSizeMb,
+    maxRotatedFiles: settingsController.logMaxFiles,
+    flushDelaySeconds: settingsController.logFlushDelayS,
+    level: settingsController.logLevel,
+  );
   final spacePreferences = SpacePreferences(SettingsService());
   await spacePreferences.load();
 
-  // ── 6. Window Manager ───────────────────────────────────────
+  // -- 6. Window Manager ---------------------------------------
   if (isDesktop) {
     await WindowManager.instance.ensureInitialized();
     await windowManager.waitUntilReadyToShow();
-    await windowManager.setTitleBarStyle(
-      TitleBarStyle.hidden,
-      windowButtonVisibility: false,
+    await applyWindowChrome();
+    await windowManager.setMinimumSize(
+      Size(settingsController.windowMinWidth,
+          settingsController.windowMinHeight),
     );
-    await windowManager.setMinimumSize(const Size(500, 600));
     if (!settingsController.startMinimized) {
       await windowManager.show();
     }
@@ -186,18 +218,28 @@ Future<BootContext> runBootPipeline({
     await windowManager.setSkipTaskbar(false);
   }
 
-  // ── 7. Encryption service ───────────────────────────────────
+  // -- 7. Encryption service -----------------------------------
+  // AccountManager owns this instance, not the ServiceRegistry. It is
+  // rebuilt per client by `onClientReady` below, so a registry entry
+  // created here would hold a disposed notifier after the first
+  // account switch. `AccountManager.shutdown` disposes whichever one
+  // is live at shutdown time.
   onStatus('Preparing encryption…');
   log.t('Boot: Encryption');
-  final encryptionService = EncryptionService(client: sdk, logger: log);
+  final encryptionService = EncryptionService(
+    client: sdk,
+    logger: log,
+    refreshDebounce:
+        Duration(milliseconds: settingsController.encryptionRefreshDebounceMs),
+  );
   if (sdk.isLogged()) {
     await encryptionService.init();
   }
 
-  // ── 8. CurrentRoom ──────────────────────────────────────────
+  // -- 8. CurrentRoom ------------------------------------------
   final currentRoom = CurrentRoom();
 
-  // ── 9. Notification service ─────────────────────────────────
+  // -- 9. Notification service ---------------------------------
   // DeepLinkService is created before NotificationService so that
   // tapping a notification can navigate to the corresponding room
   // through it. The previous build ignored `NotificationResponse.payload`
@@ -211,12 +253,17 @@ Future<BootContext> runBootPipeline({
   // (before any login) lands on the right page.
   onStatus('Setting up deep link handler…');
   log.t('Boot: DeepLink');
-  deepLinkService = DeepLinkService(log: log);
+  deepLinkService = DeepLinkService(
+    log: log,
+    dedupWindow: Duration(milliseconds: settingsController.deepLinkDedupMs),
+  );
   try {
     await deepLinkService.init();
   } catch (e) {
     log.w('Deep link service init failed', error: e);
   }
+  final dls = deepLinkService;
+  registry.register(dls, disposer: () => dls.dispose());
 
   if (sdk.isLogged()) {
     onStatus('Starting notification service…');
@@ -229,25 +276,31 @@ Future<BootContext> runBootPipeline({
         log: log,
         deepLinkService: deepLinkService,
       );
+      final notif = notificationService;
+      registry.register(notif, disposer: () => notif.dispose());
     } catch (e) {
       log.w('Notification service init failed', error: e);
     }
   }
 
-  // ── 10. Tray service ────────────────────────────────────────
+  // -- 10. Tray service ----------------------------------------
   if (isDesktop && settingsController.showTrayIcon) {
     onStatus('Setting up system tray…');
     log.t('Boot: Tray');
     try {
-      await TrayService.init(accountManager: accountManager, log: log);
+      await TrayService.init(
+        accountManager: accountManager,
+        log: log,
+        settings: settingsController,
+        deepLinkService: deepLinkService,
+      );
     } catch (e) {
       log.w('Tray service init failed', error: e);
     }
   }
 
-  // ── 11. Wire up AccountManager ──────────────────────────────
-  // ── 11. Wire up AccountManager ──────────────────────────────
-  // Initialise the persisted active-account → live client association
+  // -- 11. Wire up AccountManager ------------------------------
+  // Initialise the persisted active-account to live client association
   // so widgets bound to `Provider<Client>` see the same pair after a
   // hot-restart. The early-init branch in 9 handles the logged-out
   // case (notification service skipped).
@@ -286,12 +339,56 @@ Future<BootContext> runBootPipeline({
 
   accountManager.onClientReady = (client) async {
     if (client.isLogged()) {
-      final enc = EncryptionService(client: client, logger: log);
+      // Same refresh-debounce value as the boot-time instance above; a
+      // new service is built per client, so the two sites must stay in
+      // sync or the setting would apply to only one of them.
+      final enc = EncryptionService(
+        client: client,
+        logger: log,
+        refreshDebounce: Duration(
+          milliseconds: settingsController.encryptionRefreshDebounceMs,
+        ),
+      );
       await enc.init();
+      return enc;
     }
+    return null;
   };
 
+  // -- 12. Auto-update service ------------------------------------
+  // Registered because it owns an http.Client that dispose() closes;
+  // before this, nothing ever called it and the socket outlived the
+  // process. Unlike the account-scoped services this one is built once
+  // and never swapped, so the registry is the right owner.
+  log.t('Boot: AutoUpdateService');
+  final autoUpdateService = AutoUpdateService(log: log);
+  registry.register(autoUpdateService,
+      disposer: () => autoUpdateService.dispose());
+
   log.i('Initialization complete');
+
+  // -- Wait for first sync -------------------------------------
+  // If the SDK is logged in, hold the splash visible until either
+  // the first `/sync` response arrives or a short timeout elapses.
+  // Without this the splash swaps to the main app, which renders an
+  // empty rooms pane for a beat before the first sync lands.
+  if (sdk.isLogged() && onWaitingForFirstSync != null) {
+    onWaitingForFirstSync();
+    final hasRooms = sdk.rooms.isNotEmpty;
+    if (!hasRooms) {
+      try {
+        await sdk.onSync.stream.first.timeout(
+          Duration(seconds: settingsController.firstSyncTimeoutS),
+        );
+      } on TimeoutException {
+        log.w('Boot: timed out waiting for first sync; '
+            'proceeding with whatever the client has');
+      } catch (e) {
+        log.w('Boot: error waiting for first sync', error: e);
+      }
+    }
+  }
+
   return BootContext(
     log: log,
     logService: logService,
@@ -304,5 +401,9 @@ Future<BootContext> runBootPipeline({
     currentRoom: currentRoom,
     notificationService: notificationService,
     deepLinkService: deepLinkService,
+    registry: registry,
+    autoUpdateService: autoUpdateService,
   );
 }
+
+

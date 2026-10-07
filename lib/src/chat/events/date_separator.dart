@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A timeline separator that marks the boundary between two different days.
 ///
@@ -27,18 +28,30 @@ class DateSeparator extends StatelessWidget {
 
   final DateTime dateTime;
 
+  /// True when [dateTime] is the calendar day before [now].  Compares
+  /// day-of-epoch so the check survives month and year boundaries
+  /// (e.g. Jan 1 sees Dec 31 of the previous year as "yesterday").
+  static bool _isYesterday(DateTime now, DateTime dateTime) {
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    return today.difference(day).inDays == 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final chat = ext.components.chat;
+    final dividerThickness = ext.components.divider.thickness;
+    final dividerFontSize = chat.metadataFontSize(16);
     final now = DateTime.now();
     final isSameYear = now.year == dateTime.year;
 
     String label;
     if (isSameYear && now.month == dateTime.month && now.day == dateTime.day) {
       label = AppLocalizations.of(context)!.today;
-    } else if (isSameYear &&
-        now.month == dateTime.month &&
-        now.day == dateTime.day + 1) {
+    } else if (isSameYear && _isYesterday(now, dateTime)) {
       label = AppLocalizations.of(context)!.yesterday;
     } else if (isSameYear) {
       label = DateFormat.MMMMd().format(dateTime);
@@ -46,25 +59,30 @@ class DateSeparator extends StatelessWidget {
       label = DateFormat.yMMMd().format(dateTime);
     }
 
-    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.15);
-    final textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
-
+    final lineColor =
+        theme.colorScheme.onSurface.withValues(alpha: t.opacityMuted);
+    final textColor =
+        theme.colorScheme.onSurface.withValues(alpha: t.opacitySubtle);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: EdgeInsets.symmetric(vertical: chat.groupSpacing),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              height: 1,
+              // The divider token's thickness, not the border scale's. The
+              // rest of the app draws rules at half a pixel; a one-pixel
+              // rule here made the day divider the heaviest line on the
+              // screen, heavier than the bubble edges around it.
+              height: dividerThickness,
               color: lineColor,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: t.spaceMd),
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: dividerFontSize,
                 fontWeight: FontWeight.w600,
                 color: textColor,
               ),
@@ -72,7 +90,7 @@ class DateSeparator extends StatelessWidget {
           ),
           Expanded(
             child: Container(
-              height: 1,
+              height: dividerThickness,
               color: lineColor,
             ),
           ),

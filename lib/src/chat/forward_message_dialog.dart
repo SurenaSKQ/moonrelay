@@ -17,7 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Shows a dialog that lets the user pick a destination room to forward
 /// [event]'s content into.
@@ -73,6 +75,7 @@ class _ForwardDialogState extends State<_ForwardDialog> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
 
     // Gather all joined rooms except the source.
@@ -104,7 +107,7 @@ class _ForwardDialogState extends State<_ForwardDialog> {
         height: 480,
         child: Column(
           children: [
-            // ── Search field ─────────────────────────────────────────
+            // -- Search field -----------------------------------------
             TextField(
               controller: _searchController,
               autofocus: true,
@@ -116,7 +119,7 @@ class _ForwardDialogState extends State<_ForwardDialog> {
                   color: cs.onSurfaceVariant,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(t.radiusMd),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -127,11 +130,11 @@ class _ForwardDialogState extends State<_ForwardDialog> {
             ),
             const SizedBox(height: 12),
 
-            // ── Preview of the message being forwarded ──────────────
+            // -- Preview of the message being forwarded --------------
             _buildMessagePreview(cs, l10n),
             const SizedBox(height: 12),
 
-            // ── Room list ───────────────────────────────────────────
+            // -- Room list -------------------------------------------
             Expanded(
               child: filtered.isEmpty
                   ? Center(
@@ -181,16 +184,17 @@ class _ForwardDialogState extends State<_ForwardDialog> {
 
   /// A compact preview of the message content being forwarded.
   Widget _buildMessagePreview(ColorScheme cs, AppLocalizations l10n) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final body = widget.event.body;
     final sender = widget.event.senderFromMemoryOrFallback;
     final senderName = sender.displayName ?? sender.id;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(t.spaceSm + 2),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
@@ -342,7 +346,10 @@ class _RoomTile extends StatelessWidget {
 
     return CircleAvatar(
       radius: 16,
-      backgroundImage: NetworkImage(room.avatar.toString()),
+      backgroundImage: NetworkImage(
+        room.avatar.toString(),
+        headers: authHeaders(room.client),
+      ),
       onBackgroundImageError: (_, __) {},
     );
   }

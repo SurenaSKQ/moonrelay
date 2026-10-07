@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/encryption/encryption_service.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:provider/provider.dart';
 
 /// Lists all devices for the current user, showing trust status and providing
@@ -32,6 +33,7 @@ class DeviceListScreen extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final client = context.read<Client>();
 
     return Scaffold(
@@ -44,14 +46,14 @@ class DeviceListScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(LucideIcons.smartphone, size: 48, color: scheme.outline),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.spaceLg),
                   Text(loc.encryptionNoDevices,
                       style: theme.textTheme.bodyLarge),
                 ],
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.spaceLg),
               itemCount: enc.myDevices.length,
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
@@ -227,7 +229,7 @@ class DeviceListScreen extends StatelessWidget {
     AppLocalizations loc,
     EncryptionService enc,
   ) async {
-    // ── Confirmation dialog ────────────────────────────────────
+    // -- Confirmation dialog ------------------------------------
     final deviceName = device.displayName ?? device.deviceId;
     final confirm = await showDialog<bool>(
       context: context,
@@ -279,13 +281,26 @@ class _TrustBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
-    return Tooltip(
-      message: verified ? l10n.encryptionVerified : l10n.encryptionUnverified,
+    final label =
+        verified ? l10n.encryptionVerified : l10n.encryptionUnverified;
+    // [Semantics] instead of [Tooltip]: the encryption screens are
+    // routed through [genericPageBuilder], so they enter through a
+    // [FadeTransition] and live inside the dashboard's
+    // [LayoutBuilder] shell. A Tooltip would mount an internal
+    // [OverlayPortal] that activates on mount and would mark a
+    // sibling [_RenderLayoutBuilder] as needing layout mid-
+    // performLayout, tripping the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // Semantics carries the same accessibility label without
+    // materialising an overlay entry.
+    return Semantics(
+      label: label,
       child: Icon(
         verified ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
         color: verified ? scheme.primary : scheme.error,
-        size: 20,
+        size: t.iconSizeMedium,
       ),
     );
   }
@@ -301,7 +316,7 @@ String _formatLastSeen(DateTime dt) {
   final local = dt.isUtc ? dt.toLocal() : dt;
   final delta = DateTime.now().difference(local);
   if (delta.isNegative || delta.inSeconds < 0) {
-    // Device clock skew — show the wall-clock time directly.
+    // Device clock skew: show the wall-clock time directly.
     return '${local.year}-${_pad(local.month)}-${_pad(local.day)} '
         '${_pad(local.hour)}:${_pad(local.minute)}';
   }

@@ -22,18 +22,18 @@ import 'package:moonrelay/src/helpers/log_service.dart';
 /// These tests pin the redaction ruleset so a future refactor of
 /// `_RedactingLogOutput` cannot silently drop a class of secrets from
 /// the on-disk log stream.  Every rule gets at least one positive case
-/// (sensitive value present → sanitised) and at least one negative case
+/// (sensitive value present -> sanitised) and at least one negative case
 /// (plaintext preserved).
 void main() {
   group('redactString', () {
-    // ─── Matrix access tokens ─────────────────────────────────────────
+    // --- Matrix access tokens -----------------------------------------
     test('redacts syt_ tokens', () {
       const line = 'Authorization: syt_AbCdEf1234567890';
       expect(redactString(line), 'Authorization: syt_[REDACTED]');
     });
 
     test('redacts MDA… long tokens', () {
-      // 100+ alphanumerics — synthesised rather than a real token.
+      // 100+ alphanumerics; synthesised rather than a real token.
       const token =
           'MDAabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
       expect(
@@ -49,7 +49,7 @@ void main() {
       expect(redactString(line), line);
     });
 
-    // ─── Bearer tokens ────────────────────────────────────────────────
+    // --- Bearer tokens ------------------------------------------------
     test('redacts Bearer tokens (case-insensitive)', () {
       const line = 'Authorization: Bearer abcdefghijklmnop_123';
       // Replacement is `$1[REDACTED]` so the captured `Authorization:
@@ -69,7 +69,7 @@ void main() {
       expect(redactString('Bearer of this message'), 'Bearer of this message');
     });
 
-    // ─── Login tokens ────────────────────────────────────────────────
+    // --- Login tokens ------------------------------------------------
     test('redacts loginToken query parameter', () {
       const url =
           'https://app.example.com/callback?loginToken=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc';
@@ -77,7 +77,7 @@ void main() {
       expect(redactString(url), isNot(contains('loginToken=ABCDEF')));
     });
 
-    // ─── Device / session IDs ─────────────────────────────────────────
+    // --- Device / session IDs -----------------------------------------
     test('redacts device_id with equals and quoted values', () {
       expect(
         redactString('device_id=abcdefghij1234'),
@@ -96,7 +96,7 @@ void main() {
       );
     });
 
-    // ─── Passwords ────────────────────────────────────────────────────
+    // --- Passwords ----------------------------------------------------
     test('redacts form-style password=value', () {
       const line = 'POST /login body: username=alice&password=Sec3retP@ss';
       expect(redactString(line), contains('password=[REDACTED]'));
@@ -115,7 +115,7 @@ void main() {
       expect(redactString(line), isNot(contains('hunter2')));
     });
 
-    // ─── Stability / false-positives ────────────────────────────────
+    // --- Stability / false-positives --------------------------------
     test('preserves logs that contain no secrets', () {
       const line = 'GET /_matrix/client/v3/sync 200 in 320ms';
       expect(redactString(line), line);

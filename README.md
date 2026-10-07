@@ -1,119 +1,208 @@
-# Moonrelay (Alpha)
+<div align="center">
 
-**A Matrix client for professionals — secure, cross-platform, and built with Flutter.**
+<img src="https://raw.githubusercontent.com/SurenaSKQ/moonrelay/develop/assets/images/logo.png"
+     alt="Moonrelay logo"
+     width="120" height="120" />
 
-This project originally started as a hobby project, then became my bachelor's project; and since putting it on git 2 years ago it's just kind of floundered around because I haven't had much time to work on it; and a LOT of shit happened in those years to be honest.
+# Moonrelay
 
-I decided to clean up the project and push it out for alpha releasae after 2 years, you can see some relatively inaccurate report in [`WORK_NEEDED.md`](WORK_NEEDED.md) in which I had DeepSeek generate a report of the features.
+**A Matrix client for the desktop. Linux and Windows, end-to-end encrypted, built with Flutter.**
 
-This alpha uses matrix-dart-sdk by Famedly GmbH, but I plan to fully move to my own SDK, -but- considering how 'fast' development has been this will probably happen between the final release of GNU HURD and the heat death of the universe.
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/agpl-3.0)
+[![Version](https://img.shields.io/badge/version-0.6.0--alpha-6e3fbc?style=for-the-badge&logo=semver&logoColor=white)](https://github.com/SurenaSKQ/moonrelay/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows-2ea44f?style=for-the-badge&logo=linux&logoColor=white)](#installation)
+[![CI](https://img.shields.io/github/actions/workflow/status/SurenaSKQ/moonrelay/tests.yml?branch=develop&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/SurenaSKQ/moonrelay/actions/workflows/tests.yml)
 
-Also the "logo" is a slop placeholder until I learn 1337 vector art skillz and design an actual logo.
+[Report a bug](CONTRIBUTING.md#reporting-bugs) &middot; [Request a feature](https://github.com/SurenaSKQ/moonrelay/issues/new?template=feature.yml) &middot; [Support space](https://matrix.to/#/#moonrelay-support:matrix.org)
 
-Disclaimer: I've recently used DeepSeek and some small FOSS local models to aid the development; so if you have a holy crusade against AI usage feel free not to use this thing
+</div>
 
----
+## Status
+
+Moonrelay is an early alpha. Expect breaking changes between releases, and
+expect to lose local state now and then. One person maintains it, alongside a
+day job.
+
+This project originally started as a hobby; then morphed into my bachelor's project, and since then
+has been sporadically updated over (at the time of writing) about two years.
+This alpha is the first public push since then. Much of it works. Some parts are still rough, so be
+prepared for issues.
+
+It builds on [matrix-dart-sdk](https://github.com/famedly/matrix-dart-sdk) from
+**Famedly GmbH** for the protocol, with Olm and Megolm supplied by
+[Vodozemac](https://gitlab.com/vodolaz095/vodozemac) through
+`flutter_vodozemac`. Moonrelay implements no cryptography of its own.
+
+> **AI assistance.** Parts of this code were drafted with help from DeepSeek and
+> small open-weight local models (namely: gemma, olmo, qwen), and this README was polished with AI assistance
+> too. If you would rather not work with code written that way, this is probably
+> not the project for you.
+> Scope of AI Assistance:
+> 1) Documentation
+> 2) UI Sketching
+> 3) Bug hunting (especially for vulnerabilities)
+
+> **Logo.** The current logo is slop; one day I'll learn how to draw. one day that isn't today, evidently.
 
 ## Features
 
-- **Matrix Protocol** — Full Matrix chat support via the [Matrix Dart SDK](https://github.com/famedly/matrix-dart-sdk).
-- **End-to-End Encryption** — Powered by Vodozemac (native Rust crypto) with
-  cross-signing, device verification, and key backup.
-- **Cross-Platform** — Natively targets **Linux** and **Windows** (macOS
-  support is possible).
-- **Rich Messages** — Send and receive text, images, audio, files, and
-  formatted messages.
-- **Customisable UI** — Three display modes (Modern, Bubbles, IRC),
-  multiple colour themes, and adjustable sidebar layouts.
-- **Theme Support** — Light, Dark, and System theme modes with a choice of
-  seed colours.
-- **Room Management** — Create, join, browse, and manage rooms efficiently.
-- **User Profiles** — View and manage user profiles across the network.
-- **Internationalisation** — Everything I can think of has proper l10n support, but only English language is done now
-- **Open Source** — GNU AGPLv3 licensed
+**Encryption**
+: Full Olm and Megolm via Vodozemac, cross-signing between your own devices,
+  interactive device verification, and encrypted key backup.
 
----
+**Messaging**
+: Formatted text, replies, edits, reactions, threads, polls, images, audio,
+  video, and file sharing, with a gap marker wherever the timeline has a hole in
+  it rather than pretending the messages were never sent.
+
+**Rooms and spaces**
+: Create, join, leave, browse and search rooms. Native Matrix spaces with a tree
+  sidebar, the public room directory, user profiles, and multiple accounts
+  against different homeservers.
+
+**Appearance**
+: Three message display modes (Modern, Bubbles, IRC), light and dark themes, a
+  selectable accent colour, and a multi-pane layout with adjustable pane widths.
+
+**Desktop integration**
+: A drawn title bar, a system tray with its own actions, desktop notifications
+  for mentions and direct messages, and registration as the system handler for
+  `matrix://` links.
+
+**Localisation**
+: English and Persian ship. Other locales are welcome; see
+  [Contributing](CONTRIBUTING.md#translations).
 
 ## Installation
 
-Pre-built binaries are not yet available. You will need to build from source.
+### Pre-built packages
 
-### Prerequisites
+Every version tag produces packages. Take the latest from the
+[releases page](https://github.com/SurenaSKQ/moonrelay/releases/latest).
 
-- [Flutter](https://flutter.dev) SDK (3.x or later)
-- A C++ toolchain (MSVC on Windows, GCC/Clang on Linux)
-- Latest Rust toolchain! You NEED this or you get a cryptic build failure because of Vodozemac!
+| Platform | Format | Install |
+|----------|--------|---------|
+| Debian, Ubuntu | `.deb` | `sudo apt install ./moonrelay_*_amd64.deb` |
+| Fedora, RHEL | `.rpm` | `sudo dnf install ./moonrelay-*.x86_64.rpm` |
+| Windows | `.msix` | Double-click. Unsigned builds need sideloading enabled. |
 
-### Build & Run
+(DO note that the RPM pipeline is basically theoretical right now)
+
+Installing registers the `matrix://` URI scheme automatically, so links from a
+browser or another app open Moonrelay.
+
+If your distribution has no artifact, [open an issue](CONTRIBUTING.md#reporting-bugs).
+
+### Building from source
+
+You need:
+
+- The [Flutter SDK](https://docs.flutter.dev/get-started/install). CI pins
+  `3.44.6`; see [docs/RELEASING.md](docs/RELEASING.md) for the current state of
+  that pin.
+- A C++ toolchain: MSVC Build Tools on Windows, GCC or Clang on Linux.
+- On Linux, the GTK 3 **development** headers. `flutter build linux` runs
+  `pkg_check_modules` for `gtk+-3.0`, `glib-2.0` and `gio-2.0`, and those `.pc`
+  files live in the `-dev` packages, not the runtime ones:
+
+  ```bash
+  # Debian, Ubuntu
+  sudo apt install libgtk-3-dev libglib2.0-dev pkg-config cmake ninja-build clang
+  # Fedora
+  sudo dnf install gtk3-devel glib2-devel pkgconf-pkg-config cmake ninja-build clang
+  ```
+
+  Installing only `libgtk-3-0` gets you the shared library and leaves
+  `pkg-config` unable to answer, so CMake stops with
+  `The following required packages were not found: - gtk+-3.0`.
+- A Rust toolchain. Vodozemac builds from Rust source, and a missing Rust
+  install fails as a compile error in a C++ file with no mention of Rust. Install
+  it before you spend an afternoon on that.
 
 ```bash
-git clone https://codeberg.org/SurenaSKQ/moonrelay.git
+git clone https://github.com/SurenaSKQ/moonrelay.git
 cd moonrelay
+flutter pub get
+flutter gen-l10n
 
-# Windows
-flutter run -d windows
-
-# Linux
 flutter run -d linux
+flutter run -d windows
 ```
 
----
+`flutter gen-l10n` is required before the first run or the app has no
+translations compiled in.
 
-## Project Status
+### Tests
 
-This is **early Alpha** software. Many features are implemented but several
-areas are still under active development (see [`WORK_NEEDED.md`](WORK_NEEDED.md)
-for details). Expect breaking changes and the occasional rough edge.
+```bash
+flutter analyze
+flutter test test/unit/ test/widget/
+./tools/test.sh all          # everything CI runs
+```
 
----
+The `integration_test/` suite needs a real desktop session and does not run in
+CI. [docs/TESTING.md](docs/TESTING.md) explains why and how to run it.
+
+## Security
+
+Moonrelay is alpha software. Do not rely on it for communications you cannot
+afford to lose without verifying the claims independently.
+
+**Do not file public issues for a security bug.** Contact the maintainer
+directly instead:
+
+- Matrix: [@sudo_halt:matrix.org](https://matrix.to/#/@sudo_halt:matrix.org)
+- Support space: `!MFpGwhVEUITDRfTYrE:matrix.org`
+
+A disclosure policy and a PGP key will arrive before 1.0.
+
+## Support
+
+| Where | Channel |
+|-------|---------|
+| Matrix support space | [#moonrelay-support:matrix.org](https://matrix.to/#/#moonrelay-support:matrix.org) |
+| Bug reports | [GitHub issues](https://github.com/SurenaSKQ/moonrelay/issues) |
+| Feature requests | [GitHub issues](https://github.com/SurenaSKQ/moonrelay/issues) |
+| Direct | [@sudo_halt:matrix.org](https://matrix.to/#/@sudo_halt:matrix.org) |
+
+The support space is the best place to get help. The About page in the app has a
+button that joins it.
 
 ## Contributing
 
-Contributions are very welcome! Here's how to get involved:
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports with logs, translations, and
+packaging fixes are as welcome as code.
 
-1. **Fork** the repository on [Codeberg](https://codeberg.org/SurenaSKQ/moonrelay).
-2. **Create a feature branch:** `git checkout -b my-feature`.
-3. **Commit** your changes with clear, descriptive messages.
-4. **Push** to your fork and open a **pull request**.
+## Acknowledgements
 
-Please ensure your code passes `dart analyze` before submitting.
-
----
-
-## Dependencies
-
-Key dependencies are listed in [`pubspec.yaml`](pubspec.yaml). Major ones
-include:
-
-| Package | Purpose |
-|---|---|
-| [`matrix`](https://pub.dev/packages/matrix) | Matrix Dart SDK (networking, sync, crypto) |
-| [`flutter_vodozemac`](https://pub.dev/packages/flutter_vodozemac) | Native Olm/Megolm crypto bindings |
-| [`provider`](https://pub.dev/packages/provider) | State management |
-| [`go_router`](https://pub.dev/packages/go_router) | Declarative routing |
-| [`lucide_icons_flutter`](https://pub.dev/packages/lucide_icons_flutter) | Icon set |
-| [`shared_preferences`](https://pub.dev/packages/shared_preferences) | Settings persistence |
-
----
+- [Matrix.org Foundation](https://matrix.org) for the protocol.
+- [Famedly GmbH](https://famedly.com) for the Matrix Dart SDK.
+- [Vodozemac](https://gitlab.com/vodolaz095/vodozemac) for the Rust Olm and
+  Megolm implementation.
+- [Flutter](https://flutter.dev) and the Dart team.
+- [Lucide](https://lucide.dev) for the icon set.
+- DeepSeek and the small local models that helped when the author's brain was
+  offline.
 
 ## License
 
+Moonrelay is free software under the GNU Affero General Public License, version 3
+or later. The full text ships with every release at
+[`assets/agpl-3.0.txt`](assets/agpl-3.0.txt).
+
 Copyright (C) 2025 Surena Karimpour Ghannadi
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the **GNU Affero General Public License** as published by the Free
-Software Foundation, either version 3 of the License, or (at your option) any
-later version.
-
-This program is distributed in the hope that it will be useful, but **without
-any warranty**; without even the implied warranty of **merchantability** or
-**fitness for a particular purpose**. See the GNU Affero General Public License
-for more details.
+The in-app **Licenses** page under the hub lists the licences of the Apache,
+BSD and MIT dependencies bundled at runtime.
 
 ---
 
-## Contact
+<div align="center">
 
-- **Repository:** [https://codeberg.org/SurenaSKQ/moonrelay](https://codeberg.org/SurenaSKQ/moonrelay)
-- **Issue Tracker:** [https://codeberg.org/SurenaSKQ/moonrelay/issues](https://codeberg.org/SurenaSKQ/moonrelay/issues)
-- **Author:** Surena Karimpour Ghannadi (via Matrix at @sudo_halt:matrix.org or Codeberg)
+Made by [Surena Karimpour Ghannadi](https://github.com/SurenaSKQ)
+In partial fulfillment for the degree of Bachelor's of Computer Science
+University of Tabriz
+Tabriz,
+Iran.
+
+</div>

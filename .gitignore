@@ -130,8 +130,10 @@ lib/generated_plugin_registrant.dart
 
 # End of https://www.toptal.com/developers/gitignore/api/flutter,visualstudiocode
 
+# Local working documents (layout rework planning). Not part of the repo.
+LAYOUT_PLAN.md
+
 # Ignore automatically generated localization files
 lib/src/localization/app_localizations.dart
 lib/src/localization/app_localizations_en.dart
 lib/src/localization/app_localizations_fa.dart
-.crush.json

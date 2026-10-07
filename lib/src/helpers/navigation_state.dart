@@ -23,16 +23,16 @@ const String _navAllId = '___all___';
 /// Tracks the active navigation destination for the space/chat switcher.
 ///
 /// The navigation pane (leftmost bar) lets the user choose between
-/// **Home** (direct messages), **All Channels** (every room), or a
-/// specific **Space**. When the selection changes, the rooms pane
+/// "Home" (direct messages), "All Channels" (every room), or a
+/// specific "Space". When the selection changes, the rooms pane
 /// updates to show only the relevant rooms.
 class NavigationState extends ChangeNotifier {
   String _selectedId = _navAllId;
 
   /// The raw ID of the selected destination.
-  /// - `___home___` → direct messages
-  /// - `___all___`  → every room
-  /// - Any other value → a space room ID
+  /// - `___home___` -> direct messages
+  /// - `___all___`  -> every room
+  /// - Any other value -> a space room ID
   String get selectedId => _selectedId;
 
   /// Whether the "Home" (direct messages) destination is active.

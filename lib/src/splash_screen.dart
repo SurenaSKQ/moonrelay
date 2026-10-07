@@ -19,6 +19,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/theme/design_tokens.dart';
+import 'package:moonrelay/src/widgets/moonrelay_mark.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// Full-screen splash shown while the application initialises.
 ///
@@ -37,7 +40,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class SplashScreenState extends State<SplashScreen> {
-  /// `null` → still running; `true` → success; `false` → error.
+  /// `null` -> still running; `true` -> success; `false` -> error.
   bool? _done;
 
   /// Status message shown under the spinner.
@@ -45,6 +48,12 @@ class SplashScreenState extends State<SplashScreen> {
 
   String _errorTitle = '';
   String _errorBody = '';
+
+  /// `true` once the local init pipeline finishes but the first
+  /// Matrix sync has not delivered any rooms yet.  We keep the splash
+  /// visible during this window so the user does not see an empty
+  /// rooms pane flicker in and out as the first sync lands.
+  bool _waitingForFirstSync = false;
 
   /// Called by [main] to kick off the init pipeline.
   ///
@@ -56,6 +65,7 @@ class SplashScreenState extends State<SplashScreen> {
     setState(() {
       _done = null;
       _status = 'Starting…';
+      _waitingForFirstSync = false;
     });
   }
 
@@ -66,8 +76,34 @@ class SplashScreenState extends State<SplashScreen> {
 
   /// Signal that init succeeded (called from the init pipeline in main).
   void markDone() {
-    if (mounted) setState(() => _done = true);
+    if (mounted) {
+      setState(() {
+        _done = true;
+        // If we are swapping in the main app, do not flip the
+        // "waiting for sync" flag; the splash will be torn down
+        // almost immediately.  This branch is for the rare case
+        // where we want to keep showing the splash until the first
+        // sync arrives.
+        _waitingForFirstSync = false;
+      });
+    }
   }
+
+  /// Signal that init succeeded and we are now waiting for the first
+  /// Matrix sync.  The splash stays visible until [markDone] is
+  /// called, preventing an empty rooms pane from flashing on screen.
+  void markWaitingForSync() {
+    if (mounted) {
+      setState(() {
+        _done = true;
+        _waitingForFirstSync = true;
+        _status = 'Fetching your rooms and messages…';
+      });
+    }
+  }
+
+  /// True while the splash is still waiting for the first sync.
+  bool get waitingForFirstSync => _waitingForFirstSync;
 
   /// Signal that init failed (called from the init pipeline in main).
   void markError(String title, String body) {
@@ -80,29 +116,33 @@ class SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  // ── Build ───────────────────────────────────────────────────────
+  // -- Build -------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Scaffold(
       backgroundColor: scheme.surface,
       body: Center(
-        child: _done == false ? _buildError(scheme) : _buildLoading(scheme),
+        child:
+            _done == false ? _buildError(scheme, t) : _buildLoading(scheme, t),
       ),
     );
   }
 
-  Widget _buildLoading(ColorScheme scheme) {
+  Widget _buildLoading(ColorScheme scheme, MoonrelayDesignTokens t) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(LucideIcons.moon, size: 64, color: scheme.primary),
-        const SizedBox(height: 32),
+        // The mark, not `LucideIcons.moon`. A generic moon glyph standing in
+        // for the app's own logo is the kind of placeholder that ships.
+        const MoonrelayMark(size: 64),
+        SizedBox(height: t.spaceXxl),
         SizedBox(
-          width: 24,
-          height: 24,
+          width: t.spaceXl,
+          height: t.spaceXl,
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
             color: scheme.primary,
@@ -120,14 +160,14 @@ class SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _buildError(ColorScheme scheme) {
+  Widget _buildError(ColorScheme scheme, MoonrelayDesignTokens t) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceXxl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(LucideIcons.alertOctagon, size: 56, color: scheme.error),
-          const SizedBox(height: 24),
+          SizedBox(height: t.spaceXl),
           Text(
             _errorTitle,
             style: TextStyle(
@@ -137,7 +177,7 @@ class SplashScreenState extends State<SplashScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.spaceMd),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: SelectableText(

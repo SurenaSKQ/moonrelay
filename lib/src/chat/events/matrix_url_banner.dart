@@ -18,7 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/helpers/matrix_uri_parser.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A banner shown below a chat message that contains a Matrix URL (room,
 /// user, or alias).
@@ -53,57 +56,67 @@ class MatrixUrlBanner extends StatelessWidget {
 
   /// Banner for user entity URIs.
   Widget _buildUserBanner(BuildContext context, ThemeData theme) {
+    final t = theme.moonrelay;
+    final l10n = AppLocalizations.of(context)!;
+    final tokens = t.tokens;
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: EdgeInsets.only(top: tokens.spaceSm),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: tokens.opacityDisabled),
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withAlpha(80),
+            color: theme.colorScheme.outlineVariant
+                .withValues(alpha: tokens.opacityDisabled),
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(tokens.spaceMd),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 16,
+                radius: t.components.avatar.sizeMedium / 2,
                 backgroundColor: theme.colorScheme.primaryContainer,
                 child: Icon(
                   LucideIcons.user,
-                  size: 16,
+                  size: tokens.iconSizeSmall,
                   color: theme.colorScheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: tokens.spaceMd),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Matrix User',
+                      l10n.matrixUserBannerLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: tokens.spaceXxs),
                     Text(
                       result.entityId,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
+                        // From the token, not the literal 'monospace'.
+                        // 'monospace' resolves to whatever the platform
+                        // picks, so the user id rendered in a different face
+                        // from the extension badges two messages up.
+                        fontFamily: t.monoFontFamily,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: tokens.spaceSm),
               FilledButton.tonalIcon(
                 onPressed: () => _openUser(context),
-                icon: const Icon(LucideIcons.externalLink, size: 16),
-                label: const Text('Open Profile'),
+                icon:
+                    Icon(LucideIcons.externalLink, size: tokens.iconSizeSmall),
+                label: Text(l10n.matrixBannerOpenProfile),
               ),
             ],
           ),
@@ -124,35 +137,42 @@ class MatrixUrlBanner extends StatelessWidget {
         : (result.displayAlias ?? result.entityId);
 
     final avatarUri = isJoined ? room.avatar : null;
+    final ext = theme.moonrelay;
+    final t = ext.tokens;
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: EdgeInsets.only(top: t.spaceSm),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: t.opacityDisabled),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withAlpha(80),
+            color: theme.colorScheme.outlineVariant
+                .withValues(alpha: t.opacityDisabled),
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(t.spaceMd),
           child: Row(
             children: [
               _buildRoomAvatar(context, theme, avatarUri, isJoined),
-              const SizedBox(width: 12),
+              SizedBox(width: t.spaceMd),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isJoined ? 'Room' : 'Room Preview',
+                      isJoined
+                          ? l10n.matrixRoomBannerLabel
+                          : l10n.matrixRoomPreviewBannerLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: t.spaceXxs),
                     Text(
                       roomName,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -161,12 +181,12 @@ class MatrixUrlBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (!isJoined && result.entityId != roomName) ...[
-                      const SizedBox(height: 2),
+                      SizedBox(height: t.spaceXxs),
                       Text(
                         result.entityId,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                          fontFamily: 'monospace',
+                          fontFamily: ext.monoFontFamily,
                           fontSize: 11,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -175,14 +195,18 @@ class MatrixUrlBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.spaceSm),
               FilledButton.tonalIcon(
                 onPressed: () => _openRoom(context, isJoined ? room : null),
                 icon: Icon(
                   isJoined ? LucideIcons.messageSquare : LucideIcons.eye,
-                  size: 16,
+                  size: t.iconSizeSmall,
                 ),
-                label: Text(isJoined ? 'Go to Room' : 'Preview Room'),
+                label: Text(
+                  isJoined
+                      ? l10n.matrixBannerGoToRoom
+                      : l10n.matrixBannerPreviewRoom,
+                ),
               ),
             ],
           ),
@@ -191,16 +215,18 @@ class MatrixUrlBanner extends StatelessWidget {
     );
   }
 
-  /// Builds the room avatar — either a loaded avatar or a generic icon.
+  /// Builds the room avatar: either a loaded avatar or a generic icon.
   Widget _buildRoomAvatar(
     BuildContext context,
     ThemeData theme,
     Uri? avatarUri,
     bool isJoined,
   ) {
+    final ext = theme.moonrelay;
+    final radius = ext.components.avatar.sizeMedium / 2;
     if (isJoined && avatarUri != null) {
       return CircleAvatar(
-        radius: 16,
+        radius: radius,
         backgroundImage: NetworkImage(
           avatarUri.toString(),
           headers: {
@@ -212,34 +238,72 @@ class MatrixUrlBanner extends StatelessWidget {
       );
     }
     return CircleAvatar(
-      radius: 16,
+      radius: radius,
       backgroundColor: theme.colorScheme.primaryContainer,
       child: Icon(
         isJoined ? LucideIcons.messageSquare : LucideIcons.hash,
-        size: 16,
+        size: ext.tokens.iconSizeSmall,
         color: theme.colorScheme.onPrimaryContainer,
       ),
     );
   }
 
   /// Navigates to a joined room or opens the preview screen.
+  ///
+  /// When [room] is non-null the joined-room route is used; otherwise the
+  /// preview route is used so unjoined homeserver rooms still resolve to a
+  /// useful page.  Navigation errors surface a snackbar so a mis-routed URI
+  /// no longer silently does nothing.
   void _openRoom(BuildContext context, Room? room) {
-    if (room != null) {
-      // Navigate by resolved room ID (not alias) so RoomDelegate can
-      // find it via getRoomById().
-      context.push('/main/rooms/${Uri.encodeComponent(room.id)}');
-    } else {
-      context.push(
-        '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (room != null) {
+        // Navigate by resolved room ID (not alias) so RoomResolver can
+        // find it via getRoomById(). The seam encodes the path segment.
+        openRoom(context, room.id);
+      } else {
+        context.push(
+          '/main/room_preview/${Uri.encodeComponent(result.entityId)}',
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!
+                .matrixBannerFailedToOpenRoom('$e'),
+          ),
+        ),
       );
     }
   }
 
-  /// Navigates to a user profile via their user ID.
+  /// Navigates to a user profile via the top-level profile route.
+  ///
+  /// Validation and error recovery:
+  /// - Validates the userid matches the Matrix ID shape (`@localpart:domain`)
+  ///   before opening; otherwise surfaces a snackbar and aborts.
+  /// - Uses `context.go` against `/profile/:userid` so the navigation
+  ///   decouples from any room route the banner is currently sitting
+  ///   under -- previously this pushed to `/main/rooms/<userid>` which
+  ///   silently failed because the room route could not resolve a userid
+  ///   as a room id.
   void _openUser(BuildContext context) {
-    // Navigate using the user's Matrix ID as a profile target.
-    // The RoomDelegate will handle the lookup.
-    context.push('/main/rooms/${Uri.encodeComponent(result.entityId)}');
+    final userId = result.entityId;
+    if (!RegExp(r'^@.+:.+$').hasMatch(userId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid Matrix user id: $userId')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      context.go('/profile/${Uri.encodeComponent(userId)}');
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to open profile: $e')),
+      );
+    }
   }
 
   /// Searches joined rooms by canonical alias to find a matching room.

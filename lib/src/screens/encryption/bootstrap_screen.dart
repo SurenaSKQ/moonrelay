@@ -18,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/encryption.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Wizard that guides the user through setting up cross-signing + key backup.
 ///
@@ -73,7 +75,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
 
   void _confirmWipeSsss(bool wipe) {
     if (!wipe) {
-      // Keep existing — no destructive action, proceed directly.
+      // Keep existing: no destructive action, proceed directly.
       try {
         _bootstrap.wipeSsss(false);
       } catch (e) {
@@ -127,6 +129,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -138,7 +141,7 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
         title: Text(loc.encryptionSetupTitle),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(t.spaceXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -564,39 +567,66 @@ class _BootstrapScreenState extends State<BootstrapScreen> {
         );
 
       case BootstrapState.done:
-        return _section(
-          icon: LucideIcons.shieldCheck,
-          title: loc.encryptionDone,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              Icon(LucideIcons.shieldCheck,
-                  size: 72, color: scheme.primary),
-              const SizedBox(height: 16),
-              // Reminder: the recovery key is encrypted at rest by the
-              // Matrix SDK, so we cannot display it after the wizard
-              // completes.  Surface this limitation explicitly so users
-              // do not assume a "Done" button implies they can sign in
-              // on a new device without saving a key separately.
-              Text(
-                loc.encryptionRecoveryKeyReminderBody,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.encryptionRecoveryKeyReminderAck),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.encryptionRecoveryKeyReminderLater),
-              ),
-            ],
+        return _buildDoneState(scheme, loc);
+    }
+  }
+
+  /// Builds the final "all set" state shown when the bootstrap wizard
+  /// has finished.
+  ///
+  /// Surfaces a recovery-key reminder: the SDK encrypts the key at rest
+  /// so we can't display it, but the user still needs to write it down
+  /// somewhere safe before they can sign in on a new device.  "I
+  /// saved it" persists a flag in [SharedPreferences] so the reminder
+  /// can be re-shown at a later time; "I'll do this later" simply
+  /// dismisses the screen.
+  Widget _buildDoneState(ColorScheme scheme, AppLocalizations loc) {
+    return _section(
+      icon: LucideIcons.shieldCheck,
+      title: loc.encryptionDone,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Icon(LucideIcons.shieldCheck, size: 72, color: scheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            loc.encryptionRecoveryKeyReminderBody,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant),
           ),
-        );
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            icon: const Icon(LucideIcons.check),
+            onPressed: () async {
+              await _persistRecoveryKeyAcknowledged();
+              if (!mounted) return;
+              Navigator.of(context).pop(true);
+            },
+            label: Text(loc.encryptionRecoveryKeyReminderAck),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+            child: Text(loc.encryptionRecoveryKeyReminderLater),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Records that the user explicitly acknowledged they have saved
+  /// the recovery key.  Used by the encryption overview to hide the
+  /// persistent banner once the user has opted in.
+  Future<void> _persistRecoveryKeyAcknowledged() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('encryption_recovery_key_acknowledged', true);
+    } catch (_) {
+      // Persistence is best-effort; the next launch will re-prompt,
+      // which is preferable to crashing the dismiss flow.
     }
   }
 

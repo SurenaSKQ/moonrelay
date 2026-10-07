@@ -24,6 +24,13 @@ enum MatrixUriEntity {
 
   /// A room alias (e.g. `#alias:domain`).
   roomAlias,
+
+  /// A single event inside a room, i.e. an event permalink.
+  ///
+  /// The app generates these (`copy link` on a message) but could not
+  /// resolve them until now, so a permalink copied out of Moonrelay
+  /// opened the room without focusing the message.
+  event,
 }
 
 /// The result of successfully parsing a matrix URI.
@@ -33,13 +40,15 @@ class MatrixUriResult {
     required this.entityId,
     this.viaServers = const [],
     this.displayAlias,
+    this.roomId,
   });
 
   /// What kind of entity this URI points to.
   final MatrixUriEntity entityType;
 
-  /// The raw Matrix identifier: a room ID (`!...`), user ID (`@...`), or
-  /// alias (`#...`).
+  /// The raw Matrix identifier: a room ID (`!...`), user ID (`@...`),
+  /// alias (`#...`), or, for an event permalink, the event ID
+  /// (`$...`).
   final String entityId;
 
   /// Optional "via" servers to use when joining or peeking.
@@ -48,10 +57,20 @@ class MatrixUriResult {
   /// Optional display alias from `matrix.to` URLs (e.g. `#alias:domain`).
   final String? displayAlias;
 
+  /// The room an [MatrixUriEntity.event] permalink points into.  Null
+  /// for every other entity type, where [entityId] is the room itself.
+  final String? roomId;
+
   /// True if this references a room (either by ID or alias).
   bool get isRoom =>
       entityType == MatrixUriEntity.room ||
       entityType == MatrixUriEntity.roomAlias;
+
+  /// The room this URI addresses, whether it is a room permalink or an
+  /// event permalink.  Null for user and alias entities.
+  String? get targetRoomId => entityType == MatrixUriEntity.event
+      ? roomId
+      : (isRoom ? entityId : null);
 
   /// The identifier to use when joining the room (alias preferred).
   String get joinId => displayAlias ?? entityId;
@@ -62,15 +81,19 @@ class MatrixUriResult {
 ///
 /// ## Supported formats
 ///
-/// **matrix:// / matrix: scheme**
+/// matrix:// / matrix: scheme:
 /// - `matrix:r/!roomid:domain?via=example.org`
 /// - `matrix:u/@user:domain`
 /// - `matrix:roomid/!roomid:domain`
 ///
-/// **matrix.to permalink**
+/// matrix.to permalink:
 /// - `https://matrix.to/#/!roomid:domain?via=example.org`
 /// - `https://matrix.to/#/@user:domain`
 /// - `https://matrix.to/#/#alias:domain`
+/// - `https://matrix.to/#/!roomid:domain/$eventid` (event permalink)
+///
+/// matrix: scheme, per the URI spec:
+/// - `matrix:roomid/!roomid:domain/$eventid` (event permalink)
 class MatrixUriParser {
   MatrixUriParser._();
 
@@ -81,7 +104,7 @@ class MatrixUriParser {
   /// or punctuation.  The trailing `(?<![.,;!?)])` lookbehind rejects
   /// sentence punctuation glued to the identifier, which used to make
   /// `Visit matrix.org!` detect `matrix.org` as a Matrix ID.  Bare room
-  /// IDs (`!…:…`) are intentionally excluded from the *scan* — they're
+  /// IDs (`!…:…`) are intentionally excluded from the *scan*; they're
   /// 26-character random strings that look identical to noise in normal
   /// prose, so an explicit `matrix:r/!…` URI is the only safe way to
   /// reference a bare room ID.
@@ -124,7 +147,29 @@ class MatrixUriParser {
 
   /// Tries to parse a single matrix URI string.  Returns `null` if the
   /// string is not a recognised matrix URI format.
+  ///
+  /// Malformed input (e.g. a broken percent-escape in a `matrix.to`
+  /// permalink sent by another user) is treated as "no match" rather
+  /// than throwing, so message rendering and deep-link handling never
+  /// crash on hostile or corrupt server data.
   static MatrixUriResult? parse(String uri) {
+    try {
+      return _parse(uri);
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      // `Uri.decodeComponent` raises ArgumentError, not FormatException,
+      // for a broken escape such as a bare `%`.  A literal percent sign
+      // is legal in a Matrix room id, so a hostile or corrupt
+      // `matrix.to` link in a message body would otherwise throw out of
+      // the parser and take the message renderer with it.  This runs on
+      // every message that contains a matrix-looking string, so it has to
+      // degrade to "no match" rather than propagate.
+      return null;
+    }
+  }
+
+  static MatrixUriResult? _parse(String uri) {
     final lower = uri.toLowerCase();
     if (lower.startsWith('matrix:')) {
       return _parseMatrixScheme(uri);
@@ -151,28 +196,37 @@ class MatrixUriParser {
         : uri.substring('matrix:'.length);
 
     // Determine the type prefix.
-    String? entityId;
-    MatrixUriEntity? entityType;
-    List<String> viaServers = [];
-
     if (stripped.startsWith('r/')) {
-      entityId = stripped.substring(2);
-      entityType = MatrixUriEntity.room;
+      return _roomResult(stripped.substring(2), viaServers: []);
     } else if (stripped.startsWith('u/')) {
-      entityId = stripped.substring(2);
-      entityType = MatrixUriEntity.user;
+      final id = stripped.substring(2);
+      if (!id.startsWith('@')) return null;
+      return MatrixUriResult(
+        entityType: MatrixUriEntity.user,
+        entityId: id,
+      );
     } else if (stripped.startsWith('roomid/')) {
-      entityId = stripped.substring('roomid/'.length);
-      entityType = MatrixUriEntity.room;
-    } else {
-      return null;
+      return _roomResult(
+        stripped.substring('roomid/'.length),
+        viaServers: <String>[],
+      );
     }
+    return null;
+  }
+
+  /// Parses the `!room:domain` / `!room:domain/$event` tail shared by
+  /// the `matrix:r/` and `matrix:roomid/` forms.
+  static MatrixUriResult? _roomResult(
+    String rest, {
+    required List<String> viaServers,
+  }) {
+    var body = rest;
 
     // Extract query parameters (via servers).
-    final queryIdx = entityId.indexOf('?');
+    final queryIdx = body.indexOf('?');
     if (queryIdx >= 0) {
-      final query = entityId.substring(queryIdx + 1);
-      entityId = entityId.substring(0, queryIdx);
+      final query = body.substring(queryIdx + 1);
+      body = body.substring(0, queryIdx);
       final params = Uri.parse('?$query').queryParametersAll;
       final vias = params['via'];
       if (vias != null && vias.isNotEmpty) {
@@ -180,17 +234,25 @@ class MatrixUriParser {
       }
     }
 
-    // Ensure entityId starts with the expected prefix.
-    if (entityType == MatrixUriEntity.room && !entityId.startsWith('!')) {
-      return null;
-    }
-    if (entityType == MatrixUriEntity.user && !entityId.startsWith('@')) {
-      return null;
+    if (!body.startsWith('!')) return null;
+
+    // `!room:domain/$eventid` is an event permalink.
+    final slashIdx = body.indexOf('/');
+    if (slashIdx >= 0) {
+      final roomId = body.substring(0, slashIdx);
+      final eventId = body.substring(slashIdx + 1);
+      if (!roomId.startsWith('!') || !eventId.startsWith(r'$')) return null;
+      return MatrixUriResult(
+        entityType: MatrixUriEntity.event,
+        entityId: eventId,
+        roomId: roomId,
+        viaServers: viaServers,
+      );
     }
 
     return MatrixUriResult(
-      entityType: entityType,
-      entityId: entityId,
+      entityType: MatrixUriEntity.room,
+      entityId: body,
       viaServers: viaServers,
     );
   }
@@ -205,7 +267,6 @@ class MatrixUriParser {
 
     // Extract query parameters (via servers).
     List<String> viaServers = [];
-    String? displayAlias;
     final queryIdx = fragment.indexOf('?');
     if (queryIdx >= 0) {
       final query = fragment.substring(queryIdx + 1);
@@ -222,6 +283,26 @@ class MatrixUriParser {
 
     // Determine entity type from the leading character.
     MatrixUriEntity entityType;
+    String? displayAlias;
+
+    // `!room:domain/$eventid` is an event permalink.  Split before the
+    // entity-type switch so an event id (which starts with `$`) is not
+    // mistaken for something else.
+    final slashIdx = fragment.indexOf('/');
+    if (slashIdx >= 0) {
+      final roomPart = fragment.substring(0, slashIdx);
+      final eventPart = fragment.substring(slashIdx + 1);
+      if (!roomPart.startsWith('!') || !eventPart.startsWith(r'$')) {
+        return null;
+      }
+      return MatrixUriResult(
+        entityType: MatrixUriEntity.event,
+        entityId: eventPart,
+        roomId: roomPart,
+        viaServers: viaServers,
+      );
+    }
+
     if (fragment.startsWith('!')) {
       entityType = MatrixUriEntity.room;
     } else if (fragment.startsWith('@')) {
@@ -245,9 +326,9 @@ class MatrixUriParser {
   /// Parses a bare Matrix identifier (room ID, user ID, or room alias).
   ///
   /// Supported formats:
-  /// - `!roomid:domain` — room ID (allowed for direct lookups)
-  /// - `@user:domain` — user ID
-  /// - `#alias:domain` — room alias
+  /// - `!roomid:domain`: room ID (allowed for direct lookups)
+  /// - `@user:domain`: user ID
+  /// - `#alias:domain`: room alias
   static MatrixUriResult? _parseBareId(String id) {
     // Strip common trailing punctuation that might be adjacent in text.
     id = id.replaceAll(RegExp(r'[.,;!?)\]}]+$'), '');
@@ -301,6 +382,21 @@ class MatrixUriParser {
   static String buildMatrixToPermalink(String entityId,
       {List<String>? via}) {
     final buffer = StringBuffer('https://matrix.to/#/$entityId');
+    if (via != null && via.isNotEmpty) {
+      buffer.write('?via=${via.join(',')}');
+    }
+    return buffer.toString();
+  }
+
+  /// Builds an `https://matrix.to/#/!room/$event` permalink for a single
+  /// event.  Round-trips through [parse] back to
+  /// [MatrixUriEntity.event].
+  static String buildEventPermalink(
+    String roomId,
+    String eventId, {
+    List<String>? via,
+  }) {
+    final buffer = StringBuffer('https://matrix.to/#/$roomId/$eventId');
     if (via != null && via.isNotEmpty) {
       buffer.write('?via=${via.join(',')}');
     }

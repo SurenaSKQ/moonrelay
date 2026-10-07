@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A small icon that indicates the encryption state of a room (encrypted or
 /// not, trust level redacted).
@@ -36,9 +37,18 @@ class EncryptionBadge extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final encrypted = room.encrypted;
+    final label = encrypted ? l10n.encryptedTooltip : l10n.notEncryptedTooltip;
 
-    return Tooltip(
-      message: encrypted ? l10n.encryptedTooltip : l10n.notEncryptedTooltip,
+    // [Semantics] instead of [Tooltip]: a Tooltip always mounts an
+    // internal [OverlayPortal] (via [RawTooltip]). When this widget
+    // lives inside the dashboard's [LayoutBuilder] shell, the portal
+    // activates on mount and marks a sibling [_RenderLayoutBuilder]
+    // as needing layout mid-performLayout, which trips the
+    // `_RenderLayoutBuilder was mutated in performLayout` assertion.
+    // A Semantics label gives screen readers the same affordance
+    // without ever materialising an overlay entry.
+    return Semantics(
+      label: label,
       child: Icon(
         encrypted ? LucideIcons.lock : LucideIcons.lockOpen,
         size: size,
@@ -67,9 +77,14 @@ class TrustIndicator extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
+    // [Semantics] instead of [Tooltip] for the same reason as
+    // [EncryptionBadge] above: Tooltip's OverlayPortal activates on
+    // mount and would re-trigger the chat-page layout race when the
+    // trust indicator sits inside the dashboard's LayoutBuilder
+    // shell. Semantics carries the same accessibility label.
     if (!isVerified) {
-      return Tooltip(
-        message: l10n.unverifiedTooltip,
+      return Semantics(
+        label: l10n.unverifiedTooltip,
         child: Icon(
           LucideIcons.shieldOff,
           size: size,
@@ -78,8 +93,8 @@ class TrustIndicator extends StatelessWidget {
       );
     }
 
-    return Tooltip(
-      message: l10n.verifiedTooltip,
+    return Semantics(
+      label: l10n.verifiedTooltip,
       child: Icon(
         LucideIcons.shieldCheck,
         size: size,
@@ -134,22 +149,23 @@ class DecryptionFailedWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final loc = AppLocalizations.of(context)!;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(t.spaceMd),
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: scheme.errorContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(t.radiusSm),
         border: Border.all(
           color: scheme.error.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.lock, color: scheme.error, size: 20),
-          const SizedBox(width: 12),
+          Icon(LucideIcons.lock, color: scheme.error, size: t.iconSizeMedium),
+          SizedBox(width: t.spaceMd),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,12 +189,27 @@ class DecryptionFailedWidget extends StatelessWidget {
             ),
           ),
           if (canRequestSession)
-            IconButton(
-              icon: Icon(LucideIcons.refreshCw, color: scheme.error),
-              tooltip: loc.encryptionRequestKeys,
-              onPressed: () {
-                _requestMissingKeys(context, event);
-              },
+            // [Semantics] + [InkWell] instead of [IconButton] so
+            // we don't mount an internal [Tooltip] -> [OverlayPortal].
+            // The decoder-failure placeholder is rendered inline in
+            // the chat timeline, which lives under the dashboard's
+            // [LayoutBuilder] shell; mounting a Tooltip here would
+            // mark a sibling [_RenderLayoutBuilder] as needing layout
+            // mid-performLayout and trip the
+            // `_RenderLayoutBuilder was mutated in performLayout`
+            // assertion (the chat-page layout race). A Semantics
+            // label gives screen readers the same affordance.
+            Semantics(
+              label: loc.encryptionRequestKeys,
+              button: true,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _requestMissingKeys(context, event),
+                child: Padding(
+                  padding: EdgeInsets.all(t.spaceSm),
+                  child: Icon(LucideIcons.refreshCw, color: scheme.error),
+                ),
+              ),
             ),
         ],
       ),

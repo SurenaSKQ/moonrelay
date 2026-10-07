@@ -15,15 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:moonrelay/src/chat/room_pane/room_pane_tab.dart';
+import 'package:moonrelay/src/screens/hub_screen/localization_helpers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/helpers/current_room.dart';
+import 'package:moonrelay/src/helpers/shell_navigation.dart';
 import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/settings/layout_settings.dart';
-import 'package:moonrelay/src/settings/settings_controller.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
-import 'package:provider/provider.dart';
+import 'package:moonrelay/src/widgets/sync_indicator.dart';
 
 /// A Material 3 room header bar that reactively displays the room's name,
 /// topic, avatar, and member count.
@@ -32,29 +32,86 @@ import 'package:provider/provider.dart';
 /// without requiring a manual rebuild. When the topic is missing or fails to
 /// load a friendly placeholder is shown instead.
 ///
-/// Tap behaviour depends on the right-sidebar configuration:
-/// - If the right sidebar is **enabled and set to "Room Info"**, tapping
-///   opens the sidebar (or does nothing if already open).
-/// - Otherwise, tapping navigates to the full [RoomInformations] page.
+/// Tapping the name opens the info tab, or the pane as a bottom sheet on the
+/// single-pane shell.
 class ChatRoomHeader extends StatefulWidget {
   const ChatRoomHeader({
     super.key,
     required this.room,
-    this.onSearchToggle,
-    this.isSearchActive = false,
+    this.paneTab,
+    this.onPaneToggle,
+    this.onPaneSheetRequested,
+    this.pinnedCount = 0,
+    this.pinnedFilterActive = false,
+    this.onTogglePinnedFilter,
+    this.defaultPaneTab = RoomPaneTab.info,
   });
 
   final Room room;
 
-  /// Called when the user taps the search button.
-  final VoidCallback? onSearchToggle;
+  /// Which tab the room's side pane is showing, or null when it is closed.
+  ///
+  /// The header carries a button per pane tab, so it has to know which one is
+  /// open to draw the pressed state. It used to know only about "search",
+  /// because the search panel was a separate column with its own toggle and the
+  /// pane's tabs were behind the header's tap gesture.
+  final RoomPaneTab? paneTab;
 
-  /// Whether the in-room search panel is currently visible.
-  final bool isSearchActive;
+  /// Opens or closes the pane on a given tab.
+  final void Function(RoomPaneTab tab)? onPaneToggle;
+
+  /// Opens the pane as a bottom sheet.
+  ///
+  /// Set on the single-pane shell, where there is no room beside the
+  /// conversation to put a 280-pixel column in. Null on the desktop shells,
+  /// where the pane is inline and the tab buttons drive it directly.
+  final VoidCallback? onPaneSheetRequested;
+
+  /// How many events this room has pinned.
+  ///
+  /// Passed in rather than read from `CurrentRoom`, which holds a pinned list
+  /// of its own for whichever room it last saw. Two lists for one room means
+  /// the header can offer a pin control for a room with no pins while the pane
+  /// says it has none.
+  final int pinnedCount;
+
+  /// Whether the timeline is currently filtered to pinned events.
+  ///
+  /// Constructor parameters for the same reason as [pinnedCount], and because
+  /// this button used to read a flag from `CurrentRoom` that no filter used.
+  /// It toggled its own icon and tooltip and the timeline carried on showing
+  /// everything, which is the one failure a filter control cannot have.
+  final bool pinnedFilterActive;
+
+  /// Toggles the timeline's pinned-only filter.
+  ///
+  /// Null hides the control. A header mounted somewhere that owns no timeline
+  /// has nothing to filter, and a button that filters nothing is worse than no
+  /// button.
+  final VoidCallback? onTogglePinnedFilter;
+
+  /// Which tab the pane button opens when it is not already open.
+  ///
+  /// The pane does not restore itself any more, so this is what the user's
+  /// "which tab does the room pane open on" preference now decides. It is a
+  /// parameter rather than a read of `SettingsController` because the header is
+  /// a plain widget with no settings dependency, and because a caller mounting
+  /// it outside `RoomPage` should be able to say what it wants instead of
+  /// silently picking up whatever the preference happens to hold.
+  final RoomPaneTab defaultPaneTab;
 
   @override
   State<ChatRoomHeader> createState() => _ChatRoomHeaderState();
 }
+
+IconData _paneIcon(RoomPaneTab tab) => switch (tab) {
+      RoomPaneTab.info => LucideIcons.info,
+      RoomPaneTab.members => LucideIcons.users,
+      RoomPaneTab.threads => LucideIcons.messagesSquare,
+      RoomPaneTab.pinned => LucideIcons.pin,
+      RoomPaneTab.search => LucideIcons.search,
+      RoomPaneTab.none => LucideIcons.circle,
+    };
 
 class _ChatRoomHeaderState extends State<ChatRoomHeader> {
   late String _displayName;
@@ -84,34 +141,36 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
         (widget.room.summary.mJoinedMemberCount ?? 0);
   }
 
-  /// React to a tap on the room header.
+  /// Opens the info tab, or the pane as a bottom sheet on the single-pane
+  /// shell.
   ///
-  /// *If* the right sidebar is enabled *and* its pane choice is
-  /// [`RightPaneChoice.roomInfo`] we toggle the sidebar instead of
-  /// navigating to the full-info page.  Otherwise the old push-navigation
-  /// behaviour is retained.
+  /// It used to branch three ways and consult a visibility flag: open the sheet
+  /// on mobile, do nothing when the dashboard's sidebar was already on room
+  /// info, and otherwise navigate to the full room-information page. That page
+  /// is gone and so is the flag, so there is one way in and no state to keep in
+  /// step with anything.
+  ///  /// It used to branch three ways: open the sheet on mobile, no-op when the
+  /// dashboard's sidebar was already on room info, and otherwise navigate to
+  /// the full page. With the pane owned by the room page, the middle branch is a
+  /// statement about a pane that may not be mounted at all, so it is gone; the
+  /// tab buttons next to the name are the visible way in, and this is the
+  /// shorthand for the one most people want.
   void _onTap() {
-    final settings = context.read<SettingsController>();
-
-    if (settings.rightSidebarVisible &&
-        settings.rightPaneChoice == RightPaneChoice.roomInfo) {
-      // Sidebar is already open and on room_info → no-op.
-      // Otherwise (sidebar hidden, or on different pane) → open it.
+    if (widget.onPaneSheetRequested != null) {
+      widget.onPaneSheetRequested!();
       return;
     }
-
-    // Fall back to full-page navigation.
-    _openRoomInfo();
-  }
-
-  /// Navigate to the room info page via go_router.
-  void _openRoomInfo() {
-    context.push('/main/rooms/${widget.room.id}/profile/roomDetails');
+    final void Function(RoomPaneTab)? toggle = widget.onPaneToggle;
+    if (toggle == null) return;
+    toggle(RoomPaneTab.info);
   }
 
   @override
   Widget build(BuildContext context) {
+    final ext = MoonrelayThemeExtension.of(context);
     final scheme = Theme.of(context).colorScheme;
+    final t = ext.tokens;
+    final layers = ext.layers;
 
     return StreamBuilder<Object>(
       stream: widget.room.client.onRoomState.stream
@@ -126,185 +185,235 @@ class _ChatRoomHeaderState extends State<ChatRoomHeader> {
             ? _topic
             : AppLocalizations.of(context)!.noTopicSet;
 
-        // Adapt the header to the available width:
-        // - Very narrow panes drop badges and the topic line to keep the
-        //   title and toolbar reachable.
-        // - Narrow panes drop the topic and shrink the avatar.
-        final width = MediaQuery.sizeOf(context).width;
-        final compactHeader = width < 480;
-        final showTopic = !compactHeader;
-        final showBadges = width >= 600;
-        final avatarRadius = compactHeader ? 16.0 : 20.0;
-        final nameFontSize = compactHeader ? 14.0 : 16.0;
-        final hPadding = compactHeader ? 8.0 : 12.0;
+        // Adapt the header to the *pane's* width, not the window's. The
+        // chat column is a sibling of the sidebars, so at a 1100px window
+        // it can be under 500px wide; measuring the window packed three
+        // controls into a 470px column and squeezed the room name out.
+        //
+        // Each control is gated by what it costs rather than by one shared
+        // band, because they are not the same kind of thing:
+        //  - the sync indicator and the pinned toggle each render nothing at
+        //    all when they have nothing to report, so hiding them by width
+        //    only removes a capability from the user who can least afford to
+        //    lose it, and costs no space when they are quiet
+        //  - the member badge and the topic line are always-present
+        //    furniture, so they are what gives way when the pane is narrow
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final tight = width < 400;
+            final showTopic = width >= 480;
+            final showMemberCount = width >= 440;
+            // Read, not watched: the shell commits in
+            // `_AdaptiveMainLayout`'s build, which is an ancestor and has
+            // already run, so the value is fresh without a subscription.
+            final avatarRadius = tight ? 14.0 : 16.0;
+            final nameFontSize = tight ? 14.0 : 15.0;
+            final hPadding = tight ? t.spaceSm : t.spaceMd;
+            final iconSize = tight ? 16.0 : 18.0;
+            final density = tight
+                ? const VisualDensity(horizontal: -2, vertical: -2)
+                : VisualDensity.compact;
 
-        return GestureDetector(
-          onTap: _onTap,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-                horizontal: hPadding, vertical: compactHeader ? 6 : 8),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              border: Border(
-                bottom: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                // Room avatar
-                AvatarFromUriOrFallbackImage(
-                  client: widget.room.client,
-                  avatarUri: widget.room.avatar,
-                  radius: avatarRadius,
-                ),
-                SizedBox(width: compactHeader ? 8 : 12),
-
-                // Name + Topic
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: nameFontSize,
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+            // The room header is the primary way out of the message pane in the
+            // single-pane shell, and it looked exactly like the surrounding
+            // fill. InkWell gives it the ink, hover and keyboard focus that a
+            // bare GestureDetector omitted; the fill moves to a Material so
+            // the splash has something to paint into.
+            //
+            // Glassy: the fill sits between the main pane and the rail steps
+            // rather than on either of them, so the header reads as a sheet
+            // lying over the conversation rather than as the top edge of it.
+            //
+            // There is no `BackdropFilter` any more. It was there to sell the
+            // translucency, and it cost a per-frame readback of the whole pane
+            // underneath on a bar that repaints on every sync: the jank showed
+            // up as scroll stutter in the timeline rather than as a slow
+            // header, which is a bad place to pay for decoration. A flat fill at
+            // the conversation's own step does the same job, because there is
+            // nothing behind the header to blur except more header.
+            return Container(
+              color: scheme.surfaceContainerHigh,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _onTap,
+                  child: Container(
+                    // A fixed height rather than one derived from the avatar, so the
+                    // bar is the same height whether or not a topic is
+                    // showing. A header that grows when a room has a topic
+                    // moves the top of the conversation, which is the one
+                    // place in a chat client where content must not shift.
+                    //
+                    // It reads paneBarHeight so it matches the bar at the
+                    // bottom of the same pane. It was a bare 48, and the
+                    // composer was a bare 52, which is the whole reason the
+                    // conversation had no frame.
+                    //
+                    // Always the token, never less. A narrow column used to
+                    // subtract 4 here on the theory that a tighter bar suits a
+                    // tighter pane, which re-created the exact mismatch the
+                    // token exists to remove, 4px wide and only below a 400px
+                    // conversation. The composer cannot compensate for it: it
+                    // has no idea how wide the room is. What `tight` is for is
+                    // the horizontal padding and the topic, both of which are
+                    // free.
+                    height: t.paneBarHeight,
+                    padding: EdgeInsets.symmetric(horizontal: hPadding),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: layers.hairline),
                       ),
-                      if (showTopic) ...[
-                        const SizedBox(height: 2),
+                    ),
+                    child: Row(
+                      children: [
+                        // Room avatar
+                        AvatarFromUriOrFallbackImage(
+                          client: widget.room.client,
+                          avatarUri: widget.room.avatar,
+                          radius: avatarRadius,
+                        ),
+                        SizedBox(width: hPadding),
+
+                        // Name, then the topic on the same line.
+                        //
+                        // The topic used to sit under the name, which made the
+                        // bar two lines tall and put the room's subject directly
+                        // above the first message instead of beside the name it
+                        // belongs to. One line with a rule between them is what
+                        // lets the bar stay 48 pixels, and it lets the topic
+                        // take all the width the actions do not need.
                         Text(
-                          topic,
+                          displayName,
                           style: TextStyle(
-                            fontSize: 13,
-                            color: scheme.onSurfaceVariant,
+                            fontSize: nameFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (showTopic) ...[
+                          SizedBox(width: t.spaceSm),
+                          // The one vertical rule in the chat. It is a
+                          // `Divider` rather than a `Container` because it is
+                          // the only rule here and giving it the token's own
+                          // hairline keeps it from becoming a second one.
+                          SizedBox(
+                            height: nameFontSize + 4,
+                            child: VerticalDivider(
+                              width: t.borderWidthMedium,
+                              thickness: t.borderWidthThin,
+                              color: layers.hairline,
+                            ),
+                          ),
+                          SizedBox(width: t.spaceSm),
+                          Flexible(
+                            child: Text(
+                              topic,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        SizedBox(width: tight ? t.spaceXs : t.spaceSm),
+
+                        // Sync status. Silent unless something is actually
+                        // wrong or unusually slow; see SyncIndicator for why a
+                        // long-poll in flight is not worth reporting. It
+                        // collapses to nothing when quiet, so it is never
+                        // gated on width.
+                        SyncIndicator(client: widget.room.client),
+
+                        // Pinned messages toggle. Also self-hiding when the
+                        // room has no pinned messages, and an action rather
+                        // than furniture, so it stays reachable at every width.
+                        _PinnedFilterButton(
+                          count: widget.pinnedCount,
+                          isActive: widget.pinnedFilterActive,
+                          onToggle: widget.onTogglePinnedFilter,
+                        ),
+
+                        // In the single-pane shell the four detail panes have
+                        // In the single-pane shell the pane has no room to
+                        // live in, so one button opens it as a sheet. Without
+                        // this, pinned messages in particular were unreachable
+                        // below 600px.
+                        if (widget.onPaneSheetRequested != null)
+                          IconButton(
+                            icon: Icon(
+                              LucideIcons.panelsTopLeft,
+                              size: iconSize,
+                            ),
+                            tooltip: AppLocalizations.of(context)!.roomPaneInfo,
+                            visualDensity: density,
+                            onPressed: widget.onPaneSheetRequested,
+                            color: scheme.onSurfaceVariant,
+                          ),
+
+                        if (showMemberCount) ...[
+                          _MemberCountBadge(
+                              count: _memberCount, scheme: scheme),
+                          SizedBox(width: t.spaceXs),
+                        ],
+
+                        // One button, and the pane's own strip does the tab switching.
+                        //
+                        // Five tab buttons were tried here first and overflowed
+                        // a 52-pixel bar by 43 pixels, which is the right answer
+                        // arriving the wrong way: the pane already carries a tab
+                        // strip, so buttons in two places are two controls for
+                        // one decision, and the bar that has to stay one height
+                        // is the one that ran out of room.
+                        if (widget.onPaneToggle != null)
+                          IconButton(
+                            icon: Icon(
+                              _paneIcon(
+                                  widget.paneTab ?? widget.defaultPaneTab),
+                              size: iconSize,
+                            ),
+                            onPressed: () =>
+                                widget.onPaneToggle!(widget.defaultPaneTab),
+                            tooltip: localizedRoomPaneTab(
+                              widget.defaultPaneTab,
+                              AppLocalizations.of(context)!,
+                            ),
+                            visualDensity: density,
+                            color: widget.paneTab != null
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
+                          ),
+
+                        // Settings gear: navigate to room settings
+                        IconButton(
+                          icon: Icon(
+                            LucideIcons.settings,
+                            size: iconSize,
+                          ),
+                          onPressed: () => openRoomSubpage(
+                              context, widget.room.id, 'settings'),
+                          tooltip: AppLocalizations.of(context)!.roomSettings,
+                          visualDensity: density,
+                          color: scheme.onSurfaceVariant,
+                        ),
+
+                        // Chevron indicating tappable
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: tight ? 16 : 20,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                SizedBox(width: compactHeader ? 4 : 8),
-
-                if (showBadges) ...[
-                  // Sync status indicator
-                  _SyncIndicator(client: widget.room.client),
-                  const SizedBox(width: 4),
-
-                  // Member count badge
-                  _MemberCountBadge(count: _memberCount, scheme: scheme),
-                  const SizedBox(width: 4),
-
-                  // Pinned messages toggle
-                  _PinnedFilterButton(room: widget.room),
-                  const SizedBox(width: 4),
-                ],
-
-                // In-room search toggle
-                IconButton(
-                  icon: Icon(
-                    widget.isSearchActive
-                        ? LucideIcons.searchX
-                        : LucideIcons.search,
-                    size: compactHeader ? 16 : 18,
-                  ),
-                  onPressed: widget.onSearchToggle,
-                  tooltip: AppLocalizations.of(context)!.searchInRoom,
-                  visualDensity: compactHeader
-                      ? VisualDensity(horizontal: -2, vertical: -2)
-                      : VisualDensity.compact,
-                  color: widget.isSearchActive
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-
-                // Settings gear — navigate to room settings
-                IconButton(
-                  icon: Icon(
-                    LucideIcons.settings,
-                    size: compactHeader ? 16 : 18,
-                  ),
-                  onPressed: () =>
-                      context.push('/main/rooms/${widget.room.id}/settings'),
-                  tooltip: AppLocalizations.of(context)!.roomSettings,
-                  visualDensity: compactHeader
-                      ? VisualDensity(horizontal: -2, vertical: -2)
-                      : VisualDensity.compact,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-
-                // Chevron indicating tappable
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: compactHeader ? 16 : 20,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// A small badge that shows a (• Syncing) indicator while the Matrix sync is
-/// in progress (waiting for response, processing, or cleaning up).
-///
-/// Hides automatically when the sync reaches the [SyncStatus.finished] state.
-class _SyncIndicator extends StatelessWidget {
-  const _SyncIndicator({required this.client});
-
-  final Client client;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-
-    return StreamBuilder<SyncStatusUpdate>(
-      stream: client.onSyncStatus.stream,
-      builder: (context, snapshot) {
-        final status = snapshot.data?.status;
-        final isSyncing = status != null && status != SyncStatus.finished;
-
-        if (!isSyncing) return const SizedBox.shrink();
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '\u2022', // bullet character
-                style: TextStyle(
-                  fontSize: 14,
-                  color: scheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.statusSyncing,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -323,11 +432,12 @@ class _MemberCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: t.spaceSm, vertical: 3),
       decoration: BoxDecoration(
         color: scheme.secondaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -337,7 +447,7 @@ class _MemberCountBadge extends StatelessWidget {
             size: 14,
             color: scheme.onSecondaryContainer,
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           Text(
             '$count',
             style: TextStyle(
@@ -358,27 +468,34 @@ class _MemberCountBadge extends StatelessWidget {
 /// inactive (outlined) style when off, so the user knows they can tap
 /// again to return to the full timeline.
 class _PinnedFilterButton extends StatelessWidget {
-  const _PinnedFilterButton({required this.room});
+  const _PinnedFilterButton({
+    required this.count,
+    required this.isActive,
+    required this.onToggle,
+  });
 
-  final Room room;
+  final int count;
+  final bool isActive;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final currentRoom = context.watch<CurrentRoom>();
-    final isActive = currentRoom.pinnedFilterActive;
-    final hasPinned = currentRoom.pinnedEventIds.isNotEmpty;
+    // Fail closed on the callback before the condition on the count. A
+    // control with nothing to toggle would draw itself as armed and do nothing.
+    final toggle = onToggle;
+    if (toggle == null) return const SizedBox.shrink();
 
     // Only show the button if there are pinned messages or the filter
     // is already active.
-    if (!hasPinned && !isActive) return const SizedBox.shrink();
+    if (count == 0 && !isActive) return const SizedBox.shrink();
 
     return IconButton(
       icon: Icon(
         isActive ? Icons.push_pin : Icons.push_pin_outlined,
         size: 18,
       ),
-      onPressed: () => currentRoom.togglePinnedFilter(),
+      onPressed: toggle,
       tooltip: isActive
           ? AppLocalizations.of(context)!.showPinnedOnly
           : AppLocalizations.of(context)!.showAllMessages,
@@ -386,8 +503,9 @@ class _PinnedFilterButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor:
             isActive ? scheme.primaryContainer : Colors.transparent,
-        foregroundColor:
-            isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+        foregroundColor: isActive
+            ? scheme.onPrimaryContainer
+            : scheme.onSurfaceVariant.withValues(alpha: 0.6),
       ),
     );
   }

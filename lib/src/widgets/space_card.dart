@@ -16,6 +16,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:matrix/matrix.dart';
+import 'package:moonrelay/src/helpers/async_utils.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
 /// A card widget for displaying a space's basic info in a grid or list.
 ///
@@ -29,6 +32,7 @@ class SpaceCard extends StatelessWidget {
     this.thumbnailURL,
     this.subtitle,
     this.onTap,
+    this.client,
   });
 
   /// The display name of the space.
@@ -43,42 +47,58 @@ class SpaceCard extends StatelessWidget {
   /// Called when the card is tapped.
   final VoidCallback? onTap;
 
-  /// Whether a valid thumbnail URL was provided.
-  bool get _hasThumbnail => thumbnailURL != null && thumbnailURL!.isNotEmpty;
+  /// The client whose token the thumbnail is fetched with.
+  ///
+  /// Explicit rather than read from a provider, because this widget has no
+  /// callers and a card is a pure view: making it depend on an ambient
+  /// client means the first person to use it has to discover the missing
+  /// provider from a `ProviderNotFoundException` at runtime. Without a
+  /// client the card shows its folder icon instead of attempting a request
+  /// that would answer 401.
+  final Client? client;
+
+  /// Whether a valid thumbnail URL was provided and we can actually fetch it.
+  bool get _hasThumbnail =>
+      client != null && thumbnailURL != null && thumbnailURL!.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
     return Card(
-      elevation: 0,
+      elevation: t.elevationNone,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.radiusMd),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(t.spaceLg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
                 radius: 24,
                 backgroundColor: scheme.primaryContainer,
-                backgroundImage:
-                    _hasThumbnail ? NetworkImage(thumbnailURL!) : null,
+                backgroundImage: _hasThumbnail
+                    ? NetworkImage(
+                        thumbnailURL!,
+                        headers: authHeaders(client!),
+                      )
+                    : null,
                 onBackgroundImageError: _hasThumbnail ? (_, __) {} : null,
                 child: _hasThumbnail
                     ? null
                     : Icon(
                         LucideIcons.folder,
-                        size: 24,
+                        size: t.iconSizeLarge,
                         color: scheme.onPrimaryContainer,
                       ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: t.spaceSm),
               Text(
                 name,
                 maxLines: 2,
@@ -88,7 +108,7 @@ class SpaceCard extends StatelessWidget {
                     const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: t.spaceXs),
                 Text(
                   subtitle!,
                   maxLines: 1,

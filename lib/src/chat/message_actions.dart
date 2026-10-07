@@ -15,28 +15,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:logger/logger.dart';
 import 'package:matrix/matrix.dart';
-import 'package:moonrelay/src/chat/chat_event.dart';
-import 'package:moonrelay/src/chat/edit_history_dialog.dart';
-import 'package:moonrelay/src/chat/edit_message_dialog.dart';
-import 'package:moonrelay/src/chat/reactions_bar.dart';
-import 'package:moonrelay/src/localization/app_localizations.dart';
-import 'package:moonrelay/src/screens/message_details_page.dart';
-import 'package:provider/provider.dart';
 
-/// A floating toolbar of action buttons for **React**, **Reply**, **Copy**,
-/// **Details**, **Forward**, **Delete** (if permitted), and **Moderation**
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:moonrelay/src/chat/message_action_runner.dart';
+import 'package:moonrelay/src/localization/app_localizations.dart';
+import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
+import 'package:moonrelay/src/widgets/menu_row.dart';
+
+/// A floating toolbar of action buttons for "React", "Reply", "Copy",
+/// "Details", "Forward", "Delete" (if permitted), and "Moderation"
 /// actions (kick, ban, report) for users with sufficient permissions.
 ///
 /// When the user is the sender of a text message, the toolbar also exposes
-/// **Edit** and **View edit history** actions; together with the
+/// "Edit" and "View edit history" actions; together with the
 /// `(edited)` marker rendered inline by `MessageEventHandler` they implement
 /// the full `m.replace` flow.
 ///
-/// Uses proper [ColorScheme] surface colors that adapt to light/dark themes.
-/// This widget does **not** manage its own visibility — the parent controls
+/// This widget does not manage its own visibility; the parent controls
 /// when it appears (e.g. via a hover wrapper).
 class MessageActions extends StatelessWidget {
   const MessageActions({
@@ -46,6 +42,7 @@ class MessageActions extends StatelessWidget {
     required this.onReply,
     this.onForward,
     this.onThread,
+    this.onEdit,
     this.timeline,
   });
 
@@ -61,162 +58,121 @@ class MessageActions extends StatelessWidget {
   /// When null, the thread button is hidden.
   final VoidCallback? onThread;
 
+  /// Optional callback triggered when the user wants to edit this event
+  /// inline instead of opening the edit dialog.  When null, the edit
+  /// button opens the dialog via [MessageActionRunner.edit].
+  final VoidCallback? onEdit;
+
   /// When non-null, the action toolbar offers an "Edit history" affordance
   /// that scans the timeline for `m.replace` events related to this one.
   final Timeline? timeline;
 
-  /// Whether the current user can moderate the sender of this event.
-  bool _canModerate(Client client) {
-    if (event.senderId == client.userID) return false;
-    try {
-      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
-      return sender.canKick;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Whether the given [eventId] is in the room's pinned-events list.
-  bool _isPinned(Room room, String eventId) {
-    final state = room.getState('m.room.pinned_events');
-    if (state == null) return false;
-    final pinned = state.content['pinned'];
-    if (pinned is! List) return false;
-    return pinned.contains(eventId);
-  }
-
-  /// Whether the current user can ban the sender of this event.
-  bool _canBan(Client client) {
-    if (event.senderId == client.userID) return false;
-    try {
-      final sender = room.unsafeGetUserFromMemoryOrFallback(event.senderId);
-      return sender.canBan;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Whether [event] is editable: text-shaped, sent by us, and not redacted.
-  bool _canEditText(BuildContext context) {
-    final client = room.client;
-    final isMine = event.senderId == client.userID;
-    if (!isMine) return false;
-    if (event.redacted) return false;
-    if (event.relationshipEventId != null) return false;
-    final mt = event.messageType;
-    if (mt != MessageTypes.Text &&
-        mt != MessageTypes.Emote &&
-        mt != MessageTypes.Notice) {
-      return false;
-    }
-    try {
-      return event.canRedact;
-    } catch (_) {
-      return true;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
     final l10n = AppLocalizations.of(context)!;
     final client = room.client;
     final canDelete = event.canRedact;
-    final canModerate = _canModerate(client);
-    final canBanUser = _canBan(client);
+    final canModerate = MessageActionRunner.canModerate(room, event);
+    final canBanUser = MessageActionRunner.canBan(room, event);
     final isOwnMessage = event.senderId == client.userID;
     final canPin = room.canChangeStateEvent('m.room.pinned_events');
-    final isPinned = _isPinned(room, event.eventId);
-    final canEdit = _canEditText(context);
-    final showEditHistory = isOwnMessage &&
-        isEditedMessage(event) &&
-        timeline != null;
+    final isPinned = MessageActionRunner.isPinned(room, event.eventId);
+    final canEdit = MessageActionRunner.canEditText(event, room);
+    final tl = timeline;
+    final showEditHistory =
+        tl != null && event.hasAggregatedEvents(tl, RelationshipTypes.edit);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionIcon(
-          icon: Icons.add_reaction_rounded,
+          icon: LucideIcons.smilePlus,
           tooltip: l10n.reactTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _react(context),
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.reply_rounded,
+          icon: LucideIcons.reply,
           tooltip: l10n.replyTooltip,
           color: cs.onSurfaceVariant,
           onTap: onReply,
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         if (onForward != null)
           _ActionIcon(
-            icon: Icons.shortcut_rounded,
+            icon: LucideIcons.forward,
             tooltip: l10n.forwardTooltip,
             color: cs.onSurfaceVariant,
             onTap: onForward!,
           ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         if (onThread != null)
           _ActionIcon(
-            icon: Icons.forum_rounded,
+            icon: LucideIcons.messagesSquare,
             tooltip: l10n.openThread,
             color: cs.onSurfaceVariant,
             onTap: onThread!,
           ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.copy_rounded,
+          icon: LucideIcons.copy,
           tooltip: l10n.copyTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _copyMessage(context),
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: t.spaceXs),
         _ActionIcon(
-          icon: Icons.info_outline_rounded,
+          icon: LucideIcons.info,
           tooltip: l10n.detailsTooltip,
           color: cs.onSurfaceVariant,
           onTap: () => _showDetails(context),
         ),
         if (canEdit) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: Icons.edit_outlined,
+            icon: LucideIcons.pencil,
             tooltip: l10n.editTooltip,
             color: cs.onSurfaceVariant,
             onTap: () => _editMessage(context),
           ),
         ],
         if (showEditHistory) ...[
-          const SizedBox(width: 4),
-          _ActionIcon(
-            icon: Icons.history_rounded,
-            tooltip: l10n.viewEditHistory,
-            color: cs.onSurfaceVariant,
-            onTap: () => _showEditHistory(context),
-          ),
+          SizedBox(width: t.spaceXs),
+          if (showEditHistory)
+            _ActionIcon(
+              icon: LucideIcons.history,
+              tooltip: l10n.viewEditHistory,
+              color: cs.onSurfaceVariant,
+              onTap: () => _showEditHistory(context),
+            ),
         ],
         if (canPin) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+            icon: isPinned ? LucideIcons.pinOff : LucideIcons.pin,
             tooltip: isPinned ? l10n.unpinMessage : l10n.pinMessage,
             color: isPinned ? cs.primary : cs.onSurfaceVariant,
             onTap: () => _togglePin(context),
           ),
         ],
         if (canDelete) ...[
-          const SizedBox(width: 4),
+          SizedBox(width: t.spaceXs),
           _ActionIcon(
-            icon: Icons.delete_outline_rounded,
+            icon: LucideIcons.trash2,
             tooltip: l10n.deleteTooltip,
             color: cs.error,
             onTap: () => _confirmDelete(context),
           ),
         ],
-        // ── Moderation actions ───────────────────────────────────────────
-        if (!isOwnMessage && (canModerate || canBanUser)) ...[
-          const SizedBox(width: 4),
+        // -- Moderation actions -------------------------------------------
+        // Not gated on power: reporting goes to your own homeserver and needs
+        // no room power level, and this gate meant an ordinary member could
+        // not report anybody from the hoverbar.
+        if (!isOwnMessage) ...[
+          SizedBox(width: t.spaceXs),
           _ModerationMenu(
             event: event,
             room: room,
@@ -232,131 +188,46 @@ class MessageActions extends StatelessWidget {
 
   /// Opens the reaction emoji picker and sends the chosen reaction.
   void _react(BuildContext context) {
-    showReactionPicker(
-      context,
-      onSelected: (emoji) {
-        room.sendReaction(event.eventId, emoji);
-      },
-    );
+    MessageActionRunner.react(context, event, room);
   }
 
   /// Copies the message body to the clipboard.
   void _copyMessage(BuildContext context) {
-    final body = event.body;
-    Clipboard.setData(ClipboardData(text: body));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.messageCopiedToClipboard),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    MessageActionRunner.copy(context, event);
   }
 
   /// Opens the message details page.
   void _showDetails(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MessageDetailsPage(
-          event: event,
-          room: room,
-        ),
-      ),
-    );
+    MessageActionRunner.showDetails(context, event, room);
   }
 
   /// Opens the in-place editor for the message body and writes the edit
   /// (m.replace) when the user confirms.
   void _editMessage(BuildContext context) async {
-    await showEditMessageDialog(context, event: event, room: room);
+    if (onEdit != null) {
+      onEdit!();
+    } else {
+      await MessageActionRunner.edit(context, event, room, timeline: timeline);
+    }
   }
 
   /// Shows the edit history dialog.
   void _showEditHistory(BuildContext context) {
-    final tl = timeline;
-    if (tl == null) return;
-    showEditHistoryDialog(context, event: event, timeline: tl, room: room);
+    MessageActionRunner.showEditHistory(context, event, timeline, room);
   }
 
   /// Toggles the pin state of this event.
   Future<void> _togglePin(BuildContext context) async {
-    final state = room.getState('m.room.pinned_events');
-    final existing = state?.content['pinned'];
-    final pinned = existing is List ? List<String>.from(existing.map((e) => e.toString())) : <String>[];
-    final eventId = event.eventId;
-
-    List<String> updated;
-    if (pinned.contains(eventId)) {
-      updated = pinned.where((id) => id != eventId).toList();
-    } else {
-      updated = [...pinned, eventId];
-    }
-
-    try {
-      await room.setPinnedEvents(updated);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              pinned.contains(eventId)
-                  ? AppLocalizations.of(context)!.unpinMessage
-                  : AppLocalizations.of(context)!.pinMessage,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
-        );
-      }
-    }
+    await MessageActionRunner.togglePin(context, event, room);
   }
 
   /// Shows a confirmation dialog before redacting the event.
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteMessage),
-        content: Text(
-          AppLocalizations.of(context)!.areYouSureDeleteMessage,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              AppLocalizations.of(context)!.delete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await event.redactEvent(reason: 'Deleted by user');
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.failedToDelete('$e'))),
-        );
-      }
-    }
+    await MessageActionRunner.confirmDelete(context, event);
   }
 }
 
-// ---------------------------------------------------------------------------
 // Small icon button used inside the actions row
-// ---------------------------------------------------------------------------
 
 /// A larger icon button used inside the hover toolbar.
 ///
@@ -378,21 +249,21 @@ class _ActionIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = MoonrelayThemeExtension.of(context).tokens;
 
-    return Tooltip(
-      message: tooltip,
-      preferBelow: false,
-      verticalOffset: 6,
+    return Semantics(
+      label: tooltip,
+      button: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(t.radiusSm),
           onTap: onTap,
-          hoverColor: cs.onSurfaceVariant.withValues(alpha: 0.08),
-          splashColor: cs.onSurfaceVariant.withValues(alpha: 0.12),
+          hoverColor: cs.onSurfaceVariant.withValues(alpha: t.opacityHover),
+          splashColor: cs.onSurfaceVariant.withValues(alpha: t.opacityFocus),
           child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, size: 20, color: color),
+            padding: EdgeInsets.all(t.spaceXs + 2),
+            child: Icon(icon, size: t.iconSizeMedium, color: color),
           ),
         ),
       ),
@@ -400,12 +271,19 @@ class _ActionIcon extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Moderation popup menu
-// ---------------------------------------------------------------------------
 
-/// A popup menu button that shows moderation actions (kick, ban, report)
-/// for users with sufficient permissions in the room.
+/// A popup menu button offering moderation actions for one message's sender.
+///
+/// This used to be a second, hand-written copy of the moderation section in
+/// `MessageContextMenu`, with the entries as `Row(Icon, SizedBox, Text)`, and
+/// it was gated the same wrong way: the *widget* only appeared when the user
+/// could kick or ban, while the report row inside it was written
+/// unconditionally. So the report row could never be reached, and a user with
+/// no power in a room had no way to report anybody from the hoverbar either.
+///
+/// It now shares [MoonrelayMenuItem] with the context menu so the two cannot
+/// drift, and its gating matches.
 class _ModerationMenu extends StatelessWidget {
   const _ModerationMenu({
     required this.event,
@@ -423,184 +301,46 @@ class _ModerationMenu extends StatelessWidget {
   final AppLocalizations l10n;
   final ColorScheme cs;
 
-  String get _senderName =>
-      event.senderFromMemoryOrFallback.calcDisplayname();
-
   @override
   Widget build(BuildContext context) {
+    final t = MoonrelayThemeExtension.of(context).tokens;
     return PopupMenuButton<String>(
       tooltip: l10n.moderationTooltip,
-      icon: Icon(Icons.more_vert_rounded, size: 20, color: cs.onSurfaceVariant),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      icon: Icon(LucideIcons.moreHorizontal,
+          size: t.iconSizeMedium, color: cs.onSurfaceVariant),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(t.radiusMd)),
       color: cs.surfaceContainerHighest,
       onSelected: (value) {
         switch (value) {
           case 'kick':
-            _confirmKick(context);
+            MessageActionRunner.kick(context, event, room);
           case 'ban':
-            _confirmBan(context);
+            MessageActionRunner.ban(context, event, room);
           case 'report':
-            _reportUser(context);
+            MessageActionRunner.report(context, event, room);
         }
       },
       itemBuilder: (_) => <PopupMenuEntry<String>>[
         if (canKick)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'kick',
-            child: Row(
-              children: [
-                Icon(Icons.person_remove_outlined, size: 18, color: cs.tertiary),
-                const SizedBox(width: 8),
-                Text(l10n.actionKick),
-              ],
-            ),
+            icon: LucideIcons.userMinus,
+            label: l10n.actionKick,
           ),
         if (canBan)
-          PopupMenuItem(
+          MoonrelayMenuItem<String>(
             value: 'ban',
-            child: Row(
-              children: [
-                Icon(Icons.block_outlined, size: 18, color: cs.error),
-                const SizedBox(width: 8),
-                Text(l10n.actionBan),
-              ],
-            ),
+            icon: LucideIcons.ban,
+            label: l10n.actionBan,
+            color: cs.error,
           ),
-        PopupMenuItem(
+        MoonrelayMenuItem<String>(
           value: 'report',
-          child: Row(
-            children: [
-              Icon(Icons.flag_outlined, size: 18, color: cs.error),
-              const SizedBox(width: 8),
-              Text(l10n.actionReport),
-            ],
-          ),
+          icon: LucideIcons.flag,
+          label: l10n.actionReport,
         ),
       ],
     );
-  }
-
-  void _confirmKick(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionKick),
-        content: Text(l10n.kickConfirm(_senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionKick),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final log = context.read<Logger>();
-    try {
-      await room.kick(event.senderId);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userKicked(_senderName))),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to kick', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  void _confirmBan(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.actionBan),
-        content: Text(l10n.banConfirm(_senderName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.actionBan),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final log = context.read<Logger>();
-    try {
-      await room.ban(event.senderId);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userBanned(_senderName))),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to ban', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
-  }
-
-  void _reportUser(BuildContext context) async {
-    final log = context.read<Logger>();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: Text(l10n.actionReport),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Reason',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(controller.text.trim()),
-              child: Text(l10n.actionReport),
-            ),
-          ],
-        );
-      },
-    );
-    if (reason == null) return;
-    try {
-      await room.client.reportUser(event.senderId, reason);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.userReported)),
-        );
-      }
-    } catch (e) {
-      log.w('Failed to report user', error: e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.actionFailed('$e'))),
-        );
-      }
-    }
   }
 }
