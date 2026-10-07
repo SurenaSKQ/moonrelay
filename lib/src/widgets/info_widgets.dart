@@ -387,7 +387,9 @@ class InfoPanelRow extends StatelessWidget {
                   value_,
                   textAlign: TextAlign.end,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  // `SelectableText` has no `overflow` parameter, so it cannot
+                  // ellipsize. At two lines it clips. Restoring the ellipsis means
+                  // giving up the selection that made this row worth using.
                   style: TextStyle(
                     fontSize: 13,
                     color: muted,
