@@ -1,44 +1,86 @@
 # Contributing to Moonrelay
 
-Thanks for your interest in making Moonrelay better!
-Please read the
-[Contributing section in the README](README.md#-contributing)
-first it covers workflow, code style, and what kinds of
-contributions are most useful.
+Bug reports, translations and packaging fixes are as welcome as code. This
+document covers what to expect from each and how to get a change merged.
 
-## Quick links
+## Reporting bugs
 
-- 🐛 [Report a bug](https://github.com/SurenaSKQ/moonrelay/issues/new?template=bug.yml)
-- 💡 [Request a feature](https://github.com/SurenaSKQ/moonrelay/issues/new?template=feature.yml)
-- 💬 [Matrix support space](https://matrix.to/#/#moonrelay-support:matrix.org)
-- 📦 [Release process](docs/RELEASING.md)
-- 🧪 [Testing guide](docs/TESTING.md)
+A report with logs attached gets fixed faster than one without. Logs live in the
+application support directory:
+
+- Linux: `~/.local/share/Moonrelay/logs/`
+- Windows: `%APPDATA%/Moonrelay/logs/`
+
+The app can be told to wipe its logs on logout, so grab them before you log out
+again. Include your platform, your Flutter version if you built from source, and
+the steps that reproduce the problem.
+
+## Translations
+
+Strings live in `lib/src/localization/`. English is `app_en.arb` and Persian is
+`app_fa.arb`; both are generated into the app by `flutter gen-l10n`.
+
+To add a locale, copy `app_en.arb`, translate the values, and open a pull
+request. Leave the keys alone and translate the values only, since keys are
+referenced from Dart.
+
+## Workflow
+
+1. Fork the repository on GitHub.
+2. Branch from `develop`, not from `master`:
+
+   ```bash
+   git checkout develop
+   git checkout -b feature/your-thing
+   ```
+
+3. Make your change. Keep `flutter analyze` clean and add tests under
+   `test/unit/` or `test/widget/` where the change is testable.
+4. Open a pull request against `develop`. CI has to pass before it merges.
+
+For anything larger than a bug fix, open an issue first so the approach can be
+agreed on before you write it.
+
+## Code style
+
+- `dart format` defaults: two-space indent, 80 columns.
+- `flutter_lints`, already configured in `analysis_options.yaml`.
+- A doc comment on every public API.
+- Use the `Logger` from `lib/src/helpers/log_service.dart` instead of `print`.
+
+There is also a typography guard. `./tools/check_typography.sh` fails on em
+dashes, en dashes, non-breaking hyphens, box-drawing characters, and a handful
+of other lookalikes that break search and copy in ways review does not catch. Run
+it before you open a pull request.
 
 ## Integration tests
 
-The tests in `integration_test/` need a real desktop session (they boot
-the actual Flutter app and drive it with `IntegrationTestWidgetsFlutterBinding`).
-They are **not** run in CI: the hosted Windows runner can't reliably attach
-the debug VM, and the Linux runner only runs them under Xvfb.
+The tests in `integration_test/` boot the real app and drive it, so they need a
+desktop session. They do not run in CI: the hosted Windows runner cannot attach
+the debug VM reliably, and the Linux runner only manages them under Xvfb.
 
-If your change touches login, sync, navigation, the chat box, or any screen
-under `lib/src/screens/`, please run the integration suite on your own
-machine before opening the PR:
+If your change touches login, sync, navigation, the chat box, or anything under
+`lib/src/screens/`, run the suite yourself first:
 
 ```bash
-flutter test integration_test/ -d linux    # Linux
-flutter test integration_test/ -d windows  # Windows
+flutter test integration_test/ -d linux
+flutter test integration_test/ -d windows
 ```
 
-You only need a working Flutter SDK and the build deps already listed in
-`docs/TESTING.md`; no Matrix homeserver required, the suite uses the
-mock HTTP client in `integration_test/helpers/mock_matrix_http_client.dart`.
+No Matrix homeserver is needed. The suite drives the mock HTTP client in
+`integration_test/helpers/mock_matrix_http_client.dart`. [docs/TESTING.md](docs/TESTING.md)
+covers the test layers and the pitfalls.
+
+## Releases
+
+Only maintainers cut tags. The process is written up in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Developer Certificate of Origin
 
-By submitting a contribution (patch, pull request, issue, comment,
-or any other material) to this project, you agree to the following
-**Developer Certificate of Origin 1.1**:
+By submitting a contribution (patch, pull request, issue, comment, or any other
+material) to this project, you agree to the following **Developer Certificate of
+Origin 1.1**:
 
 ```
 By making a contribution to this project, I certify that:
@@ -63,9 +105,9 @@ By making a contribution to this project, I certify that:
     project and the open source license indicated in the file.
 ```
 
-(DCO 1.1, adapted from the Linux kernel project.)
+DCO 1.1, adapted from the Linux kernel project.
 
-## Code of Conduct
+## Code of conduct
 
-Be kind. Don't be rude. Disagree on the merits, not the people.
-The maintainer reserves the right to close unproductive threads.
+Be kind. Disagree on the merits, not the person. The maintainer closes threads
+that go nowhere.

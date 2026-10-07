@@ -1,173 +1,138 @@
-# Moonrelay releases, versioning, and packaging
+# Releases, versioning and packaging
 
-This document explains how Moonrelay is versioned, how CI builds
-artifacts, and how to cut a new release. The goal is **one source of
-truth** (`pubspec.yaml`) and **everything else is derived**.
+`pubspec.yaml` holds the version. Everything else derives from it, and CI fails
+the release if a tag disagrees with it.
 
-## 1. Versioning
+## Versioning
 
-We use a deliberately small, opinionated scheme:
+| Field | Rule |
+|-------|------|
+| `MAJOR` | Breaking changes: schema, settings, removed features. |
+| `MINOR` | New features, backward compatible. |
+| `PATCH` | Bug fixes only. |
+| `-pre.alpha.N` | Internal builds. Not expected to work for users. |
+| `-pre.beta.N` | Preview ahead of a stable `MINOR`. |
 
-| Field            | Rule                                                          |
-|------------------|---------------------------------------------------------------|
-| `MAJOR`          | Breaking changes (schema, settings, removed features).       |
-| `MINOR`          | New features, backward compatible.                           |
-| `PATCH`          | Bug fixes only.                                               |
-| `-pre.alpha.N`   | Internal alphas; never expected to work for users.            |
-| `-pre.beta.N`    | Public-ish preview before a stable MINOR.                     |
-
-Stored as Flutter's standard `X.Y.Z+B` in `pubspec.yaml`. The `+B`
-build suffix is kept for store-style auto-incrementing once we ship
-mobile. For now `pubspec.yaml` shows `version: 0.6.0+0`.
+Stored as Flutter's `X.Y.Z+B` in `pubspec.yaml`. The `+B` build suffix is
+reserved for store-style auto-incrementing if mobile ever happens.
 
 ```
 $ grep ^version pubspec.yaml
 version: 0.6.0+0
 ```
 
-The build suffix is **never** used inside the .deb/.rpm/.msix package
-because those formats forbid `+` and `-`. They're derived into:
+`.deb`, `.rpm` and `.msix` forbid `+` and `-`, so the packages derive their own:
 
-| Format | Uses                            |
-|--------|---------------------------------|
-| .deb   | `0.6.0-1` (Release=1 for the rpm/dist tag)            |
-| .rpm   | `0.6.0-1%{?dist}`                                            |
-| MSIX   | `0.6.0.0` (always four parts; revision becomes the suffix)   |
+| Format | Version used |
+|--------|--------------|
+| `.deb` | `0.6.0-1` |
+| `.rpm` | `0.6.0-1%{?dist}` |
+| MSIX | `0.6.0.0`, with the release becoming the revision field |
 
-The MSIX four-quad handling is documented in `package-windows.yml`
-`Resolve version from pubspec.yaml` pre-release labels like
-`0.7.0-rc.1` resolve to `0.7.0.0` and the human label is preserved as
-`<Identity>.DisplayVersion`.
+`package-windows.yml` resolves the four-quadrant MSIX version itself: a
+pre-release label such as `0.7.0-rc.1` becomes `0.7.0.0`, and the human label is
+kept as `<Identity>.DisplayVersion`.
 
-## 2. Branches and tags
+## Branches and tags
 
 ```
-main (stable; PRs land here)         -- protected, requires CI green
-└-- feature/...                       -- short-lived
-develop (integration)                 -- default branch in the repo today
-└-- feature/...
-tag vX.Y.Z                            -- immutable, triggers release.yml
+master   stable; pull requests land here after develop is promoted
+develop   integration; the default branch today
+tag vX.Y.Z   immutable, triggers release.yml
 ```
 
-When `develop` is promoted to `main`, we make sure the merged commit
-on `main` has `pubspec.yaml` set to the version we want to ship, then
-tag `main`. **Never** tag a commit whose `pubspec.yaml` differs from
-the tag the release workflow enforces this via a hard check.
+Before tagging, set `pubspec.yaml` on `master` to the version you are shipping.
+The release workflow compares the two and refuses to continue if they differ.
 
-## 3. Cutting a release
-
-The whole flow is two commands:
+## Cutting a release
 
 ```bash
-# 1. Bump the version in pubspec.yaml (on a stable branch).
-./tools/release.sh minor      # 0.6.0 -> 0.7.0
+# 1. Bump the version on the stable branch.
+./tools/release.sh minor      # 0.6.0 becomes 0.7.0
 git add pubspec.yaml
 git commit -m "release: v0.7.0"
 git push origin HEAD
 
-# 2. Tag once CI is green. This triggers the release workflow.
+# 2. Tag once CI is green. This starts the release workflow.
 ./tools/release.sh tag        # creates v0.7.0
 ```
 
-`release.yml` then:
+`release.yml` then re-verifies the version against `pubspec.yaml`, calls
+`package-linux.yml` (ubuntu-jammy and fedora-39 in parallel) and
+`package-windows.yml`, collects the `.deb`, `.rpm` and `.msix` artifacts, and
+creates a **draft** GitHub Release with notes from `gh release notes`. The draft
+is deliberate: the release blurb is usually worth writing by hand.
 
-1. Re-verifies `pubspec.yaml` matches the tag.
-2. Calls `package-linux.yml` (matrix: ubuntu-jammy + fedora-39) in
-   parallel.
-3. Calls `package-windows.yml`.
-4. Downloads the resulting `.deb`, `.rpm`, and `.msix` artifacts.
-5. Creates a **draft** GitHub Release using
-   `softprops/action-gh-release@v2` with auto-generated notes from
-   `gh release notes`.
+To exercise packaging without cutting a tag, dispatch `package-linux.yml`
+manually from the Actions tab. It takes a `version_override` input for testing a
+version that is not in `pubspec.yaml`.
 
-The release is created as `draft: true` because authors typically
-want to write a changelog blurb before publishing. To also test
-packaging without touching a tag:
+## CI workflows
 
-```bash
-# Manual dispatch from the Actions tab -> "Linux packaging"
-#  -> enter "version_override" if you want to bypass pubspec.yaml.
-```
+| File | Runs on | Purpose |
+|------|---------|---------|
+| `tests.yml` | push and pull request to `main`, `master`, `develop` | analyze, unit, widget, integration, release-build smoke |
+| `package-linux.yml` | tag, manual, `workflow_call` | `.deb` and `.rpm` |
+| `package-windows.yml` | tag, manual, `workflow_call` | MSIX via `makeappx.exe` |
+| `release.yml` | tag, manual | orchestrates the above, drafts the release |
+| `deps.yml` | weekly cron, Monday 06:00 UTC | dependency probes |
 
-## 4. CI matrix
+The Flutter pin is currently inconsistent. `tests.yml` and
+`package-windows.yml` use `3.44.6`; `package-linux.yml` still says `3.24.5`.
+Bring them to one value before the next release. A major Flutter bump has broken
+the build before, so treat the change as deliberate rather than routine.
 
-`.github/workflows/`:
+### Branch protection on `master`
 
-| File                  | Runs when                              | Purpose |
-|-----------------------|----------------------------------------|---------|
-| `tests.yml` (`ci`)    | push/PR to `main`, `master`, `develop` | analyze, unit, widget, integration, release-build smoke |
-| `package-linux.yml`   | tag, manual, workflow_call             | .deb + .rpm via `package-linux.yml` matrixed containers |
-| `package-windows.yml` | tag, manual, workflow_call             | MSIX via `makeappx.exe` |
-| `release.yml`         | tag, manual                            | orchestrate + draft release |
-| `deps.yml`            | weekly cron Mon 06:00 UTC + manual     | periodic dependency probes |
-
-The CI uses Flutter `3.24.5` (pinned in env vars at the top of each
-workflow). Bump it consciously; SDK-level regressions from a major
-Flutter update are real.
-
-### Branch protection recommended (UI setting)
-
-Set on `main`:
-
-- "Require status checks to pass before merging" -> include
-  `analyze-linux`, `analyze-windows`, `unit-linux`, `unit-windows`,
-  `integration-linux`, `integration-windows`,
+- Require status checks before merging: `analyze-linux`, `analyze-windows`,
+  `unit-linux`, `unit-windows`, `integration-linux`, `integration-windows`,
   `build-linux`, `build-windows`.
-- "Require linear history" so squash/merge fast-forward keeps the
-  pubspec monotonic.
-- "Do not allow force pushes", "include administrators".
+- Require linear history, so the version in `pubspec.yaml` only ever moves
+  forward.
+- Disallow force pushes, including for administrators.
 
-## 5. Packaging internals
+## Packaging internals
 
 ### Linux
 
-Two parallel containers in `package-linux.yml`:
+Two containers run in parallel. `ghcr.io/jonathangjert/ubuntu-jammy` builds the
+`.deb` with `dpkg-deb` and `fakeroot`; `ghcr.io/jonathangjert/fedora-39` builds
+the `.rpm` with `rpmbuild`.
 
-| Container                  | Native tooling           | Output                       |
-|----------------------------|--------------------------|------------------------------|
-| `ghcr.io/jonathangjert/ubuntu-jammy`  | `dpkg-deb`, `fakeroot` | `moonrelay_<ver>_amd64.deb`  |
-| `ghcr.io/jonathangjert/fedora-39`     | `rpmbuild`              | `moonrelay-<ver>-1.x86_64.rpm`|
-
-Layout for both:
+Both lay out the same tree:
 
 ```
-/usr/lib/moonrelay/...    # flutter build bundle
-/usr/bin/moonrelay         # symlink -> ../lib/moonrelay/moonrelay
+/usr/lib/moonrelay/...    the Flutter build bundle
+/usr/bin/moonrelay         symlink to ../lib/moonrelay/moonrelay
 /usr/share/applications/moonrelay.desktop
 /usr/share/icons/hicolor/256x256/apps/moonrelay.png
 /usr/share/metainfo/io.github.surenaskq.moonrelay.appdata.xml
 ```
 
-Dependency hints (libcurl, sqlite3, gtk3, jsoncpp) come from the
-Flutter engine + Material ForwadingUI plugins. If a new plugin needs
-a system lib, add it to both `linux/packaging/control` (Depends) and
-`linux/packaging/moonrelay.spec` (Requires).
+System library dependencies come from the Flutter engine and its Material Linux
+plugins. When a plugin starts needing a system library, add it to both
+`linux/packaging/control` (`Depends`) and `linux/packaging/moonrelay.spec`
+(`Requires`).
 
 ### Windows MSIX
 
-`package-windows.yml`:
+`package-windows.yml` runs `flutter build windows --release`, stages the output
+under `stage/msix/VFS/ProgramFilesX64/Moonrelay/`, substitutes `@VERSION@` and
+friends into `windows/packaging/AppxManifest.xml.in`, and calls
+`makeappx pack /p out.msix /d stage/msix /v`.
 
-1. Run `flutter build windows --release`.
-2. Stage under `stage/msix/VFS/ProgramFilesX64/Moonrelay/`.
-3. Substitute `@VERSION@`, `@PUBLISHER@`, etc. into
-   `windows/packaging/AppxManifest.xml.in`.
-4. Call `makeappx pack /p out.msix /d stage/msix /v`.
+The PowerShell script looks for the Windows 10 SDK through chocolatey and winget.
+If neither yields `makeappx.exe`, as on a self-hosted runner without admin, the
+job logs a warning and stops. Packing by hand from Visual Studio still works
+using the same `AppxManifest.xml.in`.
 
-The PowerShell script tries chocolatey and winget for the Windows 10
-SDK. If neither path produces `makeappx.exe` (e.g. self-hosted
-runners without admin), the job short-circuits with a warning 
-manual repackaging with Visual Studio is still possible using the
-provided `AppxManifest.xml.in`. The warning path is also what you
-want for short-lived forks where MSIX signing isn't set up.
+**Signing.** Once there is a certificate, add a `makeappx sign` step and pass
+the certificate in as a secret. Until then CI produces unsigned MSIX packages,
+and the install machine has to have sideloading enabled.
 
-> **Signing**: Once a certificate is configured, add a `makeappx
-> sign` step and provide the cert as a secret. Until then, MSIXs
-> from CI are unsigned and will require "sideload" mode on the
-> install machine.
+## When `pubspec.yaml` drifts from the tag
 
-## 6. When `pubspec.yaml` version drifts from a tag
-
-`release.yml`'s `preflight` step runs:
+The `preflight` step in `release.yml` runs:
 
 ```bash
 PUB_VERSION="$(awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | cut -d'+' -f1 | tr -d '"')"
@@ -177,34 +142,28 @@ if [ "$PUB_VERSION" != "$VERSION" ]; then
 fi
 ```
 
-This is a hard guard. Bumping a tag without updating pubspec makes
-the release fail loudly. Update pubspec first, push, then re-tag.
+This is a hard stop, so a tag that points at the wrong commit fails loudly
+rather than publishing a mislabelled package. Fix `pubspec.yaml`, push, and
+re-tag.
 
-## 7. Maintenance cadence (suggested)
+## Repository settings
 
-| Cadence       | Action                                                           |
-|---------------|------------------------------------------------------------------|
-| Weekly        | Merge `flutter_lints`, `flutter` SDK bumps.                      |
-| Per feature   | `feature/x` → `develop`. CI green required.                       |
-| Per release   | `release.sh {patch,minor,major}`, run, draft, publish.            |
-| Per year      | Bump Flutter SDK floor in `pubspec.yaml` and pin `FLUTTER_VERSION` in workflows. |
+Settings in the GitHub UI, none of which can be set from the repository:
 
-### Where to spend time when you return after months away
+- **Settings, then Actions, then General, then Workflow permissions**: set "Read
+  and write permissions". `release.yml` cannot draft a release without it.
+- **Settings, then Branches**: protect `master`, as above.
+- **Settings, then Rules, then Tags**: protect `v*.*.*` against force-pushes.
+- **Settings, then Environments**: create `production` with required reviewers
+  before switching `release.yml` from `draft: true` to `published`.
+- **Settings, then Secrets**: add `MOONRELAY_CERT_PFX_BASE64` once there is a
+  signing certificate.
 
-1. Look at `WORK_NEEDED.md` (existing)  feature debt.
-2. Run `flutter pub outdated` and check the major deps (`matrix`, `go_router`, `provider`).
-3. Run `./tools/release.sh patch && git push` to make sure the
-   pipeline still produces artifacts end-to-end; this catches SDK
-   rot before you commit to a real release.
-4. Promote `develop -> main` once stable.
+## Coming back after a few months
 
-## 8. Repository settings to flip on (UI)
-
-- **Actions → General → Workflow permissions**: "Read and write
-  permissions" (required so `release.yml` can draft releases).
-- **Branch protection** on `main` (see section 4).
-- **Tag protection** on `v*.*.*` to forbid force-pushes.
-- **Environments**: create `production` with required reviewers
-  before flipping `release.yml` from `draft: true` to `published`.
-- **Secret**: `MOONRELAY_CERT_PFX_BASE64` for MSIX signing (when you
-  get a code-signing cert).
+1. Read the open issues for the current state of the work.
+2. Run `flutter pub outdated` and check the majors: `matrix`, `go_router`,
+   `provider`.
+3. Run `./tools/release.sh patch && git push` and let the pipeline produce
+   artifacts. This catches toolchain drift before you plan a real release.
+4. Promote `develop` to `master` once it is stable.
