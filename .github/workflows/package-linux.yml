@@ -141,6 +141,17 @@ jobs:
             echo "found $m $(pkg-config --modversion "$m")"
           done
 
+      - name: Install ayatana development headers
+        run: |
+          # We need this for the system tray support
+          # I'm not sure which package is actually needed but I put both
+          if [ "${{ matrix.dist }}" = "fedora-39" ]; then
+            dnf install -y libayatana-appindicator
+          else
+            apt-get update
+            apt-get install -y libayatana-appindicator3-dev libayatana-indicator3-dev
+          fi
+
       - run: flutter pub get
       - run: flutter gen-l10n
       - run: flutter build linux --release
