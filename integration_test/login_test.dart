@@ -120,9 +120,7 @@ void main() {
     );
   });
 
-  // ---------------------------------------------------------------------
   // Login flow
-  // ---------------------------------------------------------------------
 
   group('Login flow', () {
     testWidgets('renders welcome screen when not logged in', (tester) async {

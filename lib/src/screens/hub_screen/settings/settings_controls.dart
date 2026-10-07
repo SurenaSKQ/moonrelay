@@ -19,9 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// -----------------------------------------------------------------------------
 // The control vocabulary of the hub's settings pages
-// -----------------------------------------------------------------------------
 
 /// Width of a slider's well in a settings row.
 ///

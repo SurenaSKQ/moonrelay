@@ -25,9 +25,7 @@ import 'package:moonrelay/src/widgets/space_rooms_tree.dart';
 import '../helpers/mocks.dart';
 import 'package:provider/provider.dart';
 
-// ---------------------------------------------------------------------------
 // Helper that mirrors the static _extractInitials in space_rooms_tree.dart
-// ---------------------------------------------------------------------------
 
 String extractInitials(String name) {
   final trimmed = name.trim();
@@ -42,9 +40,7 @@ String extractInitials(String name) {
 }
 
 void main() {
-  // =======================================================================
   // Unit tests: _extractInitials helper
-  // =======================================================================
   group('extractInitials', () {
     test('two-word name',
         () => expect(extractInitials('Alice Bob'), equals('AB')));
@@ -63,9 +59,7 @@ void main() {
         () => expect(extractInitials('\t\n '), equals('?')));
   });
 
-  // =======================================================================
   // Widget tests: SpaceRoomsPane (basic rendering without children)
-  // =======================================================================
   group('SpaceRoomsPane rendering', () {
     late MockClient client;
 
@@ -129,9 +123,7 @@ void main() {
     });
   });
 
-  // =======================================================================
   // NavigationState lifecycle
-  // =======================================================================
   group('NavigationState lifecycle', () {
     late NavigationState nav;
     setUp(() => nav = NavigationState());

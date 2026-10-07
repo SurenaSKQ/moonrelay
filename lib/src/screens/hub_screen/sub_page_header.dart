@@ -17,9 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// -----------------------------------------------------------------------------
 // Sub-page header wrapper
-// -----------------------------------------------------------------------------
 
 /// A titled strip above a section's body, with optional trailing actions.
 ///

@@ -18,9 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// -----------------------------------------------------------------------------
 //  The page
-// -----------------------------------------------------------------------------
 
 /// The shell every information and settings page is built on.
 ///
@@ -110,9 +108,7 @@ class InfoSectionGap extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 //  Panels
-// -----------------------------------------------------------------------------
 
 /// One titled group of rows on a single surface.
 ///
@@ -262,9 +258,7 @@ class InfoSectionLabel extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 //  Rows
-// -----------------------------------------------------------------------------
 
 /// One row inside an [InfoPanel].
 ///
@@ -426,9 +420,7 @@ class InfoPanelRow extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 //  Chips
-// -----------------------------------------------------------------------------
 
 /// A small labelled pill for a fact about the room or space.
 ///
@@ -501,9 +493,7 @@ class InfoChip extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 //  Typography helpers
-// -----------------------------------------------------------------------------
 
 /// Small indirection so the display face is read from one place.
 ///

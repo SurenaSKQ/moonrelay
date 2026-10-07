@@ -50,9 +50,7 @@ class RoomSettingsPage extends StatefulWidget {
 }
 
 class _RoomSettingsPageState extends State<RoomSettingsPage> {
-  // ---------------------------------------------------------------------------
   // Helpers
-  // ---------------------------------------------------------------------------
 
   String _roomTypeLabel(Room room) {
     final l10n = AppLocalizations.of(context)!;
@@ -103,9 +101,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   /// it, which the spec only permits once you are out of the room.
   bool get canForget => widget.room.membership == Membership.leave;
 
-  // ---------------------------------------------------------------------------
   // Room editing
-  // ---------------------------------------------------------------------------
 
   Future<void> _editRoomName() async {
     final room = widget.room;
@@ -181,9 +177,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Room leave / delete / forget
-  // ---------------------------------------------------------------------------
 
   void _leaveRoom() async {
     final confirmed = await showDialog<bool>(
@@ -359,9 +353,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -678,9 +670,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // State-event editors
-  // ---------------------------------------------------------------------------
 
   String _historyVisibilityLabel(BuildContext context, Room room) {
     final l10n = AppLocalizations.of(context)!;

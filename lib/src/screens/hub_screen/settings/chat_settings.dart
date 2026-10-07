@@ -26,9 +26,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart'
 import 'package:moonrelay/src/settings/chat_preferences.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
-// -----------------------------------------------------------------------------
 // Chat Settings
-// -----------------------------------------------------------------------------
 
 /// How the conversation behaves.
 ///

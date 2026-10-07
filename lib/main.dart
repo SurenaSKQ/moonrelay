@@ -58,9 +58,7 @@ import 'src/splash_screen.dart';
 /// subtle migration bugs.
 const int kDbSchemaVersion = 3;
 
-// -----------------------------------------------------------------------------
 // Init state: populated by the boot pipeline, consumed by the app on success
-// -----------------------------------------------------------------------------
 
 class _AppState {
   const _AppState({
@@ -92,9 +90,7 @@ class _AppState {
   final AutoUpdateService autoUpdateService;
 }
 
-// -----------------------------------------------------------------------------
 // Init pipeline
-// -----------------------------------------------------------------------------
 
 /// Runs the full boot pipeline via [runBootPipeline] in [boot.dart].
 Future<_AppState> _initialize({
@@ -134,9 +130,7 @@ Future<_AppState> _initialize({
   );
 }
 
-// -----------------------------------------------------------------------------
 // Root widget: swaps between splash and the real app via setState
-// -----------------------------------------------------------------------------
 
 class MoonrelayBootstrap extends StatefulWidget {
   const MoonrelayBootstrap({super.key});
@@ -419,9 +413,7 @@ class _MoonrelayBootstrapState extends State<MoonrelayBootstrap> {
   }
 }
 
-// -----------------------------------------------------------------------------
 // Entry point
-// -----------------------------------------------------------------------------
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

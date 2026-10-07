@@ -29,9 +29,7 @@ import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 
-// -----------------------------------------------------------------------------
 // About Page
-// -----------------------------------------------------------------------------
 
 /// What this is, where it lives, and where to ask.
 ///

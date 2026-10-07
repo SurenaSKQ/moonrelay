@@ -25,9 +25,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart'
 import 'package:moonrelay/src/services/notification_service.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
-// -----------------------------------------------------------------------------
 // Notification Settings
-// -----------------------------------------------------------------------------
 
 class HubNotificationSettings extends StatelessWidget {
   const HubNotificationSettings({super.key});

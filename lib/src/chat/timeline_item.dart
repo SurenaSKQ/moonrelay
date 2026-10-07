@@ -607,9 +607,7 @@ class _TimelineItemState extends State<TimelineItem> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Modern display
-  // ---------------------------------------------------------------------------
 
   /// Vertical gap above this message.
   ///
@@ -711,9 +709,7 @@ class _TimelineItemState extends State<TimelineItem> {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Bubbles display
-  // ---------------------------------------------------------------------------
 
   Widget _buildBubbles(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -866,9 +862,7 @@ class _TimelineItemState extends State<TimelineItem> {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // IRC display (compact, no hover actions)
-  // ---------------------------------------------------------------------------
 
   Widget _buildIrc(BuildContext context) {
     final chat = MoonrelayThemeExtension.of(context).components.chat;

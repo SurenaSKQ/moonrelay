@@ -41,9 +41,7 @@ import 'settings/settings_controller.dart';
 import 'settings/settings_service.dart';
 import 'settings/space_preferences.dart';
 
-// -----------------------------------------------------------------------------
 // BootContext: result of the boot pipeline
-// -----------------------------------------------------------------------------
 
 /// All initialized services produced by the boot pipeline.
 class BootContext {
@@ -78,9 +76,7 @@ class BootContext {
   final AutoUpdateService autoUpdateService;
 }
 
-// -----------------------------------------------------------------------------
 // BootStep: single unit of the boot pipeline
-// -----------------------------------------------------------------------------
 
 /// A single initialisation step in the boot pipeline.
 ///
@@ -97,9 +93,7 @@ abstract class BootStep<T> {
   Future<T> run();
 }
 
-// -----------------------------------------------------------------------------
 // Pipeline runner
-// -----------------------------------------------------------------------------
 
 /// Runs the full boot pipeline, calling [onStatus] before each step.
 ///

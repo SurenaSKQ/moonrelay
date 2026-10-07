@@ -22,9 +22,7 @@ import 'package:moonrelay/src/services/tray_service.dart';
 
 import 'log_service.dart';
 
-// -----------------------------------------------------------------------------
 // MoonShutdown, globally-registered orderly shutdown
-// -----------------------------------------------------------------------------
 
 /// Provides a single shutdown entry point that all close paths (window
 /// close button, tray "Quit", system close) use through a globally
@@ -60,9 +58,7 @@ class MoonShutdown {
   }
 }
 
-// -----------------------------------------------------------------------------
 // performShutdown: the actual teardown sequence
-// -----------------------------------------------------------------------------
 
 /// Runs an orderly teardown of every live service before the
 /// application terminates.

@@ -28,9 +28,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 import 'package:moonrelay/src/widgets/shortcut_reference.dart';
 
-// -----------------------------------------------------------------------------
 // Keybinds Settings
-// -----------------------------------------------------------------------------
 
 /// The keys, grouped by where they apply.
 ///

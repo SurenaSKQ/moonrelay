@@ -19,9 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 
-// -----------------------------------------------------------------------------
 // The measure
-// -----------------------------------------------------------------------------
 
 /// The hub's content column: one measure, one margin, one scroll.
 ///

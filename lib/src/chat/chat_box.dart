@@ -290,9 +290,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     return KeyEventResult.ignored;
   }
 
-  // ---------------------------------------------------------------------------
   // Actions
-  // ---------------------------------------------------------------------------
 
   Future<void> _send() async {
     final text = _controller.text.trim();
@@ -551,9 +549,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Text selection helpers
-  // ---------------------------------------------------------------------------
 
   /// Wraps the current selection with [before] and [after] markers.
   ///
@@ -614,9 +610,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   /// axes is what Flutter's own `FilledButton` uses for the same reason.
   static const double _pillRadius = 9999;
 
-  // ---------------------------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -863,9 +857,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Reply preview banner
-  // ---------------------------------------------------------------------------
 
   /// Builds a banner showing which message the user is replying to, with a
   /// dismiss button to cancel the reply.
@@ -960,9 +952,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Edit-mode banner
-  // ---------------------------------------------------------------------------
 
   /// Builds a banner showing which message is being edited, with a
   /// dismiss button to cancel the edit.
@@ -1056,9 +1046,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
     );
   }
 
-  // ---------------------------------------------------------------------------
   // Formatting toolbar
-  // ---------------------------------------------------------------------------
 
   Widget _buildFormattingToolbar(ColorScheme colorScheme) {
     final l10n = AppLocalizations.of(context)!;
@@ -1172,9 +1160,7 @@ class _ChatBoxState extends State<ChatBox> with SingleTickerProviderStateMixin {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reusable icon button used in the chat box
-// ---------------------------------------------------------------------------
 
 /// A small, clean icon button for the chat box toolbar.
 class _IconButton extends StatelessWidget {

@@ -91,9 +91,7 @@ class ReactionEmojiGrid extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reactions bar (placed below message body)
-// ---------------------------------------------------------------------------
 
 /// A compact bar that displays emoji reactions for a timeline event.
 ///
@@ -208,9 +206,7 @@ class ReactionsBar extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reaction chip
-// ---------------------------------------------------------------------------
 
 /// A small chip showing an emoji, a count, and a highlight when the current
 /// user has used that reaction.
@@ -272,9 +268,7 @@ class _ReactionChip extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Add-reaction button
-// ---------------------------------------------------------------------------
 
 /// A small `+` button that opens a popup with common reaction emojis.
 class _AddReactionButton extends StatelessWidget {

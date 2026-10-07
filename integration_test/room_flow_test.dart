@@ -125,9 +125,7 @@ void main() {
     }
   }
 
-  // -----------------------------------------------------------------
   // Tests
-  // -----------------------------------------------------------------
 
   group('Room interaction flow', () {
     testWidgets('shows room list after login', (tester) async {

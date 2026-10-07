@@ -17,9 +17,7 @@
 import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/widgets/global_shortcut_listener.dart';
 
-// -----------------------------------------------------------------------------
 // What the keyboard does, in one list
-// -----------------------------------------------------------------------------
 
 /// Where a shortcut applies.
 ///

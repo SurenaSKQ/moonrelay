@@ -32,9 +32,7 @@ import 'package:moonrelay/src/settings/settings_controller.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 
-// -----------------------------------------------------------------------------
 // Appearance & Layout
-// -----------------------------------------------------------------------------
 
 /// How the app looks, and how its panels are arranged.
 ///

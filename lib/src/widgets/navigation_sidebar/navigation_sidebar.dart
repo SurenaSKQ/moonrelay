@@ -419,19 +419,13 @@ class _SidebarFooter extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 // Row widgets
-// -----------------------------------------------------------------------------
 
 
-// ===========================================================================
 // Drag-and-drop helpers: ported unchanged from the navigation rail
-// ===========================================================================
 
-// ===========================================================================
 // Context menu: long-press / right-click opens the menu; the row itself
 // owns the plain tap (see [_SpaceRow]).
-// ===========================================================================
 
 /// One entry in the navigation pane's destination menu.
 @immutable

@@ -27,9 +27,7 @@ import 'package:provider/provider.dart';
 import '../helpers/mocks.dart';
 import '../helpers/widget_test_utils.dart';
 
-// ---------------------------------------------------------------------------
 // Mock extensions for the SDK types RoomPreviewScreen depends on
-// ---------------------------------------------------------------------------
 
 class MockGoRouter extends Mock implements GoRouter {}
 
@@ -40,9 +38,7 @@ class MockGetRoomSummaryResponse extends Mock
 
 class MockGetRoomEventsResponse extends Mock implements GetRoomEventsResponse {}
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 Widget wrapWithProviders(
     {required Widget child, Client? client, GoRouter? router}) {

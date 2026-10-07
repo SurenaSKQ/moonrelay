@@ -66,16 +66,12 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
   // Permission helpers
-  // ---------------------------------------------------------------------------
 
   bool _canChange(String eventType) =>
       widget.space.canChangeStateEvent(eventType);
 
-  // ---------------------------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -283,9 +279,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
       ],
     );
   }
-  // ---------------------------------------------------------------------------
   // Helpers
-  // ---------------------------------------------------------------------------
 
   bool _isSpaceEncrypted(Room room) {
     try {
@@ -301,9 +295,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     return formatIsoDay(created);
   }
 
-  // ---------------------------------------------------------------------------
   // Space editing
-  // ---------------------------------------------------------------------------
 
   Future<void> _editSpaceName() async {
     final space = widget.space;
@@ -449,9 +441,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Child room management
-  // ---------------------------------------------------------------------------
 
   Future<void> _addChild(BuildContext context, String roomId) async {
     final l10n = AppLocalizations.of(context)!;
@@ -515,9 +505,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Space deletion
-  // ---------------------------------------------------------------------------
 
   /// Whether the current user is admin of the space and all its child rooms.
   bool _canDeleteSpace() {
@@ -679,9 +667,7 @@ class _SpaceSettingsPageState extends State<SpaceSettingsPage> {
   }
 }
 
-// =============================================================================
 // Internal widgets
-// =============================================================================
 
 
 /// A small chip used for room metadata badges.

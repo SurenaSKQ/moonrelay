@@ -16,8 +16,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Fails when forbidden typography sneaks back into the tree: em dashes,
-# en dashes, non-breaking hyphens, and UTF-8 BOMs. The dash lookalikes
-# break search and copy in ways that are invisible to review.
+# en dashes, non-breaking hyphens, UTF-8 BOMs, and comment banner rules.
+# The dash lookalikes break search and copy in ways that are invisible to
+# review.
 #
 # Usage: ./tools/check_typography.sh
 
@@ -62,5 +63,9 @@ if [ -n "$box_hits" ]; then
 else
   echo "OK: box drawing (U+2500-257F)"
 fi
+
+# Section banner rules: a comment line made only of a repeated rule character.
+# They carry no information and go stale silently when the section changes.
+check "banner rule" '^\s*(//|\*)\s*[-=~_*\.]{6,}\s*$' "${DART_DIRS[@]}" "${DOCS[@]}"
 
 exit "$fail"

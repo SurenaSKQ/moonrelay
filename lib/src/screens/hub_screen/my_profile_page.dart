@@ -35,9 +35,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:provider/provider.dart';
 
-// -----------------------------------------------------------------------------
 // _IdentityHeader
-// -----------------------------------------------------------------------------
 
 /// The avatar + name + user id at the top of the profile page.
 ///
@@ -180,9 +178,7 @@ class _IdentityHeader extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 // InfoPresenceRow
-// -----------------------------------------------------------------------------
 
 /// Three presence choice chips in a compact row, each showing its label.
 /// The selected presence is shown with a filled chip; the others are outlined.
@@ -223,9 +219,7 @@ class InfoPresenceRow extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
 // My Profile Page
-// -----------------------------------------------------------------------------
 
 class HubMyProfilePage extends StatefulWidget {
   const HubMyProfilePage({super.key, required this.client});

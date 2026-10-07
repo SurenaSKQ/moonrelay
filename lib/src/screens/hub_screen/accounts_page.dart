@@ -28,9 +28,7 @@ import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/avatar_from_uri.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 
-// -----------------------------------------------------------------------------
 // Accounts Page
-// -----------------------------------------------------------------------------
 
 /// The signed-in account, signing out, and adding another.
 ///

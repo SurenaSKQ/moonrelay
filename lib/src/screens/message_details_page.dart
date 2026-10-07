@@ -131,9 +131,7 @@ class MessageDetailsPage extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Reusable sub-widgets
-// ---------------------------------------------------------------------------
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.cs});

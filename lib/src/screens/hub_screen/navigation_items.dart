@@ -19,9 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:moonrelay/src/localization/app_localizations.dart';
 
-// -----------------------------------------------------------------------------
 // Route keys
-// -----------------------------------------------------------------------------
 
 /// The hub's stable route keys.
 ///
@@ -124,9 +122,7 @@ class HubRouteKeys {
       key != null && settingsSubItems.contains(key);
 }
 
-// -----------------------------------------------------------------------------
 // Data models for hub navigation items
-// -----------------------------------------------------------------------------
 
 /// A single selectable entry in the hub's category sidebar.
 class HubNavigationItem {
@@ -163,9 +159,7 @@ class HubCategory {
   });
 }
 
-// -----------------------------------------------------------------------------
 // The settings sub-item list, built once
-// -----------------------------------------------------------------------------
 
 /// The label for each settings sub-item, or null if [key] names no sub-item.
 ///

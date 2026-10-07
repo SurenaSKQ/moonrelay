@@ -103,9 +103,7 @@ void main() {
     );
   });
 
-  // -----------------------------------------------------------------
   // Tests
-  // -----------------------------------------------------------------
 
   group('Logout flow', () {
     testWidgets('logout from dashboard returns to welcome screen',

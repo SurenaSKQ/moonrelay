@@ -18,9 +18,7 @@ import 'package:flutter/material.dart';
 
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 
-// -----------------------------------------------------------------------------
 // Settings section helper
-// -----------------------------------------------------------------------------
 
 /// A reusable section for grouping related settings controls.
 ///

@@ -25,9 +25,7 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 import 'package:moonrelay/src/theme/moonrelay_theme_extension.dart';
 import 'package:moonrelay/src/widgets/menu_row.dart';
 
-// -----------------------------------------------------------------------------
 //  Enum
-// -----------------------------------------------------------------------------
 
 /// Stable identifier for every action exposed by [MessageContextMenu].
 ///
@@ -56,9 +54,7 @@ enum MessageContextAction {
   openProfile,
 }
 
-// -----------------------------------------------------------------------------
 //  Menu builder & dispatcher
-// -----------------------------------------------------------------------------
 
 /// The message context menu: right-click or long-press on a message.
 ///

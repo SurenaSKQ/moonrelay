@@ -20,9 +20,7 @@ import 'package:moonrelay/src/screens/hub_screen/navigation_items.dart';
 import 'package:moonrelay/src/screens/hub_screen/page_body.dart';
 import 'package:moonrelay/src/widgets/info_widgets.dart';
 
-// -----------------------------------------------------------------------------
 // App Settings overview (when the category itself is selected)
-// -----------------------------------------------------------------------------
 
 /// The list of settings sections, for when the list is the only way in.
 ///

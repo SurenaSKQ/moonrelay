@@ -293,9 +293,7 @@ class _SpaceHomePageState extends State<SpaceHomePage> {
 
 /// A tappable action row used in the quick-actions section.
 
-// =============================================================================
 // Internal widgets
-// =============================================================================
 
 /// One child of a space, resolved as far as the local client allows.
 ///

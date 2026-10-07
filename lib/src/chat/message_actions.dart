@@ -227,9 +227,7 @@ class MessageActions extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Small icon button used inside the actions row
-// ---------------------------------------------------------------------------
 
 /// A larger icon button used inside the hover toolbar.
 ///
@@ -273,9 +271,7 @@ class _ActionIcon extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Moderation popup menu
-// ---------------------------------------------------------------------------
 
 /// A popup menu button offering moderation actions for one message's sender.
 ///

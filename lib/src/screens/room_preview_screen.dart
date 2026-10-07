@@ -105,9 +105,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     _loadEvents();
   }
 
-  // ---------------------------------------------------------------------------
   // Data loading
-  // ---------------------------------------------------------------------------
 
   /// Fetches the room summary (name, topic, avatar, etc.).
   Future<void> _loadSummary() async {
@@ -170,9 +168,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Actions
-  // ---------------------------------------------------------------------------
 
   /// Joins the room and navigates to it.
   Future<void> _joinRoom() async {
@@ -222,9 +218,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -623,9 +617,7 @@ class _RoomPreviewScreenState extends State<RoomPreviewScreen> {
   }
 }
 
-// =============================================================================
 // Internal widgets (duplicated here to avoid cross-file dependency)
-// =============================================================================
 
 /// A small chip used for metadata badges.
 class _InfoChip extends StatelessWidget {

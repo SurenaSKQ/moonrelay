@@ -24,9 +24,7 @@ import 'package:moonrelay/src/screens/hub_screen/settings/settings_controls.dart
 import 'package:moonrelay/src/screens/hub_screen/settings/settings_section.dart';
 import 'package:moonrelay/src/settings/settings_controller.dart';
 
-// -----------------------------------------------------------------------------
 // Privacy Settings
-// -----------------------------------------------------------------------------
 
 /// Links the app follows, presence it reports, and what it keeps.
 ///

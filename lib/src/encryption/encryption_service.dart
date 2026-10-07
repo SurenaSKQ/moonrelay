@@ -24,9 +24,7 @@ import 'package:matrix/matrix.dart';
 import 'package:moonrelay/src/helpers/async_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ---------------------------------------------------------------------------
 // Re-export SDK types so UI code can import from a single place.
-// ---------------------------------------------------------------------------
 
 export 'package:matrix/encryption/utils/key_verification.dart'
     show KeyVerification, KeyVerificationState, KeyVerificationMethod;
@@ -82,9 +80,7 @@ class EncryptionService extends ChangeNotifier {
   static const Duration _kEncryptionWaitInterval =
       Duration(milliseconds: 100);
 
-  // -----------------------------------------------------------------------
   // Memoized verification lookups
-  // -----------------------------------------------------------------------
 
   /// Cache of `isUserVerifiedById` results, keyed by userId. Populated
   /// on first lookup and invalidated whenever the device-keys cache is
@@ -97,16 +93,12 @@ class EncryptionService extends ChangeNotifier {
   /// Cache of `isDeviceVerifiedById` results, keyed by `userId:deviceId`.
   final Map<String, bool> _deviceVerifiedCache = {};
 
-  // -----------------------------------------------------------------------
   // Convenience accessors
-  // -----------------------------------------------------------------------
 
   Encryption? get _enc => _client.encryption;
   bool get isSupported => _client.encryptionEnabled;
 
-  // -----------------------------------------------------------------------
   // Observable state
-  // -----------------------------------------------------------------------
 
   bool _crossSigningBootstrapped = false;
   bool get crossSigningBootstrapped => _crossSigningBootstrapped;
@@ -246,9 +238,7 @@ class EncryptionService extends ChangeNotifier {
       key == 'notification_last_event_ids' ||
       key == 'notification_group_counts';
 
-  // -----------------------------------------------------------------------
   // Lifecycle
-  // -----------------------------------------------------------------------
 
   /// Must be called once after the [Client] has logged in and the
   /// SDK has set up its encryption subsystem.
@@ -365,9 +355,7 @@ class EncryptionService extends ChangeNotifier {
     super.dispose();
   }
 
-  // -----------------------------------------------------------------------
   // Cross-signing
-  // -----------------------------------------------------------------------
 
   /// Whether cross-signing is fully set up (via SSSS).
   Future<void> _refreshCrossSigningStatus() async {
@@ -573,9 +561,7 @@ class EncryptionService extends ChangeNotifier {
     _deviceVerifiedCache.clear();
   }
 
-  // -----------------------------------------------------------------------
   // Key backup
-  // -----------------------------------------------------------------------
 
   Future<void> _refreshBackupState() async {
     try {
@@ -639,9 +625,7 @@ class EncryptionService extends ChangeNotifier {
   /// Whether the online key backup is active and keys are being uploaded.
   bool get isKeyBackupEnabled => _keyBackupExists;
 
-  // -----------------------------------------------------------------------
   // Device management
-  // -----------------------------------------------------------------------
 
   /// Minimum time between own-device list refreshes issued from the
   /// sync path.  The device list only changes when this account gains
@@ -718,9 +702,7 @@ class EncryptionService extends ChangeNotifier {
     }
   }
 
-  // -----------------------------------------------------------------------
   // Verification
-  // -----------------------------------------------------------------------
 
   /// Request a new user-level verification via to-device messages.
   Future<KeyVerification> requestVerification(String userId) async {
@@ -814,9 +796,7 @@ class EncryptionService extends ChangeNotifier {
     }
   }
 
-  // -----------------------------------------------------------------------
   // Convenience
-  // -----------------------------------------------------------------------
 
   ({int own, int other})? _cachedUnverified;
 
@@ -863,9 +843,7 @@ class EncryptionService extends ChangeNotifier {
     return _cachedUnverified!;
   }
 
-  // -----------------------------------------------------------------------
   // Post-login setup state
-  // -----------------------------------------------------------------------
 
   /// Determines what, if anything, the user should do after logging in.
   ///
@@ -901,9 +879,7 @@ class EncryptionService extends ChangeNotifier {
     return EncryptionSetupRequirement.none;
   }
 
-  // -----------------------------------------------------------------------
   // Logout
-  // -----------------------------------------------------------------------
 
   Future<void> onLogout() async {
     _log.i('cleaning up encryption state');

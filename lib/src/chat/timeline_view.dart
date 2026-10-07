@@ -258,9 +258,7 @@ class TimelineViewState extends State<TimelineView> {
   /// the whole viewport is needed as the coordinate space.
   final GlobalKey _listKey = GlobalKey(debugLabel: 'chat_timeline_list');
 
-  // ---------------------------------------------------------------------------
   // Cached computed values
-  // ---------------------------------------------------------------------------
 
   /// Cached result of [_buildItemList], invalidated when the timeline version
   /// or any display-affecting prop changes.  This prevents O(n) rebuilds of
@@ -427,9 +425,7 @@ void dispose() {
       super.dispose();
     }
 
-  // ---------------------------------------------------------------------------
   // Index helpers
-  // ---------------------------------------------------------------------------
 
   /// The timeline for items from [groupIndex], falling back to the live tail.
   ///
@@ -455,9 +451,7 @@ void dispose() {
     _eventKeys.removeWhere((id, _) => !liveIds.contains(id));
   }
 
-  // ---------------------------------------------------------------------------
   // Read position
-  // ---------------------------------------------------------------------------
 
   /// The id of the oldest event that is still at least partly visible in
   /// the viewport, or null when nothing measurable is on screen.
@@ -572,9 +566,7 @@ void dispose() {
     return best;
   }
 
-  // ---------------------------------------------------------------------------
   // Build the flat item list (delegates ordering/logic to the model)
-  // ---------------------------------------------------------------------------
 
   /// Produces the list of widgets in newest-first order so that the
   /// `reverse: true` ListView places the newest item at the bottom.
@@ -710,9 +702,7 @@ void dispose() {
     });
   }
 
-  // ---------------------------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {

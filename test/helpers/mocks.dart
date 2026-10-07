@@ -21,9 +21,7 @@ import 'package:moonrelay/src/encryption/encryption_service.dart';
 import 'package:moonrelay/src/helpers/account_manager.dart';
 import 'package:moonrelay/src/services/deep_link_service.dart';
 
-// ---------------------------------------------------------------------------
 // Mocktail-based mocks for Matrix SDK types and app dependencies
-// ---------------------------------------------------------------------------
 
 class MockClient extends Mock implements Client {
   MockClient() {
