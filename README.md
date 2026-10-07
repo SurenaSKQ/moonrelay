@@ -101,6 +101,20 @@ You need:
   `3.44.6`; see [docs/RELEASING.md](docs/RELEASING.md) for the current state of
   that pin.
 - A C++ toolchain: MSVC Build Tools on Windows, GCC or Clang on Linux.
+- On Linux, the GTK 3 **development** headers. `flutter build linux` runs
+  `pkg_check_modules` for `gtk+-3.0`, `glib-2.0` and `gio-2.0`, and those `.pc`
+  files live in the `-dev` packages, not the runtime ones:
+
+  ```bash
+  # Debian, Ubuntu
+  sudo apt install libgtk-3-dev libglib2.0-dev pkg-config cmake ninja-build clang
+  # Fedora
+  sudo dnf install gtk3-devel glib2-devel pkgconf-pkg-config cmake ninja-build clang
+  ```
+
+  Installing only `libgtk-3-0` gets you the shared library and leaves
+  `pkg-config` unable to answer, so CMake stops with
+  `The following required packages were not found: - gtk+-3.0`.
 - A Rust toolchain. Vodozemac builds from Rust source, and a missing Rust
   install fails as a compile error in a C++ file with no mention of Rust. Install
   it before you spend an afternoon on that.
