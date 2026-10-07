@@ -25,13 +25,28 @@ err()  { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; }
 ok()   { printf '\033[32mOK:\033[0m %s\n' "$*"; }
 
 # -- Helpers --------------------------------------------------------------
+# The base version, without any build suffix. Tags, .deb and .rpm all forbid
+# `+`, so this is what the tag and the package versions are derived from.
 read_version() {
   awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | tr -d '"' | cut -d'+' -f1
 }
 
+# The build number, which pubspec keeps because Android reads it as
+# versionCode. Defaults to 0 when pubspec has no `+` suffix. The `\r` is
+# stripped so a CRLF checkout does not silently reset the build number.
+read_build() {
+  local b
+  b="$(awk -F': *' '/^version:/{print $2; exit}' pubspec.yaml | tr -d '"\r' | sed -n 's/.*+\([0-9][0-9]*\)$/\1/p')"
+  echo "${b:-0}"
+}
+
+# Writes `version: <v>+<current build>`. Dropping the build number here would
+# reset versionCode to 0 on every bump, so the next Play upload would be
+# rejected as a downgrade.
 write_version() {
-  local v="$1"
-  python3 - "$v" <<'PY' 2>/dev/null || perl -i -pe "s|^version: .*|version: $v|" pubspec.yaml
+  local v="$1" b
+  b="$(read_build)"
+  python3 - "$v+$b" <<'PY' 2>/dev/null || perl -i -pe "s|^version: .*|version: $v+$b|" pubspec.yaml
 import re, sys
 v = sys.argv[1]
 src = open('pubspec.yaml').read()
