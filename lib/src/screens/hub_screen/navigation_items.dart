@@ -27,10 +27,10 @@ import 'package:moonrelay/src/localization/app_localizations.dart';
 ///
 /// These are URL path segments, so they are declared here rather than being
 /// spelled inline at each use site. Before the hub became a route the keys
-/// were only ever compared inside one file, which is why
-/// `palette_commands.dart` came to carry its own copy of nine `/hub/...`
-/// path strings and one of them (`/hub/settings/network`) named a sub-item
-/// that has never existed, rendering an empty page. Now that the hub is
+/// were only ever compared inside one file, which is why the command palette
+/// came to carry its own copy of nine `/hub/...` path strings and one of them
+/// (`/hub/settings/network`) named a sub-item that has never existed, which
+/// rendered an empty page. Now that the hub is
 /// reachable by URL, a key that is only known in two places is a bug
 /// waiting to happen, and the router needs the same list the screen uses in
 /// order to reject a bad deep link rather than render an empty pane.

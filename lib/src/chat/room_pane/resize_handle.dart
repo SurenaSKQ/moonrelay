@@ -24,9 +24,6 @@ import 'package:flutter/material.dart';
 /// the width means and can clamp it. The pane's owner keeps the dragged width
 /// as ephemeral state and only writes it to preferences when the drag ends, which
 /// is why this does not know about `SettingsController`.
-///
-/// Was in `pane_hosts.dart` next to `SidebarPane` and `RightPaneHost`, both of
-/// which described a pane that belonged to the dashboard rather than to a room.
 class ResizeHandle extends StatelessWidget {
   const ResizeHandle({super.key, required this.onDrag, this.onDragEnd});
 

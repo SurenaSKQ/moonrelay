@@ -77,14 +77,8 @@ class SpaceRow extends StatelessWidget {
   }
 }
 
-/// `GroupRow` used to live here and was deleted with the sidebar's space list.
-///
-/// The rail's group header is [RailGroupHeader] in `rail_group_header.dart`,
-/// and it is not a variant of this row: a 72px column cannot hold a title, a
-/// count badge, and a chevron on one line, so the header reorders them around
-/// a folder glyph and the count becomes the only text in the rail. Keeping a
-/// full-width sidebar row around "in case" is how the previous pass ended up
-/// describing a group box as still being drawn when nothing drew it.
+/// Shared chrome for a sidebar row: selection tint, corner radius, padding and
+/// the tap target, so rows in the rail line up with one another.
 class NavRowShell extends StatelessWidget {
   const NavRowShell({
     super.key,

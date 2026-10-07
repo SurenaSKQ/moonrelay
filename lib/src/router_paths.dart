@@ -125,9 +125,9 @@ class MoonRoutePaths {
 /// The hub path for a section, optionally one of its sub-items.
 ///
 /// The one place a hub URL is built. Before the hub was a route this was
-/// duplicated as string literals in `palette_commands.dart` (nine of them,
-/// one of which named a sub-item that did not exist), so the keys now live
-/// in `HubRouteKeys` and this is the only place that joins them.
+/// duplicated as string literals in the command palette (nine of them, one
+/// of which named a sub-item that did not exist), so the keys now live in
+/// `HubRouteKeys` and this is the only place that joins them.
 ///
 /// A null [category] is the index page.
 String hubPath({String? category, String? sub}) {

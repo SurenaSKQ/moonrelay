@@ -16,9 +16,9 @@
 
 // Where the palette's candidates come from.
 //
-// The settings pages used to be a hand-written list of eight paths in
-// `palette_commands.dart`. There are thirteen settings sub-items. So five pages
-// were unreachable from the palette, and the list also named a ninth
+// The settings pages used to be a hand-written list of eight paths in this
+// file. There are thirteen settings sub-items. So five pages were
+// unreachable from the palette, and the list also named a ninth
 // (`/hub/settings/network`) that has never existed, which rendered an empty
 // page with a confident title.
 //
