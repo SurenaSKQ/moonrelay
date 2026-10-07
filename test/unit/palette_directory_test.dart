@@ -197,10 +197,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('gen', l10n);
@@ -225,10 +221,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       // "gen" then "general" is one question asked twice. Firing the directory
@@ -250,10 +242,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('gen', l10n);
@@ -286,10 +274,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('old', l10n);
@@ -323,10 +307,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('gen', l10n);
@@ -357,10 +337,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('general', l10n);
@@ -393,10 +369,6 @@ void main() {
       when(() => client.userID).thenReturn('@me:matrix.org');
 
       final PaletteController controller = _controller(client);
-      // Disposed inside the body rather than in addTearDown, because the
-      // directory timer is still pending at this point on purpose and the
-      // binding's invariant check runs before tearDowns. Leaving 450ms of
-      // pending timer would fail every one of these tests for the wrong reason.
       addTearDown(controller.dispose);
 
       controller.onInputChanged('general', l10n);
@@ -435,6 +407,10 @@ void _stub(
 QueryPublicRoomsResponse _response(List<PublishedRoomsChunk> chunks) =>
     QueryPublicRoomsResponse(chunk: chunks);
 
+// Callers dispose inside the test body rather than in an addTearDown, because
+// the directory timer is still pending at that point on purpose and the
+// binding's invariant check runs before tearDowns. A pending 450ms timer fails
+// every one of these tests for the wrong reason.
 PaletteController _controller(MockClient client) => PaletteController(
       client: client,
       log: MockLogger(),
