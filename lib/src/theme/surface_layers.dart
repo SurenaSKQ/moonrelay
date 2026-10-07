@@ -20,28 +20,16 @@ import 'package:flutter/material.dart';
 
 /// The app's layered surface palette.
 ///
-/// The previous look derived every surface from `ColorScheme.fromSeed`, which
-/// produces a *tonal* palette: surfaces tinted toward the seed and separated
-/// by a small luminance step. That works for a page of cards on one plane. It
-/// does not work for a chat client, where the whole point of the layout is
-/// that the rail, the room list, and the conversation are three different
-/// depths of the same wall, and the user's eye has to find the conversation
-/// without being told.
+/// `ColorScheme.fromSeed` produces a *tonal* palette: surfaces tinted toward
+/// the seed and separated by a small luminance step. That works for a page of
+/// cards on one plane. A chat client needs the rail, the room list and the
+/// conversation to be three depths of one surface, so the ramp is stated here
+/// rather than derived.
 ///
-/// So the surface ramp is stated explicitly here rather than derived. Six
-/// steps, dark and light, each one a deliberate relationship to the next, and
-/// both ramps are the same object seen under two suns.
+/// ## Light
 ///
-/// ## Light: the near side
-///
-/// The Moon's sunlit face is not white. It is a chalky, faintly warm grey:
-/// the highlands are a pale buff, and the maria are basalt that has taken on a
-/// brown-grey cast from a billion years of micrometeorite iron. So the light
-/// ramp runs moon white at the floor down to mare dust at the composer, and
-/// every step is warm rather than the clinical blue-white that "moon" invites
-/// people to reach for. Blue-white would also have collided with the accent
-/// picker, whose cool accents are the one place the app is allowed to be
-/// chromatic.
+/// Warm throughout. Blue-white would collide with the accent picker, whose
+/// cool accents are the only chromatic thing in the app.
 ///
 /// | Role | Step |
 /// |---|---|
@@ -52,19 +40,14 @@ import 'package:flutter/material.dart';
 /// | main content | `#E2DED6` |
 /// | composer, raised fields | `#DAD6CD` |
 ///
-/// The steps are close on purpose. A large jump reads as a different material,
-/// which is what makes a desktop app look like a stack of unrelated documents.
-/// These sit between 1.05:1 and 1.08:1 apart, which reads as one surface at
-/// different depths, which is what it is.
+/// The steps sit between 1.05:1 and 1.08:1 apart. A larger jump reads as a
+/// different material, which is what makes a desktop app look like a stack of
+/// unrelated documents.
 ///
-/// ## Dark: the far side, and what lights it
+/// ## Dark
 ///
-/// The unlit Moon is not black either, and this is the part worth knowing: on
-/// the far side the only light is **earthshine**, sunlight bounced off Earth
-/// as seen from the Moon. It is blue-white, and it is why the far side has
-/// always been described as glowing rather than as dark. That is the dark
-/// ramp. A blue-black rather than a neutral black is not a stylistic reach for
-/// "night"; it is what the only light source in that scene is tinted by.
+/// Blue-black, because the only light on the far side of the moon is
+/// **earthshine**, sunlight bounced off Earth, and it is blue-white.
 ///
 /// | Role | Step |
 /// |---|---|
@@ -75,32 +58,25 @@ import 'package:flutter/material.dart';
 /// | main content | `#242833` |
 /// | composer, raised fields | `#2C313D` |
 ///
-/// The rail sits *below* the room list and the room list *below* the
-/// conversation, so the reading order runs bright-to-dim left to right and
-/// the eye lands on the message column first.
+/// The rail sits below the room list and the room list below the
+/// conversation, so the reading order runs bright to dim left to right.
 ///
-/// Note that `hover` and `selected` are *not* steps in the same sequence: a
-/// hovered row is one step off its own pane, not a fixed value, so on the
-/// conversation plane the hover step sits between the plane and its own
-/// composer. That is why they are states and not ramp positions, and why they
-/// live here rather than in the `ColorScheme`.
-///
-/// The light ramp is the dark ramp's answer role for role, so a widget that
-/// reads a ramp step works in both brightnesses without a branch.
+/// Each ramp answers the other role for role, so a widget that reads a ramp
+/// step works in both brightnesses without a branch.
 ///
 /// ## What has no Material role
 ///
-/// Hover and selection are states, not surfaces, and `ColorScheme` has no
-/// field for either. Material's own `hoverColor` and `highlightColor` are
-/// alpha washes of `primary`, which on this palette read as a purple tint
-/// rather than as the row getting closer to the light. So they are stated
-/// here as opaque steps from the same ramp, which is what actually happens
-/// visually when a row lights up.
+/// `hover` and `selected` are states, not ramp positions. A hovered row is
+/// one step off its own pane rather than a fixed value, so on the
+/// conversation plane the hover step falls between the plane and its own
+/// composer. `ColorScheme` has no field for either, and Material's own
+/// `hoverColor` and `highlightColor` are alpha washes of `primary`, which on
+/// this palette read as a purple tint rather than as a row moving closer to
+/// the light. Both are stated here as opaque steps from the same ramp.
 ///
-/// [glow] has no Material role either and is not a surface at all: it is the
-/// earthshine halo, and it is the only value in the theme that is a light
-/// source rather than a material. See its own documentation for why it is
-/// transparent in light mode.
+/// [glow] is not a surface either. It is the earthshine halo, and the only
+/// value in the theme that is a light source rather than a material. See its
+/// own documentation for why it is transparent in light mode.
 class MoonrelaySurfaceLayers {
   const MoonrelaySurfaceLayers({
     required this.hover,
